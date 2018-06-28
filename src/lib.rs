@@ -482,8 +482,8 @@ impl<E: Endian, T: Bits> AsRef<[T]> for BitVec<E, T> {
 ///
 /// ```rust
 /// use bitvec::*;
-/// let lhs = bitvec![BigEndian, u8, 0, 1, 0, 1];
-/// let rhs = bitvec![BigEndian, u8, 0, 0, 1, 1];
+/// let lhs = bitvec![BigEndian, u8; 0, 1, 0, 1];
+/// let rhs = bitvec![BigEndian, u8; 0, 0, 1, 1];
 /// let and = lhs & rhs;
 /// assert_eq!("0001", &format!("{}", and));
 /// ```
@@ -504,8 +504,8 @@ impl<E: Endian, T: Bits, I: IntoIterator<Item=bool>> BitAnd<I> for BitVec<E, T> 
 ///
 /// ```rust
 /// use bitvec::*;
-/// let mut src  = bitvec![BigEndian, u8, 0, 1, 0, 1];
-///         src &= bitvec![BigEndian, u8, 0, 0, 1, 1];
+/// let mut src  = bitvec![BigEndian, u8; 0, 1, 0, 1];
+///         src &= bitvec![BigEndian, u8; 0, 0, 1, 1];
 /// assert_eq!("0001", &format!("{}", src));
 /// ```
 impl<E: Endian, T: Bits, I: IntoIterator<Item=bool>> BitAndAssign<I> for BitVec<E, T> {
@@ -530,8 +530,8 @@ impl<E: Endian, T: Bits, I: IntoIterator<Item=bool>> BitAndAssign<I> for BitVec<
 ///
 /// ```rust
 /// use bitvec::*;
-/// let lhs = bitvec![BigEndian, u8, 0, 1, 0, 1];
-/// let rhs = bitvec![BigEndian, u8, 0, 0, 1, 1];
+/// let lhs = bitvec![BigEndian, u8; 0, 1, 0, 1];
+/// let rhs = bitvec![BigEndian, u8; 0, 0, 1, 1];
 /// let or  = lhs | rhs;
 /// assert_eq!("0111", &format!("{}", or));
 /// ```
@@ -552,8 +552,8 @@ impl<E: Endian, T: Bits, I: IntoIterator<Item=bool>> BitOr<I> for BitVec<E, T> {
 ///
 /// ```rust
 /// use bitvec::*;
-/// let mut src  = bitvec![BigEndian, u8, 0, 1, 0, 1];
-///         src |= bitvec![BigEndian, u8, 0, 0, 1, 1];
+/// let mut src  = bitvec![BigEndian, u8; 0, 1, 0, 1];
+///         src |= bitvec![BigEndian, u8; 0, 0, 1, 1];
 /// assert_eq!("0111", &format!("{}", src));
 /// ```
 impl<E: Endian, T: Bits, I: IntoIterator<Item=bool>> BitOrAssign<I> for BitVec<E, T> {
@@ -578,8 +578,8 @@ impl<E: Endian, T: Bits, I: IntoIterator<Item=bool>> BitOrAssign<I> for BitVec<E
 ///
 /// ```rust
 /// use bitvec::*;
-/// let lhs = bitvec![BigEndian, u8, 0, 1, 0, 1];
-/// let rhs = bitvec![BigEndian, u8, 0, 0, 1, 1];
+/// let lhs = bitvec![BigEndian, u8; 0, 1, 0, 1];
+/// let rhs = bitvec![BigEndian, u8; 0, 0, 1, 1];
 /// let xor = lhs ^ rhs;
 /// assert_eq!("0110", &format!("{}", xor));
 /// ```
@@ -600,8 +600,8 @@ impl<E: Endian, T: Bits, I: IntoIterator<Item=bool>> BitXor<I> for BitVec<E, T> 
 ///
 /// ```rust
 /// use bitvec::*;
-/// let mut src  = bitvec![BigEndian, u8, 0, 1, 0, 1];
-///         src ^= bitvec![BigEndian, u8, 0, 0, 1, 1];
+/// let mut src  = bitvec![BigEndian, u8; 0, 1, 0, 1];
+///         src ^= bitvec![BigEndian, u8; 0, 0, 1, 1];
 /// assert_eq!("0110", &format!("{}", src));
 /// ```
 impl<E: Endian, T: Bits, I: IntoIterator<Item=bool>> BitXorAssign<I> for BitVec<E, T> {
@@ -641,7 +641,7 @@ impl<E: Endian, T: Bits> Clone for BitVec<E, T> {
 ///
 /// ```rust
 /// use bitvec::*;
-/// let bv = bitvec![LittleEndian, u16, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1];
+/// let bv = bitvec![LittleEndian, u16; 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1];
 /// assert_eq!("BitVec<LittleEndian, u16> [0101000011110101]", &format!("{:?}", bv));
 /// ```
 impl<E: Endian, T: Bits> Debug for BitVec<E, T> {
@@ -690,7 +690,7 @@ impl<E: Endian, T: Bits> Debug for BitVec<E, T> {
 ///
 /// ```rust
 /// use bitvec::*;
-/// let bv = bitvec![BigEndian, u8, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1];
+/// let bv = bitvec![BigEndian, u8; 0, 1, 0, 0, 1, 0, 1, 1, 0, 1];
 /// assert_eq!("01001011 01", &format!("{}", bv));
 impl<E: Endian, T: Bits> Display for BitVec<E, T> {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -914,7 +914,7 @@ impl<E: Endian, T: Bits> FromIterator<bool> for BitVec<E, T> {
 ///
 /// ```rust
 /// use bitvec::*;
-/// let bv = bitvec![BigEndian, u8, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0];
+/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 0, 0, 0, 0, 0, 1, 0];
 /// assert!(!bv[7]); // ---------------------------------^  |  |
 /// assert!( bv[8]); //-------------------------------------^  |
 /// assert!(!bv[9]); // ---------------------------------------^
@@ -953,7 +953,7 @@ impl<E: Endian, T: Bits> Index<usize> for BitVec<E, T> {
 ///
 /// ```rust
 /// use bitvec::*;
-/// let bv = bitvec![BigEndian, u8, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1];
+/// let bv = bitvec![BigEndian, u8; 1, 1, 1, 1, 0, 0, 0, 0, 0, 1];
 /// assert!(bv[(1, 1)]); // -----------------------------------^
 /// ```
 impl<E: Endian, T: Bits> Index<(usize, u8)> for BitVec<E, T> {
@@ -980,7 +980,7 @@ impl<E: Endian, T: Bits> Index<(usize, u8)> for BitVec<E, T> {
 ///
 /// ```rust
 /// use bitvec::*;
-/// let bv = bitvec![BigEndian, u8, 1, 1, 1, 1, 0, 0, 0, 0];
+/// let bv = bitvec![BigEndian, u8; 1, 1, 1, 1, 0, 0, 0, 0];
 /// let mut count = 0;
 /// for bit in bv {
 ///     if bit { count += 1; }
@@ -1059,7 +1059,7 @@ impl<E: Endian, T: Bits> Not for BitVec<E, T> {
 ///
 /// ```rust
 /// use bitvec::*;
-/// let bv = bitvec![BigEndian, u8, 0, 0, 0, 1, 1, 1];
+/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 1, 1, 1];
 /// assert_eq!("000111", &format!("{}", bv));
 /// assert_eq!(0b0001_1100, bv.as_ref()[0]);
 /// assert_eq!(bv.len(), 6);
@@ -1110,7 +1110,7 @@ impl<E: Endian, T: Bits> Shl<usize> for BitVec<E, T> {
 ///
 /// ```rust
 /// use bitvec::*;
-/// let mut bv = bitvec![LittleEndian, u8, 0, 0, 0, 1, 1, 1];
+/// let mut bv = bitvec![LittleEndian, u8; 0, 0, 0, 1, 1, 1];
 /// assert_eq!("000111", &format!("{}", bv));
 /// assert_eq!(0b0011_1000, bv.as_ref()[0]);
 /// assert_eq!(bv.len(), 6);
@@ -1174,7 +1174,7 @@ impl<'a, E: Endian, T: Bits> ShlAssign<usize> for BitVec<E, T> {
 ///
 /// ```rust
 /// use bitvec::*;
-/// let bv = bitvec![BigEndian, u8, 0, 0, 0, 1, 1, 1];
+/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 1, 1, 1];
 /// assert_eq!("000111", &format!("{}", bv));
 /// assert_eq!(0b0001_1100, bv.as_ref()[0]);
 /// assert_eq!(bv.len(), 6);
@@ -1225,7 +1225,7 @@ impl<E: Endian, T: Bits> Shr<usize> for BitVec<E, T> {
 ///
 /// ```rust
 /// use bitvec::*;
-/// let mut bv = bitvec![LittleEndian, u8, 0, 0, 0, 1, 1, 1];
+/// let mut bv = bitvec![LittleEndian, u8; 0, 0, 0, 1, 1, 1];
 /// assert_eq!("000111", &format!("{}", bv));
 /// assert_eq!(0b0011_1000, bv.as_ref()[0]);
 /// assert_eq!(bv.len(), 6);

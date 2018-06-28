@@ -5,16 +5,24 @@ storage of a primitive, and is the constraint for the storage type of a
 `BitVec`.
 !*/
 
+use std::cmp::Eq;
+use std::convert::From;
 use std::default::Default;
 use std::fmt::{
 	Binary,
 	Debug,
+	Display,
 	LowerHex,
 	UpperHex,
 };
 use std::ops::{
 	Not,
+	BitAnd,
+	BitAndAssign,
+	BitOrAssign,
+	Shl,
 	ShlAssign,
+	Shr,
 	ShrAssign,
 };
 
@@ -26,15 +34,32 @@ use std::ops::{
 /// can only ever be implemented locally, and no downstream crates are able to
 /// implement it on new types.
 pub trait Bits:
+	//  Forbid external implementation
 	Sealed
-	+ Copy
 	+ Binary
+	+ BitAnd<Self, Output=Self>
+	+ BitAndAssign<Self>
+	+ BitOrAssign<Self>
+	//  Permit indexing into a generic array
+	+ Copy
 	+ Debug
+	//  `BitVec` cannot push new elements without this. (Well, it CAN, but
+	//  `mem::uninitialized` is Considered Harmful.)
 	+ Default
+	+ Display
+	//  Permit testing a value against 1 in `get()`.
+	+ Eq
+	//  Rust treats numeric literals in code as vaguely typed and does not make
+	//  them concrete until long after trait expansion, so this enables building
+	//  a concrete Self value from a numeric literal.
+	+ From<u8>
 	+ LowerHex
 	+ Not<Output=Self>
+	+ Shl<u8, Output=Self>
 	+ ShlAssign<u8>
+	+ Shr<u8, Output=Self>
 	+ ShrAssign<u8>
+	//  Allow direct access to a concrete implementor type.
 	+ Sized
 	+ UpperHex
 {
@@ -56,10 +81,20 @@ pub trait Bits:
 	const MAX_ELT: usize = ::std::usize::MAX >> Self::BITS;
 
 	/// Set a specific bit in an element to a given value.
-	fn set(&mut self, place: u8, value: bool);
+	fn set(&mut self, place: u8, value: bool) {
+		assert!(place <= Self::MASK, "Index out of range");
+		//  Blank the selected bit
+		*self &= !(Self::from(1u8) << place);
+		//  Set the selected bit
+		*self |= Self::from(value as u8) << place;
+	}
 
 	/// Get a specific bit in an element.
-	fn get(&self, place: u8) -> bool;
+	fn get(&self, place: u8) -> bool {
+		assert!(place <= Self::MASK, "Index out of range");
+		//  Shift down so the targeted bit is LSb, then blank all other bits.
+		(*self >> place) & Self::from(1) == Self::from(1)
+	}
 
 	/// Counts how many bits are set.
 	fn ones(&self) -> u32;
@@ -82,23 +117,15 @@ pub trait Bits:
 		(elt << Self::BITS) | bit as usize
 	}
 
+	/// Rust doesn’t (as far as I know) have a way to render a typename at
+	/// runtime, so this constant holds the typename of the primitive for
+	/// printing by Debug.
 	#[doc(hidden)]
 	const TY: &'static str;
 }
 
 impl Bits for u8 {
 	const BITS: u8 = 3;
-
-	fn set(&mut self, place: u8, value: bool) {
-		assert!(place <= Self::MASK, "Index out of range");
-		*self &= !(1 << place);
-		*self |= (value as u8) << place;
-	}
-
-	fn get(&self, place: u8) -> bool {
-		assert!(place <= Self::MASK, "Index out of range");
-		(*self >> place) & 1 == 1
-	}
 
 	fn ones(&self) -> u32 {
 		self.count_ones()
@@ -114,16 +141,6 @@ impl Bits for u8 {
 impl Bits for u16 {
 	const BITS: u8 = 4;
 
-	fn set(&mut self, place: u8, value: bool) {
-		assert!(place <= Self::MASK, "Index out of range");
-		*self |= (value as u16) << place;
-	}
-
-	fn get(&self, place: u8) -> bool {
-		assert!(place <= Self::MASK, "Index out of range");
-		(*self >> place) & 1 == 1
-	}
-
 	fn ones(&self) -> u32 {
 		self.count_ones()
 	}
@@ -137,16 +154,6 @@ impl Bits for u16 {
 
 impl Bits for u32 {
 	const BITS: u8 = 5;
-
-	fn set(&mut self, place: u8, value: bool) {
-		assert!(place <= Self::MASK, "Index out of range");
-		*self |= (value as u32) << place;
-	}
-
-	fn get(&self, place: u8) -> bool {
-		assert!(place <= Self::MASK, "Index out of range");
-		(*self >> place) & 1 == 1
-	}
 
 	fn ones(&self) -> u32 {
 		self.count_ones()
@@ -163,16 +170,6 @@ impl Bits for u32 {
 //  the layout of a u64 is not guaranteed to be continuous between 32-bit halves
 impl Bits for u64 {
 	const BITS: u8 = 6;
-
-	fn set(&mut self, place: u8, value: bool) {
-		assert!(place <= Self::MASK, "Index out of range");
-		*self |= (value as u64) << place;
-	}
-
-	fn get(&self, place: u8) -> bool {
-		assert!(place <= Self::MASK, "Index out of range");
-		(*self >> place) & 1 == 1
-	}
 
 	fn ones(&self) -> u32 {
 		self.count_ones()
@@ -194,6 +191,7 @@ impl Bits for u64 {
 /// use it, but so long as it is not exported by the crate root and this module
 /// is private, this trait effectively forbids downstream implementation of
 /// `Bits`.
+#[doc(hidden)]
 pub trait Sealed {}
 
 impl Sealed for u8 {}

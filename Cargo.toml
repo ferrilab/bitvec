@@ -1,13 +1,12 @@
 [package]
 name = "bitvec"
-version = "0.1.0"
+version = "0.2.0"
 authors = [
 	"myrrlyn <myrrlyn@outlook.com>",
 ]
-description = "A crate for manipulating memory one bit at a time"
+description = "A crate for manipulating memory, bit by bit"
 documentation = "https://docs.rs/bitvec"
 homepage = "https://myrrlyn.net/bitvec"
-license = "MIT"
 license-file = "LICENSE.txt"
 repository = "https://github.com/myrrlyn/bitvec"
 
