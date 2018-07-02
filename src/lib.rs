@@ -1343,6 +1343,35 @@ impl<E: Endian, T: Bits> Iterator for IntoIter<E, T> {
 		let rem = ExactSizeIterator::len(self);
 		(rem, Some(rem))
 	}
+
+	/// ```
+	/// use bitvec::*;
+	/// let a = bitvec![BigEndian, u8, 0, 1, 0, 1, 0];
+	/// assert_eq!(a.iter().count(), 5)
+	/// ```
+	fn count(self) -> usize {
+		ExactSizeIterator::len(&self)
+	}
+
+
+	/// ```
+	/// use bitvec::*;
+	/// let a = bitvec![BigEndian, u8, 0, 0, 1, 0];
+	/// assert!(a.iter().nth(2).unwrap())
+	/// ```
+	fn nth(&mut self, n: usize) -> Option<bool> {
+		self.head += n;
+		self.next()
+	}
+
+	/// ```
+	/// use bitvec::*;
+	/// let a = bitvec![BigEndian, u8, 0, 0, 1];
+	/// assert!(a.iter().last().unwrap())
+	/// ```
+	fn last(mut self) -> Option<bool> {
+		self.next_back()
+	}
 }
 
 /// Iterates over a borrowed `BitVector`.
