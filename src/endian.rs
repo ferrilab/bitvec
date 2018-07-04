@@ -138,14 +138,11 @@ pub trait Endian {
 			(far, _) if far < 0 || far > T::MASK as isize => {
 				let elements = far >> T::BITS;
 				let pos = (far & (T::MASK as isize)) as u8;
-				eprintln!("{}, {}", elements, Self::curr::<T>(pos));
 				(elements, Self::curr::<T>(pos))
 			},
 			//  Otherwise, far_bit is the *bit count* in the current element. It
 			//  must still be converted from count to bit index.
 			(far, _) => {
-				eprintln!("DID NOT BREACH");
-				eprintln!("{}, {}", far, Self::curr::<T>(far as u8));
 				(0, Self::curr::<T>(far as u8))
 			},
 		}

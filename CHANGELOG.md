@@ -2,6 +2,53 @@
 
 All notable changes will be documented in this file.
 
+## 0.4.0
+
+### Added
+
+`BitSlice::for_each` provides mutable iteration over a slice. It yields each
+successive `(index: usize, bit: bool)` pair to a closure, and stores the return
+value of that closure at the yielded index.
+
+`BitVec` now implements `Eq` and `Ord` against other `BitVec`s. It is impossible
+at this time to make `BitVec` generic over anything that is `Borrow<BitSlice>`,
+which would allow comparisons over different ownership types. The declaration
+
+```rust
+impl<A, B, C, D, E> PartialEq<C> for BitVec<A, B>
+where A: Endian,
+    B: Bits,
+    C: Borrow<BitSlice<D, E>>,
+    D: Endian,
+    E: Bits,
+{
+    fn eq(&self, rhs: E) { ... }
+}
+```
+
+is impossible to write, so `BitVec == BitSlice` will be rejected.
+
+As with many other traits on `BitVec`, the implementations are just a thin
+wrapper over the corresponding `BitSlice` implementations.
+
+### Changed
+
+Refine the API documentation. Rust guidelines recommend imperative rather than
+descriptive summaries for function documentation, which largely meant stripping
+the trailing -s from the first verb in each function document.
+
+I also moved the example code from the trait-level documentation to the
+function-level documentation, so that it would show up an `type::func` in the
+`rustdoc` output rather than just `type`. This makes it much clearer what is
+being tested.
+
+### Removed
+
+`BitVec` methods `iter` and `raw_len` moved to `BitSlice` in `0.3.0` but were
+not removed in that release.
+
+The remaining debugging `eprintln!` calls have been stripped.
+
 ## 0.3.0
 
 Split `BitVec` off into `BitSlice` wherever possible.
