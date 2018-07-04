@@ -93,6 +93,62 @@ macro_rules! __bitvec_impl {
 	}};
 }
 
+#[doc(hidden)]
+macro_rules! __bitslice_shift {
+	( $( $t:ty ),+ ) => { $(
+#[doc(hidden)]
+impl<E: $crate::Endian, T: $crate::Bits> ShlAssign< $t > for $crate::BitSlice<E, T> {
+	fn shl_assign(&mut self, shamt: $t ) {
+		ShlAssign::<usize>::shl_assign(self, shamt as usize);
+	}
+}
+
+#[doc(hidden)]
+impl<E: $crate::Endian, T: $crate::Bits> ShrAssign< $t > for $crate::BitSlice<E, T> {
+	fn shr_assign(&mut self, shamt: $t ) {
+		ShrAssign::<usize>::shr_assign(self, shamt as usize);
+	}
+}
+	)+ };
+}
+
+#[doc(hidden)]
+macro_rules! __bitvec_shift {
+	( $( $t:ty ),+ ) => { $(
+#[doc(hidden)]
+impl<E: $crate::Endian, T: $crate::Bits> Shl< $t > for $crate::BitVec<E, T> {
+	type Output = <Self as Shl<usize>>::Output;
+
+	fn shl(self, shamt: $t ) -> Self::Output {
+		Shl::<usize>::shl(self, shamt as usize)
+	}
+}
+
+#[doc(hidden)]
+impl<E: $crate::Endian, T: $crate::Bits> ShlAssign< $t > for $crate::BitVec<E, T> {
+	fn shl_assign(&mut self, shamt: $t ) {
+		ShlAssign::<usize>::shl_assign(self, shamt as usize)
+	}
+}
+
+#[doc(hidden)]
+impl<E: $crate::Endian, T: $crate::Bits> Shr< $t > for $crate::BitVec<E, T> {
+	type Output = <Self as Shr<usize>>::Output;
+
+	fn shr(self, shamt: $t ) -> Self::Output {
+		Shr::<usize>::shr(self, shamt as usize)
+	}
+}
+
+#[doc(hidden)]
+impl<E: $crate::Endian, T: $crate::Bits> ShrAssign< $t > for $crate::BitVec<E, T> {
+	fn shr_assign(&mut self, shamt: $t ) {
+		ShrAssign::<usize>::shr_assign(self, shamt as usize)
+	}
+}
+	)+ };
+}
+
 #[cfg(test)]
 mod tests {
 	#[test]
