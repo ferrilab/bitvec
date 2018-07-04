@@ -1,8 +1,15 @@
-# `BitVec` – `Vec<bool>` in overdrive
+# `BitVec` – Managing memory bit by bit
 
-This crate provides a type, `BitVec`, which allows bitwise access to a region of
-memory. This can be used to implement simple sets or to permit fine-grained
-control over the values in regions of memory.
+This crate provides packed bit-level analogues to `[T]` and `Vec<T>`. The slice
+type `BitSlice` and the vector type `BitVec` allow bitwise access to a region of
+memory in any endian ordering or underlying primitive type. This permits
+construction of space-efficient sets or fine-grained control over the values in
+a region of memory.
+
+`BitVec` is a strict expansion of `BitSlice` to include allocation management.
+Since `BitVec` is shorter to type, the rest of this document will use it by
+default, and mark out sections that apply *only* to the vector type and not to
+the slice type. Unless marked, assume that the text applies to both.
 
 `BitVec` is generic over an ordering cursor, using the trait `Endian`, and the
 primitive type, using the trait `Bits`. This means that `BitVec` structures can
@@ -45,6 +52,17 @@ use bitvec::*;
 
 This gives you access to the `bitvec!` macro for building `BitVec` types
 similarly to the `vec!` macro, and imports the following symbols:
+
+- `BitSlice<E: Endian, T: Bits>` – the actual bit-slice reference type It is
+  generic over a cursor type (`E`) and storage type (`T`). Note that `BitSlice`
+  is unsized, and can never be held directly; it must always be behind a
+  reference such as `&BitSlice` or `&mut BitSlice`.
+
+  Furthermore, it is *impossible* to put `BitSlice` into any kind of intelligent
+  pointer such as a `Box` or `Rc`! Any work that involves managing the memory
+  behind a bitwise type *must* go through `BitVec` instead. This may change in
+  the future as I learn how to better manage this library, but for now this
+  limitation stands.
 
 - `BitVec<E: Endian, T: Bits>` – the actual bit-vector structure type. It is
   generic over a cursor type (`E`) and storage type (`T`).
@@ -103,7 +121,8 @@ use bitvec::*;
 use std::iter::repeat;
 
 fn main() {
-    let mut bv = bitvec![BigEndian, u8, 0, 1, 0, 1];
+    let mut bv = bitvec![BigEndian, u8; 0, 1, 0, 1];
+    bv.reserve(8);
     for bit in repeat(false).take(4).chain(repeat(true).take(4)) {
         bv.push(bit);
     }
@@ -130,10 +149,21 @@ fn main() {
 }
 ```
 
-At this time, `BitVec` does not offer any way to relinquish owership of its
-memory. It is able to take ownership of boxed slices or vectors of suitable
-types, or to copy from slices, in addition to construction by macro.
-
 Immutable and mutable access to the underlying memory is provided by the `AsRef`
 and `AsMut` implementations, so the `BitVec` can be readily passed to transport
 functions.
+
+`BitVec` implements `Borrow` down to `BitSlice`, and `BitSlice` implements
+`ToOwned` up to `BitVec`, so they can be used in a `Cow` or wherever this API
+is desired. Any case where a `Vec`/`[T]` pair cannot be replaced with a
+`BitVec`/`BitSlice` pair is a bug in this library, and a bug report is
+appropriate.
+
+`BitVec` can relinquish its owned memory as a `Box<[T]>` via the
+`.into_boxed_slice()` method, and `BitSlice` can relinquish access to its memory
+simply by going out of scope.
+
+## Planned Features
+
+`#![no_std]` support that uses core libraries for allocation, and `#![no_core]`
+support that strips the vector type entirely and only provides the slice type.
