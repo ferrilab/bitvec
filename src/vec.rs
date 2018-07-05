@@ -1134,11 +1134,26 @@ where E: Endian, T: Bits {
 	}
 }
 
+/// 2's-complement negation of a `BitVec`.
+///
+/// In 2's-complement, negation is defined as bit-inversion followed by adding
+/// one.
+///
+/// Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
+/// computation on variable-length integers should use the `num_bigint` crate
+/// instead, which is written specifically for that use case. `BitVec`s are not
+/// intended for arithmetic, and `bitvec` makes no guarantees about sustained
+/// correctness in arithmetic at this time.
 impl<E, T> Neg for BitVec<E, T>
 where E: Endian, T: Bits {
 	type Output = Self;
 
 	fn neg(mut self) -> Self::Output {
+		//  An empty vector does nothing.
+		//  Negative zero is zero. Without this check, -[0+] becomes[10+1].
+		if self.is_empty() || self.none() {
+			return self;
+		}
 		self = !self;
 		self += BitVec::<E, T>::from(&[true] as &[bool]);
 		self
@@ -1245,6 +1260,12 @@ where E: Endian, T: Bits {
 ///
 /// The output `BitVec` may be one bit longer than the longer input, if addition
 /// overflowed.
+///
+/// Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
+/// computation on variable-length integers should use the `num_bigint` crate
+/// instead, which is written specifically for that use case. `BitVec`s are not
+/// intended for arithmetic, and `bitvec` makes no guarantees about sustained
+/// correctness in arithmetic at this time.
 impl<E, T> Add for BitVec<E, T>
 where E: Endian, T: Bits {
 	type Output = Self;
@@ -1286,6 +1307,12 @@ where E: Endian, T: Bits {
 ///
 /// The output `BitVec` may be one bit longer than the longer input, if addition
 /// overflowed.
+///
+/// Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
+/// computation on variable-length integers should use the `num_bigint` crate
+/// instead, which is written specifically for that use case. `BitVec`s are not
+/// intended for arithmetic, and `bitvec` makes no guarantees about sustained
+/// correctness in arithmetic at this time.
 impl<E, T> AddAssign for BitVec<E, T>
 where E: Endian, T: Bits {
 	/// Add another `BitVec` into `self`.
@@ -1389,6 +1416,12 @@ where E: Endian, T: Bits {
 ///
 /// Interpreting the contents of a `BitVec` as an integer is beyond the scope of
 /// this crate.
+///
+/// Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
+/// computation on variable-length integers should use the `num_bigint` crate
+/// instead, which is written specifically for that use case. `BitVec`s are not
+/// intended for arithmetic, and `bitvec` makes no guarantees about sustained
+/// correctness in arithmetic at this time.
 impl<E, T> Sub for BitVec<E, T>
 where E: Endian, T: Bits {
 	type Output = Self;
@@ -1432,9 +1465,37 @@ where E: Endian, T: Bits {
 	}
 }
 
+/// Subtract another `BitVec` from `self`, assuming 2's-complement encoding.
+///
+/// The minuend is zero-extended, or the subtrahend sign-extended, as needed to
+/// ensure that the vectors are the same width before subtraction occurs.
+///
+/// The `Sub` trait has more documentation on the subtraction process.
+///
+/// Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
+/// computation on variable-length integers should use the `num_bigint` crate
+/// instead, which is written specifically for that use case. `BitVec`s are not
+/// intended for arithmetic, and `bitvec` makes no guarantees about sustained
+/// correctness in arithmetic at this time.
 impl<E, T> SubAssign for BitVec<E, T>
 where E: Endian, T: Bits {
+	/// Subtract another `BitVec` from `self`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let a = bitvec![0, 0, 0, 1];
+	/// let b = bitvec![0, 0, 0, 0];
+	/// let c = a - b;
+	/// assert_eq!(c, bitvec![0, 0, 0, 1]);
+	/// ```
 	fn sub_assign(&mut self, mut subtrahend: Self) {
+		//  Test for a zero subtrahend. Subtraction of zero is the identity
+		//  function, and can exit immediately.
+		if subtrahend.none() {
+			return;
+		}
 		//  Invert the subtrahend in preparation for addition
 		subtrahend = -subtrahend;
 		let (llen, rlen) = (self.len(), subtrahend.len());
@@ -1444,15 +1505,18 @@ where E: Endian, T: Bits {
 			*self >>= diff;
 			*self += subtrahend;
 		}
-		//  If the minuend is longer than the subtrahend, 1-extend the
-		//  subtrahend.
-		else if llen > rlen {
-			let diff = llen - rlen;
-			subtrahend >>= diff;
-			//  Implementing BitVec >> (usize, bool) would permit sign extension
-			//  in fewer steps.
-			for idx in 0 .. diff {
-				subtrahend.set(idx, true);
+		else {
+			//  If the minuend is longer than the subtrahend, 1-extend the
+			//  subtrahend.
+			if llen > rlen {
+				let diff = llen - rlen;
+				let sign = subtrahend.get(0);
+				subtrahend >>= diff;
+				//  Implementing BitVec >> (usize, bool) would permit sign
+				//  extension in fewer steps.
+				for idx in 0 .. diff {
+					subtrahend.set(idx, sign);
+				}
 			}
 			let old = self.len();
 			*self += subtrahend;
