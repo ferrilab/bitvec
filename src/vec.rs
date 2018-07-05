@@ -41,6 +41,8 @@ use std::iter::{
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{
+	Add,
+	AddAssign,
 	BitAnd,
 	BitAndAssign,
 	BitOr,
@@ -50,11 +52,14 @@ use std::ops::{
 	Deref,
 	DerefMut,
 	Index,
+	Neg,
 	Not,
 	Shl,
 	ShlAssign,
 	Shr,
 	ShrAssign,
+	Sub,
+	SubAssign,
 };
 use std::ptr;
 
@@ -260,7 +265,7 @@ where E: Endian, T: Bits {
 		self.do_with_vec(|v| v.shrink_to_fit());
 	}
 
-	/// Shrinks the `BitVec` to the given size, dropping all excess storage.
+	/// Shrink the `BitVec` to the given size, dropping all excess storage.
 	///
 	/// This does not affect the memory store! It will not zero the raw memory
 	/// nor will it deallocate.
@@ -1129,6 +1134,17 @@ where E: Endian, T: Bits {
 	}
 }
 
+impl<E, T> Neg for BitVec<E, T>
+where E: Endian, T: Bits {
+	type Output = Self;
+
+	fn neg(mut self) -> Self::Output {
+		self = !self;
+		self += BitVec::<E, T>::from(&[true] as &[bool]);
+		self
+	}
+}
+
 /// Flip all bits in the vector.
 ///
 /// This invokes the `!` operator on each element of the borrowed storage, and
@@ -1217,6 +1233,234 @@ impl<E, T> Ord for BitVec<E, T>
 where E: Endian, T: Bits {
 	fn cmp(&self, rhs: &Self) -> Ordering {
 		BitSlice::cmp(&self, &rhs)
+	}
+}
+
+/// Add two `BitVec`s together, zero-extending the shorter.
+///
+/// `BitVec` addition works just like adding numbers longhand on paper. The
+/// first bits in the `BitVec` are the highest, so addition works from right to
+/// left, and the shorter `BitVec` is assumed to be extended to the left with
+/// zero.
+///
+/// The output `BitVec` may be one bit longer than the longer input, if addition
+/// overflowed.
+impl<E, T> Add for BitVec<E, T>
+where E: Endian, T: Bits {
+	type Output = Self;
+
+	/// Add two `BitVec`s.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let a = bitvec![0, 1, 0, 1];
+	/// let b = bitvec![0, 0, 1, 1];
+	/// let s = a + b;
+	/// assert_eq!(bitvec![1, 0, 0, 0], s);
+	/// ```
+	///
+	/// This example demonstrates the addition of differently-sized `BitVec`s,
+	/// and will overflow.
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let a = bitvec![1; 4];
+	/// let b = bitvec![1; 1];
+	/// let s = b + a;
+	/// assert_eq!(bitvec![1, 0, 0, 0, 0], s);
+	/// ```
+	fn add(mut self, addend: Self) -> Self::Output {
+		self += addend;
+		self
+	}
+}
+
+/// Add another `BitVec` into `self`, zero-extending the shorter.
+///
+/// `BitVec` addition works just like adding numbers longhand on paper. The
+/// first bits in the `BitVec` are the highest, so addition works from right to
+/// left, and the shorter `BitVec` is assumed to be extended to the left with
+/// zero.
+///
+/// The output `BitVec` may be one bit longer than the longer input, if addition
+/// overflowed.
+impl<E, T> AddAssign for BitVec<E, T>
+where E: Endian, T: Bits {
+	/// Add another `BitVec` into `self`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let mut a = bitvec![1, 0, 0, 1];
+	/// let b = bitvec![0, 1, 1, 1];
+	/// a += b;
+	/// assert_eq!(a, bitvec![1, 0, 0, 0, 0]);
+	/// ```
+	fn add_assign(&mut self, mut addend: Self) {
+		use std::iter::repeat;
+		//  If the other vec is longer, swap them and try again.
+		if addend.len() > self.len() {
+			mem::swap(self, &mut addend);
+			return *self += addend;
+		}
+		//  Now that self.len() >= addend.len(), proceed with addition.
+		//
+		//  I don't, at this time, want to implement a carry-lookahead adder in
+		//  software, so this is going to be a plain ripple-carry adder with
+		//  O(n) runtime. Furthermore, until I think of an optimization
+		//  strategy, it is going to build up another bitvec to use as a stack.
+		//
+		//  Computers are fast. Whatever.
+		let mut c = false;
+		let mut stack = BitVec::<E, T>::with_capacity(self.len());
+		//  Reverse self, reverse addend and zero-extend, and zip both together.
+		//  This walks both vecs from rightmost to leftmost, and considers an
+		//  early expiration of addend to continue with 0 bits.
+		//
+		//  100111
+		// +  0010
+		//  ^^---- semantically zero
+		for (a, b) in self.iter().rev().zip(addend.into_iter().rev().chain(repeat(false))) {
+			//  Addition is a finite state machine that can be precomputed into a single
+			//  jump table rather than requiring more complex branching.
+			//  The table is indexed as (carry, a, b).
+			static JUMP: [u8; 8] = [
+				//  0 + 0 + 0 = 0, 0
+				0,
+				//  0 + 1 + 0 = 1, 0
+				2,
+				//  1 + 0 + 0 = 1, 0
+				2,
+				//  1 + 1 + 1 = 0, 1
+				1,
+				//  0 + 0 + 1 = 1, 0
+				2,
+				//  0 + 1 + 0 = 0, 1
+				1,
+				//  1 + 0 + 0 = 0, 1
+				1,
+				//  1 + 1 + 1 = 1, 1
+				3,
+			];
+			let idx = ((c as u8) << 2) | ((a as u8) << 1) | (b as u8);
+			let yz = JUMP[idx as usize];
+			let (y, z) = (yz & 2 == 2, yz & 1 == 1);
+			//  Note: I checked in Godbolt, and the above comes out to ten
+			//  simple instructions with the JUMP baked in as immediate values.
+			//  The more semantically clear match statement does not optimize
+			//  nearly as well.
+			stack.push(y);
+			c = z;
+		}
+		//  If the carry made it to the end, push it.
+		if c {
+			stack.push(true);
+		}
+		//  Unwind the stack into `self`.
+		self.clear();
+		while let Some(bit) = stack.pop() {
+			self.push(bit);
+		}
+	}
+}
+
+/// Subtract one `BitVec` from another assuming 2's-complement encoding.
+///
+/// Subtraction is a more complex operation than addition. The bit-level work is
+/// largely the same, but semantic distinctions must be made. Unlike addition,
+/// which is commutative and tolerant of switching the order of the addends,
+/// subtraction cannot swap the minuend (LHS) and subtrahend (RHS).
+///
+/// Because of the properties of 2's-complement arithmetic, M - S is equivalent
+/// to M + (!S + 1). Subtraction therefore bitflips the subtrahend and adds one.
+/// This may, in a degenerate case, cause the subtrahend to increase in length.
+///
+/// Once the subtrahend is stable, the minuend zero-extends its left side in
+/// order to match the length of the subtrahend if needed (this is provided by
+/// the `>>` operator).
+///
+/// When the minuend is stable, the minuend and subtrahend are added together
+/// by the `<BitVec as Add>` implementation. The output will be encoded in
+/// 2's-complement, so a leading one means that the output is considered
+/// negative.
+///
+/// Interpreting the contents of a `BitVec` as an integer is beyond the scope of
+/// this crate.
+impl<E, T> Sub for BitVec<E, T>
+where E: Endian, T: Bits {
+	type Output = Self;
+
+	/// Subtract one `BitVec` from another.
+	///
+	/// # Examples
+	///
+	/// Minuend larger than subtrahend, positive difference.
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let a = bitvec![1, 0];
+	/// let b = bitvec![   1];
+	/// let c = a - b;
+	/// assert_eq!(bitvec![0, 1], c);
+	/// ```
+	///
+	/// Minuend smaller than subtrahend, negative difference.
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let a = bitvec![   1];
+	/// let b = bitvec![1, 0];
+	/// let c = a - b;
+	/// assert_eq!(bitvec![1, 1], c);
+	/// ```
+	///
+	/// Subtraction from self is correctly handled.
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let a = bitvec![1; 4];
+	/// let b = a.clone();
+	/// let c = a - b;
+	/// assert!(c.none(), "{:?}", c);
+	/// ```
+	fn sub(mut self, subtrahend: Self) -> Self::Output {
+		self -= subtrahend;
+		self
+	}
+}
+
+impl<E, T> SubAssign for BitVec<E, T>
+where E: Endian, T: Bits {
+	fn sub_assign(&mut self, mut subtrahend: Self) {
+		//  Invert the subtrahend in preparation for addition
+		subtrahend = -subtrahend;
+		let (llen, rlen) = (self.len(), subtrahend.len());
+		//  If the subtrahend is longer than the minuend, 0-extend the minuend.
+		if rlen > llen {
+			let diff = rlen - llen;
+			*self >>= diff;
+			*self += subtrahend;
+		}
+		//  If the minuend is longer than the subtrahend, 1-extend the
+		//  subtrahend.
+		else if llen > rlen {
+			let diff = llen - rlen;
+			subtrahend >>= diff;
+			//  Implementing BitVec >> (usize, bool) would permit sign extension
+			//  in fewer steps.
+			for idx in 0 .. diff {
+				subtrahend.set(idx, true);
+			}
+			let old = self.len();
+			*self += subtrahend;
+			//  If the subtraction emitted a carry, remove it.
+			if self.len() > old {
+				*self <<= 1;
+			}
+		}
 	}
 }
 
@@ -1445,7 +1689,6 @@ where E: Endian, T: Bits {
 	/// ```
 	fn shr_assign(&mut self, shamt: usize) {
 		let old_len = self.len();
-		//  Implement `Extend` to make this more efficient
 		for _ in 0 .. shamt {
 			self.push(false);
 		}
