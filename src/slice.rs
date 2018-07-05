@@ -117,7 +117,7 @@ pub struct BitSlice<E: Endian = BigEndian, T: Bits = u8> {
 
 impl<E, T> BitSlice<E, T>
 where E: Endian, T: Bits {
-	/// Gets the bit value at the given position.
+	/// Get the bit value at the given position.
 	///
 	/// The index value is a semantic count, not a bit address. It converts to a
 	/// bit position internally to this function.
@@ -136,7 +136,7 @@ where E: Endian, T: Bits {
 		self.as_ref()[elt].get(E::curr::<T>(bit))
 	}
 
-	/// Sets the bit value at the given position.
+	/// Set the bit value at the given position.
 	///
 	/// The index value is a semantic count, not a bit address. It converts to a
 	/// bit position internally to this function.
@@ -156,7 +156,95 @@ where E: Endian, T: Bits {
 		self.as_mut()[elt].set(E::curr::<T>(bit), value);
 	}
 
-	/// Returns the number of bits contained in the `BitSlice`.
+	/// Return true if *all* bits in the slice are set (logical `∧`).
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let all = bitvec![1; 10];
+	/// let any = bitvec![0, 0, 1, 0, 0];
+	/// let none = bitvec![0; 10];
+	///
+	/// assert!(all.all());
+	/// assert!(!any.all());
+	/// assert!(!none.all());
+	/// ```
+	pub fn all(&self) -> bool {
+		//  Gallop the filled elements
+		let store = self.as_ref();
+		for elt in &store[.. self.elts()] {
+			if *elt != T::from(!0) {
+				return false;
+			}
+		}
+		//  Walk the partial tail
+		let bits = self.bits();
+		if bits > 0 {
+			let tail = store[self.elts()];
+			for bit in 0 .. bits {
+				if !tail.get(E::curr::<T>(bit)) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	/// Return true if *any* bit in the slice is set (logical `∨`).
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let all = bitvec![1; 10];
+	/// let any = bitvec![0, 0, 1, 0, 0];
+	/// let none = bitvec![0; 10];
+	///
+	/// assert!(all.any());
+	/// assert!(any.any());
+	/// assert!(!none.any());
+	/// ```
+	pub fn any(&self) -> bool {
+		//  Gallop the filled elements
+		let store = self.as_ref();
+		for elt in &store[.. self.elts()] {
+			if *elt != T::from(0) {
+				return true;
+			}
+		}
+		//  Walk the partial tail
+		let bits = self.bits();
+		if bits > 0 {
+			let tail = store[self.elts()];
+			for bit in 0 .. bits {
+				if tail.get(E::curr::<T>(bit)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/// Return true if *no* bit in the slice is set (logical `¬`).
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let all = bitvec![1; 10];
+	/// let any = bitvec![0, 0, 1, 0, 0];
+	/// let none = bitvec![0; 10];
+	///
+	/// assert!(!all.none());
+	/// assert!(!any.none());
+	/// assert!(none.none());
+	/// ```
+	pub fn none(&self) -> bool {
+		!self.any()
+	}
+
+	/// Return the number of bits contained in the `BitSlice`.
 	///
 	/// # Examples
 	///
@@ -170,7 +258,7 @@ where E: Endian, T: Bits {
 		self.inner.len()
 	}
 
-	/// Counts how many *whole* storage elements are in the `BitSlice`.
+	/// Count how many *whole* storage elements are in the `BitSlice`.
 	///
 	/// If the `BitSlice` length is not an even multiple of the width of `T`,
 	/// then the slice under this `BitSlice` is one element longer than this
@@ -195,7 +283,7 @@ where E: Endian, T: Bits {
 		self.len() >> T::BITS
 	}
 
-	/// Counts how many bits are in the trailing partial storage element.
+	/// Count how many bits are in the trailing partial storage element.
 	///
 	/// If the `BitSlice` length is an even multiple of the width of `T`, then
 	/// this returns 0 and the `BitSlice` does not consider its final element to
@@ -220,7 +308,7 @@ where E: Endian, T: Bits {
 		self.len() as u8 & T::MASK
 	}
 
-	/// Returns `true` if the slice contains no bits.
+	/// Return `true` if the slice contains no bits.
 	///
 	/// # Examples
 	///
@@ -507,7 +595,7 @@ where E: Endian, T: Bits {
 		let alt = fmt.alternate();
 		self.fmt_header(fmt)?;
 		fmt.write_str(" [")?;
-		if alt { writeln!(fmt)?; }
+		if alt { writeln!(fmt)?; fmt.write_str("    ")?; }
 		self.fmt_body(fmt, true)?;
 		if alt { writeln!(fmt)?; }
 		fmt.write_str("]")
