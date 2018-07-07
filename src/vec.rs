@@ -1379,7 +1379,7 @@ where E: Endian, T: Bits {
 	fn neg(mut self) -> Self::Output {
 		//  An empty vector does nothing.
 		//  Negative zero is zero. Without this check, -[0+] becomes[10+1].
-		if self.is_empty() || self.none() {
+		if self.is_empty() || self.not_any() {
 			return self;
 		}
 		self = !self;
@@ -1719,7 +1719,7 @@ where E: Endian, T: Bits {
 	/// let a = bitvec![1; 4];
 	/// let b = a.clone();
 	/// let c = a - b;
-	/// assert!(c.none(), "{:?}", c);
+	/// assert!(c.not_any(), "{:?}", c);
 	/// ```
 	fn sub(mut self, subtrahend: Self) -> Self::Output {
 		self -= subtrahend;
@@ -1755,7 +1755,7 @@ where E: Endian, T: Bits {
 	fn sub_assign(&mut self, mut subtrahend: Self) {
 		//  Test for a zero subtrahend. Subtraction of zero is the identity
 		//  function, and can exit immediately.
-		if subtrahend.none() {
+		if subtrahend.not_any() {
 			return;
 		}
 		//  Invert the subtrahend in preparation for addition
