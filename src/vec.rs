@@ -24,11 +24,16 @@ use std::convert::{
 	AsRef,
 	From,
 };
+use std::default::Default;
 use std::fmt::{
 	self,
 	Debug,
 	Display,
 	Formatter,
+};
+use std::hash::{
+	Hash,
+	Hasher,
 };
 use std::iter::{
 	DoubleEndedIterator,
@@ -51,6 +56,7 @@ use std::ops::{
 	BitXorAssign,
 	Deref,
 	DerefMut,
+	Drop,
 	Index,
 	Neg,
 	Not,
@@ -439,201 +445,6 @@ where E: Endian, T: Bits {
 	}
 }
 
-/// Give write access to all live elements in the underlying storage, including
-/// the partially-filled tail.
-impl<E, T> AsMut<[T]> for BitVec<E, T>
-where E: Endian, T: Bits {
-	/// Access the underlying store.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let mut bv: BitVec = bitvec![0, 0, 0, 0, 0, 0, 0, 0, 1];
-	/// for elt in bv.as_mut() {
-	///   *elt += 2;
-	/// }
-	/// assert_eq!(&[2, 0b1000_0010], bv.as_ref());
-	/// ```
-	fn as_mut(&mut self) -> &mut [T] {
-		BitSlice::as_mut(self)
-	}
-}
-
-/// Give read access to all live elements in the underlying storage, including
-/// the partially-filled tail.
-impl<E, T> AsRef<[T]> for BitVec<E, T>
-where E: Endian, T: Bits {
-	/// Access the underlying store.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let bv = bitvec![0, 0, 0, 0, 0, 0, 0, 0, 1];
-	/// assert_eq!(&[0, 0b1000_0000], bv.as_ref());
-	/// ```
-	fn as_ref(&self) -> &[T] {
-		BitSlice::as_ref(self)
-	}
-}
-
-/// Perform the Boolean AND operation between each element of a `BitVec` and
-/// anything that can provide a stream of `bool` values (such as another
-/// `BitVec`, or any `bool` generator of your choice). The `BitVec` emitted will
-/// have the length of the shorter sequence of bits -- if one is longer than the
-/// other, the extra bits will be ignored.
-impl<E, T, I> BitAnd<I> for BitVec<E, T>
-where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
-	type Output = Self;
-
-	/// AND a vector and a bitstream, producing a new vector.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let lhs = bitvec![BigEndian, u8; 0, 1, 0, 1];
-	/// let rhs = bitvec![BigEndian, u8; 0, 0, 1, 1];
-	/// let and = lhs & rhs;
-	/// assert_eq!("0001", &format!("{}", and));
-	/// ```
-	fn bitand(mut self, rhs: I) -> Self::Output {
-		self &= rhs;
-		self
-	}
-}
-
-/// Perform the Boolean AND operation in place on a `BitVec`, using a stream of
-/// `bool` values as the other bit for each operation. If the other stream is
-/// shorter than `self`, `self` will be truncated when the other stream expires.
-impl<E, T, I> BitAndAssign<I> for BitVec<E, T>
-where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
-	/// AND another bitstream into a vector.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let mut src  = bitvec![BigEndian, u8; 0, 1, 0, 1];
-	///         src &= bitvec![BigEndian, u8; 0, 0, 1, 1];
-	/// assert_eq!("0001", &format!("{}", src));
-	/// ```
-	fn bitand_assign(&mut self, rhs: I) {
-		let mut len = 0;
-		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter()) {
-			let val = self.get(idx) & other;
-			self.set(idx, val);
-			len += 1;
-		}
-		self.truncate(len);
-	}
-}
-
-/// Perform the Boolean OR operation between each element of a `BitVec` and
-/// anything that can provide a stream of `bool` values (such as another
-/// `BitVec`, or any `bool` generator of your choice). The `BitVec` emitted will
-/// have the length of the shorter sequence of bits -- if one is longer than the
-/// other, the extra bits will be ignored.
-impl<E, T, I> BitOr<I> for BitVec<E, T>
-where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
-	type Output = Self;
-
-	/// OR a vector and a bitstream, producing a new vector.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let lhs = bitvec![BigEndian, u8; 0, 1, 0, 1];
-	/// let rhs = bitvec![BigEndian, u8; 0, 0, 1, 1];
-	/// let or  = lhs | rhs;
-	/// assert_eq!("0111", &format!("{}", or));
-	/// ```
-	fn bitor(mut self, rhs: I) -> Self::Output {
-		self |= rhs;
-		self
-	}
-}
-
-/// Perform the Boolean OR operation in place on a `BitVec`, using a stream of
-/// `bool` values as the other bit for each operation. If the other stream is
-/// shorter than `self`, `self` will be truncated when the other stream expires.
-impl<E, T, I> BitOrAssign<I> for BitVec<E, T>
-where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
-	/// OR another bitstream into a vector.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let mut src  = bitvec![BigEndian, u8; 0, 1, 0, 1];
-	///         src |= bitvec![BigEndian, u8; 0, 0, 1, 1];
-	/// assert_eq!("0111", &format!("{}", src));
-	/// ```
-	fn bitor_assign(&mut self, rhs: I) {
-		let mut len = 0;
-		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter()) {
-			let val = self.get(idx) | other;
-			self.set(idx, val);
-			len += 1;
-		}
-		self.truncate(len);
-	}
-}
-
-/// Perform the Boolean XOR operation between each element of a `BitVec` and
-/// anything that can provide a stream of `bool` values (such as another
-/// `BitVec`, or any `bool` generator of your choice). The `BitVec` emitted will
-/// have the length of the shorter sequence of bits -- if one is longer than the
-/// other, the extra bits will be ignored.
-impl<E, T, I> BitXor<I> for BitVec<E, T>
-where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
-	type Output = Self;
-
-	/// XOR a vector and a bitstream, producing a new vector.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let lhs = bitvec![BigEndian, u8; 0, 1, 0, 1];
-	/// let rhs = bitvec![BigEndian, u8; 0, 0, 1, 1];
-	/// let xor = lhs ^ rhs;
-	/// assert_eq!("0110", &format!("{}", xor));
-	/// ```
-	fn bitxor(mut self, rhs: I) -> Self::Output {
-		self ^= rhs;
-		self
-	}
-}
-
-/// Perform the Boolean XOR operation in place on a `BitVec`, using a stream of
-/// `bool` values as the other bit for each operation. If the other stream is
-/// shorter than `self`, `self` will be truncated when the other stream expires.
-impl<E, T, I> BitXorAssign<I> for BitVec<E, T>
-where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
-	/// XOR another bitstream into a vector.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let mut src  = bitvec![BigEndian, u8; 0, 1, 0, 1];
-	///         src ^= bitvec![BigEndian, u8; 0, 0, 1, 1];
-	/// assert_eq!("0110", &format!("{}", src));
-	/// ```
-	fn bitxor_assign(&mut self, rhs: I) {
-		let mut len = 0;
-		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter()) {
-			let val = self.get(idx) ^ other;
-			self.set(idx, val);
-			len += 1;
-		}
-		self.truncate(len);
-	}
-}
-
 /// Signify that `BitSlice` is the borrowed form of `BitVec`.
 impl<E, T> Borrow<BitSlice<E, T>> for BitVec<E, T>
 where E: Endian, T: Bits {
@@ -696,159 +507,103 @@ where E: Endian, T: Bits {
 	}
 }
 
-/// Print the `BitVec` for debugging.
-///
-/// The output is of the form `BitVec<E, T> [ELT, *]`, where `<E, T>` is the
-/// endianness and element type, with square brackets on each end of the bits
-/// and all the live elements in the vector printed in binary. The printout is
-/// always in semantic order, and may not reflect the underlying store. To see
-/// the underlying store, use `format!("{:?}", self.as_ref());` instead.
-///
-/// The alternate character `{:#?}` prints each element on its own line, rather
-/// than separated by a space.
-impl<E, T> Debug for BitVec<E, T>
+impl<E, T> Eq for BitVec<E, T>
+where E: Endian, T: Bits {}
+
+impl<E, T> Ord for BitVec<E, T>
 where E: Endian, T: Bits {
-	/// Render the `BitVec` type header and contents for debug.
+	fn cmp(&self, rhs: &Self) -> Ordering {
+		BitSlice::cmp(&self, &rhs)
+	}
+}
+
+/// Test if two `BitVec`s are semantically — not bitwise — equal.
+///
+/// It is valid to compare two vectors of different endianness or element types.
+///
+/// The equality condition requires that they have the same number of stored
+/// bits and that each pair of bits in semantic order are identical.
+impl<A, B, C, D> PartialEq<BitVec<C, D>> for BitVec<A, B>
+where A: Endian, B: Bits, C: Endian, D: Bits {
+	/// Perform a comparison by `==`.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::*;
-	/// let bv = bitvec![LittleEndian, u16;
-	///     0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1
-	/// ];
-	/// assert_eq!(
-	///     "BitVec<LittleEndian, u16> [0101000011110101]",
-	///     &format!("{:?}", bv)
-	/// );
+	/// let l: BitVec<LittleEndian, u16> = bitvec![LittleEndian, u16; 0, 1, 0, 1];
+	/// let r: BitVec<BigEndian, u32> = bitvec![BigEndian, u32; 0, 1, 0, 1];
+	/// assert!(l == r);
 	/// ```
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		let alt = fmt.alternate();
-		self.fmt_header(fmt)?;
-		fmt.write_str(" [")?;
-		if alt { writeln!(fmt)?; }
-		self.fmt_body(fmt, true)?;
-		if alt { writeln!(fmt)?; }
-		fmt.write_str("]")
+	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
+		BitSlice::eq(&self, &rhs)
 	}
 }
 
-/// Reborrow the `BitVec` as a `BitSlice`.
+/// Compare two `BitVec`s by semantic — not bitwise — ordering.
 ///
-/// This mimics the separation between `Vec<T>` and `[T]`.
-impl<E, T> Deref for BitVec<E, T>
-where E: Endian, T: Bits {
-	type Target = BitSlice<E, T>;
-
-	/// Dereference `&BitVec` down to `&BitSlice`.
+/// The comparison sorts by testing each index for one vector to have a set bit
+/// where the other vector has an unset bit. If the vectors are different, the
+/// vector with the set bit sorts greater than the vector with the unset bit.
+///
+/// If one of the vectors is exhausted before they differ, the longer vector is
+/// greater.
+impl<A, B, C, D> PartialOrd<BitVec<C, D>> for BitVec<A, B>
+where A: Endian, B: Bits, C: Endian, D: Bits {
+	/// Perform a comparison by `<` or `>`.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::*;
-	/// let bv: BitVec = bitvec![1; 4];
-	/// let bref: &BitSlice = &bv;
-	/// assert!(bref.get(2));
+	/// use bitvec::*;
+	/// let a = bitvec![0, 1, 0, 0];
+	/// let b = bitvec![0, 1, 0, 1];
+	/// let c = bitvec![0, 1, 0, 1, 1];
+	/// assert!(a < b);
+	/// assert!(b < c);
 	/// ```
-	fn deref(&self) -> &Self::Target {
-		//  `BitVec`'s representation of its inner `Vec` matches exactly the
-		//  invariants of how `BitSlice` references must look. This is fine.
-		unsafe { mem::transmute(&self.inner as &[T]) }
+	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<Ordering> {
+		BitSlice::partial_cmp(&self, &rhs)
 	}
 }
 
-/// Reborrow the `BitVec` as a `BitSlice`.
-///
-/// This mimics the separation between `Vec<T>` and `[T]`.
-impl<E, T> DerefMut for BitVec<E, T>
+/// Give write access to all live elements in the underlying storage, including
+/// the partially-filled tail.
+impl<E, T> AsMut<[T]> for BitVec<E, T>
 where E: Endian, T: Bits {
-	/// Dereference `&mut BitVec` down to `&mut BitSlice`.
+	/// Access the underlying store.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::*;
-	/// let mut bv: BitVec = bitvec![0; 6];
-	/// let bref: &mut BitSlice = &mut bv;
-	/// assert!(!bref.get(5));
-	/// bref.set(5, true);
-	/// assert!(bref.get(5));
+	/// let mut bv: BitVec = bitvec![0, 0, 0, 0, 0, 0, 0, 0, 1];
+	/// for elt in bv.as_mut() {
+	///   *elt += 2;
+	/// }
+	/// assert_eq!(&[2, 0b1000_0010], bv.as_ref());
 	/// ```
-	fn deref_mut(&mut self) -> &mut Self::Target {
-		unsafe { mem::transmute(&mut self.inner as &mut [T]) }
+	fn as_mut(&mut self) -> &mut [T] {
+		BitSlice::as_mut(self)
 	}
 }
 
-/// Print the `BitVec` for displaying.
-///
-/// This prints each element in turn, formatted in binary in semantic order (so
-/// the first bit seen is printed first and the last bit seen printed last).
-/// Each element of storage is separated by a space for ease of reading.
-///
-/// The alternate character `{:#}` prints each element on its own line.
-///
-/// To see the in-memory representation, use `AsRef` to get access to the raw
-/// elements and print that slice instead.
-impl<E, T> Display for BitVec<E, T>
+/// Give read access to all live elements in the underlying storage, including
+/// the partially-filled tail.
+impl<E, T> AsRef<[T]> for BitVec<E, T>
 where E: Endian, T: Bits {
-	/// Render the `BitVec` contents for display.
+	/// Access the underlying store.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::*;
-	/// let bv = bitvec![BigEndian, u8; 0, 1, 0, 0, 1, 0, 1, 1, 0, 1];
-	/// assert_eq!("01001011 01", &format!("{}", bv));
+	/// let bv = bitvec![0, 0, 0, 0, 0, 0, 0, 0, 1];
+	/// assert_eq!(&[0, 0b1000_0000], bv.as_ref());
 	/// ```
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		self.fmt_body(fmt, false)
-	}
-}
-
-/// Ready the underlying storage for Drop.
-impl<E, T> Drop for BitVec<E, T>
-where E: Endian, T: Bits {
-	fn drop(&mut self) {
-		//  If the `Vec` is non-empty, set the length to the number of used
-		//  elements as preparation for drop. The bits do not need to be wiped.
-		//
-		//  If we don't do this, the `Vec` drop will treat the bit total as the
-		//  number of elements and try to loop through all of them, which will
-		//  not take 2 ** T::BITS times as long to run as expected, because
-		//  it'll segfault.
-		let raw = self.raw_len();
-		unsafe { self.inner.set_len(raw); }
-	}
-}
-
-/// Extend a `BitVec` with the contents of another bitstream.
-///
-/// At present, this just calls `.push()` in a loop. When specialization becomes
-/// available, it will be able to more intelligently perform bulk moves from the
-/// source into `self` when the source is `BitSlice`-compatible.
-impl<E, T> Extend<bool> for BitVec<E, T>
-where E: Endian, T: Bits {
-	/// Extend a `BitVec` from another bitstream.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let mut bv = bitvec![0; 4];
-	/// bv.extend(bitvec![1; 4]);
-	/// assert_eq!("00001111", &format!("{}", bv));
-	/// ```
-	fn extend<I>(&mut self, src: I)
-	where I: IntoIterator<Item=bool> {
-		let iter = src.into_iter();
-		match iter.size_hint() {
-			(_, Some(hi)) => self.reserve(hi),
-			(lo, None) => self.reserve(lo),
-		}
-		for bit in iter {
-			self.push(bit);
-		}
-		self.shrink_to_fit();
+	fn as_ref(&self) -> &[T] {
+		BitSlice::as_ref(self)
 	}
 }
 
@@ -1008,6 +763,118 @@ impl<T: Bits> From<BitVec<BigEndian, T>> for BitVec<LittleEndian, T> {
 	}
 }
 
+impl<E, T> Default for BitVec<E, T>
+where E: Endian, T: Bits {
+	fn default() -> Self {
+		Self {
+			inner: Default::default(),
+			_endian: Default::default(),
+		}
+	}
+}
+
+/// Print the `BitVec` for debugging.
+///
+/// The output is of the form `BitVec<E, T> [ELT, *]`, where `<E, T>` is the
+/// endianness and element type, with square brackets on each end of the bits
+/// and all the live elements in the vector printed in binary. The printout is
+/// always in semantic order, and may not reflect the underlying store. To see
+/// the underlying store, use `format!("{:?}", self.as_ref());` instead.
+///
+/// The alternate character `{:#?}` prints each element on its own line, rather
+/// than separated by a space.
+impl<E, T> Debug for BitVec<E, T>
+where E: Endian, T: Bits {
+	/// Render the `BitVec` type header and contents for debug.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let bv = bitvec![LittleEndian, u16;
+	///     0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1
+	/// ];
+	/// assert_eq!(
+	///     "BitVec<LittleEndian, u16> [0101000011110101]",
+	///     &format!("{:?}", bv)
+	/// );
+	/// ```
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		let alt = fmt.alternate();
+		self.fmt_header(fmt)?;
+		fmt.write_str(" [")?;
+		if alt { writeln!(fmt)?; }
+		self.fmt_body(fmt, true)?;
+		if alt { writeln!(fmt)?; }
+		fmt.write_str("]")
+	}
+}
+
+/// Print the `BitVec` for displaying.
+///
+/// This prints each element in turn, formatted in binary in semantic order (so
+/// the first bit seen is printed first and the last bit seen printed last).
+/// Each element of storage is separated by a space for ease of reading.
+///
+/// The alternate character `{:#}` prints each element on its own line.
+///
+/// To see the in-memory representation, use `AsRef` to get access to the raw
+/// elements and print that slice instead.
+impl<E, T> Display for BitVec<E, T>
+where E: Endian, T: Bits {
+	/// Render the `BitVec` contents for display.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let bv = bitvec![BigEndian, u8; 0, 1, 0, 0, 1, 0, 1, 1, 0, 1];
+	/// assert_eq!("01001011 01", &format!("{}", bv));
+	/// ```
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		self.fmt_body(fmt, false)
+	}
+}
+
+impl<E, T> Hash for BitVec<E, T>
+where E: Endian, T: Bits {
+	fn hash<H>(&self, hasher: &mut H)
+	where H: Hasher {
+		BitSlice::<E, T>::hash(&self, hasher)
+	}
+}
+
+/// Extend a `BitVec` with the contents of another bitstream.
+///
+/// At present, this just calls `.push()` in a loop. When specialization becomes
+/// available, it will be able to more intelligently perform bulk moves from the
+/// source into `self` when the source is `BitSlice`-compatible.
+impl<E, T> Extend<bool> for BitVec<E, T>
+where E: Endian, T: Bits {
+	/// Extend a `BitVec` from another bitstream.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let mut bv = bitvec![0; 4];
+	/// bv.extend(bitvec![1; 4]);
+	/// assert_eq!("00001111", &format!("{}", bv));
+	/// ```
+	fn extend<I>(&mut self, src: I)
+	where I: IntoIterator<Item=bool> {
+		let iter = src.into_iter();
+		match iter.size_hint() {
+			(_, Some(hi)) => self.reserve(hi),
+			(lo, None) => self.reserve(lo),
+		}
+		for bit in iter {
+			self.push(bit);
+		}
+		self.shrink_to_fit();
+	}
+}
+
 /// Permit the construction of a `BitVec` by using `.collect()` on an iterator
 /// of `bool`.
 impl<E, T> FromIterator<bool> for BitVec<E, T>
@@ -1033,75 +900,6 @@ where E: Endian, T: Bits {
 			out.push(bit);
 		}
 		out
-	}
-}
-
-/// Get the bit at a specific index. The index must be less than the length of
-/// the `BitVec`.
-impl<E, T> Index<usize> for BitVec<E, T>
-where E: Endian, T: Bits {
-	type Output = bool;
-
-	/// Look up a single bit by semantic count.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 0, 0, 0, 0, 0, 1, 0];
-	/// assert!(!bv[7]); // ---------------------------------^  |  |
-	/// assert!( bv[8]); //-------------------------------------^  |
-	/// assert!(!bv[9]); // ---------------------------------------^
-	/// ```
-	///
-	/// If the index is greater than or equal to the length, indexing will panic.
-	///
-	/// The below test will panic when accessing index 1, as only index 0 is valid.
-	///
-	/// ```rust,should_panic
-	/// use bitvec::*;
-	/// let mut bv: BitVec = BitVec::new();
-	/// bv.push(true);
-	/// bv[1];
-	/// ```
-	fn index(&self, cursor: usize) -> &Self::Output {
-		assert!(cursor < self.inner.len(), "Index out of range!");
-		self.index(T::split(cursor))
-	}
-}
-
-/// Get the bit in a specific element. The element index must be less than or
-/// equal to the value returned by `elts()`, and the bit index must be less
-/// than the width of the storage type.
-///
-/// If the `BitVec` has a partially-filled tail, then the value returned by
-/// `elts()` is a valid index.
-///
-/// The element and bit indices are combined using `Bits::join` for the storage
-/// type.
-///
-/// This index is not recommended for public use.
-impl<E, T> Index<(usize, u8)> for BitVec<E, T>
-where E: Endian, T: Bits {
-	type Output = bool;
-
-	/// Index into a `BitVec` using a known element index and a count into that
-	/// element. The count must not be converted for endianness outside the
-	/// call.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let bv = bitvec![BigEndian, u8; 1, 1, 1, 1, 0, 0, 0, 0, 0, 1];
-	/// assert!(bv[(1, 1)]); // -----------------------------------^
-	/// ```
-	fn index(&self, (elt, bit): (usize, u8)) -> &Self::Output {
-		assert!(T::join(elt, bit) < self.len(), "Index out of range!");
-		match (self.inner[elt]).get(E::curr::<T>(bit)) {
-			true => &TRUE,
-			false => &FALSE,
-		}
 	}
 }
 
@@ -1131,123 +929,6 @@ where E: Endian, T: Bits {
 	/// ```
 	fn into_iter(self) -> Self::IntoIter {
 		Self::IntoIter::from(self)
-	}
-}
-
-/// 2's-complement negation of a `BitVec`.
-///
-/// In 2's-complement, negation is defined as bit-inversion followed by adding
-/// one.
-///
-/// Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
-/// computation on variable-length integers should use the `num_bigint` crate
-/// instead, which is written specifically for that use case. `BitVec`s are not
-/// intended for arithmetic, and `bitvec` makes no guarantees about sustained
-/// correctness in arithmetic at this time.
-impl<E, T> Neg for BitVec<E, T>
-where E: Endian, T: Bits {
-	type Output = Self;
-
-	fn neg(mut self) -> Self::Output {
-		//  An empty vector does nothing.
-		//  Negative zero is zero. Without this check, -[0+] becomes[10+1].
-		if self.is_empty() || self.none() {
-			return self;
-		}
-		self = !self;
-		self += BitVec::<E, T>::from(&[true] as &[bool]);
-		self
-	}
-}
-
-/// Flip all bits in the vector.
-///
-/// This invokes the `!` operator on each element of the borrowed storage, and
-/// so it will also flip bits in the tail that are outside the `BitVec` length
-/// if any. Use `^= repeat(true)` to flip only the bits actually inside the
-/// `BitVec` purview. `^=` also has the advantage of being a borrowing operator
-/// rather than a consuming/returning operator.
-/// ```
-impl<E, T> Not for BitVec<E, T>
-where E: Endian, T: Bits {
-	type Output = Self;
-
-	/// Invert all bits in the vector.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let bv: BitVec<BigEndian, u32> = BitVec::from(&[0u32] as &[u32]);
-	/// let flip = !bv;
-	/// assert_eq!(!0u32, flip.as_ref()[0]);
-	//  Because self does not have to interact with any other `BitVec`, and bits
-	//  beyond `BitVec.len()` are uninitialized and don't matter, this is free
-	//  to simply negate the elements in place and then return self.
-	fn not(mut self) -> Self::Output {
-		!&mut *self;
-		self
-	}
-}
-
-/// Test if two `BitVec`s are semantically — not bitwise — equal.
-///
-/// It is valid to compare two vectors of different endianness or element types.
-///
-/// The equality condition requires that they have the same number of stored
-/// bits and that each pair of bits in semantic order are identical.
-impl<A, B, C, D> PartialEq<BitVec<C, D>> for BitVec<A, B>
-where A: Endian, B: Bits, C: Endian, D: Bits {
-	/// Perform a comparison by `==`.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let l: BitVec<LittleEndian, u16> = bitvec![LittleEndian, u16; 0, 1, 0, 1];
-	/// let r: BitVec<BigEndian, u32> = bitvec![BigEndian, u32; 0, 1, 0, 1];
-	/// assert!(l == r);
-	/// ```
-	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
-		BitSlice::eq(&self, &rhs)
-	}
-}
-
-impl<E, T> Eq for BitVec<E, T>
-where E: Endian, T: Bits {}
-
-/// Compare two `BitVec`s by semantic — not bitwise — ordering.
-///
-/// The comparison sorts by testing each index for one vector to have a set bit
-/// where the other vector has an unset bit. If the vectors are different, the
-/// vector with the set bit sorts greater than the vector with the unset bit.
-///
-/// If one of the vectors is exhausted before they differ, the longer vector is
-/// greater.
-impl<A, B, C, D> PartialOrd<BitVec<C, D>> for BitVec<A, B>
-where A: Endian, B: Bits, C: Endian, D: Bits {
-	/// Perform a comparison by `<` or `>`.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// use bitvec::*;
-	/// let a = bitvec![0, 1, 0, 0];
-	/// let b = bitvec![0, 1, 0, 1];
-	/// let c = bitvec![0, 1, 0, 1, 1];
-	/// assert!(a < b);
-	/// assert!(b < c);
-	/// ```
-	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<Ordering> {
-		BitSlice::partial_cmp(&self, &rhs)
-	}
-}
-
-impl<E, T> Ord for BitVec<E, T>
-where E: Endian, T: Bits {
-	fn cmp(&self, rhs: &Self) -> Ordering {
-		BitSlice::cmp(&self, &rhs)
 	}
 }
 
@@ -1353,7 +1034,7 @@ where E: Endian, T: Bits {
 		for (a, b) in self.iter().rev().zip(addend.into_iter().rev().chain(repeat(false))) {
 			//  Addition is a finite state machine that can be precomputed into a single
 			//  jump table rather than requiring more complex branching.
-			//  The table is indexed as (carry, a, b).
+			//  The table is indexed as (carry, a, b) and returns (bit, carry).
 			static JUMP: [u8; 8] = [
 				//  0 + 0 + 0 = 0, 0
 				0,
@@ -1374,7 +1055,7 @@ where E: Endian, T: Bits {
 			];
 			let idx = ((c as u8) << 2) | ((a as u8) << 1) | (b as u8);
 			let yz = JUMP[idx as usize];
-			let (y, z) = (yz & 2 == 2, yz & 1 == 1);
+			let (y, z) = (yz & 2 != 0, yz & 1 != 0);
 			//  Note: I checked in Godbolt, and the above comes out to ten
 			//  simple instructions with the JUMP baked in as immediate values.
 			//  The more semantically clear match statement does not optimize
@@ -1394,137 +1075,346 @@ where E: Endian, T: Bits {
 	}
 }
 
-/// Subtract one `BitVec` from another assuming 2's-complement encoding.
-///
-/// Subtraction is a more complex operation than addition. The bit-level work is
-/// largely the same, but semantic distinctions must be made. Unlike addition,
-/// which is commutative and tolerant of switching the order of the addends,
-/// subtraction cannot swap the minuend (LHS) and subtrahend (RHS).
-///
-/// Because of the properties of 2's-complement arithmetic, M - S is equivalent
-/// to M + (!S + 1). Subtraction therefore bitflips the subtrahend and adds one.
-/// This may, in a degenerate case, cause the subtrahend to increase in length.
-///
-/// Once the subtrahend is stable, the minuend zero-extends its left side in
-/// order to match the length of the subtrahend if needed (this is provided by
-/// the `>>` operator).
-///
-/// When the minuend is stable, the minuend and subtrahend are added together
-/// by the `<BitVec as Add>` implementation. The output will be encoded in
-/// 2's-complement, so a leading one means that the output is considered
-/// negative.
-///
-/// Interpreting the contents of a `BitVec` as an integer is beyond the scope of
-/// this crate.
-///
-/// Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
-/// computation on variable-length integers should use the `num_bigint` crate
-/// instead, which is written specifically for that use case. `BitVec`s are not
-/// intended for arithmetic, and `bitvec` makes no guarantees about sustained
-/// correctness in arithmetic at this time.
-impl<E, T> Sub for BitVec<E, T>
-where E: Endian, T: Bits {
+/// Perform the Boolean AND operation between each element of a `BitVec` and
+/// anything that can provide a stream of `bool` values (such as another
+/// `BitVec`, or any `bool` generator of your choice). The `BitVec` emitted will
+/// have the length of the shorter sequence of bits -- if one is longer than the
+/// other, the extra bits will be ignored.
+impl<E, T, I> BitAnd<I> for BitVec<E, T>
+where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
 	type Output = Self;
 
-	/// Subtract one `BitVec` from another.
+	/// AND a vector and a bitstream, producing a new vector.
 	///
 	/// # Examples
 	///
-	/// Minuend larger than subtrahend, positive difference.
-	///
 	/// ```rust
 	/// use bitvec::*;
-	/// let a = bitvec![1, 0];
-	/// let b = bitvec![   1];
-	/// let c = a - b;
-	/// assert_eq!(bitvec![0, 1], c);
+	/// let lhs = bitvec![BigEndian, u8; 0, 1, 0, 1];
+	/// let rhs = bitvec![BigEndian, u8; 0, 0, 1, 1];
+	/// let and = lhs & rhs;
+	/// assert_eq!("0001", &format!("{}", and));
 	/// ```
-	///
-	/// Minuend smaller than subtrahend, negative difference.
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let a = bitvec![   1];
-	/// let b = bitvec![1, 0];
-	/// let c = a - b;
-	/// assert_eq!(bitvec![1, 1], c);
-	/// ```
-	///
-	/// Subtraction from self is correctly handled.
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let a = bitvec![1; 4];
-	/// let b = a.clone();
-	/// let c = a - b;
-	/// assert!(c.none(), "{:?}", c);
-	/// ```
-	fn sub(mut self, subtrahend: Self) -> Self::Output {
-		self -= subtrahend;
+	fn bitand(mut self, rhs: I) -> Self::Output {
+		self &= rhs;
 		self
 	}
 }
 
-/// Subtract another `BitVec` from `self`, assuming 2's-complement encoding.
+/// Perform the Boolean AND operation in place on a `BitVec`, using a stream of
+/// `bool` values as the other bit for each operation. If the other stream is
+/// shorter than `self`, `self` will be truncated when the other stream expires.
+impl<E, T, I> BitAndAssign<I> for BitVec<E, T>
+where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
+	/// AND another bitstream into a vector.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let mut src  = bitvec![BigEndian, u8; 0, 1, 0, 1];
+	///         src &= bitvec![BigEndian, u8; 0, 0, 1, 1];
+	/// assert_eq!("0001", &format!("{}", src));
+	/// ```
+	fn bitand_assign(&mut self, rhs: I) {
+		let mut len = 0;
+		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter()) {
+			let val = self.get(idx) & other;
+			self.set(idx, val);
+			len += 1;
+		}
+		self.truncate(len);
+	}
+}
+
+/// Perform the Boolean OR operation between each element of a `BitVec` and
+/// anything that can provide a stream of `bool` values (such as another
+/// `BitVec`, or any `bool` generator of your choice). The `BitVec` emitted will
+/// have the length of the shorter sequence of bits -- if one is longer than the
+/// other, the extra bits will be ignored.
+impl<E, T, I> BitOr<I> for BitVec<E, T>
+where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
+	type Output = Self;
+
+	/// OR a vector and a bitstream, producing a new vector.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let lhs = bitvec![BigEndian, u8; 0, 1, 0, 1];
+	/// let rhs = bitvec![BigEndian, u8; 0, 0, 1, 1];
+	/// let or  = lhs | rhs;
+	/// assert_eq!("0111", &format!("{}", or));
+	/// ```
+	fn bitor(mut self, rhs: I) -> Self::Output {
+		self |= rhs;
+		self
+	}
+}
+
+/// Perform the Boolean OR operation in place on a `BitVec`, using a stream of
+/// `bool` values as the other bit for each operation. If the other stream is
+/// shorter than `self`, `self` will be truncated when the other stream expires.
+impl<E, T, I> BitOrAssign<I> for BitVec<E, T>
+where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
+	/// OR another bitstream into a vector.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let mut src  = bitvec![BigEndian, u8; 0, 1, 0, 1];
+	///         src |= bitvec![BigEndian, u8; 0, 0, 1, 1];
+	/// assert_eq!("0111", &format!("{}", src));
+	/// ```
+	fn bitor_assign(&mut self, rhs: I) {
+		let mut len = 0;
+		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter()) {
+			let val = self.get(idx) | other;
+			self.set(idx, val);
+			len += 1;
+		}
+		self.truncate(len);
+	}
+}
+
+/// Perform the Boolean XOR operation between each element of a `BitVec` and
+/// anything that can provide a stream of `bool` values (such as another
+/// `BitVec`, or any `bool` generator of your choice). The `BitVec` emitted will
+/// have the length of the shorter sequence of bits -- if one is longer than the
+/// other, the extra bits will be ignored.
+impl<E, T, I> BitXor<I> for BitVec<E, T>
+where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
+	type Output = Self;
+
+	/// XOR a vector and a bitstream, producing a new vector.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let lhs = bitvec![BigEndian, u8; 0, 1, 0, 1];
+	/// let rhs = bitvec![BigEndian, u8; 0, 0, 1, 1];
+	/// let xor = lhs ^ rhs;
+	/// assert_eq!("0110", &format!("{}", xor));
+	/// ```
+	fn bitxor(mut self, rhs: I) -> Self::Output {
+		self ^= rhs;
+		self
+	}
+}
+
+/// Perform the Boolean XOR operation in place on a `BitVec`, using a stream of
+/// `bool` values as the other bit for each operation. If the other stream is
+/// shorter than `self`, `self` will be truncated when the other stream expires.
+impl<E, T, I> BitXorAssign<I> for BitVec<E, T>
+where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
+	/// XOR another bitstream into a vector.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let mut src  = bitvec![BigEndian, u8; 0, 1, 0, 1];
+	///         src ^= bitvec![BigEndian, u8; 0, 0, 1, 1];
+	/// assert_eq!("0110", &format!("{}", src));
+	/// ```
+	fn bitxor_assign(&mut self, rhs: I) {
+		let mut len = 0;
+		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter()) {
+			let val = self.get(idx) ^ other;
+			self.set(idx, val);
+			len += 1;
+		}
+		self.truncate(len);
+	}
+}
+
+/// Reborrow the `BitVec` as a `BitSlice`.
 ///
-/// The minuend is zero-extended, or the subtrahend sign-extended, as needed to
-/// ensure that the vectors are the same width before subtraction occurs.
+/// This mimics the separation between `Vec<T>` and `[T]`.
+impl<E, T> Deref for BitVec<E, T>
+where E: Endian, T: Bits {
+	type Target = BitSlice<E, T>;
+
+	/// Dereference `&BitVec` down to `&BitSlice`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let bv: BitVec = bitvec![1; 4];
+	/// let bref: &BitSlice = &bv;
+	/// assert!(bref.get(2));
+	/// ```
+	fn deref(&self) -> &Self::Target {
+		//  `BitVec`'s representation of its inner `Vec` matches exactly the
+		//  invariants of how `BitSlice` references must look. This is fine.
+		unsafe { mem::transmute(&self.inner as &[T]) }
+	}
+}
+
+/// Reborrow the `BitVec` as a `BitSlice`.
 ///
-/// The `Sub` trait has more documentation on the subtraction process.
+/// This mimics the separation between `Vec<T>` and `[T]`.
+impl<E, T> DerefMut for BitVec<E, T>
+where E: Endian, T: Bits {
+	/// Dereference `&mut BitVec` down to `&mut BitSlice`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let mut bv: BitVec = bitvec![0; 6];
+	/// let bref: &mut BitSlice = &mut bv;
+	/// assert!(!bref.get(5));
+	/// bref.set(5, true);
+	/// assert!(bref.get(5));
+	/// ```
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		unsafe { mem::transmute(&mut self.inner as &mut [T]) }
+	}
+}
+
+/// Ready the underlying storage for Drop.
+impl<E, T> Drop for BitVec<E, T>
+where E: Endian, T: Bits {
+	fn drop(&mut self) {
+		//  If the `Vec` is non-empty, set the length to the number of used
+		//  elements as preparation for drop. The bits do not need to be wiped.
+		//
+		//  If we don't do this, the `Vec` drop will treat the bit total as the
+		//  number of elements and try to loop through all of them, which will
+		//  not take 2 ** T::BITS times as long to run as expected, because
+		//  it'll segfault.
+		let raw = self.raw_len();
+		unsafe { self.inner.set_len(raw); }
+	}
+}
+
+/// Get the bit at a specific index. The index must be less than the length of
+/// the `BitVec`.
+impl<E, T> Index<usize> for BitVec<E, T>
+where E: Endian, T: Bits {
+	type Output = bool;
+
+	/// Look up a single bit by semantic count.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 0, 0, 0, 0, 0, 1, 0];
+	/// assert!(!bv[7]); // ---------------------------------^  |  |
+	/// assert!( bv[8]); //-------------------------------------^  |
+	/// assert!(!bv[9]); // ---------------------------------------^
+	/// ```
+	///
+	/// If the index is greater than or equal to the length, indexing will panic.
+	///
+	/// The below test will panic when accessing index 1, as only index 0 is valid.
+	///
+	/// ```rust,should_panic
+	/// use bitvec::*;
+	/// let mut bv: BitVec = BitVec::new();
+	/// bv.push(true);
+	/// bv[1];
+	/// ```
+	fn index(&self, cursor: usize) -> &Self::Output {
+		assert!(cursor < self.inner.len(), "Index out of range!");
+		self.index(T::split(cursor))
+	}
+}
+
+/// Get the bit in a specific element. The element index must be less than or
+/// equal to the value returned by `elts()`, and the bit index must be less
+/// than the width of the storage type.
+///
+/// If the `BitVec` has a partially-filled tail, then the value returned by
+/// `elts()` is a valid index.
+///
+/// The element and bit indices are combined using `Bits::join` for the storage
+/// type.
+///
+/// This index is not recommended for public use.
+impl<E, T> Index<(usize, u8)> for BitVec<E, T>
+where E: Endian, T: Bits {
+	type Output = bool;
+
+	/// Index into a `BitVec` using a known element index and a count into that
+	/// element. The count must not be converted for endianness outside the
+	/// call.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let bv = bitvec![BigEndian, u8; 1, 1, 1, 1, 0, 0, 0, 0, 0, 1];
+	/// assert!(bv[(1, 1)]); // -----------------------------------^
+	/// ```
+	fn index(&self, (elt, bit): (usize, u8)) -> &Self::Output {
+		assert!(T::join(elt, bit) < self.len(), "Index out of range!");
+		match (self.inner[elt]).get(E::curr::<T>(bit)) {
+			true => &TRUE,
+			false => &FALSE,
+		}
+	}
+}
+
+/// 2's-complement negation of a `BitVec`.
+///
+/// In 2's-complement, negation is defined as bit-inversion followed by adding
+/// one.
 ///
 /// Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
 /// computation on variable-length integers should use the `num_bigint` crate
 /// instead, which is written specifically for that use case. `BitVec`s are not
 /// intended for arithmetic, and `bitvec` makes no guarantees about sustained
 /// correctness in arithmetic at this time.
-impl<E, T> SubAssign for BitVec<E, T>
+impl<E, T> Neg for BitVec<E, T>
 where E: Endian, T: Bits {
-	/// Subtract another `BitVec` from `self`.
+	type Output = Self;
+
+	fn neg(mut self) -> Self::Output {
+		//  An empty vector does nothing.
+		//  Negative zero is zero. Without this check, -[0+] becomes[10+1].
+		if self.is_empty() || self.none() {
+			return self;
+		}
+		self = !self;
+		self += BitVec::<E, T>::from(&[true] as &[bool]);
+		self
+	}
+}
+
+/// Flip all bits in the vector.
+///
+/// This invokes the `!` operator on each element of the borrowed storage, and
+/// so it will also flip bits in the tail that are outside the `BitVec` length
+/// if any. Use `^= repeat(true)` to flip only the bits actually inside the
+/// `BitVec` purview. `^=` also has the advantage of being a borrowing operator
+/// rather than a consuming/returning operator.
+/// ```
+impl<E, T> Not for BitVec<E, T>
+where E: Endian, T: Bits {
+	type Output = Self;
+
+	/// Invert all bits in the vector.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::*;
-	/// let a = bitvec![0, 0, 0, 1];
-	/// let b = bitvec![0, 0, 0, 0];
-	/// let c = a - b;
-	/// assert_eq!(c, bitvec![0, 0, 0, 1]);
-	/// ```
-	fn sub_assign(&mut self, mut subtrahend: Self) {
-		//  Test for a zero subtrahend. Subtraction of zero is the identity
-		//  function, and can exit immediately.
-		if subtrahend.none() {
-			return;
-		}
-		//  Invert the subtrahend in preparation for addition
-		subtrahend = -subtrahend;
-		let (llen, rlen) = (self.len(), subtrahend.len());
-		//  If the subtrahend is longer than the minuend, 0-extend the minuend.
-		if rlen > llen {
-			let diff = rlen - llen;
-			*self >>= diff;
-			*self += subtrahend;
-		}
-		else {
-			//  If the minuend is longer than the subtrahend, 1-extend the
-			//  subtrahend.
-			if llen > rlen {
-				let diff = llen - rlen;
-				let sign = subtrahend.get(0);
-				subtrahend >>= diff;
-				//  Implementing BitVec >> (usize, bool) would permit sign
-				//  extension in fewer steps.
-				for idx in 0 .. diff {
-					subtrahend.set(idx, sign);
-				}
-			}
-			let old = self.len();
-			*self += subtrahend;
-			//  If the subtraction emitted a carry, remove it.
-			if self.len() > old {
-				*self <<= 1;
-			}
-		}
+	/// let bv: BitVec<BigEndian, u32> = BitVec::from(&[0u32] as &[u32]);
+	/// let flip = !bv;
+	/// assert_eq!(!0u32, flip.as_ref()[0]);
+	//  Because self does not have to interact with any other `BitVec`, and bits
+	//  beyond `BitVec.len()` are uninitialized and don't matter, this is free
+	//  to simply negate the elements in place and then return self.
+	fn not(mut self) -> Self::Output {
+		!&mut *self;
+		self
 	}
 }
 
@@ -1762,6 +1652,140 @@ where E: Endian, T: Bits {
 		}
 		for idx in 0 .. shamt {
 			self.set(idx, false);
+		}
+	}
+}
+
+/// Subtract one `BitVec` from another assuming 2's-complement encoding.
+///
+/// Subtraction is a more complex operation than addition. The bit-level work is
+/// largely the same, but semantic distinctions must be made. Unlike addition,
+/// which is commutative and tolerant of switching the order of the addends,
+/// subtraction cannot swap the minuend (LHS) and subtrahend (RHS).
+///
+/// Because of the properties of 2's-complement arithmetic, M - S is equivalent
+/// to M + (!S + 1). Subtraction therefore bitflips the subtrahend and adds one.
+/// This may, in a degenerate case, cause the subtrahend to increase in length.
+///
+/// Once the subtrahend is stable, the minuend zero-extends its left side in
+/// order to match the length of the subtrahend if needed (this is provided by
+/// the `>>` operator).
+///
+/// When the minuend is stable, the minuend and subtrahend are added together
+/// by the `<BitVec as Add>` implementation. The output will be encoded in
+/// 2's-complement, so a leading one means that the output is considered
+/// negative.
+///
+/// Interpreting the contents of a `BitVec` as an integer is beyond the scope of
+/// this crate.
+///
+/// Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
+/// computation on variable-length integers should use the `num_bigint` crate
+/// instead, which is written specifically for that use case. `BitVec`s are not
+/// intended for arithmetic, and `bitvec` makes no guarantees about sustained
+/// correctness in arithmetic at this time.
+impl<E, T> Sub for BitVec<E, T>
+where E: Endian, T: Bits {
+	type Output = Self;
+
+	/// Subtract one `BitVec` from another.
+	///
+	/// # Examples
+	///
+	/// Minuend larger than subtrahend, positive difference.
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let a = bitvec![1, 0];
+	/// let b = bitvec![   1];
+	/// let c = a - b;
+	/// assert_eq!(bitvec![0, 1], c);
+	/// ```
+	///
+	/// Minuend smaller than subtrahend, negative difference.
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let a = bitvec![   1];
+	/// let b = bitvec![1, 0];
+	/// let c = a - b;
+	/// assert_eq!(bitvec![1, 1], c);
+	/// ```
+	///
+	/// Subtraction from self is correctly handled.
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let a = bitvec![1; 4];
+	/// let b = a.clone();
+	/// let c = a - b;
+	/// assert!(c.none(), "{:?}", c);
+	/// ```
+	fn sub(mut self, subtrahend: Self) -> Self::Output {
+		self -= subtrahend;
+		self
+	}
+}
+
+/// Subtract another `BitVec` from `self`, assuming 2's-complement encoding.
+///
+/// The minuend is zero-extended, or the subtrahend sign-extended, as needed to
+/// ensure that the vectors are the same width before subtraction occurs.
+///
+/// The `Sub` trait has more documentation on the subtraction process.
+///
+/// Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
+/// computation on variable-length integers should use the `num_bigint` crate
+/// instead, which is written specifically for that use case. `BitVec`s are not
+/// intended for arithmetic, and `bitvec` makes no guarantees about sustained
+/// correctness in arithmetic at this time.
+impl<E, T> SubAssign for BitVec<E, T>
+where E: Endian, T: Bits {
+	/// Subtract another `BitVec` from `self`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let a = bitvec![0, 0, 0, 1];
+	/// let b = bitvec![0, 0, 0, 0];
+	/// let c = a - b;
+	/// assert_eq!(c, bitvec![0, 0, 0, 1]);
+	/// ```
+	fn sub_assign(&mut self, mut subtrahend: Self) {
+		//  Test for a zero subtrahend. Subtraction of zero is the identity
+		//  function, and can exit immediately.
+		if subtrahend.none() {
+			return;
+		}
+		//  Invert the subtrahend in preparation for addition
+		subtrahend = -subtrahend;
+		let (llen, rlen) = (self.len(), subtrahend.len());
+		//  If the subtrahend is longer than the minuend, 0-extend the minuend.
+		if rlen > llen {
+			let diff = rlen - llen;
+			*self >>= diff;
+			*self += subtrahend;
+		}
+		else {
+			//  If the minuend is longer than the subtrahend, 1-extend the
+			//  subtrahend.
+			if llen > rlen {
+				let diff = llen - rlen;
+				let sign = subtrahend.get(0);
+				subtrahend >>= diff;
+				//  Implementing BitVec >> (usize, bool) would permit sign
+				//  extension in fewer steps.
+				for idx in 0 .. diff {
+					subtrahend.set(idx, sign);
+				}
+			}
+			let old = self.len();
+			*self += subtrahend;
+			//  If the subtraction emitted a carry, remove it.
+			if self.len() > old {
+				*self <<= 1;
+			}
 		}
 	}
 }
