@@ -2,6 +2,33 @@
 
 All notable changes will be documented in this file.
 
+## 0.5.0
+
+### Added
+
+- `BitVec` and `BitSlice` implement `Hash`.
+
+- `BitVec` fully implements addition, negation, and subtraction.
+
+- `BitSlice` implements in-place addition and negation.
+  - `impl AddAssign for BitSlice`
+  - `impl Neg for &mut BitSlice`
+
+  This distinction is required in order to match the expectations of the
+  arithmetic traits and the realities of immovable `BitSlice`.
+
+- `BitSlice` offers `.all()`, `.any()`, `.not_all()`, `.not_any()`, and
+  `.some()` methods to perform n-ary Boolean logic.
+  - `.all()` tests if all bits are set high
+  - `.any()` tests if any bits are set high (includes `.all()`)
+  - `.not_all()` tests if any bits are set low (includes `.not_all()`)
+  - `.not_any()` tests if all bits are set low
+  - `.some()` tests if any bits are high and any are low (excludes `.all()` and
+    `.not_all()`)
+
+- `BitSlice` can count how many bits are set high or low with `.count_one()` and
+  `.count_zero()`.
+
 ## 0.4.0
 
 ### Added
