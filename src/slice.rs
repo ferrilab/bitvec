@@ -52,8 +52,8 @@ use std::cmp::{
 	PartialOrd,
 };
 use std::convert::{
-	AsRef,
 	AsMut,
+	AsRef,
 	From,
 };
 use std::fmt::{
@@ -61,6 +61,10 @@ use std::fmt::{
 	Debug,
 	Display,
 	Formatter,
+};
+use std::hash::{
+	Hash,
+	Hasher,
 };
 use std::iter::{
 	DoubleEndedIterator,
@@ -71,10 +75,12 @@ use std::iter::{
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{
+	AddAssign,
 	BitAndAssign,
 	BitOrAssign,
 	BitXorAssign,
 	Index,
+	Neg,
 	Not,
 	ShlAssign,
 	ShrAssign,
@@ -110,7 +116,8 @@ created by using the `From` implementation on `&BitSlice` and `&mut BitSlice`.
   downstream implementation, and can only be implemented in this crate.
 **/
 #[cfg_attr(nightly, repr(transparent))]
-pub struct BitSlice<E: Endian = BigEndian, T: Bits = u8> {
+pub struct BitSlice<E = BigEndian, T = u8>
+where E: Endian, T: Bits {
 	_endian: PhantomData<E>,
 	inner: [T],
 }
@@ -447,6 +454,113 @@ where E: Endian, T: Bits {
 	}
 }
 
+/// Clone a borrowed `BitSlice` into an owned `BitVec`.
+impl<E, T> ToOwned for BitSlice<E, T>
+where E: Endian, T: Bits {
+	type Owned = BitVec<E, T>;
+
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let src = bitvec![0; 5];
+	/// let src_ref: &BitSlice = &src;
+	/// let dst = src_ref.to_owned();
+	/// assert_eq!(src, dst);
+	/// ```
+	fn to_owned(&self) -> Self::Owned {
+		let mut out = Self::Owned::with_capacity(self.len());
+		unsafe {
+			let src = self.as_ptr();
+			let dst = out.as_mut_ptr();
+			let len = self.raw_len();
+			ptr::copy_nonoverlapping(src, dst, len);
+			out.set_len(self.len());
+		}
+		out
+	}
+}
+
+impl<E, T> Eq for BitSlice<E, T>
+where E: Endian, T: Bits {}
+
+impl<E, T> Ord for BitSlice<E, T>
+where E: Endian, T: Bits {
+	fn cmp(&self, rhs: &Self) -> Ordering {
+		match self.partial_cmp(rhs) {
+			Some(ord) => ord,
+			None => unreachable!("`BitSlice` has a total ordering"),
+		}
+	}
+}
+
+/// Test if two `BitSlice`s are semantically — not bitwise — equal.
+///
+/// It is valid to compare two slices of different endianness or element types.
+///
+/// The equality condition requires that they have the same number of total bits
+/// and that each pair of bits in semantic order are identical.
+impl<A, B, C, D> PartialEq<BitSlice<C, D>> for BitSlice<A, B>
+where A: Endian, B: Bits, C: Endian, D: Bits {
+	/// Perform a comparison by `==`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let l: BitVec<LittleEndian, u16> = bitvec![LittleEndian, u16; 0, 1, 0, 1];
+	/// let r: BitVec<BigEndian, u32> = bitvec![BigEndian, u32; 0, 1, 0, 1];
+	///
+	/// let ls: &BitSlice<_, _> = &l;
+	/// let rs: &BitSlice<_, _> = &r;
+	/// assert!(ls == rs);
+	/// ```
+	fn eq(&self, rhs: &BitSlice<C, D>) -> bool {
+		let (l, r) = (self.iter(), rhs.iter());
+		if l.len() != r.len() {
+			return false;
+		}
+		l.zip(r).all(|(l, r)| l == r)
+	}
+}
+
+/// Compare two `BitSlice`s by semantic — not bitwise — ordering.
+///
+/// The comparison sorts by testing each index for one slice to have a set bit
+/// where the other has an unset bit. If the slices are different, the slice
+/// with the set bit sorts greater than the slice with the unset bit.
+///
+/// If one of the slices is exhausted before they differ, the longer slice is
+/// greater.
+impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for BitSlice<A, B>
+where A: Endian, B: Bits, C: Endian, D: Bits {
+	/// Perform a comparison by `<` or `>`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let a = bitvec![0, 1, 0, 0];
+	/// let b = bitvec![0, 1, 0, 1];
+	/// let c = bitvec![0, 1, 0, 1, 1];
+	/// let aref: &BitSlice = &a;
+	/// let bref: &BitSlice = &b;
+	/// let cref: &BitSlice = &c;
+	/// assert!(aref < bref);
+	/// assert!(bref < cref);
+	/// ```
+	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<Ordering> {
+		for (l, r) in self.iter().zip(rhs.iter()) {
+			match (l, r) {
+				(true, false) => return Some(Ordering::Greater),
+				(false, true) => return Some(Ordering::Less),
+				_ => continue,
+			}
+		}
+		self.len().partial_cmp(&rhs.len())
+	}
+}
+
 /// Give write access to all elements in the underlying storage, including the
 /// partially-filled tail element (if present).
 impl<E, T> AsMut<[T]> for BitSlice<E, T>
@@ -489,76 +603,67 @@ where E: Endian, T: Bits {
 	}
 }
 
-/// Performs the Boolean AND operation against another bitstream and writes the
-/// result into `self`. If the other bitstream ends before `self` does, it is
-/// extended with zero, clearing all remaining bits in `self`.
-impl<E, T, I> BitAndAssign<I> for BitSlice<E, T>
-where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
-	/// AND a bitstream inta a slice.
+/// Build a `BitSlice` from a slice of elements. The resulting `BitSlice` will
+/// always completely fill the original slice, and will not have a partial tail.
+impl<'a, E, T> From<&'a [T]> for &'a BitSlice<E, T>
+where E: Endian, T: 'a + Bits {
+	/// Wrap an `&[T: Bits]` in an `&BitSlice<E: Endian, T>`. The endianness
+	/// must be specified by the call site. The element type cannot be changed.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::*;
-	/// let lhs: &mut BitSlice = &mut bitvec![0, 1, 0, 1, 0, 1];
-	/// let rhs                =      bitvec![0, 0, 1, 1];
-	/// *lhs &= rhs;
-	/// assert_eq!("000100", &format!("{}", lhs));
+	/// let src = vec![1u8, 2, 3];
+	/// let borrow: &[u8] = &src;
+	/// let bits: &BitSlice<BigEndian, _> = borrow.into();
+	/// assert_eq!(bits.len(), 24);
+	/// assert_eq!(bits.elts(), 3);
+	/// assert_eq!(bits.bits(), 0);
+	/// assert!(bits.get(7));  // src[0] == 0b0000_0001
+	/// assert!(bits.get(14)); // src[1] == 0b0000_0010
+	/// assert!(bits.get(22)); // src[2] == 0b0000_0011
+	/// assert!(bits.get(23));
 	/// ```
-	fn bitand_assign(&mut self, rhs: I) {
-		use std::iter::repeat;
-		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter().chain(repeat(false))) {
-			let val = self.get(idx) & other;
-			self.set(idx, val);
+	fn from(src: &'a [T]) -> Self {
+		let (ptr, len): (*const T, usize) = (src.as_ptr(), src.len());
+		assert!(len <= T::MAX_ELT, "Source slice length out of range!");
+		unsafe {
+			mem::transmute(
+				slice::from_raw_parts(ptr, len << T::BITS)
+			)
 		}
 	}
 }
 
-/// Performs the Boolear OR operation against another bitstream and writes the
-/// result into `self`. If the other bitstream ends before `self` does, it is
-/// extended with zero, leaving all remaining bits in `self` as they were.
-impl<E, T, I> BitOrAssign<I> for BitSlice<E, T>
-where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
-	/// OR a bitstream into a slice.
+/// Build a mutable `BitSlice` from a slice of mutable elements. The resulting
+/// `BitSlice` will always completely fill the original slice, and will not have
+/// a partial tail.
+impl<'a, E, T> From<&'a mut [T]> for &'a mut BitSlice<E, T>
+where E: Endian, T: 'a + Bits {
+	/// Wrap an `&mut [T: Bits]` in an `&mut BitSlice<E: Endian, T>`. The
+	/// endianness must be specified by the call site. The element type cannot
+	/// be changed.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::*;
-	/// let lhs: &mut BitSlice = &mut bitvec![0, 1, 0, 1, 0, 1];
-	/// let rhs                =      bitvec![0, 0, 1, 1];
-	/// *lhs |= rhs;
-	/// assert_eq!("011101", &format!("{}", lhs));
+	/// let mut src = vec![1u8, 2, 3];
+	/// let borrow: &mut [u8] = &mut src;
+	/// let bits: &mut BitSlice<LittleEndian, _> = borrow.into();
+	/// //  The first bit read is the LSb of the first element, which is set.
+	/// assert!(bits.get(0));
+	/// bits.set(0, false);
+	/// assert!(!bits.get(0));
 	/// ```
-	fn bitor_assign(&mut self, rhs: I) {
-		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter()) {
-			let val = self.get(idx) | other;
-			self.set(idx, val);
-		}
-	}
-}
-
-/// Perform the Boolean XOR operation against another bitstream and writes the
-/// result into `self`. If the other bitstream ends before `self` does, it is
-/// extended with zero, leaving all remaining bits in `self` as they were.
-impl<E, T, I> BitXorAssign<I> for BitSlice<E, T>
-where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
-	/// XOR a bitstream into a slice.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let lhs: &mut BitSlice = &mut bitvec![0, 1, 0, 1, 0, 1];
-	/// let rhs                =      bitvec![0, 0, 1, 1];
-	/// *lhs ^= rhs;
-	/// assert_eq!("011001", &format!("{}", lhs));
-	/// ```
-	fn bitxor_assign(&mut self, rhs: I) {
-		use std::iter::repeat;
-		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter().chain(repeat(false))) {
-			let val = self.get(idx) ^ other;
-			self.set(idx, val);
+	fn from(src: &'a mut [T]) -> Self {
+		let (ptr, len): (*mut T, usize) = (src.as_mut_ptr(), src.len());
+		assert!(len <= T::MAX_ELT, "Source slice length out of range!");
+		unsafe {
+			mem::transmute(
+				slice::from_raw_parts_mut(ptr, len << T::BITS)
+			)
 		}
 	}
 }
@@ -628,67 +733,171 @@ where E: Endian, T: Bits {
 	}
 }
 
-/// Build a `BitSlice` from a slice of elements. The resulting `BitSlice` will
-/// always completely fill the original slice, and will not have a partial tail.
-impl<'a, E, T> From<&'a [T]> for &'a BitSlice<E, T>
-where E: Endian, T: 'a + Bits {
-	/// Wrap an `&[T: Bits]` in an `&BitSlice<E: Endian, T>`. The endianness
-	/// must be specified by the call site. The element type cannot be changed.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let src = vec![1u8, 2, 3];
-	/// let borrow: &[u8] = &src;
-	/// let bits: &BitSlice<BigEndian, _> = borrow.into();
-	/// assert_eq!(bits.len(), 24);
-	/// assert_eq!(bits.elts(), 3);
-	/// assert_eq!(bits.bits(), 0);
-	/// assert!(bits.get(7));  // src[0] == 0b0000_0001
-	/// assert!(bits.get(14)); // src[1] == 0b0000_0010
-	/// assert!(bits.get(22)); // src[2] == 0b0000_0011
-	/// assert!(bits.get(23));
-	/// ```
-	fn from(src: &'a [T]) -> Self {
-		let (ptr, len): (*const T, usize) = (src.as_ptr(), src.len());
-		assert!(len <= T::MAX_ELT, "Source slice length out of range!");
-		unsafe {
-			mem::transmute(
-				slice::from_raw_parts(ptr, len << T::BITS)
-			)
+impl<E, T> Hash for BitSlice<E, T>
+where E: Endian, T: Bits {
+	fn hash<H>(&self, hasher: &mut H)
+	where H: Hasher {
+		for bit in self {
+			hasher.write_u8(bit as u8);
 		}
 	}
 }
 
-/// Build a mutable `BitSlice` from a slice of mutable elements. The resulting
-/// `BitSlice` will always completely fill the original slice, and will not have
-/// a partial tail.
-impl<'a, E, T> From<&'a mut [T]> for &'a mut BitSlice<E, T>
+/// Produce a read-only iterator over all the bits in the `BitSlice`.
+///
+/// This iterator follows the ordering in the `BitSlice` type, and implements
+/// `ExactSizeIterator` as `BitSlice` has a known, fixed length, and
+/// `DoubleEndedIterator` as it has known ends.
+impl<'a, E, T> IntoIterator for &'a BitSlice<E, T>
 where E: Endian, T: 'a + Bits {
-	/// Wrap an `&mut [T: Bits]` in an `&mut BitSlice<E: Endian, T>`. The
-	/// endianness must be specified by the call site. The element type cannot
-	/// be changed.
+	type Item = bool;
+	type IntoIter = Iter<'a, E, T>;
+
+	/// Iterate over the slice.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::*;
-	/// let mut src = vec![1u8, 2, 3];
-	/// let borrow: &mut [u8] = &mut src;
-	/// let bits: &mut BitSlice<LittleEndian, _> = borrow.into();
-	/// //  The first bit read is the LSb of the first element, which is set.
-	/// assert!(bits.get(0));
-	/// bits.set(0, false);
-	/// assert!(!bits.get(0));
+	/// let bv = bitvec![1, 0, 1, 0, 1, 1, 0, 0];
+	/// let bref: &BitSlice = &bv;
+	/// let mut count = 0;
+	/// for bit in bref {
+	///     if bit { count += 1; }
+	/// }
+	/// assert_eq!(count, 4);
 	/// ```
-	fn from(src: &'a mut [T]) -> Self {
-		let (ptr, len): (*mut T, usize) = (src.as_mut_ptr(), src.len());
-		assert!(len <= T::MAX_ELT, "Source slice length out of range!");
-		unsafe {
-			mem::transmute(
-				slice::from_raw_parts_mut(ptr, len << T::BITS)
-			)
+	fn into_iter(self) -> Self::IntoIter {
+		self.into()
+	}
+}
+
+/// Perform unsigned addition in place on a `BitSlice`.
+///
+/// If the addend `BitSliec` is shorter than `self`, the addend is zero-extended
+/// to the right. If the addend is longer, the excess front length is unused.
+///
+/// Addition proceeds from the right ends of each slice towards the left.
+/// Because this trait is forbidden from returning anything, the final carry-out
+/// bit is discarded.
+///
+/// Note that, unlike `BitVec`, there is no subtraction implementation until I
+/// find a subtraction algorithm that does not require modifying the subtrahend.
+///
+/// Subtraction can be implemented by negating the intended subtrahend yourself,
+/// then using addition, or by using `BitVec`s instead of `BitSlice`s.
+impl<'a, E, T> AddAssign<&'a BitSlice<E, T>> for BitSlice<E, T>
+where E: Endian, T: Bits {
+	/// Perform unsigned wrapping addition in place.
+	///
+	/// # Examples
+	///
+	/// This example shows addition of a slice wrapping from MAX to zero.
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let nums: [BitVec; 3] = [
+	///     bitvec![1, 1, 1, 0],
+	///     bitvec![1, 1, 1, 1],
+	///     bitvec![0, 0, 0, 0],
+	/// ];
+	/// let one = bitvec![0, 1];
+	/// let mut num = nums[0].clone();
+	/// let numr: &mut BitSlice = &mut num;
+	/// *numr += &one;
+	/// assert_eq!(numr, &nums[1] as &BitSlice);
+	/// *numr += &one;
+	/// assert_eq!(numr, &nums[2] as &BitSlice);
+	/// ```
+	fn add_assign(&mut self, addend: &'a BitSlice<E, T>) {
+		use std::iter::repeat;
+		//  zero-extend the addend if it's shorter than self
+		let mut addend_iter = addend.into_iter().rev().chain(repeat(false));
+		let mut c = false;
+		for place in (0 .. self.len()).rev() {
+			//  See BitVec::AddAssign
+			static JUMP: [u8; 8] = [0, 2, 2, 1, 2, 1, 1, 3];
+			let a = self.get(place);
+			let b = addend_iter.next().unwrap(); // addend is an infinite source
+			let idx = ((c as u8) << 2) | ((a as u8) << 1) | (b as u8);
+			let yz = JUMP[idx as usize];
+			let (y, z) = (yz & 2 != 0, yz & 1 != 0);
+			self.set(place, y);
+			c = z;
+		}
+	}
+}
+
+/// Perform the Boolean AND operation against another bitstream and writes the
+/// result into `self`. If the other bitstream ends before `self` does, it is
+/// extended with zero, clearing all remaining bits in `self`.
+impl<E, T, I> BitAndAssign<I> for BitSlice<E, T>
+where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
+	/// AND a bitstream inta a slice.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let lhs: &mut BitSlice = &mut bitvec![0, 1, 0, 1, 0, 1];
+	/// let rhs                =      bitvec![0, 0, 1, 1];
+	/// *lhs &= rhs;
+	/// assert_eq!("000100", &format!("{}", lhs));
+	/// ```
+	fn bitand_assign(&mut self, rhs: I) {
+		use std::iter::repeat;
+		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter().chain(repeat(false))) {
+			let val = self.get(idx) & other;
+			self.set(idx, val);
+		}
+	}
+}
+
+/// Perform the Boolean OR operation against another bitstream and writes the
+/// result into `self`. If the other bitstream ends before `self` does, it is
+/// extended with zero, leaving all remaining bits in `self` as they were.
+impl<E, T, I> BitOrAssign<I> for BitSlice<E, T>
+where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
+	/// OR a bitstream into a slice.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let lhs: &mut BitSlice = &mut bitvec![0, 1, 0, 1, 0, 1];
+	/// let rhs                =      bitvec![0, 0, 1, 1];
+	/// *lhs |= rhs;
+	/// assert_eq!("011101", &format!("{}", lhs));
+	/// ```
+	fn bitor_assign(&mut self, rhs: I) {
+		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter()) {
+			let val = self.get(idx) | other;
+			self.set(idx, val);
+		}
+	}
+}
+
+/// Perform the Boolean XOR operation against another bitstream and writes the
+/// result into `self`. If the other bitstream ends before `self` does, it is
+/// extended with zero, leaving all remaining bits in `self` as they were.
+impl<E, T, I> BitXorAssign<I> for BitSlice<E, T>
+where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
+	/// XOR a bitstream into a slice.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let lhs: &mut BitSlice = &mut bitvec![0, 1, 0, 1, 0, 1];
+	/// let rhs                =      bitvec![0, 0, 1, 1];
+	/// *lhs ^= rhs;
+	/// assert_eq!("011001", &format!("{}", lhs));
+	/// ```
+	fn bitxor_assign(&mut self, rhs: I) {
+		use std::iter::repeat;
+		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter().chain(repeat(false))) {
+			let val = self.get(idx) ^ other;
+			self.set(idx, val);
 		}
 	}
 }
@@ -748,32 +957,86 @@ where E: Endian, T: 'a + Bits {
 	}
 }
 
-/// Produce a read-only iterator over all the bits in the `BitSlice`.
+/// Perform fixed-width 2's-complement negation of a `BitSlice`.
 ///
-/// This iterator follows the ordering in the `BitSlice` type, and implements
-/// `ExactSizeIterator` as `BitSlice` has a known, fixed length, and
-/// `DoubleEndedIterator` as it has known ends.
-impl<'a, E, T> IntoIterator for &'a BitSlice<E, T>
+/// Unlike the `!` operator (`Not` trait), the unary `-` operator treats the
+/// `BitSlice` as if it represents a signed 2's-complement integer of fixed
+/// width. The negation of a number in 2's complement is defined as its
+/// inversion (using `!`) plus one, and on fixed-width numbers has the following
+/// discontinuities:
+///
+/// - A slice whose bits are all zero is considered to represent the number zero
+///   which negates as itself.
+/// - A slice whose bits are all one is considered to represent the most
+///   negative number, which has no correpsonding positive number, and thus
+///   negates as zero.
+///
+/// This behavior was chosen so that all possible values would have *some*
+/// output, and so that repeated application converges at idempotence. The most
+/// negative input can never be reached by negation, but `--MOST_NEG` converges
+/// at the least unreasonable fallback value, 0.
+///
+/// Because `BitSlice` cannot move, the negation is performed in place.
+impl<'a, E, T> Neg for &'a mut BitSlice<E, T>
 where E: Endian, T: 'a + Bits {
-	type Item = bool;
-	type IntoIter = Iter<'a, E, T>;
+	type Output = Self;
 
-	/// Iterate over the slice.
+	/// Perform 2's-complement fixed-width negation.
 	///
 	/// # Examples
 	///
+	/// The contortions shown here are a result of this operator applying to a
+	/// mutable reference, and this example balancing access to the original
+	/// `BitVec` for comparison with aquiring a mutable borrow *as a slice* to
+	/// ensure that the `BitSlice` implementation is used, not the `BitVec`.
+	///
+	/// Negate an arbitrary positive number (first bit unset).
+	///
 	/// ```rust
 	/// use bitvec::*;
-	/// let bv = bitvec![1, 0, 1, 0, 1, 1, 0, 0];
-	/// let bref: &BitSlice = &bv;
-	/// let mut count = 0;
-	/// for bit in bref {
-	///     if bit { count += 1; }
-	/// }
-	/// assert_eq!(count, 4);
+	/// let mut num = bitvec![0, 1, 1, 0];
+	/// - (&mut num as &mut BitSlice);
+	/// assert_eq!(num, bitvec![1, 0, 1, 0]);
 	/// ```
-	fn into_iter(self) -> Self::IntoIter {
-		self.into()
+	///
+	/// Negate an arbitrary negative number. This example will use the above
+	/// result to demonstrate round-trip correctness.
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let mut num = bitvec![1, 0, 1, 0];
+	/// - (&mut num as &mut BitSlice);
+	/// assert_eq!(num, bitvec![0, 1, 1, 0]);
+	/// ```
+	///
+	/// Negate the most negative number, which will become zero, and show
+	/// convergence at zero.
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let zero = bitvec![0; 10];
+	/// let mut num = bitvec![1; 10];
+	/// - (&mut num as &mut BitSlice);
+	/// assert_eq!(num, zero);
+	/// - (&mut num as &mut BitSlice);
+	/// assert_eq!(num, zero);
+	/// ```
+	fn neg(self) -> Self::Output {
+		if self.is_empty() || self.none() {
+			return self;
+		}
+		Not::not(&mut *self);
+		//  Fill an element with all 1 bits
+		let elt: [T; 1] = [!T::default()];
+		if self.any() {
+			//  Turn a slice reference [T; 1] into a bit-slice reference [u1; 1]
+			let addend: &BitSlice<E, T> = {
+				unsafe { mem::transmute::<&[T], &BitSlice<E, T>>(&elt) }
+			};
+			//  And add it (if the slice was not all-ones).
+			AddAssign::add_assign(&mut *self, addend);
+		}
+		self
 	}
 }
 
@@ -807,86 +1070,6 @@ where E: Endian, T: 'a + Bits {
 			*elt = !*elt;
 		}
 		self
-	}
-}
-
-/// Test if two `BitSlice`s are semantically — not bitwise — equal.
-///
-/// It is valid to compare two slices of different endianness or element types.
-///
-/// The equality condition requires that they have the same number of total bits
-/// and that each pair of bits in semantic order are identical.
-impl<A, B, C, D> PartialEq<BitSlice<C, D>> for BitSlice<A, B>
-where A: Endian, B: Bits, C: Endian, D: Bits {
-	/// Perform a comparison by `==`.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let l: BitVec<LittleEndian, u16> = bitvec![LittleEndian, u16; 0, 1, 0, 1];
-	/// let r: BitVec<BigEndian, u32> = bitvec![BigEndian, u32; 0, 1, 0, 1];
-	///
-	/// let ls: &BitSlice<_, _> = &l;
-	/// let rs: &BitSlice<_, _> = &r;
-	/// assert!(ls == rs);
-	/// ```
-	fn eq(&self, rhs: &BitSlice<C, D>) -> bool {
-		let (l, r) = (self.iter(), rhs.iter());
-		if l.len() != r.len() {
-			return false;
-		}
-		l.zip(r).all(|(l, r)| l == r)
-	}
-}
-
-impl<E, T> Eq for BitSlice<E, T>
-where E: Endian, T: Bits {}
-
-/// Compare two `BitSlice`s by semantic — not bitwise — ordering.
-///
-/// The comparison sorts by testing each index for one slice to have a set bit
-/// where the other has an unset bit. If the slices are different, the slice
-/// with the set bit sorts greater than the slice with the unset bit.
-///
-/// If one of the slices is exhausted before they differ, the longer slice is
-/// greater.
-impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for BitSlice<A, B>
-where A: Endian, B: Bits, C: Endian, D: Bits {
-	/// Perform a comparison by `<` or `>`.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let a = bitvec![0, 1, 0, 0];
-	/// let b = bitvec![0, 1, 0, 1];
-	/// let c = bitvec![0, 1, 0, 1, 1];
-	/// let aref: &BitSlice = &a;
-	/// let bref: &BitSlice = &b;
-	/// let cref: &BitSlice = &c;
-	/// assert!(aref < bref);
-	/// assert!(bref < cref);
-	/// ```
-	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<Ordering> {
-		for (l, r) in self.iter().zip(rhs.iter()) {
-			match (l, r) {
-				(true, false) => return Some(Ordering::Greater),
-				(false, true) => return Some(Ordering::Less),
-				_ => continue,
-			}
-		}
-		self.len().partial_cmp(&rhs.len())
-	}
-}
-
-impl<E, T> Ord for BitSlice<E, T>
-where E: Endian, T: Bits {
-	fn cmp(&self, rhs: &Self) -> Ordering {
-		match self.partial_cmp(rhs) {
-			Some(ord) => ord,
-			None => unreachable!("`BitSlice` has a total ordering"),
-		}
 	}
 }
 
@@ -1072,33 +1255,6 @@ where E: Endian, T: Bits {
 		for bit in 0 .. shamt {
 			self.set(bit, false);
 		}
-	}
-}
-
-/// Clone a borrowed `BitSlice` into an owned `BitVec`.
-impl<E, T> ToOwned for BitSlice<E, T>
-where E: Endian, T: Bits {
-	type Owned = BitVec<E, T>;
-
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	/// let src = bitvec![0; 5];
-	/// let src_ref: &BitSlice = &src;
-	/// let dst = src_ref.to_owned();
-	/// assert_eq!(src, dst);
-	/// ```
-	fn to_owned(&self) -> Self::Owned {
-		let mut out = Self::Owned::with_capacity(self.len());
-		unsafe {
-			let src = self.as_ptr();
-			let dst = out.as_mut_ptr();
-			let len = self.raw_len();
-			ptr::copy_nonoverlapping(src, dst, len);
-			out.set_len(self.len());
-		}
-		out
 	}
 }
 
