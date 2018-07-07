@@ -165,16 +165,27 @@ where E: Endian, T: Bits {
 
 	/// Return true if *all* bits in the slice are set (logical `∧`).
 	///
+	/// # Truth Table
+	///
+	/// ```text
+	/// 0 0 => 0
+	/// 0 1 => 0
+	/// 1 0 => 0
+	/// 1 1 => 1
+	/// ```
+	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::*;
 	/// let all = bitvec![1; 10];
 	/// let any = bitvec![0, 0, 1, 0, 0];
+	/// let some = bitvec![1, 1, 0, 1, 1];
 	/// let none = bitvec![0; 10];
 	///
 	/// assert!(all.all());
 	/// assert!(!any.all());
+	/// assert!(!some.all());
 	/// assert!(!none.all());
 	/// ```
 	pub fn all(&self) -> bool {
@@ -200,16 +211,27 @@ where E: Endian, T: Bits {
 
 	/// Return true if *any* bit in the slice is set (logical `∨`).
 	///
+	/// # Truth Table
+	///
+	/// ```text
+	/// 0 0 => 0
+	/// 0 1 => 1
+	/// 1 0 => 1
+	/// 1 1 => 1
+	/// ```
+	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::*;
 	/// let all = bitvec![1; 10];
 	/// let any = bitvec![0, 0, 1, 0, 0];
+	/// let some = bitvec![1, 1, 0, 1, 1];
 	/// let none = bitvec![0; 10];
 	///
 	/// assert!(all.any());
 	/// assert!(any.any());
+	/// assert!(some.any());
 	/// assert!(!none.any());
 	/// ```
 	pub fn any(&self) -> bool {
@@ -233,7 +255,16 @@ where E: Endian, T: Bits {
 		return false;
 	}
 
-	/// Return true if *no* bit in the slice is set (logical `¬`).
+	/// Return true if *any* bit in the slice is unset (logical `¬∧`).
+	///
+	/// # Truth Table
+	///
+	/// ```text
+	/// 0 0 => 1
+	/// 0 1 => 1
+	/// 1 0 => 1
+	/// 1 1 => 0
+	/// ```
 	///
 	/// # Examples
 	///
@@ -241,14 +272,99 @@ where E: Endian, T: Bits {
 	/// use bitvec::*;
 	/// let all = bitvec![1; 10];
 	/// let any = bitvec![0, 0, 1, 0, 0];
+	/// let some = bitvec![1, 1, 0, 1, 1];
 	/// let none = bitvec![0; 10];
 	///
-	/// assert!(!all.none());
-	/// assert!(!any.none());
-	/// assert!(none.none());
+	/// assert!(!all.not_all());
+	/// assert!(any.not_all());
+	/// assert!(some.not_all());
+	/// assert!(none.not_all());
 	/// ```
-	pub fn none(&self) -> bool {
+	pub fn not_all(&self) -> bool {
+		!self.all()
+	}
+
+	/// Return true if *all* bits in the slice are uset (logical `¬∨`).
+	///
+	/// # Truth Table
+	///
+	/// ```text
+	/// 0 0 => 1
+	/// 0 1 => 0
+	/// 1 0 => 0
+	/// 1 1 => 0
+	/// ```
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let all = bitvec![1; 10];
+	/// let any = bitvec![0, 0, 1, 0, 0];
+	/// let some = bitvec![1, 1, 0, 1, 1];
+	/// let none = bitvec![0; 10];
+	///
+	/// assert!(!all.not_any());
+	/// assert!(!any.not_any());
+	/// assert!(!some.not_any());
+	/// assert!(none.not_any());
+	/// ```
+	pub fn not_any(&self) -> bool {
 		!self.any()
+	}
+
+	/// Return true if some, but not all, bits are set and some, but not all,
+	/// are unset.
+	///
+	/// # Truth Table
+	///
+	/// ```text
+	/// 0 0 => 0
+	/// 0 1 => 1
+	/// 1 0 => 1
+	/// 1 1 => 0
+	/// ```
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let all = bitvec![1; 2];
+	/// let some = bitvec![1, 0];
+	/// let none = bitvec![0; 2];
+	///
+	/// assert!(!all.some());
+	/// assert!(some.some());
+	/// assert!(!none.some());
+	/// ```
+	pub fn some(&self) -> bool {
+		self.any() && self.not_all()
+	}
+
+	/// Count how many bits are set high.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let bv = bitvec![1, 0, 1, 0, 1];
+	/// assert_eq!(bv.count_one(), 3);
+	/// ```
+	pub fn count_one(&self) -> usize {
+		self.into_iter().filter(|b| *b).count()
+	}
+
+	/// Count how many bits are set low.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let bv = bitvec![0, 1, 0, 1, 0];
+	/// assert_eq!(bv.count_zero(), 3);
+	/// ```
+	pub fn count_zero(&self) -> usize {
+		self.into_iter().filter(|b| !b).count()
 	}
 
 	/// Return the number of bits contained in the `BitSlice`.
@@ -1022,7 +1138,7 @@ where E: Endian, T: 'a + Bits {
 	/// assert_eq!(num, zero);
 	/// ```
 	fn neg(self) -> Self::Output {
-		if self.is_empty() || self.none() {
+		if self.is_empty() || self.not_any() {
 			return self;
 		}
 		Not::not(&mut *self);
