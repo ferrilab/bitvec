@@ -484,8 +484,8 @@ where E: Endian, T: Bits {
 	/// });
 	/// assert_eq!(&[0b01010101], bref.as_ref());
 	/// ```
-	pub fn for_each<'a, F>(&'a mut self, op: F)
-	where F: Fn(usize, bool) -> bool {
+	pub fn for_each<'a, F>(&'a mut self, mut op: F)
+	where F: FnMut(usize, bool) -> bool {
 		for idx in 0 .. self.len() {
 			let tmp = self.get(idx);
 			self.set(idx, op(idx, tmp));

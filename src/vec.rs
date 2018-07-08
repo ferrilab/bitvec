@@ -320,6 +320,34 @@ where E: Endian, T: Bits {
 		buf.into_boxed_slice()
 	}
 
+	/// Set the backing storage to the provided element.
+	///
+	/// This unconditionally sets each element in the backing storage to the
+	/// provided value, without altering the `BitVec` length or capacity. It
+	/// operates an the underlying `Vec` directly, and will ignore any partial
+	/// bounds on the tail.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let mut bv = bitvec![0; 10];
+	/// assert_eq!(bv.as_ref(), &[0, 0]);
+	/// bv.set_store(0xA5);
+	/// assert_eq!(bv.as_ref(), &[0xA5, 0xA5]);
+	/// ```
+	pub fn set_store(&mut self, element: T) {
+		self.do_with_vec(|v| {
+			let len = v.len();
+			let cap = v.capacity();
+			unsafe { v.set_len(cap); }
+			for elt in v.iter_mut() {
+				*elt = element;
+			}
+			unsafe { v.set_len(len); }
+		});
+	}
+
 	/// Set the bit count to a new value.
 	///
 	/// This utility function unconditionally sets the bottom `T::BITS` bits of
@@ -345,7 +373,12 @@ where E: Endian, T: Bits {
 	}
 
 	/// Set the length directly.
-	pub(crate) unsafe fn set_len(&mut self, len: usize) {
+	///
+	/// This is *wildly* unsafe! It directly sets the length of the vector to
+	/// whatever you provide. As a sanity check, this absolutely will panic if
+	/// the provided length would go past the vector's allocated capacity.
+	pub unsafe fn set_len(&mut self, len: usize) {
+		assert!(len <= self.capacity(), "Length cannot exceed capacity");
 		self.inner.set_len(len);
 	}
 
