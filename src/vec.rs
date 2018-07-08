@@ -836,7 +836,7 @@ where E: Endian, T: Bits {
 		let alt = fmt.alternate();
 		self.fmt_header(fmt)?;
 		fmt.write_str(" [")?;
-		if alt { writeln!(fmt)?; }
+		if alt { writeln!(fmt)?; fmt.write_str("    ")?; }
 		self.fmt_body(fmt, true)?;
 		if alt { writeln!(fmt)?; }
 		fmt.write_str("]")
