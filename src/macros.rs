@@ -33,64 +33,62 @@ bitvec![1; 5];
 macro_rules! bitvec {
 	//  bitvec![endian, type ; 0, 1, …]
 	( $endian:ident , $primitive:ty ; $( $elt:expr ),* ) => {
-		__bitvec_impl![ $endian , $primitive ; $( $elt ),* ]
+		bitvec![ __bv_impl__ $endian , $primitive ; $( $elt ),* ]
 	};
 	//  bitvec![endian, type ; 0, 1, …, ]
 	( $endian:ident , $primitive:ty ; $( $elt:expr , )* ) => {
-		__bitvec_impl![ $endian , $primitive ; $( $elt ),* ]
+		bitvec![ __bv_impl__ $endian , $primitive ; $( $elt ),* ]
 	};
 
 	//  bitvec![endian ; 0, 1, …]
 	( $endian:ident ; $( $elt:expr ),* ) => {
-		__bitvec_impl![ $endian , u8 ; $( $elt ),* ]
+		bitvec![ __bv_impl__ $endian , u8 ; $( $elt ),* ]
 	};
 	//  bitvec![endian ; 0, 1, …, ]
 	( $endian:ident ; $( $elt:expr , )* ) => {
-		__bitvec_impl![ $endian , u8 ; $( $elt ),* ]
+		bitvec![ __bv_impl__ $endian , u8 ; $( $elt ),* ]
 	};
 
 	//  bitvec![0, 1, …]
 	( $( $elt:expr ),* ) => {
-		__bitvec_impl![ BigEndian , u8 ; $($elt),* ]
+		bitvec![ __bv_impl__ BigEndian , u8 ; $($elt),* ]
 	};
 	//  bitvec![0, 1, …, ]
 	( $( $elt:expr , )* ) => {
-		__bitvec_impl![ BigEndian , u8 ; $($elt),* ]
+		bitvec![ __bv_impl__ BigEndian , u8 ; $($elt),* ]
 	};
 
 	//  bitvec![endian, type; bit; rep]
 	( $endian:ident , $primitive:ty ; $elt:expr ; $rep:expr ) => {
-		__bitvec_impl![ $endian , $primitive ; $elt; $rep ]
+		bitvec![ __bv_impl__ $endian , $primitive ; $elt; $rep ]
 	};
 
 	//  bitvec![endian; bit; rep]
 	( $endian:ident ; $elt:expr ; $rep:expr ) => {
-		__bitvec_impl![ $endian , u8 ; $elt; $rep ]
+		bitvec![ __bv_impl__ $endian , u8 ; $elt; $rep ]
 	};
 
 	//  bitvec![bit; rep]
 	( $elt:expr ; $rep:expr ) => {
-		__bitvec_impl![ BigEndian , u8 ; $elt; $rep ]
+		bitvec![ __bv_impl__ BigEndian , u8 ; $elt; $rep ]
 	};
-}
 
-/// Build an array of `bool` (one bit per byte) and then build a `BitVec` from
-/// that (one bit per bit). I have yet to think of a way to make the source
-/// array be binary-compatible with a `BitVec` representation, so the static
-/// source is 8x larger than it needs to be.
-///
-/// I'm sure there is a way, but I don’t think I need to spend the effort yet.
-#[macro_export]
-#[doc(hidden)]
-macro_rules! __bitvec_impl {
-	( $end:ident , $prim:ty ; $( $elt:expr ),* ) => {{
+	//  Build an array of `bool` (one bit per byte) and then build a `BitVec`
+	//  from that (one bit per bit). I have yet to think of a way to make the
+	//  source array be binary-compatible with a `BitVec` representation, so the
+	//  static source is 8x larger than it needs to be.
+	//
+	//  I'm sure there is a way, but I don’t think I need to spend the effort
+	//  yet.
+
+	( __bv_impl__ $end:ident , $prim:ty ; $( $elt:expr ),* ) => {{
 		let init: &[bool] = &[
 			$( $elt as u8 > 0 ),*
 		];
 		$crate :: BitVec ::< $crate :: $end , $prim >:: from(init)
 	}};
 
-	( $end:ident , $prim:ty ; $elt:expr; $rep:expr ) => {{
+	( __bv_impl__ $end:ident , $prim:ty ; $elt:expr; $rep:expr ) => {{
 		::std::iter::repeat( $elt as u8 > 0 )
 			.take( $rep )
 			.collect ::< $crate :: BitVec < $crate :: $end , $prim > > ()
