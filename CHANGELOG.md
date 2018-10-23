@@ -2,6 +2,15 @@
 
 All notable changes will be documented in this file.
 
+## 0.6.0
+
+### Changed
+
+- Update minimum Rust version to `1.25.0` in order to use nested imports.
+- Fix logic in `Endian::prev`, and re-enabled edge tests.
+- Pluralize `BitSlice::count_one()` and `BitSlice::count_zero()` function names.
+- Fix documentation and comments.
+
 ## 0.5.0
 
 ### Added
@@ -49,7 +58,7 @@ where A: Endian,
     D: Endian,
     E: Bits,
 {
-    fn eq(&self, rhs: E) { ... }
+    fn eq(&self, rhs: E) { … }
 }
 ```
 

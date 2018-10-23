@@ -1,6 +1,6 @@
 [package]
 name = "bitvec"
-version = "0.5.0"
+version = "0.6.0"
 authors = [
 	"myrrlyn <myrrlyn@outlook.com>",
 ]
