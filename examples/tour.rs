@@ -55,10 +55,10 @@ fn main() {
 	render(&bv);
 
 	println!("\
-Notice that ^ did not affect the parts of the tail that were not in use, while !
-did affect them. ^ requires a second source, while ! can just flip all elements.
-! is faster, but ^ is less likely to break your assumptions about what the
-memory looks like.\
+Notice that `^` did not affect the parts of the tail that were not in
+use, while `!` did affect them. `^` requires a second source, while `!`
+can just flip all elements. `!` is faster, but `^` is less likely to
+break your assumptions about what the memory looks like.\
 	");
 
 	//  Push and pop to the bitvec

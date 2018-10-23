@@ -1,34 +1,34 @@
-/// Construct a `BitVec` out of a literal array in source code, analagous to
-/// `vec!`.
-///
-/// `bitvec!` can be invoked in a number of ways. It takes the name of an
-/// `Endian` implementation, the name of a `Bits`-implementing primitive, and
-/// zero or more primitives (integer, floating-point, or bool) which are used to
-/// build the bits. Each primitive literal corresponds to one bit, and is
-/// considered to represent 1 if *any* bit in the representation is set.
-///
-/// `bitvec!` can be invoked with no specifiers, and `Endian` specifier, or an
-/// `Endian` and a `Bits` specifier. It cannot be invoked with a `Bits`
-/// specifier but no `Endian` specifier, due to overlap in how those tokens are
-/// matched by the macro system.
-///
-/// Like `vec!`, `bitvec!` supports bit lists `[0, 1, ...]` and repetition
-/// markers `[1; n]`.
-///
-/// # All Syntaxes
-///
-/// ```rust
-/// # use bitvec::*;
-/// bitvec![BigEndian, u8; 0, 1];
-/// bitvec![LittleEndian, u8; 0, 1,];
-/// bitvec![BigEndian; 0, 1];
-/// bitvec![LittleEndian; 0, 1,];
-/// bitvec![0, 1];
-/// bitvec![0, 1,];
-/// bitvec![BigEndian, u8; 1; 5];
-/// bitvec![LittleEndian; 0; 5];
-/// bitvec![1; 5];
-/// ```
+/** Construct a `BitVec` out of a literal array in source code, like `vec!`.
+
+`bitvec!` can be invoked in a number of ways. It takes the name of an
+`Endian` implementation, the name of a `Bits`-implementing primitive, and
+zero or more primitives (integer, floating-point, or bool) which are used to
+build the bits. Each primitive literal corresponds to one bit, and is
+considered to represent `1` if it is any other value than exactly zero.
+
+`bitvec!` can be invoked with no specifiers, an `Endian` specifier, or an
+`Endian` and a `Bits` specifier. It cannot be invoked with a `Bits`
+specifier but no `Endian` specifier, due to overlap in how those tokens are
+matched by the macro system.
+
+Like `vec!`, `bitvec!` supports bit lists `[0, 1, …]` and repetition
+markers `[1; n]`.
+
+# All Syntaxes
+
+```rust
+# use bitvec::*;
+bitvec![BigEndian, u8; 0, 1];
+bitvec![LittleEndian, u8; 0, 1,];
+bitvec![BigEndian; 0, 1];
+bitvec![LittleEndian; 0, 1,];
+bitvec![0, 1];
+bitvec![0, 1,];
+bitvec![BigEndian, u8; 1; 5];
+bitvec![LittleEndian; 0; 5];
+bitvec![1; 5];
+```
+**/
 #[macro_export]
 macro_rules! bitvec {
 	//  bitvec![endian, type ; 0, 1, ...]
@@ -70,10 +70,10 @@ macro_rules! bitvec {
 	};
 }
 
-/// Build an array of `bool` (one bit per byte) and then build a `BitVec` from that (one
-/// bit per bit). I have yet to think of a way to make the source array be
-/// binary-compatible with a `BitVec` representation, so the static source is 8x larger
-/// than it needs to be.
+/// Build an array of `bool` (one bit per byte) and then build a `BitVec` from
+/// that (one bit per bit). I have yet to think of a way to make the source
+/// array be binary-compatible with a `BitVec` representation, so the static
+/// source is 8x larger than it needs to be.
 ///
 /// I'm sure there is a way, but I don’t think I need to spend the effort yet.
 #[macro_export]

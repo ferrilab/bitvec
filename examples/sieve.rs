@@ -18,7 +18,7 @@ For example,
 $ cargo run --release --example sieve -- 10000000 25
 ```
 
-will find all primes less than ten million, and print the primes below  625 in a
+will find all primes less than ten million, and print the primes below 625 in a
 square 25x25.
 !*/
 
@@ -28,7 +28,11 @@ use bitvec::*;
 use std::env;
 
 fn main() {
-	let max_prime = env::args().nth(1).unwrap_or("1000000".into()).parse::<usize>().unwrap_or(1_000_000);
+	let max_prime: usize = env::args()
+		.nth(1)
+		.unwrap_or("1000000".into())
+		.parse()
+		.unwrap_or(1_000_000);
 
 	let primes = {
 		let mut bv = BitVec::<BigEndian, u64>::with_capacity(max_prime);
@@ -42,15 +46,16 @@ fn main() {
 		bv.set(1, false);
 
 		for n in 2 .. (1 + (max_prime as f64).sqrt() as usize) {
+			//  Adjust the frequency of log statements vaguely logarithmically.
 			if n <  20_000 && n %  1_000 == 0
 			|| n <  50_000 && n %  5_000 == 0
 			|| n < 100_000 && n % 10_000 == 0 {
-				println!("Calculating {}...", n);
+				println!("Calculating {}…", n);
 			}
 			//  If n is prime, mark all multiples as non-prime
 			if bv[n] {
 				if n < 50 {
-					println!("Calculating {}...", n);
+					println!("Calculating {}…", n);
 				}
 				'inner:
 				for i in n .. {
@@ -80,10 +85,13 @@ fn main() {
 	println!("Counting complete!");
 	println!("There are {} primes and {} non-primes below {}", one, zero, max_prime);
 
-	let dim = env::args().nth(2).unwrap_or("10".into()).parse::<usize>().unwrap_or(10);
-	let sq = dim * dim;
+	let dim: usize = env::args()
+		.nth(2)
+		.unwrap_or("10".into())
+		.parse()
+		.unwrap_or(10);
 
-	println!("The primes smaller than {} are:", sq);
+	println!("The primes smaller than {} are:", dim * dim);
 	let len = primes.len();
 	'outer:
 	for i in 0 .. dim {

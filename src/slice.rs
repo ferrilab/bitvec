@@ -1,10 +1,10 @@
 /*! `BitSlice` Wide Reference
 
-This module bears some explanation. Let's get *uncomfortable* here.
+This module bears some explanation. Let’s get *uncomfortable* here.
 
 Safe Rust is very strict about concepts like lifetimes and size in memory. It
-won't allow you to have arbitrary *references* to things where Rust doesn't feel
-absolutely confident that the referent will outlive the reference, and it won't
+won’t allow you to have arbitrary *references* to things where Rust doesn’t feel
+absolutely confident that the referent will outlive the reference, and it won’t
 let you have things *at all* that it can't size at compile time. This makes
 dealing with runtime-sized memory of uncertain lifetime tricky to do, and the
 language provides some tools out of the box for this: slice references, which
@@ -17,7 +17,7 @@ parameterizes the lifetime of the reference into the `BitSlice` struct, making
 it generic over a lifetime. When I tried to implement `Deref` on `BitVec` to
 return a `BitSlice`, I realized I could not do so for two main reasons: one,
 `Deref` requires returning a reference to a type, and it is impossible to tell
-Rust "this type is a named reference", and two, ... the lifetime parameter of
+Rust "this type is a named reference", and two, … the lifetime parameter of
 `BitSlice` is not able to be provided by the `Deref` trait, the `deref` trait
 function, or even by using Higher Ranked Trait Bounds because HRTB just allows
 the creation of a lifetime parameter in items in the trait scope that were not
@@ -96,7 +96,7 @@ use std::{
 reference. It is impossible to create a `Box<BitSlice<E, T>>` from this library,
 and assembling one yourself is Undefined Behavior for which this library is not
 responsible. **Do not try to create a `Box<BitSlice>`.** If you want an owned
-bit collection, use `BitVec`.
+bit collection, use `BitVec`. (This may change in a future release.)
 
 `BitSlice` is strictly a reference type. The memory it governs must be owned by
 some other type, and a shared or exclusive reference to it as `BitSlice` can be
@@ -126,7 +126,7 @@ where E: Endian, T: Bits {
 
 impl<E, T> BitSlice<E, T>
 where E: Endian, T: Bits {
-	/// Get the bit value at the given position.
+	/// Gets the bit value at the given position.
 	///
 	/// The index value is a semantic count, not a bit address. It converts to a
 	/// bit position internally to this function.
@@ -145,7 +145,7 @@ where E: Endian, T: Bits {
 		self.as_ref()[elt].get(E::curr::<T>(bit))
 	}
 
-	/// Set the bit value at the given position.
+	/// Sets the bit value at the given position.
 	///
 	/// The index value is a semantic count, not a bit address. It converts to a
 	/// bit position internally to this function.
@@ -165,7 +165,7 @@ where E: Endian, T: Bits {
 		self.as_mut()[elt].set(E::curr::<T>(bit), value);
 	}
 
-	/// Return true if *all* bits in the slice are set (logical `∧`).
+	/// Returns true if *all* bits in the slice are set (logical `∧`).
 	///
 	/// # Truth Table
 	///
@@ -211,7 +211,7 @@ where E: Endian, T: Bits {
 		return true;
 	}
 
-	/// Return true if *any* bit in the slice is set (logical `∨`).
+	/// Returns true if *any* bit in the slice is set (logical `∨`).
 	///
 	/// # Truth Table
 	///
@@ -257,7 +257,7 @@ where E: Endian, T: Bits {
 		return false;
 	}
 
-	/// Return true if *any* bit in the slice is unset (logical `¬∧`).
+	/// Returns true if *any* bit in the slice is unset (logical `¬∧`).
 	///
 	/// # Truth Table
 	///
@@ -286,7 +286,7 @@ where E: Endian, T: Bits {
 		!self.all()
 	}
 
-	/// Return true if *all* bits in the slice are uset (logical `¬∨`).
+	/// Returns true if *all* bits in the slice are unset (logical `¬∨`).
 	///
 	/// # Truth Table
 	///
@@ -315,8 +315,10 @@ where E: Endian, T: Bits {
 		!self.any()
 	}
 
-	/// Return true if some, but not all, bits are set and some, but not all,
+	/// Returns true if some, but not all, bits are set and some, but not all,
 	/// are unset.
+	///
+	/// This is false if either `all()` or `none()` are true.
 	///
 	/// # Truth Table
 	///
@@ -343,7 +345,7 @@ where E: Endian, T: Bits {
 		self.any() && self.not_all()
 	}
 
-	/// Count how many bits are set high.
+	/// Counts how many bits are set high.
 	///
 	/// # Examples
 	///
@@ -356,7 +358,7 @@ where E: Endian, T: Bits {
 		self.into_iter().filter(|b| *b).count()
 	}
 
-	/// Count how many bits are set low.
+	/// Counts how many bits are set low.
 	///
 	/// # Examples
 	///
@@ -369,7 +371,7 @@ where E: Endian, T: Bits {
 		self.into_iter().filter(|b| !b).count()
 	}
 
-	/// Return the number of bits contained in the `BitSlice`.
+	/// Returns the number of bits contained in the `BitSlice`.
 	///
 	/// # Examples
 	///
@@ -383,7 +385,7 @@ where E: Endian, T: Bits {
 		self.inner.len()
 	}
 
-	/// Count how many *whole* storage elements are in the `BitSlice`.
+	/// Counts how many *whole* storage elements are in the `BitSlice`.
 	///
 	/// If the `BitSlice` length is not an even multiple of the width of `T`,
 	/// then the slice under this `BitSlice` is one element longer than this
@@ -408,7 +410,7 @@ where E: Endian, T: Bits {
 		self.len() >> T::BITS
 	}
 
-	/// Count how many bits are in the trailing partial storage element.
+	/// Counts how many bits are in the trailing partial storage element.
 	///
 	/// If the `BitSlice` length is an even multiple of the width of `T`, then
 	/// this returns 0 and the `BitSlice` does not consider its final element to
@@ -433,7 +435,7 @@ where E: Endian, T: Bits {
 		self.len() as u8 & T::MASK
 	}
 
-	/// Return `true` if the slice contains no bits.
+	/// Returns `true` if the slice contains no bits.
 	///
 	/// # Examples
 	///
@@ -454,7 +456,7 @@ where E: Endian, T: Bits {
 		self.len() == 0
 	}
 
-	/// Provide read-only iteration across the collection.
+	/// Provides read-only iteration across the collection.
 	///
 	/// The iterator returned from this method implements `ExactSizeIterator`
 	/// and `DoubleEndedIterator` just as the consuming `.into_iter()` method’s
@@ -463,7 +465,7 @@ where E: Endian, T: Bits {
 		self.into_iter()
 	}
 
-	/// Provide mutable traversal of the collection.
+	/// Provides mutable traversal of the collection.
 	///
 	/// It is impossible to implement `IndexMut` on `BitSlice` because bits do
 	/// not have addresses, so there can be no `&mut u1`. This method allows the
@@ -486,26 +488,26 @@ where E: Endian, T: Bits {
 	/// });
 	/// assert_eq!(&[0b01010101], bref.as_ref());
 	/// ```
-	pub fn for_each<'a, F>(&'a mut self, mut op: F)
-	where F: FnMut(usize, bool) -> bool {
+	pub fn for_each<'a, F>(&'a mut self, op: F)
+	where F: Fn(usize, bool) -> bool {
 		for idx in 0 .. self.len() {
 			let tmp = self.get(idx);
 			self.set(idx, op(idx, tmp));
 		}
 	}
 
-	/// Retrieve a read pointer to the start of the data slice.
+	/// Retrieves a read pointer to the start of the data slice.
 	pub(crate) fn as_ptr(&self) -> *const T {
 		self.inner.as_ptr()
 	}
 
-	/// Retrieve a write pointer to the start of the data slice.
+	/// Retrieves a write pointer to the start of the data slice.
 	pub(crate) fn as_mut_ptr(&mut self) -> *mut T {
 		self.inner.as_mut_ptr()
 	}
 
-	/// Compute the actual length of the data slice, including the partial tail
-	/// if any.
+	/// Computes the actual length of the data slice, including the partial tail
+	/// if present.
 	///
 	/// # Examples
 	///
@@ -520,12 +522,12 @@ where E: Endian, T: Bits {
 		self.elts() + if self.bits() > 0 { 1 } else { 0 }
 	}
 
-	/// Print a type header into the Formatter.
+	/// Prints a type header into the Formatter.
 	pub(crate) fn fmt_header(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitSlice<{}, {}>", E::TY, T::TY)
 	}
 
-	/// Format the contents data slice.
+	/// Formats the contents data slice.
 	///
 	/// The debug flag indicates whether to indent each line (`Debug` does,
 	/// `Display` does not).
@@ -555,28 +557,30 @@ where E: Endian, T: Bits {
 		Ok(())
 	}
 
-	/// Format a whole storage element of the data slice.
+	/// Formats a whole storage element of the data slice.
 	pub(crate) fn fmt_element(fmt: &mut Formatter, elt: &T) -> fmt::Result {
 		Self::fmt_bits(fmt, elt, T::WIDTH)
 	}
 
-	/// Format a partial element of the data slice.
+	/// Formats a partial element of the data slice.
 	pub(crate) fn fmt_bits(fmt: &mut Formatter, elt: &T, bits: u8) -> fmt::Result {
 		use std::fmt::Write;
 		let mut out = String::with_capacity(bits as usize);
 		for bit in 0 .. bits {
 			let cur = E::curr::<T>(bit);
-			write!(out, "{}", if elt.get(cur) { "1" } else { "0" })?;
+			out.write_str(if elt.get(cur) { "1" } else { "0" })?;
 		}
 		fmt.write_str(&out)
 	}
 }
 
-/// Clone a borrowed `BitSlice` into an owned `BitVec`.
+/// Creates a new `BitVec` out of a `BitSlice`.
 impl<E, T> ToOwned for BitSlice<E, T>
 where E: Endian, T: Bits {
 	type Owned = BitVec<E, T>;
 
+	/// Clones a borrowed `BitSlice` into an owned `BitVec`.
+	///
 	/// # Examples
 	///
 	/// ```rust
@@ -612,7 +616,7 @@ where E: Endian, T: Bits {
 	}
 }
 
-/// Test if two `BitSlice`s are semantically — not bitwise — equal.
+/// Tests if two `BitSlice`s are semantically — not bitwise — equal.
 ///
 /// It is valid to compare two slices of different endianness or element types.
 ///
@@ -620,7 +624,7 @@ where E: Endian, T: Bits {
 /// and that each pair of bits in semantic order are identical.
 impl<A, B, C, D> PartialEq<BitSlice<C, D>> for BitSlice<A, B>
 where A: Endian, B: Bits, C: Endian, D: Bits {
-	/// Perform a comparison by `==`.
+	/// Performs a comparison by `==`.
 	///
 	/// # Examples
 	///
@@ -642,7 +646,7 @@ where A: Endian, B: Bits, C: Endian, D: Bits {
 	}
 }
 
-/// Compare two `BitSlice`s by semantic — not bitwise — ordering.
+/// Compares two `BitSlice`s by semantic — not bitwise — ordering.
 ///
 /// The comparison sorts by testing each index for one slice to have a set bit
 /// where the other has an unset bit. If the slices are different, the slice
@@ -652,7 +656,7 @@ where A: Endian, B: Bits, C: Endian, D: Bits {
 /// greater.
 impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for BitSlice<A, B>
 where A: Endian, B: Bits, C: Endian, D: Bits {
-	/// Perform a comparison by `<` or `>`.
+	/// Performs a comparison by `<` or `>`.
 	///
 	/// # Examples
 	///
@@ -679,11 +683,11 @@ where A: Endian, B: Bits, C: Endian, D: Bits {
 	}
 }
 
-/// Give write access to all elements in the underlying storage, including the
+/// Gives write access to all elements in the underlying storage, including the
 /// partially-filled tail element (if present).
 impl<E, T> AsMut<[T]> for BitSlice<E, T>
 where E: Endian, T: Bits {
-	/// Access the underlying store.
+	/// Accesses the underlying store.
 	///
 	/// # Examples
 	///
@@ -701,11 +705,11 @@ where E: Endian, T: Bits {
 	}
 }
 
-/// Give read access to all elements in the underlying storage, including the
+/// Gives read access to all elements in the underlying storage, including the
 /// partially-filled tail element (if present).
 impl<E, T> AsRef<[T]> for BitSlice<E, T>
 where E: Endian, T: Bits {
-	/// Access the underlying store.
+	/// Accesses the underlying store.
 	///
 	/// # Examples
 	///
@@ -721,11 +725,11 @@ where E: Endian, T: Bits {
 	}
 }
 
-/// Build a `BitSlice` from a slice of elements. The resulting `BitSlice` will
+/// Builds a `BitSlice` from a slice of elements. The resulting `BitSlice` will
 /// always completely fill the original slice, and will not have a partial tail.
 impl<'a, E, T> From<&'a [T]> for &'a BitSlice<E, T>
 where E: Endian, T: 'a + Bits {
-	/// Wrap an `&[T: Bits]` in an `&BitSlice<E: Endian, T>`. The endianness
+	/// Wraps an `&[T: Bits]` in an `&BitSlice<E: Endian, T>`. The endianness
 	/// must be specified by the call site. The element type cannot be changed.
 	///
 	/// # Examples
@@ -754,12 +758,12 @@ where E: Endian, T: 'a + Bits {
 	}
 }
 
-/// Build a mutable `BitSlice` from a slice of mutable elements. The resulting
+/// Builds a mutable `BitSlice` from a slice of mutable elements. The resulting
 /// `BitSlice` will always completely fill the original slice, and will not have
 /// a partial tail.
 impl<'a, E, T> From<&'a mut [T]> for &'a mut BitSlice<E, T>
 where E: Endian, T: 'a + Bits {
-	/// Wrap an `&mut [T: Bits]` in an `&mut BitSlice<E: Endian, T>`. The
+	/// Wraps an `&mut [T: Bits]` in an `&mut BitSlice<E: Endian, T>`. The
 	/// endianness must be specified by the call site. The element type cannot
 	/// be changed.
 	///
@@ -786,7 +790,7 @@ where E: Endian, T: 'a + Bits {
 	}
 }
 
-/// Print the `BitSlice` for debugging.
+/// Prints the `BitSlice` for debugging.
 ///
 /// The output is of the form `BitSlice<E, T> [ELT, *]` where `<E, T>` is the
 /// endianness and element type, with square brackets on each end of the bits
@@ -798,7 +802,7 @@ where E: Endian, T: 'a + Bits {
 /// than having all elements on the same line.
 impl<E, T> Debug for BitSlice<E, T>
 where E: Endian, T: Bits {
-	/// Render the `BitSlice` type header and contents for debug.
+	/// Renders the `BitSlice` type header and contents for debug.
 	///
 	/// # Examples
 	///
@@ -851,8 +855,10 @@ where E: Endian, T: Bits {
 	}
 }
 
+/// Writes the contents of the `BitSlice`, in semantic bit order, into a hasher.
 impl<E, T> Hash for BitSlice<E, T>
 where E: Endian, T: Bits {
+	/// Writes each bit of the `BitSlice`, as a full `bool`, into the hasher.
 	fn hash<H>(&self, hasher: &mut H)
 	where H: Hasher {
 		for bit in self {
@@ -861,7 +867,7 @@ where E: Endian, T: Bits {
 	}
 }
 
-/// Produce a read-only iterator over all the bits in the `BitSlice`.
+/// Produces a read-only iterator over all the bits in the `BitSlice`.
 ///
 /// This iterator follows the ordering in the `BitSlice` type, and implements
 /// `ExactSizeIterator` as `BitSlice` has a known, fixed length, and
@@ -871,7 +877,7 @@ where E: Endian, T: 'a + Bits {
 	type Item = bool;
 	type IntoIter = Iter<'a, E, T>;
 
-	/// Iterate over the slice.
+	/// Iterates over the slice.
 	///
 	/// # Examples
 	///
@@ -890,10 +896,11 @@ where E: Endian, T: 'a + Bits {
 	}
 }
 
-/// Perform unsigned addition in place on a `BitSlice`.
+/// Performs unsigned addition in place on a `BitSlice`.
 ///
-/// If the addend `BitSliec` is shorter than `self`, the addend is zero-extended
-/// to the right. If the addend is longer, the excess front length is unused.
+/// If the addend `BitSlice` is shorter than `self`, the addend is zero-extended
+/// at the left (so that its final bit matches with `self`’s final bit). If the
+/// addend is longer, the excess front length is unused.
 ///
 /// Addition proceeds from the right ends of each slice towards the left.
 /// Because this trait is forbidden from returning anything, the final carry-out
@@ -902,11 +909,11 @@ where E: Endian, T: 'a + Bits {
 /// Note that, unlike `BitVec`, there is no subtraction implementation until I
 /// find a subtraction algorithm that does not require modifying the subtrahend.
 ///
-/// Subtraction can be implemented by negating the intended subtrahend yourself,
-/// then using addition, or by using `BitVec`s instead of `BitSlice`s.
+/// Subtraction can be implemented by negating the intended subtrahend yourself
+/// and then using addition, or by using `BitVec`s instead of `BitSlice`s.
 impl<'a, E, T> AddAssign<&'a BitSlice<E, T>> for BitSlice<E, T>
 where E: Endian, T: Bits {
-	/// Perform unsigned wrapping addition in place.
+	/// Performs unsigned wrapping addition in place.
 	///
 	/// # Examples
 	///
@@ -929,11 +936,11 @@ where E: Endian, T: Bits {
 	/// ```
 	fn add_assign(&mut self, addend: &'a BitSlice<E, T>) {
 		use std::iter::repeat;
-		//  zero-extend the addend if it's shorter than self
+		//  zero-extend the addend if it’s shorter than self
 		let mut addend_iter = addend.into_iter().rev().chain(repeat(false));
 		let mut c = false;
 		for place in (0 .. self.len()).rev() {
-			//  See BitVec::AddAssign
+			//  See `BitVec::AddAssign`
 			static JUMP: [u8; 8] = [0, 2, 2, 1, 2, 1, 1, 3];
 			let a = self.get(place);
 			let b = addend_iter.next().unwrap(); // addend is an infinite source
@@ -946,12 +953,12 @@ where E: Endian, T: Bits {
 	}
 }
 
-/// Perform the Boolean AND operation against another bitstream and writes the
-/// result into `self`. If the other bitstream ends before `self` does, it is
-/// extended with zero, clearing all remaining bits in `self`.
+/// Performs the Boolean `AND` operation against another bitstream and writes
+/// the result into `self`. If the other bitstream ends before `self` does, it
+/// is extended with zero, clearing all remaining bits in `self`.
 impl<E, T, I> BitAndAssign<I> for BitSlice<E, T>
 where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
-	/// AND a bitstream inta a slice.
+	/// `AND`s a bitstream into a slice.
 	///
 	/// # Examples
 	///
@@ -971,12 +978,12 @@ where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
 	}
 }
 
-/// Perform the Boolean OR operation against another bitstream and writes the
+/// Performs the Boolean `OR` operation against another bitstream and writes the
 /// result into `self`. If the other bitstream ends before `self` does, it is
 /// extended with zero, leaving all remaining bits in `self` as they were.
 impl<E, T, I> BitOrAssign<I> for BitSlice<E, T>
 where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
-	/// OR a bitstream into a slice.
+	/// `OR`s a bitstream into a slice.
 	///
 	/// # Examples
 	///
@@ -995,12 +1002,12 @@ where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
 	}
 }
 
-/// Perform the Boolean XOR operation against another bitstream and writes the
-/// result into `self`. If the other bitstream ends before `self` does, it is
-/// extended with zero, leaving all remaining bits in `self` as they were.
+/// Performs the Boolean `XOR` operation against another bitstream and writes
+/// the result into `self`. If the other bitstream ends before `self` does, it
+/// is extended with zero, leaving all remaining bits in `self` as they were.
 impl<E, T, I> BitXorAssign<I> for BitSlice<E, T>
 where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
-	/// XOR a bitstream into a slice.
+	/// `XOR`s a bitstream into a slice.
 	///
 	/// # Examples
 	///
@@ -1020,13 +1027,13 @@ where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
 	}
 }
 
-/// Index a single bit by semantic count. The index must be less than the length
-/// of the `BitSlice`.
+/// Indexes a single bit by semantic count. The index must be less than the
+/// length of the `BitSlice`.
 impl<'a, E, T> Index<usize> for &'a BitSlice<E, T>
 where E: Endian, T: 'a + Bits {
 	type Output = bool;
 
-	/// Look up a single bit by semantic count.
+	/// Looks up a single bit by semantic count.
 	///
 	/// # Examples
 	///
@@ -1045,16 +1052,16 @@ where E: Endian, T: 'a + Bits {
 	}
 }
 
-/// Index a single bit by element and bit index within the element. The element
-/// index must be less than the length of the underlying store, and the bit
-/// index must be less than the width of the underlying element.
+/// Indexes a single bit by element and bit index within the element. The
+/// element index must be less than the length of the underlying store, and the
+/// bit index must be less than the width of the underlying element.
 ///
 /// This index is not recommended for public use.
 impl<'a, E, T> Index<(usize, u8)> for &'a BitSlice<E, T>
 where E: Endian, T: 'a + Bits {
 	type Output = bool;
 
-	/// Look up a single bit by storage element and bit indices. The bit index
+	/// Looks up a single bit by storage element and bit indices. The bit index
 	/// is still a semantic count, not an absolute index into the element.
 	///
 	/// # Examples
@@ -1075,11 +1082,11 @@ where E: Endian, T: 'a + Bits {
 	}
 }
 
-/// Perform fixed-width 2's-complement negation of a `BitSlice`.
+/// Performs fixed-width 2’s-complement negation of a `BitSlice`.
 ///
 /// Unlike the `!` operator (`Not` trait), the unary `-` operator treats the
-/// `BitSlice` as if it represents a signed 2's-complement integer of fixed
-/// width. The negation of a number in 2's complement is defined as its
+/// `BitSlice` as if it represents a signed 2’s-complement integer of fixed
+/// width. The negation of a number in 2’s complement is defined as its
 /// inversion (using `!`) plus one, and on fixed-width numbers has the following
 /// discontinuities:
 ///
@@ -1099,7 +1106,7 @@ impl<'a, E, T> Neg for &'a mut BitSlice<E, T>
 where E: Endian, T: 'a + Bits {
 	type Output = Self;
 
-	/// Perform 2's-complement fixed-width negation.
+	/// Perform 2’s-complement fixed-width negation.
 	///
 	/// # Examples
 	///
@@ -1147,7 +1154,8 @@ where E: Endian, T: 'a + Bits {
 		//  Fill an element with all 1 bits
 		let elt: [T; 1] = [!T::default()];
 		if self.any() {
-			//  Turn a slice reference [T; 1] into a bit-slice reference [u1; 1]
+			//  Turn a slice reference `[T; 1]` into a bit-slice reference
+			//  `[u1; 1]`
 			let addend: &BitSlice<E, T> = {
 				unsafe { mem::transmute::<&[T], &BitSlice<E, T>>(&elt) }
 			};
@@ -1158,7 +1166,7 @@ where E: Endian, T: 'a + Bits {
 	}
 }
 
-/// Flip all bits in the slice, in place.
+/// Flips all bits in the slice, in place.
 ///
 /// This invokes the `!` operator on each element of the borrowed storage, and
 /// so it will also flip bits in the tail that are outside the `BitSlice` length
@@ -1169,7 +1177,7 @@ impl<'a, E, T> Not for &'a mut BitSlice<E, T>
 where E: Endian, T: 'a + Bits {
 	type Output = Self;
 
-	/// Invert all bits in the slice.
+	/// Inverts all bits in the slice.
 	///
 	/// # Examples
 	///
@@ -1193,7 +1201,7 @@ where E: Endian, T: 'a + Bits {
 
 __bitslice_shift!(u8, u16, u32, u64, i8, i16, i32, i64);
 
-/// Shift all bits in the array to the left — DOWN AND TOWARDS THE FRONT.
+/// Shifts all bits in the array to the left — **DOWN AND TOWARDS THE FRONT**.
 ///
 /// On primitives, the left-shift operator `<<` moves bits away from the origin
 /// and towards the ceiling. This is because we label the bits in a primitive
@@ -1224,7 +1232,7 @@ __bitslice_shift!(u8, u16, u32, u64, i8, i16, i32, i64);
 /// A shift amount of zero is a no-op, and returns immediately.
 impl<E, T> ShlAssign<usize> for BitSlice<E, T>
 where E: Endian, T: Bits {
-	/// Shift a slice left, in place.
+	/// Shifts a slice left, in place.
 	///
 	/// # Examples
 	///
@@ -1260,9 +1268,8 @@ where E: Endian, T: Bits {
 			//  - body is [5; 11]
 			//  - tail is [11]
 			//  [ 0 1 2 3 4 5 6 7 8 9 a b c d e f ]
-			//    |         ^---------+---------^  <- before
-			//    ^-------------------^ ^-------^  <- zero-filled
-			//    after
+			//              ^-------before------^
+			//    ^-------after-------^ 0 0 0 0 0
 			//  Pointer to the front of the slice
 			let head: *mut T = self.as_mut_ptr();
 			//  Pointer to the front of the section that will move and be
@@ -1289,7 +1296,7 @@ where E: Endian, T: Bits {
 	}
 }
 
-/// Shift all bits in the array to the right — UP AND TOWARDS THE BACK.
+/// Shifts all bits in the array to the right — **UP AND TOWARDS THE BACK**.
 ///
 /// On primitives, the right-shift operator `>>` moves bits towards the origin
 /// and away from the ceiling. This is because we label the bits in a primitive
@@ -1320,7 +1327,7 @@ where E: Endian, T: Bits {
 /// A shift amount of zero is a no-op, and returns immediately.
 impl<E, T> ShrAssign<usize> for BitSlice<E, T>
 where E: Endian, T: Bits {
-	/// Shift a slice right, in place.
+	/// Shifts a slice right, in place.
 	///
 	/// # Examples
 	///
@@ -1355,9 +1362,8 @@ where E: Endian, T: Bits {
 			//  - head is [0; 11]
 			//  - body is [5]
 			//  [ 0 1 2 3 4 5 6 7 8 9 a b c d e f ]
-			//    ^---------+---------^         |  <- before
-			//    ^-------^ ^-------------------^  <- after
-			//    zero-filled
+			//    ^-------before------^
+			//    0 0 0 0 0 ^-------after-------^
 			let head: *mut T = self.as_mut_ptr();
 			let body: *mut T = &mut self.as_mut()[offset];
 			unsafe {
@@ -1376,7 +1382,7 @@ where E: Endian, T: Bits {
 	}
 }
 
-/// Permit iteration over a `BitSlice`
+/// Permits iteration over a `BitSlice`
 #[doc(hidden)]
 pub struct Iter<'a, E: 'a + Endian, T: 'a + Bits> {
 	inner: &'a BitSlice<E, T>,
@@ -1470,7 +1476,7 @@ impl<'a, E: 'a + Endian, T: 'a + Bits> Iterator for Iter<'a, E, T> {
 	/// ```
 	///
 	/// This example intentionally overshoots the iterator bounds, which causes
-	/// a reset to the initiol state. It then demonstrates that `nth` is
+	/// a reset to the initial state. It then demonstrates that `nth` is
 	/// stateful, and is not an absolute index, by seeking ahead by two (to the
 	/// third zero bit) and then taking the bit immediately after it, which is
 	/// set. This shows that the argument to `nth` is how many bits to discard
