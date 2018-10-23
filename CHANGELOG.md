@@ -10,6 +10,7 @@ All notable changes will be documented in this file.
 - Fix logic in `Endian::prev`, and re-enabled edge tests.
 - Pluralize `BitSlice::count_one()` and `BitSlice::count_zero()` function names.
 - Fix documentation and comments.
+- Consolidate implementation of `bitvec!` to not use any other macros.
 
 ## 0.5.0
 
