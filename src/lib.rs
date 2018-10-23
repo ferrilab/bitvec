@@ -9,7 +9,7 @@ limitations of the language and our machines.
 bit-level representation of a collection in memory. The user is empowered to
 choose the primitive type that underlies the `BitVec` – `u8`, `u16`, `u32`, or
 `u64` – and the order in which each primitive is traversed – big-endian, from
-the most significant bit to the leasts, or little-endian, from the least
+the most significant bit to the least, or little-endian, from the least
 significant bit to the most.
 
 This level of control is not necessary for most use cases where people just want
@@ -49,8 +49,8 @@ pub use {
 	vec::BitVec,
 };
 
-//  The Index trait returns references to bools, and it is impossible to make an
-//  address for a bit in the middle of a byte. Therefore, Index::index
+//  The `Index` trait returns references to bools, and it is impossible to make
+//  an address for a bit in the middle of a byte. Therefore, `Index::index`
 //  references these static values depending on the value of the bit.
 //
 //  This is *such* a hack, but, That’s Rust For Ya.

@@ -23,9 +23,9 @@ pub struct LittleEndian;
 value. The methods on `Endian` all return a cursor into a storage element.
 
 - `curr` computes the bit index of the count given. In Little-Endian order, this
-  is the identity function (bit indices count up "left" from LSb), and in
+  is the identity function (bit indices count up “left” from LSb), and in
   Big-Endian order, this subtracts the count given from `T::MASK` (bit indices
-  count down "right" from MSb).
+  count down “right” from MSb).
 - `next` computes the next index forward from the count given. In Little-Endian
   order, this increments (moving up from LSb towards MSb); in Big-Endian order,
   this decrements (moving down from MSb towards LSb).
@@ -34,11 +34,6 @@ value. The methods on `Endian` all return a cursor into a storage element.
   Big-Endian order, this increments (moving up towards MSb from LSb).
 - `jump` computes a number of whole elements to move, as well as the bit index
   within the destination element of the target bit.
-
-Note that if the value returned from `next` is 0, or if the value returned from
-`prev` is `T::MASK`, then the client is responsible for moving to the
-neighboring element. No other signal will be raised for crossing over element
-boundaries.
 
 You should use `curr` to look up a bit at a known point, such as when indexing a
 `BitVec`; you should use `next` or `prev` to implement push, pop, and iteration;
@@ -106,20 +101,20 @@ pub trait Endian {
 		//  math doesn't know how to move around in an ordering. The offset is
 		//  signed in count order, not Endian order.
 		//  Subtraction can never fail, because count is always >= 0 and
-		//  0 - isize::MIN is isize::MIN, which does not overflow.
+		//  `0 - isize::MIN` is `isize::MIN`, which does not overflow.
 		//  In a non-overflowing addition, the result will be the position of
 		//  the target bit
 		match (count as isize).overflowing_add(offset) {
 			//  If the addition overflows, then the offset is positive. Add as
 			//  unsigned and use that.
-			//  Note that this is guaranteed not to overflow usize::MAX because
-			//  converting two positive signed integers to unsigned doubles the
-			//  domain, which will always be enormously wider than the domain of
-			//  count.
+			//  Note that this is guaranteed not to overflow `usize::MAX`
+			//  because converting two positive signed integers to unsigned
+			//  doubles the domain, which will always be enormously wider than
+			//  the domain of count.
 			(_, true) => {
 				let far = Self::curr::<T>(count) as usize + offset as usize;
 				//  The number of elements advanced is, conveniently, the number
-				//  of bits advanced integer divided by the number of bits in
+				//  of bits advanced integer-divided by the number of bits in
 				//  the elements, which even more conveniently, is equivalent to
 				//  right-shift by the number of bits required to index an
 				//  element. Note that we don't cast until *after* the shift, in
@@ -131,16 +126,15 @@ pub trait Endian {
 				let pos = (far & (T::MASK as usize)) as u8;
 				(elements, pos)
 			},
-			//  If far_bit is negative, then the jump leaves the element going
-			//  backward.
-			//  If far_bit is greater than T::MASK, then the jump leaves the
-			//  element going forward.
+			//  If `far` is negative, then the jump leaves the element going
+			//  backward. If `far` is greater than `T::MASK`, then the jump
+			//  leaves the element going forward.
 			(far, _) if far < 0 || far > T::MASK as isize => {
 				let elements = far >> T::BITS;
 				let pos = (far & (T::MASK as isize)) as u8;
 				(elements, Self::curr::<T>(pos))
 			},
-			//  Otherwise, far_bit is the *bit count* in the current element. It
+			//  Otherwise, `far` is the *bit count* in the current element. It
 			//  must still be converted from count to bit index.
 			(far, _) => {
 				(0, Self::curr::<T>(far as u8))
@@ -214,7 +208,7 @@ mod tests {
 
 	#[test]
 	fn jump_inside_elt() {
-		//  TODO: test the other two types.
+		//  TODO(myrrlyn): test the other two types.
 
 		let (elt, bit) = LittleEndian::jump::<u8>(5, 2);
 		assert_eq!(elt, 0);
@@ -238,7 +232,7 @@ mod tests {
 
 	#[test]
 	fn jump_backwards() {
-		//  TODO: Test the other three types.
+		//  TODO(myrrlyn): Test the other three types.
 
 		let (elt, bit) = LittleEndian::jump::<u32>(10, -15);
 		assert_eq!(elt, -1);
@@ -256,7 +250,7 @@ mod tests {
 
 	#[test]
 	fn jump_forwards() {
-		//  TODO: Test the other three types.
+		//  TODO(myrrlyn): Test the other three types.
 
 		let (elt, bit) = LittleEndian::jump::<u32>(25, 10);
 		assert_eq!(elt, 1);
@@ -272,12 +266,13 @@ mod tests {
 
 	#[test]
 	fn jump_overflow() {
-		//  TODO: Test the other three types.
+		//  TODO(myrrlyn): Test the other three types.
 
 		//  Force an overflowing stride. We expect the destination bit *count*
 		//  to be one less than the starting point (which on BigEndian will be
-		//  MASK - start - 1), and the elements skipped to be isize::MIN >> BITS
-		//  (an overflowing isize add will set the high bit as the usize repr).
+		//  `MASK - start - 1`), and the elements skipped to be
+		//  `isize::MIN >> BITS` (an overflowing isize add will set the high bit
+		//  as the `usize` repr).
 		let start = 20;
 		let (elt, bit) = LittleEndian::jump::<u32>(start, ::std::isize::MAX);
 
