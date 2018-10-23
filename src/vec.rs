@@ -241,7 +241,7 @@ where E: Endian, T: Bits {
 	/// cannot show that the underlying memory is untouched. This is also an
 	/// implementation detail on which you should not rely.
 	pub fn clear(&mut self) {
-		self.do_with_vec(|v| v.clear());
+		self.do_with_vec(Vec::<T>::clear);
 	}
 
 	/// Reserve capacity for additional bits.
@@ -270,7 +270,7 @@ where E: Endian, T: Bits {
 	/// This may or may not deallocate tail space, as the allocator sees fit.
 	/// This does not zero the abandoned memory.
 	pub fn shrink_to_fit(&mut self) {
-		self.do_with_vec(|v| v.shrink_to_fit());
+		self.do_with_vec(Vec::<T>::shrink_to_fit);
 	}
 
 	/// Shrink the `BitVec` to the given size, dropping all excess storage.
