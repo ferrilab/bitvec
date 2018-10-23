@@ -1150,7 +1150,7 @@ where E: Endian, T: 'a + Bits {
 		if self.is_empty() || self.not_any() {
 			return self;
 		}
-		Not::not(&mut *self);
+		let _ = Not::not(&mut *self);
 		//  Fill an element with all 1 bits
 		let elt: [T; 1] = [!T::default()];
 		if self.any() {
