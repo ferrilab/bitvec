@@ -35,7 +35,7 @@ reference or mutable reference, and has the advantage that now it can be a
 count bits using `.into()`.
 !*/
 
-use super::{
+use {
 	Bits,
 	Endian,
 	BigEndian,
@@ -352,9 +352,9 @@ where E: Endian, T: Bits {
 	/// ```rust
 	/// use bitvec::*;
 	/// let bv = bitvec![1, 0, 1, 0, 1];
-	/// assert_eq!(bv.count_one(), 3);
+	/// assert_eq!(bv.count_ones(), 3);
 	/// ```
-	pub fn count_one(&self) -> usize {
+	pub fn count_ones(&self) -> usize {
 		self.into_iter().filter(|b| *b).count()
 	}
 
@@ -365,9 +365,9 @@ where E: Endian, T: Bits {
 	/// ```rust
 	/// use bitvec::*;
 	/// let bv = bitvec![0, 1, 0, 1, 0];
-	/// assert_eq!(bv.count_zero(), 3);
+	/// assert_eq!(bv.count_zeros(), 3);
 	/// ```
-	pub fn count_zero(&self) -> usize {
+	pub fn count_zeros(&self) -> usize {
 		self.into_iter().filter(|b| !b).count()
 	}
 
@@ -697,7 +697,7 @@ where E: Endian, T: Bits {
 	/// for elt in bv.as_mut() {
 	///   *elt += 2;
 	/// }
-	/// assert_eq!(&[2, 0b1000_0010], bv.as_ref());
+	/// assert_eq!(&[2, 130], bv.as_ref());
 	/// ```
 	fn as_mut(&mut self) -> &mut [T] {
 		let (ptr, len): (*mut T, usize) = (self.as_mut_ptr(), self.raw_len());
@@ -1384,20 +1384,23 @@ where E: Endian, T: Bits {
 
 /// Permits iteration over a `BitSlice`
 #[doc(hidden)]
-pub struct Iter<'a, E: 'a + Endian, T: 'a + Bits> {
+pub struct Iter<'a, E, T>
+where E: 'a + Endian, T: 'a + Bits {
 	inner: &'a BitSlice<E, T>,
 	head: usize,
 	tail: usize,
 }
 
-impl<'a, E: 'a + Endian, T: 'a + Bits> Iter<'a, E, T> {
+impl<'a, E, T> Iter<'a, E, T>
+where E: 'a + Endian, T: 'a + Bits {
 	fn reset(&mut self) {
 		self.head = 0;
 		self.tail = self.inner.len();
 	}
 }
 
-impl<'a, E: 'a + Endian, T: 'a + Bits> DoubleEndedIterator for Iter<'a, E, T> {
+impl<'a, E, T> DoubleEndedIterator for Iter<'a, E, T>
+where E: 'a + Endian, T: 'a + Bits {
 	fn next_back(&mut self) -> Option<Self::Item> {
 		if self.tail > self.head {
 			self.tail -= 1;
@@ -1410,13 +1413,15 @@ impl<'a, E: 'a + Endian, T: 'a + Bits> DoubleEndedIterator for Iter<'a, E, T> {
 	}
 }
 
-impl<'a, E: 'a + Endian, T: 'a + Bits> ExactSizeIterator for Iter<'a, E, T> {
+impl<'a, E, T> ExactSizeIterator for Iter<'a, E, T>
+where E: 'a + Endian, T: 'a + Bits {
 	fn len(&self) -> usize {
 		self.tail - self.head
 	}
 }
 
-impl<'a, E: 'a + Endian, T: 'a + Bits> From<&'a BitSlice<E, T>> for Iter<'a, E, T> {
+impl<'a, E, T> From<&'a BitSlice<E, T>> for Iter<'a, E, T>
+where E: 'a + Endian, T: 'a + Bits {
 	fn from(src: &'a BitSlice<E, T>) -> Self {
 		let len = src.len();
 		Self {
@@ -1427,7 +1432,8 @@ impl<'a, E: 'a + Endian, T: 'a + Bits> From<&'a BitSlice<E, T>> for Iter<'a, E, 
 	}
 }
 
-impl<'a, E: 'a + Endian, T: 'a + Bits> Iterator for Iter<'a, E, T> {
+impl<'a, E, T> Iterator for Iter<'a, E, T>
+where E: 'a + Endian, T: 'a + Bits {
 	type Item = bool;
 
 	fn next(&mut self) -> Option<Self::Item> {
@@ -1491,7 +1497,7 @@ impl<'a, E: 'a + Endian, T: 'a + Bits> Iterator for Iter<'a, E, T> {
 	/// assert!(bv_iter.nth(0).unwrap());
 	/// ```
 	fn nth(&mut self, n: usize) -> Option<bool> {
-		self.head += n;
+		self.head = self.head.saturating_add(n);
 		self.next()
 	}
 

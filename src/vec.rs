@@ -7,7 +7,7 @@ The `BitSlice` module discusses the design decisions for the separation between
 slice and vector types.
 !*/
 
-use super::{
+use {
 	BitSlice,
 	Bits,
 	Endian,
@@ -105,10 +105,11 @@ Safe methods exist to move between `Vec` and `BitVec` – **USE THEM**.
   properties of the primitives for `BitVec` to use. This trait is sealed against
   downstream implementation, and can only be implemented in this crate.
 **/
+#[cfg_attr(nightly, repr(transparent))]
 pub struct BitVec<E = BigEndian, T = u8>
 where E: Endian, T: Bits {
-	inner: Vec<T>,
 	_endian: PhantomData<E>,
+	inner: Vec<T>,
 }
 
 impl<E, T> BitVec<E, T>
@@ -1432,6 +1433,16 @@ impl<E, T> Neg for BitVec<E, T>
 where E: Endian, T: Bits {
 	type Output = Self;
 
+	/// Numerically negates a `BitVec` using 2’s-complement arithmetic.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	/// let bv = bitvec![0, 1, 1];
+	/// let ne = -bv;
+	/// assert_eq!("101", &format!("{}", ne));
+	/// ```
 	fn neg(mut self) -> Self::Output {
 		//  An empty vector does nothing.
 		//  Negative zero is zero. Without this check, -[0+] becomes[10+1].
@@ -2000,7 +2011,7 @@ where E: Endian, T: Bits {
 	/// assert!(bv_iter.nth(0).unwrap());
 	/// ```
 	fn nth(&mut self, n: usize) -> Option<bool> {
-		self.head += n;
+		self.head = self.head.saturating_add(n);
 		self.next()
 	}
 

@@ -87,7 +87,8 @@ pub trait Endian {
 	/// into an element. The second value indicates whether the decrement points
 	/// into a different element.
 	fn prev<T: Bits>(count: u8) -> (u8, bool) {
-		count.overflowing_sub(1)
+		let (next, wrap) = count.overflowing_sub(1);
+		(next & T::MASK, wrap)
 	}
 
 	/// Computes the bit index at a given semantic offset from the current
@@ -96,7 +97,7 @@ pub trait Endian {
 	/// Returns a tuple where the first value is the number of whole storage
 	/// elements to move, and the second is the bit index within the element.
 	fn jump<T: Bits>(count: u8, offset: isize) -> (isize, u8) {
-		assert!(count <= T::MASK, "Bit count out of range for the storage type");
+		assert!(count < T::WIDTH, "Bit count out of range for the storage type");
 		//  Add offset to *count*, not to the current bit index, because this
 		//  math doesn't know how to move around in an ordering. The offset is
 		//  signed in count order, not Endian order.
@@ -148,7 +149,7 @@ pub trait Endian {
 
 impl Endian for BigEndian {
 	fn curr<T: Bits>(count: u8) -> u8 {
-		assert!(count <= T::MASK, "Index out of range of the storage type");
+		assert!(count < T::WIDTH, "Index out of range of the storage type");
 		T::MASK - count
 	}
 
@@ -157,7 +158,7 @@ impl Endian for BigEndian {
 
 impl Endian for LittleEndian {
 	fn curr<T: Bits>(count: u8) -> u8 {
-		assert!(count <= T::MASK, "Index out of range of the storage type");
+		assert!(count < T::WIDTH, "Index out of range of the storage type");
 		count
 	}
 
@@ -168,42 +169,28 @@ impl Endian for LittleEndian {
 mod tests {
 	use super::*;
 
-	/*
-	All the comments below are because I didn't actually do the math correctly
-	when writing the test cases, and kept getting test failures on perfectly
-	sound code because I didn't grok what was actually going on. If you (either
-	someone who is not me, or my future self) decide to add more test cases to
-	this to harden expectations about what jump does, be absolutely sure you
-	have correct expectations before changing the code if your tests fail.
-
-	Be sure to remember that all the functions take a *semantic count*, not a
-	*bit index*, and as such you should **not** pass different values to
-	different Endian implementations in order to try to account for their
-	different counting styles.
-	*/
-
 	#[test]
 	fn incr_edge() {
-		// assert_eq!(LittleEndian::next::<u8>(7), (0, true));
-		// assert_eq!(BigEndian::next::<u8>(7), (7, true));
-		// assert_eq!(LittleEndian::next::<u16>(15), (0, true));
-		// assert_eq!(BigEndian::next::<u16>(15), (15, true));
-		// assert_eq!(LittleEndian::next::<u32>(31), (0, true));
-		// assert_eq!(BigEndian::next::<u32>(31), (31, true));
-		// assert_eq!(LittleEndian::next::<u64>(63), (0, true));
-		// assert_eq!(BigEndian::next::<u64>(63), (63, true));
+		assert_eq!(LittleEndian::next::<u8>(7), (0, true));
+		assert_eq!(BigEndian::next::<u8>(7), (0, true));
+		assert_eq!(LittleEndian::next::<u16>(15), (0, true));
+		assert_eq!(BigEndian::next::<u16>(15), (0, true));
+		assert_eq!(LittleEndian::next::<u32>(31), (0, true));
+		assert_eq!(BigEndian::next::<u32>(31), (0, true));
+		assert_eq!(LittleEndian::next::<u64>(63), (0, true));
+		assert_eq!(BigEndian::next::<u64>(63), (0, true));
 	}
 
 	#[test]
 	fn decr_edge() {
-		// assert_eq!(LittleEndian::prev::<u8>(0), (7, true));
-		// assert_eq!(BigEndian::prev::<u8>(0), (0, true));
-		// assert_eq!(LittleEndian::prev::<u16>(0), (15, true));
-		// assert_eq!(BigEndian::prev::<u16>(0), (0, true));
-		// assert_eq!(LittleEndian::prev::<u32>(0), (31, true));
-		// assert_eq!(BigEndian::prev::<u32>(0), (0, true));
-		// assert_eq!(LittleEndian::prev::<u64>(0), (63, true));
-		// assert_eq!(BigEndian::prev::<u64>(0), (0, true));
+		assert_eq!(LittleEndian::prev::<u8>(0), (7, true));
+		assert_eq!(BigEndian::prev::<u8>(0), (7, true));
+		assert_eq!(LittleEndian::prev::<u16>(0), (15, true));
+		assert_eq!(BigEndian::prev::<u16>(0), (15, true));
+		assert_eq!(LittleEndian::prev::<u32>(0), (31, true));
+		assert_eq!(BigEndian::prev::<u32>(0), (31, true));
+		assert_eq!(LittleEndian::prev::<u64>(0), (63, true));
+		assert_eq!(BigEndian::prev::<u64>(0), (63, true));
 	}
 
 	#[test]
@@ -297,6 +284,18 @@ mod tests {
 		}
 		for n in 0 .. 64 {
 			assert_eq!(n, BigEndian::curr::<u64>(BigEndian::curr::<u64>(n)));
+		}
+		for n in 0 .. 8 {
+			assert_eq!(n, LittleEndian::curr::<u8>(LittleEndian::curr::<u8>(n)));
+		}
+		for n in 0 .. 16 {
+			assert_eq!(n, LittleEndian::curr::<u16>(LittleEndian::curr::<u16>(n)));
+		}
+		for n in 0 .. 32 {
+			assert_eq!(n, LittleEndian::curr::<u32>(LittleEndian::curr::<u32>(n)));
+		}
+		for n in 0 .. 64 {
+			assert_eq!(n, LittleEndian::curr::<u64>(LittleEndian::curr::<u64>(n)));
 		}
 	}
 }
