@@ -43,50 +43,52 @@ use super::{
 	TRUE,
 	FALSE,
 };
-use std::borrow::ToOwned;
-use std::cmp::{
-	Eq,
-	Ord,
-	Ordering,
-	PartialEq,
-	PartialOrd,
+use std::{
+	borrow::ToOwned,
+	cmp::{
+		Eq,
+		Ord,
+		Ordering,
+		PartialEq,
+		PartialOrd,
+	},
+	convert::{
+		AsMut,
+		AsRef,
+		From,
+	},
+	fmt::{
+		self,
+		Debug,
+		Display,
+		Formatter,
+	},
+	hash::{
+		Hash,
+		Hasher,
+	},
+	iter::{
+		DoubleEndedIterator,
+		ExactSizeIterator,
+		Iterator,
+		IntoIterator,
+	},
+	marker::PhantomData,
+	mem,
+	ops::{
+		AddAssign,
+		BitAndAssign,
+		BitOrAssign,
+		BitXorAssign,
+		Index,
+		Neg,
+		Not,
+		ShlAssign,
+		ShrAssign,
+	},
+	ptr,
+	slice,
 };
-use std::convert::{
-	AsMut,
-	AsRef,
-	From,
-};
-use std::fmt::{
-	self,
-	Debug,
-	Display,
-	Formatter,
-};
-use std::hash::{
-	Hash,
-	Hasher,
-};
-use std::iter::{
-	DoubleEndedIterator,
-	ExactSizeIterator,
-	Iterator,
-	IntoIterator,
-};
-use std::marker::PhantomData;
-use std::mem;
-use std::ops::{
-	AddAssign,
-	BitAndAssign,
-	BitOrAssign,
-	BitXorAssign,
-	Index,
-	Neg,
-	Not,
-	ShlAssign,
-	ShrAssign,
-};
-use std::ptr;
-use std::slice;
 
 /** A compact slice of bits, whose cursor and storage type can be customized.
 

@@ -7,67 +7,69 @@ use super::{
 	TRUE,
 	FALSE,
 };
-use std::borrow::{
-	Borrow,
-	BorrowMut,
+use std::{
+	borrow::{
+		Borrow,
+		BorrowMut,
+	},
+	clone::Clone,
+	cmp::{
+		Eq,
+		Ord,
+		Ordering,
+		PartialEq,
+		PartialOrd,
+	},
+	convert::{
+		AsMut,
+		AsRef,
+		From,
+	},
+	default::Default,
+	fmt::{
+		self,
+		Debug,
+		Display,
+		Formatter,
+	},
+	hash::{
+		Hash,
+		Hasher,
+	},
+	iter::{
+		DoubleEndedIterator,
+		ExactSizeIterator,
+		Extend,
+		FromIterator,
+		Iterator,
+		IntoIterator,
+	},
+	marker::PhantomData,
+	mem,
+	ops::{
+		Add,
+		AddAssign,
+		BitAnd,
+		BitAndAssign,
+		BitOr,
+		BitOrAssign,
+		BitXor,
+		BitXorAssign,
+		Deref,
+		DerefMut,
+		Drop,
+		Index,
+		Neg,
+		Not,
+		Shl,
+		ShlAssign,
+		Shr,
+		ShrAssign,
+		Sub,
+		SubAssign,
+	},
+	ptr,
 };
-use std::clone::Clone;
-use std::cmp::{
-	Eq,
-	Ord,
-	Ordering,
-	PartialEq,
-	PartialOrd,
-};
-use std::convert::{
-	AsMut,
-	AsRef,
-	From,
-};
-use std::default::Default;
-use std::fmt::{
-	self,
-	Debug,
-	Display,
-	Formatter,
-};
-use std::hash::{
-	Hash,
-	Hasher,
-};
-use std::iter::{
-	DoubleEndedIterator,
-	ExactSizeIterator,
-	Extend,
-	FromIterator,
-	Iterator,
-	IntoIterator,
-};
-use std::marker::PhantomData;
-use std::mem;
-use std::ops::{
-	Add,
-	AddAssign,
-	BitAnd,
-	BitAndAssign,
-	BitOr,
-	BitOrAssign,
-	BitXor,
-	BitXorAssign,
-	Deref,
-	DerefMut,
-	Drop,
-	Index,
-	Neg,
-	Not,
-	Shl,
-	ShlAssign,
-	Shr,
-	ShrAssign,
-	Sub,
-	SubAssign,
-};
-use std::ptr;
 
 /** A compact `Vec` of bits, whose cursor and storage type can be customized.
 

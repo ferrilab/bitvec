@@ -5,25 +5,27 @@ storage of a primitive, and is the constraint for the storage type of a
 `BitVec`.
 !*/
 
-use std::cmp::Eq;
-use std::convert::From;
-use std::default::Default;
-use std::fmt::{
-	Binary,
-	Debug,
-	Display,
-	LowerHex,
-	UpperHex,
-};
-use std::ops::{
-	Not,
-	BitAnd,
-	BitAndAssign,
-	BitOrAssign,
-	Shl,
-	ShlAssign,
-	Shr,
-	ShrAssign,
+use std::{
+	cmp::Eq,
+	convert::From,
+	default::Default,
+	fmt::{
+		Binary,
+		Debug,
+		Display,
+		LowerHex,
+		UpperHex,
+	},
+	ops::{
+		Not,
+		BitAnd,
+		BitAndAssign,
+		BitOrAssign,
+		Shl,
+		ShlAssign,
+		Shr,
+		ShrAssign,
+	},
 };
 
 /// A trait for types that can be used as direct storage of bits.

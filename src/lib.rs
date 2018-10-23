@@ -41,11 +41,13 @@ mod endian;
 mod slice;
 mod vec;
 
-pub use bits::Bits;
-pub use endian::*;
-pub use macros::*;
-pub use slice::BitSlice;
-pub use vec::BitVec;
+pub use {
+	bits::Bits,
+	endian::*,
+	macros::*,
+	slice::BitSlice,
+	vec::BitVec,
+};
 
 //  The Index trait returns references to bools, and it is impossible to make an
 //  address for a bit in the middle of a byte. Therefore, Index::index

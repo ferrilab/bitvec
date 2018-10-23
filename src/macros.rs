@@ -151,6 +151,11 @@ impl<E: $crate::Endian, T: $crate::Bits> ShrAssign< $t > for $crate::BitVec<E, T
 
 #[cfg(test)]
 mod tests {
+	use {
+		BigEndian,
+		LittleEndian,
+	};
+
 	#[test]
 	fn compile_macros() {
 		bitvec![0, 1];
