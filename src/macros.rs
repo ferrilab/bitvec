@@ -31,42 +31,46 @@ bitvec![1; 5];
 **/
 #[macro_export]
 macro_rules! bitvec {
-	//  bitvec![endian, type ; 0, 1, ...]
-	( $end:ident , $prim:ty ; $( $elt:expr ),* ) => {
-		__bitvec_impl![ $end, $prim ; $( $elt ),* ]
+	//  bitvec![endian, type ; 0, 1, …]
+	( $endian:ident , $primitive:ty ; $( $elt:expr ),* ) => {
+		__bitvec_impl![ $endian , $primitive ; $( $elt ),* ]
 	};
-	//  bitvec![endian, type ; 0, 1, ..., ]
-	( $end:ident , $prim:ty ; $( $elt:expr , )* ) => {
-		__bitvec_impl![ $end , $prim ; $( $elt ),* ]
+	//  bitvec![endian, type ; 0, 1, …, ]
+	( $endian:ident , $primitive:ty ; $( $elt:expr , )* ) => {
+		__bitvec_impl![ $endian , $primitive ; $( $elt ),* ]
 	};
-	//  bitvec![endian ; 0, 1, ...]
-	( $end:ident ; $( $elt:expr ),* ) => {
-		__bitvec_impl![ $end , u8 ; $( $elt ),* ]
+
+	//  bitvec![endian ; 0, 1, …]
+	( $endian:ident ; $( $elt:expr ),* ) => {
+		__bitvec_impl![ $endian , u8 ; $( $elt ),* ]
 	};
-	//  bitvec![endian ; 0, 1, ..., ]
-	( $end:ident ; $( $elt:expr , )* ) => {
-		__bitvec_impl![ $end , u8 ; $( $elt ),* ]
+	//  bitvec![endian ; 0, 1, …, ]
+	( $endian:ident ; $( $elt:expr , )* ) => {
+		__bitvec_impl![ $endian , u8 ; $( $elt ),* ]
 	};
-	//  bitvec![0, 1, ...]
+
+	//  bitvec![0, 1, …]
 	( $( $elt:expr ),* ) => {
 		__bitvec_impl![ BigEndian , u8 ; $($elt),* ]
 	};
-	//  bitvec![0, 1, ..., ]
+	//  bitvec![0, 1, …, ]
 	( $( $elt:expr , )* ) => {
 		__bitvec_impl![ BigEndian , u8 ; $($elt),* ]
 	};
 
-	//  bitvec![endian, type, bit; rep]
-	( $end:ident , $prim:ty ; $elt:expr ; $rep:expr ) => {
-		__bitvec_impl![ $end , $prim ; $elt; $rep ]
+	//  bitvec![endian, type; bit; rep]
+	( $endian:ident , $primitive:ty ; $elt:expr ; $rep:expr ) => {
+		__bitvec_impl![ $endian , $primitive ; $elt; $rep ]
 	};
-	//  bitvec![endian, bit; rep]
-	( $end:ident ; $elt:expr ; $rep:expr ) => {
-		__bitvec_impl![ $end , u8 ;  $elt; $rep ]
+
+	//  bitvec![endian; bit; rep]
+	( $endian:ident ; $elt:expr ; $rep:expr ) => {
+		__bitvec_impl![ $endian , u8 ; $elt; $rep ]
 	};
+
 	//  bitvec![bit; rep]
 	( $elt:expr ; $rep:expr ) => {
-		__bitvec_impl![ BigEndian, u8 ; $elt; $rep ]
+		__bitvec_impl![ BigEndian , u8 ; $elt; $rep ]
 	};
 }
 
@@ -96,56 +100,68 @@ macro_rules! __bitvec_impl {
 #[doc(hidden)]
 macro_rules! __bitslice_shift {
 	( $( $t:ty ),+ ) => { $(
-#[doc(hidden)]
-impl<E: $crate::Endian, T: $crate::Bits> ShlAssign< $t > for $crate::BitSlice<E, T> {
-	fn shl_assign(&mut self, shamt: $t ) {
-		ShlAssign::<usize>::shl_assign(self, shamt as usize);
-	}
-}
+		#[doc(hidden)]
+		impl<E: $crate::Endian, T: $crate::Bits> ::std::ops::ShlAssign< $t >
+		for $crate::BitSlice<E, T>
+		{
+			fn shl_assign(&mut self, shamt: $t ) {
+				::std::ops::ShlAssign::<usize>::shl_assign(self, shamt as usize);
+			}
+		}
 
-#[doc(hidden)]
-impl<E: $crate::Endian, T: $crate::Bits> ShrAssign< $t > for $crate::BitSlice<E, T> {
-	fn shr_assign(&mut self, shamt: $t ) {
-		ShrAssign::<usize>::shr_assign(self, shamt as usize);
-	}
-}
+		#[doc(hidden)]
+		impl<E: $crate::Endian, T: $crate::Bits> ::std::ops::ShrAssign< $t >
+		for $crate::BitSlice<E, T>
+		{
+			fn shr_assign(&mut self, shamt: $t ) {
+				::std::ops::ShrAssign::<usize>::shr_assign(self, shamt as usize);
+			}
+		}
 	)+ };
 }
 
 #[doc(hidden)]
 macro_rules! __bitvec_shift {
 	( $( $t:ty ),+ ) => { $(
-#[doc(hidden)]
-impl<E: $crate::Endian, T: $crate::Bits> Shl< $t > for $crate::BitVec<E, T> {
-	type Output = <Self as Shl<usize>>::Output;
+		#[doc(hidden)]
+		impl<E: $crate::Endian, T: $crate::Bits> ::std::ops::Shl< $t >
+		for $crate::BitVec<E, T>
+		{
+			type Output = <Self as ::std::ops::Shl<usize>>::Output;
 
-	fn shl(self, shamt: $t ) -> Self::Output {
-		Shl::<usize>::shl(self, shamt as usize)
-	}
-}
+			fn shl(self, shamt: $t ) -> Self::Output {
+				::std::ops::Shl::<usize>::shl(self, shamt as usize)
+			}
+		}
 
-#[doc(hidden)]
-impl<E: $crate::Endian, T: $crate::Bits> ShlAssign< $t > for $crate::BitVec<E, T> {
-	fn shl_assign(&mut self, shamt: $t ) {
-		ShlAssign::<usize>::shl_assign(self, shamt as usize)
-	}
-}
+		#[doc(hidden)]
+		impl<E: $crate::Endian, T: $crate::Bits> ::std::ops::ShlAssign< $t >
+		for $crate::BitVec<E, T>
+		{
+			fn shl_assign(&mut self, shamt: $t ) {
+				::std::ops::ShlAssign::<usize>::shl_assign(self, shamt as usize)
+			}
+		}
 
-#[doc(hidden)]
-impl<E: $crate::Endian, T: $crate::Bits> Shr< $t > for $crate::BitVec<E, T> {
-	type Output = <Self as Shr<usize>>::Output;
+		#[doc(hidden)]
+		impl<E: $crate::Endian, T: $crate::Bits> ::std::ops::Shr< $t >
+		for $crate::BitVec<E, T>
+		{
+			type Output = <Self as ::std::ops::Shr<usize>>::Output;
 
-	fn shr(self, shamt: $t ) -> Self::Output {
-		Shr::<usize>::shr(self, shamt as usize)
-	}
-}
+			fn shr(self, shamt: $t ) -> Self::Output {
+				::std::ops::Shr::<usize>::shr(self, shamt as usize)
+			}
+		}
 
-#[doc(hidden)]
-impl<E: $crate::Endian, T: $crate::Bits> ShrAssign< $t > for $crate::BitVec<E, T> {
-	fn shr_assign(&mut self, shamt: $t ) {
-		ShrAssign::<usize>::shr_assign(self, shamt as usize)
-	}
-}
+		#[doc(hidden)]
+		impl<E: $crate::Endian, T: $crate::Bits> ::std::ops::ShrAssign< $t >
+		for $crate::BitVec<E, T>
+		{
+			fn shr_assign(&mut self, shamt: $t ) {
+				::std::ops::ShrAssign::<usize>::shr_assign(self, shamt as usize)
+			}
+		}
 	)+ };
 }
 
