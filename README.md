@@ -38,7 +38,7 @@ To use this crate, you need to depend on it in `Cargo.toml`:
 
 ```toml
 [dependencies]
-bitvec = "0.5"
+bitvec = "0.6"
 ```
 
 and include it in your crate root `src/main.rs` or `src/lib.rs`:
@@ -165,5 +165,9 @@ simply by going out of scope.
 
 ## Planned Features
 
-`#![no_std]` support that uses core libraries for allocation, and `#![no_core]`
-support that strips the vector type entirely and only provides the slice type.
+- `#![no_std]` support that uses core libraries for allocation, and
+  `#![no_core]` support that strips the vector type entirely and only provides
+  the slice type.
+
+- A `Box<BitSlice>` type that corresponds to `Box<[T]>` between `&[T]` and
+  `Vec<T>`.
