@@ -48,11 +48,3 @@ pub use {
 	slice::BitSlice,
 	vec::BitVec,
 };
-
-//  The `Index` trait returns references to bools, and it is impossible to make
-//  an address for a bit in the middle of a byte. Therefore, `Index::index`
-//  references these static values depending on the value of the bit.
-//
-//  This is *such* a hack, but, That’s Rust For Ya.
-static TRUE: bool = true;
-static FALSE: bool = false;
