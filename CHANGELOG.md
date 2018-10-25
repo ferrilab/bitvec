@@ -2,6 +2,36 @@
 
 All notable changes will be documented in this file.
 
+## 0.7.0
+
+### Added
+
+- `examples/readme.rs` tracks the contents of the example code in `README.md`.
+  It will continue to do so until the `external_doc` feature stabilizes so that
+  the contents of the README can be included in the module documentation of
+  `src/lib.rs`.
+
+- Officially use the Rust community code of conduct.
+
+- README sections describe why a user might want this library, and what makes it
+  different than `bit-vec`.
+
+### Changed
+
+- Update minimum Rust version to `1.30.0`.
+
+  Internally, this permits use of `std` rather than `::std`. This compiler
+  edition does not change *intra-crate* macro usage. Clients at `1.30.0` and
+  above no longer need `#[macro_use]` above `extern crate bitvec;`, and are able
+  to import the `bitvec!` macro directly with `use bitvec::bitvec;` or
+  `use bitvec::*;`.
+
+  Implementation note: References to literals stabilized at *some* point between
+  `1.20.0` and `1.30.0`, so the static bool items used for indexing are no
+  longer needed.
+
+- Include numeric arithmetic as well as set arithmetic in the README.
+
 ## 0.6.0
 
 ### Changed

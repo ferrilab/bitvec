@@ -56,7 +56,7 @@ To use this crate, you need to depend on it in `Cargo.toml`:
 
 ```toml
 [dependencies]
-bitvec = "0.6"
+bitvec = "0.7"
 ```
 
 and include it in your crate root `src/main.rs` or `src/lib.rs`:
