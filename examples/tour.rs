@@ -8,11 +8,26 @@ This example prints **a lot** of text to the console.
 
 extern crate bitvec;
 
-use bitvec::*;
+use bitvec::{
+	//  `bitvec!` macro
+	bitvec,
+	//  trait unifying the primitives (you shouldn’t explicitly need this)
+	Bits,
+	//  primary type of the whole crate! this is where the magic happens
+	BitVec,
+	//  element-traversal trait (you shouldn’t explicitly need this)
+	Endian,
+	//  directionality type marker (the default for `BitVec`; you will rarely
+	//  explicitly need this)
+	BigEndian,
+	//  directionality type marker (you will explicitly need this if you want
+	//  this ordering)
+	LittleEndian,
+};
 use std::iter::repeat;
 
 fn main() {
-	let bv = bitvec![
+	let bv = bitvec![   //  BigEndian, u8;  //  default type values
 		0, 0, 0, 0, 0, 0, 0, 1,
 		0, 0, 0, 0, 0, 0, 1, 0,
 		0, 0, 0, 0, 0, 1, 0, 0,
@@ -31,12 +46,14 @@ fn main() {
 		0, 0, 0, 0, 0, 0, 0, 1,
 		1, 0, 1, 0,
 	];
-	println!("A BigEndian BitVec has the same layout in memory as it does semantically");
+	println!("A BigEndian BitVec has the same layout in memory as it does \
+		semantically");
 	render(&bv);
 
 	//  BitVec can turn into iterators, and be built from iterators.
 	let bv: BitVec<LittleEndian, u8> = bv.into_iter().collect();
-	println!("A LittleEndian BitVec has the opposite layout in memory as it does semantically");
+	println!("A LittleEndian BitVec has the opposite layout in memory as it \
+		does semantically");
 	render(&bv);
 
 	let bv: BitVec<BigEndian, u16> = bv.into_iter().collect();

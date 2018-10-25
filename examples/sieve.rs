@@ -24,7 +24,10 @@ square 25x25.
 
 extern crate bitvec;
 
-use bitvec::*;
+use bitvec::{
+	BitVec,
+	BigEndian,
+};
 use std::env;
 
 fn main() {

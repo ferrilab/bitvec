@@ -1326,16 +1326,11 @@ where E: crate::Endian, T: crate::Bits {
 /// Readies the underlying storage for Drop.
 impl<E, T> Drop for BitVec<E, T>
 where E: crate::Endian, T: crate::Bits {
-	/// Sets the interior `Vec` instance to the format its `Drop` implementation
-	/// expects.
+	/// Restore the interior `Vec` to sane condition before it drops.
 	fn drop(&mut self) {
-		//  If the `Vec` is non-empty, set the length to the number of used
-		//  elements as preparation for drop. The bits do not need to be wiped.
-		//
-		//  If we don't do this, the `Vec` drop will treat the bit total as the
-		//  number of elements and try to loop through all of them, which will
-		//  not take 2 ** T::BITS times as long to run as expected, because
-		//  it'll segfault.
+		//  The only modification `BitVec` makes to the inner `Vec` is the
+		//  length. Strictly speaking, this does not need to be restored before
+		//  drop, but it’s good to be proactive.
 		let raw = self.raw_len();
 		unsafe { self.inner.set_len(raw); }
 	}
