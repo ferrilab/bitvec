@@ -183,7 +183,7 @@ where E: Endian, T: Bits {
 	/// assert!(bv[0]);
 	/// ```
 	pub fn push(&mut self, value: bool) {
-		assert!(self.len() < ::std::usize::MAX, "Vector will overflow!");
+		assert!(self.len() < std::usize::MAX, "Vector will overflow!");
 		let bit = self.bits();
 		//  Get a cursor to the bit that matches the semantic count.
 		let cursor = E::curr::<T>(bit);
@@ -1593,7 +1593,7 @@ where E: Endian, T: Bits {
 			let buf = self.as_mut();
 			let ptr = buf.as_mut_ptr();
 			let len = buf.len();
-			unsafe { ::std::ptr::write_bytes(ptr, 0, len); }
+			unsafe { std::ptr::write_bytes(ptr, 0, len); }
 			return;
 		}
 		for idx in shamt .. len {

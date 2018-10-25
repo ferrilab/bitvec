@@ -6,7 +6,6 @@ a sample of the various operations that can be applied to it.
 This example prints **a lot** of text to the console.
 !*/
 
-#[macro_use]
 extern crate bitvec;
 
 use bitvec::*;
@@ -82,7 +81,7 @@ fn render<E: Endian, T: Bits>(bv: &BitVec<E, T>) {
 	println!("{:?}", bv.as_ref());
 	println!("Show the bits in memory");
 	for elt in bv.as_ref() {
-		println!("{:0w$b} ", elt, w=::std::mem::size_of::<T>() * 8);
+		println!("{:0w$b} ", elt, w=std::mem::size_of::<T>() * 8);
 	}
 	println!();
 }

@@ -80,7 +80,7 @@ pub trait Bits:
 	const MASK: u8 = Self::WIDTH - 1;
 
 	/// The maximum number of this type that can be held in a `BitVec`.
-	const MAX_ELT: usize = ::std::usize::MAX >> Self::BITS;
+	const MAX_ELT: usize = std::usize::MAX >> Self::BITS;
 
 	/// Set a specific bit in an element to a given value.
 	fn set(&mut self, place: u8, value: bool) {
@@ -114,7 +114,7 @@ pub trait Bits:
 	/// Joins a `usize` element cursor and `u8` bit cursor into a single
 	/// `usize` cursor.
 	fn join(elt: usize, bit: u8) -> usize {
-		assert!(elt <= ::std::usize::MAX >> Self::BITS, "Element count out of range!");
+		assert!(elt <= std::usize::MAX >> Self::BITS, "Element count out of range!");
 		assert!(bit <= Self::MASK, "Bit count out of range!");
 		(elt << Self::BITS) | bit as usize
 	}
