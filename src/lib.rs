@@ -43,8 +43,11 @@ mod vec;
 
 pub use {
 	bits::Bits,
-	endian::*,
-	macros::*,
+	endian::{
+		Endian,
+		BigEndian,
+		LittleEndian,
+	},
 	slice::BitSlice,
 	vec::BitVec,
 };
