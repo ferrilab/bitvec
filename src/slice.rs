@@ -35,14 +35,6 @@ reference or mutable reference, and has the advantage that now it can be a
 count bits using `.into()`.
 !*/
 
-use {
-	Bits,
-	Endian,
-	BigEndian,
-	BitVec,
-	TRUE,
-	FALSE,
-};
 use std::{
 	borrow::ToOwned,
 	cmp::{
@@ -118,14 +110,14 @@ created by using the `From` implementation on `&BitSlice` and `&mut BitSlice`.
   downstream implementation, and can only be implemented in this crate.
 **/
 #[cfg_attr(nightly, repr(transparent))]
-pub struct BitSlice<E = BigEndian, T = u8>
-where E: Endian, T: Bits {
+pub struct BitSlice<E = crate::BigEndian, T = u8>
+where E: crate::Endian, T: crate::Bits {
 	_endian: PhantomData<E>,
 	inner: [T],
 }
 
 impl<E, T> BitSlice<E, T>
-where E: Endian, T: Bits {
+where E: crate::Endian, T: crate::Bits {
 	/// Gets the bit value at the given position.
 	///
 	/// The index value is a semantic count, not a bit address. It converts to a
@@ -576,8 +568,8 @@ where E: Endian, T: Bits {
 
 /// Creates a new `BitVec` out of a `BitSlice`.
 impl<E, T> ToOwned for BitSlice<E, T>
-where E: Endian, T: Bits {
-	type Owned = BitVec<E, T>;
+where E: crate::Endian, T: crate::Bits {
+	type Owned = crate::BitVec<E, T>;
 
 	/// Clones a borrowed `BitSlice` into an owned `BitVec`.
 	///
@@ -604,10 +596,10 @@ where E: Endian, T: Bits {
 }
 
 impl<E, T> Eq for BitSlice<E, T>
-where E: Endian, T: Bits {}
+where E: crate::Endian, T: crate::Bits {}
 
 impl<E, T> Ord for BitSlice<E, T>
-where E: Endian, T: Bits {
+where E: crate::Endian, T: crate::Bits {
 	fn cmp(&self, rhs: &Self) -> Ordering {
 		match self.partial_cmp(rhs) {
 			Some(ord) => ord,
@@ -623,7 +615,7 @@ where E: Endian, T: Bits {
 /// The equality condition requires that they have the same number of total bits
 /// and that each pair of bits in semantic order are identical.
 impl<A, B, C, D> PartialEq<BitSlice<C, D>> for BitSlice<A, B>
-where A: Endian, B: Bits, C: Endian, D: Bits {
+where A: crate::Endian, B: crate::Bits, C: crate::Endian, D: crate::Bits {
 	/// Performs a comparison by `==`.
 	///
 	/// # Examples
@@ -655,7 +647,7 @@ where A: Endian, B: Bits, C: Endian, D: Bits {
 /// If one of the slices is exhausted before they differ, the longer slice is
 /// greater.
 impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for BitSlice<A, B>
-where A: Endian, B: Bits, C: Endian, D: Bits {
+where A: crate::Endian, B: crate::Bits, C: crate::Endian, D: crate::Bits {
 	/// Performs a comparison by `<` or `>`.
 	///
 	/// # Examples
@@ -686,7 +678,7 @@ where A: Endian, B: Bits, C: Endian, D: Bits {
 /// Gives write access to all elements in the underlying storage, including the
 /// partially-filled tail element (if present).
 impl<E, T> AsMut<[T]> for BitSlice<E, T>
-where E: Endian, T: Bits {
+where E: crate::Endian, T: crate::Bits {
 	/// Accesses the underlying store.
 	///
 	/// # Examples
@@ -708,7 +700,7 @@ where E: Endian, T: Bits {
 /// Gives read access to all elements in the underlying storage, including the
 /// partially-filled tail element (if present).
 impl<E, T> AsRef<[T]> for BitSlice<E, T>
-where E: Endian, T: Bits {
+where E: crate::Endian, T: crate::Bits {
 	/// Accesses the underlying store.
 	///
 	/// # Examples
@@ -728,7 +720,7 @@ where E: Endian, T: Bits {
 /// Builds a `BitSlice` from a slice of elements. The resulting `BitSlice` will
 /// always completely fill the original slice, and will not have a partial tail.
 impl<'a, E, T> From<&'a [T]> for &'a BitSlice<E, T>
-where E: Endian, T: 'a + Bits {
+where E: crate::Endian, T: 'a + crate::Bits {
 	/// Wraps an `&[T: Bits]` in an `&BitSlice<E: Endian, T>`. The endianness
 	/// must be specified by the call site. The element type cannot be changed.
 	///
@@ -762,7 +754,7 @@ where E: Endian, T: 'a + Bits {
 /// `BitSlice` will always completely fill the original slice, and will not have
 /// a partial tail.
 impl<'a, E, T> From<&'a mut [T]> for &'a mut BitSlice<E, T>
-where E: Endian, T: 'a + Bits {
+where E: crate::Endian, T: 'a + crate::Bits {
 	/// Wraps an `&mut [T: Bits]` in an `&mut BitSlice<E: Endian, T>`. The
 	/// endianness must be specified by the call site. The element type cannot
 	/// be changed.
@@ -801,7 +793,7 @@ where E: Endian, T: 'a + Bits {
 /// The alternate character `{:#?}` prints each element on its own line, rather
 /// than having all elements on the same line.
 impl<E, T> Debug for BitSlice<E, T>
-where E: Endian, T: Bits {
+where E: crate::Endian, T: crate::Bits {
 	/// Renders the `BitSlice` type header and contents for debug.
 	///
 	/// # Examples
@@ -840,7 +832,7 @@ where E: Endian, T: Bits {
 /// To see the in-memory representation, use `.as_ref()` to get access to the
 /// raw elements and print that slice instead.
 impl<E, T> Display for BitSlice<E, T>
-where E: Endian, T: Bits {
+where E: crate::Endian, T: crate::Bits {
 	/// Renders the `BitSlice` contents for display.
 	///
 	/// # Examples
@@ -857,7 +849,7 @@ where E: Endian, T: Bits {
 
 /// Writes the contents of the `BitSlice`, in semantic bit order, into a hasher.
 impl<E, T> Hash for BitSlice<E, T>
-where E: Endian, T: Bits {
+where E: crate::Endian, T: crate::Bits {
 	/// Writes each bit of the `BitSlice`, as a full `bool`, into the hasher.
 	fn hash<H>(&self, hasher: &mut H)
 	where H: Hasher {
@@ -873,7 +865,7 @@ where E: Endian, T: Bits {
 /// `ExactSizeIterator` as `BitSlice` has a known, fixed length, and
 /// `DoubleEndedIterator` as it has known ends.
 impl<'a, E, T> IntoIterator for &'a BitSlice<E, T>
-where E: Endian, T: 'a + Bits {
+where E: crate::Endian, T: 'a + crate::Bits {
 	type Item = bool;
 	type IntoIter = Iter<'a, E, T>;
 
@@ -912,7 +904,7 @@ where E: Endian, T: 'a + Bits {
 /// Subtraction can be implemented by negating the intended subtrahend yourself
 /// and then using addition, or by using `BitVec`s instead of `BitSlice`s.
 impl<'a, E, T> AddAssign<&'a BitSlice<E, T>> for BitSlice<E, T>
-where E: Endian, T: Bits {
+where E: crate::Endian, T: crate::Bits {
 	/// Performs unsigned wrapping addition in place.
 	///
 	/// # Examples
@@ -957,7 +949,7 @@ where E: Endian, T: Bits {
 /// the result into `self`. If the other bitstream ends before `self` does, it
 /// is extended with zero, clearing all remaining bits in `self`.
 impl<E, T, I> BitAndAssign<I> for BitSlice<E, T>
-where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
+where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
 	/// `AND`s a bitstream into a slice.
 	///
 	/// # Examples
@@ -982,7 +974,7 @@ where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
 /// result into `self`. If the other bitstream ends before `self` does, it is
 /// extended with zero, leaving all remaining bits in `self` as they were.
 impl<E, T, I> BitOrAssign<I> for BitSlice<E, T>
-where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
+where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
 	/// `OR`s a bitstream into a slice.
 	///
 	/// # Examples
@@ -1006,7 +998,7 @@ where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
 /// the result into `self`. If the other bitstream ends before `self` does, it
 /// is extended with zero, leaving all remaining bits in `self` as they were.
 impl<E, T, I> BitXorAssign<I> for BitSlice<E, T>
-where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
+where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
 	/// `XOR`s a bitstream into a slice.
 	///
 	/// # Examples
@@ -1030,7 +1022,7 @@ where E: Endian, T: Bits, I: IntoIterator<Item=bool> {
 /// Indexes a single bit by semantic count. The index must be less than the
 /// length of the `BitSlice`.
 impl<'a, E, T> Index<usize> for &'a BitSlice<E, T>
-where E: Endian, T: 'a + Bits {
+where E: crate::Endian, T: 'a + crate::Bits {
 	type Output = bool;
 
 	/// Looks up a single bit by semantic count.
@@ -1045,10 +1037,7 @@ where E: Endian, T: 'a + Bits {
 	/// assert!(!bits[3]);
 	/// ```
 	fn index(&self, index: usize) -> &Self::Output {
-		match self.get(index) {
-			true => &TRUE,
-			false => &FALSE,
-		}
+		if self.get(index) { &true} else { &false }
 	}
 }
 
@@ -1058,7 +1047,7 @@ where E: Endian, T: 'a + Bits {
 ///
 /// This index is not recommended for public use.
 impl<'a, E, T> Index<(usize, u8)> for &'a BitSlice<E, T>
-where E: Endian, T: 'a + Bits {
+where E: crate::Endian, T: 'a + crate::Bits {
 	type Output = bool;
 
 	/// Looks up a single bit by storage element and bit indices. The bit index
@@ -1075,10 +1064,7 @@ where E: Endian, T: 'a + Bits {
 	/// assert!(!bits[(1, 1)]); // 9
 	/// ```
 	fn index(&self, (elt, bit): (usize, u8)) -> &Self::Output {
-		match self.get(T::join(elt, bit)) {
-			true => &TRUE,
-			false => &FALSE,
-		}
+		if self.get(T::join(elt, bit)) { &true } else { &false }
 	}
 }
 
@@ -1103,7 +1089,7 @@ where E: Endian, T: 'a + Bits {
 ///
 /// Because `BitSlice` cannot move, the negation is performed in place.
 impl<'a, E, T> Neg for &'a mut BitSlice<E, T>
-where E: Endian, T: 'a + Bits {
+where E: crate::Endian, T: 'a + crate::Bits {
 	type Output = Self;
 
 	/// Perform 2’s-complement fixed-width negation.
@@ -1174,7 +1160,7 @@ where E: Endian, T: 'a + Bits {
 /// `BitSlice` purview. `^=` also has the advantage of being a borrowing
 /// operator rather than a consuming/returning operator.
 impl<'a, E, T> Not for &'a mut BitSlice<E, T>
-where E: Endian, T: 'a + Bits {
+where E: crate::Endian, T: 'a + crate::Bits {
 	type Output = Self;
 
 	/// Inverts all bits in the slice.
@@ -1231,7 +1217,7 @@ __bitslice_shift!(u8, u16, u32, u64, i8, i16, i32, i64);
 ///
 /// A shift amount of zero is a no-op, and returns immediately.
 impl<E, T> ShlAssign<usize> for BitSlice<E, T>
-where E: Endian, T: Bits {
+where E: crate::Endian, T: crate::Bits {
 	/// Shifts a slice left, in place.
 	///
 	/// # Examples
@@ -1326,7 +1312,7 @@ where E: Endian, T: Bits {
 ///
 /// A shift amount of zero is a no-op, and returns immediately.
 impl<E, T> ShrAssign<usize> for BitSlice<E, T>
-where E: Endian, T: Bits {
+where E: crate::Endian, T: crate::Bits {
 	/// Shifts a slice right, in place.
 	///
 	/// # Examples
@@ -1385,14 +1371,14 @@ where E: Endian, T: Bits {
 /// Permits iteration over a `BitSlice`
 #[doc(hidden)]
 pub struct Iter<'a, E, T>
-where E: 'a + Endian, T: 'a + Bits {
+where E: 'a + crate::Endian, T: 'a + crate::Bits {
 	inner: &'a BitSlice<E, T>,
 	head: usize,
 	tail: usize,
 }
 
 impl<'a, E, T> Iter<'a, E, T>
-where E: 'a + Endian, T: 'a + Bits {
+where E: 'a + crate::Endian, T: 'a + crate::Bits {
 	fn reset(&mut self) {
 		self.head = 0;
 		self.tail = self.inner.len();
@@ -1400,7 +1386,7 @@ where E: 'a + Endian, T: 'a + Bits {
 }
 
 impl<'a, E, T> DoubleEndedIterator for Iter<'a, E, T>
-where E: 'a + Endian, T: 'a + Bits {
+where E: 'a + crate::Endian, T: 'a + crate::Bits {
 	fn next_back(&mut self) -> Option<Self::Item> {
 		if self.tail > self.head {
 			self.tail -= 1;
@@ -1414,14 +1400,14 @@ where E: 'a + Endian, T: 'a + Bits {
 }
 
 impl<'a, E, T> ExactSizeIterator for Iter<'a, E, T>
-where E: 'a + Endian, T: 'a + Bits {
+where E: 'a + crate::Endian, T: 'a + crate::Bits {
 	fn len(&self) -> usize {
 		self.tail - self.head
 	}
 }
 
 impl<'a, E, T> From<&'a BitSlice<E, T>> for Iter<'a, E, T>
-where E: 'a + Endian, T: 'a + Bits {
+where E: 'a + crate::Endian, T: 'a + crate::Bits {
 	fn from(src: &'a BitSlice<E, T>) -> Self {
 		let len = src.len();
 		Self {
@@ -1433,7 +1419,7 @@ where E: 'a + Endian, T: 'a + Bits {
 }
 
 impl<'a, E, T> Iterator for Iter<'a, E, T>
-where E: 'a + Endian, T: 'a + Bits {
+where E: 'a + crate::Endian, T: 'a + crate::Bits {
 	type Item = bool;
 
 	fn next(&mut self) -> Option<Self::Item> {
