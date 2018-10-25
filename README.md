@@ -24,6 +24,8 @@ and rendering for `Display` and `Debug`.
 
 ## Usage
 
+**Minimum Rust Version**: `1.30.0`
+
 I wrote this crate because I was unhappy with the other bit-vector crates
 available. I specifically need to manage raw memory in bit-level precision, and
 this is not a behavior pattern the other bit-vector crates made easily available
@@ -44,7 +46,6 @@ bitvec = "0.6"
 and include it in your crate root `src/main.rs` or `src/lib.rs`:
 
 ```rust,no-run
-#[macro_use]
 extern crate bitvec;
 
 use bitvec::*;
@@ -113,7 +114,6 @@ surprise.
 ## Example
 
 ```rust
-#[macro_use]
 extern crate bitvec;
 
 use bitvec::*;
