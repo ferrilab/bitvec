@@ -166,7 +166,7 @@ macro_rules! __bitvec_shift {
 #[cfg(test)]
 mod tests {
 	#[allow(unused_imports)]
-	use {
+	use crate::{
 		BigEndian,
 		LittleEndian,
 	};
