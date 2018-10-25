@@ -22,6 +22,22 @@ in Rust. It has stack semantics, in that push and pop operations take place only
 on one end of the `BitVec`’s buffer. It supports iteration, bitwise operations,
 and rendering for `Display` and `Debug`.
 
+## How Is This Different Than the `bit_vec` Crate
+
+- It is more recently actively maintained (I may, in the future as of this
+  writing, let it lapse)
+- It doesn’t have a hyphen in the name, so you don’t have to deal with the
+  hyphen/underscore dichotomy.
+- My `BitVec` structure is exactly the size of a `Vec`; theirs is larger.
+- I have a `BitSlice` borrowed view.
+
+## Why Would You Use This
+
+- You need to directly control a bitstream’s representation in memory.
+- You need to do unpleasant things with communications protocols.
+- You need a list of `bool`s that doesn’t waste 7 bits for every bit used.
+- You need to do set arithmetic, or numeric arithmetic, on those lists.
+
 ## Usage
 
 **Minimum Rust Version**: `1.30.0`
@@ -51,8 +67,11 @@ extern crate bitvec;
 use bitvec::*;
 ```
 
-This gives you access to the `bitvec!` macro for building `BitVec` types
-similarly to the `vec!` macro, and imports the following symbols:
+This imports the following symbols:
+
+- `bitvec!` – a macro similar to `vec!`, which allows the creation of `BitVec`s
+  of any desired endianness, storage type, and contents. The documentation page
+  has a detailed explanation of its syntax.
 
 - `BitSlice<E: Endian, T: Bits>` – the actual bit-slice reference type It is
   generic over a cursor type (`E`) and storage type (`T`). Note that `BitSlice`
@@ -123,9 +142,7 @@ use std::iter::repeat;
 fn main() {
     let mut bv = bitvec![BigEndian, u8; 0, 1, 0, 1];
     bv.reserve(8);
-    for bit in repeat(false).take(4).chain(repeat(true).take(4)) {
-        bv.push(bit);
-    }
+    bv.extend(repeat(false).take(4).chain(repeat(true).take(4)));
 
     //  Memory access
     assert_eq!(bv.as_ref(), &[0b0101_0000, 0b1111_0000]);
@@ -133,18 +150,25 @@ fn main() {
     assert_eq!(bv.len(), 12);
     assert!(bv.capacity() >= 16);
 
-    //  Arithmetic operations
+    //  Set operations
     bv &= repeat(true);
     bv = bv | repeat(false);
-    bv ^= repeat(false);
+    bv ^= repeat(true);
     bv = !bv;
+
+    //  Arithmetic operations
+    let one = bitvec![1];
+    bv += one.clone();
+    assert_eq!(bv.as_ref(), &[0b0101_0001, 0b0000_0000]);
+    bv -= one.clone();
+    assert_eq!(bv.as_ref(), &[0b0101_0000, 0b1111_0000]);
 
     //  Borrowing iteration
     let mut iter = bv.iter();
     //  index 0
-    if let Some(false) = iter.next() {} else { panic!() };
+    assert_eq!(iter.next().unwrap(), false);
     //  index 11
-    if let Some(true) = iter.next_back() {} else { panic!() };
+    assert_eq!(iter.next_back().unwrap(), true);
     assert_eq!(iter.len(), 10);
 }
 ```
@@ -169,5 +193,5 @@ simply by going out of scope.
   `#![no_core]` support that strips the vector type entirely and only provides
   the slice type.
 
-- A `Box<BitSlice>` type that corresponds to `Box<[T]>` between `&[T]` and
-  `Vec<T>`.
+- Creation of specialized pointers `Box<BitSlice>`, `Rc<BitSlice>`, and
+  `Arc<BitSlice>`.
