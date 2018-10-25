@@ -200,7 +200,7 @@ where E: crate::Endian, T: crate::Bits {
 				}
 			}
 		}
-		return true;
+		true
 	}
 
 	/// Returns true if *any* bit in the slice is set (logical `∨`).
@@ -246,7 +246,7 @@ where E: crate::Endian, T: crate::Bits {
 				}
 			}
 		}
-		return false;
+		false
 	}
 
 	/// Returns true if *any* bit in the slice is unset (logical `¬∧`).
@@ -453,7 +453,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// The iterator returned from this method implements `ExactSizeIterator`
 	/// and `DoubleEndedIterator` just as the consuming `.into_iter()` method’s
 	/// iterator does.
-	pub fn iter<'a>(&'a self) -> Iter<'a, E, T> {
+	pub fn iter(&self) -> Iter<E, T> {
 		self.into_iter()
 	}
 
@@ -480,7 +480,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// });
 	/// assert_eq!(&[0b01010101], bref.as_ref());
 	/// ```
-	pub fn for_each<'a, F>(&'a mut self, op: F)
+	pub fn for_each<F>(&mut self, op: F)
 	where F: Fn(usize, bool) -> bool {
 		for idx in 0 .. self.len() {
 			let tmp = self.get(idx);
@@ -528,8 +528,8 @@ where E: crate::Endian, T: crate::Bits {
 		let len = self.raw_len();
 		let buf = self.as_ref();
 		let alt = fmt.alternate();
-		for idx in 0 .. elts {
-			Self::fmt_element(fmt, &buf[idx])?;
+		for (idx, elt) in buf.iter().take(elts).enumerate() {
+			Self::fmt_element(fmt, elt)?;
 			if idx < len - 1 {
 				match (alt, debug) {
 					// {}
