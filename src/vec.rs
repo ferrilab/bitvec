@@ -893,7 +893,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// Writes each bit of the `BitVec`, as a full `bool`, into the hasher.
 	fn hash<H>(&self, hasher: &mut H)
 	where H: Hasher {
-		crate::BitSlice::<E, T>::hash(&self, hasher)
+		<crate::BitSlice<E, T> as Hash>::hash(&self, hasher)
 	}
 }
 
