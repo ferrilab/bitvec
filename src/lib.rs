@@ -41,7 +41,7 @@ mod endian;
 mod slice;
 mod vec;
 
-pub use {
+pub use crate::{
 	bits::Bits,
 	endian::{
 		Endian,
