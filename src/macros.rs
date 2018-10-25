@@ -32,45 +32,45 @@ bitvec![1; 5];
 #[macro_export]
 macro_rules! bitvec {
 	//  bitvec![endian, type ; 0, 1, …]
-	( $endian:ident , $primitive:ty ; $( $elt:expr ),* ) => {
-		bitvec![ __bv_impl__ $endian , $primitive ; $( $elt ),* ]
+	( $endian:ident , $bits:ty ; $( $element:expr ),* ) => {
+		bitvec![ __bv_impl__ $endian , $bits ; $( $element ),* ]
 	};
 	//  bitvec![endian, type ; 0, 1, …, ]
-	( $endian:ident , $primitive:ty ; $( $elt:expr , )* ) => {
-		bitvec![ __bv_impl__ $endian , $primitive ; $( $elt ),* ]
+	( $endian:ident , $bits:ty ; $( $element:expr , )* ) => {
+		bitvec![ __bv_impl__ $endian , $bits ; $( $element ),* ]
 	};
 
 	//  bitvec![endian ; 0, 1, …]
-	( $endian:ident ; $( $elt:expr ),* ) => {
-		bitvec![ __bv_impl__ $endian , u8 ; $( $elt ),* ]
+	( $endian:ident ; $( $element:expr ),* ) => {
+		bitvec![ __bv_impl__ $endian , u8 ; $( $element ),* ]
 	};
 	//  bitvec![endian ; 0, 1, …, ]
-	( $endian:ident ; $( $elt:expr , )* ) => {
-		bitvec![ __bv_impl__ $endian , u8 ; $( $elt ),* ]
+	( $endian:ident ; $( $element:expr , )* ) => {
+		bitvec![ __bv_impl__ $endian , u8 ; $( $element ),* ]
 	};
 
 	//  bitvec![0, 1, …]
-	( $( $elt:expr ),* ) => {
-		bitvec![ __bv_impl__ BigEndian , u8 ; $($elt),* ]
+	( $( $element:expr ),* ) => {
+		bitvec![ __bv_impl__ BigEndian , u8 ; $($element),* ]
 	};
 	//  bitvec![0, 1, …, ]
-	( $( $elt:expr , )* ) => {
-		bitvec![ __bv_impl__ BigEndian , u8 ; $($elt),* ]
+	( $( $element:expr , )* ) => {
+		bitvec![ __bv_impl__ BigEndian , u8 ; $($element),* ]
 	};
 
 	//  bitvec![endian, type; bit; rep]
-	( $endian:ident , $primitive:ty ; $elt:expr ; $rep:expr ) => {
-		bitvec![ __bv_impl__ $endian , $primitive ; $elt; $rep ]
+	( $endian:ident , $bits:ty ; $element:expr ; $rep:expr ) => {
+		bitvec![ __bv_impl__ $endian , $bits ; $element; $rep ]
 	};
 
 	//  bitvec![endian; bit; rep]
-	( $endian:ident ; $elt:expr ; $rep:expr ) => {
-		bitvec![ __bv_impl__ $endian , u8 ; $elt; $rep ]
+	( $endian:ident ; $element:expr ; $rep:expr ) => {
+		bitvec![ __bv_impl__ $endian , u8 ; $element; $rep ]
 	};
 
 	//  bitvec![bit; rep]
-	( $elt:expr ; $rep:expr ) => {
-		bitvec![ __bv_impl__ BigEndian , u8 ; $elt; $rep ]
+	( $element:expr ; $rep:expr ) => {
+		bitvec![ __bv_impl__ BigEndian , u8 ; $element; $rep ]
 	};
 
 	//  Build an array of `bool` (one bit per byte) and then build a `BitVec`
@@ -81,17 +81,17 @@ macro_rules! bitvec {
 	//  I'm sure there is a way, but I don’t think I need to spend the effort
 	//  yet.
 
-	( __bv_impl__ $end:ident , $prim:ty ; $( $elt:expr ),* ) => {{
+	( __bv_impl__ $endian:ident , $bits:ty ; $( $element:expr ),* ) => {{
 		let init: &[bool] = &[
-			$( $elt as u8 > 0 ),*
+			$( $element as u8 > 0 ),*
 		];
-		$crate :: BitVec ::< $crate :: $end , $prim >:: from(init)
+		$crate :: BitVec ::< $endian , $bits >:: from(init)
 	}};
 
-	( __bv_impl__ $end:ident , $prim:ty ; $elt:expr; $rep:expr ) => {{
-		std::iter::repeat( $elt as u8 > 0 )
+	( __bv_impl__ $endian:ident , $bits:ty ; $element:expr; $rep:expr ) => {{
+		std::iter::repeat( $element as u8 > 0 )
 			.take( $rep )
-			.collect ::< $crate :: BitVec < $crate :: $end , $prim > > ()
+			.collect ::< $crate :: BitVec < $endian , $bits > > ()
 	}};
 }
 
@@ -99,8 +99,8 @@ macro_rules! bitvec {
 macro_rules! __bitslice_shift {
 	( $( $t:ty ),+ ) => { $(
 		#[doc(hidden)]
-		impl<E: $crate::Endian, T: $crate::Bits> std::ops::ShlAssign< $t >
-		for $crate::BitSlice<E, T>
+		impl<E: $crate :: Endian, T: $crate :: Bits> std::ops::ShlAssign< $t >
+		for crate::BitSlice<E, T>
 		{
 			fn shl_assign(&mut self, shamt: $t ) {
 				std::ops::ShlAssign::<usize>::shl_assign(self, shamt as usize);
@@ -108,8 +108,8 @@ macro_rules! __bitslice_shift {
 		}
 
 		#[doc(hidden)]
-		impl<E: $crate::Endian, T: $crate::Bits> std::ops::ShrAssign< $t >
-		for $crate::BitSlice<E, T>
+		impl<E: $crate :: Endian, T: $crate :: Bits> std::ops::ShrAssign< $t >
+		for crate::BitSlice<E, T>
 		{
 			fn shr_assign(&mut self, shamt: $t ) {
 				std::ops::ShrAssign::<usize>::shr_assign(self, shamt as usize);
@@ -122,8 +122,8 @@ macro_rules! __bitslice_shift {
 macro_rules! __bitvec_shift {
 	( $( $t:ty ),+ ) => { $(
 		#[doc(hidden)]
-		impl<E: $crate::Endian, T: $crate::Bits> std::ops::Shl< $t >
-		for $crate::BitVec<E, T>
+		impl<E: $crate :: Endian, T: $crate :: Bits> std::ops::Shl< $t >
+		for $crate :: BitVec<E, T>
 		{
 			type Output = <Self as std::ops::Shl<usize>>::Output;
 
@@ -133,8 +133,8 @@ macro_rules! __bitvec_shift {
 		}
 
 		#[doc(hidden)]
-		impl<E: $crate::Endian, T: $crate::Bits> std::ops::ShlAssign< $t >
-		for $crate::BitVec<E, T>
+		impl<E: $crate :: Endian, T: $crate :: Bits> std::ops::ShlAssign< $t >
+		for $crate :: BitVec<E, T>
 		{
 			fn shl_assign(&mut self, shamt: $t ) {
 				std::ops::ShlAssign::<usize>::shl_assign(self, shamt as usize)
@@ -142,8 +142,8 @@ macro_rules! __bitvec_shift {
 		}
 
 		#[doc(hidden)]
-		impl<E: $crate::Endian, T: $crate::Bits> std::ops::Shr< $t >
-		for $crate::BitVec<E, T>
+		impl<E: $crate :: Endian, T: $crate :: Bits> std::ops::Shr< $t >
+		for $crate :: BitVec<E, T>
 		{
 			type Output = <Self as std::ops::Shr<usize>>::Output;
 
@@ -153,8 +153,8 @@ macro_rules! __bitvec_shift {
 		}
 
 		#[doc(hidden)]
-		impl<E: $crate::Endian, T: $crate::Bits> std::ops::ShrAssign< $t >
-		for $crate::BitVec<E, T>
+		impl<E: $crate :: Endian, T: $crate :: Bits> std::ops::ShrAssign< $t >
+		for $crate :: BitVec<E, T>
 		{
 			fn shr_assign(&mut self, shamt: $t ) {
 				std::ops::ShrAssign::<usize>::shr_assign(self, shamt as usize)
