@@ -89,7 +89,7 @@ macro_rules! bitvec {
 	}};
 
 	( __bv_impl__ $endian:ident , $bits:ty ; $element:expr; $rep:expr ) => {{
-		std::iter::repeat( $element as u8 > 0 )
+		core::iter::repeat( $element as u8 > 0 )
 			.take( $rep )
 			.collect ::< $crate :: BitVec < $endian , $bits > > ()
 	}};
@@ -99,20 +99,20 @@ macro_rules! bitvec {
 macro_rules! __bitslice_shift {
 	( $( $t:ty ),+ ) => { $(
 		#[doc(hidden)]
-		impl<E: $crate :: Endian, T: $crate :: Bits> std::ops::ShlAssign< $t >
+		impl<E: $crate :: Endian, T: $crate :: Bits> core::ops::ShlAssign< $t >
 		for crate::BitSlice<E, T>
 		{
 			fn shl_assign(&mut self, shamt: $t ) {
-				std::ops::ShlAssign::<usize>::shl_assign(self, shamt as usize);
+				core::ops::ShlAssign::<usize>::shl_assign(self, shamt as usize);
 			}
 		}
 
 		#[doc(hidden)]
-		impl<E: $crate :: Endian, T: $crate :: Bits> std::ops::ShrAssign< $t >
+		impl<E: $crate :: Endian, T: $crate :: Bits> core::ops::ShrAssign< $t >
 		for crate::BitSlice<E, T>
 		{
 			fn shr_assign(&mut self, shamt: $t ) {
-				std::ops::ShrAssign::<usize>::shr_assign(self, shamt as usize);
+				core::ops::ShrAssign::<usize>::shr_assign(self, shamt as usize);
 			}
 		}
 	)+ };
@@ -122,42 +122,42 @@ macro_rules! __bitslice_shift {
 macro_rules! __bitvec_shift {
 	( $( $t:ty ),+ ) => { $(
 		#[doc(hidden)]
-		impl<E: $crate :: Endian, T: $crate :: Bits> std::ops::Shl< $t >
+		impl<E: $crate :: Endian, T: $crate :: Bits> core::ops::Shl< $t >
 		for $crate :: BitVec<E, T>
 		{
-			type Output = <Self as std::ops::Shl<usize>>::Output;
+			type Output = <Self as core::ops::Shl<usize>>::Output;
 
 			fn shl(self, shamt: $t ) -> Self::Output {
-				std::ops::Shl::<usize>::shl(self, shamt as usize)
+				core::ops::Shl::<usize>::shl(self, shamt as usize)
 			}
 		}
 
 		#[doc(hidden)]
-		impl<E: $crate :: Endian, T: $crate :: Bits> std::ops::ShlAssign< $t >
+		impl<E: $crate :: Endian, T: $crate :: Bits> core::ops::ShlAssign< $t >
 		for $crate :: BitVec<E, T>
 		{
 			fn shl_assign(&mut self, shamt: $t ) {
-				std::ops::ShlAssign::<usize>::shl_assign(self, shamt as usize)
+				core::ops::ShlAssign::<usize>::shl_assign(self, shamt as usize)
 			}
 		}
 
 		#[doc(hidden)]
-		impl<E: $crate :: Endian, T: $crate :: Bits> std::ops::Shr< $t >
+		impl<E: $crate :: Endian, T: $crate :: Bits> core::ops::Shr< $t >
 		for $crate :: BitVec<E, T>
 		{
-			type Output = <Self as std::ops::Shr<usize>>::Output;
+			type Output = <Self as core::ops::Shr<usize>>::Output;
 
 			fn shr(self, shamt: $t ) -> Self::Output {
-				std::ops::Shr::<usize>::shr(self, shamt as usize)
+				core::ops::Shr::<usize>::shr(self, shamt as usize)
 			}
 		}
 
 		#[doc(hidden)]
-		impl<E: $crate :: Endian, T: $crate :: Bits> std::ops::ShrAssign< $t >
+		impl<E: $crate :: Endian, T: $crate :: Bits> core::ops::ShrAssign< $t >
 		for $crate :: BitVec<E, T>
 		{
 			fn shr_assign(&mut self, shamt: $t ) {
-				std::ops::ShrAssign::<usize>::shr_assign(self, shamt as usize)
+				core::ops::ShrAssign::<usize>::shr_assign(self, shamt as usize)
 			}
 		}
 	)+ };

@@ -7,7 +7,7 @@ The `BitSlice` module discusses the design decisions for the separation between
 slice and vector types.
 !*/
 
-use std::{
+use core::{
 	borrow::{
 		Borrow,
 		BorrowMut,
@@ -70,6 +70,12 @@ use std::{
 	},
 	ptr,
 };
+
+#[cfg(feature = "std")]
+use std::borrow::ToOwned;
+
+#[cfg(not(feature = "std"))]
+use alloc::{borrow::ToOwned, boxed::Box, vec::Vec};
 
 /** A compact `Vec` of bits, whose cursor and storage type can be customized.
 
@@ -174,7 +180,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// assert!(bv[0]);
 	/// ```
 	pub fn push(&mut self, value: bool) {
-		assert!(self.len() < std::usize::MAX, "Vector will overflow!");
+		assert!(self.len() < core::usize::MAX, "Vector will overflow!");
 		let bit = self.bits();
 		//  Get a cursor to the bit that matches the semantic count.
 		let cursor = E::curr::<T>(bit);
@@ -1061,7 +1067,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// assert_eq!(a, bitvec![1, 0, 0, 0, 0]);
 	/// ```
 	fn add_assign(&mut self, mut addend: Self) {
-		use std::iter::repeat;
+		use core::iter::repeat;
 		//  If the other vec is longer, swap them and try again.
 		if addend.len() > self.len() {
 			mem::swap(self, &mut addend);
@@ -1579,7 +1585,7 @@ where E: crate::Endian, T: crate::Bits {
 			let buf = self.as_mut();
 			let ptr = buf.as_mut_ptr();
 			let len = buf.len();
-			unsafe { std::ptr::write_bytes(ptr, 0, len); }
+			unsafe { core::ptr::write_bytes(ptr, 0, len); }
 			return;
 		}
 		for idx in shamt .. len {

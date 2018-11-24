@@ -35,8 +35,7 @@ reference or mutable reference, and has the advantage that now it can be a
 count bits using `.into()`.
 !*/
 
-use std::{
-	borrow::ToOwned,
+use core::{
 	cmp::{
 		Eq,
 		Ord,
@@ -81,6 +80,12 @@ use std::{
 	ptr,
 	slice,
 };
+
+#[cfg(feature = "std")]
+use std::borrow::ToOwned;
+
+#[cfg(not(feature = "std"))]
+use alloc::borrow::ToOwned;
 
 /** A compact slice of bits, whose cursor and storage type can be customized.
 
@@ -556,7 +561,11 @@ where E: crate::Endian, T: crate::Bits {
 
 	/// Formats a partial element of the data slice.
 	pub(crate) fn fmt_bits(fmt: &mut Formatter, elt: &T, bits: u8) -> fmt::Result {
-		use std::fmt::Write;
+		use core::fmt::Write;
+
+		#[cfg(not(feature = "std"))]
+		use alloc::string::String;
+
 		let mut out = String::with_capacity(bits as usize);
 		for bit in 0 .. bits {
 			let cur = E::curr::<T>(bit);
@@ -927,7 +936,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// assert_eq!(numr, &nums[2] as &BitSlice);
 	/// ```
 	fn add_assign(&mut self, addend: &'a BitSlice<E, T>) {
-		use std::iter::repeat;
+		use core::iter::repeat;
 		//  zero-extend the addend if it’s shorter than self
 		let mut addend_iter = addend.into_iter().rev().chain(repeat(false));
 		let mut c = false;
@@ -962,7 +971,7 @@ where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
 	/// assert_eq!("000100", &format!("{}", lhs));
 	/// ```
 	fn bitand_assign(&mut self, rhs: I) {
-		use std::iter::repeat;
+		use core::iter::repeat;
 		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter().chain(repeat(false))) {
 			let val = self.get(idx) & other;
 			self.set(idx, val);
@@ -1011,7 +1020,7 @@ where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
 	/// assert_eq!("011001", &format!("{}", lhs));
 	/// ```
 	fn bitxor_assign(&mut self, rhs: I) {
-		use std::iter::repeat;
+		use core::iter::repeat;
 		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter().chain(repeat(false))) {
 			let val = self.get(idx) ^ other;
 			self.set(idx, val);
