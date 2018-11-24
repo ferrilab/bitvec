@@ -33,6 +33,9 @@ iteration in both directions, bit shifts, and, of course, access to the
 underlying storage as a slice.
 !*/
 
+#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(feature = "std"), feature(alloc))]
+
 #[macro_use]
 mod macros;
 
@@ -40,6 +43,12 @@ mod bits;
 mod endian;
 mod slice;
 mod vec;
+
+#[cfg(feature = "std")]
+extern crate core;
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
 
 pub use crate::{
 	bits::Bits,

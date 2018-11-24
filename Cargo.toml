@@ -11,3 +11,7 @@ license-file = "LICENSE.txt"
 repository = "https://github.com/myrrlyn/bitvec"
 
 [dependencies]
+
+[features]
+default = ["std"]
+std = []
