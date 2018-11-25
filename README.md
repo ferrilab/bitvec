@@ -56,7 +56,7 @@ To use this crate, you need to depend on it in `Cargo.toml`:
 
 ```toml
 [dependencies]
-bitvec = "0.7"
+bitvec = "0.8"
 ```
 
 and include it in your crate root `src/main.rs` or `src/lib.rs`:
@@ -137,14 +137,14 @@ feature set. In your `Cargo.toml`, write:
 
 ```toml
 [dependencies]
-bitvec = { version = "0.7", default-features = false }
+bitvec = { version = "0.8", default-features = false }
 ```
 
 or
 
 ```toml
 [dependencies.bitvec]
-version = "0.7"
+version = "0.8"
 default-features = false
 ```
 
@@ -157,7 +157,7 @@ re-enable the `alloc` feature, like so:
 
 ```toml
 [dependencies.bitvec]
-version = "0.7"
+version = "0.8"
 default-features = false
 features = ["alloc"]
 ```
