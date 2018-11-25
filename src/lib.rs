@@ -34,7 +34,7 @@ underlying storage as a slice.
 !*/
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(not(feature = "std"), feature(alloc))]
+#![cfg_attr(all(feature = "alloc", not(feature = "std")), feature(alloc))]
 
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 extern crate alloc;
