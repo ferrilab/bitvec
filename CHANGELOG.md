@@ -2,6 +2,21 @@
 
 All notable changes will be documented in this file.
 
+## 0.8.0
+
+### Added
+
+- `std` and `alloc` features, which can be disabled for use in `#![no_std]`
+  libraries. This was implemented by Robert Habermeier, `rphmeier@gmail.com`.
+
+  Note that the `BitSlice` tests and all the examples are disabled when the
+  `alloc` feature is not present. They will function normally when `alloc` is
+  present but `std` is not.
+
+### Changed
+
+- Compute `Bits::WIDTH` as `size_of::<Self>() * 8` instead of `1 << Bits::BITS`.
+
 ## 0.7.0
 
 ### Added
