@@ -1,12 +1,16 @@
 /*! Prove that the example code in `README.md` executes.
 !*/
 
+#[cfg(feature = "alloc")]
 extern crate bitvec;
 
+#[cfg(feature = "alloc")]
 use bitvec::*;
 
+#[cfg(feature = "alloc")]
 use std::iter::repeat;
 
+#[cfg(feature = "alloc")]
 fn main() {
     let mut bv = bitvec![BigEndian, u8; 0, 1, 0, 1];
     bv.reserve(8);
@@ -38,4 +42,9 @@ fn main() {
     //  index 11
     assert_eq!(iter.next_back().unwrap(), true);
     assert_eq!(iter.len(), 10);
+}
+
+#[cfg(not(feature = "alloc"))]
+fn main() {
+	println!("This example only runs when an allocator is present");
 }

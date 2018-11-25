@@ -7,6 +7,8 @@ The `BitSlice` module discusses the design decisions for the separation between
 slice and vector types.
 !*/
 
+#![cfg(feature = "alloc")]
+
 use core::{
 	borrow::{
 		Borrow,
@@ -71,11 +73,15 @@ use core::{
 	ptr,
 };
 
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+use alloc::{
+	borrow::ToOwned,
+	boxed::Box,
+	vec::Vec,
+};
+
 #[cfg(feature = "std")]
 use std::borrow::ToOwned;
-
-#[cfg(not(feature = "std"))]
-use alloc::{borrow::ToOwned, boxed::Box, vec::Vec};
 
 /** A compact `Vec` of bits, whose cursor and storage type can be customized.
 

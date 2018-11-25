@@ -48,12 +48,6 @@ use core::{
 		AsRef,
 		From,
 	},
-	fmt::{
-		self,
-		Debug,
-		Display,
-		Formatter,
-	},
 	hash::{
 		Hash,
 		Hasher,
@@ -81,11 +75,19 @@ use core::{
 	slice,
 };
 
+#[cfg(feature = "alloc")]
+use core::fmt::{
+	self,
+	Debug,
+	Display,
+	Formatter,
+};
+
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+use alloc::borrow::ToOwned;
+
 #[cfg(feature = "std")]
 use std::borrow::ToOwned;
-
-#[cfg(not(feature = "std"))]
-use alloc::borrow::ToOwned;
 
 /** A compact slice of bits, whose cursor and storage type can be customized.
 
@@ -131,10 +133,12 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![0, 0, 1, 0, 0];
 	/// let bits: &BitSlice = &bv;
 	/// assert!(bits.get(2));
+	/// # }
 	/// ```
 	pub fn get(&self, index: usize) -> bool {
 		assert!(index < self.len(), "Index out of range!");
@@ -150,11 +154,13 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let mut bv = bitvec![0; 5];
 	/// let bits: &mut BitSlice = &mut bv;
 	/// bits.set(2, true);
 	/// assert!(bits.get(2));
+	/// # }
 	/// ```
 	pub fn set(&mut self, index: usize, value: bool) {
 		assert!(index < self.len(), "Index out of range!");
@@ -176,6 +182,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let all = bitvec![1; 10];
 	/// let any = bitvec![0, 0, 1, 0, 0];
@@ -186,6 +193,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// assert!(!any.all());
 	/// assert!(!some.all());
 	/// assert!(!none.all());
+	/// # }
 	/// ```
 	pub fn all(&self) -> bool {
 		//  Gallop the filled elements
@@ -222,6 +230,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let all = bitvec![1; 10];
 	/// let any = bitvec![0, 0, 1, 0, 0];
@@ -232,6 +241,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// assert!(any.any());
 	/// assert!(some.any());
 	/// assert!(!none.any());
+	/// # }
 	/// ```
 	pub fn any(&self) -> bool {
 		//  Gallop the filled elements
@@ -268,6 +278,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let all = bitvec![1; 10];
 	/// let any = bitvec![0, 0, 1, 0, 0];
@@ -278,6 +289,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// assert!(any.not_all());
 	/// assert!(some.not_all());
 	/// assert!(none.not_all());
+	/// # }
 	/// ```
 	pub fn not_all(&self) -> bool {
 		!self.all()
@@ -297,6 +309,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let all = bitvec![1; 10];
 	/// let any = bitvec![0, 0, 1, 0, 0];
@@ -307,6 +320,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// assert!(!any.not_any());
 	/// assert!(!some.not_any());
 	/// assert!(none.not_any());
+	/// # }
 	/// ```
 	pub fn not_any(&self) -> bool {
 		!self.any()
@@ -329,6 +343,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let all = bitvec![1; 2];
 	/// let some = bitvec![1, 0];
@@ -337,6 +352,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// assert!(!all.some());
 	/// assert!(some.some());
 	/// assert!(!none.some());
+	/// # }
 	/// ```
 	pub fn some(&self) -> bool {
 		self.any() && self.not_all()
@@ -347,9 +363,11 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![1, 0, 1, 0, 1];
 	/// assert_eq!(bv.count_ones(), 3);
+	/// # }
 	/// ```
 	pub fn count_ones(&self) -> usize {
 		self.into_iter().filter(|b| *b).count()
@@ -360,9 +378,11 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![0, 1, 0, 1, 0];
 	/// assert_eq!(bv.count_zeros(), 3);
+	/// # }
 	/// ```
 	pub fn count_zeros(&self) -> usize {
 		self.into_iter().filter(|b| !b).count()
@@ -373,10 +393,12 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![1; 10];
 	/// let bits: &BitSlice = &bv;
 	/// assert_eq!(bits.len(), 10);
+	/// # }
 	/// ```
 	pub fn len(&self) -> usize {
 		self.inner.len()
@@ -391,17 +413,21 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![1; 10];
 	/// let bits: &BitSlice = &bv;
 	/// assert_eq!(bits.elts(), 1);
+	/// # }
 	/// ```
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![1; 16];
 	/// let bits: &BitSlice = &bv;
 	/// assert_eq!(bits.elts(), 2);
+	/// # }
 	/// ```
 	pub fn elts(&self) -> usize {
 		self.len() >> T::BITS
@@ -416,17 +442,21 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![1; 10];
 	/// let bits: &BitSlice = &bv;
 	/// assert_eq!(bits.bits(), 2);
+	/// # }
 	/// ```
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![1; 16];
 	/// let bits: &BitSlice = &bv;
 	/// assert_eq!(bits.bits(), 0);
+	/// # }
 	/// ```
 	pub fn bits(&self) -> u8 {
 		self.len() as u8 & T::MASK
@@ -437,17 +467,21 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![];
 	/// let bits: &BitSlice = &bv;
 	/// assert!(bits.is_empty());
+	/// # }
 	/// ```
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![0; 5];
 	/// let bits: &BitSlice = &bv;
 	/// assert!(!bits.is_empty());
+	/// # }
 	/// ```
 	pub fn is_empty(&self) -> bool {
 		self.len() == 0
@@ -472,6 +506,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let mut bv = bitvec![1; 8];
 	/// let bref: &mut BitSlice = &mut bv;
@@ -484,6 +519,7 @@ where E: crate::Endian, T: crate::Bits {
 	///     }
 	/// });
 	/// assert_eq!(&[0b01010101], bref.as_ref());
+	/// # }
 	/// ```
 	pub fn for_each<F>(&mut self, op: F)
 	where F: Fn(usize, bool) -> bool {
@@ -509,17 +545,23 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust,ignore
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![1; 10];
 	/// let bits: &BitSlice = &bv;
 	/// assert_eq!(bits.elts(), 1);
 	/// assert_eq!(bits.raw_len(), 2);
+	/// # }
 	/// ```
+	///
+	/// This test is never compiled because the functions it calls are not
+	/// accessible to the test crate.
 	pub(crate) fn raw_len(&self) -> usize {
 		self.elts() + if self.bits() > 0 { 1 } else { 0 }
 	}
 
 	/// Prints a type header into the Formatter.
+	#[cfg(feature = "alloc")]
 	pub(crate) fn fmt_header(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitSlice<{}, {}>", E::TY, T::TY)
 	}
@@ -528,6 +570,7 @@ where E: crate::Endian, T: crate::Bits {
 	///
 	/// The debug flag indicates whether to indent each line (`Debug` does,
 	/// `Display` does not).
+	#[cfg(feature = "alloc")]
 	pub(crate) fn fmt_body(&self, fmt: &mut Formatter, debug: bool) -> fmt::Result {
 		let (elts, bits) = T::split(self.len());
 		let len = self.raw_len();
@@ -555,11 +598,13 @@ where E: crate::Endian, T: crate::Bits {
 	}
 
 	/// Formats a whole storage element of the data slice.
+	#[cfg(feature = "alloc")]
 	pub(crate) fn fmt_element(fmt: &mut Formatter, elt: &T) -> fmt::Result {
 		Self::fmt_bits(fmt, elt, T::WIDTH)
 	}
 
 	/// Formats a partial element of the data slice.
+	#[cfg(feature = "alloc")]
 	pub(crate) fn fmt_bits(fmt: &mut Formatter, elt: &T, bits: u8) -> fmt::Result {
 		use core::fmt::Write;
 
@@ -576,6 +621,7 @@ where E: crate::Endian, T: crate::Bits {
 }
 
 /// Creates a new `BitVec` out of a `BitSlice`.
+#[cfg(feature = "alloc")]
 impl<E, T> ToOwned for BitSlice<E, T>
 where E: crate::Endian, T: crate::Bits {
 	type Owned = crate::BitVec<E, T>;
@@ -585,11 +631,13 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let src = bitvec![0; 5];
 	/// let src_ref: &BitSlice = &src;
 	/// let dst = src_ref.to_owned();
 	/// assert_eq!(src, dst);
+	/// # }
 	/// ```
 	fn to_owned(&self) -> Self::Owned {
 		let mut out = Self::Owned::with_capacity(self.len());
@@ -630,6 +678,7 @@ where A: crate::Endian, B: crate::Bits, C: crate::Endian, D: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let l: BitVec<LittleEndian, u16> = bitvec![LittleEndian, u16; 0, 1, 0, 1];
 	/// let r: BitVec<BigEndian, u32> = bitvec![BigEndian, u32; 0, 1, 0, 1];
@@ -637,6 +686,7 @@ where A: crate::Endian, B: crate::Bits, C: crate::Endian, D: crate::Bits {
 	/// let ls: &BitSlice<_, _> = &l;
 	/// let rs: &BitSlice<_, _> = &r;
 	/// assert!(ls == rs);
+	/// # }
 	/// ```
 	fn eq(&self, rhs: &BitSlice<C, D>) -> bool {
 		let (l, r) = (self.iter(), rhs.iter());
@@ -662,6 +712,7 @@ where A: crate::Endian, B: crate::Bits, C: crate::Endian, D: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let a = bitvec![0, 1, 0, 0];
 	/// let b = bitvec![0, 1, 0, 1];
@@ -671,6 +722,7 @@ where A: crate::Endian, B: crate::Bits, C: crate::Endian, D: crate::Bits {
 	/// let cref: &BitSlice = &c;
 	/// assert!(aref < bref);
 	/// assert!(bref < cref);
+	/// # }
 	/// ```
 	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<Ordering> {
 		for (l, r) in self.iter().zip(rhs.iter()) {
@@ -693,12 +745,14 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let mut bv: BitVec = bitvec![0, 0, 0, 0, 0, 0, 0, 0, 1];
 	/// for elt in bv.as_mut() {
 	///   *elt += 2;
 	/// }
 	/// assert_eq!(&[2, 130], bv.as_ref());
+	/// # }
 	/// ```
 	fn as_mut(&mut self) -> &mut [T] {
 		let (ptr, len): (*mut T, usize) = (self.as_mut_ptr(), self.raw_len());
@@ -715,10 +769,12 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![0, 0, 0, 0, 0, 0, 0, 0, 1];
 	/// let bref: &BitSlice = &bv;
 	/// assert_eq!(&[0, 0b1000_0000], bref.as_ref());
+	/// # }
 	/// ```
 	fn as_ref(&self) -> &[T] {
 		let (ptr, len): (*const T, usize) = (self.as_ptr(), self.raw_len());
@@ -736,6 +792,7 @@ where E: crate::Endian, T: 'a + crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let src = vec![1u8, 2, 3];
 	/// let borrow: &[u8] = &src;
@@ -747,6 +804,7 @@ where E: crate::Endian, T: 'a + crate::Bits {
 	/// assert!(bits.get(14)); // src[1] == 0b0000_0010
 	/// assert!(bits.get(22)); // src[2] == 0b0000_0011
 	/// assert!(bits.get(23));
+	/// # }
 	/// ```
 	fn from(src: &'a [T]) -> Self {
 		let (ptr, len): (*const T, usize) = (src.as_ptr(), src.len());
@@ -771,6 +829,7 @@ where E: crate::Endian, T: 'a + crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let mut src = vec![1u8, 2, 3];
 	/// let borrow: &mut [u8] = &mut src;
@@ -779,6 +838,7 @@ where E: crate::Endian, T: 'a + crate::Bits {
 	/// assert!(bits.get(0));
 	/// bits.set(0, false);
 	/// assert!(!bits.get(0));
+	/// # }
 	/// ```
 	fn from(src: &'a mut [T]) -> Self {
 		let (ptr, len): (*mut T, usize) = (src.as_mut_ptr(), src.len());
@@ -801,6 +861,7 @@ where E: crate::Endian, T: 'a + crate::Bits {
 ///
 /// The alternate character `{:#?}` prints each element on its own line, rather
 /// than having all elements on the same line.
+#[cfg(feature = "alloc")]
 impl<E, T> Debug for BitSlice<E, T>
 where E: crate::Endian, T: crate::Bits {
 	/// Renders the `BitSlice` type header and contents for debug.
@@ -808,6 +869,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bits: &BitSlice<LittleEndian, u16> = &bitvec![
 	///   LittleEndian, u16;
@@ -818,6 +880,7 @@ where E: crate::Endian, T: crate::Bits {
     ///     "BitSlice<LittleEndian, u16> [0101000011110101, 01]",
 	///     &format!("{:?}", bits)
 	/// );
+	/// # }
 	/// ```
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		let alt = fmt.alternate();
@@ -840,6 +903,7 @@ where E: crate::Endian, T: crate::Bits {
 ///
 /// To see the in-memory representation, use `.as_ref()` to get access to the
 /// raw elements and print that slice instead.
+#[cfg(feature = "alloc")]
 impl<E, T> Display for BitSlice<E, T>
 where E: crate::Endian, T: crate::Bits {
 	/// Renders the `BitSlice` contents for display.
@@ -847,9 +911,11 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bits: &BitSlice = &bitvec![0, 1, 0, 0, 1, 0, 1, 1, 0, 1];
 	/// assert_eq!("01001011 01", &format!("{}", bits));
+	/// # }
 	/// ```
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		self.fmt_body(fmt, false)
@@ -883,6 +949,7 @@ where E: crate::Endian, T: 'a + crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![1, 0, 1, 0, 1, 1, 0, 0];
 	/// let bref: &BitSlice = &bv;
@@ -891,6 +958,7 @@ where E: crate::Endian, T: 'a + crate::Bits {
 	///     if bit { count += 1; }
 	/// }
 	/// assert_eq!(count, 4);
+	/// # }
 	/// ```
 	fn into_iter(self) -> Self::IntoIter {
 		self.into()
@@ -921,6 +989,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// This example shows addition of a slice wrapping from MAX to zero.
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let nums: [BitVec; 3] = [
 	///     bitvec![1, 1, 1, 0],
@@ -934,6 +1003,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// assert_eq!(numr, &nums[1] as &BitSlice);
 	/// *numr += &one;
 	/// assert_eq!(numr, &nums[2] as &BitSlice);
+	/// # }
 	/// ```
 	fn add_assign(&mut self, addend: &'a BitSlice<E, T>) {
 		use core::iter::repeat;
@@ -964,11 +1034,13 @@ where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let lhs: &mut BitSlice = &mut bitvec![0, 1, 0, 1, 0, 1];
 	/// let rhs                =      bitvec![0, 0, 1, 1];
 	/// *lhs &= rhs;
 	/// assert_eq!("000100", &format!("{}", lhs));
+	/// # }
 	/// ```
 	fn bitand_assign(&mut self, rhs: I) {
 		use core::iter::repeat;
@@ -989,11 +1061,13 @@ where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let lhs: &mut BitSlice = &mut bitvec![0, 1, 0, 1, 0, 1];
 	/// let rhs                =      bitvec![0, 0, 1, 1];
 	/// *lhs |= rhs;
 	/// assert_eq!("011101", &format!("{}", lhs));
+	/// # }
 	/// ```
 	fn bitor_assign(&mut self, rhs: I) {
 		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter()) {
@@ -1013,11 +1087,13 @@ where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let lhs: &mut BitSlice = &mut bitvec![0, 1, 0, 1, 0, 1];
 	/// let rhs                =      bitvec![0, 0, 1, 1];
 	/// *lhs ^= rhs;
 	/// assert_eq!("011001", &format!("{}", lhs));
+	/// # }
 	/// ```
 	fn bitxor_assign(&mut self, rhs: I) {
 		use core::iter::repeat;
@@ -1039,11 +1115,13 @@ where E: crate::Endian, T: 'a + crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![0, 0, 1, 0, 0];
 	/// let bits: &BitSlice = &bv;
 	/// assert!(bits[2]);
 	/// assert!(!bits[3]);
+	/// # }
 	/// ```
 	fn index(&self, index: usize) -> &Self::Output {
 		if self.get(index) { &true} else { &false }
@@ -1065,12 +1143,14 @@ where E: crate::Endian, T: 'a + crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let mut bv = bitvec![0; 10];
 	/// bv.push(true);
 	/// let bits: &BitSlice = &bv;
 	/// assert!(bits[(1, 2)]); // 10
 	/// assert!(!bits[(1, 1)]); // 9
+	/// # }
 	/// ```
 	fn index(&self, (elt, bit): (usize, u8)) -> &Self::Output {
 		if self.get(T::join(elt, bit)) { &true } else { &false }
@@ -1113,26 +1193,31 @@ where E: crate::Endian, T: 'a + crate::Bits {
 	/// Negate an arbitrary positive number (first bit unset).
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let mut num = bitvec![0, 1, 1, 0];
 	/// - (&mut num as &mut BitSlice);
 	/// assert_eq!(num, bitvec![1, 0, 1, 0]);
+	/// # }
 	/// ```
 	///
 	/// Negate an arbitrary negative number. This example will use the above
 	/// result to demonstrate round-trip correctness.
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let mut num = bitvec![1, 0, 1, 0];
 	/// - (&mut num as &mut BitSlice);
 	/// assert_eq!(num, bitvec![0, 1, 1, 0]);
+	/// # }
 	/// ```
 	///
 	/// Negate the most negative number, which will become zero, and show
 	/// convergence at zero.
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let zero = bitvec![0; 10];
 	/// let mut num = bitvec![1; 10];
@@ -1140,6 +1225,7 @@ where E: crate::Endian, T: 'a + crate::Bits {
 	/// assert_eq!(num, zero);
 	/// - (&mut num as &mut BitSlice);
 	/// assert_eq!(num, zero);
+	/// # }
 	/// ```
 	fn neg(self) -> Self::Output {
 		if self.is_empty() || self.not_any() {
@@ -1177,6 +1263,7 @@ where E: crate::Endian, T: 'a + crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let mut bv = bitvec![0; 10];
 	/// let bits: &mut BitSlice = &mut bv;
@@ -1185,6 +1272,7 @@ where E: crate::Endian, T: 'a + crate::Bits {
 	/// //  is returned.
 	/// // assert_eq!(bits.as_ref(), &[!0, !0]);
 	/// assert_eq!(new_bits.as_ref(), &[!0, !0]);
+	/// # }
 	/// ```
 	fn not(self) -> Self::Output {
 		for elt in self.as_mut() {
@@ -1232,12 +1320,14 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let mut bv = bitvec![1, 1, 1, 0, 0, 0, 0, 0, 1];
 	/// let bits: &mut BitSlice = &mut bv;
 	/// *bits <<= 3;
 	/// assert_eq!("00000100 0", &format!("{}", bits));
 	/// //               ^ former tail
+	/// # }
 	/// ```
 	fn shl_assign(&mut self, shamt: usize) {
 		let len = self.len();
@@ -1327,12 +1417,14 @@ where E: crate::Endian, T: crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let mut bv = bitvec![1, 0, 0, 0, 0, 0, 1, 1, 1];
 	/// let bits: &mut BitSlice = &mut bv;
 	/// *bits >>= 3;
 	/// assert_eq!("00010000 0", &format!("{}", bits));
 	/// //             ^ former head
+	/// # }
 	/// ```
 	fn shr_assign(&mut self, shamt: usize) {
 		let len = self.len();
@@ -1453,9 +1545,11 @@ where E: 'a + crate::Endian, T: 'a + crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![BigEndian, u8; 0, 1, 0, 1, 0];
 	/// assert_eq!(bv.iter().count(), 5);
+	/// # }
 	/// ```
 	fn count(self) -> usize {
 		ExactSizeIterator::len(&self)
@@ -1469,11 +1563,13 @@ where E: 'a + crate::Endian, T: 'a + crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 1];
 	/// let mut bv_iter = bv.iter();
 	/// assert_eq!(bv_iter.len(), 4);
 	/// assert!(bv_iter.nth(3).unwrap());
+	/// # }
 	/// ```
 	///
 	/// This example intentionally overshoots the iterator bounds, which causes
@@ -1484,12 +1580,14 @@ where E: 'a + crate::Endian, T: 'a + crate::Bits {
 	/// before yielding the next.
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 1];
 	/// let mut bv_iter = bv.iter();
 	/// assert!(bv_iter.nth(4).is_none());
 	/// assert!(!bv_iter.nth(2).unwrap());
 	/// assert!(bv_iter.nth(0).unwrap());
+	/// # }
 	/// ```
 	fn nth(&mut self, n: usize) -> Option<bool> {
 		self.head = self.head.saturating_add(n);
@@ -1501,17 +1599,21 @@ where E: 'a + crate::Endian, T: 'a + crate::Bits {
 	/// # Examples
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 1];
 	/// assert!(bv.into_iter().last().unwrap());
+	/// # }
 	/// ```
 	///
 	/// Empty iterators return `None`
 	///
 	/// ```rust
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
 	/// let bv = bitvec![];
 	/// assert!(bv.into_iter().last().is_none());
+	/// # }
 	/// ```
 	fn last(mut self) -> Option<bool> {
 		self.next_back()

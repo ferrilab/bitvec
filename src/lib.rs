@@ -36,19 +36,18 @@ underlying storage as a slice.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(not(feature = "std"), feature(alloc))]
 
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+extern crate alloc;
+
+#[cfg(feature = "std")]
+extern crate core;
+
 #[macro_use]
 mod macros;
 
 mod bits;
 mod endian;
 mod slice;
-mod vec;
-
-#[cfg(feature = "std")]
-extern crate core;
-
-#[cfg(not(feature = "std"))]
-extern crate alloc;
 
 pub use crate::{
 	bits::Bits,
@@ -58,5 +57,10 @@ pub use crate::{
 		LittleEndian,
 	},
 	slice::BitSlice,
-	vec::BitVec,
 };
+
+#[cfg(feature = "alloc")]
+mod vec;
+
+#[cfg(feature = "alloc")]
+pub use crate::vec::BitVec;
