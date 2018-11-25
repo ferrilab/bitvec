@@ -6,8 +6,10 @@ a sample of the various operations that can be applied to it.
 This example prints **a lot** of text to the console.
 !*/
 
+#[cfg(feature = "alloc")]
 extern crate bitvec;
 
+#[cfg(feature = "alloc")]
 use bitvec::{
 	//  `bitvec!` macro
 	bitvec,
@@ -24,8 +26,10 @@ use bitvec::{
 	//  this ordering)
 	LittleEndian,
 };
+#[cfg(feature = "alloc")]
 use std::iter::repeat;
 
+#[cfg(feature = "alloc")]
 fn main() {
 	let bv = bitvec![   //  BigEndian, u8;  //  default type values
 		0, 0, 0, 0, 0, 0, 0, 1,
@@ -88,17 +92,22 @@ break your assumptions about what the memory looks like.\
 	render(&bv);
 
 	println!("End example");
+
+	fn render<E: Endian, T: Bits>(bv: &BitVec<E, T>) {
+		println!("Memory information: {} {} {}", bv.elts(), bv.bits(), bv.len());
+		println!("Print out the semantic contents");
+		println!("{:#?}", bv);
+		println!("Print out the memory contents");
+		println!("{:?}", bv.as_ref());
+		println!("Show the bits in memory");
+		for elt in bv.as_ref() {
+			println!("{:0w$b} ", elt, w=std::mem::size_of::<T>() * 8);
+		}
+		println!();
+	}
 }
 
-fn render<E: Endian, T: Bits>(bv: &BitVec<E, T>) {
-	println!("Memory information: {} {} {}", bv.elts(), bv.bits(), bv.len());
-	println!("Print out the semantic contents");
-	println!("{:#?}", bv);
-	println!("Print out the memory contents");
-	println!("{:?}", bv.as_ref());
-	println!("Show the bits in memory");
-	for elt in bv.as_ref() {
-		println!("{:0w$b} ", elt, w=std::mem::size_of::<T>() * 8);
-	}
-	println!();
+#[cfg(not(feature = "alloc"))]
+fn main() {
+	println!("This example only runs when an allocator is present");
 }

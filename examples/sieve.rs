@@ -22,14 +22,18 @@ will find all primes less than ten million, and print the primes below 625 in a
 square 25x25.
 !*/
 
+#[cfg(feature = "alloc")]
 extern crate bitvec;
 
+#[cfg(feature = "alloc")]
 use bitvec::{
 	BitVec,
 	BigEndian,
 };
+#[cfg(feature = "alloc")]
 use std::env;
 
+#[cfg(feature = "alloc")]
 fn main() {
 	let max_prime: usize = env::args()
 		.nth(1)
@@ -113,4 +117,9 @@ fn main() {
 		}
 		println!();
 	}
+}
+
+#[cfg(not(feature = "alloc"))]
+fn main() {
+	println!("This example only runs when an allocator is present");
 }

@@ -261,13 +261,13 @@ mod tests {
 		//  `isize::MIN >> BITS` (an overflowing isize add will set the high bit
 		//  as the `usize` repr).
 		let start = 20;
-		let (elt, bit) = LittleEndian::jump::<u32>(start, std::isize::MAX);
+		let (elt, bit) = LittleEndian::jump::<u32>(start, core::isize::MAX);
 
-		assert_eq!(elt as usize, std::isize::MIN as usize >> u32::BITS);
+		assert_eq!(elt as usize, core::isize::MIN as usize >> u32::BITS);
 		assert_eq!(bit, start - 1);
 
-		let (elt, bit) = BigEndian::jump::<u32>(start, std::isize::MAX);
-		assert_eq!(elt as usize, std::isize::MIN as usize >> u32::BITS);
+		let (elt, bit) = BigEndian::jump::<u32>(start, core::isize::MAX);
+		assert_eq!(elt as usize, core::isize::MIN as usize >> u32::BITS);
 		assert_eq!(bit, BigEndian::curr::<u32>(start) - 1);
 	}
 

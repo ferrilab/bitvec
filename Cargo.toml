@@ -13,5 +13,10 @@ repository = "https://github.com/myrrlyn/bitvec"
 [dependencies]
 
 [features]
-default = ["std"]
-std = []
+alloc = []
+default = [
+	"std",
+]
+std = [
+	"alloc",
+]

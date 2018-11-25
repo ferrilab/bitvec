@@ -29,6 +29,7 @@ bitvec![LittleEndian; 0; 5];
 bitvec![1; 5];
 ```
 **/
+#[cfg(feature = "alloc")]
 #[macro_export]
 macro_rules! bitvec {
 	//  bitvec![endian, type ; 0, 1, …]
@@ -118,6 +119,7 @@ macro_rules! __bitslice_shift {
 	)+ };
 }
 
+#[cfg(feature = "alloc")]
 #[doc(hidden)]
 macro_rules! __bitvec_shift {
 	( $( $t:ty ),+ ) => { $(
@@ -163,7 +165,7 @@ macro_rules! __bitvec_shift {
 	)+ };
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "alloc"))]
 mod tests {
 	#[allow(unused_imports)]
 	use crate::{

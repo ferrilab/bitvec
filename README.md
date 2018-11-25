@@ -130,6 +130,46 @@ other integer, whether it is odd or not, becomes `1`. While the syntax is loose,
 you should only use `0` and `1` to fill the macro, for readability and lack of
 surprise.
 
+### `no_std`
+
+This crate can be used in `#![no_std]` libraries, by disabling the default
+feature set. In your `Cargo.toml`, write:
+
+```toml
+[dependencies]
+bitvec = { version = "0.7", default-features = false }
+```
+
+or
+
+```toml
+[dependencies.bitvec]
+version = "0.7"
+default-features = false
+```
+
+This turns off the standard library imports *and* all usage of dynamic memory
+allocation. Without an allocator, the `bitvec!` macro and the `BitVec` type are
+both disable and removed from the library, leaving only the `BitSlice` type.
+
+To use `bitvec` in a `#![no_std]` environment that *does* have an allocator,
+re-enable the `alloc` feature, like so:
+
+```toml
+[dependencies.bitvec]
+version = "0.7"
+default-features = false
+features = ["alloc"]
+```
+
+The `alloc` feature restores `bitvec!` and `BitVec`, as well as the `BitSlice`
+interoperability with `BitVec`. The only difference between `alloc` and `std` is
+the presence of the standard library façade and runtime support.
+
+The `std` feature turns on `alloc`, so using this crate without any feature
+flags *or* by explicitly enabling the `std` feature will enable full
+functionality.
+
 ## Example
 
 ```rust
@@ -189,8 +229,10 @@ simply by going out of scope.
 
 ## Planned Features
 
-- `#![no_std]` support that uses core libraries for allocation, and
-  `#![no_core]` support that strips the vector type entirely and only provides
+Contributions of items in this list are *absolutely* welcome! Contributions of
+other features are also welcome, but I’ll have to be sold on them.
+
+- `#![no_core]` support that strips the vector type entirely and only provides
   the slice type.
 
 - Creation of specialized pointers `Box<BitSlice>`, `Rc<BitSlice>`, and
