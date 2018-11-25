@@ -16,6 +16,7 @@ use core::{
 		LowerHex,
 		UpperHex,
 	},
+	mem::size_of,
 	ops::{
 		Not,
 		BitAnd,
@@ -66,14 +67,14 @@ pub trait Bits:
 	+ UpperHex
 {
 	/// The width in bits of this type.
-	const WIDTH: u8 = 1 << Self::BITS; // size_of::<Self>();
+	const WIDTH: u8 = size_of::<Self>() as u8 * 8;
 
 	/// The number of bits required to *index* the type. This is always
 	/// log<sub>2</sub> of the type width.
 	///
 	/// Incidentally, this can be computed as `size_of().trailing_zeroes()` once
 	/// that becomes a valid constexpr.
-	const BITS: u8; // = size_of::<Self>().trailing_zeroes();
+	const BITS: u8; // = size_of::<Self>().trailing_zeros();
 
 	/// The bitmask to turn an arbitrary usize into the bit index. Bit indices
 	/// are always stored in the lowest bits of an index value.
