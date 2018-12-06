@@ -197,17 +197,14 @@ where E: crate::Endian, T: crate::Bits {
 	/// ```
 	pub fn all(&self) -> bool {
 		//  Gallop the filled elements
-		let store = self.as_ref();
-		for elt in &store[.. self.elts()] {
+		for elt in self.body() {
 			if *elt != T::from(!0) {
 				return false;
 			}
 		}
 		//  Walk the partial tail
-		let bits = self.bits();
-		if bits > 0 {
-			let tail = store[self.elts()];
-			for bit in 0 .. bits {
+		if let Some(tail) = self.tail() {
+			for bit in 0 .. self.bits() {
 				if !tail.get(E::curr::<T>(bit)) {
 					return false;
 				}
@@ -245,17 +242,14 @@ where E: crate::Endian, T: crate::Bits {
 	/// ```
 	pub fn any(&self) -> bool {
 		//  Gallop the filled elements
-		let store = self.as_ref();
-		for elt in &store[.. self.elts()] {
+		for elt in self.body() {
 			if *elt != T::from(0) {
 				return true;
 			}
 		}
 		//  Walk the partial tail
-		let bits = self.bits();
-		if bits > 0 {
-			let tail = store[self.elts()];
-			for bit in 0 .. bits {
+		if let Some(tail) = self.tail() {
+			for bit in 0 .. self.bits() {
 				if tail.get(E::curr::<T>(bit)) {
 					return true;
 				}
@@ -365,12 +359,15 @@ where E: crate::Endian, T: crate::Bits {
 	/// ```rust
 	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let bv = bitvec![1, 0, 1, 0, 1];
-	/// assert_eq!(bv.count_ones(), 3);
+	/// let bv = bitvec![1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1];
+	/// assert_eq!(bv.count_ones(), 7);
 	/// # }
 	/// ```
 	pub fn count_ones(&self) -> usize {
-		self.into_iter().filter(|b| *b).count()
+		self.body().iter().map(T::ones).sum::<usize>() +
+		self.tail().map(|t| (0 .. self.bits())
+			.map(|n| t.get(E::curr::<T>(n))).filter(|b| *b).count()
+		).unwrap_or(0)
 	}
 
 	/// Counts how many bits are set low.
@@ -380,12 +377,15 @@ where E: crate::Endian, T: crate::Bits {
 	/// ```rust
 	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let bv = bitvec![0, 1, 0, 1, 0];
-	/// assert_eq!(bv.count_zeros(), 3);
+	/// let bv = bitvec![1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1];
+	/// assert_eq!(bv.count_zeros(), 6);
 	/// # }
 	/// ```
 	pub fn count_zeros(&self) -> usize {
-		self.into_iter().filter(|b| !b).count()
+		self.body().iter().map(T::zeros).sum::<usize>() +
+		self.tail().map(|t| (0 .. self.bits())
+			.map(|n| t.get(E::curr::<T>(n))).filter(|b| !*b).count()
+		).unwrap_or(0)
 	}
 
 	/// Returns the number of bits contained in the `BitSlice`.
@@ -558,6 +558,102 @@ where E: crate::Endian, T: crate::Bits {
 	/// accessible to the test crate.
 	pub(crate) fn raw_len(&self) -> usize {
 		self.elts() + if self.bits() > 0 { 1 } else { 0 }
+	}
+
+	/// Gets access to the set of all filled elements as a slice.
+	///
+	/// This is primarily useful for bulk operations on the filled elements.
+	///
+	/// # Examples
+	///
+	/// ```rust,ignore
+	/// # #[cfg(feature = "alloc")] {
+	/// use bitvec::*;
+	/// let bv = bitvec![1; 10];
+	/// let body: &[u8] = bv.body();
+	/// assert_eq!(body.len(), 1);
+	/// # }
+	/// ```
+	pub(crate) fn body(&self) -> &[T] {
+		let elts = self.elts();
+		&self.as_ref()[.. elts]
+	}
+
+	/// Gets mutable access to the set of all filled elements as a slice.
+	///
+	/// This is primarily useful for bulk operations on the filled elements.
+	///
+	/// # Examples
+	///
+	/// ```rust,ignore
+	/// # #[cfg(feature = "alloc")] {
+	/// use bitvec::*;
+	/// let mut bv = bitvec![1; 10];
+	/// assert!(bv[0]);
+	/// {
+	///   let body: &mut [u8] = bv.body_mut();
+	///   assert_eq!(body.len(), 1);
+	///   assert_eq!(body[0], 0xFF);
+	///   body[0] = 0;
+	///   assert_eq!(body[0], 0x00);
+	/// }
+	/// assert!(!bv[0]);
+	/// # }
+	/// ```
+	pub(crate) fn body_mut(&mut self) -> &mut [T] {
+		let elts = self.elts();
+		&mut self.as_mut()[.. elts]
+	}
+
+	/// Gets access to the partially-filled tail, if it exists.
+	///
+	/// # Examples
+	///
+	/// ```rust,ignore
+	/// # #[cfg(feature = "alloc")] {
+	/// use bitvec::*;
+	/// let bv = bitvec![1; 10];
+	/// let tail: &u8 = bv.tail().unwrap();
+	/// assert_eq!(*tail, 0b1100_0000);
+	/// # }
+	/// ```
+	pub(crate) fn tail(&self) -> Option<&T> {
+		if self.bits() > 0 {
+			let elts = self.elts();
+			Some(&self.as_ref()[elts])
+		}
+		else {
+			None
+		}
+	}
+
+	/// Gets mutable access to the partially-filled tail, if it exists.
+	///
+	/// # Examples
+	///
+	/// ```rust,ignore
+	/// # #[cfg(feature = "alloc")] {
+	/// use bitvec::*;
+	/// let mut bv = bitvec![1; 10];
+	/// bv.push(false);
+	/// assert!(!bv[10]);
+	/// {
+	///   let tail: &mut u8 = bv.tail_mut().unwrap();
+	///   assert_eq!(*tail, 0b1100_0000);
+	///   *tail = 0xFF;
+	///   assert_eq!(*tail, 0xFF);
+	/// }
+	/// assert!(bv[10]);
+	/// # }
+	/// ```
+	pub(crate) fn tail_mut(&mut self) -> Option<&mut T> {
+		if self.bits() > 0 {
+			let elts = self.elts();
+			Some(&mut self.as_mut()[elts])
+		}
+		else {
+			None
+		}
 	}
 
 	/// Prints a type header into the Formatter.
