@@ -1,13 +1,13 @@
 checkout:
 	cargo check
-	cargo doc
+	cargo doc --document-private-items --features testing
 	cargo build
 	cargo build --example sieve
 	cargo build --example tour
-	cargo test
+	cargo test --features testing
 	cargo package --allow-dirty
 
 dev:
 	cargo check
-	cargo test
-	cargo doc
+	cargo test --features testing
+	cargo doc --document-private-items --features testing

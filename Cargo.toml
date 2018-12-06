@@ -31,6 +31,9 @@ default = [
 std = [
 	"alloc",
 ]
+testing = [
+	"std",
+]
 
 [badges.codecov]
 repository = "myrrlyn/bitvec"

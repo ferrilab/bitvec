@@ -542,10 +542,13 @@ where E: crate::Endian, T: crate::Bits {
 	/// Computes the actual length of the data slice, including the partial tail
 	/// if present.
 	///
+	/// This is a crate-local function. It only appears in the docs so that it
+	/// can be tested.
+	///
 	/// # Examples
 	///
-	/// ```rust,ignore
-	/// # #[cfg(feature = "alloc")] {
+	/// ```rust
+	/// # #[cfg(all(feature = "alloc", feature = "testing"))] {
 	/// use bitvec::*;
 	/// let bv = bitvec![1; 10];
 	/// let bits: &BitSlice = &bv;
@@ -553,10 +556,13 @@ where E: crate::Endian, T: crate::Bits {
 	/// assert_eq!(bits.raw_len(), 2);
 	/// # }
 	/// ```
-	///
-	/// This test is never compiled because the functions it calls are not
-	/// accessible to the test crate.
-	pub(crate) fn raw_len(&self) -> usize {
+	#[cfg(feature = "testing")]
+	pub fn raw_len(&self) -> usize { self.raw_len_inner() }
+	#[cfg(not(feature = "testing"))]
+	pub(crate) fn raw_len(&self) -> usize { self.raw_len_inner() }
+	#[doc(hidden)]
+	#[inline(always)]
+	fn raw_len_inner(&self) -> usize {
 		self.elts() + if self.bits() > 0 { 1 } else { 0 }
 	}
 
@@ -564,17 +570,26 @@ where E: crate::Endian, T: crate::Bits {
 	///
 	/// This is primarily useful for bulk operations on the filled elements.
 	///
+	/// This is a crate-local function. It only appears in the docs so that it
+	/// can be tested.
+	///
 	/// # Examples
 	///
-	/// ```rust,ignore
-	/// # #[cfg(feature = "alloc")] {
+	/// ```rust
+	/// # #[cfg(all(feature = "alloc", feature = "testing"))] {
 	/// use bitvec::*;
 	/// let bv = bitvec![1; 10];
 	/// let body: &[u8] = bv.body();
 	/// assert_eq!(body.len(), 1);
 	/// # }
 	/// ```
-	pub(crate) fn body(&self) -> &[T] {
+	#[cfg(feature = "testing")]
+	pub fn body(&self) -> &[T] { self.body_inner() }
+	#[cfg(not(feature = "testing"))]
+	pub(crate) fn body(&self) -> &[T] { self.body_inner() }
+	#[doc(hidden)]
+	#[inline(always)]
+	fn body_inner(&self) -> &[T] {
 		let elts = self.elts();
 		&self.as_ref()[.. elts]
 	}
@@ -583,10 +598,13 @@ where E: crate::Endian, T: crate::Bits {
 	///
 	/// This is primarily useful for bulk operations on the filled elements.
 	///
+	/// This is a crate-local function. It only appears in the docs so that it
+	/// can be tested.
+	///
 	/// # Examples
 	///
-	/// ```rust,ignore
-	/// # #[cfg(feature = "alloc")] {
+	/// ```rust
+	/// # #[cfg(all(feature = "alloc", feature = "testing"))] {
 	/// use bitvec::*;
 	/// let mut bv = bitvec![1; 10];
 	/// assert!(bv[0]);
@@ -600,24 +618,39 @@ where E: crate::Endian, T: crate::Bits {
 	/// assert!(!bv[0]);
 	/// # }
 	/// ```
-	pub(crate) fn body_mut(&mut self) -> &mut [T] {
+	#[cfg(feature = "testing")]
+	pub fn body_mut(&mut self) -> &mut [T] { self.body_mut_inner() }
+	#[cfg(not(feature = "testing"))]
+	pub(crate) fn body_mut(&mut self) -> &mut [T] { self.body_mut_inner() }
+	#[doc(hidden)]
+	#[inline(always)]
+	fn body_mut_inner(&mut self) -> &mut [T] {
 		let elts = self.elts();
 		&mut self.as_mut()[.. elts]
 	}
 
 	/// Gets access to the partially-filled tail, if it exists.
 	///
+	/// This is a crate-local function. It only appears in the docs so that it
+	/// can be tested.
+	///
 	/// # Examples
 	///
-	/// ```rust,ignore
-	/// # #[cfg(feature = "alloc")] {
+	/// ```rust
+	/// # #[cfg(all(feature = "alloc", feature = "testing"))] {
 	/// use bitvec::*;
 	/// let bv = bitvec![1; 10];
 	/// let tail: &u8 = bv.tail().unwrap();
 	/// assert_eq!(*tail, 0b1100_0000);
 	/// # }
 	/// ```
-	pub(crate) fn tail(&self) -> Option<&T> {
+	#[cfg(feature = "testing")]
+	pub fn tail(&self) -> Option<&T> { self.tail_inner() }
+	#[cfg(not(feature = "testing"))]
+	pub(crate) fn tail(&self) -> Option<&T> { self.tail_inner() }
+	#[doc(hidden)]
+	#[inline(always)]
+	fn tail_inner(&self) -> Option<&T> {
 		if self.bits() > 0 {
 			let elts = self.elts();
 			Some(&self.as_ref()[elts])
@@ -629,10 +662,13 @@ where E: crate::Endian, T: crate::Bits {
 
 	/// Gets mutable access to the partially-filled tail, if it exists.
 	///
+	/// This is a crate-local function. It only appears in the docs so that it
+	/// can be tested.
+	///
 	/// # Examples
 	///
-	/// ```rust,ignore
-	/// # #[cfg(feature = "alloc")] {
+	/// ```rust
+	/// # #[cfg(all(feature = "alloc", feature = "testing"))] {
 	/// use bitvec::*;
 	/// let mut bv = bitvec![1; 10];
 	/// bv.push(false);
@@ -646,7 +682,13 @@ where E: crate::Endian, T: crate::Bits {
 	/// assert!(bv[10]);
 	/// # }
 	/// ```
-	pub(crate) fn tail_mut(&mut self) -> Option<&mut T> {
+	#[cfg(feature = "testing")]
+	pub fn tail_mut(&mut self) -> Option<&mut T> { self.tail_mut_inner() }
+	#[cfg(not(feature = "testing"))]
+	pub(crate) fn tail_mut(&mut self) -> Option<&mut T> { self.tail_mut_inner() }
+	#[doc(hidden)]
+	#[inline(always)]
+	fn tail_mut_inner(&mut self) -> Option<&mut T> {
 		if self.bits() > 0 {
 			let elts = self.elts();
 			Some(&mut self.as_mut()[elts])
