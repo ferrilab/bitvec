@@ -100,10 +100,12 @@ pub trait Bits:
 	}
 
 	/// Counts how many bits are set.
-	fn ones(&self) -> u32;
+	#[inline(always)]
+	fn ones(&self) -> usize;
 
 	/// Counts how many bits are unset.
-	fn zeros(&self) -> u32;
+	#[inline(always)]
+	fn zeros(&self) -> usize;
 
 	/// Splits a `usize` cursor into an (element, bit) tuple.
 	///
@@ -130,12 +132,14 @@ pub trait Bits:
 impl Bits for u8 {
 	const BITS: u8 = 3;
 
-	fn ones(&self) -> u32 {
-		self.count_ones()
+	#[inline(always)]
+	fn ones(&self) -> usize {
+		self.count_ones() as usize
 	}
 
-	fn zeros(&self) -> u32 {
-		self.count_zeros()
+	#[inline(always)]
+	fn zeros(&self) -> usize {
+		self.count_zeros() as usize
 	}
 
 	const TY: &'static str = "u8";
@@ -144,12 +148,14 @@ impl Bits for u8 {
 impl Bits for u16 {
 	const BITS: u8 = 4;
 
-	fn ones(&self) -> u32 {
-		self.count_ones()
+	#[inline(always)]
+	fn ones(&self) -> usize {
+		self.count_ones() as usize
 	}
 
-	fn zeros(&self) -> u32 {
-		self.count_zeros()
+	#[inline(always)]
+	fn zeros(&self) -> usize {
+		self.count_zeros() as usize
 	}
 
 	const TY: &'static str = "u16";
@@ -158,12 +164,14 @@ impl Bits for u16 {
 impl Bits for u32 {
 	const BITS: u8 = 5;
 
-	fn ones(&self) -> u32 {
-		self.count_ones()
+	#[inline(always)]
+	fn ones(&self) -> usize {
+		self.count_ones() as usize
 	}
 
-	fn zeros(&self) -> u32 {
-		self.count_zeros()
+	#[inline(always)]
+	fn zeros(&self) -> usize {
+		self.count_zeros() as usize
 	}
 
 	const TY: &'static str = "u32";
@@ -174,12 +182,14 @@ impl Bits for u32 {
 impl Bits for u64 {
 	const BITS: u8 = 6;
 
-	fn ones(&self) -> u32 {
-		self.count_ones()
+	#[inline(always)]
+	fn ones(&self) -> usize {
+		self.count_ones() as usize
 	}
 
-	fn zeros(&self) -> u32 {
-		self.count_zeros()
+	#[inline(always)]
+	fn zeros(&self) -> usize {
+		self.count_zeros() as usize
 	}
 
 	const TY: &'static str = "u64";
