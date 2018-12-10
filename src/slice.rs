@@ -1371,7 +1371,7 @@ where E: crate::Endian, T: 'a + crate::Bits {
 		}
 		let _ = Not::not(&mut *self);
 		//  Fill an element with all 1 bits
-		let elt: [T; 1] = [!T::default()];
+		let elt: [T; 1] = [! unsafe { mem::zeroed() }];
 		if self.any() {
 			//  Turn a slice reference `[T; 1]` into a bit-slice reference
 			//  `[u1; 1]`

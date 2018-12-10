@@ -8,7 +8,6 @@ storage of a primitive, and is the constraint for the storage type of a
 use core::{
 	cmp::Eq,
 	convert::From,
-	default::Default,
 	fmt::{
 		Binary,
 		Debug,
@@ -46,9 +45,6 @@ pub trait Bits:
 	//  Permit indexing into a generic array
 	+ Copy
 	+ Debug
-	//  `BitVec` cannot push new elements without this. (Well, it CAN, but
-	//  `mem::uninitialized` is Considered Harmful.)
-	+ Default
 	+ Display
 	//  Permit testing a value against 1 in `get()`.
 	+ Eq
@@ -72,9 +68,9 @@ pub trait Bits:
 	/// The number of bits required to *index* the type. This is always
 	/// log<sub>2</sub> of the type width.
 	///
-	/// Incidentally, this can be computed as `size_of().trailing_zeroes()` once
+	/// Incidentally, this can be computed as `size_of().trailing_zeros()` once
 	/// that becomes a valid constexpr.
-	const BITS: u8; // = size_of::<Self>().trailing_zeros();
+	const BITS: u8; // = size_of::<Self>().trailing_zeros() as u8;
 
 	/// The bitmask to turn an arbitrary usize into the bit index. Bit indices
 	/// are always stored in the lowest bits of an index value.
