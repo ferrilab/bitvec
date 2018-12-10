@@ -479,7 +479,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// old length is restored.
 	fn push_elt(&mut self) {
 		let len = self.len();
-		self.do_with_vec(|v| v.push(Default::default()));
+		self.do_with_vec(|v| v.push(unsafe { mem::zeroed() }));
 		unsafe {
 			self.inner.set_len(len);
 		}
