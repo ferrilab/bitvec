@@ -1,5 +1,12 @@
 # `BitVec` – Managing memory bit by bit
 
+[![Crate][crate_img]][crate]
+[![Documentation][docs_img]][docs]
+[![License][license_img]][license_file]
+[![Continuous Integration][travis_img]][travis]
+[![Code Coverage][codecov_img]][codecov]
+[![Crate Downloads][downloads_img]][crate]
+
 This crate provides packed bit-level analogues to `[T]` and `Vec<T>`. The slice
 type `BitSlice` and the vector type `BitVec` allow bitwise access to a region of
 memory in any endian ordering or underlying primitive type. This permits
@@ -232,8 +239,18 @@ simply by going out of scope.
 Contributions of items in this list are *absolutely* welcome! Contributions of
 other features are also welcome, but I’ll have to be sold on them.
 
-- `#![no_core]` support that strips the vector type entirely and only provides
-  the slice type.
-
 - Creation of specialized pointers `Box<BitSlice>`, `Rc<BitSlice>`, and
   `Arc<BitSlice>`.
+
+
+[codecov]: https://codecov.io/gh/myrrlyn/bitvec "Code Coverage"
+[codecov_img]: https://img.shields.io/codecov/c/github/myrrlyn/bitvec.svg?logo=codecov "Code Coverage Display"
+[crate]: https://crates.io/crates/bitvec "Crate Link"
+[crate_img]: https://img.shields.io/crates/v/bitvec.svg?logo=rust "Crate Page"
+[docs]: https://docs.rs/bitvec "Documentation"
+[docs_img]: https://docs.rs/bitvec/badge.svg "Documentation Display"
+[downloads_img]: https://img.shields.io/crates/dv/bitvec.svg?logo=rust "Crate Downloads"
+[license_file]: https://github.com/myrrlyn/bitvec/blob/master/LICENSE.txt "License File"
+[license_img]: https://img.shields.io/crates/l/bitvec.svg "License Display"
+[travis]: https://travis-ci.org/myrrlyn/bitvec "Travis CI"
+[travis_img]: https://img.shields.io/travis/myrrlyn/bitvec.svg?logo=travis "Travis CI Display"
