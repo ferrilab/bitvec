@@ -191,8 +191,7 @@ impl Bits for u64 {
 	const TY: &'static str = "u64";
 }
 
-//  Do NOT implement on u128 until I can have much firmer confidence in the
-//  memory layout of a u128.
+//  Do NOT implement on u128. They are aligned to 8 bytes, not to 16.
 
 /// Marker trait to seal `Bits` against downstream implementation
 ///
