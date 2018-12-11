@@ -97,7 +97,7 @@ Safe methods exist to move between `Vec` and `BitVec` – **USE THEM**.
 
 `BitVec` takes two type parameters.
 
-- `E: Endian` must be an implementor of the `Endian` trait. `BitVec` takes a
+- `C: Cursor` must be an implementor of the `Cursor` trait. `BitVec` takes a
   `PhantomData` marker for access to the associated functions, and will never
   make use of an instance of the trait. The default implementations,
   `LittleEndian` and `BigEndian`, are zero-sized, and any further
@@ -108,16 +108,16 @@ Safe methods exist to move between `Vec` and `BitVec` – **USE THEM**.
   properties of the primitives for `BitVec` to use. This trait is sealed against
   downstream implementation, and can only be implemented in this crate.
 **/
-#[cfg_attr(nightly, repr(transparent))]
-pub struct BitVec<E = crate::BigEndian, T = u8>
-where E: crate::Endian, T: crate::Bits {
-	_endian: PhantomData<E>,
+#[repr(transparent)]
+pub struct BitVec<C = crate::BigEndian, T = u8>
+where C: crate::Cursor, T: crate::Bits {
+	_cursor: PhantomData<C>,
 	inner: Vec<T>,
 }
 
-impl<E, T> BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
-	/// Constructs a new, empty, `BitVec<E, T>`.
+impl<C, T> BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
+	/// Constructs a new, empty, `BitVec<C, T>`.
 	///
 	/// The vector will not allocate until bits are pushed onto it.
 	///
@@ -131,7 +131,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// ```
 	pub fn new() -> Self {
 		Self {
-			_endian: PhantomData,
+			_cursor: PhantomData,
 			inner: Vec::new(),
 		}
 	}
@@ -154,7 +154,7 @@ where E: crate::Endian, T: crate::Bits {
 		let cap = elts + if bits > 0 { 1 } else { 0 };
 		Self {
 			inner: Vec::with_capacity(cap),
-			_endian: PhantomData,
+			_cursor: PhantomData,
 		}
 	}
 
@@ -189,7 +189,7 @@ where E: crate::Endian, T: crate::Bits {
 		assert!(self.len() < core::usize::MAX, "Vector will overflow!");
 		let bit = self.bits();
 		//  Get a cursor to the bit that matches the semantic count.
-		let cursor = E::curr::<T>(bit);
+		let cursor = C::curr::<T>(bit);
 		//  Insert `value` at the current cursor.
 		self.do_with_tail(|elt| elt.set(cursor, value));
 		//  If the cursor is at the *end* of an element, this bit will finish it
@@ -489,13 +489,13 @@ where E: crate::Endian, T: crate::Bits {
 	///
 	/// The body format is provided by `BitSlice`.
 	fn fmt_header(&self, fmt: &mut Formatter) -> fmt::Result {
-		write!(fmt, "BitVec<{}, {}>", E::TY, T::TY)
+		write!(fmt, "BitVec<{}, {}>", C::TY, T::TY)
 	}
 }
 
 /// Signifies that `BitSlice` is the borrowed form of `BitVec`.
-impl<E, T> Borrow<crate::BitSlice<E, T>> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> Borrow<crate::BitSlice<C, T>> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	/// Borrows the `BitVec` as a `BitSlice`.
 	///
 	/// # Examples
@@ -507,14 +507,14 @@ where E: crate::Endian, T: crate::Bits {
 	/// let bref: &BitSlice = bv.borrow();
 	/// assert!(!bref.get(7));
 	/// ```
-	fn borrow(&self) -> &crate::BitSlice<E, T> {
+	fn borrow(&self) -> &crate::BitSlice<C, T> {
 		&*self
 	}
 }
 
 /// Signifies that `BitSlice` is the borrowed form of `BitVec`.
-impl<E, T> BorrowMut<crate::BitSlice<E, T>> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> BorrowMut<crate::BitSlice<C, T>> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	/// Mutably borrows the `BitVec` as a `BitSlice`.
 	///
 	/// # Examples
@@ -528,13 +528,13 @@ where E: crate::Endian, T: crate::Bits {
 	/// bref.set(7, true);
 	/// assert!(bref.get(7));
 	/// ```
-	fn borrow_mut(&mut self) -> &mut crate::BitSlice<E, T> {
+	fn borrow_mut(&mut self) -> &mut crate::BitSlice<C, T> {
 		&mut *self
 	}
 }
 
-impl<E, T> Clone for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> Clone for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	fn clone(&self) -> Self {
 		let mut out = Self::from(self.as_ref());
 		unsafe {
@@ -555,11 +555,11 @@ where E: crate::Endian, T: crate::Bits {
 	}
 }
 
-impl<E, T> Eq for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {}
+impl<C, T> Eq for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {}
 
-impl<E, T> Ord for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> Ord for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	fn cmp(&self, rhs: &Self) -> Ordering {
 		crate::BitSlice::cmp(&self, &rhs)
 	}
@@ -572,7 +572,7 @@ where E: crate::Endian, T: crate::Bits {
 /// The equality condition requires that they have the same number of stored
 /// bits and that each pair of bits in semantic order are identical.
 impl<A, B, C, D> PartialEq<BitVec<C, D>> for BitVec<A, B>
-where A: crate::Endian, B: crate::Bits, C: crate::Endian, D: crate::Bits {
+where A: crate::Cursor, B: crate::Bits, C: crate::Cursor, D: crate::Bits {
 	/// Performs a comparison by `==`.
 	///
 	/// # Examples
@@ -609,7 +609,7 @@ where A: crate::Endian, B: crate::Bits, C: crate::Endian, D: crate::Bits {
 /// If one of the vectors is exhausted before they differ, the longer vector is
 /// greater.
 impl<A, B, C, D> PartialOrd<BitVec<C, D>> for BitVec<A, B>
-where A: crate::Endian, B: crate::Bits, C: crate::Endian, D: crate::Bits {
+where A: crate::Cursor, B: crate::Bits, C: crate::Cursor, D: crate::Bits {
 	/// Performs a comparison by `<` or `>`.
 	///
 	/// # Examples
@@ -630,8 +630,8 @@ where A: crate::Endian, B: crate::Bits, C: crate::Endian, D: crate::Bits {
 
 /// Gives write access to all live elements in the underlying storage, including
 /// the partially-filled tail.
-impl<E, T> AsMut<[T]> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> AsMut<[T]> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	/// Accesses the underlying store.
 	///
 	/// # Examples
@@ -651,8 +651,8 @@ where E: crate::Endian, T: crate::Bits {
 
 /// Gives read access to all live elements in the underlying storage, including
 /// the partially-filled tail.
-impl<E, T> AsRef<[T]> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> AsRef<[T]> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	/// Accesses the underlying store.
 	///
 	/// # Examples
@@ -671,9 +671,9 @@ where E: crate::Endian, T: crate::Bits {
 ///
 /// The idiomatic `BitSlice` to `BitVec` conversion is `BitSlice::to_owned`, but
 /// just as `&[T].into()` yields a `Vec`, `&BitSlice.into()` yields a `BitVec`.
-impl<'a, E, T> From<&'a crate::BitSlice<E, T>> for BitVec<E, T>
-where E: crate::Endian, T: 'a + crate::Bits {
-	fn from(src: &'a crate::BitSlice<E, T>) -> Self {
+impl<'a, C, T> From<&'a crate::BitSlice<C, T>> for BitVec<C, T>
+where C: crate::Cursor, T: 'a + crate::Bits {
+	fn from(src: &'a crate::BitSlice<C, T>) -> Self {
 		src.to_owned()
 	}
 }
@@ -682,8 +682,8 @@ where E: crate::Endian, T: 'a + crate::Bits {
 ///
 /// This is primarily for the `bitvec!` macro; it is not recommended for general
 /// use.
-impl<'a, E, T> From<&'a [bool]> for BitVec<E, T>
-where E: crate::Endian, T: 'a + crate::Bits {
+impl<'a, C, T> From<&'a [bool]> for BitVec<C, T>
+where C: crate::Cursor, T: 'a + crate::Bits {
 	fn from(src: &'a [bool]) -> Self {
 		let mut out = Self::with_capacity(src.len());
 		for bit in src {
@@ -701,9 +701,9 @@ where E: crate::Endian, T: 'a + crate::Bits {
 ///
 /// This operation does a copy from the source buffer into a new allocation, as
 /// it can only borrow the source and not take ownership.
-impl<'a, E, T> From<&'a [T]> for BitVec<E, T>
-where E: crate::Endian, T: 'a + crate::Bits {
-	/// Builds a `BitVec<E: Endian, T: Bits>` from a borrowed `&[T]`.
+impl<'a, C, T> From<&'a [T]> for BitVec<C, T>
+where C: crate::Cursor, T: 'a + crate::Bits {
+	/// Builds a `BitVec<C: Cursor, T: Bits>` from a borrowed `&[T]`.
 	///
 	/// # Examples
 	///
@@ -714,7 +714,7 @@ where E: crate::Endian, T: 'a + crate::Bits {
 	/// assert_eq!("00000101 00001010", &format!("{}", bv));
 	/// ```
 	fn from(src: &'a [T]) -> Self {
-		<&crate::BitSlice<E, T>>::from(src).to_owned()
+		<&crate::BitSlice<C, T>>::from(src).to_owned()
 	}
 }
 
@@ -723,9 +723,9 @@ where E: crate::Endian, T: 'a + crate::Bits {
 /// This moves the memory as-is from the source buffer into the new `BitVec`.
 /// The source buffer will be unchanged by this operation, so you don't need to
 /// worry about using the correct cursor type.
-impl<E, T> From<Box<[T]>> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
-	/// Consumes a `Box<[T: Bits]>` and creates a `BitVec<E: Endian, T>` from
+impl<C, T> From<Box<[T]>> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
+	/// Consumes a `Box<[T: Bits]>` and creates a `BitVec<C: Cursor, T>` from
 	/// it.
 	///
 	/// # Examples
@@ -747,9 +747,9 @@ where E: crate::Endian, T: crate::Bits {
 /// This moves the memory as-is from the source buffer into the new `BitVec`.
 /// The source buffer will be unchanged by this operation, so you don't need to
 /// worry about using the correct cursor type.
-impl<E, T> From<Vec<T>> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
-	/// Consumes a `Vec<T: Bits>` and creates a `BitVec<E: Endian, T>` from it.
+impl<C, T> From<Vec<T>> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
+	/// Consumes a `Vec<T: Bits>` and creates a `BitVec<C: Cursor, T>` from it.
 	///
 	/// # Examples
 	///
@@ -764,7 +764,7 @@ where E: crate::Endian, T: crate::Bits {
 		assert!(elts <= T::MAX_ELT, "Source vector too long!");
 		let mut out = Self {
 			inner: src,
-			_endian: PhantomData::<E>,
+			_cursor: PhantomData::<C>,
 		};
 		unsafe {
 			out.set_bits(0);
@@ -826,19 +826,19 @@ for BitVec<crate::LittleEndian, T> {
 	}
 }
 
-impl<E, T> Default for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> Default for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	fn default() -> Self {
 		Self {
 			inner: Default::default(),
-			_endian: Default::default(),
+			_cursor: Default::default(),
 		}
 	}
 }
 
 /// Prints the `BitVec` for debugging.
 ///
-/// The output is of the form `BitVec<E, T> [ELT, *]`, where `<E, T>` is the
+/// The output is of the form `BitVec<C, T> [ELT, *]`, where `<C, T>` is the
 /// endianness and element type, with square brackets on each end of the bits
 /// and all the live elements in the vector printed in binary. The printout is
 /// always in semantic order, and may not reflect the underlying store. To see
@@ -846,8 +846,8 @@ where E: crate::Endian, T: crate::Bits {
 ///
 /// The alternate character `{:#?}` prints each element on its own line, rather
 /// than separated by a space.
-impl<E, T> Debug for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> Debug for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	/// Renders the `BitVec` type header and contents for debug.
 	///
 	/// # Examples
@@ -883,8 +883,8 @@ where E: crate::Endian, T: crate::Bits {
 ///
 /// To see the in-memory representation, use `AsRef` to get access to the raw
 /// elements and print that slice instead.
-impl<E, T> Display for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> Display for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	/// Renders the `BitVec` contents for display.
 	///
 	/// # Examples
@@ -900,12 +900,12 @@ where E: crate::Endian, T: crate::Bits {
 }
 
 /// Writes the contents of the `BitVec`, in semantic bit order, into a hasher.
-impl<E, T> Hash for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> Hash for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	/// Writes each bit of the `BitVec`, as a full `bool`, into the hasher.
 	fn hash<H>(&self, hasher: &mut H)
 	where H: Hasher {
-		<crate::BitSlice<E, T> as Hash>::hash(&self, hasher)
+		<crate::BitSlice<C, T> as Hash>::hash(&self, hasher)
 	}
 }
 
@@ -914,8 +914,8 @@ where E: crate::Endian, T: crate::Bits {
 /// At present, this just calls `.push()` in a loop. When specialization becomes
 /// available, it will be able to more intelligently perform bulk moves from the
 /// source into `self` when the source is `BitSlice`-compatible.
-impl<E, T> Extend<bool> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> Extend<bool> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	/// Extends a `BitVec` from another bitstream.
 	///
 	/// # Examples
@@ -942,8 +942,8 @@ where E: crate::Endian, T: crate::Bits {
 
 /// Permits the construction of a `BitVec` by using `.collect()` on an iterator
 /// of `bool`.
-impl<E, T> FromIterator<bool> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> FromIterator<bool> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	/// Collects an iterator of `bool` into a vector.
 	///
 	/// # Examples
@@ -973,11 +973,11 @@ where E: crate::Endian, T: crate::Bits {
 /// This iterator follows the ordering in the vector type, and implements
 /// `ExactSizeIterator`, since `BitVec`s always know exactly how large they are,
 /// and `DoubleEndedIterator`, since they have known ends.
-impl<E, T> IntoIterator for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> IntoIterator for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	type Item = bool;
 	#[doc(hidden)]
-	type IntoIter = IntoIter<E, T>;
+	type IntoIter = IntoIter<C, T>;
 
 	/// Iterates over the vector.
 	///
@@ -1012,8 +1012,8 @@ where E: crate::Endian, T: crate::Bits {
 /// instead, which is written specifically for that use case. `BitVec`s are not
 /// intended for arithmetic, and `bitvec` makes no guarantees about sustained
 /// correctness in arithmetic at this time.
-impl<E, T> Add for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> Add for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	type Output = Self;
 
 	/// Adds two `BitVec`s.
@@ -1059,8 +1059,8 @@ where E: crate::Endian, T: crate::Bits {
 /// instead, which is written specifically for that use case. `BitVec`s are not
 /// intended for arithmetic, and `bitvec` makes no guarantees about sustained
 /// correctness in arithmetic at this time.
-impl<E, T> AddAssign for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> AddAssign for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	/// Adds another `BitVec` into `self`.
 	///
 	/// # Examples
@@ -1088,7 +1088,7 @@ where E: crate::Endian, T: crate::Bits {
 		//
 		//  Computers are fast. Whatever.
 		let mut c = false;
-		let mut stack = BitVec::<E, T>::with_capacity(self.len());
+		let mut stack = BitVec::<C, T>::with_capacity(self.len());
 		//  Reverse self, reverse addend and zero-extend, and zip both together.
 		//  This walks both vecs from rightmost to leftmost, and considers an
 		//  early expiration of addend to continue with 0 bits.
@@ -1138,8 +1138,8 @@ where E: crate::Endian, T: crate::Bits {
 /// `BitVec`, or any `bool` generator of your choice). The `BitVec` emitted will
 /// have the length of the shorter sequence of bits -- if one is longer than the
 /// other, the extra bits will be ignored.
-impl<E, T, I> BitAnd<I> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
+impl<C, T, I> BitAnd<I> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits, I: IntoIterator<Item=bool> {
 	type Output = Self;
 
 	/// `AND`s a vector and a bitstream, producing a new vector.
@@ -1162,8 +1162,8 @@ where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
 /// Performs the Boolean `AND` operation in place on a `BitVec`, using a stream
 /// of `bool` values as the other bit for each operation. If the other stream is
 /// shorter than `self`, `self` will be truncated when the other stream expires.
-impl<E, T, I> BitAndAssign<I> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
+impl<C, T, I> BitAndAssign<I> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits, I: IntoIterator<Item=bool> {
 	/// `AND`s another bitstream into a vector.
 	///
 	/// # Examples
@@ -1190,8 +1190,8 @@ where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
 /// `BitVec`, or any `bool` generator of your choice). The `BitVec` emitted will
 /// have the length of the shorter sequence of bits -- if one is longer than the
 /// other, the extra bits will be ignored.
-impl<E, T, I> BitOr<I> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
+impl<C, T, I> BitOr<I> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits, I: IntoIterator<Item=bool> {
 	type Output = Self;
 
 	/// `OR`s a vector and a bitstream, producing a new vector.
@@ -1214,8 +1214,8 @@ where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
 /// Performs the Boolean `OR` operation in place on a `BitVec`, using a stream
 /// of `bool` values as the other bit for each operation. If the other stream is
 /// shorter than `self`, `self` will be truncated when the other stream expires.
-impl<E, T, I> BitOrAssign<I> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
+impl<C, T, I> BitOrAssign<I> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits, I: IntoIterator<Item=bool> {
 	/// `OR`s another bitstream into a vector.
 	///
 	/// # Examples
@@ -1242,8 +1242,8 @@ where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
 /// `BitVec`, or any `bool` generator of your choice). The `BitVec` emitted will
 /// have the length of the shorter sequence of bits -- if one is longer than the
 /// other, the extra bits will be ignored.
-impl<E, T, I> BitXor<I> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
+impl<C, T, I> BitXor<I> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits, I: IntoIterator<Item=bool> {
 	type Output = Self;
 
 	/// `XOR`s a vector and a bitstream, producing a new vector.
@@ -1266,8 +1266,8 @@ where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
 /// Performs the Boolean `XOR` operation in place on a `BitVec`, using a stream
 /// of `bool` values as the other bit for each operation. If the other stream is
 /// shorter than `self`, `self` will be truncated when the other stream expires.
-impl<E, T, I> BitXorAssign<I> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
+impl<C, T, I> BitXorAssign<I> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits, I: IntoIterator<Item=bool> {
 	/// `XOR`s another bitstream into a vector.
 	///
 	/// # Examples
@@ -1292,9 +1292,9 @@ where E: crate::Endian, T: crate::Bits, I: IntoIterator<Item=bool> {
 /// Reborrows the `BitVec` as a `BitSlice`.
 ///
 /// This mimics the separation between `Vec<T>` and `[T]`.
-impl<E, T> Deref for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
-	type Target = crate::BitSlice<E, T>;
+impl<C, T> Deref for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
+	type Target = crate::BitSlice<C, T>;
 
 	/// Dereferences `&BitVec` down to `&BitSlice`.
 	///
@@ -1316,8 +1316,8 @@ where E: crate::Endian, T: crate::Bits {
 /// Mutably reborrows the `BitVec` as a `BitSlice`.
 ///
 /// This mimics the separation between `Vec<T>` and `[T]`.
-impl<E, T> DerefMut for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> DerefMut for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	/// Dereferences `&mut BitVec` down to `&mut BitSlice`.
 	///
 	/// # Examples
@@ -1336,8 +1336,8 @@ where E: crate::Endian, T: crate::Bits {
 }
 
 /// Readies the underlying storage for Drop.
-impl<E, T> Drop for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> Drop for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	/// Restore the interior `Vec` to sane condition before it drops.
 	fn drop(&mut self) {
 		//  The only modification `BitVec` makes to the inner `Vec` is the
@@ -1350,8 +1350,8 @@ where E: crate::Endian, T: crate::Bits {
 
 /// Gets the bit at a specific index. The index must be less than the length of
 /// the `BitVec`.
-impl<E, T> Index<usize> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> Index<usize> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	type Output = bool;
 
 	/// Looks up a single bit by semantic count.
@@ -1381,7 +1381,7 @@ where E: crate::Endian, T: crate::Bits {
 	fn index(&self, cursor: usize) -> &Self::Output {
 		assert!(cursor < self.len(), "Index out of range!");
 		let (elt, bit) = T::split(cursor);
-		if (self.inner[elt]).get(E::curr::<T>(bit)) { &true } else { &false }
+		if (self.inner[elt]).get(C::curr::<T>(bit)) { &true } else { &false }
 	}
 }
 
@@ -1396,8 +1396,8 @@ where E: crate::Endian, T: crate::Bits {
 /// type.
 ///
 /// This index is not recommended for public use.
-impl<E, T> Index<(usize, u8)> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> Index<(usize, u8)> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	type Output = bool;
 
 	/// Indexes into a `BitVec` using a known element index and a count into
@@ -1413,7 +1413,7 @@ where E: crate::Endian, T: crate::Bits {
 	/// ```
 	fn index(&self, (elt, bit): (usize, u8)) -> &Self::Output {
 		assert!(T::join(elt, bit) < self.len(), "Index out of range!");
-		if (self.inner[elt]).get(E::curr::<T>(bit)) { &true } else { &false }
+		if (self.inner[elt]).get(C::curr::<T>(bit)) { &true } else { &false }
 	}
 }
 
@@ -1427,8 +1427,8 @@ where E: crate::Endian, T: crate::Bits {
 /// instead, which is written specifically for that use case. `BitVec`s are not
 /// intended for arithmetic, and `bitvec` makes no guarantees about sustained
 /// correctness in arithmetic at this time.
-impl<E, T> Neg for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> Neg for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	type Output = Self;
 
 	/// Numerically negates a `BitVec` using 2’s-complement arithmetic.
@@ -1448,7 +1448,7 @@ where E: crate::Endian, T: crate::Bits {
 			return self;
 		}
 		self = !self;
-		self += BitVec::<E, T>::from(&[true] as &[bool]);
+		self += BitVec::<C, T>::from(&[true] as &[bool]);
 		self
 	}
 }
@@ -1460,8 +1460,8 @@ where E: crate::Endian, T: crate::Bits {
 /// if any. Use `^= repeat(true)` to flip only the bits actually inside the
 /// `BitVec` purview. `^=` also has the advantage of being a borrowing operator
 /// rather than a consuming/returning operator.
-impl<E, T> Not for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> Not for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	type Output = Self;
 
 	/// Inverts all bits in the vector.
@@ -1514,8 +1514,8 @@ __bitvec_shift!(u8, u16, u32, u64, i8, i16, i32, i64);
 ///
 /// If the shift amount is greater than the length, the vector calls `clear()`
 /// and zeroes its memory. This is *not* an error.
-impl<E, T> Shl<usize> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> Shl<usize> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	type Output = Self;
 
 	/// Shifts a `BitVec` to the left, shortening it.
@@ -1567,8 +1567,8 @@ where E: crate::Endian, T: crate::Bits {
 ///
 /// If the shift amount is greater than the length, the vector calls `clear()`
 /// and zeroes its memory. This is *not* an error.
-impl<E, T> ShlAssign<usize> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> ShlAssign<usize> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	/// Shifts a `BitVec` to the left in place, shortening it.
 	///
 	/// # Examples
@@ -1635,8 +1635,8 @@ where E: crate::Endian, T: crate::Bits {
 ///
 /// If the new length of the vector would overflow, a panic occurs. This *is* an
 /// error.
-impl<E, T> Shr<usize> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> Shr<usize> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	type Output = Self;
 
 	/// Shifts a `BitVec` to the right, lengthening it and filling the front
@@ -1690,8 +1690,8 @@ where E: crate::Endian, T: crate::Bits {
 ///
 /// If the new length of the vector would overflow, a panic occurs. This *is* an
 /// error.
-impl<E, T> ShrAssign<usize> for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> ShrAssign<usize> for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	/// Shifts a `BitVec` to the right in place, lengthening it and filling the
 	/// front with 0.
 	///
@@ -1751,8 +1751,8 @@ where E: crate::Endian, T: crate::Bits {
 /// instead, which is written specifically for that use case. `BitVec`s are not
 /// intended for arithmetic, and `bitvec` makes no guarantees about sustained
 /// correctness in arithmetic at this time.
-impl<E, T> Sub for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> Sub for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	type Output = Self;
 
 	/// Subtracts one `BitVec` from another.
@@ -1806,8 +1806,8 @@ where E: crate::Endian, T: crate::Bits {
 /// instead, which is written specifically for that use case. `BitVec`s are not
 /// intended for arithmetic, and `bitvec` makes no guarantees about sustained
 /// correctness in arithmetic at this time.
-impl<E, T> SubAssign for BitVec<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> SubAssign for BitVec<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	/// Subtracts another `BitVec` from `self`.
 	///
 	/// # Examples
@@ -1859,16 +1859,16 @@ where E: crate::Endian, T: crate::Bits {
 
 /// Iterates over an owned `BitVec`.
 #[doc(hidden)]
-pub struct IntoIter<E, T>
-where E: crate::Endian, T: crate::Bits {
-	bv: BitVec<E, T>,
+pub struct IntoIter<C, T>
+where C: crate::Cursor, T: crate::Bits {
+	bv: BitVec<C, T>,
 	head: usize,
 	tail: usize,
 }
 
-impl<E, T> IntoIter<E, T>
-where E: crate::Endian, T: crate::Bits {
-	fn new(bv: BitVec<E, T>) -> Self {
+impl<C, T> IntoIter<C, T>
+where C: crate::Cursor, T: crate::Bits {
+	fn new(bv: BitVec<C, T>) -> Self {
 		let tail = bv.len();
 		Self {
 			bv,
@@ -1883,8 +1883,8 @@ where E: crate::Endian, T: crate::Bits {
 	}
 }
 
-impl<E, T> DoubleEndedIterator for IntoIter<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> DoubleEndedIterator for IntoIter<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	/// Yields the back-most bit of the collection.
 	///
 	/// This iterator is self-resetting; when the cursor reaches the front of
@@ -1903,8 +1903,8 @@ where E: crate::Endian, T: crate::Bits {
 	}
 }
 
-impl<E, T> ExactSizeIterator for IntoIter<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> ExactSizeIterator for IntoIter<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	//  Override the default implementation with a fixed calculation. The type
 	//  is guaranteed to be well-behaved, so there is no point in building two
 	//  copies of the remnant, checking an always-safe condition, and dropping
@@ -1920,15 +1920,15 @@ where E: crate::Endian, T: crate::Bits {
 	}
 }
 
-impl<E, T> From<BitVec<E, T>> for IntoIter<E, T>
-where E: crate::Endian, T: crate::Bits {
-	fn from(bv: BitVec<E, T>) -> Self {
+impl<C, T> From<BitVec<C, T>> for IntoIter<C, T>
+where C: crate::Cursor, T: crate::Bits {
+	fn from(bv: BitVec<C, T>) -> Self {
 		Self::new(bv)
 	}
 }
 
-impl<E, T> Iterator for IntoIter<E, T>
-where E: crate::Endian, T: crate::Bits {
+impl<C, T> Iterator for IntoIter<C, T>
+where C: crate::Cursor, T: crate::Bits {
 	type Item = bool;
 
 	/// Advances the iterator forward, yielding the front-most bit.

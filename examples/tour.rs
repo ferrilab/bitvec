@@ -18,7 +18,7 @@ use bitvec::{
 	//  primary type of the whole crate! this is where the magic happens
 	BitVec,
 	//  element-traversal trait (you shouldn’t explicitly need this)
-	Endian,
+	Cursor,
 	//  directionality type marker (the default for `BitVec`; you will rarely
 	//  explicitly need this)
 	BigEndian,
@@ -93,7 +93,7 @@ break your assumptions about what the memory looks like.\
 
 	println!("End example");
 
-	fn render<E: Endian, T: Bits>(bv: &BitVec<E, T>) {
+	fn render<C: Cursor, T: Bits>(bv: &BitVec<C, T>) {
 		println!("Memory information: {} {} {}", bv.elts(), bv.bits(), bv.len());
 		println!("Print out the semantic contents");
 		println!("{:#?}", bv);

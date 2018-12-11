@@ -1,15 +1,15 @@
 /** Construct a `BitVec` out of a literal array in source code, like `vec!`.
 
 `bitvec!` can be invoked in a number of ways. It takes the name of an
-`Endian` implementation, the name of a `Bits`-implementing primitive, and
+`Cursor` implementation, the name of a `Bits`-implementing primitive, and
 zero or more primitives (integer, floating-point, or bool) which are used to
 build the bits. Each primitive literal corresponds to one bit, and is
 considered to represent `1` if it is any other value than exactly zero.
 
-`bitvec!` can be invoked with no specifiers, an `Endian` specifier, or an
-`Endian` and a `Bits` specifier. It cannot be invoked with a `Bits`
-specifier but no `Endian` specifier, due to overlap in how those tokens are
-matched by the macro system.
+`bitvec!` can be invoked with no specifiers, a `Cursor` specifier, or a `Cursor`
+and a `Bits` specifier. It cannot be invoked with a `Bits` specifier but no
+`Cursor` specifier, due to overlap in how those tokens are matched by the macro
+system.
 
 Like `vec!`, `bitvec!` supports bit lists `[0, 1, …]` and repetition
 markers `[1; n]`.
@@ -100,8 +100,8 @@ macro_rules! bitvec {
 macro_rules! __bitslice_shift {
 	( $( $t:ty ),+ ) => { $(
 		#[doc(hidden)]
-		impl<E: $crate :: Endian, T: $crate :: Bits> core::ops::ShlAssign< $t >
-		for crate::BitSlice<E, T>
+		impl<C: $crate :: Cursor, T: $crate :: Bits> core::ops::ShlAssign< $t >
+		for crate::BitSlice<C, T>
 		{
 			fn shl_assign(&mut self, shamt: $t ) {
 				core::ops::ShlAssign::<usize>::shl_assign(self, shamt as usize);
@@ -109,8 +109,8 @@ macro_rules! __bitslice_shift {
 		}
 
 		#[doc(hidden)]
-		impl<E: $crate :: Endian, T: $crate :: Bits> core::ops::ShrAssign< $t >
-		for crate::BitSlice<E, T>
+		impl<C: $crate :: Cursor, T: $crate :: Bits> core::ops::ShrAssign< $t >
+		for crate::BitSlice<C, T>
 		{
 			fn shr_assign(&mut self, shamt: $t ) {
 				core::ops::ShrAssign::<usize>::shr_assign(self, shamt as usize);
@@ -124,8 +124,8 @@ macro_rules! __bitslice_shift {
 macro_rules! __bitvec_shift {
 	( $( $t:ty ),+ ) => { $(
 		#[doc(hidden)]
-		impl<E: $crate :: Endian, T: $crate :: Bits> core::ops::Shl< $t >
-		for $crate :: BitVec<E, T>
+		impl<C: $crate :: Cursor, T: $crate :: Bits> core::ops::Shl< $t >
+		for $crate :: BitVec<C, T>
 		{
 			type Output = <Self as core::ops::Shl<usize>>::Output;
 
@@ -135,8 +135,8 @@ macro_rules! __bitvec_shift {
 		}
 
 		#[doc(hidden)]
-		impl<E: $crate :: Endian, T: $crate :: Bits> core::ops::ShlAssign< $t >
-		for $crate :: BitVec<E, T>
+		impl<C: $crate :: Cursor, T: $crate :: Bits> core::ops::ShlAssign< $t >
+		for $crate :: BitVec<C, T>
 		{
 			fn shl_assign(&mut self, shamt: $t ) {
 				core::ops::ShlAssign::<usize>::shl_assign(self, shamt as usize)
@@ -144,8 +144,8 @@ macro_rules! __bitvec_shift {
 		}
 
 		#[doc(hidden)]
-		impl<E: $crate :: Endian, T: $crate :: Bits> core::ops::Shr< $t >
-		for $crate :: BitVec<E, T>
+		impl<C: $crate :: Cursor, T: $crate :: Bits> core::ops::Shr< $t >
+		for $crate :: BitVec<C, T>
 		{
 			type Output = <Self as core::ops::Shr<usize>>::Output;
 
@@ -155,8 +155,8 @@ macro_rules! __bitvec_shift {
 		}
 
 		#[doc(hidden)]
-		impl<E: $crate :: Endian, T: $crate :: Bits> core::ops::ShrAssign< $t >
-		for $crate :: BitVec<E, T>
+		impl<C: $crate :: Cursor, T: $crate :: Bits> core::ops::ShrAssign< $t >
+		for $crate :: BitVec<C, T>
 		{
 			fn shr_assign(&mut self, shamt: $t ) {
 				core::ops::ShrAssign::<usize>::shr_assign(self, shamt as usize)

@@ -1,8 +1,13 @@
-/*! Endianness Markers
+/*! Bit Cursors
 
-`BitVec` does not have a concept of byte- or element- level endianness, but
-*does* have a concept of bit-level endianness. This module defines orders of
-traversal of an element in the `BitVec` storage.
+`BitVec` is parametric over any ordering of bits within an element. The `Cursor`
+trait maps a cursor position to a bit index within an element, and the order of
+traversal over an element.
+
+The only requirement on implementors of `Cursor` is that the transform function
+from cursor to index is *total* (every integer in the range `0 .. T::BITS` is
+used), *unique* (each cursor maps to one and only one index, and each index is
+mapped by one and only one cursor). Contiguity is not required.
 !*/
 
 use super::bits::Bits;
@@ -15,12 +20,12 @@ pub struct BigEndian;
 /// Most Significant Bit.
 pub struct LittleEndian;
 
-/** A manipulator trait for Endianness.
+/** A cursor over an element.
 
 # Usage
 
 `BitVec` stores semantic count, not a cursor into an element, as its `bits`
-value. The methods on `Endian` all return a cursor into a storage element.
+value. The methods on `Cursor` all return a cursor into a storage element.
 
 - `curr` computes the bit index of the count given. In Little-Endian order, this
   is the identity function (bit indices count up “left” from LSb), and in
@@ -63,7 +68,7 @@ their flag is a `bool` rather than an `isize`. The order swap for `jump` is
 because the number of elements to move is expected to be a more significant part
 of its return value than the edge flag is in `next` and `prev`.
 **/
-pub trait Endian {
+pub trait Cursor {
 	/// Compute the bit index at a given count.
 	///
 	/// In Little-Endian, this is a no-op; in Big-Endian, it subtracts the index
@@ -147,7 +152,7 @@ pub trait Endian {
 	const TY: &'static str = "";
 }
 
-impl Endian for BigEndian {
+impl Cursor for BigEndian {
 	fn curr<T: Bits>(count: u8) -> u8 {
 		assert!(count < T::WIDTH, "Index out of range of the storage type");
 		T::MASK - count
@@ -156,7 +161,7 @@ impl Endian for BigEndian {
 	const TY: &'static str = "BigEndian";
 }
 
-impl Endian for LittleEndian {
+impl Cursor for LittleEndian {
 	fn curr<T: Bits>(count: u8) -> u8 {
 		assert!(count < T::WIDTH, "Index out of range of the storage type");
 		count

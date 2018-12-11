@@ -11,7 +11,7 @@ Since `BitVec` is shorter to type, the rest of this document will use it by
 default, and mark out sections that apply *only* to the vector type and not to
 the slice type. Unless marked, assume that the text applies to both.
 
-`BitVec` is generic over an ordering cursor, using the trait `Endian`, and the
+`BitVec` is generic over an ordering cursor, using the trait `Cursor`, and the
 primitive type, using the trait `Bits`. This means that `BitVec` structures can
 be built with a great deal of flexibility over how they manage their memory and
 translate between the in-memory representation and their semantic contents.
@@ -73,7 +73,7 @@ This imports the following symbols:
   of any desired endianness, storage type, and contents. The documentation page
   has a detailed explanation of its syntax.
 
-- `BitSlice<E: Endian, T: Bits>` – the actual bit-slice reference type It is
+- `BitSlice<C: Cursor, T: Bits>` – the actual bit-slice reference type It is
   generic over a cursor type (`E`) and storage type (`T`). Note that `BitSlice`
   is unsized, and can never be held directly; it must always be behind a
   reference such as `&BitSlice` or `&mut BitSlice`.
@@ -84,12 +84,12 @@ This imports the following symbols:
   the future as I learn how to better manage this library, but for now this
   limitation stands.
 
-- `BitVec<E: Endian, T: Bits>` – the actual bit-vector structure type. It is
+- `BitVec<C: Cursor, T: Bits>` – the actual bit-vector structure type. It is
   generic over a cursor type (`E`) and storage type (`T`).
 
-- `Endian` – an open trait that defines an ordering schema for `BitVec` to use.
+- `Cursor` – an open trait that defines an ordering schema for `BitVec` to use.
   Little and big endian orderings are provided by default. If you wish to
-  implement other ordering types, the `Endian` trait requires one function:
+  implement other ordering types, the `Cursor` trait requires one function:
 
   - `fn curr<T: Bits>(index: u8) -> u8` takes a semantic index and computes a
     bit offset into the primitive `T` for it.
@@ -105,10 +105,10 @@ This imports the following symbols:
   indicates that moving the index forward or backward would cross into a new
   primitive storage element.
 
-- `BigEndian` – a zero-sized struct that implements `Endian` by defining the
+- `BigEndian` – a zero-sized struct that implements `Cursor` by defining the
   forward direction as towards LSb and the backward direction as towards MSb.
 
-- `LittleEndian` – a zero-sized struct that implements `Endian` by defining the
+- `LittleEndian` – a zero-sized struct that implements `Cursor` by defining the
   forward direction as towards MSb and the backward direction as towards LSb.
 
 - `Bits` – a sealed trait that provides generic access to the four Rust
