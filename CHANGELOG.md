@@ -2,6 +2,15 @@
 
 All notable changes will be documented in this file.
 
+## 0.9.0
+
+### Changed
+
+- The trait `Endian` has been renamed to `Cursor`, and all type variables
+  `E: Endian` have been renamed to `C: Cursor`.
+
+- The `Bits` trait is no longer bound by `Default`.
+
 ## 0.8.0
 
 ### Added

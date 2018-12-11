@@ -46,13 +46,13 @@ extern crate core;
 mod macros;
 
 mod bits;
-mod endian;
+mod cursor;
 mod slice;
 
 pub use crate::{
 	bits::Bits,
-	endian::{
-		Endian,
+	cursor::{
+		Cursor,
 		BigEndian,
 		LittleEndian,
 	},
