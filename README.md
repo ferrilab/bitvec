@@ -242,7 +242,6 @@ other features are also welcome, but I’ll have to be sold on them.
 - Creation of specialized pointers `Box<BitSlice>`, `Rc<BitSlice>`, and
   `Arc<BitSlice>`.
 
-
 [codecov]: https://codecov.io/gh/myrrlyn/bitvec "Code Coverage"
 [codecov_img]: https://img.shields.io/codecov/c/github/myrrlyn/bitvec.svg?logo=codecov "Code Coverage Display"
 [crate]: https://crates.io/crates/bitvec "Crate Link"

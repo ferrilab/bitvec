@@ -1,5 +1,5 @@
 # Code of Conduct
 
-See the official [Rust code of conduct][0].
+See the official [Rust code of conduct][coc].
 
-[0]: https://www.rust-lang.org/conduct.html
+[coc]: https://www.rust-lang.org/policies/code-of-conduct
