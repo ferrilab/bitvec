@@ -47,7 +47,13 @@ mod macros;
 
 mod bits;
 mod cursor;
+mod pointer;
 mod slice;
+
+use crate::{
+	bits::BitIdx,
+	pointer::BitPtr,
+};
 
 pub use crate::{
 	bits::Bits,
