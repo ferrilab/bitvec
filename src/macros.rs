@@ -1,18 +1,21 @@
+/*! Utility macros for constructing data structures and implementing bulk types.
+!*/
+
 /** Construct a `BitVec` out of a literal array in source code, like `vec!`.
 
-`bitvec!` can be invoked in a number of ways. It takes the name of an
-`Cursor` implementation, the name of a `Bits`-implementing primitive, and
-zero or more primitives (integer, floating-point, or bool) which are used to
-build the bits. Each primitive literal corresponds to one bit, and is
-considered to represent `1` if it is any other value than exactly zero.
+`bitvec!` can be invoked in a number of ways. It takes the name of a `Cursor`
+implementation, the name of a `Bits`-implementing fundamental, and zero or more
+fundamentals (integer, floating-point, or boolean) which are used to build the
+bits. Each fundamental literal corresponds to one bit, and is considered to
+represent `1` if it is any other value than exactly zero.
 
 `bitvec!` can be invoked with no specifiers, a `Cursor` specifier, or a `Cursor`
 and a `Bits` specifier. It cannot be invoked with a `Bits` specifier but no
 `Cursor` specifier, due to overlap in how those tokens are matched by the macro
 system.
 
-Like `vec!`, `bitvec!` supports bit lists `[0, 1, …]` and repetition
-markers `[1; n]`.
+Like `vec!`, `bitvec!` supports bit lists `[0, 1, …]` and repetition markers
+`[1; n]`.
 
 # All Syntaxes
 
@@ -32,67 +35,63 @@ bitvec![1; 5];
 #[cfg(feature = "alloc")]
 #[macro_export]
 macro_rules! bitvec {
-	//  bitvec![endian, type ; 0, 1, …]
-	( $endian:ident , $bits:ty ; $( $element:expr ),* ) => {
+	//  bitvec![ endian , type ; 0 , 1 , … ]
+	( $endian:path , $bits:ty ; $( $element:expr ),* ) => {
 		bitvec![ __bv_impl__ $endian , $bits ; $( $element ),* ]
 	};
-	//  bitvec![endian, type ; 0, 1, …, ]
-	( $endian:ident , $bits:ty ; $( $element:expr , )* ) => {
+	//  bitvec![ endian , type ; 0 , 1 , … , ]
+	( $endian:path , $bits:ty ; $( $element:expr , )* ) => {
 		bitvec![ __bv_impl__ $endian , $bits ; $( $element ),* ]
 	};
 
-	//  bitvec![endian ; 0, 1, …]
-	( $endian:ident ; $( $element:expr ),* ) => {
+	//  bitvec![ endian ; 0 , 1 , … ]
+	( $endian:path ; $( $element:expr ),* ) => {
 		bitvec![ __bv_impl__ $endian , u8 ; $( $element ),* ]
 	};
-	//  bitvec![endian ; 0, 1, …, ]
-	( $endian:ident ; $( $element:expr , )* ) => {
+	//  bitvec![ endian ; 0 , 1 , … , ]
+	( $endian:path ; $( $element:expr , )* ) => {
 		bitvec![ __bv_impl__ $endian , u8 ; $( $element ),* ]
 	};
 
-	//  bitvec![0, 1, …]
+	//  bitvec![ 0 , 1 , … ]
 	( $( $element:expr ),* ) => {
-		bitvec![ __bv_impl__ BigEndian , u8 ; $($element),* ]
+		bitvec![ __bv_impl__ $crate::BigEndian , u8 ; $( $element ),* ]
 	};
-	//  bitvec![0, 1, …, ]
+	//  bitvec![ 0 , 1 , … , ]
 	( $( $element:expr , )* ) => {
-		bitvec![ __bv_impl__ BigEndian , u8 ; $($element),* ]
+		bitvec![ __bv_impl__ $crate::BigEndian , u8 ; $( $element ),* ]
 	};
 
-	//  bitvec![endian, type; bit; rep]
-	( $endian:ident , $bits:ty ; $element:expr ; $rep:expr ) => {
+	//  bitvec![ endian , type ; bit ; rep ]
+	( $endian:path , $bits:ty ; $element:expr ; $rep:expr ) => {
 		bitvec![ __bv_impl__ $endian , $bits ; $element; $rep ]
 	};
-
-	//  bitvec![endian; bit; rep]
-	( $endian:ident ; $element:expr ; $rep:expr ) => {
-		bitvec![ __bv_impl__ $endian , u8 ; $element; $rep ]
+	//  bitvec![ endian ; bit ; rep ]
+	( $endian:path ; $element:expr ; $rep:expr ) => {
+		bitvec![ __bv_impl__ $endian , u8 ; $element ; $rep ]
 	};
-
-	//  bitvec![bit; rep]
+	//  bitvec![ bit ; rep ]
 	( $element:expr ; $rep:expr ) => {
-		bitvec![ __bv_impl__ BigEndian , u8 ; $element; $rep ]
+		bitvec![ __bv_impl__ $crate::BigEndian , u8 ; $element ; $rep ]
 	};
 
 	//  Build an array of `bool` (one bit per byte) and then build a `BitVec`
 	//  from that (one bit per bit). I have yet to think of a way to make the
-	//  source array be binary-compatible with a `BitVec` representation, so the
-	//  static source is 8x larger than it needs to be.
+	//  source array be binary-compatible with a `BitSlice` data representation,
+	//  so the static source is 8x larger than it needs to be.
 	//
-	//  I'm sure there is a way, but I don’t think I need to spend the effort
-	//  yet.
+	//  I’m sure there is a way, but I don’t think I need to spend the effort
+	//  yet. Maybe a proc-macro.
 
-	( __bv_impl__ $endian:ident , $bits:ty ; $( $element:expr ),* ) => {{
-		let init: &[bool] = &[
-			$( $element as u8 > 0 ),*
-		];
-		$crate :: BitVec ::< $endian , $bits >:: from(init)
+	( __bv_impl__ $endian:path , $bits:ty ; $( $element:expr ),* ) => {{
+		let init: &[bool] = &[ $( $element != 0),* ];
+		$crate :: BitVec :: < $endian , $bits > :: from ( init )
 	}};
 
-	( __bv_impl__ $endian:ident , $bits:ty ; $element:expr; $rep:expr ) => {{
-		core::iter::repeat( $element as u8 > 0 )
-			.take( $rep )
-			.collect ::< $crate :: BitVec < $endian , $bits > > ()
+	( __bv_impl__ $endian:path , $bits:ty ; $element:expr ; $rep:expr ) => {{
+		core :: iter :: repeat ( $element != 0 )
+			.take ( $rep )
+			.collect :: < $crate :: BitVec < $endian , $bits > > ( )
 	}};
 }
 
@@ -101,7 +100,7 @@ macro_rules! __bitslice_shift {
 	( $( $t:ty ),+ ) => { $(
 		#[doc(hidden)]
 		impl<C: $crate :: Cursor, T: $crate :: Bits> core::ops::ShlAssign< $t >
-		for crate::BitSlice<C, T>
+		for $crate :: BitSlice<C, T>
 		{
 			fn shl_assign(&mut self, shamt: $t ) {
 				core::ops::ShlAssign::<usize>::shl_assign(self, shamt as usize);
@@ -110,7 +109,7 @@ macro_rules! __bitslice_shift {
 
 		#[doc(hidden)]
 		impl<C: $crate :: Cursor, T: $crate :: Bits> core::ops::ShrAssign< $t >
-		for crate::BitSlice<C, T>
+		for $crate :: BitSlice<C, T>
 		{
 			fn shr_assign(&mut self, shamt: $t ) {
 				core::ops::ShrAssign::<usize>::shr_assign(self, shamt as usize);
@@ -125,7 +124,7 @@ macro_rules! __bitvec_shift {
 	( $( $t:ty ),+ ) => { $(
 		#[doc(hidden)]
 		impl<C: $crate :: Cursor, T: $crate :: Bits> core::ops::Shl< $t >
-		for $crate :: BitVec<C, T>
+		for $crate ::BitVec<C, T>
 		{
 			type Output = <Self as core::ops::Shl<usize>>::Output;
 
@@ -136,7 +135,7 @@ macro_rules! __bitvec_shift {
 
 		#[doc(hidden)]
 		impl<C: $crate :: Cursor, T: $crate :: Bits> core::ops::ShlAssign< $t >
-		for $crate :: BitVec<C, T>
+		for $crate ::BitVec<C, T>
 		{
 			fn shl_assign(&mut self, shamt: $t ) {
 				core::ops::ShlAssign::<usize>::shl_assign(self, shamt as usize)
@@ -144,8 +143,8 @@ macro_rules! __bitvec_shift {
 		}
 
 		#[doc(hidden)]
-		impl<C: $crate :: Cursor, T: $crate :: Bits> core::ops::Shr< $t >
-		for $crate :: BitVec<C, T>
+		impl<C: $crate ::Cursor, T: $crate ::Bits> core::ops::Shr< $t >
+		for $crate ::BitVec<C, T>
 		{
 			type Output = <Self as core::ops::Shr<usize>>::Output;
 
@@ -155,8 +154,8 @@ macro_rules! __bitvec_shift {
 		}
 
 		#[doc(hidden)]
-		impl<C: $crate :: Cursor, T: $crate :: Bits> core::ops::ShrAssign< $t >
-		for $crate :: BitVec<C, T>
+		impl<C: $crate ::Cursor, T: $crate ::Bits> core::ops::ShrAssign< $t >
+		for $crate ::BitVec<C, T>
 		{
 			fn shr_assign(&mut self, shamt: $t ) {
 				core::ops::ShrAssign::<usize>::shr_assign(self, shamt as usize)
