@@ -43,7 +43,7 @@ fn main() {
 
 	let primes = {
 		let mut bv = BitVec::<BigEndian, u64>::with_capacity(max_prime);
-		bv.set_store(!0u64);
+		bv.set_elements(!0u64);
 
 		//  Consider the vector fully populated
 		unsafe { bv.set_len(max_prime); }

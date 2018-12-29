@@ -94,7 +94,7 @@ break your assumptions about what the memory looks like.\
 	println!("End example");
 
 	fn render<C: Cursor, T: Bits>(bv: &BitVec<C, T>) {
-		println!("Memory information: {} {} {}", bv.elts(), bv.bits(), bv.len());
+		println!("Memory information: {} elements, {}", bv.as_ref().len(), bv.len());
 		println!("Print out the semantic contents");
 		println!("{:#?}", bv);
 		println!("Print out the memory contents");

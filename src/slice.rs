@@ -1,40 +1,20 @@
 /*! `BitSlice` Wide Reference
 
-This module bears some explanation. Let’s get *uncomfortable* here.
+This module defines semantic operations on `[u1]`, in contrast to the mechanical
+operations defined in `BitPtr`.
 
-Safe Rust is very strict about concepts like lifetimes and size in memory. It
-won’t allow you to have arbitrary *references* to things where Rust doesn’t feel
-absolutely confident that the referent will outlive the reference, and it won’t
-let you have things *at all* that it can't size at compile time. This makes
-dealing with runtime-sized memory of uncertain lifetime tricky to do, and the
-language provides some tools out of the box for this: slice references, which
-store a pointer and also a length, and do so in a manner vaguely obscured to the
-rest of Rust code behind opaque stdlib types.
-
-My first instinct was to define `BitSlice` as a newtype wrapper around an `&T`,
-so that `BitSlice` would be sized and manageable directly. Unfortunately, this
-parameterizes the lifetime of the reference into the `BitSlice` struct, making
-it generic over a lifetime. When I tried to implement `Deref` on `BitVec` to
-return a `BitSlice`, I realized I could not do so for two main reasons: one,
-`Deref` requires returning a reference to a type, and it is impossible to tell
-Rust "this type is a named reference", and two, … the lifetime parameter of
-`BitSlice` is not able to be provided by the `Deref` trait, the `deref` trait
-function, or even by using Higher Ranked Trait Bounds because HRTB just allows
-the creation of a lifetime parameter in items in the trait scope that were not
-defined with that lifetime parameter, but without Generic Associated Types it is
-impossible to add that lifetime parameter to the associated type `Target`!
-
-Also this ran into mutability issues in regards to the interior reference vs the
-wrapper.
-
-So `BitSlice` is a newtype wrapper around `[T]`, and can only be touched as a
-reference or mutable reference, and has the advantage that now it can be a
-`Deref::Target`.
-
-**DO NOT** create an `&BitSlice` yourself! A slice reference can be made to
-count bits using `.into()`.
+The `&BitSlice` handle has the same size and general layout as the standard Rust
+slice handle `&[T]`. Its binary layout is wholly incompatible with the layout of
+Rust slices, and must never be interchanged except through the provided APIs.
 !*/
 
+use crate::{
+	BigEndian,
+	BitIdx,
+	BitPtr,
+	Bits,
+	Cursor,
+};
 use core::{
 	cmp::{
 		Eq,
@@ -48,6 +28,13 @@ use core::{
 		AsRef,
 		From,
 	},
+	fmt::{
+		self,
+		Debug,
+		DebugList,
+		Display,
+		Formatter,
+	},
 	hash::{
 		Hash,
 		Hasher,
@@ -55,6 +42,7 @@ use core::{
 	iter::{
 		DoubleEndedIterator,
 		ExactSizeIterator,
+		FusedIterator,
 		Iterator,
 		IntoIterator,
 	},
@@ -66,22 +54,26 @@ use core::{
 		BitOrAssign,
 		BitXorAssign,
 		Index,
+		IndexMut,
 		Neg,
 		Not,
+		Range,
+		RangeFrom,
+		RangeFull,
+		RangeInclusive,
+		RangeTo,
+		RangeToInclusive,
 		ShlAssign,
 		ShrAssign,
 	},
 	ptr,
 	slice,
+	str,
 };
+use tap::Tap;
 
 #[cfg(feature = "alloc")]
-use core::fmt::{
-	self,
-	Debug,
-	Display,
-	Formatter,
-};
+use crate::BitVec;
 
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 use alloc::borrow::ToOwned;
@@ -89,86 +81,1104 @@ use alloc::borrow::ToOwned;
 #[cfg(feature = "std")]
 use std::borrow::ToOwned;
 
-/** A compact slice of bits, whose cursor and storage type can be customized.
+/** A compact slice of bits, whose cursor and storage types can be customized.
 
-`BitSlice` is a newtype wrapper over `[T]`, and as such can only be held by
-reference. It is impossible to create a `Box<BitSlice<C, T>>` from this library,
-and assembling one yourself is Undefined Behavior for which this library is not
-responsible. **Do not try to create a `Box<BitSlice>`.** If you want an owned
-bit collection, use `BitVec`. (This may change in a future release.)
+`BitSlice` is a newtype wrapper over [`[()]`], with a specialized reference
+handle. As an unsized slice, it can only ever be held by reference. The
+reference type is **binary incompatible** with any other Rust slice handles.
 
-`BitSlice` is strictly a reference type. The memory it governs must be owned by
-some other type, and a shared or exclusive reference to it as `BitSlice` can be
-created by using the `From` implementation on `&BitSlice` and `&mut BitSlice`.
+`BitSlice` can only be dynamically allocated by this library. Creation of any
+other `BitSlice` collections will result in catastrophically incorrect behavior.
 
-`BitSlice` is to `BitVec` what `[T]` is to `Vec<T>`.
+A `BitSlice` reference can be created through the [`bitvec!`] macro, from a
+[`BitVec`] collection, or from any slice of elements by using the appropriate
+[`From`] implementation.
 
-`BitSlice` takes two type parameters.
+`BitSlice`s are a view into a block of memory at bit-level resolution. They are
+represented by a crate-internal pointer structure that ***cannot*** be used with
+other Rust code except through the provided conversion APIs.
 
-- `C: Cursor` must be an implementor of the `Cursor` trait. `BitVec` takes a
-  `PhantomData` marker for access to the associated functions, and will never
-  make use of an instance of the trait. The default implementations,
-  `LittleEndian` and `BigEndian`, are zero-sized, and any further
-  implementations should be as well, as the invoked functions will never receive
-  state.
-- `T: Bits` must be a primitive type. Rust decided long ago to not provide a
-  unifying trait over the primitives, so `Bits` provides access to just enough
-  properties of the primitives for `BitVec` to use. This trait is sealed against
-  downstream implementation, and can only be implemented in this crate.
+```rust
+use bitvec::*;
+
+let store: &[u8] = &[0x69];
+//  slicing a bitvec
+let bslice: &BitSlice = store.into();
+//  coercing an array to a bitslice
+let bslice: &BitSlice = (&[1u8, 254u8][..]).into();
+```
+
+Bit slices are either mutable or shared. The shared slice type is
+`&BitSlice<C, T>`, while the mutable slice type is `&mut BitSlice<C, T>`. For
+example, you can mutate bits in the memory to which a mutable `BitSlice` points:
+
+```rust
+use bitvec::*;
+let mut base = [0u8, 0, 0, 0];
+{
+ let bs: &mut BitSlice = (&mut base[..]).into();
+ bs.set(13, true);
+ eprintln!("{:?}", bs.as_ref());
+ assert!(bs[13]);
+}
+assert_eq!(base[1], 4);
+```
+
+# Type Parameters
+
+- `C: Cursor`: An implementor of the `Cursor` trait. This type is used to
+  convert semantic indices into concrete bit positions in elements, and store or
+  retrieve bit values from the storage type.
+- `T: Bits`: An implementor of the `Bits` trait: `u8`, `u16`, `u32`, `u64`. This
+  is the actual type in memory the slice will use to store data.
+
+# Safety
+
+The `&BitSlice` reference handle has the same *size* as standard Rust slice
+handles, but it is ***extremely binary incompatible*** with them. Attempting to
+treat `&BitSlice<_, T>` as `&[T]` in any manner except through the provided APIs
+is ***catastrophically*** unsafe and unsound.
+
+[`BitVec`]: ../struct.BitVec.html
+[`From`]: https://doc.rust-lang.org/stable/std/convert/trait.From.html
+[`bitvec!`]: ../macro.bitvec.html
+[`[()]`]: https://doc.rust-lang.org/stable/std/primitive.slice.html
 **/
 #[repr(transparent)]
-pub struct BitSlice<C = crate::BigEndian, T = u8>
-where C: crate::Cursor, T: crate::Bits {
-	_cursor: PhantomData<C>,
-	inner: [T],
+pub struct BitSlice<C = BigEndian, T = u8>
+where C: Cursor, T: Bits {
+	/// Cursor type for selecting bits inside an element.
+	_kind: PhantomData<C>,
+	/// Element type of the slice.
+	///
+	/// eddyb recommends using `PhantomData<T>` and `[()]` instead of `[T]`
+	/// alone.
+	_type: PhantomData<T>,
+	/// Slice of elements `T` over which the `BitSlice` has usage.
+	_elts: [()],
 }
 
 impl<C, T> BitSlice<C, T>
-where C: crate::Cursor, T: crate::Bits {
-	/// Gets the bit value at the given position.
+where C: Cursor, T: Bits {
+	/// Produces the empty slice. This is equivalent to `&[]` for Rust slices.
 	///
-	/// The index value is a semantic count, not a bit address. It converts to a
-	/// bit position internally to this function.
+	/// # Returns
+	///
+	/// An empty `&BitSlice` handle.
 	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let bv = bitvec![0, 0, 1, 0, 0];
-	/// let bits: &BitSlice = &bv;
-	/// assert!(bits.get(2));
-	/// # }
+	///
+	/// let bv: &BitSlice = BitSlice::empty();
 	/// ```
-	pub fn get(&self, index: usize) -> bool {
-		assert!(index < self.len(), "Index out of range!");
-		let (elt, bit) = T::split(index);
-		self.as_ref()[elt].get(C::curr::<T>(bit))
+	pub fn empty<'a>() -> &'a Self {
+		BitPtr::empty().into()
+	}
+
+	/// Produces the empty mutable slice. This is equivalent to `&mut []` for
+	/// Rust slices.
+	///
+	/// # Returns
+	///
+	/// An empty `&mut BitSlice` handle.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let bv: &mut BitSlice = BitSlice::empty_mut();
+	/// ```
+	pub fn empty_mut<'a>() -> &'a mut Self {
+		BitPtr::empty().into()
+	}
+
+	/// Returns the number of bits contained in the `BitSlice`.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// The number of live bits in the slice domain.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0];
+	/// let bv: &BitSlice = store.into();
+	/// assert_eq!(bv.len(), 8);
+	/// ```
+	pub fn len(&self) -> usize {
+		self.bitptr().bits()
+	}
+
+	/// Tests if the slice is empty.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// Whether the slice has no live bits.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let bv: &BitSlice = BitSlice::empty();
+	/// assert!(bv.is_empty());
+	/// let bv: &BitSlice = (&[0u8] as &[u8]).into();;
+	/// assert!(!bv.is_empty());
+	/// ```
+	pub fn is_empty(&self) -> bool {
+		self.len() == 0
+	}
+
+	/// Gets the first element of the slice, if present.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// `None` if the slice is empty, or `Some(bit)` if it is not.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// assert!(BitSlice::<BigEndian, u8>::empty().first().is_none());
+	/// let bv: &BitSlice = (&[128u8] as &[u8]).into();
+	/// assert!(bv.first().unwrap());
+	/// ```
+	pub fn first(&self) -> Option<bool> {
+		if self.is_empty() { None }
+		else { Some(self[0]) }
+	}
+
+	/// Returns the first and all the rest of the bits of the slice, or `None`
+	/// if it is empty.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// If the slice is empty, this returns `None`, otherwise, it returns `Some`
+	/// of:
+	///
+	/// - the first bit
+	/// - a `&BitSlice` of all the rest of the bits (this may be empty)
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// assert!(BitSlice::<BigEndian, u8>::empty().split_first().is_none());
+	///
+	/// let store: &[u8] = &[128];
+	/// let bv: &BitSlice = store.into();
+	/// let (h, t) = bv.split_first().unwrap();
+	/// assert!(h);
+	/// assert!(t.not_any());
+	///
+	/// let bv = &bv[0 .. 1];
+	/// let (h, t) = bv.split_first().unwrap();
+	/// assert!(h);
+	/// assert!(t.is_empty());
+	/// ```
+	pub fn split_first(&self) -> Option<(bool, &Self)> {
+		if self.is_empty() {
+			return None;
+		}
+		Some((self[0], &self[1 ..]))
+	}
+
+	/// Returns the first and all the rest of the bits of the slice, or `None`
+	/// if it is empty.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// If the slice is empty, this returns `None`, otherwise, it returns `Some`
+	/// of:
+	///
+	/// - the first bit
+	/// - a `&mut BitSlice` of all the rest of the bits (this may be empty)
+	pub fn split_first_mut(&mut self) -> Option<(bool, &mut Self)> {
+		if self.is_empty() {
+			return None;
+		}
+		Some((self[0], &mut self[1 ..]))
+	}
+
+	/// Returns the last and all the rest of the bits in the slice, or `None`
+	/// if it is empty.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// If the slice is empty, this returns `None`, otherwise, it returns `Some`
+	/// of:
+	///
+	/// - the last bit
+	/// - a `&BitSlice` of all the rest of the bits (this may be empty)
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// assert!(BitSlice::<BigEndian, u8>::empty().split_last().is_none());
+	///
+	/// let bv: &BitSlice = (&[1u8] as &[u8]).into();
+	/// let (t, h) = bv.split_last().unwrap();
+	/// assert!(t);
+	/// assert!(h.not_any());
+	///
+	/// let bv = &bv[7 .. 8];
+	/// let (t, h) = bv.split_last().unwrap();
+	/// assert!(t);
+	/// assert!(h.is_empty());
+	/// ```
+	pub fn split_last(&self) -> Option<(bool, &Self)> {
+		if self.is_empty() {
+			return None;
+		}
+		let len = self.len();
+		Some((self[len - 1], &self[.. len - 1]))
+	}
+
+	/// Returns the last and all the rest of the bits in the slice, or `None`
+	/// if it is empty.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// If the slice is empty, this returns `None`, otherwise, it returns `Some`
+	/// of:
+	///
+	/// - the last bit
+	/// - a `&BitSlice` of all the rest of the bits (this may be empty)
+	pub fn split_last_mut(&mut self) -> Option<(bool, &mut Self)> {
+		if self.is_empty() {
+			return None;
+		}
+		let len = self.len();
+		Some((self[len - 1], &mut self[.. len - 1]))
+	}
+
+	/// Gets the last element of the slice, or `None` if it is empty.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// `None` if the slice is empty, or `Some(bit)` if it is not.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// assert!(BitSlice::<BigEndian, u8>::empty().last().is_none());
+	/// let bv: &BitSlice = (&[1u8] as &[u8]).into();
+	/// assert!(bv.last().unwrap());
+	/// ```
+	pub fn last(&self) -> Option<bool> {
+		if self.is_empty() { None }
+		else { Some(self[self.len() - 1]) }
+	}
+
+	/// Gets the bit value at the given position.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `index`: The bit index to retrieve.
+	///
+	/// # Returns
+	///
+	/// The bit at the specified index, if any.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let bv: &BitSlice = (&[8u8] as &[u8]).into();
+	/// assert!(bv.get(4).unwrap());
+	/// assert!(!bv.get(3).unwrap());
+	/// assert!(bv.get(10).is_none());
+	/// ```
+	pub fn get(&self, index: usize) -> Option<bool> {
+		if index >= self.len() {
+			return None;
+		}
+		Some(self[index])
 	}
 
 	/// Sets the bit value at the given position.
 	///
-	/// The index value is a semantic count, not a bit address. It converts to a
-	/// bit position internally to this function.
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `index`: The bit index to set. It must be in the domain
+	///   `0 .. self.len()`.
+	/// - `value`: The value to be set, `true` for `1` and `false` for `0`.
+	///
+	/// # Panics
+	///
+	/// This method panics if `index` is outside the slice domain.
 	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let mut bv = bitvec![0; 5];
-	/// let bits: &mut BitSlice = &mut bv;
-	/// bits.set(2, true);
-	/// assert!(bits.get(2));
-	/// # }
+	///
+	/// let store: &mut [u8] = &mut [8u8];
+	/// let bv: &mut BitSlice = store.into();
+	/// assert!(!bv[3]);
+	/// bv.set(3, true);
+	/// assert!(bv[3]);
 	/// ```
 	pub fn set(&mut self, index: usize, value: bool) {
-		assert!(index < self.len(), "Index out of range!");
-		let (elt, bit) = T::split(index);
-		self.as_mut()[elt].set(C::curr::<T>(bit), value);
+		let len = self.len();
+		assert!(index < len, "Index out of range: {} >= {}", index, len);
+
+		let h = self.bitptr().head();
+		//  Find the index of the containing element, and of the bit within it.
+		let (elt, bit) = h.offset::<T>(index as isize);
+		self.as_mut()[elt as usize].set::<C>(bit, value);
 	}
 
-	/// Returns true if *all* bits in the slice are set (logical `∧`).
+	/// Retrieves a read pointer to the start of the underlying data slice.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// A pointer to the first element, partial or not, in the underlying store.
+	///
+	/// # Safety
+	///
+	/// The caller must ensure that the slice outlives the pointer this function
+	/// returns, or else it will dangle and point to garbage.
+	///
+	/// Modifying the container referenced by this slice may cause its buffer to
+	/// reallocate, which would also make any pointers to it invalid.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0; 4];
+	/// let bv: &BitSlice = store.into();
+	/// assert_eq!(store.as_ptr(), bv.as_ptr());
+	/// ```
+	pub fn as_ptr(&self) -> *const T {
+		self.bitptr().pointer()
+	}
+
+	/// Retrieves a write pointer to the start of the underlying data slice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// A pointer to the first element, partial or not, in the underlying store.
+	///
+	/// # Safety
+	///
+	/// The caller must ensure that the slice outlives the pointer this function
+	/// returns, or else it will dangle and point to garbage.
+	///
+	/// Modifying the container referenced by this slice may cause its buffer to
+	/// reallocate, which would also make any pointers to it invalid.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &mut [u8] = &mut[0; 4];
+	/// let store_ptr = store.as_mut_ptr();
+	/// let bv: &mut BitSlice = store.into();
+	/// assert_eq!(store_ptr, bv.as_mut_ptr());
+	/// ```
+	pub fn as_mut_ptr(&mut self) -> *mut T {
+		self.bitptr().pointer() as *mut T
+	}
+
+	/// Swaps two bits in the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `a`: The first index to be swapped.
+	/// - `b`: The second index to be swapped.
+	///
+	/// # Panics
+	///
+	/// Panics if either `a` or `b` are out of bounds.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &mut [u8] = &mut[32u8];
+	/// let bv: &mut BitSlice = store.into();
+	/// assert!(!bv[0]);
+	/// assert!(bv[2]);
+	/// bv.swap(0, 2);
+	/// assert!(bv[0]);
+	/// assert!(!bv[2]);
+	/// ```
+	pub fn swap(&mut self, a: usize, b: usize) {
+		assert!(a < self.len(), "Index {} out of bounds: {}", a, self.len());
+		assert!(b < self.len(), "Index {} out of bounds: {}", b, self.len());
+		let bit_a = self[a];
+		let bit_b = self[b];
+		self.set(a, bit_b);
+		self.set(b, bit_a);
+	}
+
+	/// Reverses the order of bits in the slice, in place.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &mut [u8] = &mut[0b1010_1010];
+	/// {
+	///   let bv: &mut BitSlice = store.into();
+	///   bv[1 .. 7].reverse();
+	/// }
+	/// eprintln!("{:b}", store[0]);
+	/// assert_eq!(store[0], 0b1101_0100);
+	/// ```
+	pub fn reverse(&mut self) {
+		let mut cur: &mut Self = self;
+		loop {
+			let len = cur.len();
+			if len < 2 {
+				return;
+			}
+			let (h, t) = (cur[0], cur[len - 1]);
+			cur.set(0, t);
+			cur.set(len - 1, h);
+			cur = &mut cur[1 .. len - 1];
+		}
+	}
+
+	/// Provides read-only iteration across the slice domain.
+	///
+	/// The iterator returned from this method implements `ExactSizeIterator`
+	/// and `DoubleEndedIterator` just as the consuming `.into_iter()` method’s
+	/// iterator does.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// An iterator over all bits in the slice domain, in `C` and `T` ordering.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[64];
+	/// let bv: &BitSlice = store.into();
+	/// let mut iter = bv[.. 2].iter();
+	/// assert!(!iter.next().unwrap());
+	/// assert!(iter.next().unwrap());
+	/// assert!(iter.next().is_none());
+	/// ```
+	pub fn iter(&self) -> Iter<C, T> {
+		self.into_iter()
+	}
+
+	/// Produces a sliding iterator over consecutive windows in the slice. Each
+	/// windows has the width `size`. The windows overlap. If the slice is
+	/// shorter than `size`, the produced iterator is empty.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `size`: The width of each window.
+	///
+	/// # Returns
+	///
+	/// An iterator which yields sliding views into the slice.
+	///
+	/// # Panics
+	///
+	/// This function panics if the `size` is zero.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0b0100_1011];
+	/// let bv: &BitSlice = store.into();
+	/// let mut windows = bv.windows(4);
+	/// assert_eq!(windows.next(), Some(&bv[0 .. 4]));
+	/// assert_eq!(windows.next(), Some(&bv[1 .. 5]));
+	/// assert_eq!(windows.next(), Some(&bv[2 .. 6]));
+	/// assert_eq!(windows.next(), Some(&bv[3 .. 7]));
+	/// assert_eq!(windows.next(), Some(&bv[4 .. 8]));
+	/// assert!(windows.next().is_none());
+	/// ```
+	pub fn windows(&self, size: usize) -> Windows<C, T> {
+		assert_ne!(size, 0, "Window width cannot be zero");
+		Windows {
+			inner: self,
+			width: size,
+		}
+	}
+
+	/// Produces a galloping iterator over consecutive chunks in the slice. Each
+	/// chunk, except possibly the last, has the width `size`. The chunks do not
+	/// overlap. If the slice is shorter than `size`, the produced iterator
+	/// produces only one chunk.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `size`: The width of each chunk.
+	///
+	/// # Returns
+	///
+	/// An iterator which yields consecutive chunks of the slice.
+	///
+	/// # Panics
+	///
+	/// This function panics if the `size` is zero.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0b0100_1011];
+	/// let bv: &BitSlice = store.into();
+	/// let mut chunks = bv.chunks(3);
+	/// assert_eq!(chunks.next(), Some(&bv[0 .. 3]));
+	/// assert_eq!(chunks.next(), Some(&bv[3 .. 6]));
+	/// assert_eq!(chunks.next(), Some(&bv[6 .. 8]));
+	/// assert!(chunks.next().is_none());
+	/// ```
+	pub fn chunks(&self, size: usize) -> Chunks<C, T> {
+		assert_ne!(size, 0, "Chunk width cannot be zero");
+		Chunks {
+			inner: self,
+			width: size,
+		}
+	}
+
+	/// Produces a galloping iterator over consecutive chunks in the slice. Each
+	/// chunk, except possibly the last, has the width `size`. The chunks do not
+	/// overlap. If the slice is shorter than `size`, the produced iterator
+	/// produces only one chunk.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `size`: The width of each chunk.
+	///
+	/// # Returns
+	///
+	/// An iterator which yields consecutive mutable chunks of the slice.
+	///
+	/// # Panics
+	///
+	/// This function panics if the `size` is zero.
+	pub fn chunks_mut(&mut self, size: usize) -> ChunksMut<C, T> {
+		assert_ne!(size, 0, "Chunk width cannot be zero");
+		ChunksMut {
+			inner: self,
+			width: size,
+		}
+	}
+
+	/// Produces a galloping iterator over consecutive chunks in the slice. Each
+	/// chunk has the width `size`. If `size` does not evenly divide the slice,
+	/// then the remainder is not part of the iteration, and can be accessed
+	/// separately with the `.remainder()` method.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `size`: The width of each chunk.
+	///
+	/// # Returns
+	///
+	/// An iterator which yields consecutive chunks of the slice.
+	///
+	/// # Panics
+	///
+	/// This function panics if `size` is zero.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0b0100_1011];
+	/// let bv: &BitSlice = store.into();
+	/// let mut chunks_exact = bv.chunks_exact(3);
+	/// assert_eq!(chunks_exact.next(), Some(&bv[0 .. 3]));
+	/// assert_eq!(chunks_exact.next(), Some(&bv[3 .. 6]));
+	/// assert!(chunks_exact.next().is_none());
+	/// assert_eq!(chunks_exact.remainder(), &bv[6 .. 8]);
+	/// ```
+	pub fn chunks_exact(&self, size: usize) -> ChunksExact<C, T> {
+		assert_ne!(size, 0, "Chunk size cannot be zero");
+		let rem = self.len() % size;
+		let len = self.len() - rem;
+		let (inner, extra) = self.split_at(len);
+		ChunksExact {
+			inner,
+			extra,
+			width: size,
+		}
+	}
+
+	/// Produces a galloping iterator over consecutive chunks in the slice. Each
+	/// chunk has the width `size`. If `size` does not evenly divide the slice,
+	/// then the remainder is not part of the iteration, and can be accessed
+	/// separately with the `.remainder()` method.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `size`: The width of each chunk.
+	///
+	/// # Returns
+	///
+	/// An iterator which yields consecutive mutable chunks of the slice.
+	///
+	/// # Panics
+	///
+	/// This function panics if `size` is zero.
+	pub fn chunks_exact_mut(&mut self, size: usize) -> ChunksExactMut<C, T> {
+		assert_ne!(size, 0, "Chunk size cannot be zero");
+		let rem = self.len() % size;
+		let len = self.len() - rem;
+		let (inner, extra) = self.split_at_mut(len);
+		ChunksExactMut {
+			inner,
+			extra,
+			width: size,
+		}
+	}
+
+	/// Produces a galloping iterator over consecutive chunks in the slice, from
+	/// the back to the front. Each chunk, except possibly the front, has the
+	/// width `size`. The chunks do not overlap. If the slice is shorter than
+	/// `size`, then the iterator produces one item.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `size`: The width of each chunk.
+	///
+	/// # Returns
+	///
+	/// An iterator which yields consecutive chunks of the slice, from the back
+	/// to the front.
+	///
+	/// # Panics
+	///
+	/// This function panics if `size` is zero.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0b0100_1011];
+	/// let bv: &BitSlice = store.into();
+	/// let mut rchunks = bv.rchunks(3);
+	/// assert_eq!(rchunks.next(), Some(&bv[5 .. 8]));
+	/// assert_eq!(rchunks.next(), Some(&bv[2 .. 5]));
+	/// assert_eq!(rchunks.next(), Some(&bv[0 .. 2]));
+	/// assert!(rchunks.next().is_none());
+	/// ```
+	pub fn rchunks(&self, size: usize) -> RChunks<C, T> {
+		assert_ne!(size, 0, "Chunk size cannot be zero");
+		RChunks {
+			inner: self,
+			width: size,
+		}
+	}
+
+	/// Produces a galloping iterator over consecutive chunks in the slice, from
+	/// the back to the front. Each chunk, except possibly the front, has the
+	/// width `size`. The chunks do not overlap. If the slice is shorter than
+	/// `size`, then the iterator produces one item.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `size`: The width of each chunk.
+	///
+	/// # Returns
+	///
+	/// An iterator which yields consecutive mutable chunks of the slice, from
+	/// the back to the front.
+	///
+	/// # Panics
+	///
+	/// This function panics if `size` is zero.
+	pub fn rchunks_mut(&mut self, size: usize) -> RChunksMut<C, T> {
+		assert_ne!(size, 0, "Chunk size cannot be zero");
+		RChunksMut {
+			inner: self,
+			width: size,
+		}
+	}
+
+	/// Produces a galloping iterator over consecutive chunks in the slice, from
+	/// the back to the front. Each chunk has the width `size`. If `size` does
+	/// not evenly divide the slice, then the remainder is not part of the
+	/// iteration, and can be accessed separately with the `.remainder()`
+	/// method.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `size`: The width of each chunk.
+	///
+	/// # Returns
+	///
+	/// An iterator which yields consecutive chunks of the slice, from the back
+	/// to the front.
+	///
+	/// # Panics
+	///
+	/// This function panics if `size` is zero.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0b0100_1011];
+	/// let bv: &BitSlice = store.into();
+	/// let mut rchunks_exact = bv.rchunks_exact(3);
+	/// assert_eq!(rchunks_exact.next(), Some(&bv[5 .. 8]));
+	/// assert_eq!(rchunks_exact.next(), Some(&bv[2 .. 5]));
+	/// assert!(rchunks_exact.next().is_none());
+	/// assert_eq!(rchunks_exact.remainder(), &bv[0 .. 2]);
+	/// ```
+	pub fn rchunks_exact(&self, size: usize) -> RChunksExact<C, T> {
+		assert_ne!(size, 0, "Chunk size cannot be zero");
+		let (extra, inner) = self.split_at(self.len() % size);
+		RChunksExact {
+			inner,
+			extra,
+			width: size,
+		}
+	}
+
+	/// Produces a galloping iterator over consecutive chunks in the slice, from
+	/// the back to the front. Each chunk has the width `size`. If `size` does
+	/// not evenly divide the slice, then the remainder is not part of the
+	/// iteration, and can be accessed separately with the `.remainder()`
+	/// method.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `size`: The width of each chunk.
+	///
+	/// # Returns
+	///
+	/// An iterator which yields consecutive mutable chunks of the slice, from
+	/// the back to the front.
+	///
+	/// # Panics
+	///
+	/// This function panics if `size` is zero.
+	pub fn rchunks_exact_mut(&mut self, size: usize) -> RChunksExactMut<C, T> {
+		assert_ne!(size, 0, "Chunk size cannot be zero");
+		let (extra, inner) = self.split_at_mut(self.len() % size);
+		RChunksExactMut {
+			inner,
+			extra,
+			width: size,
+		}
+	}
+
+	/// Divides one slice into two at an index.
+	///
+	/// The first will contain all indices from `[0, mid)` (excluding the index
+	/// `mid` itself) and the second will contain all indices from `[mid, len)`
+	/// (excluding the index `len` itself).
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `mid`: The index at which to split
+	///
+	/// # Returns
+	///
+	/// - The bits up to but not including `mid`.
+	/// - The bits from mid onwards.
+	///
+	/// # Panics
+	///
+	/// Panics if `mid > self.len()`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x0F];
+	/// let bv: &BitSlice = store.into();
+	///
+	/// let (l, r) = bv.split_at(0);
+	/// assert!(l.is_empty());
+	/// assert_eq!(r, bv);
+	///
+	/// let (l, r) = bv.split_at(4);
+	/// assert_eq!(l, &bv[0 .. 4]);
+	/// assert_eq!(r, &bv[4 .. 8]);
+	///
+	/// let (l, r) = bv.split_at(8);
+	/// assert_eq!(l, bv);
+	/// assert!(r.is_empty());
+	/// ```
+	pub fn split_at(&self, mid: usize) -> (&Self, &Self) {
+		assert!(mid <= self.len(), "Index {} out of bounds: {}", mid, self.len());
+		if mid == self.len() {
+			(&self, Self::empty())
+		}
+		else {
+			(&self[.. mid], &self[mid ..])
+		}
+	}
+
+	/// Divides one slice into two at an index.
+	///
+	/// The first will contain all indices from `[0, mid)` (excluding the index
+	/// `mid` itself) and the second will contain all indices from `[mid, len)`
+	/// (excluding the index `len` itself).
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `mid`: The index at which to split
+	///
+	/// # Returns
+	///
+	/// - The bits up to but not including `mid`.
+	/// - The bits from mid onwards.
+	///
+	/// # Panics
+	///
+	/// Panics if `mid > self.len()`.
+	pub fn split_at_mut(&mut self, mid: usize) -> (&mut Self, &mut Self) {
+		let (head, tail) = self.split_at(mid);
+		let h_mut = {
+			let (p, e, h, t) = head.bitptr().raw_parts();
+			BitPtr::new(p, e, h, t)
+		};
+		let t_mut = {
+			let (p, e, h, t) = tail.bitptr().raw_parts();
+			BitPtr::new(p, e, h, t)
+		};
+		(h_mut.into(), t_mut.into())
+	}
+
+	/// Tests if the slice begins with the given prefix.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `prefix`: Any `BitSlice` against which `self` is tested. This is not
+	///   required to have the same cursor or storage types as `self`.
+	///
+	/// # Returns
+	///
+	/// Whether `self` begins with `prefix`. This is true only if `self` is at
+	/// least as long as `prefix` and their bits are semantically equal.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0xA6];
+	/// let bv: &BitSlice = store.into();;
+	/// assert!(bv.starts_with(&bv[.. 3]));
+	/// assert!(!bv.starts_with(&bv[3 ..]));
+	/// ```
+	pub fn starts_with<D, U>(&self, prefix: &BitSlice<D, U>) -> bool
+	where D: Cursor, U: Bits {
+		let plen = prefix.len();
+		self.len() >= plen && prefix == &self[.. plen]
+	}
+
+	/// Tests if the slice ends with the given suffix.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `suffix`: Any `BitSlice` against which `self` is tested. This is not
+	///   required to have the same cursor or storage types as `self`.
+	///
+	/// # Returns
+	///
+	/// Whether `self` ends with `suffix`. This is true only if `self` is at
+	/// least as long as `suffix` and their bits are semantically equal.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0xA6];
+	/// let bv: &BitSlice = store.into();
+	/// assert!(bv.ends_with(&bv[5 ..]));
+	/// assert!(!bv.ends_with(&bv[.. 5]));
+	/// ```
+	pub fn ends_with<D, U>(&self, suffix: &BitSlice<D, U>) -> bool
+	where D: Cursor, U: Bits {
+		let slen = suffix.len();
+		let len = self.len();
+		len >= slen && suffix == &self[len - slen ..]
+	}
+
+	/// Rotates the slice, in place, to the left.
+	///
+	/// After calling this method, the bits from `[.. by]` will be at the back
+	/// of the slice, and the bits from `[by ..]` will be at the front. This
+	/// operates fully in-place.
+	///
+	/// In-place rotation of bits requires this method to take `O(k × n)` time.
+	/// It is impossible to use machine intrinsics to perform galloping rotation
+	/// on bits.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `by`: The number of bits by which to rotate left. This must be in the
+	///   range `0 ..= self.len()`. If it is `0` or `self.len()`, then this
+	///   method is a no-op.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &mut [u8] = &mut [0xF0];
+	/// let bv: &mut BitSlice = store.into();
+	/// bv.rotate_left(2);
+	/// assert_eq!(bv.as_ref()[0], 0xC3);
+	/// ```
+	pub fn rotate_left(&mut self, by: usize) {
+		let len = self.len();
+		assert!(by <= len, "Slices cannot be rotated by more than their length");
+		if by == len {
+			return;
+		}
+
+		for _ in 0 .. by {
+			let tmp = self[0];
+			for n in 1 .. len {
+				let bit = self[n];
+				self.set(n - 1, bit);
+			}
+			self.set(len - 1, tmp);
+		}
+	}
+
+	/// Rotates the slice, in place, to the right.
+	///
+	/// After calling this method, the bits from `[self.len() - by ..]` will be
+	/// at the front of the slice, and the bits from `[.. self.len() - by]` will
+	/// be at the back. This operates fully in-place.
+	///
+	/// In-place rotation of bits requires this method to take `O(k × n)` time.
+	/// It is impossible to use machine intrinsics to perform galloping rotation
+	/// on bits.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `by`: The number of bits by which to rotate right. This must be in the
+	///   range `0 ..= self.len()`. If it is `0` or `self.len`, then this method
+	///   is a no-op.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &mut [u8] = &mut [0xF0];
+	/// let bv: &mut BitSlice = store.into();
+	/// bv.rotate_right(2);
+	/// assert_eq!(bv.as_ref()[0], 0x3C);
+	/// ```
+	pub fn rotate_right(&mut self, by: usize) {
+		let len = self.len();
+		assert!(by <= len, "Slices cannot be rotated by more than their length");
+		if by == len {
+			return;
+		}
+
+		for _ in 0 .. by {
+			let tmp = self[len - 1];
+			for n in (0 .. len - 1).rev() {
+				let bit = self[n];
+				self.set(n + 1, bit);
+			}
+			self.set(0, tmp);
+		}
+	}
+
+	/// Tests if *all* bits in the slice domain are set (logical `∧`).
 	///
 	/// # Truth Table
 	///
@@ -179,41 +1189,59 @@ where C: crate::Cursor, T: crate::Bits {
 	/// 1 1 => 1
 	/// ```
 	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// Whether all bits in the slice domain are set.
+	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let all = bitvec![1; 10];
-	/// let any = bitvec![0, 0, 1, 0, 0];
-	/// let some = bitvec![1, 1, 0, 1, 1];
-	/// let none = bitvec![0; 10];
 	///
-	/// assert!(all.all());
-	/// assert!(!any.all());
-	/// assert!(!some.all());
-	/// assert!(!none.all());
-	/// # }
+	/// let store: &[u8] = &[0xFD];
+	/// let bv: &BitSlice = store.into();
+	/// assert!(bv[.. 4].all());
+	/// assert!(!bv[4 ..].all());
 	/// ```
 	pub fn all(&self) -> bool {
-		//  Gallop the filled elements
-		for elt in self.body() {
-			if *elt != T::from(!0) {
-				return false;
-			}
-		}
-		//  Walk the partial tail
-		if let Some(tail) = self.tail() {
-			for bit in 0 .. self.bits() {
-				if !tail.get(C::curr::<T>(bit)) {
-					return false;
+		match self.inner() {
+			Inner::Minor(head, elt, tail) => {
+				for n in *head .. *tail {
+					if !elt.get::<C>(n.into()) {
+						return false;
+					}
 				}
-			}
+			},
+			Inner::Major(head, body, tail) => {
+				if let Some(elt) = head {
+					for n in *self.bitptr().head() .. T::SIZE {
+						if !elt.get::<C>(n.into()) {
+							return false;
+						}
+					}
+				}
+				for elt in body {
+					if *elt != T::from(!0) {
+						return false;
+					}
+				}
+				if let Some(elt) = tail {
+					for n in 0 .. *self.bitptr().tail() {
+						if !elt.get::<C>(n.into()) {
+							return false;
+						}
+					}
+				}
+			},
 		}
 		true
 	}
 
-	/// Returns true if *any* bit in the slice is set (logical `∨`).
+	/// Tests if *any* bit in the slice is set (logical `∨`).
 	///
 	/// # Truth Table
 	///
@@ -224,41 +1252,59 @@ where C: crate::Cursor, T: crate::Bits {
 	/// 1 1 => 1
 	/// ```
 	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// Whether any bit in the slice domain is set.
+	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let all = bitvec![1; 10];
-	/// let any = bitvec![0, 0, 1, 0, 0];
-	/// let some = bitvec![1, 1, 0, 1, 1];
-	/// let none = bitvec![0; 10];
 	///
-	/// assert!(all.any());
-	/// assert!(any.any());
-	/// assert!(some.any());
-	/// assert!(!none.any());
-	/// # }
+	/// let store: &[u8] = &[0x40];
+	/// let bv: &BitSlice = store.into();
+	/// assert!(bv[.. 4].any());
+	/// assert!(!bv[4 ..].any());
 	/// ```
 	pub fn any(&self) -> bool {
-		//  Gallop the filled elements
-		for elt in self.body() {
-			if *elt != T::from(0) {
-				return true;
-			}
-		}
-		//  Walk the partial tail
-		if let Some(tail) = self.tail() {
-			for bit in 0 .. self.bits() {
-				if tail.get(C::curr::<T>(bit)) {
-					return true;
+		match self.inner() {
+			Inner::Minor(head, elt, tail) => {
+				for n in *head .. *tail {
+					if elt.get::<C>(n.into()) {
+						return true;
+					}
 				}
-			}
+			},
+			Inner::Major(head, body, tail) => {
+				if let Some(elt) = head {
+					for n in *self.bitptr().head() .. T::SIZE {
+						if elt.get::<C>(n.into()) {
+							return true;
+						}
+					}
+				}
+				for elt in body {
+					if *elt != T::from(0) {
+						return true;
+					}
+				}
+				if let Some(elt) = tail {
+					for n in 0 .. *self.bitptr().tail() {
+						if elt.get::<C>(n.into()) {
+							return true;
+						}
+					}
+				}
+			},
 		}
 		false
 	}
 
-	/// Returns true if *any* bit in the slice is unset (logical `¬∧`).
+	/// Tests if *any* bit in the slice is unset (logical `¬∧`).
 	///
 	/// # Truth Table
 	///
@@ -269,27 +1315,29 @@ where C: crate::Cursor, T: crate::Bits {
 	/// 1 1 => 0
 	/// ```
 	///
+	/// # Parameters
+	///
+	/// - `&self
+	///
+	/// # Returns
+	///
+	/// Whether any bit in the slice domain is unset.
+	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let all = bitvec![1; 10];
-	/// let any = bitvec![0, 0, 1, 0, 0];
-	/// let some = bitvec![1, 1, 0, 1, 1];
-	/// let none = bitvec![0; 10];
 	///
-	/// assert!(!all.not_all());
-	/// assert!(any.not_all());
-	/// assert!(some.not_all());
-	/// assert!(none.not_all());
-	/// # }
+	/// let store: &[u8] = &[0xFD];
+	/// let bv: &BitSlice = store.into();
+	/// assert!(!bv[.. 4].not_all());
+	/// assert!(bv[4 ..].not_all());
 	/// ```
 	pub fn not_all(&self) -> bool {
 		!self.all()
 	}
 
-	/// Returns true if *all* bits in the slice are unset (logical `¬∨`).
+	/// Tests if *all* bits in the slice are unset (logical `¬∨`).
 	///
 	/// # Truth Table
 	///
@@ -300,30 +1348,32 @@ where C: crate::Cursor, T: crate::Bits {
 	/// 1 1 => 0
 	/// ```
 	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// Whether all bits in the slice domain are unset.
+	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let all = bitvec![1; 10];
-	/// let any = bitvec![0, 0, 1, 0, 0];
-	/// let some = bitvec![1, 1, 0, 1, 1];
-	/// let none = bitvec![0; 10];
 	///
-	/// assert!(!all.not_any());
-	/// assert!(!any.not_any());
-	/// assert!(!some.not_any());
-	/// assert!(none.not_any());
-	/// # }
+	/// let store: &[u8] = &[0x40];
+	/// let bv: &BitSlice = store.into();
+	/// assert!(!bv[.. 4].not_any());
+	/// assert!(bv[4 ..].not_any());
 	/// ```
 	pub fn not_any(&self) -> bool {
 		!self.any()
 	}
 
-	/// Returns true if some, but not all, bits are set and some, but not all,
-	/// are unset.
+	/// Tests whether the slice has some, but not all, bits set and some, but
+	/// not all, bits unset.
 	///
-	/// This is false if either `all()` or `none()` are true.
+	/// This is `false` if either `all()` or `not_any()` are `true`.
 	///
 	/// # Truth Table
 	///
@@ -334,19 +1384,24 @@ where C: crate::Cursor, T: crate::Bits {
 	/// 1 1 => 0
 	/// ```
 	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// Whether the slice domain has mixed content.
+	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let all = bitvec![1; 2];
-	/// let some = bitvec![1, 0];
-	/// let none = bitvec![0; 2];
 	///
-	/// assert!(!all.some());
-	/// assert!(some.some());
-	/// assert!(!none.some());
-	/// # }
+	/// let store: &[u8] = &[0b111_000_10];
+	/// let bv: &BitSlice = store.into();
+	/// assert!(!bv[0 .. 3].some());
+	/// assert!(!bv[3 .. 6].some());
+	/// assert!(bv[6 ..].some());
 	/// ```
 	pub fn some(&self) -> bool {
 		self.any() && self.not_all()
@@ -354,415 +1409,196 @@ where C: crate::Cursor, T: crate::Bits {
 
 	/// Counts how many bits are set high.
 	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// The number of high bits in the slice domain.
+	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let bv = bitvec![1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1];
-	/// assert_eq!(bv.count_ones(), 7);
-	/// # }
+	///
+	/// let store: &[u8] = &[0xFD, 0x25];
+	/// let bv: &BitSlice = store.into();
+	/// assert_eq!(bv.count_ones(), 10);
 	/// ```
 	pub fn count_ones(&self) -> usize {
-		self.body().iter().map(T::ones).sum::<usize>() +
-		self.tail().map(|t| (0 .. self.bits())
-			.map(|n| t.get(C::curr::<T>(n))).filter(|b| *b).count()
-		).unwrap_or(0)
+		match self.inner() {
+			Inner::Minor(head, elt, tail) => {
+				(*head .. *tail).map(|n| elt.get::<C>(n.into())).count()
+			},
+			Inner::Major(head, body, tail) => {
+				head.map(|t| (*self.bitptr().head() .. T::SIZE)
+					.map(|n| t.get::<C>(n.into())).filter(|b| *b).count()
+				).unwrap_or(0) +
+				body.iter().map(T::count_ones).sum::<usize>() +
+				tail.map(|t| (0 .. *self.bitptr().tail())
+					.map(|n| t.get::<C>(n.into())).filter(|b| *b).count()
+				).unwrap_or(0)
+			},
+		}
 	}
 
 	/// Counts how many bits are set low.
 	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// The number of low bits in the slice domain.
+	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let bv = bitvec![1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1];
+	///
+	/// let store: &[u8] = &[0xFD, 0x25];
+	/// let bv: &BitSlice = store.into();
 	/// assert_eq!(bv.count_zeros(), 6);
-	/// # }
 	/// ```
 	pub fn count_zeros(&self) -> usize {
-		self.body().iter().map(T::zeros).sum::<usize>() +
-		self.tail().map(|t| (0 .. self.bits())
-			.map(|n| t.get(C::curr::<T>(n))).filter(|b| !*b).count()
-		).unwrap_or(0)
+		match self.inner() {
+			Inner::Minor(head, elt, tail) => {
+				(*head .. *tail).map(|n| !elt.get::<C>(n.into())).count()
+			},
+			Inner::Major(head, body, tail) => {
+				head.map(|t| (*self.bitptr().head() .. T::SIZE)
+					.map(|n| t.get::<C>(n.into())).filter(|b| !*b).count()
+				).unwrap_or(0) +
+				body.iter().map(T::count_zeros).sum::<usize>() +
+				tail.map(|t| (0 .. *self.bitptr().tail())
+					.map(|n| t.get::<C>(n.into())).filter(|b| !*b).count()
+				).unwrap_or(0)
+			},
+		}
 	}
 
-	/// Returns the number of bits contained in the `BitSlice`.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
-	/// use bitvec::*;
-	/// let bv = bitvec![1; 10];
-	/// let bits: &BitSlice = &bv;
-	/// assert_eq!(bits.len(), 10);
-	/// # }
-	/// ```
-	pub fn len(&self) -> usize {
-		self.inner.len()
-	}
-
-	/// Counts how many *whole* storage elements are in the `BitSlice`.
-	///
-	/// If the `BitSlice` length is not an even multiple of the width of `T`,
-	/// then the slice under this `BitSlice` is one element longer than this
-	/// method reports, and the number of bits in it are reported by `bits()`.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
-	/// use bitvec::*;
-	/// let bv = bitvec![1; 10];
-	/// let bits: &BitSlice = &bv;
-	/// assert_eq!(bits.elts(), 1);
-	/// # }
-	/// ```
-	///
-	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
-	/// use bitvec::*;
-	/// let bv = bitvec![1; 16];
-	/// let bits: &BitSlice = &bv;
-	/// assert_eq!(bits.elts(), 2);
-	/// # }
-	/// ```
-	pub fn elts(&self) -> usize {
-		self.len() >> T::BITS
-	}
-
-	/// Counts how many bits are in the trailing partial storage element.
-	///
-	/// If the `BitSlice` length is an even multiple of the width of `T`, then
-	/// this returns 0 and the `BitSlice` does not consider its final element to
-	/// be partially used.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
-	/// use bitvec::*;
-	/// let bv = bitvec![1; 10];
-	/// let bits: &BitSlice = &bv;
-	/// assert_eq!(bits.bits(), 2);
-	/// # }
-	/// ```
-	///
-	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
-	/// use bitvec::*;
-	/// let bv = bitvec![1; 16];
-	/// let bits: &BitSlice = &bv;
-	/// assert_eq!(bits.bits(), 0);
-	/// # }
-	/// ```
-	pub fn bits(&self) -> u8 {
-		self.len() as u8 & T::MASK
-	}
-
-	/// Returns `true` if the slice contains no bits.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
-	/// use bitvec::*;
-	/// let bv = bitvec![];
-	/// let bits: &BitSlice = &bv;
-	/// assert!(bits.is_empty());
-	/// # }
-	/// ```
-	///
-	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
-	/// use bitvec::*;
-	/// let bv = bitvec![0; 5];
-	/// let bits: &BitSlice = &bv;
-	/// assert!(!bits.is_empty());
-	/// # }
-	/// ```
-	pub fn is_empty(&self) -> bool {
-		self.len() == 0
-	}
-
-	/// Provides read-only iteration across the collection.
-	///
-	/// The iterator returned from this method implements `ExactSizeIterator`
-	/// and `DoubleEndedIterator` just as the consuming `.into_iter()` method’s
-	/// iterator does.
-	pub fn iter(&self) -> Iter<C, T> {
-		self.into_iter()
+	pub fn set_all(&mut self, value: bool) {
+		match self.inner() {
+			Inner::Minor(head, _, tail) => {
+				let elt = &mut self.as_mut()[0];
+				for n in *head .. *tail {
+					elt.set::<C>(n.into(), value);
+				}
+			},
+			Inner::Major(_, _, _) => {
+				let (h, t) = (self.bitptr().head(), self.bitptr().tail());
+				if let Some(head) = self.head_mut() {
+					for n in *h .. T::SIZE {
+						head.set::<C>(n.into(), value);
+					}
+				}
+				for elt in self.body_mut() {
+					*elt = T::from(0);
+				}
+				if let Some(tail) = self.tail_mut() {
+					for n in *t .. T::SIZE {
+						tail.set::<C>(n.into(), value);
+					}
+				}
+			}
+		}
 	}
 
 	/// Provides mutable traversal of the collection.
 	///
-	/// It is impossible to implement `IndexMut` on `BitSlice` because bits do
+	/// It is impossible to implement `IndexMut` on `BitSlice`, because bits do
 	/// not have addresses, so there can be no `&mut u1`. This method allows the
 	/// client to receive an enumerated bit, and provide a new bit to set at
 	/// each index.
 	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `func`: A function which receives a `(usize, bool)` pair of index and
+	///   value, and returns a bool. It receives the bit at each position, and
+	///   the return value is written back at that position.
+	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let mut bv = bitvec![1; 8];
-	/// let bref: &mut BitSlice = &mut bv;
-	/// bref.for_each(|idx, bit| {
-	///     if idx % 2 == 0 {
-	///         !bit
-	///     }
-	///     else {
-	///         bit
-	///     }
-	/// });
-	/// assert_eq!(&[0b01010101], bref.as_ref());
-	/// # }
 	/// ```
-	pub fn for_each<F>(&mut self, op: F)
+	pub fn for_each<F>(&mut self, func: F)
 	where F: Fn(usize, bool) -> bool {
 		for idx in 0 .. self.len() {
-			let tmp = self.get(idx);
-			self.set(idx, op(idx, tmp));
+			let tmp = self[idx];
+			self.set(idx, func(idx, tmp));
 		}
 	}
 
-	/// Retrieves a read pointer to the start of the data slice.
-	pub(crate) fn as_ptr(&self) -> *const T {
-		self.inner.as_ptr()
+	pub fn head(&self) -> Option<&T> {
+		//  Transmute into the correct lifetime.
+		unsafe { mem::transmute(self.bitptr().head_elt()) }
 	}
 
-	/// Retrieves a write pointer to the start of the data slice.
-	pub(crate) fn as_mut_ptr(&mut self) -> *mut T {
-		self.inner.as_mut_ptr()
+	pub fn head_mut(&mut self) -> Option<&mut T> {
+		unsafe { mem::transmute(self.bitptr().head_elt()) }
 	}
 
-	/// Computes the actual length of the data slice, including the partial tail
-	/// if present.
-	///
-	/// This is a crate-local function. It only appears in the docs so that it
-	/// can be tested.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// # #[cfg(all(feature = "alloc", feature = "testing"))] {
-	/// use bitvec::*;
-	/// let bv = bitvec![1; 10];
-	/// let bits: &BitSlice = &bv;
-	/// assert_eq!(bits.elts(), 1);
-	/// assert_eq!(bits.raw_len(), 2);
-	/// # }
-	/// ```
-	#[cfg(feature = "testing")]
-	pub fn raw_len(&self) -> usize { self.raw_len_inner() }
-	#[cfg(not(feature = "testing"))]
-	pub(crate) fn raw_len(&self) -> usize { self.raw_len_inner() }
-	#[doc(hidden)]
-	#[inline(always)]
-	fn raw_len_inner(&self) -> usize {
-		self.elts() + if self.bits() > 0 { 1 } else { 0 }
+	pub fn body(&self) -> &[T] {
+		//  Transmute into the correct lifetime.
+		unsafe { mem::transmute(self.bitptr().body_elts()) }
 	}
 
-	/// Gets access to the set of all filled elements as a slice.
-	///
-	/// This is primarily useful for bulk operations on the filled elements.
-	///
-	/// This is a crate-local function. It only appears in the docs so that it
-	/// can be tested.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// # #[cfg(all(feature = "alloc", feature = "testing"))] {
-	/// use bitvec::*;
-	/// let bv = bitvec![1; 10];
-	/// let body: &[u8] = bv.body();
-	/// assert_eq!(body.len(), 1);
-	/// # }
-	/// ```
-	#[cfg(feature = "testing")]
-	pub fn body(&self) -> &[T] { self.body_inner() }
-	#[cfg(not(feature = "testing"))]
-	pub(crate) fn body(&self) -> &[T] { self.body_inner() }
-	#[doc(hidden)]
-	#[inline(always)]
-	fn body_inner(&self) -> &[T] {
-		let elts = self.elts();
-		&self.as_ref()[.. elts]
+	pub fn body_mut(&mut self) -> &mut [T] {
+		//  Reattach the correct lifetime and mutability
+		#[allow(mutable_transmutes)]
+		unsafe { mem::transmute(self.bitptr().body_elts()) }
 	}
 
-	/// Gets mutable access to the set of all filled elements as a slice.
-	///
-	/// This is primarily useful for bulk operations on the filled elements.
-	///
-	/// This is a crate-local function. It only appears in the docs so that it
-	/// can be tested.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// # #[cfg(all(feature = "alloc", feature = "testing"))] {
-	/// use bitvec::*;
-	/// let mut bv = bitvec![1; 10];
-	/// assert!(bv[0]);
-	/// {
-	///   let body: &mut [u8] = bv.body_mut();
-	///   assert_eq!(body.len(), 1);
-	///   assert_eq!(body[0], 0xFF);
-	///   body[0] = 0;
-	///   assert_eq!(body[0], 0x00);
-	/// }
-	/// assert!(!bv[0]);
-	/// # }
-	/// ```
-	#[cfg(feature = "testing")]
-	pub fn body_mut(&mut self) -> &mut [T] { self.body_mut_inner() }
-	#[cfg(not(feature = "testing"))]
-	pub(crate) fn body_mut(&mut self) -> &mut [T] { self.body_mut_inner() }
-	#[doc(hidden)]
-	#[inline(always)]
-	fn body_mut_inner(&mut self) -> &mut [T] {
-		let elts = self.elts();
-		&mut self.as_mut()[.. elts]
+	pub fn tail(&self) -> Option<&T> {
+		//  Transmute into the correct lifetime.
+		unsafe { mem::transmute(self.bitptr().tail_elt()) }
 	}
 
-	/// Gets access to the partially-filled tail, if it exists.
+	pub fn tail_mut(&mut self) -> Option<&mut T> {
+		unsafe { mem::transmute(self.bitptr().tail_elt()) }
+	}
+
+	/// Accesses the underlying pointer structure.
 	///
-	/// This is a crate-local function. It only appears in the docs so that it
-	/// can be tested.
+	/// # Parameters
 	///
-	/// # Examples
+	/// - `&self`
 	///
-	/// ```rust
-	/// # #[cfg(all(feature = "alloc", feature = "testing"))] {
-	/// use bitvec::*;
-	/// let bv = bitvec![1; 10];
-	/// let tail: &u8 = bv.tail().unwrap();
-	/// assert_eq!(*tail, 0b1100_0000);
-	/// # }
-	/// ```
-	#[cfg(feature = "testing")]
-	pub fn tail(&self) -> Option<&T> { self.tail_inner() }
-	#[cfg(not(feature = "testing"))]
-	pub(crate) fn tail(&self) -> Option<&T> { self.tail_inner() }
-	#[doc(hidden)]
-	#[inline(always)]
-	fn tail_inner(&self) -> Option<&T> {
-		if self.bits() > 0 {
-			let elts = self.elts();
-			Some(&self.as_ref()[elts])
+	/// # Returns
+	///
+	/// The [`BitPtr`] structure of the slice handle.
+	///
+	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
+	pub fn bitptr(&self) -> BitPtr<T> {
+		self.into()
+	}
+
+	fn inner(&self) -> Inner<T> {
+		let bp = self.bitptr();
+		let (h, t) = (bp.head(), bp.tail());
+		if self.as_ref().len() == 1 && *h > 0 && *t < T::SIZE {
+			Inner::Minor(h, &self.as_ref()[0], t)
 		}
 		else {
-			None
+			Inner::Major(self.head(), self.body(), self.tail())
 		}
-	}
-
-	/// Gets mutable access to the partially-filled tail, if it exists.
-	///
-	/// This is a crate-local function. It only appears in the docs so that it
-	/// can be tested.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// # #[cfg(all(feature = "alloc", feature = "testing"))] {
-	/// use bitvec::*;
-	/// let mut bv = bitvec![1; 10];
-	/// bv.push(false);
-	/// assert!(!bv[10]);
-	/// {
-	///   let tail: &mut u8 = bv.tail_mut().unwrap();
-	///   assert_eq!(*tail, 0b1100_0000);
-	///   *tail = 0xFF;
-	///   assert_eq!(*tail, 0xFF);
-	/// }
-	/// assert!(bv[10]);
-	/// # }
-	/// ```
-	#[cfg(feature = "testing")]
-	pub fn tail_mut(&mut self) -> Option<&mut T> { self.tail_mut_inner() }
-	#[cfg(not(feature = "testing"))]
-	pub(crate) fn tail_mut(&mut self) -> Option<&mut T> { self.tail_mut_inner() }
-	#[doc(hidden)]
-	#[inline(always)]
-	fn tail_mut_inner(&mut self) -> Option<&mut T> {
-		if self.bits() > 0 {
-			let elts = self.elts();
-			Some(&mut self.as_mut()[elts])
-		}
-		else {
-			None
-		}
-	}
-
-	/// Prints a type header into the Formatter.
-	#[cfg(feature = "alloc")]
-	pub(crate) fn fmt_header(&self, fmt: &mut Formatter) -> fmt::Result {
-		write!(fmt, "BitSlice<{}, {}>", C::TY, T::TY)
-	}
-
-	/// Formats the contents data slice.
-	///
-	/// The debug flag indicates whether to indent each line (`Debug` does,
-	/// `Display` does not).
-	#[cfg(feature = "alloc")]
-	pub(crate) fn fmt_body(&self, fmt: &mut Formatter, debug: bool) -> fmt::Result {
-		let (elts, bits) = T::split(self.len());
-		let len = self.raw_len();
-		let buf = self.as_ref();
-		let alt = fmt.alternate();
-		for (idx, elt) in buf.iter().take(elts).enumerate() {
-			Self::fmt_element(fmt, elt)?;
-			if idx < len - 1 {
-				match (alt, debug) {
-					// {}
-					(false, false) => fmt.write_str(" "),
-					// {:#}
-					(true, false) => writeln!(fmt),
-					// {:?}
-					(false, true) => fmt.write_str(", "),
-					// {:#?}
-					(true, true) => { writeln!(fmt, ",")?; fmt.write_str("    ") },
-				}?;
-			}
-		}
-		if bits > 0 {
-			Self::fmt_bits(fmt, &buf[elts], bits)?;
-		}
-		Ok(())
-	}
-
-	/// Formats a whole storage element of the data slice.
-	#[cfg(feature = "alloc")]
-	pub(crate) fn fmt_element(fmt: &mut Formatter, elt: &T) -> fmt::Result {
-		Self::fmt_bits(fmt, elt, T::WIDTH)
-	}
-
-	/// Formats a partial element of the data slice.
-	#[cfg(feature = "alloc")]
-	pub(crate) fn fmt_bits(fmt: &mut Formatter, elt: &T, bits: u8) -> fmt::Result {
-		use core::fmt::Write;
-
-		#[cfg(not(feature = "std"))]
-		use alloc::string::String;
-
-		let mut out = String::with_capacity(bits as usize);
-		for bit in 0 .. bits {
-			let cur = C::curr::<T>(bit);
-			out.write_str(if elt.get(cur) { "1" } else { "0" })?;
-		}
-		fmt.write_str(&out)
 	}
 }
 
-/// Creates a new `BitVec` out of a `BitSlice`.
+enum Inner<'a, T: 'a + Bits> {
+	Minor(BitIdx, &'a T, BitIdx),
+	Major(Option<&'a T>, &'a [T], Option<&'a T>),
+}
+
+/// Creates an owned `BitVec<C, T>` from a borrowed `BitSlice<C, T>`.
 #[cfg(feature = "alloc")]
 impl<C, T> ToOwned for BitSlice<C, T>
-where C: crate::Cursor, T: crate::Bits {
-	type Owned = crate::BitVec<C, T>;
+where C: Cursor, T: Bits {
+	type Owned = BitVec<C, T>;
 
 	/// Clones a borrowed `BitSlice` into an owned `BitVec`.
 	///
@@ -771,35 +1607,26 @@ where C: crate::Cursor, T: crate::Bits {
 	/// ```rust
 	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let src = bitvec![0; 5];
-	/// let src_ref: &BitSlice = &src;
-	/// let dst = src_ref.to_owned();
+	///
+	/// let store: &[u8] = &[0; 2];
+	/// let src: &BitSlice = store.into();
+	/// let dst = src.to_owned();
 	/// assert_eq!(src, dst);
 	/// # }
 	/// ```
 	fn to_owned(&self) -> Self::Owned {
-		let mut out = Self::Owned::with_capacity(self.len());
-		unsafe {
-			let src = self.as_ptr();
-			let dst = out.as_mut_ptr();
-			let len = self.raw_len();
-			ptr::copy_nonoverlapping(src, dst, len);
-			out.set_len(self.len());
-		}
-		out
+		self.into()
 	}
 }
 
 impl<C, T> Eq for BitSlice<C, T>
-where C: crate::Cursor, T: crate::Bits {}
+where C: Cursor, T: Bits {}
 
 impl<C, T> Ord for BitSlice<C, T>
-where C: crate::Cursor, T: crate::Bits {
+where C: Cursor, T: Bits {
 	fn cmp(&self, rhs: &Self) -> Ordering {
-		match self.partial_cmp(rhs) {
-			Some(ord) => ord,
-			None => unreachable!("`BitSlice` has a total ordering"),
-		}
+		self.partial_cmp(rhs)
+			.unwrap_or_else(|| unreachable!("`BitSlice` has a total ordering"))
 	}
 }
 
@@ -810,28 +1637,54 @@ where C: crate::Cursor, T: crate::Bits {
 /// The equality condition requires that they have the same number of total bits
 /// and that each pair of bits in semantic order are identical.
 impl<A, B, C, D> PartialEq<BitSlice<C, D>> for BitSlice<A, B>
-where A: crate::Cursor, B: crate::Bits, C: crate::Cursor, D: crate::Bits {
-	/// Performs a comparison by `==`.
+where A: Cursor, B: Bits, C: Cursor, D: Bits {
+	/// Performas a comparison by `==`.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `rhs`: Another `BitSlice` against which to compare. This slice can
+	///   have different cursor or storage types.
+	///
+	/// # Returns
+	///
+	/// If the two slices are equal, by comparing the lengths and bit values at
+	/// each semantic index.
 	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let l: BitVec<LittleEndian, u16> = bitvec![LittleEndian, u16; 0, 1, 0, 1];
-	/// let r: BitVec<BigEndian, u32> = bitvec![BigEndian, u32; 0, 1, 0, 1];
 	///
-	/// let ls: &BitSlice<_, _> = &l;
-	/// let rs: &BitSlice<_, _> = &r;
-	/// assert!(ls == rs);
-	/// # }
+	/// let lstore: &[u8] = &[8, 16, 32, 0];
+	/// let rstore: &[u32] = &[0x10080400];
+	/// let lbv: &BitSlice<LittleEndian, u8> = lstore.into();
+	/// let rbv: &BitSlice<BigEndian, u32> = rstore.into();
+	///
+	/// assert_eq!(lbv, rbv);
 	/// ```
 	fn eq(&self, rhs: &BitSlice<C, D>) -> bool {
-		let (l, r) = (self.iter(), rhs.iter());
-		if l.len() != r.len() {
+		if self.len() != rhs.len() {
 			return false;
 		}
-		l.zip(r).all(|(l, r)| l == r)
+		self.iter().zip(rhs.iter()).all(|(l, r)| l == r)
+	}
+}
+
+/// Allow comparison against the allocated form.
+#[cfg(feature = "alloc")]
+impl<A, B, C, D> PartialEq<BitVec<C, D>> for BitSlice<A, B>
+where A: Cursor, B: Bits, C: Cursor, D: Bits {
+	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
+		<Self as PartialEq<BitSlice<C, D>>>::eq(self, &*rhs)
+	}
+}
+
+#[cfg(feature = "alloc")]
+impl<A, B, C, D> PartialEq<BitVec<C, D>> for &BitSlice<A, B>
+where A: Cursor, B: Bits, C: Cursor, D: Bits {
+	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
+		<BitSlice<A, B> as PartialEq<BitSlice<C, D>>>::eq(self, &*rhs)
 	}
 }
 
@@ -844,23 +1697,37 @@ where A: crate::Cursor, B: crate::Bits, C: crate::Cursor, D: crate::Bits {
 /// If one of the slices is exhausted before they differ, the longer slice is
 /// greater.
 impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for BitSlice<A, B>
-where A: crate::Cursor, B: crate::Bits, C: crate::Cursor, D: crate::Bits {
+where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	/// Performs a comparison by `<` or `>`.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `rhs`: Another `BitSlice` against which to compare. This slice can
+	///   have different cursor or storage types.
+	///
+	/// # Returns
+	///
+	/// The relative ordering of `self` against `rhs`. `self` is greater if it
+	/// has a `true` bit at an index where `rhs` has a `false`; `self` is lesser
+	/// if it has a `false` bit at an index where `rhs` has a `true`; if the two
+	/// slices do not disagree then they are compared by length.
 	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let a = bitvec![0, 1, 0, 0];
-	/// let b = bitvec![0, 1, 0, 1];
-	/// let c = bitvec![0, 1, 0, 1, 1];
-	/// let aref: &BitSlice = &a;
-	/// let bref: &BitSlice = &b;
-	/// let cref: &BitSlice = &c;
-	/// assert!(aref < bref);
-	/// assert!(bref < cref);
-	/// # }
+	///
+	/// let store: &[u8] = &[0x45];
+	/// let slice: &BitSlice = store.into();
+	/// let a = &slice[0 .. 3]; // 010
+	/// let b = &slice[0 .. 4]; // 0100
+	/// let c = &slice[0 .. 5]; // 01000
+	/// let d = &slice[4 .. 8]; // 0101
+	///
+	/// assert!(a < b);
+	/// assert!(b < c);
+	/// assert!(c < d);
 	/// ```
 	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<Ordering> {
 		for (l, r) in self.iter().zip(rhs.iter()) {
@@ -874,134 +1741,259 @@ where A: crate::Cursor, B: crate::Bits, C: crate::Cursor, D: crate::Bits {
 	}
 }
 
-/// Gives write access to all elements in the underlying storage, including the
-/// partially-filled tail element (if present).
+#[cfg(feature = "alloc")]
+impl<A, B, C, D> PartialOrd<BitVec<C, D>> for BitSlice<A, B>
+where A: Cursor, B: Bits, C: Cursor, D: Bits {
+	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<Ordering> {
+		self.partial_cmp(&**rhs)
+	}
+}
+
+#[cfg(feature = "alloc")]
+impl<A, B, C, D> PartialOrd<BitVec<C, D>> for &BitSlice<A, B>
+where A: Cursor, B: Bits, C: Cursor, D: Bits {
+	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<Ordering> {
+		(*self).partial_cmp(&**rhs)
+	}
+}
+
+/// Provides write access to all elements in the underlying storage, including
+/// the partial head and tail elements if present.
 impl<C, T> AsMut<[T]> for BitSlice<C, T>
-where C: crate::Cursor, T: crate::Bits {
+where C: Cursor, T: Bits {
 	/// Accesses the underlying store.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// A mutable slice of all storage elements.
 	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let mut bv: BitVec = bitvec![0, 0, 0, 0, 0, 0, 0, 0, 1];
+	///
+	/// let store: &mut [u8] = &mut [0, 128];
+	/// let bv: &mut BitSlice = store.into();
+	/// let bv = &mut bv[1 .. 9];
+	///
 	/// for elt in bv.as_mut() {
 	///   *elt += 2;
 	/// }
+	///
 	/// assert_eq!(&[2, 130], bv.as_ref());
-	/// # }
 	/// ```
 	fn as_mut(&mut self) -> &mut [T] {
-		let (ptr, len): (*mut T, usize) = (self.as_mut_ptr(), self.raw_len());
+		//  Get the `BitPtr` structure.
+		let bp = self.bitptr();
+		//  Get the pointer and element counts from it.
+		let (ptr, len) = (bp.pointer() as *mut T, bp.elements());
+		//  Create a slice from them.
 		unsafe { slice::from_raw_parts_mut(ptr, len) }
 	}
 }
 
-/// Gives read access to all elements in the underlying storage, including the
-/// partially-filled tail element (if present).
+/// Provides read access to all elements in the underlying storage, including
+/// the partial head and tail elements if present.
 impl<C, T> AsRef<[T]> for BitSlice<C, T>
-where C: crate::Cursor, T: crate::Bits {
+where C: Cursor, T: Bits {
 	/// Accesses the underlying store.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// An immutable slice of all storage elements.
 	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let bv = bitvec![0, 0, 0, 0, 0, 0, 0, 0, 1];
-	/// let bref: &BitSlice = &bv;
-	/// assert_eq!(&[0, 0b1000_0000], bref.as_ref());
-	/// # }
+	///
+	/// let store: &[u8] = &[0, 128];
+	/// let bv: &BitSlice = store.into();
+	/// let bv = &bv[1 .. 9];
+	/// assert_eq!(&[0, 128], bv.as_ref());
 	/// ```
 	fn as_ref(&self) -> &[T] {
-		let (ptr, len): (*const T, usize) = (self.as_ptr(), self.raw_len());
+		//  Get the `BitPtr` structure.
+		let bp = self.bitptr();
+		//  Get the pointer and element counts from it.
+		let (ptr, len) = (bp.pointer(), bp.elements());
+		//  Create a slice from them.
 		unsafe { slice::from_raw_parts(ptr, len) }
 	}
 }
 
 /// Builds a `BitSlice` from a slice of elements. The resulting `BitSlice` will
-/// always completely fill the original slice, and will not have a partial tail.
+/// always completely fill the original slice.
 impl<'a, C, T> From<&'a [T]> for &'a BitSlice<C, T>
-where C: crate::Cursor, T: 'a + crate::Bits {
-	/// Wraps an `&[T: Bits]` in an `&BitSlice<C: Cursor, T>`. The endianness
-	/// must be specified by the call site. The element type cannot be changed.
+where C: Cursor, T: 'a + Bits {
+	/// Wraps a `&[T: Bits]` in a `&BitSlice<C: Cursor, T>`. The endianness must
+	/// be specified at the call site. The element type cannot be changed.
+	///
+	/// # Parameters
+	///
+	/// - `src`: The elements over which the new `BitSlice` will operate.
+	///
+	/// # Returns
+	///
+	/// A `BitSlice` representing the original element slice.
+	///
+	/// # Panics
+	///
+	/// The source slice must not exceed the maximum number of elements that a
+	/// `BitSlice` can contain. This value is documented in [`BitPtr`].
 	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let src = vec![1u8, 2, 3];
-	/// let borrow: &[u8] = &src;
-	/// let bits: &BitSlice<BigEndian, _> = borrow.into();
+	///
+	/// let src: &[u8] = &[1, 2, 3];
+	/// let bits: &BitSlice = src.into();
 	/// assert_eq!(bits.len(), 24);
-	/// assert_eq!(bits.elts(), 3);
-	/// assert_eq!(bits.bits(), 0);
-	/// assert!(bits.get(7));  // src[0] == 0b0000_0001
-	/// assert!(bits.get(14)); // src[1] == 0b0000_0010
-	/// assert!(bits.get(22)); // src[2] == 0b0000_0011
-	/// assert!(bits.get(23));
-	/// # }
+	/// assert_eq!(bits.as_ref().len(), 3);
+	/// assert!(bits[7]);  // src[0] == 0b0000_0001
+	/// assert!(bits[14]); // src[1] == 0b0000_0010
+	/// assert!(bits[22]); // src[2] == 0b0000_0011
+	/// assert!(bits[23]);
 	/// ```
+	///
+	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
 	fn from(src: &'a [T]) -> Self {
-		let (ptr, len): (*const T, usize) = (src.as_ptr(), src.len());
-		assert!(len <= T::MAX_ELT, "Source slice length out of range!");
-		unsafe {
-			mem::transmute(
-				slice::from_raw_parts(ptr, len << T::BITS)
-			)
-		}
+		BitPtr::new(src.as_ptr(), src.len(), 0, T::SIZE).into()
 	}
 }
 
 /// Builds a mutable `BitSlice` from a slice of mutable elements. The resulting
-/// `BitSlice` will always completely fill the original slice, and will not have
-/// a partial tail.
+/// `BitSlice` will always completely fill the original slice.
 impl<'a, C, T> From<&'a mut [T]> for &'a mut BitSlice<C, T>
-where C: crate::Cursor, T: 'a + crate::Bits {
-	/// Wraps an `&mut [T: Bits]` in an `&mut BitSlice<C: Cursor, T>`. The
+where C: Cursor, T: 'a + Bits {
+	/// Wraps a `&mut [T: Bits]` in a `&mut BitSlice<C: Cursor, T>`. The
 	/// endianness must be specified by the call site. The element type cannot
 	/// be changed.
+	///
+	/// # Parameters
+	///
+	/// - `src`: The elements over which the new `BitSlice` will operate.
+	///
+	/// # Returns
+	///
+	/// A `BitSlice` representing the original element slice.
+	///
+	/// # Panics
+	///
+	/// The source slice must not exceed the maximum number of elements that a
+	/// `BitSlice` can contain. This value is documented in [`BitPtr`].
 	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let mut src = vec![1u8, 2, 3];
-	/// let borrow: &mut [u8] = &mut src;
-	/// let bits: &mut BitSlice<LittleEndian, _> = borrow.into();
-	/// //  The first bit read is the LSb of the first element, which is set.
-	/// assert!(bits.get(0));
+	///
+	/// let src: &mut [u8] = &mut [1, 2, 3];
+	/// let bits: &mut BitSlice<LittleEndian, _> = src.into();
+	/// //  The first bit is the LSb of the first element.
+	/// assert!(bits[0]);
 	/// bits.set(0, false);
-	/// assert!(!bits.get(0));
+	/// assert!(!bits[0]);
+	/// assert_eq!(bits.as_ref(), &[0, 2, 3]);
+	/// ```
+	///
+	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
+	fn from(src: &'a mut [T]) -> Self {
+		BitPtr::new(src.as_ptr(), src.len(), 0, T::SIZE).into()
+	}
+}
+
+/// Converts a `BitPtr` representation into a `BitSlice` handle.
+impl<'a, C, T> From<BitPtr<T>> for &'a BitSlice<C, T>
+where C: Cursor, T: 'a + Bits {
+	/// Converts a `BitPtr` representation into a `BitSlice` handle.
+	///
+	/// # Parameters
+	///
+	/// - `src`: The `BitPtr` representation for the slice.
+	///
+	/// # Returns
+	///
+	/// A `BitSlice` handle for the slice domain the `BitPtr` represents.
+	///
+	/// # Examples
+	///
+	/// This example is crate-internal, and cannot be used by clients.
+	///
+	/// ```rust
+	/// # #[cfg(feature = "testing")] {
+	/// use bitvec::testing::*;
+	///
+	/// let store: &[u8] = &[1, 2, 3];
+	/// let bp = BitPtr::new(store.as_ptr(), 3, 2, 6);
+	/// let bv: &BitSlice = bp.into();
+	/// assert_eq!(bv.len(), 20);
+	/// assert_eq!(bv.as_ref(), store);
 	/// # }
 	/// ```
-	fn from(src: &'a mut [T]) -> Self {
-		let (ptr, len): (*mut T, usize) = (src.as_mut_ptr(), src.len());
-		assert!(len <= T::MAX_ELT, "Source slice length out of range!");
-		unsafe {
-			mem::transmute(
-				slice::from_raw_parts_mut(ptr, len << T::BITS)
-			)
-		}
-	}
+	fn from(src: BitPtr<T>) -> Self { unsafe {
+		let (ptr, len) = mem::transmute::<BitPtr<T>, (*const (), usize)>(src);
+		let store = slice::from_raw_parts(ptr, len);
+		mem::transmute::<&[()], &'a BitSlice<C, T>>(store)
+	} }
+}
+
+/// Converts a `BitPtr` representation into a `BitSlice` handle.
+impl<C, T> From<BitPtr<T>> for &mut BitSlice<C, T>
+where C: Cursor, T: Bits {
+	/// Converts a `BitPtr` representation into a `BitSlice` handle.
+	///
+	/// # Parameters
+	///
+	/// - `src`: The `BitPtr` representation for the slice.
+	///
+	/// # Returns
+	///
+	/// A `BitSlice` handle for the slice domain the `BitPtr` represents.
+	///
+	/// # Examples
+	///
+	/// This example is crate-internal, and cannot be used by clients.
+	///
+	/// ```rust
+	/// # #[cfg(feature = "testing")] {
+	/// use bitvec::testing::*;
+	///
+	/// let store: &mut [u8] = &mut [1, 2, 3];
+	/// let bp = BitPtr::new(store.as_ptr(), 3, 2, 6);
+	/// let bv: &mut BitSlice = bp.into();
+	/// assert_eq!(bv.len(), 20);
+	/// assert_eq!(bv.as_ref(), store);
+	/// # }
+	/// ```
+	fn from(src: BitPtr<T>) -> Self { unsafe {
+		let (ptr, len) = mem::transmute::<BitPtr<T>, (*mut (), usize)>(src);
+		let store = slice::from_raw_parts_mut(ptr, len);
+		mem::transmute::<&mut [()], &mut BitSlice<C, T>>(store)
+	} }
 }
 
 /// Prints the `BitSlice` for debugging.
 ///
 /// The output is of the form `BitSlice<C, T> [ELT, *]` where `<C, T>` is the
-/// endianness and element type, with square brackets on each end of the bits
-/// and all the elements of the array printed in binary. The printout is always
-/// in semantic order, and may not reflect the underlying buffer. To see the
+/// cursor and element type, with square brackets on each end of the bits and
+/// all the elements of the array printed in binary. The printout is always in
+/// semantic order, and may not reflect the underlying buffer. To see the
 /// underlying buffer, use `.as_ref()`.
 ///
 /// The alternate character `{:#?}` prints each element on its own line, rather
 /// than having all elements on the same line.
-#[cfg(feature = "alloc")]
 impl<C, T> Debug for BitSlice<C, T>
-where C: crate::Cursor, T: crate::Bits {
+where C: Cursor, T: Bits {
 	/// Renders the `BitSlice` type header and contents for debug.
 	///
 	/// # Examples
@@ -1020,14 +2012,13 @@ where C: crate::Cursor, T: crate::Bits {
 	/// );
 	/// # }
 	/// ```
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		let alt = fmt.alternate();
-		self.fmt_header(fmt)?;
-		fmt.write_str(" [")?;
-		if alt { writeln!(fmt)?; fmt.write_str("    ")?; }
-		self.fmt_body(fmt, true)?;
-		if alt { writeln!(fmt)?; }
-		fmt.write_str("]")
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		f.write_str("BitSlice<")?;
+		f.write_str(C::TYPENAME)?;
+		f.write_str(", ")?;
+		f.write_str(T::TYPENAME)?;
+		f.write_str("> ")?;
+		Display::fmt(self, f)
 	}
 }
 
@@ -1041,29 +2032,99 @@ where C: crate::Cursor, T: crate::Bits {
 ///
 /// To see the in-memory representation, use `.as_ref()` to get access to the
 /// raw elements and print that slice instead.
-#[cfg(feature = "alloc")]
 impl<C, T> Display for BitSlice<C, T>
-where C: crate::Cursor, T: crate::Bits {
+where C: Cursor, T: Bits {
 	/// Renders the `BitSlice` contents for display.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `f`: The formatter into which `self` is written.
+	///
+	/// # Returns
+	///
+	/// The result of the formatting operation.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let bits: &BitSlice = &bitvec![0, 1, 0, 0, 1, 0, 1, 1, 0, 1];
-	/// assert_eq!("01001011 01", &format!("{}", bits));
+	///
+	/// let store: &[u8] = &[0b01001011, 0b0100_0000];
+	/// let bits: &BitSlice = store.into();
+	/// assert_eq!("[01001011, 01]", &format!("{}", &bits[.. 10]));
 	/// # }
 	/// ```
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		self.fmt_body(fmt, false)
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		struct Part<'a>(&'a str);
+		impl<'a> Debug for Part<'a> {
+			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+				f.write_str(&self.0)
+			}
+		}
+		f.debug_list()
+			.tap_mut(|l| {
+				//  Empty slice
+				if self.is_empty() { return; }
+				//  Unfortunately, T::SIZE cannot be used as the size for the
+				//  array, due to limitations in the type system. As such, set
+				//  it to the maximum used size.
+				//
+				//  This allows the writes to target a static buffer, rather
+				//  than a dynamic string, making the formatter usable in
+				//  `no-std` contexts.
+				let mut w: [u8; 64] = [0; 64];
+				let writer =
+				|l: &mut DebugList, w: &mut [u8; 64], e: &T, from: u8, to: u8| {
+					let (from, to) = (from as usize, to as usize);
+					for n in from .. to {
+						w[n] = if e.get::<C>((n as u8).into()) { b'1' }
+						else { b'0' };
+					}
+					l.entry(&Part(unsafe {
+						str::from_utf8_unchecked(&w[from .. to])
+					}));
+				};
+				match self.inner() {
+					//  Single-element slice
+					Inner::Minor(head, elt, tail) => {
+						writer(l, &mut w, elt, *head, *tail);
+					},
+					//  Multi-element slice
+					Inner::Major(head, body, tail) => {
+						if let Some(head) = head {
+							let hc = self.bitptr().head();
+							writer(l, &mut w, head, *hc, T::SIZE);
+						}
+						for elt in body {
+							writer(l, &mut w, elt, 0, T::SIZE);
+						}
+						if let Some(tail) = tail {
+							let tc = self.bitptr().tail();
+							writer(l, &mut w, tail, 0, *tc);
+						}
+					},
+				}
+			})
+			.finish()
 	}
 }
 
 /// Writes the contents of the `BitSlice`, in semantic bit order, into a hasher.
 impl<C, T> Hash for BitSlice<C, T>
-where C: crate::Cursor, T: crate::Bits {
+where C: Cursor, T: Bits {
 	/// Writes each bit of the `BitSlice`, as a full `bool`, into the hasher.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `hasher`: The hashing state into which the slice will be written.
+	///
+	/// # Type Parameters
+	///
+	/// - `H: Hasher`: The type of the hashing algorithm which receives the bits
+	///   of `self`.
 	fn hash<H>(&self, hasher: &mut H)
 	where H: Hasher {
 		for bit in self {
@@ -1075,37 +2136,46 @@ where C: crate::Cursor, T: crate::Bits {
 /// Produces a read-only iterator over all the bits in the `BitSlice`.
 ///
 /// This iterator follows the ordering in the `BitSlice` type, and implements
-/// `ExactSizeIterator` as `BitSlice` has a known, fixed length, and
+/// `ExactSizeIterator` as `BitSlice` has a known, fixed, length, and
 /// `DoubleEndedIterator` as it has known ends.
 impl<'a, C, T> IntoIterator for &'a BitSlice<C, T>
-where C: crate::Cursor, T: 'a + crate::Bits {
+where C: Cursor, T: 'a + Bits {
 	type Item = bool;
 	type IntoIter = Iter<'a, C, T>;
 
 	/// Iterates over the slice.
 	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// An iterator over the slice domain.
+	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let bv = bitvec![1, 0, 1, 0, 1, 1, 0, 0];
-	/// let bref: &BitSlice = &bv;
+	///
+	/// let store: &[u8] = &[0b1010_1100];
+	/// let bits: &BitSlice = store.into();
 	/// let mut count = 0;
-	/// for bit in bref {
-	///     if bit { count += 1; }
+	/// for bit in bits {
+	///   if bit { count += 1; }
 	/// }
 	/// assert_eq!(count, 4);
-	/// # }
 	/// ```
 	fn into_iter(self) -> Self::IntoIter {
-		self.into()
+		Iter {
+			inner: self
+		}
 	}
 }
 
 /// Performs unsigned addition in place on a `BitSlice`.
 ///
-/// If the addend `BitSlice` is shorter than `self`, the addend is zero-extended
+/// If the addend bitstream is shorter than `self`, the addend is zero-extended
 /// at the left (so that its final bit matches with `self`’s final bit). If the
 /// addend is longer, the excess front length is unused.
 ///
@@ -1118,32 +2188,34 @@ where C: crate::Cursor, T: 'a + crate::Bits {
 ///
 /// Subtraction can be implemented by negating the intended subtrahend yourself
 /// and then using addition, or by using `BitVec`s instead of `BitSlice`s.
-impl<'a, C, T> AddAssign<&'a BitSlice<C, T>> for BitSlice<C, T>
-where C: crate::Cursor, T: crate::Bits {
+///
+/// # Type Parameters
+///
+/// - `I: IntoIterator<Item=bool, IntoIter: DoubleEndedIterator>`: The bitstream
+///   to add into `self`. It must be finite and double-ended, since addition
+///   operates in reverse.
+impl<'a, C, T, I> AddAssign<I> for BitSlice<C, T>
+where C: Cursor, T: Bits,
+	I: IntoIterator<Item=bool>, I::IntoIter: DoubleEndedIterator {
 	/// Performs unsigned wrapping addition in place.
 	///
 	/// # Examples
 	///
-	/// This example shows addition of a slice wrapping from MAX to zero.
+	/// This example shows addition of a slice wrapping from max to zero.
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let nums: [BitVec; 3] = [
-	///     bitvec![1, 1, 1, 0],
-	///     bitvec![1, 1, 1, 1],
-	///     bitvec![0, 0, 0, 0],
-	/// ];
-	/// let one = bitvec![0, 1];
-	/// let mut num = nums[0].clone();
-	/// let numr: &mut BitSlice = &mut num;
-	/// *numr += &one;
-	/// assert_eq!(numr, &nums[1] as &BitSlice);
-	/// *numr += &one;
-	/// assert_eq!(numr, &nums[2] as &BitSlice);
-	/// # }
+	///
+	/// let store: &mut [u8] = &mut [0b1110_1111, 0b0000_0001];
+	/// let bv: &mut BitSlice = store.into();
+	/// let (nums, one) = bv.split_at_mut(12);
+	/// let (accum, steps) = nums.split_at_mut(4);
+	/// *accum += &*one;
+	/// assert_eq!(accum, &steps[.. 4]);
+	/// *accum += &*one;
+	/// assert_eq!(accum, &steps[4 ..]);
 	/// ```
-	fn add_assign(&mut self, addend: &'a BitSlice<C, T>) {
+	fn add_assign(&mut self, addend: I) {
 		use core::iter::repeat;
 		//  zero-extend the addend if it’s shorter than self
 		let mut addend_iter = addend.into_iter().rev().chain(repeat(false));
@@ -1151,7 +2223,7 @@ where C: crate::Cursor, T: crate::Bits {
 		for place in (0 .. self.len()).rev() {
 			//  See `BitVec::AddAssign`
 			static JUMP: [u8; 8] = [0, 2, 2, 1, 2, 1, 1, 3];
-			let a = self.get(place);
+			let a = self[place];
 			let b = addend_iter.next().unwrap(); // addend is an infinite source
 			let idx = ((c as u8) << 2) | ((a as u8) << 1) | (b as u8);
 			let yz = JUMP[idx as usize];
@@ -1163,135 +2235,291 @@ where C: crate::Cursor, T: crate::Bits {
 }
 
 /// Performs the Boolean `AND` operation against another bitstream and writes
-/// the result into `self`. If the other bitstream ends before `self` does, it
-/// is extended with zero, clearing all remaining bits in `self`.
+/// the result into `self`. If the other bitstream ends before `self,`, the
+/// remaining bits of `self` are cleared.
+///
+/// # Type Parameters
+///
+/// - `I: IntoIterator<Item=bool>`: A stream of bits, which may be a `BitSlice`
+///   or some other bit producer as desired.
 impl<C, T, I> BitAndAssign<I> for BitSlice<C, T>
-where C: crate::Cursor, T: crate::Bits, I: IntoIterator<Item=bool> {
+where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 	/// `AND`s a bitstream into a slice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `rhs`: The bitstream to `AND` into `self`.
 	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let lhs: &mut BitSlice = &mut bitvec![0, 1, 0, 1, 0, 1];
-	/// let rhs                =      bitvec![0, 0, 1, 1];
-	/// *lhs &= rhs;
-	/// assert_eq!("000100", &format!("{}", lhs));
-	/// # }
+	///
+	/// let store: &mut [u8] = &mut [0b0101_0100];
+	/// let other: &    [u8] = &    [0b0011_0000];
+	/// let lhs: &mut BitSlice = store.into();
+	/// let rhs: &    BitSlice = other.into();
+	/// lhs[.. 6] &= &rhs[.. 4];
+	/// assert_eq!(store[0], 0b0001_0000);
 	/// ```
 	fn bitand_assign(&mut self, rhs: I) {
-		use core::iter::repeat;
-		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter().chain(repeat(false))) {
-			let val = self.get(idx) & other;
-			self.set(idx, val);
-		}
+		use core::iter;
+		rhs.into_iter()
+			.chain(iter::repeat(false))
+			.enumerate()
+			.take(self.len())
+			.for_each(|(idx, bit)| {
+				let val = self[idx] & bit;
+				self.set(idx, val);
+			});
 	}
 }
 
 /// Performs the Boolean `OR` operation against another bitstream and writes the
-/// result into `self`. If the other bitstream ends before `self` does, it is
-/// extended with zero, leaving all remaining bits in `self` as they were.
+/// result into `self`. If the other bitstream ends before `self`, the remaining
+/// bits of `self` are not affected.
+///
+/// # Type Parameters
+///
+/// - `I: IntoIterator<Item=bool>`: A stream of bits, which may be a `BitSlice`
+///   or some other bit producer as desired.
 impl<C, T, I> BitOrAssign<I> for BitSlice<C, T>
-where C: crate::Cursor, T: crate::Bits, I: IntoIterator<Item=bool> {
+where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 	/// `OR`s a bitstream into a slice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `rhs`: The bitstream to `OR` into `self`.
 	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let lhs: &mut BitSlice = &mut bitvec![0, 1, 0, 1, 0, 1];
-	/// let rhs                =      bitvec![0, 0, 1, 1];
-	/// *lhs |= rhs;
-	/// assert_eq!("011101", &format!("{}", lhs));
-	/// # }
+	/// let store: &mut [u8] = &mut [0b0101_0100];
+	/// let other: &    [u8] = &    [0b0011_0000];
+	/// let lhs: &mut BitSlice = store.into();
+	/// let rhs: &    BitSlice = other.into();
+	/// lhs[.. 6] |= &rhs[.. 4];
+	/// assert_eq!(store[0], 0b0111_0100);
 	/// ```
 	fn bitor_assign(&mut self, rhs: I) {
-		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter()) {
-			let val = self.get(idx) | other;
+		for (idx, bit) in rhs.into_iter().enumerate().take(self.len()) {
+			let val = self[idx] | bit;
 			self.set(idx, val);
 		}
 	}
 }
 
 /// Performs the Boolean `XOR` operation against another bitstream and writes
-/// the result into `self`. If the other bitstream ends before `self` does, it
-/// is extended with zero, leaving all remaining bits in `self` as they were.
+/// the result into `self`. If the other bitstream ends before `self`, the
+/// remaining bits of `self` are not affected.
+///
+/// # Type Parameters
+///
+/// - `I: IntoIterator<Item=bool>`: A stream of bits, which may be a `BitSlice`
+///   or some other bit producer as desired.
 impl<C, T, I> BitXorAssign<I> for BitSlice<C, T>
-where C: crate::Cursor, T: crate::Bits, I: IntoIterator<Item=bool> {
+where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 	/// `XOR`s a bitstream into a slice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `rhs`: The bitstream to `XOR` into `self`.
 	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let lhs: &mut BitSlice = &mut bitvec![0, 1, 0, 1, 0, 1];
-	/// let rhs                =      bitvec![0, 0, 1, 1];
-	/// *lhs ^= rhs;
-	/// assert_eq!("011001", &format!("{}", lhs));
-	/// # }
+	///
+	/// let store: &mut [u8] = &mut [0b0101_0100];
+	/// let other: &    [u8] = &    [0b0011_0000];
+	/// let lhs: &mut BitSlice = store.into();
+	/// let rhs: &    BitSlice = other.into();
+	/// lhs[.. 6] ^= &rhs[.. 4];
+	/// assert_eq!(store[0], 0b0110_0100);
 	/// ```
 	fn bitxor_assign(&mut self, rhs: I) {
-		use core::iter::repeat;
-		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter().chain(repeat(false))) {
-			let val = self.get(idx) ^ other;
-			self.set(idx, val);
-		}
+		rhs.into_iter()
+			.enumerate()
+			.take(self.len())
+			.for_each(|(idx, bit)| {
+				let val = self[idx] ^ bit;
+				self.set(idx, val);
+			})
 	}
 }
 
 /// Indexes a single bit by semantic count. The index must be less than the
 /// length of the `BitSlice`.
-impl<'a, C, T> Index<usize> for &'a BitSlice<C, T>
-where C: crate::Cursor, T: 'a + crate::Bits {
+impl<C, T> Index<usize> for BitSlice<C, T>
+where C: Cursor, T: Bits {
 	type Output = bool;
 
-	/// Looks up a single bit by semantic count.
+	/// Looks up a single bit by semantic index.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `index`: The semantic index of the bit to look up.
+	///
+	/// # Returns
+	///
+	/// The value of the bit at the requested index.
 	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let bv = bitvec![0, 0, 1, 0, 0];
-	/// let bits: &BitSlice = &bv;
+	///
+	/// let store: &[u8] = &[0b0010_0000];
+	/// let bits: &BitSlice = store.into();
 	/// assert!(bits[2]);
 	/// assert!(!bits[3]);
-	/// # }
 	/// ```
 	fn index(&self, index: usize) -> &Self::Output {
-		if self.get(index) { &true} else { &false }
+		let len = self.len();
+		assert!(index < len, "Index out of range: {} >= {}", index, len);
+
+		let h = self.bitptr().head();
+		let (elt, bit) = h.offset::<T>(index as isize);
+		if self.as_ref()[elt as usize].get::<C>(bit) { &true } else { &false }
 	}
 }
 
-/// Indexes a single bit by element and bit index within the element. The
-/// element index must be less than the length of the underlying store, and the
-/// bit index must be less than the width of the underlying element.
-///
-/// This index is not recommended for public use.
-impl<'a, C, T> Index<(usize, u8)> for &'a BitSlice<C, T>
-where C: crate::Cursor, T: 'a + crate::Bits {
-	type Output = bool;
+impl<C, T> Index<Range<usize>> for BitSlice<C, T>
+where C: Cursor, T: Bits {
+	type Output = Self;
 
-	/// Looks up a single bit by storage element and bit indices. The bit index
-	/// is still a semantic count, not an absolute index into the element.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
-	/// use bitvec::*;
-	/// let mut bv = bitvec![0; 10];
-	/// bv.push(true);
-	/// let bits: &BitSlice = &bv;
-	/// assert!(bits[(1, 2)]); // 10
-	/// assert!(!bits[(1, 1)]); // 9
-	/// # }
-	/// ```
-	fn index(&self, (elt, bit): (usize, u8)) -> &Self::Output {
-		if self.get(T::join(elt, bit)) { &true } else { &false }
+	fn index(&self, Range { start, end }: Range<usize>) -> &Self::Output {
+		let len = self.len();
+		assert!(
+			start <= len,
+			"Index {} out of range: {}",
+			start,
+			len,
+		);
+		assert!(end <= len, "Index {} out of range: {}", end, len);
+		assert!(end >= start, "Ranges can only run from low to high");
+		let (data, _, head, _) = self.bitptr().raw_parts();
+		//  Find the number of elements to drop from the front, and the index of
+		//  the new head
+		let (skip, new_head) = head.offset::<T>(start as isize);
+		//  Find the number of elements contained in the new span, and the index
+		//  of the new tail.
+		let (new_elts, new_tail) = new_head.span::<T>(end - start);
+		BitPtr::new(
+			unsafe { data.offset(skip) },
+			new_elts,
+			new_head,
+			new_tail,
+		).into()
+	}
+}
+
+impl<C, T> IndexMut<Range<usize>> for BitSlice<C, T>
+where C: Cursor, T: Bits {
+	fn index_mut(
+		&mut self,
+		Range { start, end }: Range<usize>,
+	) -> &mut Self::Output {
+		//  Get an immutable slice, and then type-hack mutability back in.
+		(&self[start .. end]).bitptr().into()
+	}
+}
+
+impl<C, T> Index<RangeInclusive<usize>> for BitSlice<C, T>
+where C: Cursor, T: Bits {
+	type Output = Self;
+
+	fn index(&self, index: RangeInclusive<usize>) -> &Self::Output {
+		&self[*index.start() .. *index.end() + 1]
+	}
+}
+
+impl<C, T> IndexMut<RangeInclusive<usize>> for BitSlice<C, T>
+where C: Cursor, T: Bits {
+	fn index_mut(&mut self, index: RangeInclusive<usize>) -> &mut Self::Output {
+		&mut self[*index.start() .. *index.end() + 1]
+	}
+}
+
+impl<C, T> Index<RangeFrom<usize>> for BitSlice<C, T>
+where C: Cursor, T: Bits {
+	type Output = Self;
+
+	fn index(&self, RangeFrom { start }: RangeFrom<usize>) -> &Self::Output {
+		&self[start .. self.len()]
+	}
+}
+
+impl<C, T> IndexMut<RangeFrom<usize>> for BitSlice<C, T>
+where C: Cursor, T: Bits {
+	fn index_mut(
+		&mut self,
+		RangeFrom { start }: RangeFrom<usize>,
+	) -> &mut Self::Output {
+		let len = self.len();
+		&mut self[start .. len]
+	}
+}
+
+impl<C, T> Index<RangeFull> for BitSlice<C, T>
+where C: Cursor, T: Bits {
+	type Output = Self;
+
+	fn index(&self, _: RangeFull) -> &Self::Output {
+		self
+	}
+}
+
+impl<C, T> IndexMut<RangeFull> for BitSlice<C, T>
+where C: Cursor, T: Bits {
+	fn index_mut(&mut self, _: RangeFull) -> &mut Self::Output {
+		self
+	}
+}
+
+impl<C, T> Index<RangeTo<usize>> for BitSlice<C, T>
+where C: Cursor, T: Bits {
+	type Output = Self;
+
+	fn index(&self, RangeTo { end }: RangeTo<usize>) -> &Self::Output {
+		&self[0 .. end]
+	}
+}
+
+impl<C, T> IndexMut<RangeTo<usize>> for BitSlice<C, T>
+where C: Cursor, T: Bits {
+	fn index_mut(
+		&mut self,
+		RangeTo { end }: RangeTo<usize>,
+	) -> &mut Self::Output {
+		&mut self[0 .. end]
+	}
+}
+
+impl<C, T> Index<RangeToInclusive<usize>> for BitSlice<C, T>
+where C: Cursor, T: Bits {
+	type Output = Self;
+
+	fn index(
+		&self,
+		RangeToInclusive { end }: RangeToInclusive<usize>,
+	) -> &Self::Output {
+		&self[0 .. end + 1]
+	}
+}
+
+impl<C, T> IndexMut<RangeToInclusive<usize>> for BitSlice<C, T>
+where C: Cursor, T: Bits {
+	fn index_mut(
+		&mut self,
+		RangeToInclusive { end }: RangeToInclusive<usize>,
+	) -> &mut Self::Output {
+		&mut self[0 .. end + 1]
 	}
 }
 
@@ -1316,10 +2544,19 @@ where C: crate::Cursor, T: 'a + crate::Bits {
 ///
 /// Because `BitSlice` cannot move, the negation is performed in place.
 impl<'a, C, T> Neg for &'a mut BitSlice<C, T>
-where C: crate::Cursor, T: 'a + crate::Bits {
+where C: Cursor, T: 'a + Bits {
 	type Output = Self;
 
 	/// Perform 2’s-complement fixed-width negation.
+	///
+	/// Negation is accomplished by inverting the bits and adding one. This has
+	/// one edge case: `1000…`, the most negative number for its width, will
+	/// negate to zero instead of itself. It thas no corresponding positive
+	/// number to which it can negate.
+	///
+	/// # Parameters
+	///
+	/// - `self`
 	///
 	/// # Examples
 	///
@@ -1331,90 +2568,125 @@ where C: crate::Cursor, T: 'a + crate::Bits {
 	/// Negate an arbitrary positive number (first bit unset).
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let mut num = bitvec![0, 1, 1, 0];
-	/// - (&mut num as &mut BitSlice);
-	/// assert_eq!(num, bitvec![1, 0, 1, 0]);
-	/// # }
+	///
+	/// let store: &mut [u8] = &mut [0b0110_1010];
+	/// let bv: &mut BitSlice = store.into();
+	/// eprintln!("{:?}", bv.split_at(4));
+	/// let num = &mut bv[.. 4];
+	/// -num;
+	/// eprintln!("{:?}", bv.split_at(4));
+	/// assert_eq!(&bv[.. 4], &bv[4 ..]);
 	/// ```
 	///
 	/// Negate an arbitrary negative number. This example will use the above
 	/// result to demonstrate round-trip correctness.
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let mut num = bitvec![1, 0, 1, 0];
-	/// - (&mut num as &mut BitSlice);
-	/// assert_eq!(num, bitvec![0, 1, 1, 0]);
-	/// # }
+	///
+	/// let store: &mut [u8] = &mut [0b1010_0110];
+	/// let bv: &mut BitSlice = store.into();
+	/// let num = &mut bv[.. 4];
+	/// -num;
+	/// assert_eq!(&bv[.. 4], &bv[4 ..]);
 	/// ```
 	///
 	/// Negate the most negative number, which will become zero, and show
 	/// convergence at zero.
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let zero = bitvec![0; 10];
-	/// let mut num = bitvec![1; 10];
-	/// - (&mut num as &mut BitSlice);
-	/// assert_eq!(num, zero);
-	/// - (&mut num as &mut BitSlice);
-	/// assert_eq!(num, zero);
-	/// # }
+	///
+	/// let store: &mut [u8] = &mut [128];
+	/// let bv: &mut BitSlice = store.into();
+	/// let num = &mut bv[..];
+	/// -num;
+	/// assert!(bv.not_any());
+	/// let num = &mut bv[..];
+	/// -num;
+	/// assert!(bv.not_any());
 	/// ```
 	fn neg(self) -> Self::Output {
+		//  negative zero is zero. The invert-and-add will result in zero, but
+		//  this case can be detected quickly.
 		if self.is_empty() || self.not_any() {
 			return self;
 		}
-		let _ = Not::not(&mut *self);
-		//  Fill an element with all 1 bits
-		let elt: [T; 1] = [! unsafe { mem::zeroed() }];
-		if self.any() {
-			//  Turn a slice reference `[T; 1]` into a bit-slice reference
-			//  `[u1; 1]`
-			let addend: &BitSlice<C, T> = {
-				unsafe { mem::transmute::<&[T], &BitSlice<C, T>>(&elt) }
-			};
-			//  And add it (if the slice was not all-ones).
-			AddAssign::add_assign(&mut *self, addend);
+		//  The most negative number (leading one, all zeroes else) negates to
+		//  zero.
+		if self[0] {
+			//  Testing the whole range, rather than [1 ..], is more likely to
+			//  hit the fast path.
+			self.set(0, false);
+			if self.not_any() {
+				return self;
+			}
+			self.set(0, true);
 		}
+		let _ = Not::not(&mut *self);
+		let one: &[T] = &[T::from(!0)];
+		let one_bs: &BitSlice<C, T> = one.into();
+		AddAssign::add_assign(&mut *self, &one_bs[.. 1]);
 		self
 	}
 }
 
 /// Flips all bits in the slice, in place.
-///
-/// This invokes the `!` operator on each element of the borrowed storage, and
-/// so it will also flip bits in the tail that are outside the `BitSlice` length
-/// if any. Use `^= repeat(true)` to flip only the bits actually inside the
-/// `BitSlice` purview. `^=` also has the advantage of being a borrowing
-/// operator rather than a consuming/returning operator.
 impl<'a, C, T> Not for &'a mut BitSlice<C, T>
-where C: crate::Cursor, T: 'a + crate::Bits {
+where C: Cursor, T: 'a + Bits {
 	type Output = Self;
 
 	/// Inverts all bits in the slice.
 	///
+	/// This will not affect bits outside the slice in slice storage elements.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let mut bv = bitvec![0; 10];
-	/// let bits: &mut BitSlice = &mut bv;
+	///
+	/// let store: &mut [u8] = &mut [0; 2];
+	/// let bv: &mut BitSlice = store.into();
+	/// let bits = &mut bv[2 .. 14];
 	/// let new_bits = !bits;
 	/// //  The `bits` binding is consumed by the `!` operator, and a new reference
 	/// //  is returned.
 	/// // assert_eq!(bits.as_ref(), &[!0, !0]);
-	/// assert_eq!(new_bits.as_ref(), &[!0, !0]);
-	/// # }
+	/// assert_eq!(new_bits.as_ref(), &[0x3F, 0xFC]);
 	/// ```
 	fn not(self) -> Self::Output {
-		for elt in self.as_mut() {
-			*elt = !*elt;
+		match self.inner() {
+			Inner::Minor(head, _, tail) => {
+				let elt = &mut self.as_mut()[0];
+				for n in *head .. *tail {
+					let tmp = elt.get::<C>(n.into());
+					elt.set::<C>(n.into(), !tmp);
+				}
+			},
+			Inner::Major(_, _, _) => {
+				let head_bit = self.bitptr().head();
+				let tail_bit = self.bitptr().tail();
+				if let Some(head) = self.head_mut() {
+					for n in *head_bit .. T::SIZE {
+						let tmp = head.get::<C>(n.into());
+						head.set::<C>(n.into(), !tmp);
+					}
+				}
+				for elt in self.body_mut() {
+					*elt = !*elt;
+				}
+				if let Some(tail) = self.tail_mut() {
+					for n in 0 .. *tail_bit {
+						let tmp = tail.get::<C>(n.into());
+						tail.set::<C>(n.into(), !tmp);
+					}
+				}
+			},
 		}
 		self
 	}
@@ -1452,36 +2724,46 @@ __bitslice_shift!(u8, u16, u32, u64, i8, i16, i32, i64);
 ///
 /// A shift amount of zero is a no-op, and returns immediately.
 impl<C, T> ShlAssign<usize> for BitSlice<C, T>
-where C: crate::Cursor, T: crate::Bits {
+where C: Cursor, T: Bits {
 	/// Shifts a slice left, in place.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `shamt`: The shift amount. If this is greater than the length, then
+	///   the slice is zeroed immediately.
 	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let mut bv = bitvec![1, 1, 1, 0, 0, 0, 0, 0, 1];
-	/// let bits: &mut BitSlice = &mut bv;
+	///
+	/// let store: &mut [u8] = &mut[0x4B, 0xA5];
+	/// let bv: &mut BitSlice = store.into();
+	/// let bits = &mut bv[2 .. 14];
 	/// *bits <<= 3;
-	/// assert_eq!("00000100 0", &format!("{}", bits));
-	/// //               ^ former tail
-	/// # }
+	/// assert_eq!(bits.as_ref(), &[0b01_011_101, 0b001_000_01]);
 	/// ```
 	fn shl_assign(&mut self, shamt: usize) {
-		let len = self.len();
-		//  Bring the shift amount down into the slice's domain.
-		let shamt = shamt % len;
-		//  If the shift amount was an even multiple of the length, exit.
 		if shamt == 0 {
 			return;
 		}
+		let len = self.len();
+		if shamt >= len {
+			self.set_all(false);
+			return;
+		}
 		//  If the shift amount is an even multiple of the element width, use
-		//  ptr::copy instead of a bitwise crawl
+		//  `ptr::copy` instead of a bitwise crawl.
 		if shamt & T::MASK as usize == 0 {
 			//  Compute the shift distance measured in elements.
 			let offset = shamt >> T::BITS;
 			//  Compute the number of elements that will remain.
-			let rem = self.raw_len() - offset;
+			let rem = self.as_ref().len() - offset;
+			//  Clear the bits after the tail cursor before the move.
+			for n in *self.bitptr().tail() .. T::SIZE {
+				self.as_mut()[len - 1].set::<C>(n.into(), false);
+			}
 			//  Memory model: suppose we have this slice of sixteen elements,
 			//  that is shifted five elements to the left. We have three
 			//  pointers and two lengths to manage.
@@ -1506,11 +2788,9 @@ where C: crate::Cursor, T: crate::Bits {
 			}
 			return;
 		}
-		//  If the shift amount is not an even multiple, do a bitwise crawl and
-		//  move bits forward, then zero-fill the back.
-		//  Same general logic as above, but bit-level instead of element-level.
+		//  Otherwise, crawl.
 		for (to, from) in (shamt .. len).enumerate() {
-			let val = self.get(from);
+			let val = self[from];
 			self.set(to, val);
 		}
 		for bit in (len - shamt) .. len {
@@ -1549,36 +2829,46 @@ where C: crate::Cursor, T: crate::Bits {
 ///
 /// A shift amount of zero is a no-op, and returns immediately.
 impl<C, T> ShrAssign<usize> for BitSlice<C, T>
-where C: crate::Cursor, T: crate::Bits {
+where C: Cursor, T: Bits {
 	/// Shifts a slice right, in place.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `shamt`: The shift amount. If this is greater than the length, then
+	///   the slice is zeroed immediately.
 	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let mut bv = bitvec![1, 0, 0, 0, 0, 0, 1, 1, 1];
-	/// let bits: &mut BitSlice = &mut bv;
+	///
+	/// let store: &mut [u8] = &mut[0x4B, 0xA5];
+	/// let bv: &mut BitSlice = store.into();
+	/// let bits = &mut bv[2 .. 14];
 	/// *bits >>= 3;
-	/// assert_eq!("00010000 0", &format!("{}", bits));
-	/// //             ^ former head
-	/// # }
+	/// assert_eq!(bits.as_ref(), &[0b01_000_00_1, 0b011_101_01])
 	/// ```
 	fn shr_assign(&mut self, shamt: usize) {
-		let len = self.len();
-		//  Bring the shift amount down into the slice's domain.
-		let shamt = shamt % len;
-		//  If the shift amount was an even multiple of the length, exit.
 		if shamt == 0 {
 			return;
 		}
-		//  If the shift amount is an even multiple of the element width, use
-		//  ptr::copy instead of a bitwise crawl.
+		let len = self.len();
+		if shamt >= len {
+			self.set_all(false);
+			return;
+		}
+		//  IF the shift amount is an even multiple of the element width, use
+		//  `ptr::copy` instead of a bitwise crawl.
 		if shamt & T::MASK as usize == 0 {
 			//  Compute the shift amount measured in elements.
 			let offset = shamt >> T::BITS;
-			//  Compute the number of elements that will remain.
-			let rem = self.raw_len() - offset;
+			// Compute the number of elements that will remain.
+			let rem = self.as_ref().len() - offset;
+			//  Clear the bits ahead of the head cursor before the move.
+			for n in 0 .. *self.bitptr().head() {
+				self.as_mut()[0].set::<C>(n.into(), false);
+			}
 			//  Memory model: suppose we have this slice of sixteen elements,
 			//  that is shifted five elements to the right. We have two pointers
 			//  and two lengths to manage.
@@ -1597,163 +2887,2078 @@ where C: crate::Cursor, T: crate::Bits {
 			}
 			return;
 		}
+		//  Otherwise, crawl.
 		for (from, to) in (shamt .. len).enumerate().rev() {
-			let val = self.get(from);
+			let val = self[from];
 			self.set(to, val);
 		}
 		for bit in 0 .. shamt {
-			self.set(bit, false);
+			self.set(bit.into(), false);
 		}
 	}
 }
 
-/// Permits iteration over a `BitSlice`
-#[doc(hidden)]
-pub struct Iter<'a, C, T>
-where C: 'a + crate::Cursor, T: 'a + crate::Bits {
+/// State keeper for chunked iteration over a `BitSlice`.
+///
+/// # Type Parameters
+///
+/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+///
+/// # Lifetimes
+///
+/// - `'a`: The lifetime of the underlying `BitSlice`.
+#[derive(Clone, Debug)]
+pub struct Chunks<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// The `BitSlice` being iterated.
 	inner: &'a BitSlice<C, T>,
-	head: usize,
-	tail: usize,
+	/// The width of the chunks.
+	width: usize,
+}
+
+impl<'a, C, T> DoubleEndedIterator for Chunks<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// Produces the next chunk from the back of the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The last chunk in the slice, if any.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[1];
+	/// let bv: &BitSlice = store.into();
+	/// let mut chunks = bv.chunks(5);
+	/// assert_eq!(chunks.next_back(), Some(&bv[5 ..]));
+	/// assert_eq!(chunks.next_back(), Some(&bv[.. 5]));
+	/// assert!(chunks.next_back().is_none());
+	/// ```
+	fn next_back(&mut self) -> Option<Self::Item> {
+		if self.inner.is_empty() {
+			return None;
+		}
+		let len = self.inner.len();
+		let rem = len % self.width;
+		let size = if rem == 0 { self.width } else { rem };
+		let (head, tail) = self.inner.split_at(len - size);
+		self.inner = head;
+		Some(tail)
+	}
+}
+
+/// Mark that the iterator has an exact size.
+impl<'a, C, T> ExactSizeIterator for Chunks<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
+
+/// Mark that the iterator will not resume after halting.
+impl<'a, C, T> FusedIterator for Chunks<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
+
+impl<'a, C, T> Iterator for Chunks<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	type Item = &'a BitSlice<C, T>;
+
+	/// Advances the iterator by one, returning the first chunk in it (if any).
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The leading chunk in the iterator, if any.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x80];
+	/// let bv: &BitSlice = store.into();
+	/// let mut chunks = bv.chunks(5);
+	/// assert_eq!(chunks.next(), Some(&bv[.. 5]));
+	/// assert_eq!(chunks.next(), Some(&bv[5 ..]));
+	/// assert!(chunks.next().is_none());
+	/// ```
+	fn next(&mut self) -> Option<Self::Item> {
+		use core::cmp::min;
+		if self.inner.is_empty() {
+			return None;
+		}
+		let size = min(self.inner.len(), self.width);
+		let (head, tail) = self.inner.split_at(size);
+		self.inner = tail;
+		Some(head)
+	}
+
+	/// Hints at the number of chunks remaining in the iterator.
+	///
+	/// Because the exact size is always known, this always produces
+	/// `(len, Some(len))`.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// - `usize`: The minimum chunks remaining.
+	/// - `Option<usize>`: The maximum chunks remaining.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// let mut chunks = bv.chunks(5);
+	/// assert_eq!(chunks.size_hint(), (2, Some(2)));
+	/// chunks.next();
+	/// assert_eq!(chunks.size_hint(), (1, Some(1)));
+	/// chunks.next();
+	/// assert_eq!(chunks.size_hint(), (0, Some(0)));
+	/// ```
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		if self.inner.is_empty() {
+			return (0, Some(0));
+		}
+		let len = self.inner.len();
+		let (n, r) = (len / self.width, len % self.width);
+		let len = n + (r > 0) as usize;
+		(len, Some(len))
+	}
+
+	/// Counts how many chunks are live in the iterator, consuming it.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The number of chunks remaining in the iterator.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// assert_eq!(bv.chunks(3).count(), 3);
+	/// ```
+	fn count(self) -> usize {
+		self.len()
+	}
+
+	/// Advances the iterator by `n` chunks, starting from zero.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `n`: The number of chunks to skip, before producing the next bit after
+	///   skips. If this overshoots the iterator’s remaining length, then the
+	///   iterator is marked empty before returning `None`.
+	///
+	/// # Returns
+	///
+	/// If `n` does not overshoot the iterator’s bounds, this produces the `n`th
+	/// bit after advancing the iterator to it, discarding the intermediate
+	/// chunks.
+	///
+	/// If `n` does overshoot the iterator’s bounds, this empties the iterator
+	/// and returns `None`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// let mut chunks = bv.chunks(3);
+	/// assert_eq!(chunks.nth(1), Some(&bv[3 .. 6]));
+	/// assert_eq!(chunks.nth(0), Some(&bv[6 ..]));
+	/// assert!(chunks.nth(0).is_none());
+	/// ```
+	fn nth(&mut self, n: usize) -> Option<Self::Item> {
+		use core::cmp::min;
+		let (start, ovf) = n.overflowing_mul(self.width);
+		let len = self.inner.len();
+		if start >= len || ovf {
+			self.inner = BitSlice::empty();
+			return None;
+		}
+		let end = start.checked_add(self.width)
+			.map(|s| min(s, len))
+			.unwrap_or(len);
+		let out = &self.inner[start .. end];
+		self.inner = &self.inner[end ..];
+		Some(out)
+	}
+
+	/// Consumes the iterator, returning only the final chunk.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The last chunk in the iterator slice, if any.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// assert_eq!(bv.chunks(3).last(), Some(&bv[6 ..]));
+	/// ```
+	fn last(mut self) -> Option<Self::Item> {
+		self.next_back()
+	}
+}
+
+/// State keeper for mutable chunked iteration over a `BitSlice`.
+///
+/// # Type Parameters
+///
+/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+///
+/// # Lifetimes
+///
+/// - `'a`: The lifetime of the underlying `BitSlice`.
+#[derive(Debug)]
+pub struct ChunksMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// The `BitSlice` being iterated.
+	inner: &'a mut BitSlice<C, T>,
+	/// The width of the chunks.
+	width: usize,
+}
+
+impl<'a, C, T> DoubleEndedIterator for ChunksMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// Produces the next chunk from the back of the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The last chunk in the slice, if any.
+	fn next_back(&mut self) -> Option<Self::Item> {
+		if self.inner.is_empty() {
+			return None;
+		}
+		let len = self.inner.len();
+		let rem = len % self.width;
+		let size = if rem == 0 { self.width } else { rem };
+		let tmp = mem::replace(&mut self.inner, BitSlice::empty_mut());
+		let (head, tail) = tmp.split_at_mut(len - size);
+		self.inner = head;
+		Some(tail)
+	}
+}
+
+impl<'a, C, T> ExactSizeIterator for ChunksMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
+
+impl<'a, C, T> FusedIterator for ChunksMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
+
+impl<'a, C, T> Iterator for ChunksMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	type Item = &'a mut BitSlice<C, T>;
+
+	/// Advances the iterator by one, returning the first chunk in it (if any).
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The leading chunk in the iterator, if any.
+	fn next(&mut self) -> Option<Self::Item> {
+		use core::cmp::min;
+		if self.inner.is_empty() {
+			return None;
+		}
+		let size = min(self.inner.len(), self.width);
+		let tmp = mem::replace(&mut self.inner, BitSlice::empty_mut());
+		let (head, tail) = tmp.split_at_mut(size);
+		self.inner = tail;
+		Some(head)
+	}
+
+	/// Hints at the number of chunks remaining in the iterator.
+	///
+	/// Because the exact size is always known, this always produces
+	/// `(len, Some(len))`.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// - `usize`: The minimum chunks remaining.
+	/// - `Option<usize>`: The maximum chunks remaining.
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		if self.inner.is_empty() {
+			return (0, Some(0));
+		}
+		let len = self.inner.len();
+		let (n, r) = (len / self.width, len % self.width);
+		let len = n + (r > 0) as usize;
+		(len, Some(len))
+	}
+
+	/// Counts how many chunks are live in the iterator, consuming it.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The number of chunks remaining in the iterator.
+	fn count(self) -> usize {
+		self.len()
+	}
+
+	/// Advances the iterator by `n` chunks, starting from zero.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `n`: The number of chunks to skip, before producing the next bit after
+	///   skips. If this overshoots the iterator’s remaining length, then the
+	///   iterator is marked empty before returning `None`.
+	///
+	/// # Returns
+	///
+	/// If `n` does not overshoot the iterator’s bounds, this produces the `n`th
+	/// bit after advancing the iterator to it, discarding the intermediate
+	/// chunks.
+	///
+	/// If `n` does overshoot the iterator’s bounds, this empties the iterator
+	/// and returns `None`.
+	fn nth(&mut self, n: usize) -> Option<Self::Item> {
+		use core::cmp::min;
+		let (start, ovf) = n.overflowing_mul(self.width);
+		let len = self.inner.len();
+		if start >= len || ovf {
+			self.inner = BitSlice::empty_mut();
+			return None;
+		}
+		let end = start.checked_add(self.width)
+			.map(|s| min(s, len))
+			.unwrap_or(len);
+		let tmp = mem::replace(&mut self.inner, BitSlice::empty_mut());
+		let (head, tail) = tmp.split_at_mut(start);
+		let (_, nth) = head.split_at_mut(end - start);
+		self.inner = tail;
+		Some(nth)
+	}
+
+	/// Consumes the iterator, returning only the final chunk.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The last chunk in the iterator slice, if any.
+	fn last(mut self) -> Option<Self::Item> {
+		self.next_back()
+	}
+}
+
+/// State keeper for exact chunked iteration over a `BitSlice`.
+///
+/// # Type Parameters
+///
+/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+///
+/// # Lifetimes
+///
+/// - `'a`: The lifetime of the underlying `BitSlice`.
+#[derive(Clone, Debug)]
+pub struct ChunksExact<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// The `BitSlice` being iterated.
+	inner: &'a BitSlice<C, T>,
+	/// The excess of the original `BitSlice`, which is not iterated.
+	extra: &'a BitSlice<C, T>,
+	/// The width of the chunks.
+	width: usize,
+}
+
+impl<'a, C, T> ChunksExact<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// Produces the remainder of the original slice, which will not be included
+	/// in the iteration.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// The remaining slice that iteration will not include.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bits: &BitSlice = store.into();
+	/// let chunks_exact = bits.chunks_exact(3);
+	/// assert_eq!(chunks_exact.remainder(), &bits[6 ..]);
+	/// ```
+	pub fn remainder(&self) -> &'a BitSlice<C, T> {
+		self.extra
+	}
+}
+
+impl<'a, C, T> DoubleEndedIterator for ChunksExact<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// Produces the next chunk from the back of the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The last chunk in the slice, if any.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[1];
+	/// let bv: &BitSlice = store.into();
+	/// let mut chunks_exact = bv.chunks_exact(3);
+	/// assert_eq!(chunks_exact.next_back(), Some(&bv[3 .. 6]));
+	/// assert_eq!(chunks_exact.next_back(), Some(&bv[0 .. 3]));
+	/// assert!(chunks_exact.next_back().is_none());
+	/// ```
+	fn next_back(&mut self) -> Option<Self::Item> {
+		if self.inner.len() < self.width {
+			self.inner = BitSlice::empty();
+			return None;
+		}
+		let (head, tail) = self.inner.split_at(self.inner.len() - self.width);
+		self.inner = head;
+		Some(tail)
+	}
+}
+
+/// Mark that the iterator has an exact size.
+impl<'a, C, T> ExactSizeIterator for ChunksExact<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
+
+/// Mark that the iterator will not resume after halting.
+impl<'a, C, T> FusedIterator for ChunksExact<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
+
+impl<'a, C, T> Iterator for ChunksExact<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	type Item = &'a BitSlice<C, T>;
+
+	/// Advances the iterator by one, returning the first chunk in it (if any).
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The leading chunk in the iterator, if any.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x80];
+	/// let bv: &BitSlice = store.into();
+	/// let mut chunks_exact = bv.chunks_exact(3);
+	/// assert_eq!(chunks_exact.next(), Some(&bv[0 .. 3]));
+	/// assert_eq!(chunks_exact.next(), Some(&bv[3 .. 6]));
+	/// assert!(chunks_exact.next().is_none());
+	/// ```
+	fn next(&mut self) -> Option<Self::Item> {
+		if self.inner.len() < self.width {
+			self.inner = BitSlice::empty();
+			return None;
+		}
+		let (head, tail) = self.inner.split_at(self.width);
+		self.inner = tail;
+		Some(head)
+	}
+
+	/// Hints at the number of chunks remaining in the iterator.
+	///
+	/// Because the exact size is always known, this always produces
+	/// `(len, Some(len))`.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// - `usize`: The minimum chunks remaining.
+	/// - `Option<usize>`: The maximum chunks remaining.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// let mut chunks_exact = bv.chunks_exact(3);
+	/// assert_eq!(chunks_exact.size_hint(), (2, Some(2)));
+	/// chunks_exact.next();
+	/// assert_eq!(chunks_exact.size_hint(), (1, Some(1)));
+	/// chunks_exact.next();
+	/// assert_eq!(chunks_exact.size_hint(), (0, Some(0)));
+	/// ```
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		let len = self.inner.len() / self.width;
+		(len, Some(len))
+	}
+
+	/// Counts how many chunks are live in the iterator, consuming it.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The number of chunks remaining in the iterator.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// assert_eq!(bv.chunks_exact(3).count(), 2);
+	/// ```
+	fn count(self) -> usize {
+		self.len()
+	}
+
+	/// Advances the iterator by `n` chunks, starting from zero.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `n`: The number of chunks to skip, before producing the next bit after
+	///   skips. If this overshoots the iterator’s remaining length, then the
+	///   iterator is marked empty before returning `None`.
+	///
+	/// # Returns
+	///
+	/// If `n` does not overshoot the iterator’s bounds, this produces the `n`th
+	/// bit after advancing the iterator to it, discarding the intermediate
+	/// chunks.
+	///
+	/// If `n` does overshoot the iterator’s bounds, this empties the iterator
+	/// and returns `None`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[2];
+	/// let bv: &BitSlice = store.into();
+	/// let mut chunks_exact = bv.chunks_exact(3);
+	/// assert_eq!(chunks_exact.nth(1), Some(&bv[3 .. 6]));
+	/// assert!(chunks_exact.nth(0).is_none());
+	/// ```
+	fn nth(&mut self, n: usize) -> Option<Self::Item> {
+		let (start, ovf) = n.overflowing_mul(self.width);
+		if start >= self.inner.len() || ovf {
+			self.inner = BitSlice::empty();
+			return None;
+		}
+		let (_, tail) = self.inner.split_at(start);
+		self.inner = tail;
+		self.next()
+	}
+
+	/// Consumes the iterator, returning only the final chunk.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The last chunk in the iterator slice, if any.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// assert_eq!(bv.chunks_exact(3).last(), Some(&bv[3 .. 6]));
+	/// ```
+	fn last(mut self) -> Option<Self::Item> {
+		self.next_back()
+	}
+}
+
+/// State keeper for mutable exact chunked iteration over a `BitSlice`.
+///
+/// # Type Parameters
+///
+/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+///
+/// # Lifetimes
+///
+/// - `'a`: The lifetime of the underlying `BitSlice`.
+#[derive(Debug)]
+pub struct ChunksExactMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// The `BitSlice` being iterated.
+	inner: &'a mut BitSlice<C, T>,
+	/// The excess of the original `BitSlice`, which is not iterated.
+	extra: &'a mut BitSlice<C, T>,
+	/// The width of the chunks.
+	width: usize,
+}
+
+impl<'a, C, T> ChunksExactMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// Produces the remainder of the original slice, which will not be included
+	/// in the iteration.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// The remaining slice that iteration will not include.
+	pub fn into_remainder(self) -> &'a mut BitSlice<C, T> {
+		self.extra
+	}
+}
+
+impl<'a, C, T> DoubleEndedIterator for ChunksExactMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// Produces the next chunk from the back of th eslice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The last chunk in the slice, if any.
+	fn next_back(&mut self) -> Option<Self::Item> {
+		unimplemented!()
+	}
+}
+
+impl<'a, C, T> ExactSizeIterator for ChunksExactMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
+
+impl<'a, C, T> FusedIterator for ChunksExactMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
+
+impl<'a, C, T> Iterator for ChunksExactMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	type Item = &'a mut BitSlice<C, T>;
+
+	/// Advances the iterator by one, returning the first chunk in it (if any).
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The leading chunk in the iterator, if any.
+	fn next(&mut self) -> Option<Self::Item> {
+		if self.inner.len() < self.width {
+			self.inner = BitSlice::empty_mut();
+			return None;
+		}
+		let tmp = mem::replace(&mut self.inner, BitSlice::empty_mut());
+		let (head, tail) = tmp.split_at_mut(self.width);
+		self.inner = tail;
+		Some(head)
+	}
+
+	/// Hints at the number of chunks remaining in the iterator.
+	///
+	/// Because the exact size is always known, this always produces
+	/// `(len, Some(len))`.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// - `usize`: The minimum chunks remaining.
+	/// - `Option<usize>`: The maximum chunks remaining.
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		let len = self.inner.len() / self.width;
+		(len, Some(len))
+	}
+
+	/// Counts how many chunks are live in the iterator, consuming it.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The number of chunks remaining in the iterator.
+	fn count(self) -> usize {
+		self.len()
+	}
+
+	/// Advances the iterator by `n` chunks, starting from zero.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `n`: The number of chunks to skip, before producing the next bit after
+	///   skips. If this overshoots the iterator’s remaining length, then the
+	///   iterator is marked empty before returning `None`.
+	///
+	/// # Returns
+	///
+	/// If `n` does not overshoot the iterator’s bounds, this produces the `n`th
+	/// bit after advancing the iterator to it, discarding the intermediate
+	/// chunks.
+	///
+	/// If `n` does overshoot the iterator’s bounds, this empties the iterator
+	/// and returns `None`.
+	fn nth(&mut self, n: usize) -> Option<Self::Item> {
+		let (start, ovf) = n.overflowing_mul(self.width);
+		if start >= self.inner.len() || ovf {
+			self.inner = BitSlice::empty_mut();
+			return None;
+		}
+		let tmp = mem::replace(&mut self.inner, BitSlice::empty_mut());
+		let (_, tail) = tmp.split_at_mut(start);
+		self.inner = tail;
+		self.next()
+	}
+
+	/// Consumes the iterator, returning only the final chunk.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The last chunk in the iterator slice, if any.
+	fn last(mut self) -> Option<Self::Item> {
+		self.next_back()
+	}
+}
+
+/// State keeper for iteration over a `BitSlice`.
+///
+/// # Type Parameters
+///
+/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+///
+/// # Lifetimes
+///
+/// - `'a`: The lifetime of the underlying `BitSlice`.
+#[derive(Clone, Debug)]
+pub struct Iter<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// The `BitSlice` being iterated.
+	inner: &'a BitSlice<C, T>,
 }
 
 impl<'a, C, T> Iter<'a, C, T>
-where C: 'a + crate::Cursor, T: 'a + crate::Bits {
-	fn reset(&mut self) {
-		self.head = 0;
-		self.tail = self.inner.len();
+where C: Cursor, T: 'a + Bits {
+	/// Accesses the `BitPtr` representation of the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// The `BitPtr` representation of the remaining slice.
+	pub(crate) fn bitptr(&self) -> BitPtr<T> {
+		self.inner.bitptr()
 	}
 }
 
 impl<'a, C, T> DoubleEndedIterator for Iter<'a, C, T>
-where C: 'a + crate::Cursor, T: 'a + crate::Bits {
+where C: Cursor, T: 'a + Bits {
+	/// Produces the next bit from the back of the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The last bit in the slice, if any.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[1];
+	/// let bv: &BitSlice = store.into();
+	/// let bv = &bv[6 ..];
+	/// let mut iter = bv.iter();
+	/// assert!(iter.next_back().unwrap());
+	/// assert!(!iter.next_back().unwrap());
+	/// assert!(iter.next_back().is_none());
+	/// ```
 	fn next_back(&mut self) -> Option<Self::Item> {
-		if self.tail > self.head {
-			self.tail -= 1;
-			Some(self.inner.get(self.tail))
+		if self.inner.is_empty() {
+			return None;
 		}
-		else {
-			self.reset();
-			None
-		}
+		let len = self.inner.len();
+		let out = self.inner[len - 1];
+		self.inner = &self.inner[.. len - 1];
+		Some(out)
 	}
 }
 
+/// Mark that the iterator has an exact size.
 impl<'a, C, T> ExactSizeIterator for Iter<'a, C, T>
-where C: 'a + crate::Cursor, T: 'a + crate::Bits {
-	fn len(&self) -> usize {
-		self.tail - self.head
-	}
-}
+where C: Cursor, T: 'a + Bits {}
 
-impl<'a, C, T> From<&'a BitSlice<C, T>> for Iter<'a, C, T>
-where C: 'a + crate::Cursor, T: 'a + crate::Bits {
-	fn from(src: &'a BitSlice<C, T>) -> Self {
-		let len = src.len();
-		Self {
-			inner: src,
-			head: 0,
-			tail: len,
-		}
-	}
-}
+/// Mark that the iterator will not resume after halting.
+impl<'a, C, T> FusedIterator for Iter<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
 
 impl<'a, C, T> Iterator for Iter<'a, C, T>
-where C: 'a + crate::Cursor, T: 'a + crate::Bits {
+where C: Cursor, T: 'a + Bits {
 	type Item = bool;
 
+	/// Advances the iterator by one, returning the first bit in it (if any).
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The leading bit in the iterator, if any.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x80];
+	/// let bv: &BitSlice = store.into();
+	/// let bv = &bv[.. 2];
+	/// let mut iter = bv.iter();
+	/// assert!(iter.next().unwrap());
+	/// assert!(!iter.next().unwrap());
+	/// assert!(iter.next().is_none());
+	/// ```
 	fn next(&mut self) -> Option<Self::Item> {
-		if self.head < self.tail {
-			let ret = self.inner.get(self.head);
-			self.head += 1;
-			Some(ret)
+		if self.inner.is_empty() {
+			return None;
 		}
-		else {
-			self.reset();
-			None
-		}
+		let out = self.inner[0];
+		self.inner = &self.inner[1 ..];
+		Some(out)
 	}
 
+	/// Hints at the number of bits remaining in the iterator.
+	///
+	/// Because the exact size is always known, this always produces
+	/// `(len, Some(len))`.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// - `usize`: The minimum bits remaining.
+	/// - `Option<usize>`: The maximum bits remaining.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// let bv = &bv[.. 2];
+	/// let mut iter = bv.iter();
+	/// assert_eq!(iter.size_hint(), (2, Some(2)));
+	/// iter.next();
+	/// assert_eq!(iter.size_hint(), (1, Some(1)));
+	/// iter.next();
+	/// assert_eq!(iter.size_hint(), (0, Some(0)));
+	/// ```
 	fn size_hint(&self) -> (usize, Option<usize>) {
-		let rem = ExactSizeIterator::len(self);
-		(rem, Some(rem))
+		let len = self.inner.len();
+		(len, Some(len))
 	}
 
 	/// Counts how many bits are live in the iterator, consuming it.
 	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The number of bits remaining in the iterator.
+	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let bv = bitvec![BigEndian, u8; 0, 1, 0, 1, 0];
-	/// assert_eq!(bv.iter().count(), 5);
-	/// # }
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// assert_eq!(bv.iter().count(), 8);
 	/// ```
 	fn count(self) -> usize {
-		ExactSizeIterator::len(&self)
+		self.len()
 	}
 
 	/// Advances the iterator by `n` bits, starting from zero.
 	///
-	/// It is not an error to advance past the end of the iterator! Doing so
-	/// returns `None`, and resets the iterator to its beginning.
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `n`: The number of bits to skip, before producing the next bit after
+	///   skips. If this overshoots the iterator’s remaining length, then the
+	///   iterator is marked empty before returning `None`.
+	///
+	/// # Returns
+	///
+	/// If `n` does not overshoot the iterator’s bounds, this produces the `n`th
+	/// bit after advancing the iterator to it, discarding the intermediate
+	/// bits.
+	///
+	/// If `n` does overshoot the iterator’s bounds, this empties the iterator
+	/// and returns `None`.
 	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 1];
-	/// let mut bv_iter = bv.iter();
-	/// assert_eq!(bv_iter.len(), 4);
-	/// assert!(bv_iter.nth(3).unwrap());
-	/// # }
-	/// ```
 	///
-	/// This example intentionally overshoots the iterator bounds, which causes
-	/// a reset to the initial state. It then demonstrates that `nth` is
-	/// stateful, and is not an absolute index, by seeking ahead by two (to the
-	/// third zero bit) and then taking the bit immediately after it, which is
-	/// set. This shows that the argument to `nth` is how many bits to discard
-	/// before yielding the next.
-	///
-	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
-	/// use bitvec::*;
-	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 1];
-	/// let mut bv_iter = bv.iter();
-	/// assert!(bv_iter.nth(4).is_none());
-	/// assert!(!bv_iter.nth(2).unwrap());
-	/// assert!(bv_iter.nth(0).unwrap());
-	/// # }
+	/// let store: &[u8] = &[2];
+	/// let bv: &BitSlice = store.into();
+	/// let mut iter = bv.iter();
+	/// assert!(iter.nth(6).unwrap());
+	/// assert!(!iter.nth(0).unwrap());
+	/// assert!(iter.nth(0).is_none());
 	/// ```
-	fn nth(&mut self, n: usize) -> Option<bool> {
-		self.head = self.head.saturating_add(n);
+	fn nth(&mut self, n: usize) -> Option<Self::Item> {
+		if n >= self.len() {
+			self.inner = BitSlice::empty();
+			return None;
+		}
+		self.inner = &self.inner[n ..];
 		self.next()
 	}
 
-	/// Consumes the iterator, returning only the last bit.
+	/// Consumes the iterator, returning only the final bit.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The last bit in the iterator slice, if any.
 	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 1];
-	/// assert!(bv.into_iter().last().unwrap());
-	/// # }
-	/// ```
 	///
-	/// Empty iterators return `None`
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// assert!(bv.iter().last().unwrap());
+	/// ```
+	fn last(mut self) -> Option<Self::Item> {
+		self.next_back()
+	}
+}
+
+/// State keeper for reverse chunked iteration over a `BitSlice`.
+///
+/// # Type Parameters
+///
+/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+///
+/// # Lifetimes
+///
+/// - `'a`: The lifetime of the underlying `BitSlice`.
+#[derive(Clone, Debug)]
+pub struct RChunks<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// The `BitSlice` being iterated.
+	inner: &'a BitSlice<C, T>,
+	/// The width of the chunks.
+	width: usize,
+}
+
+impl<'a, C, T> DoubleEndedIterator for RChunks<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// Produces the next chunk from the front of the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The last chunk in the slice, if any.
+	///
+	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::*;
-	/// let bv = bitvec![];
-	/// assert!(bv.into_iter().last().is_none());
-	/// # }
+	///
+	/// let store: &[u8] = &[1];
+	/// let bv: &BitSlice = store.into();
+	/// let mut rchunks = bv.rchunks(5);
+	/// assert_eq!(rchunks.next_back(), Some(&bv[.. 3]));
+	/// assert_eq!(rchunks.next_back(), Some(&bv[3 ..]));
+	/// assert!(rchunks.next_back().is_none());
 	/// ```
-	fn last(mut self) -> Option<bool> {
+	fn next_back(&mut self) -> Option<Self::Item> {
+		if self.inner.is_empty() {
+			return None;
+		}
+		let len = self.inner.len();
+		let rem = len % self.width;
+		let size = if rem == 0 { self.width } else { rem };
+		let (head, tail) = self.inner.split_at(size);
+		self.inner = tail;
+		Some(head)
+	}
+}
+
+/// Mark that the iterator has an exact size.
+impl<'a, C, T> ExactSizeIterator for RChunks<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
+
+/// Mark that the iterator will not resume after halting.
+impl<'a, C, T> FusedIterator for RChunks<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
+
+impl<'a, C, T> Iterator for RChunks<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	type Item = &'a BitSlice<C, T>;
+
+	/// Advances the iterator by one, returning the first chunk in it (if any).
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The leading chunk in the iterator, if any.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x80];
+	/// let bv: &BitSlice = store.into();
+	/// let mut rchunks = bv.rchunks(5);
+	/// assert_eq!(rchunks.next(), Some(&bv[3 ..]));
+	/// assert_eq!(rchunks.next(), Some(&bv[.. 3]));
+	/// assert!(rchunks.next().is_none());
+	/// ```
+	fn next(&mut self) -> Option<Self::Item> {
+		use core::cmp::min;
+		if self.inner.is_empty() {
+			return None;
+		}
+		let len = self.inner.len();
+		let size = min(len, self.width);
+		let (head, tail) = self.inner.split_at(len - size);
+		self.inner = head;
+		Some(tail)
+	}
+
+	/// Hints at the number of chunks remaining in the iterator.
+	///
+	/// Because the exact size is always known, this always produces
+	/// `(len, Some(len))`.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// - `usize`: The minimum chunks remaining.
+	/// - `Option<usize>`: The maximum chunks remaining.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// let mut rchunks = bv.rchunks(5);
+	/// assert_eq!(rchunks.size_hint(), (2, Some(2)));
+	/// rchunks.next();
+	/// assert_eq!(rchunks.size_hint(), (1, Some(1)));
+	/// rchunks.next();
+	/// assert_eq!(rchunks.size_hint(), (0, Some(0)));
+	/// ```
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		if self.inner.is_empty() {
+			return (0, Some(0));
+		}
+		let len = self.inner.len();
+		let (len, rem) = (len / self.width, len % self.width);
+		let len = len + (rem > 0) as usize;
+		(len, Some(len))
+	}
+
+	/// Counts how many chunks are live in the iterator, consuming it.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The number of chunks remaining in the iterator.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// assert_eq!(bv.rchunks(3).count(), 3);
+	/// ```
+	fn count(self) -> usize {
+		self.len()
+	}
+
+	/// Advances the iterator by `n` chunks, starting from zero.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `n`: The number of chunks to skip, before producing the next bit after
+	///   skips. If this overshoots the iterator’s remaining length, then the
+	///   iterator is marked empty before returning `None`.
+	///
+	/// # Returns
+	///
+	/// If `n` does not overshoot the iterator’s bounds, this produces the `n`th
+	/// bit after advancing the iterator to it, discarding the intermediate
+	/// chunks.
+	///
+	/// If `n` does overshoot the iterator’s bounds, this empties the iterator
+	/// and returns `None`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[2];
+	/// let bv: &BitSlice = store.into();
+	/// let mut rchunks = bv.rchunks(3);
+	/// assert_eq!(rchunks.nth(2), Some(&bv[0 .. 2]));
+	/// assert!(rchunks.nth(0).is_none());
+	/// ```
+	fn nth(&mut self, n: usize) -> Option<Self::Item> {
+		let (end, ovf) = n.overflowing_mul(self.width);
+		if end >= self.inner.len() || ovf {
+			self.inner = BitSlice::empty();
+			return None;
+		}
+		// Can't underflow because of the check above
+		let end = self.inner.len() - end;
+		let start = end.checked_sub(self.width).unwrap_or(0);
+		let nth = &self.inner[start .. end];
+		self.inner = &self.inner[.. start];
+		Some(nth)
+	}
+
+	/// Consumes the iterator, returning only the final chunk.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The last chunk in the iterator slice, if any.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// assert_eq!(bv.rchunks(3).last(), Some(&bv[.. 2]));
+	/// ```
+	fn last(mut self) -> Option<Self::Item> {
+		self.next_back()
+	}
+}
+
+/// State keeper for mutable reverse chunked iteration over a `BitSlice`.
+///
+/// # Type Parameters
+///
+/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+///
+/// # Lifetimes
+///
+/// - `'a`: The lifetime of the underlying `BitSlice`.
+#[derive(Debug)]
+pub struct RChunksMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// The `BitSlice` being iterated.
+	inner: &'a mut BitSlice<C, T>,
+	/// The width of the chunks.
+	width: usize,
+}
+
+impl<'a, C, T> DoubleEndedIterator for RChunksMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// Produces the next chunk from the front of the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The last chunk in the slice, if any.
+	fn next_back(&mut self) -> Option<Self::Item> {
+		if self.inner.is_empty() {
+			return None;
+		}
+		let rem = self.inner.len() % self.width;
+		let size = if rem == 0 { self.width } else { rem };
+		let tmp = mem::replace(&mut self.inner, BitSlice::empty_mut());
+		let (head, tail) = tmp.split_at_mut(size);
+		self.inner = tail;
+		Some(head)
+	}
+}
+
+impl<'a, C, T> ExactSizeIterator for RChunksMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
+
+impl<'a, C, T> FusedIterator for RChunksMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
+
+impl<'a, C, T> Iterator for RChunksMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	type Item = &'a mut BitSlice<C, T>;
+
+	/// Advances the iterator by one, returning the first chunk in it (if any).
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The leading chunk in the iterator, if any.
+	fn next(&mut self) -> Option<Self::Item> {
+		use core::cmp::min;
+		if self.inner.is_empty() {
+			return None;
+		}
+		let size = min(self.inner.len(), self.width);
+		let tmp = mem::replace(&mut self.inner, BitSlice::empty_mut());
+		let tlen = tmp.len();
+		let (head, tail) = tmp.split_at_mut(tlen - size);
+		self.inner = head;
+		Some(tail)
+	}
+
+	/// Hints at the number of chunks remaining in the iterator.
+	///
+	/// Because the exact size is always known, this always produces
+	/// `(len, Some(len))`.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// - `usize`: The minimum chunks remaining.
+	/// - `Option<usize>`: The maximum chunks remaining.
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		if self.inner.is_empty() {
+			return (0, Some(0));
+		}
+		let len = self.inner.len();
+		let (len, rem) = (len / self.width, len % self.width);
+		let len = len + (rem > 0) as usize;
+		(len, Some(len))
+	}
+
+	/// Counts how many chunks are live in the iterator, consuming it.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The number of chunks remaining in the iterator.
+	fn count(self) -> usize {
+		self.len()
+	}
+
+	/// Advances the iterator by `n` chunks, starting from zero.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `n`: The number of chunks to skip, before producing the next bit after
+	///   skips. If this overshoots the iterator’s remaining length, then the
+	///   iterator is marked empty before returning `None`.
+	///
+	/// # Returns
+	///
+	/// If `n` does not overshoot the iterator’s bounds, this produces the `n`th
+	/// bit after advancing the iterator to it, discarding the intermediate
+	/// chunks.
+	///
+	/// If `n` does overshoot the iterator’s bounds, this empties the iterator
+	/// and returns `None`.
+	fn nth(&mut self, n: usize) -> Option<Self::Item> {
+		let (end, ovf) = n.overflowing_mul(self.width);
+		if end >= self.inner.len() || ovf {
+			self.inner = BitSlice::empty_mut();
+			return None;
+		}
+		// Can't underflow because of the check above
+		let end = self.inner.len() - end;
+		let start = end.checked_sub(self.width).unwrap_or(0);
+		let tmp = mem::replace(&mut self.inner, BitSlice::empty_mut());
+		let (head, tail) = tmp.split_at_mut(start);
+		let (nth, _) = tail.split_at_mut(end - start);
+		self.inner = head;
+		Some(nth)
+	}
+
+	/// Consumes the iterator, returning only the final chunk.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The last chunk in the iterator slice, if any.
+	fn last(mut self) -> Option<Self::Item> {
+		self.next_back()
+	}
+}
+
+/// State keeper for reverse exact iteration over a `BitSlice`.
+///
+/// # Type Parameters
+///
+/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+///
+/// # Lifetimes
+///
+/// - `'a`: The lifetime of the underlying `BitSlice`.
+#[derive(Clone, Debug)]
+pub struct RChunksExact<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// The `BitSlice` being iterated.
+	inner: &'a BitSlice<C, T>,
+	/// The excess of the original `BitSlice`, which is not iterated.
+	extra: &'a BitSlice<C, T>,
+	/// The width of the chunks.
+	width: usize,
+}
+
+impl<'a, C, T> RChunksExact<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// Produces the remainder of the original slice, which will not be included
+	/// in the iteration.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// The remaining slice that the iteration will not include.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bits: &BitSlice = store.into();
+	/// let rchunks_exact = bits.rchunks_exact(3);
+	/// assert_eq!(rchunks_exact.remainder(), &bits[.. 2]);
+	/// ```
+	pub fn remainder(&self) -> &'a BitSlice<C, T> {
+		self.extra
+	}
+}
+
+impl<'a, C, T> DoubleEndedIterator for RChunksExact<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// Produces the next chunk from the front of the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The last chunk in the slice, if any.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[1];
+	/// let bv: &BitSlice = store.into();
+	/// let mut rchunks_exact = bv.rchunks_exact(3);
+	/// assert_eq!(rchunks_exact.next_back(), Some(&bv[2 .. 5]));
+	/// assert_eq!(rchunks_exact.next_back(), Some(&bv[5 .. 8]));
+	/// assert!(rchunks_exact.next_back().is_none());
+	/// ```
+	fn next_back(&mut self) -> Option<Self::Item> {
+		if self.inner.len() < self.width {
+			self.inner = BitSlice::empty();
+			return None;
+		}
+		let (head, tail) = self.inner.split_at(self.width);
+		self.inner = tail;
+		Some(head)
+	}
+}
+
+/// Mark that the iterator has an exact size.
+impl<'a, C, T> ExactSizeIterator for RChunksExact<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
+
+/// Mark that the iterator will not resume after halting.
+impl<'a, C, T> FusedIterator for RChunksExact<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
+
+impl<'a, C, T> Iterator for RChunksExact<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	type Item = &'a BitSlice<C, T>;
+
+	/// Advances the iterator by one, returning the first chunk in it (if any).
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The leading chunk in the iterator, if any.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x80];
+	/// let bv: &BitSlice = store.into();
+	/// let mut rchunks_exact = bv.rchunks_exact(3);
+	/// assert_eq!(rchunks_exact.next(), Some(&bv[5 .. 8]));
+	/// assert_eq!(rchunks_exact.next(), Some(&bv[2 .. 5]));
+	/// assert!(rchunks_exact.next().is_none());
+	/// ```
+	fn next(&mut self) -> Option<Self::Item> {
+		if self.inner.len() < self.width {
+			self.inner = BitSlice::empty();
+			return None;
+		}
+		let (head, tail) = self.inner.split_at(self.inner.len() - self.width);
+		self.inner = head;
+		Some(tail)
+	}
+
+	/// Hints at the number of chunks remaining in the iterator.
+	///
+	/// Because the exact size is always known, this always produces
+	/// `(len, Some(len))`.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// - `usize`: The minimum chunks remaining.
+	/// - `Option<usize>`: The maximum chunks remaining.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// let mut rchunks_exact = bv.rchunks_exact(3);
+	/// assert_eq!(rchunks_exact.size_hint(), (2, Some(2)));
+	/// rchunks_exact.next();
+	/// assert_eq!(rchunks_exact.size_hint(), (1, Some(1)));
+	/// rchunks_exact.next();
+	/// assert_eq!(rchunks_exact.size_hint(), (0, Some(0)));
+	/// ```
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		let n = self.inner.len() / self.width;
+		(n, Some(n))
+	}
+
+	/// Counts how many chunks are live in the iterator, consuming it.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The number of chunks remaining in the iterator.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// assert_eq!(bv.rchunks_exact(3).count(), 2);
+	/// ```
+	fn count(self) -> usize {
+		self.len()
+	}
+
+	/// Advances the iterator by `n` chunks, starting from zero.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `n`: The number of chunks to skip, before producing the next bit after
+	///   skips. If this overshoots the iterator’s remaining length, then the
+	///   iterator is marked empty before returning `None`.
+	///
+	/// # Returns
+	///
+	/// If `n` does not overshoot the iterator’s bounds, this produces the `n`th
+	/// bit after advancing the iterator to it, discarding the intermediate
+	/// chunks.
+	///
+	/// If `n` does overshoot the iterator’s bounds, this empties the iterator
+	/// and returns `None`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// let mut rchunks_exact = bv.rchunks_exact(3);
+	/// assert_eq!(rchunks_exact.nth(1), Some(&bv[2 .. 5]));
+	/// assert!(rchunks_exact.nth(0).is_none());
+	/// ```
+	fn nth(&mut self, n: usize) -> Option<Self::Item> {
+		let (end, ovf) = n.overflowing_mul(self.width);
+		if end >= self.inner.len() || ovf {
+			self.inner = BitSlice::empty();
+			return None;
+		}
+		let (head, _) = self.inner.split_at(self.inner.len() - end);
+		self.inner = head;
+		self.next()
+	}
+
+	/// Consumes the iterator, returning only the final bit.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The last bit in the iterator slice, if any.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// assert!(bv.iter().last().unwrap());
+	/// ```
+	fn last(mut self) -> Option<Self::Item> {
+		self.next_back()
+	}
+}
+
+/// State keeper for mutable reverse exact chunked iteration over a `BitSlice`.
+///
+/// # Type Parameters
+///
+/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+///
+/// # Lifetimes
+///
+/// - `'a`: The lifetime of the underlying `BitSlice`.
+#[derive(Debug)]
+pub struct RChunksExactMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// The `BitSlice` being iterated.
+	inner: &'a mut BitSlice<C, T>,
+	/// The excess of the original `BitSlice`, which is not iterated.
+	extra: &'a mut BitSlice<C, T>,
+	/// The width of the chunks.
+	width: usize,
+}
+
+impl<'a, C, T> RChunksExactMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// Produces the remainder of the original slice, which will not be included
+	/// in the iteration.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The remaining slice that iteration will not include.
+	pub fn into_remainder(self) -> &'a mut BitSlice<C, T> {
+		self.extra
+	}
+}
+
+impl<'a, C, T> DoubleEndedIterator for RChunksExactMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// Produces the next chunk from the front of the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The last chunk in the slice, if any.
+	fn next_back(&mut self) -> Option<Self::Item> {
+		if self.inner.len() < self.width {
+			self.inner = BitSlice::empty_mut();
+			return None;
+		}
+		let tmp = mem::replace(&mut self.inner, BitSlice::empty_mut());
+		let (head, tail) = tmp.split_at_mut(self.width);;
+		self.inner = tail;
+		Some(head)
+	}
+}
+
+impl<'a, C, T> ExactSizeIterator for RChunksExactMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
+
+impl<'a, C, T> FusedIterator for RChunksExactMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
+
+impl<'a, C, T> Iterator for RChunksExactMut<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	type Item = &'a mut BitSlice<C, T>;
+
+	/// Advances the iterator by one, returning the first chunk in it (if any).
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The leading chunk in the iterator, if any.
+	fn next(&mut self) -> Option<Self::Item> {
+		if self.inner.len() < self.width {
+			self.inner = BitSlice::empty_mut();
+			return None;
+		}
+		let tmp = mem::replace(&mut self.inner, BitSlice::empty_mut());
+		let tlen = tmp.len();
+		let (head, tail) = tmp.split_at_mut(tlen - self.width);
+		self.inner = head;
+		Some(tail)
+	}
+
+	/// Hints at the number of chunks remaining in the iterator.
+	///
+	/// Because the exact size is always known, this always produces
+	/// `(len, Some(len))`.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// - `usize`: The minimum chunks remaining.
+	/// - `Option<usize>`: The maximum chunks remaining.
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		let n = self.inner.len() / self.width;
+		(n, Some(n))
+	}
+
+	/// Counts how many chunks are live in the iterator, consuming it.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The number of chunks remaining in the iterator.
+	fn count(self) -> usize {
+		self.len()
+	}
+
+	/// Advances the iterator by `n` chunks, starting from zero.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `n`: The number of chunks to skip, before producing the next bit after
+	///   skips. If this overshoots the iterator’s remaining length, then the
+	///   iterator is marked empty before returning `None`.
+	///
+	/// # Returns
+	///
+	/// If `n` does not overshoot the iterator’s bounds, this produces the `n`th
+	/// bit after advancing the iterator to it, discarding the intermediate
+	/// chunks.
+	///
+	/// If `n` does overshoot the iterator’s bounds, this empties the iterator
+	/// and returns `None`.
+	fn nth(&mut self, n: usize) -> Option<Self::Item> {
+		let (end, ovf) = n.overflowing_mul(self.width);
+		if end >= self.inner.len() || ovf {
+			self.inner = BitSlice::empty_mut();
+			return None;
+		}
+		let tmp = mem::replace(&mut self.inner, BitSlice::empty_mut());
+		let tlen = tmp.len();
+		let (head, _) = tmp.split_at_mut(tlen - end);
+		self.inner = head;
+		self.next()
+	}
+
+	/// Consumes the iterator, returning only the final bit.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The last bit in the iterator slice, if any.
+	fn last(mut self) -> Option<Self::Item> {
+		self.next_back()
+	}
+}
+
+/// State keeper for sliding-window iteration over a `BitSlice`.
+///
+/// # Type Parameters
+///
+/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+///
+/// # Lifetimes
+///
+/// - `'a`: The lifetime of the underlying `BitSlice`.
+#[derive(Clone, Debug)]
+pub struct Windows<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// The `BitSlice` being iterated.
+	inner: &'a BitSlice<C, T>,
+	/// The width of the windows.
+	width: usize,
+}
+
+impl<'a, C, T> DoubleEndedIterator for Windows<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	/// Produces the next window from the back of the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The last window in the slice, if any.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0b0010_1101];
+	/// let bv: &BitSlice = store.into();
+	/// let mut windows = bv[2 .. 7].windows(3);
+	/// assert_eq!(windows.next_back(), Some(&bv[4 .. 7]));
+	/// assert_eq!(windows.next_back(), Some(&bv[3 .. 6]));
+	/// assert_eq!(windows.next_back(), Some(&bv[2 .. 5]));
+	/// assert!(windows.next_back().is_none());
+	/// ```
+	fn next_back(&mut self) -> Option<Self::Item> {
+		if self.inner.is_empty() || self.width > self.inner.len() {
+			self.inner = BitSlice::empty();
+			return None;
+		}
+		let len = self.inner.len();
+		let out = &self.inner[len - self.width ..];
+		self.inner = &self.inner[.. len - 1];
+		Some(out)
+	}
+}
+
+/// Mark that the iterator has an exact size.
+impl<'a, C, T> ExactSizeIterator for Windows<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
+
+/// Mark that the iterator will not resume after halting.
+impl<'a, C, T> FusedIterator for Windows<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
+
+impl<'a, C, T> Iterator for Windows<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	type Item = &'a BitSlice<C, T>;
+
+	/// Advances the iterator by one, returning the first window in it (if any).
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The leading window in the iterator, if any.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x80];
+	/// let bv: &BitSlice = store.into();
+	/// let bv = &bv[.. 2];
+	/// let mut iter = bv.iter();
+	/// assert!(iter.next().unwrap());
+	/// assert!(!iter.next().unwrap());
+	/// assert!(iter.next().is_none());
+	/// ```
+	fn next(&mut self) -> Option<Self::Item> {
+		if self.width > self.inner.len() {
+			self.inner = BitSlice::empty();
+			None
+		}
+		else {
+			let out = &self.inner[.. self.width];
+			self.inner = &self.inner[1 ..];
+			Some(out)
+		}
+	}
+
+	/// Hints at the number of windows remaining in the iterator.
+	///
+	/// Because the exact size is always known, this always produces
+	/// `(len, Some(len))`.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// - `usize`: The minimum windows remaining.
+	/// - `Option<usize>`: The maximum windows remaining.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// let bv = &bv[.. 2];
+	/// let mut iter = bv.iter();
+	/// assert_eq!(iter.size_hint(), (2, Some(2)));
+	/// iter.next();
+	/// assert_eq!(iter.size_hint(), (1, Some(1)));
+	/// iter.next();
+	/// assert_eq!(iter.size_hint(), (0, Some(0)));
+	/// ```
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		let len = self.inner.len();
+		if self.width > len {
+			(0, Some(0))
+		}
+		else {
+			let len = len - self.width + 1;
+			(len, Some(len))
+		}
+	}
+
+	/// Counts how many windows are live in the iterator, consuming it.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The number of windows remaining in the iterator.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// assert_eq!(bv.iter().count(), 8);
+	/// ```
+	fn count(self) -> usize {
+		self.len()
+	}
+
+	/// Advances the iterator by `n` windows, starting from zero.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `n`: The number of windows to skip, before producing the next bit after
+	///   skips. If this overshoots the iterator’s remaining length, then the
+	///   iterator is marked empty before returning `None`.
+	///
+	/// # Returns
+	///
+	/// If `n` does not overshoot the iterator’s bounds, this produces the `n`th
+	/// bit after advancing the iterator to it, discarding the intermediate
+	/// windows.
+	///
+	/// If `n` does overshoot the iterator’s bounds, this empties the iterator
+	/// and returns `None`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[2];
+	/// let bv: &BitSlice = store.into();
+	/// let mut iter = bv.iter();
+	/// assert!(iter.nth(6).unwrap());
+	/// assert!(!iter.nth(0).unwrap());
+	/// assert!(iter.nth(0).is_none());
+	/// ```
+	fn nth(&mut self, n: usize) -> Option<Self::Item> {
+		let (end, ovf) = n.overflowing_add(self.width);
+		if end > self.inner.len() || ovf {
+			self.inner = BitSlice::empty();
+			return None;
+		}
+		let out = &self.inner[n .. end];
+		self.inner = &self.inner[n + 1 ..];
+		Some(out)
+	}
+
+	/// Consumes the iterator, returning only the final window.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The last window in the iterator slice, if any.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0x4B];
+	/// let bv: &BitSlice = store.into();
+	/// assert_eq!(bv.windows(3).last(), Some(&bv[5 ..]));
+	/// ```
+	fn last(mut self) -> Option<Self::Item> {
 		self.next_back()
 	}
 }
