@@ -1,6 +1,6 @@
 [package]
 name = "bitvec"
-version = "0.9.0"
+version = "0.10.0"
 authors = [
 	"myrrlyn <myrrlyn@outlook.com>",
 ]
@@ -12,6 +12,7 @@ categories = [
 ]
 description = "A crate for manipulating memory, bit by bit"
 documentation = "https://docs.rs/bitvec"
+edition = "2018"
 homepage = "https://myrrlyn.net/bitvec"
 keywords = [
 	"bits",
@@ -21,7 +22,15 @@ license = "MIT"
 readme = "README.md"
 repository = "https://github.com/myrrlyn/bitvec"
 
-[dependencies]
+[dependencies.conv]
+branch = "master"
+git = "https://git.myrrlyn.net/myrrlyn/conv"
+version = "1"
+
+[dependencies.tap]
+branch = "master"
+git = "https://git.myrrlyn.net/myrrlyn/tap"
+version = "0"
 
 [features]
 alloc = []
