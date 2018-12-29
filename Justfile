@@ -1,6 +1,6 @@
 checkout:
 	cargo check
-	cargo doc --document-private-items --features testing
+	cargo doc --features testing --document-private-items
 	cargo build
 	cargo build --example sieve
 	cargo build --example tour
@@ -8,6 +8,9 @@ checkout:
 	cargo package --allow-dirty
 
 dev:
-	cargo check
-	cargo test --features testing
-	cargo doc --document-private-items --features testing
+	# cargo check
+	cargo test --no-default-features --features testing
+	cargo doc --features testing --document-private-items
+
+ci:
+	watchexec -- just dev
