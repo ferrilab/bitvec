@@ -2,6 +2,42 @@
 
 All notable changes will be documented in this file.
 
+## 0.10.0
+
+This version was a complete rewrite of the entire crate. The minimum compiler
+version has been upgraded to `1.31.0`. The crate is written against the Rust
+2018 edition of the language. It will be a `1.0` release after polishing.
+
+### Added
+
+- `BitPtr` custom pointer representation. This is the most important component
+  of the rewrite, and what enabled the expanded feature set and API surface.
+  This structure allows `BitSlice` and `BitVec` to have head cursors at any bit,
+  not just at the front edge of an element. This allows the crate to support
+  arbitrary range slicing and slice splitting, and in turn greatly expand the
+  usability of the slice and vector types.
+
+  The `BitPtr` type is wholly crate-internal, and renders the `&BitSlice` and
+  `BitVec` handle types ***wholly incompatible*** with standard Rust slice and
+  vector handles. With great power comes great responsibility to never, ever,
+  interchange these types through any means except the provided translation API.
+
+- Range indexing and more powerful iteration. Bit-precision addressing allows
+  arbitrary subslices and enables more of the slice API from `core`.
+
+### Changed
+
+- Almost everything has been rewritten. The git diff for this version is
+  horrifying.
+
+- Formatting traits better leverage the builtin printing structures available
+  from `core::fmt`, and are made available on `no_std`.
+
+### Removed
+
+- `u64` is only usable as the storage type on 64-bit systems; it has 32-bit
+  alignment on 32-bit systems and as such is unusable there.
+
 ## 0.9.0
 
 ### Changed

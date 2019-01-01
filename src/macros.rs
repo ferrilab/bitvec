@@ -1,4 +1,7 @@
 /*! Utility macros for constructing data structures and implementing bulk types.
+
+The only public macro is `bitvec`; this module also provides convenience macros
+for code generation.
 !*/
 
 /** Construct a `BitVec` out of a literal array in source code, like `vec!`.
@@ -20,7 +23,8 @@ Like `vec!`, `bitvec!` supports bit lists `[0, 1, …]` and repetition markers
 # All Syntaxes
 
 ```rust
-# use bitvec::*;
+use bitvec::*;
+
 bitvec![BigEndian, u8; 0, 1];
 bitvec![LittleEndian, u8; 0, 1,];
 bitvec![BigEndian; 0, 1];
@@ -84,7 +88,7 @@ macro_rules! bitvec {
 	//  yet. Maybe a proc-macro.
 
 	( __bv_impl__ $endian:path , $bits:ty ; $( $element:expr ),* ) => {{
-		let init: &[bool] = &[ $( $element != 0),* ];
+		let init: &[bool] = &[ $( $element != 0 ),* ];
 		$crate :: BitVec :: < $endian , $bits > :: from ( init )
 	}};
 

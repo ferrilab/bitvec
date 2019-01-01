@@ -33,13 +33,15 @@ use core::{
 	},
 };
 
-/// Generalizes over the fundamental types for use in `bitvec` data structures.
-///
-/// This trait must only be implemented on unsigned integer primitives with full
-/// alignment.
-///
-/// The `Sealed` supertrait ensures that this can only be implemented locally,
-/// and will never be implemented by downstream crates on new types.
+/** Generalizes over the fundamental types for use in `bitvec` data structures.
+
+This trait must only be implemented on unsigned integer primitives with full
+alignment. It cannot be implemented on `u128` on any architecture, or on `u64`
+on 32-bit systems.
+
+The `Sealed` supertrait ensures that this can only be implemented locally, and
+will never be implemented by downstream crates on new types.
+**/
 pub trait Bits:
 	//  Forbid external implementation
 	Sealed
@@ -672,6 +674,8 @@ impl DerefMut for BitPos {
 impl Bits for u8  { const BITS: u8 = 3; const TYPENAME: &'static str = "u8";  }
 impl Bits for u16 { const BITS: u8 = 4; const TYPENAME: &'static str = "u16"; }
 impl Bits for u32 { const BITS: u8 = 5; const TYPENAME: &'static str = "u32"; }
+
+#[cfg(target_pointer_width = "64")]
 impl Bits for u64 { const BITS: u8 = 6; const TYPENAME: &'static str = "u64"; }
 
 /// Marker trait to seal `Bits` against downstream implementation.
@@ -686,6 +690,8 @@ pub trait Sealed {}
 impl Sealed for u8 {}
 impl Sealed for u16 {}
 impl Sealed for u32 {}
+
+#[cfg(target_pointer_width = "64")]
 impl Sealed for u64 {}
 
 #[cfg(test)]

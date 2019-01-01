@@ -136,7 +136,7 @@ assert_eq!(bv[0], true);
 
 bv.extend([0u8, 1, 0].iter().map(|n| *n != 0u8));
 for bit in &*bv {
-	println!("{}", bit);
+  println!("{}", bit);
 }
 assert_eq!(bv, bitvec![1, 0, 1, 0]);
 ```
@@ -177,8 +177,8 @@ stack.push(true);
 stack.push(true);
 
 while let Some(top) = stack.pop() {
-	//  Prints true, true, false
-	println!("{}", top);
+  //  Prints true, true, false
+  println!("{}", top);
 }
 ```
 
@@ -2752,7 +2752,7 @@ where C: Cursor, T: Bits {
 	/// ```rust
 	/// use bitvec::*;
 	///
-	/// let a = bitvec![1; 4];
+	/// let a = bitvec![0, 1, 1, 0];
 	/// let b = a.clone();
 	/// let c = a - b;
 	/// assert!(c.not_any(), "{:?}", c);
