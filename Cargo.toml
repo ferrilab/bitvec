@@ -23,13 +23,15 @@ readme = "README.md"
 repository = "https://github.com/myrrlyn/bitvec"
 
 [dependencies.conv]
-branch = "master"
-git = "https://git.myrrlyn.net/myrrlyn/conv"
+# branch = "master"
+# git = "https://git.myrrlyn.net/myrrlyn/conv"
+path = "./conv"
 version = "1"
 
 [dependencies.tap]
-branch = "master"
-git = "https://git.myrrlyn.net/myrrlyn/tap"
+# branch = "master"
+# git = "https://git.myrrlyn.net/myrrlyn/tap"
+path = "./tap"
 version = "0"
 
 [features]

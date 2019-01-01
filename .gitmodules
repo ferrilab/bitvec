@@ -1,0 +1,6 @@
+[submodule "conv"]
+	path = conv
+	url = https://git.myrrlyn.net/myrrlyn/conv.git
+[submodule "tap"]
+	path = tap
+	url = https://git.myrrlyn.net/myrrlyn/tap.git
