@@ -80,6 +80,6 @@ pub mod testing {
 		macros::*,
 		pointer::*,
 		slice::*,
-		// vec::*,
+		vec::*,
 	};
 }
