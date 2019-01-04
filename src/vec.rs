@@ -914,12 +914,12 @@ where C: Cursor, T: Bits {
 	/// assert!(bv.pop().is_none());
 	/// ```
 	pub fn pop(&mut self) -> Option<bool> {
-		if self.len() == 0 {
+		if self.is_empty() {
 			return None;
 		}
-		let out = self[self.len() - 1].into();
+		let out = self[self.len() - 1];
 		unsafe { self.bitptr().decr_tail() };
-		out
+		Some(out)
 	}
 
 	/// Moves all the elements of `other` into `self`, leaving `other` empty.
@@ -2789,6 +2789,7 @@ where C: Cursor, T: Bits {
 	/// let c = a - b;
 	/// assert_eq!(c, bitvec![0, 0, 0, 1]);
 	/// ```
+	//  Note: in `a - b`, `a` is `self` and the minuend, `b` is the subtrahend
 	fn sub_assign(&mut self, mut subtrahend: Self) {
 		//  Test for a zero subtrahend. Subtraction of zero is the identity
 		//  function, and can exit immediately.
@@ -2811,11 +2812,7 @@ where C: Cursor, T: Bits {
 				let diff = llen - rlen;
 				let sign = subtrahend[0];
 				subtrahend >>= diff;
-				//  Implementing BitVec >> (usize, bool) would permit sign
-				//  extension in fewer steps.
-				for idx in 0 .. diff {
-					subtrahend.set(idx, sign);
-				}
+				subtrahend[.. diff].set_all(sign);
 			}
 			let old = self.len();
 			*self += subtrahend;
