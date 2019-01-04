@@ -1479,6 +1479,27 @@ where C: Cursor, T: Bits {
 		}
 	}
 
+	/// Set all bits in the slice to a value.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `value`: The bit value to which all bits in the slice will be set.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &mut [u8] = &mut [0];
+	/// let bv: &mut BitSlice = store.into();
+	/// bv[2 .. 6].set_all(true);
+	/// assert_eq!(bv.as_ref(), &[0b0011_1100]);
+	/// bv[3 .. 5].set_all(false);
+	/// assert_eq!(bv.as_ref(), &[0b0010_0100]);
+	/// bv[.. 1].set_all(true);
+	/// assert_eq!(bv.as_ref(), &[0b1010_0100]);
+	/// ```
 	pub fn set_all(&mut self, value: bool) {
 		match self.inner() {
 			Inner::Minor(head, _, tail) => {
@@ -1577,10 +1598,15 @@ where C: Cursor, T: Bits {
 		self.into()
 	}
 
+	/// Splits the slice domain into its logical parts.
+	///
+	/// Produces either the single-element partial domain, or the edge and
+	/// center elements of a multiple-element domain.
 	fn inner(&self) -> Inner<T> {
 		let bp = self.bitptr();
 		let (h, t) = (bp.head(), bp.tail());
-		if self.as_ref().len() == 1 && *h > 0 && *t < T::SIZE {
+		//  single-element, cursors not at both edges
+		if self.as_ref().len() == 1 && !(*h == 0 && *t == T::SIZE) {
 			Inner::Minor(h, &self.as_ref()[0], t)
 		}
 		else {

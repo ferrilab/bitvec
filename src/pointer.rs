@@ -178,7 +178,7 @@ pointer and length values will be invalid for the memory model and allocation
 regime.
 **/
 #[repr(C)]
-#[derive(Clone)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct BitPtr<T>
 where T: Bits {
 	/// Pointer to the first storage element of the slice.
@@ -296,9 +296,11 @@ where T: Bits {
 			(ptr as usize).trailing_zeros() as usize >= Self::PTR_HEAD_BITS,
 			"BitPtr domain pointers must be well aligned",
 		);
-		NonNull::new(ptr as *mut u8)
-			.map(|ptr| Self { ptr, len: 0, _ty: PhantomData })
-			.unwrap_or_else(Self::empty)
+		Self {
+			ptr: NonNull::new(ptr as *mut u8).unwrap_or_else(NonNull::dangling),
+			len: 0,
+			_ty: PhantomData,
+		}
 	}
 
 	/// Creates a new `BitPtr` from its components.
@@ -363,10 +365,9 @@ where T: Bits {
 		tail: Tail,
 	) -> Self {
 		let (head, tail) = (head.into(), tail.into());
-		if data.is_null() || elts == 0 {
-			return Self::empty();
-		}
-		if elts == 1 && head == tail {
+		//  null pointers, and pointers to empty regions, are run through the
+		//  uninhabited constructor instead
+		if data.is_null() || elts == 0 || (elts == 1 && head == tail) {
 			return Self::uninhabited(data);
 		}
 
