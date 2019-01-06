@@ -1554,6 +1554,37 @@ where C: Cursor, T: Bits {
 		}
 	}
 
+	pub fn as_slice(&self) -> &[T] {
+		//  Get the `BitPtr` structure.
+		let bp = self.bitptr();
+		//  Get the pointer and element counts from it.
+		let (ptr, len) = (bp.pointer(), bp.elements());
+		//  Create a slice from them.
+		unsafe { slice::from_raw_parts(ptr, len) }
+	}
+
+	/// Accesses the underlying store.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let mut bv: BitVec = bitvec![0, 0, 0, 0, 0, 0, 0, 0, 1];
+	/// for elt in bv.as_mut_slice() {
+	///   *elt += 2;
+	/// }
+	/// assert_eq!(&[2, 0b1000_0010], bv.as_slice());
+	/// ```
+	pub fn as_mut_slice(&mut self) -> &mut [T] {
+		//  Get the `BitPtr` structure.
+		let bp = self.bitptr();
+		//  Get the pointer and element counts from it.
+		let (ptr, len) = (bp.pointer() as *mut T, bp.elements());
+		//  Create a slice from them.
+		unsafe { slice::from_raw_parts_mut(ptr, len) }
+	}
+
 	pub fn head(&self) -> Option<&T> {
 		//  Transmute into the correct lifetime.
 		unsafe { mem::transmute(self.bitptr().head_elt()) }
@@ -1813,12 +1844,7 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(&[2, 130], bv.as_ref());
 	/// ```
 	fn as_mut(&mut self) -> &mut [T] {
-		//  Get the `BitPtr` structure.
-		let bp = self.bitptr();
-		//  Get the pointer and element counts from it.
-		let (ptr, len) = (bp.pointer() as *mut T, bp.elements());
-		//  Create a slice from them.
-		unsafe { slice::from_raw_parts_mut(ptr, len) }
+		self.as_mut_slice()
 	}
 }
 
@@ -1847,12 +1873,7 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(&[0, 128], bv.as_ref());
 	/// ```
 	fn as_ref(&self) -> &[T] {
-		//  Get the `BitPtr` structure.
-		let bp = self.bitptr();
-		//  Get the pointer and element counts from it.
-		let (ptr, len) = (bp.pointer(), bp.elements());
-		//  Create a slice from them.
-		unsafe { slice::from_raw_parts(ptr, len) }
+		self.as_slice()
 	}
 }
 
@@ -2220,7 +2241,7 @@ where C: Cursor, T: 'a + Bits {
 /// - `I: IntoIterator<Item=bool, IntoIter: DoubleEndedIterator>`: The bitstream
 ///   to add into `self`. It must be finite and double-ended, since addition
 ///   operates in reverse.
-impl<'a, C, T, I> AddAssign<I> for BitSlice<C, T>
+impl<C, T, I> AddAssign<I> for BitSlice<C, T>
 where C: Cursor, T: Bits,
 	I: IntoIterator<Item=bool>, I::IntoIter: DoubleEndedIterator {
 	/// Performs unsigned wrapping addition in place.

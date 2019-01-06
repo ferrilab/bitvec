@@ -94,13 +94,13 @@ break your assumptions about what the memory looks like.\
 	println!("End example");
 
 	fn render<C: Cursor, T: Bits>(bv: &BitVec<C, T>) {
-		println!("Memory information: {} elements, {}", bv.as_ref().len(), bv.len());
+		println!("Memory information: {} elements, {}", bv.as_slice().len(), bv.len());
 		println!("Print out the semantic contents");
 		println!("{:#?}", bv);
 		println!("Print out the memory contents");
-		println!("{:?}", bv.as_ref());
+		println!("{:?}", bv.as_slice());
 		println!("Show the bits in memory");
-		for elt in bv.as_ref() {
+		for elt in bv.as_slice() {
 			println!("{:0w$b} ", elt, w=std::mem::size_of::<T>() * 8);
 		}
 		println!();

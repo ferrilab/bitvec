@@ -52,6 +52,9 @@ mod pointer;
 mod slice;
 
 #[cfg(feature = "alloc")]
+mod boxed;
+
+#[cfg(feature = "alloc")]
 mod vec;
 
 use crate::{
@@ -70,7 +73,10 @@ pub use crate::{
 };
 
 #[cfg(feature = "alloc")]
-pub use crate::vec::BitVec;
+pub use crate::{
+	boxed::BitBox,
+	vec::BitVec,
+};
 
 /// Expose crate internals for use in doctests and external tests.
 #[cfg(feature = "testing")]

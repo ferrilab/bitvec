@@ -192,7 +192,7 @@ fn main() {
     bv.extend(repeat(false).take(4).chain(repeat(true).take(4)));
 
     //  Memory access
-    assert_eq!(bv.as_ref(), &[0b0101_0000, 0b1111_0000]);
+    assert_eq!(bv.as_slice(), &[0b0101_0000, 0b1111_0000]);
     //                 index 0 -^               ^- index 11
     assert_eq!(bv.len(), 12);
     assert!(bv.capacity() >= 16);
@@ -206,9 +206,9 @@ fn main() {
     //  Arithmetic operations
     let one = bitvec![1];
     bv += one.clone();
-    assert_eq!(bv.as_ref(), &[0b0101_0001, 0b0000_0000]);
+    assert_eq!(bv.as_slice(), &[0b0101_0001, 0b0000_0000]);
     bv -= one.clone();
-    assert_eq!(bv.as_ref(), &[0b0101_0000, 0b1111_0000]);
+    assert_eq!(bv.as_slice(), &[0b0101_0000, 0b1111_0000]);
 
     //  Borrowing iteration
     let mut iter = bv.iter();
