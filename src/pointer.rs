@@ -181,6 +181,7 @@ regime.
 #[derive(Clone, Copy, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct BitPtr<T>
 where T: Bits {
+	_ty: PhantomData<T>,
 	/// Pointer to the first storage element of the slice.
 	///
 	/// This will always be a pointer to one byte, regardless of the storage
@@ -202,7 +203,6 @@ where T: Bits {
 	///
 	/// [`BitIdx`]: ../struct.BitIdx.html
 	len: usize,
-	_ty: PhantomData<T>,
 }
 
 impl<T> BitPtr<T>
@@ -266,7 +266,11 @@ where T: Bits {
 	///
 	/// The `BitPtr` returned by this function must never be dereferenced.
 	pub fn empty() -> Self {
-		Self::uninhabited(NonNull::dangling().as_ptr())
+		Self {
+			_ty: PhantomData,
+			ptr: NonNull::dangling(),
+			len: 0,
+		}
 	}
 
 	/// Produces an uninhabited slice from a bare pointer.
@@ -297,9 +301,9 @@ where T: Bits {
 			"BitPtr domain pointers must be well aligned",
 		);
 		Self {
+			_ty: PhantomData,
 			ptr: NonNull::new(ptr as *mut u8).unwrap_or_else(NonNull::dangling),
 			len: 0,
-			_ty: PhantomData,
 		}
 	}
 
@@ -435,11 +439,11 @@ where T: Bits {
 		let len_head = *head as usize & Self::LEN_HEAD_MASK;
 
 		Self {
+			_ty: PhantomData,
 			ptr: unsafe {
 				NonNull::new_unchecked((ptr_data | ptr_head) as *mut u8)
 			},
 			len: len_elts | len_tail | len_head,
-			_ty: PhantomData,
 		}
 	}
 

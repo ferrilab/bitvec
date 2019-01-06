@@ -11,18 +11,25 @@ slice and vector types.
 
 use crate::{
 	BigEndian,
+	BitBox,
 	BitIdx,
 	BitPtr,
 	BitSlice,
 	Bits,
 	Cursor,
 };
-use conv::Conv;
-use std::{
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+use alloc::{
 	borrow::{
 		Borrow,
 		BorrowMut,
+		ToOwned,
 	},
+	boxed::Box,
+	vec::Vec,
+};
+use conv::Conv;
+use core::{
 	clone::Clone,
 	cmp::{
 		self,
@@ -47,10 +54,6 @@ use std::{
 	hash::{
 		Hash,
 		Hasher,
-	},
-	io::{
-		self,
-		Write,
 	},
 	iter::{
 		self,
@@ -99,17 +102,21 @@ use std::{
 		NonNull,
 	},
 };
-use tap::Tap;
-
-#[cfg(all(feature = "alloc", not(feature = "std")))]
-use alloc::{
-	borrow::ToOwned,
+#[cfg(feature = "std")]
+use std::{
+	borrow::{
+		Borrow,
+		BorrowMut,
+		ToOwned,
+	},
 	boxed::Box,
+	io::{
+		self,
+		Write,
+	},
 	vec::Vec,
 };
-
-#[cfg(feature = "std")]
-use std::borrow::ToOwned;
+use tap::Tap;
 
 /** A compact [`Vec`] of bits, whose cursor and storage type can be customized.
 
@@ -326,6 +333,7 @@ is ***extremely binary incompatible*** with them. Attempting to treat
 pub struct BitVec<C = BigEndian, T = u8>
 where C: Cursor, T: Bits {
 	_cursor: PhantomData<C>,
+	_memory: PhantomData<T>,
 	/// Slice pointer over the owned memory.
 	pointer: BitPtr<T>,
 	/// The number of *elements* this vector has allocated.
@@ -352,11 +360,7 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(bv.capacity(), 0);
 	/// ```
 	pub fn new() -> Self {
-		Self {
-			_cursor: Default::default(),
-			pointer: Default::default(),
-			capacity: Default::default(),
-		}
+		Default::default()
 	}
 
 	/// Constructs a new, empty, `BitVec<T>` with the specified capacity.
@@ -391,7 +395,8 @@ where C: Cursor, T: Bits {
 			(ptr, cap)
 		};
 		Self {
-			_cursor: Default::default(),
+			_cursor: PhantomData,
+			_memory: PhantomData,
 			pointer: BitPtr::uninhabited(ptr),
 			capacity: cap,
 		}
@@ -401,31 +406,24 @@ where C: Cursor, T: Bits {
 	///
 	/// # Parameters
 	///
-	/// - `ptr`: A pointer to the beginning of a slab of memory.
-	/// - `elements`: The number of `T` elements considered live in that slab.
+	/// - `pointer`: The `BitPtr<T>` to use.
 	/// - `capacity`: The number of `T` elements *allocated* in that slab.
-	/// - `head`: The head cursor in the first `T` element.
-	/// - `tail`: The tail cursor in the last `T` element.
 	///
 	/// # Returns
 	///
 	/// A `BitVec` over the given slab of memory.
-	///
-	/// # Type Parameters
-	///
-	/// - `Head`: A value that can be used as a bit index for the head cursor.
-	/// - `Tail`: A value that can be used as a bit index for the type cursor.
 	///
 	/// # Safety
 	///
 	/// This is ***highly*** unsafe, due to the number of invariants that aren’t
 	/// checked:
 	///
-	/// - `ptr` needs to have been previously allocated by some allocating type.
-	/// - `ptr`’s `T` needs to have the same size ***and alignment*** as it was
-	///   initially allocated.
-	/// - `elements` needs to be less than or equal to the original allocation
-	///   capacity.
+	/// - `pointer` needs to have been previously allocated by some allocating
+	///   type.
+	/// - `pointer`’s `T` needs to have the same size ***and alignment*** as it
+	///   was initially allocated.
+	/// - `pointer`’s element count needs to be less than or equal to the
+	///   original allocation capacity.
 	/// - `capacity` needs to be the original allocation capacity for the
 	///   pointer.
 	///
@@ -435,21 +433,16 @@ where C: Cursor, T: Bits {
 	/// `BitVec` whose `T` differs from the type used for the initial
 	/// allocation.
 	///
-	/// The ownership of `ptr` is effectively transferred to the `BitVec<C, T>`
-	/// which may then deallocate, reallocate, or modify the contents of the
-	/// referent slice at will. Ensure that nothing else uses the pointer after
-	/// calling this function.
-	pub unsafe fn from_raw_parts<Head: Into<BitIdx>, Tail: Into<BitIdx>>(
-		ptr: *mut T,
-		elements: usize,
-		capacity: usize,
-		head: Head,
-		tail: Tail,
-	) -> Self {
+	/// The ownership of `pointer` is effectively transferred to the
+	/// `BitVec<C, T>` which may then deallocate, reallocate, or modify the
+	/// contents of the referent slice at will. Ensure that nothing else uses
+	/// the pointer after calling this function.
+	pub unsafe fn from_raw_parts(pointer: BitPtr<T>, capacity: usize) -> Self {
 		Self {
 			_cursor: PhantomData,
-			pointer: BitPtr::new(ptr as *const T, elements, head, tail),
-			capacity: capacity,
+			_memory: PhantomData,
+			pointer,
+			capacity,
 		}
 	}
 
@@ -630,7 +623,7 @@ where C: Cursor, T: Bits {
 	/// let bs = bv.as_bitslice();
 	/// ```
 	pub fn as_bitslice(&self) -> &BitSlice<C, T> {
-		self.pointer.clone().into()
+		self.pointer.into()
 	}
 
 	/// Extracts a mutable `BitSlice` containing the entire vector.
@@ -654,7 +647,7 @@ where C: Cursor, T: Bits {
 	/// let bs = bv.as_mut_bitslice();
 	/// ```
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<C, T> {
-		self.pointer.clone().into()
+		self.pointer.into()
 	}
 
 	/// Sets the length of the vector.
@@ -875,6 +868,7 @@ where C: Cursor, T: Bits {
 	/// ```
 	pub fn push(&mut self, value: bool) {
 		assert!(self.len() < BitPtr::<T>::MAX_BITS, "Capacity overflow");
+		let slot = self.len();
 		//  If self is empty *or* tail is at the back edge of an element, push
 		//  an element onto the vector.
 		if self.is_empty() || *self.pointer.tail() == T::SIZE {
@@ -882,8 +876,7 @@ where C: Cursor, T: Bits {
 		}
 		//  At this point, it is always safe to increment the tail, and then
 		//  write to the newly live bit.
-		unsafe { self.bitptr().incr_tail() };
-		let slot = self.len() - 1;
+		unsafe { self.bitptr_mut().incr_tail() };
 		self.set(slot, value);
 	}
 
@@ -918,7 +911,7 @@ where C: Cursor, T: Bits {
 			return None;
 		}
 		let out = self[self.len() - 1];
-		unsafe { self.bitptr().decr_tail() };
+		unsafe { self.bitptr_mut().decr_tail() };
 		Some(out)
 	}
 
@@ -1146,16 +1139,19 @@ where C: Cursor, T: Bits {
 
 	/// Sets the backing storage to the provided element.
 	///
-	/// This unconditionally sets each element in the backing storage to the
-	/// provided value, without altering the `BitVec` length or capacity. It
-	/// operates an the underlying `Vec` directly, and will ignore any partial
-	/// bounds on the tail.
+	/// This unconditionally sets each allocated element in the backing storage
+	/// to the provided value, without altering the `BitVec` length or capacity.
+	/// It operates on the underlying `Vec`’s memory region directly, and will
+	/// ignore the `BitVec`’s cursors.
+	///
+	/// This has the unobservable effect of setting the allocated, but dead,
+	/// bits beyond the end of the vector’s *length*, up to its *capacity*.
 	///
 	/// # Parameters
 	///
 	/// - `&mut self`
-	/// - `element`: The value to which each element in the backing store will
-	///   be set.
+	/// - `element`: The value to which each allocated element in the backing
+	///   store will be set.
 	///
 	/// # Examples
 	///
@@ -1163,9 +1159,9 @@ where C: Cursor, T: Bits {
 	/// use bitvec::*;
 	///
 	/// let mut bv = bitvec![0; 10];
-	/// assert_eq!(bv.as_ref(), &[0, 0]);
+	/// assert_eq!(bv.as_slice(), &[0, 0]);
 	/// bv.set_elements(0xA5);
-	/// assert_eq!(bv.as_ref(), &[0xA5, 0xA5]);
+	/// assert_eq!(bv.as_slice(), &[0xA5, 0xA5]);
 	/// ```
 	pub fn set_elements(&mut self, element: T) {
 		self.do_unto_vec(|v| {
@@ -1174,6 +1170,10 @@ where C: Cursor, T: Bits {
 				*elt = element;
 			}
 		})
+	}
+
+	pub(crate) fn bitptr(&self) -> BitPtr<T> {
+		self.pointer
 	}
 
 	/// Gives write access to the `BitPtr` structure powering the vector.
@@ -1185,7 +1185,7 @@ where C: Cursor, T: Bits {
 	/// # Returns
 	///
 	/// A mutable reference to the interior `BitPtr`.
-	pub(crate) fn bitptr(&mut self) -> &mut BitPtr<T> {
+	pub(crate) fn bitptr_mut(&mut self) -> &mut BitPtr<T> {
 		&mut self.pointer
 	}
 
@@ -1203,25 +1203,13 @@ where C: Cursor, T: Bits {
 	///
 	/// # Type Parameters
 	///
-	/// - `F: FnOnce(&mut Vec<T>)`: Any callable object (function or closure)
-	///   which receives a mutable borrow of a `Vec<T>` and returns nothing.
+	/// - `F: FnOnce(&mut Vec<T>) -> R`: Any callable object (function or
+	///   closure) which receives a mutable borrow of a `Vec<T>`.
 	///
-	/// # Safety
-	///
-	/// If the `BitVec<_, T>` is empty, then this produces a new `Vec<T>` for
-	/// the function, and updates `self` to an uninhabited vector after the
-	/// function concludes.
-	fn do_unto_vec<F>(&mut self, func: F)
-	where F: FnOnce(&mut Vec<T>) {
-		if self.is_empty() {
-			let mut v = Vec::new();
-			return func(&mut v).tap(|_| {
-				self.pointer = BitPtr::uninhabited(v.as_ptr());
-				self.capacity = v.capacity();
-				mem::forget(v);
-			});
-		}
-		let (data, elts, head, tail) = self.pointer.raw_parts();
+	/// - `R`: The return value from the called function or closure.
+	fn do_unto_vec<F, R>(&mut self, func: F) -> R
+	where F: FnOnce(&mut Vec<T>) -> R {
+		let (data, elts, head, tail) = self.bitptr().raw_parts();
 		let mut v = unsafe {
 			Vec::from_raw_parts(data as *mut T, elts, self.capacity)
 		};
@@ -1258,11 +1246,8 @@ where C: Cursor, T: Bits {
 	/// This produces an empty `Vec<T>` if the `BitVec<_, T>` is empty.
 	fn do_with_vec<F, R>(&self, func: F) -> R
 	where F: FnOnce(&Vec<T>) -> R {
-		if self.is_empty() {
-			return func(&Vec::new());
-		}
-		let (data, elts, _, _) = self.pointer.raw_parts();
-		let v = unsafe {
+		let (data, elts, _, _) = self.bitptr().raw_parts();
+		let v: Vec<T> = unsafe {
 			Vec::from_raw_parts(data as *mut T, elts, self.capacity)
 		};
 		func(&v).tap(|_| mem::forget(v))
@@ -1330,24 +1315,25 @@ where C: Cursor, T: Bits {
 impl<C, T> Clone for BitVec<C, T>
 where C: Cursor, T: Bits {
 	fn clone(&self) -> Self {
-		let (_, e, h, t) = self.pointer.raw_parts();
+		let (_, e, h, t) = self.bitptr().raw_parts();
 		let new_vec = self.do_with_vec(Clone::clone);
 		let (ptr, cap) = (new_vec.as_ptr(), new_vec.capacity());
 		mem::forget(new_vec);
 		Self {
 			_cursor: PhantomData,
+			_memory: PhantomData,
 			pointer: BitPtr::new(ptr, e, h, t),
 			capacity: cap,
 		}
 	}
 
 	fn clone_from(&mut self, other: &Self) {
-		let (_, e, h, t) = other.pointer.raw_parts();
+		let (_, e, h, t) = other.bitptr().raw_parts();
 		self.clear();
 		self.reserve(other.len());
-		let from = other.pointer.pointer();
-		let to = self.pointer.pointer() as *mut T;
-		let num = other.pointer.elements();
+		let from = other.bitptr().pointer();
+		let to = self.bitptr().pointer() as *mut T;
+		let num = other.bitptr().elements();
 		unsafe {
 			ptr::copy_nonoverlapping(from, to, num);
 		}
@@ -1404,7 +1390,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	/// let r: BitVec<LittleEndian, u8> = bitvec![LittleEndian, u8; 0, 1, 0, 1];
 	///
 	/// assert_eq!(l, r);
-	/// assert_ne!(l.as_ref(), r.as_ref());
+	/// assert_ne!(l.as_slice(), r.as_slice());
 	/// ```
 	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
 		<BitSlice<A, B> as PartialEq<BitSlice<C, D>>>::eq(&self, &rhs)
@@ -1462,25 +1448,26 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	}
 }
 
+impl<C, T> AsMut<BitSlice<C, T>> for BitVec<C, T>
+where C: Cursor, T: Bits {
+	fn as_mut(&mut self) -> &mut BitSlice<C, T> {
+		&mut **self
+	}
+}
+
 /// Gives write access to all live elements in the underlying storage, including
 /// the partially-filled tail.
 impl<C, T> AsMut<[T]> for BitVec<C, T>
 where C: Cursor, T: Bits {
-	/// Accesses the underlying store.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::*;
-	///
-	/// let mut bv: BitVec = bitvec![0, 0, 0, 0, 0, 0, 0, 0, 1];
-	/// for elt in bv.as_mut() {
-	///   *elt += 2;
-	/// }
-	/// assert_eq!(&[2, 0b1000_0010], bv.as_ref());
-	/// ```
 	fn as_mut(&mut self) -> &mut [T] {
-		<BitSlice<C, T> as AsMut<[T]>>::as_mut(&mut *self)
+		self.as_mut_slice()
+	}
+}
+
+impl<C, T> AsRef<BitSlice<C, T>> for BitVec<C, T>
+where C: Cursor, T: Bits {
+	fn as_ref(&self) -> &BitSlice<C, T> {
+		&**self
 	}
 }
 
@@ -1496,10 +1483,10 @@ where C: Cursor, T: Bits {
 	/// use bitvec::*;
 	///
 	/// let bv = bitvec![0, 0, 0, 0, 0, 0, 0, 0, 1];
-	/// assert_eq!(&[0, 0b1000_0000], bv.as_ref());
+	/// assert_eq!(&[0, 0b1000_0000], bv.as_slice());
 	/// ```
 	fn as_ref(&self) -> &[T] {
-		<BitSlice<C, T> as AsRef<[T]>>::as_ref(&*self)
+		self.as_slice()
 	}
 }
 
@@ -1511,17 +1498,12 @@ impl<C, T> From<&BitSlice<C, T>> for BitVec<C, T>
 where C: Cursor, T: Bits {
 	fn from(src: &BitSlice<C, T>) -> Self {
 		let (_, elts, head, tail) = src.bitptr().raw_parts();
-		let v = Vec::with_capacity(elts)
-			.tap_mut(|v| unsafe {
-				let to = v.as_mut_ptr();
-				let from = src.as_ptr();
-				ptr::copy_nonoverlapping(from, to, elts);
-			});
-		Self {
-			_cursor: PhantomData,
-			pointer: BitPtr::new(v.as_ptr(), elts, head, tail),
-			capacity: v.capacity(),
-		}.tap(|_| mem::forget(v))
+		let v: Vec<T> = src.as_slice().to_owned();
+		let data = v.as_ptr();
+		let cap = v.capacity();
+		mem::forget(v);
+		let bp = BitPtr::new(data, elts, head, tail);
+		unsafe { Self::from_raw_parts(bp, cap) }
 	}
 }
 
@@ -1534,6 +1516,15 @@ where C: Cursor, T: Bits {
 	fn from(src: &[bool]) -> Self {
 		Self::with_capacity(src.len())
 			.tap_mut(|v| src.iter().for_each(|b| v.push(*b)))
+	}
+}
+
+impl<C, T> From<BitBox<C, T>> for BitVec<C, T>
+where C: Cursor, T: Bits {
+	fn from(src: BitBox<C, T>) -> Self {
+		let pointer = src.bitptr();
+		mem::forget(src);
+		unsafe { Self::from_raw_parts(pointer, pointer.elements()) }
 	}
 }
 
@@ -1597,15 +1588,14 @@ where C: Cursor, T: Bits {
 	/// let bv: BitVec = src.into();
 	/// ```
 	fn from(src: Box<[T]>) -> Self {
-		assert!(src.len() < BitPtr::<T>::MAX_ELTS, "Vector overflow");
-		src.conv::<Vec<T>>().into()
+		src.conv::<BitBox<C, T>>().into()
 	}
 }
 
 impl<C, T> Into<Box<[T]>> for BitVec<C, T>
 where C: Cursor, T: Bits {
 	fn into(self) -> Box<[T]> {
-		self.conv::<Vec<T>>().into()
+		self.conv::<BitBox<C, T>>().into()
 	}
 }
 
@@ -1649,6 +1639,7 @@ where C: Cursor, T: Bits {
 		mem::forget(src);
 		Self {
 			_cursor: PhantomData,
+			_memory: PhantomData,
 			pointer: BitPtr::new(ptr, len, 0, T::SIZE),
 			capacity: cap,
 		}
@@ -1658,7 +1649,7 @@ where C: Cursor, T: Bits {
 impl<C, T> Into<Vec<T>> for BitVec<C, T>
 where C: Cursor, T: Bits {
 	fn into(self) -> Vec<T> {
-		let (pointer, capacity) = (self.pointer.clone(), self.capacity);
+		let (pointer, capacity) = (self.pointer, self.capacity);
 		mem::forget(self);
 		let (ptr, len, _, _) = pointer.raw_parts();
 		unsafe { Vec::from_raw_parts(ptr as *mut T, len, capacity) }
@@ -1670,6 +1661,7 @@ where C: Cursor, T: Bits {
 	fn default() -> Self {
 		Self {
 			_cursor: PhantomData,
+			_memory: PhantomData,
 			pointer: BitPtr::default(),
 			capacity: 0,
 		}
@@ -1682,7 +1674,7 @@ where C: Cursor, T: Bits {
 /// endianness and element type, with square brackets on each end of the bits
 /// and all the live elements in the vector printed in binary. The printout is
 /// always in semantic order, and may not reflect the underlying store. To see
-/// the underlying store, use `format!("{:?}", self.as_ref());` instead.
+/// the underlying store, use `format!("{:?}", self.as_slice());` instead.
 ///
 /// The alternate character `{:#?}` prints each element on its own line, rather
 /// than separated by a space.
@@ -1754,6 +1746,7 @@ where C: Cursor, T: Bits {
 	}
 }
 
+#[cfg(feature = "std")]
 impl<C, T> Write for BitVec<C, T>
 where C: Cursor, T: Bits {
 	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
@@ -1791,7 +1784,7 @@ where C: Cursor, T: Bits {
 	///
 	/// let mut bv = bitvec![0; 4];
 	/// bv.extend(bitvec![1; 4]);
-	/// assert_eq!(0x0F, bv.as_ref()[0]);
+	/// assert_eq!(0x0F, bv.as_slice()[0]);
 	/// ```
 	fn extend<I: IntoIterator<Item=bool>>(&mut self, src: I) {
 		let iter = src.into_iter();
@@ -1819,7 +1812,7 @@ where C: Cursor, T: Bits {
 	///   .take(4)
 	///   .chain(repeat(false).take(4))
 	///   .collect();
-	/// assert_eq!(bv.as_ref()[0], 0xF0);
+	/// assert_eq!(bv.as_slice()[0], 0xF0);
 	/// ```
 	fn from_iter<I: IntoIterator<Item=bool>>(src: I) -> Self {
 		let iter = src.into_iter();
@@ -1868,7 +1861,6 @@ where C: Cursor, T: Bits {
 impl<'a, C, T> IntoIterator for &'a BitVec<C, T>
 where C: Cursor, T: 'a + Bits {
 	type Item = bool;
-
 	type IntoIter = <&'a BitSlice<C, T> as IntoIterator>::IntoIter;
 
 	fn into_iter(self) -> Self::IntoIter {
@@ -2197,7 +2189,7 @@ where C: Cursor, T: Bits {
 	/// assert!(bref[2]);
 	/// ```
 	fn deref(&self) -> &Self::Target {
-		self.pointer.clone().into()
+		self.pointer.into()
 	}
 }
 
@@ -2220,7 +2212,7 @@ where C: Cursor, T: Bits {
 	/// assert!(bref[5]);
 	/// ```
 	fn deref_mut(&mut self) -> &mut Self::Target {
-		self.pointer.clone().into()
+		self.pointer.into()
 	}
 }
 
@@ -2437,7 +2429,7 @@ where C: Cursor, T: Bits {
 	///
 	/// let bv: BitVec<BigEndian, u32> = BitVec::from(&[0u32] as &[u32]);
 	/// let flip = !bv;
-	/// assert_eq!(!0u32, flip.as_ref()[0]);
+	/// assert_eq!(!0u32, flip.as_slice()[0]);
 	/// ```
 	fn not(self) -> Self::Output {
 		self.tap_mut(|bv| {
@@ -2489,11 +2481,11 @@ where C: Cursor, T: Bits {
 	///
 	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 1, 1, 1];
 	/// assert_eq!("[000111]", &format!("{}", bv));
-	/// assert_eq!(0b0001_1100, bv.as_ref()[0]);
+	/// assert_eq!(0b0001_1100, bv.as_slice()[0]);
 	/// assert_eq!(bv.len(), 6);
 	/// let ls = bv << 2usize;
 	/// assert_eq!("[0111]", &format!("{}", ls));
-	/// assert_eq!(0b0111_0000, ls.as_ref()[0]);
+	/// assert_eq!(0b0111_0000, ls.as_slice()[0]);
 	/// assert_eq!(ls.len(), 4);
 	/// ```
 	fn shl(mut self, shamt: usize) -> Self::Output {
@@ -2541,18 +2533,18 @@ where C: Cursor, T: Bits {
 	///
 	/// let mut bv = bitvec![LittleEndian, u8; 0, 0, 0, 1, 1, 1];
 	/// assert_eq!("[000111]", &format!("{}", bv));
-	/// assert_eq!(0b0011_1000, bv.as_ref()[0]);
+	/// assert_eq!(0b0011_1000, bv.as_slice()[0]);
 	/// assert_eq!(bv.len(), 6);
 	/// bv <<= 2;
 	/// assert_eq!("[0111]", &format!("{}", bv));
-	/// assert_eq!(0b0000_1110, bv.as_ref()[0]);
+	/// assert_eq!(0b0000_1110, bv.as_slice()[0]);
 	/// assert_eq!(bv.len(), 4);
 	/// ```
 	fn shl_assign(&mut self, shamt: usize) {
 		let len = self.len();
 		if shamt >= len {
 			self.clear();
-			let buf = self.as_mut();
+			let buf: &mut [T] = self.as_mut();
 			let ptr = buf.as_mut_ptr();
 			let len = buf.len();
 			unsafe { core::ptr::write_bytes(ptr, 0, len); }
@@ -2613,11 +2605,11 @@ where C: Cursor, T: Bits {
 	///
 	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 1, 1, 1];
 	/// assert_eq!("[000111]", &format!("{}", bv));
-	/// assert_eq!(0b0001_1100, bv.as_ref()[0]);
+	/// assert_eq!(0b0001_1100, bv.as_slice()[0]);
 	/// assert_eq!(bv.len(), 6);
 	/// let rs = bv >> 2usize;
 	/// assert_eq!("[00000111]", &format!("{}", rs));
-	/// assert_eq!(0b0000_0111, rs.as_ref()[0]);
+	/// assert_eq!(0b0000_0111, rs.as_slice()[0]);
 	/// assert_eq!(rs.len(), 8);
 	/// ```
 	fn shr(mut self, shamt: usize) -> Self::Output {
@@ -2667,11 +2659,11 @@ where C: Cursor, T: Bits {
 	///
 	/// let mut bv = bitvec![LittleEndian, u8; 0, 0, 0, 1, 1, 1];
 	/// assert_eq!("[000111]", &format!("{}", bv));
-	/// assert_eq!(0b0011_1000, bv.as_ref()[0]);
+	/// assert_eq!(0b0011_1000, bv.as_slice()[0]);
 	/// assert_eq!(bv.len(), 6);
 	/// bv >>= 2;
 	/// assert_eq!("[00000111]", &format!("{}", bv));
-	/// assert_eq!(0b1110_0000, bv.as_ref()[0]);
+	/// assert_eq!(0b1110_0000, bv.as_slice()[0]);
 	/// assert_eq!(bv.len(), 8);
 	/// ```
 	fn shr_assign(&mut self, shamt: usize) {
