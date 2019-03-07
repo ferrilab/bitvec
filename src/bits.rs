@@ -328,8 +328,7 @@ impl BitIdx {
 	/// ```rust
 	/// # #[cfg(feature = "testing")] {
 	/// use bitvec::testing::BitIdx;
-	/// use conv::Conv;
-	/// assert_eq!(3.conv::<BitIdx>().incr::<u8>(), (4.into(), false));
+	/// assert_eq!(BitIdx::from(3).incr::<u8>(), (4.into(), false));
 	/// # }
 	/// ```
 	///
@@ -338,8 +337,7 @@ impl BitIdx {
 	/// ```rust
 	/// # #[cfg(feature = "testing")] {
 	/// use bitvec::testing::BitIdx;
-	/// use conv::Conv;
-	/// assert_eq!(7.conv::<BitIdx>().incr::<u8>(), (0.into(), true));
+	/// assert_eq!(BitIdx::from(7).incr::<u8>(), (0.into(), true));
 	/// # }
 	/// ```
 	pub fn incr<T: Bits>(self) -> (Self, bool) {
@@ -381,8 +379,7 @@ impl BitIdx {
 	/// ```rust
 	/// # #[cfg(feature = "testing")] {
 	/// use bitvec::testing::BitIdx;
-	/// use conv::Conv;
-	/// assert_eq!(5.conv::<BitIdx>().decr::<u8>(), (4.into(), false));
+	/// assert_eq!(BitIdx::from(5).decr::<u8>(), (4.into(), false));
 	/// # }
 	/// ```
 	///
@@ -392,8 +389,7 @@ impl BitIdx {
 	/// ```rust
 	/// # #[cfg(feature = "testing")] {
 	/// use bitvec::testing::BitIdx;
-	/// use conv::Conv;
-	/// assert_eq!(0.conv::<BitIdx>().decr::<u8>(), (7.into(), true));
+	/// assert_eq!(BitIdx::from(0).decr::<u8>(), (7.into(), true));
 	/// # }
 	pub fn decr<T: Bits>(self) -> (Self, bool) {
 		assert!(
@@ -453,9 +449,8 @@ impl BitIdx {
 	/// ```rust
 	/// # #[cfg(feature = "testing")] {
 	/// use bitvec::testing::BitIdx;
-	/// use conv::Conv;
-	/// assert_eq!(1.conv::<BitIdx>().offset::<u32>(4isize), (0, 5.into()));
-	/// assert_eq!(6.conv::<BitIdx>().offset::<u32>(-3isize), (0, 3.into()));
+	/// assert_eq!(BitIdx::from(1).offset::<u32>(4isize), (0, 5.into()));
+	/// assert_eq!(BitIdx::from(6).offset::<u32>(-3isize), (0, 3.into()));
 	/// # }
 	/// ```
 	///
@@ -468,9 +463,8 @@ impl BitIdx {
 	/// ```rust
 	/// # #[cfg(feature = "testing")] {
 	/// use bitvec::testing::BitIdx;
-	/// use conv::Conv;
-	/// assert_eq!(7.conv::<BitIdx>().offset::<u32>(-18isize), (-1, 21.into()));
-	/// assert_eq!(23.conv::<BitIdx>().offset::<u32>(68isize), (2, 27.into()));
+	/// assert_eq!(BitIdx::from(7).offset::<u32>(-18isize), (-1, 21.into()));
+	/// assert_eq!(BitIdx::from(23).offset::<u32>(68isize), (2, 27.into()));
 	/// # }
 	/// ```
 	///
@@ -542,10 +536,9 @@ impl BitIdx {
 	/// ```rust
 	/// # #[cfg(feature = "testing")] {
 	/// use bitvec::testing::{BitIdx, Bits};
-	/// use conv::Conv;
 	///
 	/// let h: BitIdx = 0.into();
-	/// assert_eq!(0.conv::<BitIdx>().span::<u8>(8), (1, 8.into()))
+	/// assert_eq!(BitIdx::from(0).span::<u8>(8), (1, 8.into()))
 	/// # }
 	/// ```
 	pub fn span<T: Bits>(self, len: usize) -> (usize, BitIdx) {
@@ -697,18 +690,17 @@ impl Sealed for u64 {}
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use conv::Conv;
 
 	#[test]
 	fn jump_far_up() {
 		//  isize::max_value() is 0x7f...ff, so the result bit will be one less
 		//  than the start bit.
 		for n in 1 .. 8 {
-			let (elt, bit) = n.conv::<BitIdx>().offset::<u8>(isize::max_value());
+			let (elt, bit) = BitIdx::from(n).offset::<u8>(isize::max_value());
 			assert_eq!(elt, (isize::max_value() >> u8::BITS) + 1);
 			assert_eq!(*bit, n - 1);
 		}
-		let (elt, bit) = 0.conv::<BitIdx>().offset::<u8>(isize::max_value());
+		let (elt, bit) = BitIdx::from(0).offset::<u8>(isize::max_value());
 		assert_eq!(elt, isize::max_value() >> u8::BITS);
 		assert_eq!(*bit, 7);
 	}
@@ -718,7 +710,7 @@ mod tests {
 		//  isize::min_value() is 0x80...00, so the result bit will be equal to
 		//  the start bit
 		for n in 0 .. 8 {
-			let (elt, bit) = n.conv::<BitIdx>().offset::<u8>(isize::min_value());
+			let (elt, bit) = BitIdx::from(n).offset::<u8>(isize::min_value());
 			assert_eq!(elt, isize::min_value() >> u8::BITS);
 			assert_eq!(*bit, n);
 		}
@@ -727,6 +719,6 @@ mod tests {
 	#[test]
 	#[should_panic]
 	fn offset_out_of_bound() {
-		64.conv::<BitIdx>().offset::<u64>(isize::max_value());
+		BitIdx::from(64).offset::<u64>(isize::max_value());
 	}
 }

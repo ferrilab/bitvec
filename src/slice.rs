@@ -70,7 +70,6 @@ use core::{
 	slice,
 	str,
 };
-use tap::Tap;
 
 #[cfg(feature = "alloc")]
 use crate::BitVec;
@@ -2110,51 +2109,53 @@ where C: Cursor, T: Bits {
 				f.write_str(&self.0)
 			}
 		}
-		f.debug_list()
-			.tap_mut(|l| {
-				//  Empty slice
-				if self.is_empty() { return; }
-				//  Unfortunately, T::SIZE cannot be used as the size for the
-				//  array, due to limitations in the type system. As such, set
-				//  it to the maximum used size.
-				//
-				//  This allows the writes to target a static buffer, rather
-				//  than a dynamic string, making the formatter usable in
-				//  `no-std` contexts.
-				let mut w: [u8; 64] = [0; 64];
-				let writer =
-				|l: &mut DebugList, w: &mut [u8; 64], e: &T, from: u8, to: u8| {
-					let (from, to) = (from as usize, to as usize);
-					for n in from .. to {
-						w[n] = if e.get::<C>((n as u8).into()) { b'1' }
-						else { b'0' };
-					}
-					l.entry(&Part(unsafe {
-						str::from_utf8_unchecked(&w[from .. to])
-					}));
-				};
-				match self.inner() {
-					//  Single-element slice
-					Inner::Minor(head, elt, tail) => {
-						writer(l, &mut w, elt, *head, *tail);
-					},
-					//  Multi-element slice
-					Inner::Major(head, body, tail) => {
-						if let Some(head) = head {
-							let hc = self.bitptr().head();
-							writer(l, &mut w, head, *hc, T::SIZE);
-						}
-						for elt in body {
-							writer(l, &mut w, elt, 0, T::SIZE);
-						}
-						if let Some(tail) = tail {
-							let tc = self.bitptr().tail();
-							writer(l, &mut w, tail, 0, *tc);
-						}
-					},
+		let mut dbg = f.debug_list();
+		//  Empty slice
+		if self.is_empty() {
+			return dbg.finish();
+		}
+		else {
+			//  Unfortunately, T::SIZE cannot be used as the size for the array,
+			//  due to limitations in the type system. As such, set
+			//  it to the maximum used size.
+			//
+			//  This allows the writes to target a static buffer, rather
+			//  than a dynamic string, making the formatter usable in
+			//  `no-std` contexts.
+			let mut w: [u8; 64] = [0; 64];
+			let writer =
+			|l: &mut DebugList, w: &mut [u8; 64], e: &T, from: u8, to: u8| {
+				let (from, to) = (from as usize, to as usize);
+				for n in from .. to {
+					w[n] = if e.get::<C>((n as u8).into()) { b'1' }
+					else { b'0' };
 				}
-			})
-			.finish()
+				l.entry(&Part(unsafe {
+					str::from_utf8_unchecked(&w[from .. to])
+				}));
+			};
+			match self.inner() {
+				//  Single-element slice
+				Inner::Minor(head, elt, tail) => {
+					writer(&mut dbg, &mut w, elt, *head, *tail)
+				},
+				//  Multi-element slice
+				Inner::Major(head, body, tail) => {
+					if let Some(head) = head {
+						let hc = self.bitptr().head();
+						writer(&mut dbg, &mut w, head, *hc, T::SIZE);
+					}
+					for elt in body {
+						writer(&mut dbg, &mut w, elt, 0, T::SIZE);
+					}
+					if let Some(tail) = tail {
+						let tc = self.bitptr().tail();
+						writer(&mut dbg, &mut w, tail, 0, *tc);
+					}
+				},
+			}
+			dbg.finish()
+		}
 	}
 }
 
