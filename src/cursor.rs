@@ -21,11 +21,11 @@ use super::bits::{
 };
 
 /// Traverses an element from `MSb` to `LSb`.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct BigEndian;
 
 /// Traverses an element from `LSb` to `MSb`.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct LittleEndian;
 
 /** A cursor over an element.

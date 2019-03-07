@@ -12,7 +12,6 @@ use crate::{
 	Bits,
 	Cursor,
 };
-use conv::Conv;
 use core::{
 	convert::{
 		AsMut,
@@ -30,7 +29,6 @@ use core::{
 	ptr::NonNull,
 	slice,
 };
-use tap::Tap;
 
 
 /// Width in bits of a pointer on the target machine.
@@ -403,7 +401,7 @@ where T: Bits {
 
 		//  Check that the tail cursor index is in the appropriate domain.
 		assert!(
-			(*tail - 1).conv::<BitIdx>().is_valid::<T>(),
+			BitIdx::from(*tail - 1).is_valid::<T>(),
 			"BitPtr tail cursors must be in the domain 1 ..= {}",
 			T::SIZE,
 		);
@@ -761,7 +759,7 @@ where T: Bits {
 		}
 		let tail = tail.into();
 		assert!(
-			tail.clone().tap_mut(|t| **t -= 1).is_valid::<T>(),
+			BitIdx::from(*tail - 1).is_valid::<T>(),
 			"Tail indices must be in the domain 1 ..= {}",
 			T::SIZE,
 		);
@@ -793,10 +791,9 @@ where T: Bits {
 	/// differ from the allocator’s.
 	pub unsafe fn incr_tail(&mut self) {
 		let (data, elts, head, tail) = self.raw_parts();
-		let (new_tail, wrap) = tail
-			.tap_mut(|t| **t -= 1)
-			.incr::<T>()
-			.tap_mut(|(t, _)| **t += 1);
+		let decr = BitIdx::from(*tail - 1);
+		let (mut new_tail, wrap) = decr.incr::<T>();
+		new_tail = BitIdx::from(*new_tail + 1);
 		*self = Self::new(data, elts + wrap as usize, head, new_tail);
 	}
 
@@ -818,10 +815,9 @@ where T: Bits {
 	/// differ from the allocator’s.
 	pub unsafe fn decr_tail(&mut self) {
 		let (data, elts, head, tail) = self.raw_parts();
-		let (new_tail, wrap) = tail
-			.tap_mut(|t| **t -= 1)
-			.decr::<T>()
-			.tap_mut(|(t, _)| **t += 1);
+		let decr = BitIdx::from(*tail - 1);
+		let (mut new_tail, wrap) = decr.decr::<T>();
+		new_tail = BitIdx::from(*new_tail + 1);
 		*self = Self::new(data, elts - wrap as usize, head, new_tail);
 	}
 }

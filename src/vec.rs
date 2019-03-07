@@ -28,7 +28,6 @@ use alloc::{
 	boxed::Box,
 	vec::Vec,
 };
-use conv::Conv;
 use core::{
 	clone::Clone,
 	cmp::{
@@ -116,7 +115,6 @@ use std::{
 	},
 	vec::Vec,
 };
-use tap::Tap;
 
 /** A compact [`Vec`] of bits, whose cursor and storage type can be customized.
 
@@ -305,7 +303,7 @@ space, then increasing the length to match, is always valid.
 - `C: Cursor`: An implementor of the [`Cursor`] trait. This type is used to
   convert semantic indices into concrete bit positions in elements, and store or
   retrieve bit values from the storage type.
-- `T: Bits`: An implementor of the[ `Bits`] trait: `u8`, `u16`, `u32`, `u64`.
+- `T: Bits`: An implementor of the [`Bits`] trait: `u8`, `u16`, `u32`, `u64`.
   This is the actual type in memory the slice will use to store data.
 
 # Safety
@@ -333,7 +331,6 @@ is ***extremely binary incompatible*** with them. Attempting to treat
 pub struct BitVec<C = BigEndian, T = u8>
 where C: Cursor, T: Bits {
 	_cursor: PhantomData<C>,
-	_memory: PhantomData<T>,
 	/// Slice pointer over the owned memory.
 	pointer: BitPtr<T>,
 	/// The number of *elements* this vector has allocated.
@@ -387,7 +384,7 @@ where C: Cursor, T: Bits {
 	/// assert!(bv.capacity() >= 10);
 	/// ```
 	pub fn with_capacity(capacity: usize) -> Self {
-		let (cap, _) = 0.conv::<BitIdx>().span::<T>(capacity);
+		let (cap, _) = BitIdx::from(0).span::<T>(capacity);
 		let (ptr, cap) = {
 			let v = Vec::with_capacity(cap);
 			let (ptr, cap) = (v.as_ptr(), v.capacity());
@@ -396,7 +393,6 @@ where C: Cursor, T: Bits {
 		};
 		Self {
 			_cursor: PhantomData,
-			_memory: PhantomData,
 			pointer: BitPtr::uninhabited(ptr),
 			capacity: cap,
 		}
@@ -440,7 +436,6 @@ where C: Cursor, T: Bits {
 	pub unsafe fn from_raw_parts(pointer: BitPtr<T>, capacity: usize) -> Self {
 		Self {
 			_cursor: PhantomData,
-			_memory: PhantomData,
 			pointer,
 			capacity,
 		}
@@ -1078,15 +1073,18 @@ where C: Cursor, T: Bits {
 	/// ```
 	pub fn split_off(&mut self, at: usize) -> Self {
 		if at == 0 {
-			return self.clone().tap(|_| self.clear());
+			let out = self.clone();
+			self.clear();
+			return out;
 		}
 		if at == self.len() {
 			return Self::default();
 		}
-		(&*self).iter()
+		let out = (&*self).iter()
 			.skip(at)
-			.collect::<Self>()
-			.tap(|_| { self.truncate(at) })
+			.collect::<Self>();
+		self.truncate(at);
+		out
 	}
 
 	/// Resizes the `BitVec` in place so that `len` is equal to `new_len`.
@@ -1250,7 +1248,9 @@ where C: Cursor, T: Bits {
 		let v: Vec<T> = unsafe {
 			Vec::from_raw_parts(data as *mut T, elts, self.capacity)
 		};
-		func(&v).tap(|_| mem::forget(v))
+		let out = func(&v);
+		mem::forget(v);
+		out
 	}
 }
 
@@ -1321,7 +1321,6 @@ where C: Cursor, T: Bits {
 		mem::forget(new_vec);
 		Self {
 			_cursor: PhantomData,
-			_memory: PhantomData,
 			pointer: BitPtr::new(ptr, e, h, t),
 			capacity: cap,
 		}
@@ -1514,8 +1513,11 @@ where C: Cursor, T: Bits {
 impl<C, T> From<&[bool]> for BitVec<C, T>
 where C: Cursor, T: Bits {
 	fn from(src: &[bool]) -> Self {
-		Self::with_capacity(src.len())
-			.tap_mut(|v| src.iter().for_each(|b| v.push(*b)))
+		let mut out = Self::with_capacity(src.len());
+		for bit in src.iter() {
+			out.push(*bit);
+		}
+		out
 	}
 }
 
@@ -1557,7 +1559,7 @@ where C: Cursor, T: Bits {
 	/// assert!(bv[14]);
 	/// ```
 	fn from(src: &[T]) -> Self {
-		src.conv::<&BitSlice<C, T>>().to_owned()
+		<&BitSlice<C, T>>::from(src).to_owned()
 	}
 }
 
@@ -1588,14 +1590,14 @@ where C: Cursor, T: Bits {
 	/// let bv: BitVec = src.into();
 	/// ```
 	fn from(src: Box<[T]>) -> Self {
-		src.conv::<BitBox<C, T>>().into()
+		BitBox::<C, T>::from(src).into()
 	}
 }
 
 impl<C, T> Into<Box<[T]>> for BitVec<C, T>
 where C: Cursor, T: Bits {
 	fn into(self) -> Box<[T]> {
-		self.conv::<BitBox<C, T>>().into()
+		BitBox::<C, T>::from(self).into()
 	}
 }
 
@@ -1639,7 +1641,6 @@ where C: Cursor, T: Bits {
 		mem::forget(src);
 		Self {
 			_cursor: PhantomData,
-			_memory: PhantomData,
 			pointer: BitPtr::new(ptr, len, 0, T::SIZE),
 			capacity: cap,
 		}
@@ -1661,7 +1662,6 @@ where C: Cursor, T: Bits {
 	fn default() -> Self {
 		Self {
 			_cursor: PhantomData,
-			_memory: PhantomData,
 			pointer: BitPtr::default(),
 			capacity: 0,
 		}
@@ -1751,7 +1751,7 @@ impl<C, T> Write for BitVec<C, T>
 where C: Cursor, T: Bits {
 	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
 		let amt = cmp::min(buf.len(), BitPtr::<T>::MAX_BITS - self.len());
-		self.extend(buf.conv::<&BitSlice<C, u8>>());
+		self.extend(<&BitSlice<C, u8>>::from(buf));
 		Ok(amt)
 	}
 
@@ -1816,13 +1816,15 @@ where C: Cursor, T: Bits {
 	/// ```
 	fn from_iter<I: IntoIterator<Item=bool>>(src: I) -> Self {
 		let iter = src.into_iter();
-		match iter.size_hint() {
+		let mut bv = match iter.size_hint() {
 			| (_, Some(len))
 			| (len, _)
 			=> Self::with_capacity(len),
-		}.tap_mut(|bv| iter.for_each(|b| {
-			bv.push(b);
-		}))
+		};
+		for bit in iter {
+			bv.push(bit);
+		}
+		bv
 	}
 }
 
@@ -2431,10 +2433,9 @@ where C: Cursor, T: Bits {
 	/// let flip = !bv;
 	/// assert_eq!(!0u32, flip.as_slice()[0]);
 	/// ```
-	fn not(self) -> Self::Output {
-		self.tap_mut(|bv| {
-			let _ = !bv.as_mut_bitslice();
-		})
+	fn not(mut self) -> Self::Output {
+		let _ = !(self.as_mut_bitslice());
+		self
 	}
 }
 
