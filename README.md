@@ -37,6 +37,7 @@ and rendering for `Display` and `Debug`.
   hyphen/underscore dichotomy.
 - My `BitVec` structure is exactly the size of a `Vec`; theirs is larger.
 - I have a `BitSlice` borrowed view.
+- My types implement all of the standard library’s slice and vector APIs
 
 ## Why Would You Use This
 
@@ -80,37 +81,26 @@ This imports the following symbols:
   of any desired endianness, storage type, and contents. The documentation page
   has a detailed explanation of its syntax.
 
-- `BitSlice<C: Cursor, T: Bits>` – the actual bit-slice reference type It is
-  generic over a cursor type (`E`) and storage type (`T`). Note that `BitSlice`
+- `BitSlice<C: Cursor, T: Bits>` – the actual bit-slice reference type. It is
+  generic over a cursor type (`C`) and storage type (`T`). Note that `BitSlice`
   is unsized, and can never be held directly; it must always be behind a
   reference such as `&BitSlice` or `&mut BitSlice`.
 
   Furthermore, it is *impossible* to put `BitSlice` into any kind of intelligent
   pointer such as a `Box` or `Rc`! Any work that involves managing the memory
-  behind a bitwise type *must* go through `BitVec` instead. This may change in
-  the future as I learn how to better manage this library, but for now this
-  limitation stands.
+  behind a bitwise type *must* go through `BitBox` or `BitVec` instead. This may
+  change in the future as I learn how to better manage this library, but for now
+  this limitation stands.
 
 - `BitVec<C: Cursor, T: Bits>` – the actual bit-vector structure type. It is
-  generic over a cursor type (`E`) and storage type (`T`).
+  generic over a cursor type (`C`) and storage type (`T`).
 
 - `Cursor` – an open trait that defines an ordering schema for `BitVec` to use.
   Little and big endian orderings are provided by default. If you wish to
   implement other ordering types, the `Cursor` trait requires one function:
 
-  - `fn curr<T: Bits>(index: u8) -> u8` takes a semantic index and computes a
-    bit offset into the primitive `T` for it.
-
-  and provides default implementations for two functions that you may need to
-  override:
-
-  - `fn next<T: Bits>(index: u8) -> (u8, bool)`
-  - `fn prev<T: Bits>(index: u8) -> (u8, bool)`
-
-  These two functions compute the next and previous, respectively, semantic
-  indices and overflow markers from a given semantic index. The boolean flag
-  indicates that moving the index forward or backward would cross into a new
-  primitive storage element.
+  - `fn at<T: Bits>(index: u8) -> u8` takes a semantic index and computes a bit
+    offset into the primitive `T` for it.
 
 - `BigEndian` – a zero-sized struct that implements `Cursor` by defining the
   forward direction as towards LSb and the backward direction as towards MSb.
@@ -122,10 +112,9 @@ This imports the following symbols:
   primitives usable as storage types: `u8`, `u16`, `u32`, and `u64`. `usize`
   and the signed integers do *not* implement `Bits` and cannot be used as the
   storage type. `u128` also does not implement `Bits`, as I am not confident in
-  its memory representation, and dropping support for it allowed me to support
-  older compilers.
+  its memory representation.
 
-`BitVec` has largely the same API as `Vec`, and should be easy to use.
+`BitVec` has the same API as `Vec`, and should be easy to use.
 
 The `bitvec!` macro requires type information as its first two arguments.
 Because macros do not have access to the type checker, this currently only
@@ -239,8 +228,7 @@ simply by going out of scope.
 Contributions of items in this list are *absolutely* welcome! Contributions of
 other features are also welcome, but I’ll have to be sold on them.
 
-- Creation of specialized pointers `Box<BitSlice>`, `Rc<BitSlice>`, and
-  `Arc<BitSlice>`.
+- Creation of specialized pointers `Rc<BitSlice>` and `Arc<BitSlice>`.
 
 [codecov]: https://codecov.io/gh/myrrlyn/bitvec "Code Coverage"
 [codecov_img]: https://img.shields.io/codecov/c/github/myrrlyn/bitvec.svg?logo=codecov "Code Coverage Display"
