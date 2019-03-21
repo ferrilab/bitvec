@@ -720,13 +720,12 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(bv.len(), 4);
 	/// ```
 	pub fn swap_remove(&mut self, index: usize) -> bool {
-		if index >= self.len() {
-			panic!("Index {} out of bounds: {}", index, self.len());
+		let len = self.len();
+		if index >= len {
+			panic!("Index {} out of bounds: {}", index, len);
 		}
-		let bit = self[index];
-		let last = self.pop().unwrap();
-		self.set(index, last);
-		bit
+		self.swap(index, len - 1);
+		self.pop().expect("BitVec::swap_remove cannot fail after index validation")
 	}
 
 	/// Inserts an element at a position, shifting all elements after it to the
@@ -759,13 +758,9 @@ where C: Cursor, T: Bits {
 	/// ```
 	pub fn insert(&mut self, index: usize, value: bool) {
 		let len = self.len();
-		self.push(false);
-		for n in (index .. len).rev() {
-			let bit = self[n];
-			self.set(n + 1, bit);
-		}
-		self.set(index, value);
-
+		assert!(index <= len, "Index {} is out of bounds: {}", index, len);
+		self.push(value);
+		self[index ..].rotate_right(1);
 	}
 
 	/// Removes and returns the element at position `index`, shifting all
@@ -797,13 +792,8 @@ where C: Cursor, T: Bits {
 	pub fn remove(&mut self, index: usize) -> bool {
 		let len = self.len();
 		assert!(index < len, "Index {} is out of bounds: {}", index, len);
-		let out = self[index];
-		for n in index .. (len - 1) {
-			let bit = self[n + 1];
-			self.set(n, bit);
-		}
-		self.pop();
-		out
+		self[index ..].rotate_left(1);
+		self.pop().expect("BitVec::remove cannot fail after index validation")
 	}
 
 	/// Retains only the bits that pass the predicate.
@@ -2955,6 +2945,7 @@ where C: Cursor, T: 'a + Bits {
 	} }
 }
 
+/// A consuming iterator for `BitVec`.
 #[repr(C)]
 pub struct IntoIter<C, T>
 where C: Cursor, T: Bits {
@@ -3142,6 +3133,18 @@ where C: Cursor, T: Bits {
 	}
 }
 
+/// A splicing iterator for `BitVec`.
+///
+/// This removes a segment from the vector and inserts another bitstream into
+/// its spot. Any bits from the original `BitVec` after the removed segment are
+/// kept, after the inserted bitstream.
+///
+/// Only the removed segment is available for iteration.
+///
+/// # Type Parameters
+///
+/// - `I: Iterator<Item=bool>`: Any bitstream. This will be used to fill the
+///   removed span.
 pub struct Splice<'a, C, T, I>
 where C: Cursor, T: 'a + Bits, I: Iterator<Item=bool> {
 	drain: Drain<'a, C, T>,
@@ -3159,14 +3162,15 @@ where C: Cursor, T: 'a + Bits, I: Iterator<Item=bool> {}
 impl<'a, C, T, I> FusedIterator for Splice<'a, C, T, I>
 where C: Cursor, T: 'a + Bits, I: Iterator<Item=bool> {}
 
+//  Forward iteration to the interior drain
 impl<'a, C, T, I> Iterator for Splice<'a, C, T, I>
 where C: Cursor, T: 'a + Bits, I: Iterator<Item=bool> {
 	type Item = bool;
 	fn next(&mut self) -> Option<Self::Item> { self.drain.next() }
 	fn size_hint(&self) -> (usize, Option<usize>) { self.drain.size_hint() }
-	fn count(self) -> usize { self.len() }
+	fn count(self) -> usize { self.drain.len() }
 	fn nth(&mut self, n: usize) -> Option<Self::Item> { self.drain.nth(n) }
-	fn last(mut self) -> Option<Self::Item> { self.next_back() }
+	fn last(mut self) -> Option<Self::Item> { self.drain.next_back() }
 }
 
 impl<'a, C, T, I> Drop for Splice<'a, C, T, I>

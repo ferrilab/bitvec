@@ -671,6 +671,17 @@ where T: Bits {
 		None
 	}
 
+	/// Set the head index to a new value.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `head`: The new index to which the head will be set.
+	///
+	/// # Type Parameters
+	///
+	/// - `Head: Into<BitIdx>`: A type which can be used as a semantic bit
+	/// index.
 	pub fn set_head<Head: Into<BitIdx>>(&mut self, head: Head) {
 		if self.is_empty() {
 			return;
@@ -753,6 +764,17 @@ where T: Bits {
 		}
 	}
 
+	/// Set the tail index to a new value.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `tail`: The new index to which the tail will be set.
+	///
+	/// # Type Parameters
+	///
+	/// - `Tail: Into<BitIdx>`: A type which can be used as a semantic bit
+	/// index.
 	pub fn set_tail<Tail: Into<BitIdx>>(&mut self, tail: Tail) {
 		if self.is_empty() {
 			return;

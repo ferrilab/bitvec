@@ -303,10 +303,8 @@ where C: Cursor, T: Bits {
 	/// assert!(t.is_empty());
 	/// ```
 	pub fn split_first(&self) -> Option<(bool, &Self)> {
-		if self.is_empty() {
-			return None;
-		}
-		Some((self[0], &self[1 ..]))
+		if self.is_empty() { None }
+		else { Some((self[0], &self[1 ..])) }
 	}
 
 	/// Returns the first and all the rest of the bits of the slice, or `None`
@@ -324,10 +322,8 @@ where C: Cursor, T: Bits {
 	/// - the first bit
 	/// - a `&mut BitSlice` of all the rest of the bits (this may be empty)
 	pub fn split_first_mut(&mut self) -> Option<(bool, &mut Self)> {
-		if self.is_empty() {
-			return None;
-		}
-		Some((self[0], &mut self[1 ..]))
+		if self.is_empty() { None }
+		else { Some((self[0], &mut self[1 ..])) }
 	}
 
 	/// Returns the last and all the rest of the bits in the slice, or `None`
@@ -363,11 +359,11 @@ where C: Cursor, T: Bits {
 	/// assert!(h.is_empty());
 	/// ```
 	pub fn split_last(&self) -> Option<(bool, &Self)> {
-		if self.is_empty() {
-			return None;
+		if self.is_empty() { None }
+		else {
+			let len = self.len();
+			Some((self[len - 1], &self[.. len - 1]))
 		}
-		let len = self.len();
-		Some((self[len - 1], &self[.. len - 1]))
 	}
 
 	/// Returns the last and all the rest of the bits in the slice, or `None`
@@ -385,11 +381,11 @@ where C: Cursor, T: Bits {
 	/// - the last bit
 	/// - a `&BitSlice` of all the rest of the bits (this may be empty)
 	pub fn split_last_mut(&mut self) -> Option<(bool, &mut Self)> {
-		if self.is_empty() {
-			return None;
+		if self.is_empty() { None }
+		else {
+			let len = self.len();
+			Some((self[len - 1], &mut self[.. len - 1]))
 		}
-		let len = self.len();
-		Some((self[len - 1], &mut self[.. len - 1]))
 	}
 
 	/// Gets the last element of the slice, or `None` if it is empty.
@@ -438,10 +434,8 @@ where C: Cursor, T: Bits {
 	/// assert!(bv.get(10).is_none());
 	/// ```
 	pub fn get(&self, index: usize) -> Option<bool> {
-		if index >= self.len() {
-			return None;
-		}
-		Some(self[index])
+		if index >= self.len() { None }
+		else { Some(self[index]) }
 	}
 
 	/// Sets the bit value at the given position.
@@ -595,12 +589,17 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(store[0], 0b1101_0100);
 	/// ```
 	pub fn reverse(&mut self) {
+		//  this is better implemented as a recursive algorithm, but Rust
+		//  doesn’t yet flatten recursive tail calls into a loop, so, do it
+		//  manually.
 		let mut cur: &mut Self = self;
 		loop {
 			let len = cur.len();
 			if len < 2 {
 				return;
 			}
+			//  swap() has two assertions on each call, that reverse() knows it
+			//  can bypass
 			let (h, t) = (cur[0], cur[len - 1]);
 			cur.set(0, t);
 			cur.set(len - 1, h);
@@ -1563,6 +1562,36 @@ where C: Cursor, T: Bits {
 		}
 	}
 
+	/// Accesses the backing storage of the `BitSlice` as a slice of its
+	/// elements.
+	///
+	/// This is different from [`.body()`] in that it always includes the head
+	/// and tail elements, even if they are partial.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// A slice of all the elements that the `BitSlice` uses for storage.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::*;
+	///
+	/// let store: &[u8] = &[0b0000_0001, 0b0100_0000];
+	/// let bs: &BitSlice = store.into();
+	///
+	/// let mut accum = 0;
+	/// for elt in bs.as_slice() {
+	///   accum += elt.count_ones();
+	/// }
+	/// assert_eq!(accum, 2);
+	/// ```
+	///
+	/// [`.body()`]: #fn.body
 	pub fn as_slice(&self) -> &[T] {
 		//  Get the `BitPtr` structure.
 		let bp = self.bitptr();
@@ -1579,11 +1608,12 @@ where C: Cursor, T: Bits {
 	/// ```rust
 	/// use bitvec::*;
 	///
-	/// let mut bv: BitVec = bitvec![0, 0, 0, 0, 0, 0, 0, 0, 1];
-	/// for elt in bv.as_mut_slice() {
+	/// let store: &mut [u8] = &mut [0b0000_0001, 0b0100_0000];
+	/// let bs: &mut BitSlice = store.into();
+	/// for elt in bs.as_mut_slice() {
 	///   *elt += 2;
 	/// }
-	/// assert_eq!(&[2, 0b1000_0010], bv.as_slice());
+	/// assert_eq!(&[3, 66], bs.as_slice());
 	/// ```
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
 		//  Get the `BitPtr` structure.
@@ -1594,31 +1624,90 @@ where C: Cursor, T: Bits {
 		unsafe { slice::from_raw_parts_mut(ptr, len) }
 	}
 
+	/// Gets an immutable reference to the first element in the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// Mutable reference to the first element, if and only if it is fully live.
 	pub fn head(&self) -> Option<&T> {
 		//  Transmute into the correct lifetime.
 		unsafe { mem::transmute(self.bitptr().head_elt()) }
 	}
 
+	/// Gets a mutable reference to the first element in the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// Reference to the first element, if and only if it is fully live.
 	pub fn head_mut(&mut self) -> Option<&mut T> {
 		unsafe { mem::transmute(self.bitptr().head_elt()) }
 	}
 
+	/// Gets an immutable reference to the fully-populated elements in the
+	/// slice.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// An immutable slice of all the full elements in the slice. This may be
+	/// empty, if the slice has zero, one, or two elements, which are not fully
+	/// live.
 	pub fn body(&self) -> &[T] {
 		//  Transmute into the correct lifetime.
 		unsafe { mem::transmute(self.bitptr().body_elts()) }
 	}
 
+	/// Gets a mutable reference to the fully-populated elements in the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// A mutable slice of all the full elements in the slice. This may be
+	/// empty, if the slice has zero, one, or two elements, which are not fully
+	/// live.
 	pub fn body_mut(&mut self) -> &mut [T] {
 		//  Reattach the correct lifetime and mutability
 		#[allow(mutable_transmutes)]
 		unsafe { mem::transmute(self.bitptr().body_elts()) }
 	}
 
+	/// Gets an immutable reference to the last element in the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// Reference to the last element, if and only if it is fully live.
 	pub fn tail(&self) -> Option<&T> {
 		//  Transmute into the correct lifetime.
 		unsafe { mem::transmute(self.bitptr().tail_elt()) }
 	}
 
+	/// Gets a mutable reference to the last element in the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// Mutable reference to the last element, if and only if it is fully live.
 	pub fn tail_mut(&mut self) -> Option<&mut T> {
 		unsafe { mem::transmute(self.bitptr().tail_elt()) }
 	}
