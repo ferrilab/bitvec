@@ -387,13 +387,17 @@ where C: Cursor, T: Bits {
 	/// assert!(bv.capacity() >= 10);
 	/// ```
 	pub fn with_capacity(capacity: usize) -> Self {
+		//  Find the number of elements needed to store the requested capacity
+		//  of bits.
 		let (cap, _) = BitIdx::from(0).span::<T>(capacity);
+		//  Acquire a region of memory large enough for that element number.
 		let (ptr, cap) = {
 			let v = Vec::with_capacity(cap);
 			let (ptr, cap) = (v.as_ptr(), v.capacity());
 			mem::forget(v);
 			(ptr, cap)
 		};
+		//  Take ownership of that region as an owned BitPtr
 		Self {
 			_cursor: PhantomData,
 			pointer: BitPtr::uninhabited(ptr),
@@ -499,7 +503,9 @@ where C: Cursor, T: Bits {
 			self.len() + additional < BitPtr::<T>::MAX_BITS,
 			"Capacity overflow",
 		);
-		let (e, _) = self.pointer.head().span::<T>(additional);
+		//  Compute the number of additional elements needed to store the
+		//  requested number of additional bits.
+		let (e, _) = self.pointer.tail().span::<T>(additional);
 		self.do_unto_vec(|v| v.reserve(e));
 	}
 
@@ -537,7 +543,9 @@ where C: Cursor, T: Bits {
 			self.len() + additional < BitPtr::<T>::MAX_BITS,
 			"Capacity overflow",
 		);
-		let (e, _) = self.pointer.head().span::<T>(additional);
+		//  Compute the number of additional elements needed to store the
+		//  requested number of additional bits.
+		let (e, _) = self.pointer.tail().span::<T>(additional);
 		self.do_unto_vec(|v| v.reserve_exact(e));
 	}
 
@@ -546,8 +554,9 @@ where C: Cursor, T: Bits {
 	/// It will drop down as close as possible to the length, but the allocator
 	/// may still inform the vector that there is space for a few more elements.
 	///
-	/// This does not affect the memory store! It will not zero the raw memory,
-	/// nor will it deallocate.
+	/// This does not modify the contents of the memory store! It will not zero
+	/// any memory that had been used and then removed from the vector’s live
+	/// count.
 	///
 	/// # Parameters
 	///
@@ -685,7 +694,8 @@ where C: Cursor, T: Bits {
 		let (ptr, _, head, _) = self.bitptr().raw_parts();
 		let (elts, tail) = self.bitptr().head().offset::<T>(len as isize);
 		//  Add one to elts because the value in elts is the *offset* from the
-		//  first element.
+		//  first element, and `BitPtr` needs to know the total number of
+		//  elements in the span.
 		self.pointer = BitPtr::new(ptr, elts as usize + 1, head, tail);
 	}
 

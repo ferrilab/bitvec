@@ -1122,7 +1122,7 @@ where C: Cursor, T: Bits {
 	pub fn rotate_left(&mut self, by: usize) {
 		let len = self.len();
 		assert!(by <= len, "Slices cannot be rotated by more than their length");
-		if by == len {
+		if by == 0 || by == len {
 			return;
 		}
 
@@ -1170,8 +1170,10 @@ where C: Cursor, T: Bits {
 			return;
 		}
 
+		//  Perform `by` repetitions,
 		for _ in 0 .. by {
 			let tmp = self[len - 1];
+			//  of `len` steps
 			for n in (0 .. len - 1).rev() {
 				let bit = self[n];
 				self.set(n + 1, bit);
@@ -1218,9 +1220,9 @@ where C: Cursor, T: Bits {
 					}
 				}
 			},
-			Inner::Major(head, body, tail) => {
+			Inner::Major(h, head, body, tail, t) => {
 				if let Some(elt) = head {
-					for n in *self.bitptr().head() .. T::SIZE {
+					for n in *h .. T::SIZE {
 						if !elt.get::<C>(n.into()) {
 							return false;
 						}
@@ -1232,7 +1234,7 @@ where C: Cursor, T: Bits {
 					}
 				}
 				if let Some(elt) = tail {
-					for n in 0 .. *self.bitptr().tail() {
+					for n in 0 .. *t {
 						if !elt.get::<C>(n.into()) {
 							return false;
 						}
@@ -1281,9 +1283,9 @@ where C: Cursor, T: Bits {
 					}
 				}
 			},
-			Inner::Major(head, body, tail) => {
+			Inner::Major(h, head, body, tail, t) => {
 				if let Some(elt) = head {
-					for n in *self.bitptr().head() .. T::SIZE {
+					for n in *h .. T::SIZE {
 						if elt.get::<C>(n.into()) {
 							return true;
 						}
@@ -1295,7 +1297,7 @@ where C: Cursor, T: Bits {
 					}
 				}
 				if let Some(elt) = tail {
-					for n in 0 .. *self.bitptr().tail() {
+					for n in 0 .. *t {
 						if elt.get::<C>(n.into()) {
 							return true;
 						}
@@ -1436,13 +1438,13 @@ where C: Cursor, T: Bits {
 					.filter(|b| *b)
 					.count()
 			},
-			Inner::Major(head, body, tail) => {
-				head.map(|t| (*self.bitptr().head() .. T::SIZE)
-					.map(|n| t.get::<C>(n.into())).filter(|b| *b).count()
+			Inner::Major(h, head, body, tail, t) => {
+				head.map(|e| (*h .. T::SIZE)
+					.map(|n| e.get::<C>(n.into())).filter(|b| *b).count()
 				).unwrap_or(0) +
 				body.iter().map(T::count_ones).sum::<usize>() +
-				tail.map(|t| (0 .. *self.bitptr().tail())
-					.map(|n| t.get::<C>(n.into())).filter(|b| *b).count()
+				tail.map(|e| (0 .. *t)
+					.map(|n| e.get::<C>(n.into())).filter(|b| *b).count()
 				).unwrap_or(0)
 			},
 		}
@@ -1475,13 +1477,13 @@ where C: Cursor, T: Bits {
 					.filter(|b| !*b)
 					.count()
 			},
-			Inner::Major(head, body, tail) => {
-				head.map(|t| (*self.bitptr().head() .. T::SIZE)
-					.map(|n| t.get::<C>(n.into())).filter(|b| !*b).count()
+			Inner::Major(h, head, body, tail, t) => {
+				head.map(|e| (*h .. T::SIZE)
+					.map(|n| e.get::<C>(n.into())).filter(|b| !*b).count()
 				).unwrap_or(0) +
 				body.iter().map(T::count_zeros).sum::<usize>() +
-				tail.map(|t| (0 .. *self.bitptr().tail())
-					.map(|n| t.get::<C>(n.into())).filter(|b| !*b).count()
+				tail.map(|e| (0 .. *t)
+					.map(|n| e.get::<C>(n.into())).filter(|b| !*b).count()
 				).unwrap_or(0)
 			},
 		}
@@ -1516,8 +1518,7 @@ where C: Cursor, T: Bits {
 					elt.set::<C>(n.into(), value);
 				}
 			},
-			Inner::Major(_, _, _) => {
-				let (h, t) = (self.bitptr().head(), self.bitptr().tail());
+			Inner::Major(h, _, _, _, t) => {
 				if let Some(head) = self.head_mut() {
 					for n in *h .. T::SIZE {
 						head.set::<C>(n.into(), value);
@@ -1527,7 +1528,7 @@ where C: Cursor, T: Bits {
 					*elt = T::from(0);
 				}
 				if let Some(tail) = self.tail_mut() {
-					for n in *t .. T::SIZE {
+					for n in 0 .. *t {
 						tail.set::<C>(n.into(), value);
 					}
 				}
@@ -1731,22 +1732,37 @@ where C: Cursor, T: Bits {
 	///
 	/// Produces either the single-element partial domain, or the edge and
 	/// center elements of a multiple-element domain.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// A logical representation of the data region components.
 	fn inner(&self) -> Inner<T> {
 		let bp = self.bitptr();
 		let (h, t) = (bp.head(), bp.tail());
 		//  single-element, cursors not at both edges
-		if self.as_ref().len() == 1 && !(*h == 0 && *t == T::SIZE) {
+		if self.as_ref().len() == 1 && *h > 0 && *t < T::SIZE {
 			Inner::Minor(h, &self.as_ref()[0], t)
 		}
 		else {
-			Inner::Major(self.head(), self.body(), self.tail())
+			Inner::Major(h, self.head(), self.body(), self.tail(), t)
 		}
 	}
 }
 
+/// Logical division of the elements which make up the domain occupied by a bit
+/// slice.
 enum Inner<'a, T: 'a + Bits> {
+	/// A slice which partially fills only one element receives the head and
+	/// tail cursors, and a reference to the element.
 	Minor(BitIdx, &'a T, BitIdx),
-	Major(Option<&'a T>, &'a [T], Option<&'a T>),
+	/// A slice which either completely fills an element receives the head and
+	/// tail cursors, optional references to the partial edge elements, and a
+	/// standard slice of the interior full elements.
+	Major(BitIdx, Option<&'a T>, &'a [T], Option<&'a T>, BitIdx),
 }
 
 /// Creates an owned `BitVec<C, T>` from a borrowed `BitSlice<C, T>`.
@@ -2239,16 +2255,14 @@ where C: Cursor, T: Bits {
 					writer(&mut dbg, &mut w, elt, *head, *tail)
 				},
 				//  Multi-element slice
-				Inner::Major(head, body, tail) => {
+				Inner::Major(hc, head, body, tail, tc) => {
 					if let Some(head) = head {
-						let hc = self.bitptr().head();
 						writer(&mut dbg, &mut w, head, *hc, T::SIZE);
 					}
 					for elt in body {
 						writer(&mut dbg, &mut w, elt, 0, T::SIZE);
 					}
 					if let Some(tail) = tail {
-						let tc = self.bitptr().tail();
 						writer(&mut dbg, &mut w, tail, 0, *tc);
 					}
 				},
@@ -2823,11 +2837,9 @@ where C: Cursor, T: 'a + Bits {
 					elt.set::<C>(n.into(), !tmp);
 				}
 			},
-			Inner::Major(_, _, _) => {
-				let head_bit = self.bitptr().head();
-				let tail_bit = self.bitptr().tail();
+			Inner::Major(hb, _, _, _, tb) => {
 				if let Some(head) = self.head_mut() {
-					for n in *head_bit .. T::SIZE {
+					for n in *hb .. T::SIZE {
 						let tmp = head.get::<C>(n.into());
 						head.set::<C>(n.into(), !tmp);
 					}
@@ -2836,7 +2848,7 @@ where C: Cursor, T: 'a + Bits {
 					*elt = !*elt;
 				}
 				if let Some(tail) = self.tail_mut() {
-					for n in 0 .. *tail_bit {
+					for n in 0 .. *tb {
 						let tmp = tail.get::<C>(n.into());
 						tail.set::<C>(n.into(), !tmp);
 					}
