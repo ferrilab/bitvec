@@ -27,12 +27,27 @@ alloc = []
 default = [
 	"std",
 ]
+serdes = [
+	"serde",
+	"std",
+]
 std = [
 	"alloc",
 ]
 testing = [
 	"std",
 ]
+
+[dependencies.serde]
+features = [
+	"derive",
+]
+optional = true
+version = "1"
+
+[dev-dependencies]
+serde = "1"
+serde_json = "1"
 
 [badges.codecov]
 repository = "myrrlyn/bitvec"

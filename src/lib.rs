@@ -43,6 +43,9 @@ extern crate alloc;
 #[cfg(feature = "std")]
 extern crate core;
 
+#[cfg(feature = "serdes")]
+extern crate serde;
+
 #[macro_use]
 mod macros;
 
@@ -57,6 +60,9 @@ mod boxed;
 
 #[cfg(feature = "alloc")]
 mod vec;
+
+#[cfg(feature = "serdes")]
+mod serdes;
 
 use crate::{
 	bits::BitIdx,
