@@ -8,9 +8,9 @@ checkout:
 	cargo package --allow-dirty
 
 dev:
-	# cargo check
-	cargo test --no-default-features --features testing
-	cargo doc --features testing --document-private-items
+	cargo check --features testing,serdes
+	cargo test --features testing,serdes
+	cargo doc --features testing,serdes --document-private-items
 
 ci:
 	watchexec -- just dev
