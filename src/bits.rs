@@ -87,10 +87,7 @@ pub trait Bits:
 
 	/// The number of bits required to index the type. This is always
 	/// log<sub>2</sub> of the type’s bit size.
-	///
-	/// Incidentally, this can be computed as `Self::SIZE.trailing_zeros()` once
-	/// that becomes a valid constexpr.
-	const BITS: u8; // = Self::SIZE.trailing_zeros() as u8;
+	const BITS: u8 = Self::SIZE.trailing_zeros() as u8;
 
 	/// The bitmask to turn an arbitrary `usize` into a bit index. Bit indices
 	/// are always stored in the lowest bits of an index value.
@@ -121,8 +118,8 @@ pub trait Bits:
 	///
 	/// # Parameters
 	///
-	/// - `place`: A bit index in the element, from `0` at `LSb` to `Self::MASK`
-	///   at `MSb`. The bit under this index will be set according to `value`.
+	/// - `place`: A bit index in the element, from `0` to `Self::MASK`. The bit
+	///   under this index will be set according to `value`.
 	/// - `value`: A Boolean value, which sets the bit on `true` and unsets it
 	///   on `false`.
 	///
@@ -133,33 +130,70 @@ pub trait Bits:
 	///
 	/// # Panics
 	///
-	/// This function panics if `place` is not less than `T::SIZE`, in order
-	/// to avoid index out of range errors.
+	/// This function panics if `place` is not less than `T::SIZE`, in order to
+	/// avoid index out of range errors.
 	///
 	/// # Examples
 	///
 	/// This example sets and unsets bits in a byte.
 	///
 	/// ```rust
-	/// use bitvec::{Bits, LittleEndian};
+	/// use bitvec::{Bits, BigEndian};
 	/// let mut elt: u8 = 0;
-	/// elt.set::<LittleEndian>(0.into(), true);
-	/// assert_eq!(elt, 0b0000_0001);
-	/// elt.set::<LittleEndian>(4.into(), true);
-	/// assert_eq!(elt, 0b0001_0001);
-	/// elt.set::<LittleEndian>(0.into(), false);
-	/// assert_eq!(elt, 0b0001_0000);
+	/// elt.set::<BigEndian>(0.into(), true);
+	/// assert_eq!(elt, 0b1000_0000);
+	/// elt.set::<BigEndian>(4.into(), true);
+	/// assert_eq!(elt, 0b1000_1000);
+	/// elt.set::<BigEndian>(0.into(), false);
+	/// assert_eq!(elt, 0b0000_1000);
 	/// ```
 	///
 	/// This example overruns the index, and panics.
 	///
 	/// ```rust,should_panic
-	/// use bitvec::{Bits, LittleEndian};
+	/// use bitvec::{Bits, BigEndian};
 	/// let mut elt: u8 = 0;
-	/// elt.set::<LittleEndian>(8.into(), true);
+	/// elt.set::<BigEndian>(8.into(), true);
 	/// ```
 	fn set<C: Cursor>(&mut self, place: BitIdx, value: bool) {
-		let place: BitPos = C::at::<Self>(place);
+		self.set_at(C::at::<Self>(place), value)
+	}
+
+	/// Sets a specific bit in an element to a given value.
+	///
+	/// # Parameters
+	///
+	/// - `place`: A bit *position* in the element, where `0` is the LSbit and
+	///   `Self::MASK` is the MSbit.
+	/// - `value`: A Boolean value, which sets the bit high on `true` and unsets
+	///   it low on `false`.
+	///
+	/// # Panics
+	///
+	/// This function panics if `place` is not less than `T::SIZE`, in order to
+	/// avoid index out of range errors.
+	///
+	/// # Examples
+	///
+	/// This example sets and unsets bits in a byte.
+	///
+	/// ```rust
+	/// use bitvec::Bits;
+	/// let mut elt: u8 = 0;
+	/// elt.set_at(0.into(), true);
+	/// assert_eq!(elt, 0b0000_0001);
+	/// elt.set_at(7.into(), true);
+	/// assert_eq!(elt, 0b1000_0001);
+	/// ```
+	///
+	/// This example overshoots the width, and panics.
+	///
+	/// ```rust,should_panic
+	/// use bitvec::Bits;
+	/// let mut elt: u8 = 0;
+	/// elt.set_at(8.into(), true);
+	/// ```
+	fn set_at(&mut self, place: BitPos, value: bool) {
 		assert!(
 			*place < Self::SIZE,
 			"Index out of range: {} overflows {}",
@@ -179,8 +213,8 @@ pub trait Bits:
 	///
 	/// # Parameters
 	///
-	/// - `place`: A bit index in the element, from `0` at `LSb` to `Self::MASK`
-	///   at `MSb`. The bit under this index will be retrieved as a `bool`.
+	/// - `place`: A bit index in the element, from `0` to `Self::MASK`. The bit
+	///   under this index will be retrieved as a `bool`.
 	///
 	/// # Returns
 	///
@@ -193,29 +227,67 @@ pub trait Bits:
 	///
 	/// # Panics
 	///
-	/// This function panics if `place` is not less than `T::SIZE`, in order
-	/// to avoid index out of range errors.
+	/// This function panics if `place` is not less than `T::SIZE`, in order to
+	/// avoid index out of range errors.
 	///
 	/// # Examples
 	///
 	/// This example gets two bits from a byte.
 	///
 	/// ```rust
-	/// use bitvec::{Bits, LittleEndian};
-	/// let elt: u8 = 0b0000_0100;
-	/// assert!(!elt.get::<LittleEndian>(1.into()));
-	/// assert!(elt.get::<LittleEndian>(2.into()));
-	/// assert!(!elt.get::<LittleEndian>(3.into()));
+	/// use bitvec::{Bits, BigEndian};
+	/// let elt: u8 = 0b0010_0000;
+	/// assert!(!elt.get::<BigEndian>(1.into()));
+	/// assert!(elt.get::<BigEndian>(2.into()));
+	/// assert!(!elt.get::<BigEndian>(3.into()));
 	/// ```
 	///
 	/// This example overruns the index, and panics.
 	///
 	/// ```rust,should_panic
-	/// use bitvec::{Bits, LittleEndian};
-	/// 0u8.get::<LittleEndian>(8.into());
+	/// use bitvec::{Bits, BigEndian};
+	/// 0u8.get::<BigEndian>(8.into());
 	/// ```
 	fn get<C: Cursor>(&self, place: BitIdx) -> bool {
-		let place: BitPos = C::at::<Self>(place);
+		self.get_at(C::at::<Self>(place))
+	}
+
+	/// Gets a specific bit in an element.
+	///
+	/// # Parameters
+	///
+	/// - `place`: A bit *position* in the element, from `0` at LSbit to
+	///   `Self::MASK` at MSbit. The bit under this position will be retrieved
+	///   as a `bool`.
+	///
+	/// # Returns
+	///
+	/// The value of the bit under `place`, as a `bool`.
+	///
+	/// # Panics
+	///
+	/// This function panics if `place` is not less than `T::SIZE`, in order to
+	/// avoid index out of range errors.
+	///
+	/// # Examples
+	///
+	/// This example gets two bits from a byte.
+	///
+	/// ```rust
+	/// use bitvec::Bits;
+	/// let elt: u8 = 0b0010_0000;
+	/// assert!(!elt.get_at(4.into()));
+	/// assert!(elt.get_at(5.into()));
+	/// assert!(!elt.get_at(6.into()));
+	/// ```
+	///
+	/// This example overruns the index, and panics.
+	///
+	/// ```rust,should_panic
+	/// use bitvec::Bits;
+	/// 0u8.get_at(8.into());
+	/// ```
+	fn get_at(&self, place: BitPos) -> bool {
 		assert!(
 			*place < Self::SIZE,
 			"Index out of range: {} overflows {}",
@@ -294,6 +366,7 @@ pub trait Bits:
 	/// [`u64::count_ones`]: https://doc.rust-lang.org/stable/std/primitive.u64.html#method.count_ones
 	#[inline(always)]
 	fn count_zeros(&self) -> usize {
+		//  invert (0 become 1, 1 become 0), zero-extend, count ones
 		u64::count_ones((!self.load()).into()) as usize
 	}
 }
