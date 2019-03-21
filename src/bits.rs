@@ -389,6 +389,8 @@ pub struct BitIdx(pub(crate) u8);
 impl BitIdx {
 	/// Checks if the index is valid for a type.
 	///
+	/// Indices are valid in the range `0 .. T::SIZE`.
+	///
 	/// # Parameters
 	///
 	/// - `self`: The index to validate.
@@ -402,6 +404,25 @@ impl BitIdx {
 	/// - `T: Bits`: The storage type used to determine index validity.
 	pub fn is_valid<T: Bits>(self) -> bool {
 		self.load() < T::SIZE
+	}
+
+	/// Checks if the index is valid as a tail index for a type.
+	///
+	/// Tail indices are vaild in the range `1 ..= T::SIZE`.
+	///
+	/// # Parameters
+	///
+	/// - `self`: The index to validate as a tail.
+	///
+	/// # Returns
+	///
+	/// Whether the index is valid as a tail for the storage type in question.
+	///
+	/// # Type Parameters
+	///
+	/// - `T: Bits`: The storage used to determine index tail validity.
+	pub fn is_valid_tail<T: Bits>(self) -> bool {
+		*self > 0 && *self <= T::SIZE
 	}
 
 	/// Increments a cursor to the next value, wrapping if needed.
@@ -652,8 +673,6 @@ impl BitIdx {
 		//  address of the first live bit) and the back edge of the element,
 		//  then when len is <= n, the span covers one element.
 		//  When len == n, the tail will be T::SIZE, which is valid for a tail.
-		//  TODO(myrrlyn): Separate BitIdx into Head and Tail types, which have
-		//  their proper range enforcements.
 		if len <= bits_in_head {
 			(1, (self.load() + len as u8).into())
 		}
