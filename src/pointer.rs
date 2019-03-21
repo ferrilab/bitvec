@@ -401,7 +401,7 @@ where T: Bits {
 
 		//  Check that the tail cursor index is in the appropriate domain.
 		assert!(
-			BitIdx::from(*tail - 1).is_valid::<T>(),
+			tail.is_valid_tail::<T>(),
 			"BitPtr tail cursors must be in the domain 1 ..= {}",
 			T::SIZE,
 		);
@@ -759,7 +759,7 @@ where T: Bits {
 		}
 		let tail = tail.into();
 		assert!(
-			BitIdx::from(*tail - 1).is_valid::<T>(),
+			tail.is_valid_tail::<T>(),
 			"Tail indices must be in the domain 1 ..= {}",
 			T::SIZE,
 		);
