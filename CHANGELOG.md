@@ -2,6 +2,32 @@
 
 All notable changes will be documented in this file.
 
+## 0.11.0
+
+This contains the last (planned) compiler version upgrade, to `1.33.0`, and the
+last major feature add before `1.0`: Serde-powered de/serialization.
+
+Deserialization is not possible without access to an allocator, so it is behind
+a feature gate, `serdes`, which depends on the `alloc` feature.
+
+`BitSlice`, `BitBox`, and `BitVec` all support serialization, and `BitBox` and
+`BitVec` support deserialization
+
+### Added
+
+- `serdes` feature to serialize `BitSlice`, `BitBox`, and `BitVec`, and
+  deserialize `BitBox` and `BitVec`.
+- `change_cursor<D>` method on `BitSlice`, `BitBox`, and `BitVec`, which enable
+  changing the element traversal order on a data set without modifying that
+  data. This is useful for working with slices that have their cursor type
+  erased, such as crossing serialization or foreign-language boundaries.
+
+### Changed
+
+- The internal `Bits` trait uses a `const fn` stabilized in `1.33.0` in order to
+  compute type information, rather than requiring explicit statements in the
+  implementations.
+
 ## 0.10.0
 
 This version was a complete rewrite of the entire crate. The minimum compiler

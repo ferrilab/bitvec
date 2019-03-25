@@ -338,32 +338,6 @@ pub trait Bits:
 		//  invert (0 become 1, 1 become 0), zero-extend, count ones
 		u64::count_ones((!*self).into()) as usize
 	}
-
-	/// Rotates the element to the left
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	/// - `n`: The amount by which to rotate
-	///
-	/// # Returns
-	///
-	/// The element, rotated left by `n`.
-	#[inline(always)]
-	fn rotate_left(self, n: usize) -> Self;
-
-	/// Rotates the element to the right
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	/// - `n`: The amount by which to rotate
-	///
-	/// # Returns
-	///
-	/// The element, rotated right by `n`.
-	#[inline(always)]
-	fn rotate_right(self, n: usize) -> Self;
 }
 
 /** Newtype indicating a semantic index into an element.
@@ -782,58 +756,11 @@ impl DerefMut for BitPos {
 	fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
 }
 
-impl Bits for u8 {
-	const BITS: u8 = 3;
-	const TYPENAME: &'static str = "u8";
-	#[inline(always)]
-	fn rotate_left(self, n: usize) -> Self {
-		self.rotate_left(n as u32)
-	}
-	#[inline(always)]
-	fn rotate_right(self, n: usize) -> Self {
-		self.rotate_right(n as u32)
-	}
-}
-
-impl Bits for u16 {
-	const BITS: u8 = 4;
-	const TYPENAME: &'static str = "u16";
-	#[inline(always)]
-	fn rotate_left(self, n: usize) -> Self {
-		self.rotate_left(n as u32)
-	}
-	#[inline(always)]
-	fn rotate_right(self, n: usize) -> Self {
-		self.rotate_right(n as u32)
-	}
-}
-
-impl Bits for u32 {
-	const BITS: u8 = 5;
-	const TYPENAME: &'static str = "u32";
-	#[inline(always)]
-	fn rotate_left(self, n: usize) -> Self {
-		self.rotate_left(n as u32)
-	}
-	#[inline(always)]
-	fn rotate_right(self, n: usize) -> Self {
-		self.rotate_right(n as u32)
-	}
-}
-
+impl Bits for u8  { const TYPENAME: &'static str = "u8";  }
+impl Bits for u16 { const TYPENAME: &'static str = "u16"; }
+impl Bits for u32 { const TYPENAME: &'static str = "u32"; }
 #[cfg(target_pointer_width = "64")]
-impl Bits for u64 {
-	const BITS: u8 = 6;
-	const TYPENAME: &'static str = "u64";
-	#[inline(always)]
-	fn rotate_left(self, n: usize) -> Self {
-		self.rotate_left(n as u32)
-	}
-	#[inline(always)]
-	fn rotate_right(self, n: usize) -> Self {
-		self.rotate_right(n as u32)
-	}
-}
+impl Bits for u64 { const TYPENAME: &'static str = "u64"; }
 
 /// Marker trait to seal `Bits` against downstream implementation.
 ///

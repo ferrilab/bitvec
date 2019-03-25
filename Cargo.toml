@@ -28,8 +28,8 @@ default = [
 	"std",
 ]
 serdes = [
+	"alloc",
 	"serde",
-	"std",
 ]
 std = [
 	"alloc",
@@ -39,6 +39,7 @@ testing = [
 ]
 
 [dependencies.serde]
+default-features = false
 features = [
 	"derive",
 ]
@@ -48,6 +49,12 @@ version = "1"
 [dev-dependencies]
 serde = "1"
 serde_json = "1"
+
+[package.metadata.docs.rs]
+features = [
+	"serdes",
+	"std",
+]
 
 [badges.codecov]
 repository = "myrrlyn/bitvec"
