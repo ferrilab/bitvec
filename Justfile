@@ -4,7 +4,8 @@ checkout:
 	cargo build
 	cargo build --example sieve
 	cargo build --example tour
-	cargo test --features testing
+	cargo build --example serdes --features serdes
+	cargo test --features testing,serdes
 	cargo package --allow-dirty
 
 dev:

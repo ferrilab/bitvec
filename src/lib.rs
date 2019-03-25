@@ -43,7 +43,7 @@ extern crate alloc;
 #[cfg(feature = "std")]
 extern crate core;
 
-#[cfg(feature = "serdes")]
+#[cfg(all(feature = "alloc", feature = "serdes"))]
 extern crate serde;
 
 #[macro_use]
@@ -61,7 +61,7 @@ mod boxed;
 #[cfg(feature = "alloc")]
 mod vec;
 
-#[cfg(feature = "serdes")]
+#[cfg(all(feature = "alloc", feature = "serdes"))]
 mod serdes;
 
 use crate::{

@@ -1173,6 +1173,36 @@ where C: Cursor, T: Bits {
 		})
 	}
 
+	/// Changes the cursor type on the vector handle, without changing its
+	/// contents.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// An equivalent vector handle with a new cursor type. The contents of the
+	/// backing storage are unchanged.
+	///
+	/// To reorder the bits in memory, drain this vector into a new handle with
+	/// the desired cursor type.
+	pub fn change_cursor<D>(self) -> BitVec<D, T>
+	where D: Cursor {
+		let (bp, cap) = (self.bitptr(), self.capacity);
+		mem::forget(self);
+		unsafe { BitVec::from_raw_parts(bp, cap) }
+	}
+
+	/// Gets the raw `BitPtr` powering the vector.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// The underlying `BitPtr` for the vector.
 	pub(crate) fn bitptr(&self) -> BitPtr<T> {
 		self.pointer
 	}

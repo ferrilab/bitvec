@@ -2,7 +2,7 @@
 
 !*/
 
-#![cfg(feature = "serdes")]
+#![cfg(all(feature = "alloc", feature = "serdes"))]
 
 use super::{
 	BitBox,
@@ -39,16 +39,22 @@ use std::{
 	marker::PhantomData,
 };
 
+/// Markers for the four fields of a bit slice handle and data.
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[repr(u8)]
 enum Field {
+	/// Element count
 	Elts = 0,
+	/// Head cursor
 	Head = 1,
+	//// Tail cursor
 	Tail = 2,
+	/// The data making up the slice.
 	Data = 3,
 }
 
+/// A Serde visitor to pull `BitBox` data out of a serialized stream
 #[derive(Clone, Copy, Default, Debug)]
 pub struct BitBoxVisitor<'de, C, T>
 where C: Cursor, T: Bits + Deserialize<'de> {
@@ -68,12 +74,7 @@ where C: Cursor, T: Bits + Deserialize<'de> {
 	type Value = BitBox<C, T>;
 
 	fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
-		write!(
-			fmt,
-			"A BitSet<{}, {}> header and sequence data",
-			C::TYPENAME,
-			T::TYPENAME,
-		)
+		fmt.write_str("A BitSet data series")
 	}
 
 	/// Visit a sequence of anonymous data elements. These must be in the order

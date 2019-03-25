@@ -262,6 +262,23 @@ where C: Cursor, T: Bits {
 		out.into()
 	}
 
+	/// Changes the cursor on a box handle, without changing the data it
+	/// governs.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// An equivalent handle to the same data, with a new cursor parameter.
+	pub fn change_cursor<D>(self) -> BitBox<D, T>
+	where D: Cursor {
+		let bp = self.bitptr();
+		mem::forget(self);
+		unsafe { BitBox::from_raw(bp) }
+	}
+
 	/// Accesses the `BitSlice<C, T>` to which the `BitBox` refers.
 	///
 	/// # Parameters

@@ -2,22 +2,36 @@
 
 All notable changes will be documented in this file.
 
-## 0.10.3
+## 0.11.0
 
-Upgraded the minimum compiler version to `1.34.0` for access to atomic
-synchronous operations.
+This contains the last (planned) compiler version upgrade, to `1.34.0`, and the
+last major feature add before `1.0`: Serde-powered de/serialization.
 
-## Changed
+Deserialization is not possible without access to an allocator, so it is behind
+a feature gate, `serdes`, which depends on the `alloc` feature.
 
-The `Bits` trait now uses synchronized access to elements for write operations,
-to prevent race conditions between adjacent bit slices that overlap in an
-element.
+`BitSlice`, `BitBox`, and `BitVec` all support serialization, and `BitBox` and
+`BitVec` support deserialization
 
-## Added
+### Added
 
-The internal `atomic` module and `Atomic` trait permit atomic access to elements
-for the `Bits` trait to use when performing bit set operations. This is not
-exposed to the public API.
+- `serdes` feature to serialize `BitSlice`, `BitBox`, and `BitVec`, and
+  deserialize `BitBox` and `BitVec`.
+- `change_cursor<D>` method on `BitSlice`, `BitBox`, and `BitVec`, which enable
+  changing the element traversal order on a data set without modifying that
+  data. This is useful for working with slices that have their cursor type
+  erased, such as crossing serialization or foreign-language boundaries.
+- The internal `atomic` module and `Atomic` trait permit atomic access to
+  elements for the `Bits` trait to use when performing bit set operations. This
+  is not exposed to the public API.
+
+### Changed
+
+- The internal `Bits` trait uses a `const fn` stabilized in `1.33.0` in order to
+  compute type information, rather than requiring explicit statements in the
+  implementations. It now uses synchronized access to elements for write
+  operations, to prevent race conditions between adjacent bit slices that
+  overlap in an element.
 
 ## 0.10.2
 
@@ -28,6 +42,8 @@ appears to have removed the automatic impls.
 
 `BitSlice` is both `Send` and `Sync`, as it is unowned memory. `BitBox` and
 `BitVec` are `Send` but not `Sync`, as they are owned memory.
+
+Thanks to GitHub user [@ratorx](https://github.com/ratorx) for the report!
 
 ## 0.10.1
 

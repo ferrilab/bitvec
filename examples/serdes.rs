@@ -10,7 +10,7 @@ extern crate serde_json;
 
 use bitvec::*;
 
-#[cfg(feature = "serdes")]
+#[cfg(all(feature = "alloc", feature = "serdes"))]
 fn main() {
 	let bv = bitvec![1, 0, 1, 1, 0, 0, 1, 0];
 	let json = serde_json::to_string(&bv).expect("cannot fail to serialize");
@@ -21,7 +21,7 @@ fn main() {
 	assert_eq!(bb.as_slice()[0], 178);
 }
 
-#[cfg(not(feature = "serdes"))]
+#[cfg(not(all(feature = "alloc", feature = "serdes")))]
 fn main() {
 	println!("This test needs to be compiled with `--features serdes` to work");
 }
