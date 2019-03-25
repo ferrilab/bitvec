@@ -21,6 +21,9 @@ a feature gate, `serdes`, which depends on the `alloc` feature.
   changing the element traversal order on a data set without modifying that
   data. This is useful for working with slices that have their cursor type
   erased, such as crossing serialization or foreign-language boundaries.
+- Internal domain models for the memory regions governed by `BitPtr`. These
+  models provide improved logical support for manipulating bit sequences with as
+  little inefficiency as possible
 
 ### Changed
 
