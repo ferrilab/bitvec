@@ -1348,7 +1348,7 @@ where C: Cursor, T: Bits {
 impl<C, T> Clone for BitVec<C, T>
 where C: Cursor, T: Bits {
 	fn clone(&self) -> Self {
-		let (_, e, h, t) = self.bitptr().raw_parts();
+		let (e, h, t) = self.bitptr().region_data();
 		let new_vec = self.do_with_vec(Clone::clone);
 		let (ptr, cap) = (new_vec.as_ptr(), new_vec.capacity());
 		mem::forget(new_vec);

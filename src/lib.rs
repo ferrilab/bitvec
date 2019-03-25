@@ -52,6 +52,7 @@ mod macros;
 mod atomic;
 mod bits;
 mod cursor;
+mod domain;
 mod pointer;
 mod slice;
 
@@ -90,6 +91,7 @@ pub use crate::{
 pub mod testing {
 	pub use crate::{
 		bits::*,
+		domain::*,
 		macros::*,
 		pointer::*,
 		slice::*,

@@ -151,7 +151,7 @@ impl<C, T> Serialize for BitSlice<C, T>
 where C: Cursor, T: Bits + Serialize {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
-		let (_, e, h, t) = self.bitptr().raw_parts();
+		let (e, h, t) = self.bitptr().region_data();
 		let mut state = serializer.serialize_struct("BitSet", 4)?;
 
 		state.serialize_field("elts", &e)?;

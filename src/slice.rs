@@ -10,10 +10,10 @@ Rust slices, and must never be interchanged except through the provided APIs.
 
 use crate::{
 	BigEndian,
-	BitIdx,
 	BitPtr,
 	Bits,
 	Cursor,
+	domain::*,
 };
 use core::{
 	cmp::{
@@ -1212,34 +1212,46 @@ where C: Cursor, T: Bits {
 	/// assert!(!bv[4 ..].all());
 	/// ```
 	pub fn all(&self) -> bool {
-		match self.inner() {
-			Inner::Minor(head, elt, tail) => {
+		match self.bitptr().domain() {
+			BitDomain::Empty => return false,
+			BitDomain::Minor(head, elt, tail) =>  {
 				for n in *head .. *tail {
 					if !elt.get::<C>(n.into()) {
 						return false;
 					}
 				}
 			},
-			Inner::Major(h, head, body, tail, t) => {
-				if let Some(elt) = head {
-					for n in *h .. T::SIZE {
-						if !elt.get::<C>(n.into()) {
-							return false;
-						}
-					}
-				}
-				for elt in body {
-					if *elt != T::from(!0) {
+			BitDomain::Major(h, head, body, tail, t) => {
+				for n in *h .. T::SIZE {
+					if !head.get::<C>(n.into()) {
 						return false;
 					}
 				}
-				if let Some(elt) = tail {
-					for n in 0 .. *t {
-						if !elt.get::<C>(n.into()) {
-							return false;
-						}
+				for n in 0 .. *t {
+					if !tail.get::<C>(n.into()) {
+						return false;
 					}
 				}
+				return body.iter().all(|e| *e == T::from(!0));
+			},
+			BitDomain::PartialHead(h, head, body) => {
+				for n in *h .. T::SIZE {
+					if !head.get::<C>(n.into()) {
+						return false;
+					}
+				}
+				return body.iter().all(|e| *e == T::from(!0));
+			},
+			BitDomain::PartialTail(body, tail, t) => {
+				for n in 0 .. *t {
+					if !tail.get::<C>(n.into()) {
+						return false;
+					}
+				}
+				return body.iter().all(|e| *e == T::from(!0));
+			},
+			BitDomain::Spanning(body) => {
+				return body.iter().all(|e| *e == T::from(!0));
 			},
 		}
 		true
@@ -1275,34 +1287,46 @@ where C: Cursor, T: Bits {
 	/// assert!(!bv[4 ..].any());
 	/// ```
 	pub fn any(&self) -> bool {
-		match self.inner() {
-			Inner::Minor(head, elt, tail) => {
+		match self.bitptr().domain() {
+			BitDomain::Empty => return false,
+			BitDomain::Minor(head, elt, tail) => {
 				for n in *head .. *tail {
 					if elt.get::<C>(n.into()) {
 						return true;
 					}
 				}
 			},
-			Inner::Major(h, head, body, tail, t) => {
-				if let Some(elt) = head {
-					for n in *h .. T::SIZE {
-						if elt.get::<C>(n.into()) {
-							return true;
-						}
-					}
-				}
-				for elt in body {
-					if *elt != T::from(0) {
+			BitDomain::Major(h, head, body, tail, t) => {
+				for n in *h .. T::SIZE {
+					if head.get::<C>(n.into()) {
 						return true;
 					}
 				}
-				if let Some(elt) = tail {
-					for n in 0 .. *t {
-						if elt.get::<C>(n.into()) {
-							return true;
-						}
+				for n in 0 .. *t {
+					if tail.get::<C>(n.into()) {
+						return true;
 					}
 				}
+				return body.iter().any(|e| *e != T::from(0));
+			},
+			BitDomain::PartialHead(h, head, body) => {
+				for n in *h .. T::SIZE {
+					if head.get::<C>(n.into()) {
+						return true;
+					}
+				}
+				return body.iter().any(|e| *e != T::from(0));
+			},
+			BitDomain::PartialTail(body, tail, t) => {
+				for n in 0 .. *t {
+					if tail.get::<C>(n.into()) {
+						return true;
+					}
+				}
+				return body.iter().any(|e| *e != T::from(0));
+			},
+			BitDomain::Spanning(body) => {
+				return body.iter().any(|e| *e != T::from(0));
 			},
 		}
 		false
@@ -1431,22 +1455,34 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(bv.count_ones(), 10);
 	/// ```
 	pub fn count_ones(&self) -> usize {
-		match self.inner() {
-			Inner::Minor(head, elt, tail) => {
+		match self.bitptr().domain() {
+			BitDomain::Empty => 0,
+			BitDomain::Minor(head, elt, tail) => {
 				(*head .. *tail)
 					.map(|n| elt.get::<C>(n.into()))
 					.filter(|b| *b)
 					.count()
 			},
-			Inner::Major(h, head, body, tail, t) => {
-				head.map(|e| (*h .. T::SIZE)
-					.map(|n| e.get::<C>(n.into())).filter(|b| *b).count()
-				).unwrap_or(0) +
+			BitDomain::Major(h, head, body, tail, t) => {
+				(*h .. T::SIZE)
+					.map(|n| head.get::<C>(n.into())).filter(|b| *b).count() +
 				body.iter().map(T::count_ones).sum::<usize>() +
-				tail.map(|e| (0 .. *t)
-					.map(|n| e.get::<C>(n.into())).filter(|b| *b).count()
-				).unwrap_or(0)
+				(0 .. *t)
+					.map(|n| tail.get::<C>(n.into())).filter(|b| *b).count()
 			},
+			BitDomain::PartialHead(h, head, body) => {
+				(*h .. T::SIZE)
+					.map(|n| head.get::<C>(n.into())).filter(|b| *b).count() +
+				body.iter().map(T::count_ones).sum::<usize>()
+			},
+			BitDomain::PartialTail(body, tail, t) => {
+				body.iter().map(T::count_ones).sum::<usize>() +
+				(0 .. *t)
+					.map(|n| tail.get::<C>(n.into())).filter(|b| *b).count()
+			},
+			BitDomain::Spanning(body) => {
+				body.iter().map(T::count_ones).sum::<usize>()
+			}
 		}
 	}
 
@@ -1470,21 +1506,33 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(bv.count_zeros(), 6);
 	/// ```
 	pub fn count_zeros(&self) -> usize {
-		match self.inner() {
-			Inner::Minor(head, elt, tail) => {
+		match self.bitptr().domain() {
+			BitDomain::Empty => 0,
+			BitDomain::Minor(head, elt, tail) => {
 				(*head .. *tail)
 					.map(|n| !elt.get::<C>(n.into()))
 					.filter(|b| !*b)
 					.count()
 			},
-			Inner::Major(h, head, body, tail, t) => {
-				head.map(|e| (*h .. T::SIZE)
-					.map(|n| e.get::<C>(n.into())).filter(|b| !*b).count()
-				).unwrap_or(0) +
+			BitDomain::Major(h, head, body, tail, t) => {
+				(*h .. T::SIZE)
+					.map(|n| head.get::<C>(n.into())).filter(|b| !*b).count() +
 				body.iter().map(T::count_zeros).sum::<usize>() +
-				tail.map(|e| (0 .. *t)
-					.map(|n| e.get::<C>(n.into())).filter(|b| !*b).count()
-				).unwrap_or(0)
+				(0 .. *t)
+					.map(|n| tail.get::<C>(n.into())).filter(|b| !*b).count()
+			},
+			BitDomain::PartialHead(h, head, body) => {
+				(*h .. T::SIZE)
+					.map(|n| head.get::<C>(n.into())).filter(|b| !*b).count() +
+				body.iter().map(T::count_zeros).sum::<usize>()
+			},
+			BitDomain::PartialTail(body, tail, t) => {
+				body.iter().map(T::count_zeros).sum::<usize>() +
+				(0 .. *t)
+					.map(|n| tail.get::<C>(n.into())).filter(|b| !*b).count()
+			},
+			BitDomain::Spanning(body) => {
+				body.iter().map(T::count_zeros).sum::<usize>()
 			},
 		}
 	}
@@ -1511,28 +1559,45 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(bv.as_ref(), &[0b1010_0100]);
 	/// ```
 	pub fn set_all(&mut self, value: bool) {
-		match self.inner() {
-			Inner::Minor(head, _, tail) => {
-				let elt = &mut self.as_mut()[0];
+		match self.bitptr().domain_mut() {
+			BitDomainMut::Empty => {},
+			BitDomainMut::Minor(head, elt, tail) => {
 				for n in *head .. *tail {
 					elt.set::<C>(n.into(), value);
 				}
 			},
-			Inner::Major(h, _, _, _, t) => {
-				if let Some(head) = self.head_mut() {
-					for n in *h .. T::SIZE {
-						head.set::<C>(n.into(), value);
-					}
+			BitDomainMut::Major(h, head, body, tail, t) => {
+				for n in *h .. T::SIZE {
+					head.set::<C>(n.into(), value);
 				}
-				for elt in self.body_mut() {
+				for elt in body {
 					*elt = T::from(0);
 				}
-				if let Some(tail) = self.tail_mut() {
-					for n in 0 .. *t {
-						tail.set::<C>(n.into(), value);
-					}
+				for n in 0 .. *t {
+					tail.set::<C>(n.into(), value);
 				}
-			}
+			},
+			BitDomainMut::PartialHead(h, head, body) => {
+				for n in *h .. T::SIZE {
+					head.set::<C>(n.into(), value);
+				}
+				for elt in body {
+					*elt = T::from(0);
+				}
+			},
+			BitDomainMut::PartialTail(body, tail, t) => {
+				for elt in body {
+					*elt = T::from(0);
+				}
+				for n in 0 .. *t {
+					tail.set::<C>(n.into(), value);
+				}
+			},
+			BitDomainMut::Spanning(body) => {
+				for elt in body {
+					*elt = T::from(0);
+				}
+			},
 		}
 	}
 
@@ -1763,42 +1828,6 @@ where C: Cursor, T: Bits {
 	pub fn bitptr(&self) -> BitPtr<T> {
 		self.into()
 	}
-
-	/// Splits the slice domain into its logical parts.
-	///
-	/// Produces either the single-element partial domain, or the edge and
-	/// center elements of a multiple-element domain.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// A logical representation of the data region components.
-	fn inner(&self) -> Inner<T> {
-		let bp = self.bitptr();
-		let (h, t) = (bp.head(), bp.tail());
-		//  single-element, cursors not at both edges
-		if self.as_ref().len() == 1 && *h > 0 && *t < T::SIZE {
-			Inner::Minor(h, &self.as_ref()[0], t)
-		}
-		else {
-			Inner::Major(h, self.head(), self.body(), self.tail(), t)
-		}
-	}
-}
-
-/// Logical division of the elements which make up the domain occupied by a bit
-/// slice.
-enum Inner<'a, T: 'a + Bits> {
-	/// A slice which partially fills only one element receives the head and
-	/// tail cursors, and a reference to the element.
-	Minor(BitIdx, &'a T, BitIdx),
-	/// A slice which either completely fills an element receives the head and
-	/// tail cursors, optional references to the partial edge elements, and a
-	/// standard slice of the interior full elements.
-	Major(BitIdx, Option<&'a T>, &'a [T], Option<&'a T>, BitIdx),
 }
 
 /// Creates an owned `BitVec<C, T>` from a borrowed `BitSlice<C, T>`.
@@ -2285,21 +2314,33 @@ where C: Cursor, T: Bits {
 					str::from_utf8_unchecked(&w[from .. to])
 				}));
 			};
-			match self.inner() {
-				//  Single-element slice
-				Inner::Minor(head, elt, tail) => {
+			match self.bitptr().domain() {
+				BitDomain::Empty => {},
+				BitDomain::Minor(head, elt, tail) => {
 					writer(&mut dbg, &mut w, elt, *head, *tail)
 				},
-				//  Multi-element slice
-				Inner::Major(hc, head, body, tail, tc) => {
-					if let Some(head) = head {
-						writer(&mut dbg, &mut w, head, *hc, T::SIZE);
-					}
+				BitDomain::Major(h, head, body, tail, t) => {
+					writer(&mut dbg, &mut w, head, *h, T::SIZE);
 					for elt in body {
 						writer(&mut dbg, &mut w, elt, 0, T::SIZE);
 					}
-					if let Some(tail) = tail {
-						writer(&mut dbg, &mut w, tail, 0, *tc);
+					writer(&mut dbg, &mut w, tail, 0, *t);
+				},
+				BitDomain::PartialHead(h, head, body) => {
+					writer(&mut dbg, &mut w, head, *h, T::SIZE);
+					for elt in body {
+						writer(&mut dbg, &mut w, elt, 0, T::SIZE);
+					}
+				},
+				BitDomain::PartialTail(body, tail, t) => {
+					for elt in body {
+						writer(&mut dbg, &mut w, elt, 0, T::SIZE);
+					}
+					writer(&mut dbg, &mut w, tail, 0, *t);
+				},
+				BitDomain::Spanning(body) => {
+					for elt in body {
+						writer(&mut dbg, &mut w, elt, 0, T::SIZE);
 					}
 				},
 			}
@@ -2865,29 +2906,48 @@ where C: Cursor, T: 'a + Bits {
 	/// assert_eq!(new_bits.as_ref(), &[0x3F, 0xFC]);
 	/// ```
 	fn not(self) -> Self::Output {
-		match self.inner() {
-			Inner::Minor(head, _, tail) => {
-				let elt = &mut self.as_mut()[0];
+		match self.bitptr().domain_mut() {
+			BitDomainMut::Empty => {},
+			BitDomainMut::Minor(head, elt, tail) => {
 				for n in *head .. *tail {
 					let tmp = elt.get::<C>(n.into());
 					elt.set::<C>(n.into(), !tmp);
 				}
 			},
-			Inner::Major(hb, _, _, _, tb) => {
-				if let Some(head) = self.head_mut() {
-					for n in *hb .. T::SIZE {
-						let tmp = head.get::<C>(n.into());
-						head.set::<C>(n.into(), !tmp);
-					}
+			BitDomainMut::Major(h, head, body, tail, t) => {
+				for n in *h .. T::SIZE {
+					let tmp = head.get::<C>(n.into());
+					head.set::<C>(n.into(), !tmp);
 				}
-				for elt in self.body_mut() {
+				for elt in body {
 					*elt = !*elt;
 				}
-				if let Some(tail) = self.tail_mut() {
-					for n in 0 .. *tb {
-						let tmp = tail.get::<C>(n.into());
-						tail.set::<C>(n.into(), !tmp);
-					}
+				for n in 0 .. *t {
+					let tmp = tail.get::<C>(n.into());
+					tail.set::<C>(n.into(), !tmp);
+				}
+			},
+			BitDomainMut::PartialHead(h, head, body) => {
+				for n in *h .. T::SIZE {
+					let tmp = head.get::<C>(n.into());
+					head.set::<C>(n.into(), !tmp);
+				}
+				for elt in body {
+					*elt = !*elt;
+				}
+			},
+			BitDomainMut::PartialTail(body, tail, t) => {
+				for elt in body {
+					*elt = !*elt;
+				}
+				for n in 0 .. *t {
+					let tmp = tail.get::<C>(n.into());
+					tail.set::<C>(n.into(), !tmp);
+				}
+			},
+			BitDomainMut::Spanning(body) => {
+				for elt in body {
+					*elt = !*elt;
 				}
 			},
 		}

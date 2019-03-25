@@ -24,6 +24,9 @@ a feature gate, `serdes`, which depends on the `alloc` feature.
 - The internal `atomic` module and `Atomic` trait permit atomic access to
   elements for the `Bits` trait to use when performing bit set operations. This
   is not exposed to the public API.
+- Internal domain models for the memory regions governed by `BitPtr`. These
+  models provide improved logical support for manipulating bit sequences with as
+  little inefficiency as possible
 
 ### Changed
 

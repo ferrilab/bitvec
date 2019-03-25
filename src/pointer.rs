@@ -11,6 +11,7 @@ use crate::{
 	BitSlice,
 	Bits,
 	Cursor,
+	domain::*,
 };
 use core::{
 	convert::{
@@ -524,10 +525,40 @@ where T: Bits {
 	///
 	/// - `*const T`: A well aligned pointer to the first element of the slice.
 	/// - `usize`: The number of elements in the slice.
-	/// - `head`: The index of the first live bit in the first element.
-	/// - `tail`: The index of the first dead bit in the last element.
+	/// - `BitIdx`: The index of the first live bit in the first element.
+	/// - `BitIdx`: The index of the first dead bit in the last element.
 	pub fn raw_parts(&self) -> (*const T, usize, BitIdx, BitIdx) {
 		(self.pointer(), self.elements(), self.head(), self.tail())
+	}
+
+	/// Produces the element count, head index, and tail index, which describe
+	/// the region.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// - `usize`: The number of elements in the slice.
+	/// - `BitIdx`: The index of the first live bit in the first element.
+	/// - `BitIdx`: The index of the first dead bit in the last element.
+	pub fn region_data(&self) -> (usize, BitIdx, BitIdx) {
+		(self.elements(), self.head(), self.tail())
+	}
+
+	/// Produces the head and tail indices for the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// - `BitIdx`: The index of the first live bit in the first element.
+	/// - `BitIdx`: The index of the first dead bit in the last element.
+	pub fn cursors(&self) -> (BitIdx, BitIdx) {
+		(self.head(), self.tail())
 	}
 
 	/// Checks if the pointer represents the empty slice.
@@ -548,7 +579,7 @@ where T: Bits {
 
 	/// Checks if the pointer represents the full slice.
 	///
-	/// The full slice is marked by `0` values for `elts` and `tail`, when
+	/// The full slice is marked by `!0` values for `elts` and `tail`, when
 	/// `data` is not null. The full slice does not need `head` to be `0`.
 	///
 	/// # Parameters
@@ -629,7 +660,7 @@ where T: Bits {
 	///
 	/// A slice of fully live storage elements.
 	pub fn body_elts(&self) -> &[T] {
-		let w: u8 = 1 << Self::LEN_TAIL_BITS;
+		let w = T::SIZE;
 		let (_, e, h, t) = self.raw_parts();
 		match (e, *h, *t) {
 			//  Empty slice
@@ -669,6 +700,83 @@ where T: Bits {
 			return Some(&self.as_ref()[self.elements() - 1]);
 		}
 		None
+	}
+
+	/// Accesses the element slice behind the pointer as a Rust slice.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// Standard Rust slice handle over the data governed by this pointer.
+	///
+	/// # Lifetimes
+	///
+	/// - `'a`: Lifetime for which the data behind the pointer is live.
+	pub fn as_slice<'a>(&self) -> &'a [T] {
+		unsafe { slice::from_raw_parts(self.pointer(), self.elements()) }
+	}
+
+	/// Accesses the element slice behind the pointer as a Rust mutable slice.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// Standard Rust slice handle over the data governed by this pointer.
+	///
+	/// # Lifetimes
+	///
+	/// - `'a`: Lifetime for which the data behind the pointer is live.
+	pub fn as_mut_slice<'a>(&self) -> &'a mut [T] {
+		unsafe {
+			slice::from_raw_parts_mut(self.pointer() as *mut T, self.elements())
+		}
+	}
+
+	/// Gets the domain kind for the region the pointer describes.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// An enum describing the live bits in the region the pointer covers.
+	pub fn domain_kind(&self) -> BitDomainKind {
+		(*self).into()
+	}
+
+	/// Gets the domain for the region the pointer describes.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// An enum containing the logical components of the domain governed by
+	/// `self`.
+	pub fn domain(&self) -> BitDomain<T> {
+		(*self).into()
+	}
+
+	/// Gets the domain for the region the pointer describes.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// An enum containing the logical components of the domain governed by
+	/// `self`.
+	pub fn domain_mut(&self) -> BitDomainMut<T> {
+		(*self).into()
 	}
 
 	/// Set the head index to a new value.
@@ -855,9 +963,7 @@ where T: Bits {
 impl<T> AsMut<[T]> for BitPtr<T>
 where T: Bits {
 	fn as_mut(&mut self) -> &mut [T] {
-		let ptr = self.pointer() as *mut T;
-		let len = self.elements();
-		unsafe { slice::from_raw_parts_mut(ptr, len) }
+		self.as_mut_slice()
 	}
 }
 
@@ -866,7 +972,7 @@ where T: Bits {
 impl<T> AsRef<[T]> for BitPtr<T>
 where T: Bits {
 	fn as_ref(&self) -> &[T] {
-		unsafe { slice::from_raw_parts(self.pointer(), self.elements()) }
+		self.as_slice()
 	}
 }
 

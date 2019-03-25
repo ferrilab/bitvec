@@ -364,7 +364,7 @@ where C: Cursor, T: Bits {
 impl<C, T> Clone for BitBox<C, T>
 where C: Cursor, T: Bits {
 	fn clone(&self) -> Self {
-		let (_, e, h, t) = self.bitptr().raw_parts();
+		let (e, h, t) = self.bitptr().region_data();
 		let new_box = self.do_with_box(Clone::clone);
 		let ptr = new_box.as_ptr();
 		mem::forget(new_box);
