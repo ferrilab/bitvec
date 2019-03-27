@@ -1134,7 +1134,7 @@ where C: Cursor, T: Bits {
 	where R: RangeBounds<usize>, I: Iterator<Item=bool> {
 		Splice {
 			drain: self.drain(range),
-			splice: replacement.into_iter(),
+			splice: replacement,
 		}
 	}
 
@@ -2329,14 +2329,26 @@ where C: Cursor, T: Bits {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, index: RangeInclusive<usize>) -> &Self::Output {
-		&self[*index.start() .. *index.end() + 1]
+		let start = *index.start();
+		if let Some(end) = index.end().checked_add(1) {
+			&self.as_bitslice()[start .. end]
+		}
+		else {
+			&self.as_bitslice()[start ..]
+		}
 	}
 }
 
 impl<C, T> IndexMut<RangeInclusive<usize>> for BitVec<C, T>
 where C: Cursor, T: Bits {
 	fn index_mut(&mut self, index: RangeInclusive<usize>) -> &mut Self::Output {
-		&mut self[*index.start() .. *index.end() + 1]
+		let start = *index.start();
+		if let Some(end) = index.end().checked_add(1) {
+			&mut self.as_mut_bitslice()[start .. end]
+		}
+		else {
+			&mut self.as_mut_bitslice()[start ..]
+		}
 	}
 }
 
@@ -2345,7 +2357,7 @@ where C: Cursor, T: Bits {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, RangeFrom { start }: RangeFrom<usize>) -> &Self::Output {
-		&self[start .. self.len()]
+		&self.as_bitslice()[start .. self.len()]
 	}
 }
 
@@ -2356,7 +2368,7 @@ where C: Cursor, T: Bits {
 		RangeFrom { start }: RangeFrom<usize>,
 	) -> &mut Self::Output {
 		let len = self.len();
-		&mut self[start .. len]
+		&mut self.as_mut_bitslice()[start .. len]
 	}
 }
 
@@ -2365,14 +2377,14 @@ where C: Cursor, T: Bits {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, _: RangeFull) -> &Self::Output {
-		self
+		self.as_bitslice()
 	}
 }
 
 impl<C, T> IndexMut<RangeFull> for BitVec<C, T>
 where C: Cursor, T: Bits {
 	fn index_mut(&mut self, _: RangeFull) -> &mut Self::Output {
-		self
+		self.as_mut_bitslice()
 	}
 }
 
@@ -2381,7 +2393,7 @@ where C: Cursor, T: Bits {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, RangeTo { end }: RangeTo<usize>) -> &Self::Output {
-		&self[0 .. end]
+		&self.as_bitslice()[0 .. end]
 	}
 }
 
@@ -2391,7 +2403,7 @@ where C: Cursor, T: Bits {
 		&mut self,
 		RangeTo { end }: RangeTo<usize>,
 	) -> &mut Self::Output {
-		&mut self[0 .. end]
+		&mut self.as_mut_bitslice()[0 .. end]
 	}
 }
 
@@ -2403,7 +2415,7 @@ where C: Cursor, T: Bits {
 		&self,
 		RangeToInclusive { end }: RangeToInclusive<usize>,
 	) -> &Self::Output {
-		&self[0 .. end + 1]
+		&self.as_bitslice()[0 ..= end]
 	}
 }
 
@@ -2413,7 +2425,7 @@ where C: Cursor, T: Bits {
 		&mut self,
 		RangeToInclusive { end }: RangeToInclusive<usize>,
 	) -> &mut Self::Output {
-		&mut self[0 .. end + 1]
+		&mut self.as_mut_bitslice()[0 ..= end]
 	}
 }
 
@@ -2590,9 +2602,9 @@ where C: Cursor, T: Bits {
 		}
 		for idx in shamt .. len {
 			let val = self[idx];
-			self.set(idx - shamt, val);
+			self.set(idx.saturating_sub(shamt), val);
 		}
-		let trunc = len - shamt;
+		let trunc = len.saturating_sub(shamt);
 		for idx in trunc .. len {
 			self.set(idx, false);
 		}
@@ -2711,7 +2723,7 @@ where C: Cursor, T: Bits {
 		}
 		for idx in (0 .. old_len).rev() {
 			let val = self[idx];
-			self.set(idx + shamt, val);
+			self.set(idx.saturating_add(shamt), val);
 		}
 		for idx in 0 .. shamt {
 			self.set(idx, false);

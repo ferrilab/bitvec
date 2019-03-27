@@ -1730,8 +1730,9 @@ where C: Cursor, T: Bits {
 	/// empty, if the slice has zero, one, or two elements, which are not fully
 	/// live.
 	pub fn body(&self) -> &[T] {
-		//  Transmute into the correct lifetime.
-		unsafe { mem::transmute(self.bitptr().body_elts()) }
+		let bitptr = self.bitptr();
+		let body = bitptr.body_elts();
+		unsafe { slice::from_raw_parts(body.as_ptr(), body.len()) }
 	}
 
 	/// Gets a mutable reference to the fully-populated elements in the slice.
@@ -1746,9 +1747,11 @@ where C: Cursor, T: Bits {
 	/// empty, if the slice has zero, one, or two elements, which are not fully
 	/// live.
 	pub fn body_mut(&mut self) -> &mut [T] {
-		//  Reattach the correct lifetime and mutability
-		#[allow(mutable_transmutes)]
-		unsafe { mem::transmute(self.bitptr().body_elts()) }
+		let bitptr = self.bitptr();
+		let body = bitptr.body_elts();
+		unsafe {
+			slice::from_raw_parts_mut(body.as_ptr() as *mut T, body.len())
+		}
 	}
 
 	/// Gets an immutable reference to the last element in the slice.
@@ -2167,9 +2170,9 @@ where C: Cursor, T: 'a + Bits {
 	/// # }
 	/// ```
 	fn from(src: BitPtr<T>) -> Self { unsafe {
-		let (ptr, len) = mem::transmute::<BitPtr<T>, (*const (), usize)>(src);
+		let (ptr, len) = src.bare_parts();
 		let store = slice::from_raw_parts(ptr, len);
-		mem::transmute::<&[()], &'a BitSlice<C, T>>(store)
+		&*(store as *const [()] as *const _)
 	} }
 }
 
@@ -2202,9 +2205,9 @@ where C: Cursor, T: Bits {
 	/// # }
 	/// ```
 	fn from(src: BitPtr<T>) -> Self { unsafe {
-		let (ptr, len) = mem::transmute::<BitPtr<T>, (*mut (), usize)>(src);
-		let store = slice::from_raw_parts_mut(ptr, len);
-		mem::transmute::<&mut [()], &mut BitSlice<C, T>>(store)
+		let (ptr, len) = src.bare_parts();
+		let store = slice::from_raw_parts_mut(ptr as *mut (), len);
+		&mut *(store as *mut [()] as *mut _)
 	} }
 }
 
@@ -2289,15 +2292,12 @@ where C: Cursor, T: Bits {
 				f.write_str(&self.0)
 			}
 		}
+
 		let mut dbg = f.debug_list();
-		//  Empty slice
-		if self.is_empty() {
-			return dbg.finish();
-		}
-		else {
-			//  Unfortunately, T::SIZE cannot be used as the size for the array,
-			//  due to limitations in the type system. As such, set
-			//  it to the maximum used size.
+		if !self.is_empty() {
+			//  Unfortunately, `T::SIZE` cannot be used as the size for the
+			//  array, due to limitations in the type system. As such, set it to
+			//  the maximum used size.
 			//
 			//  This allows the writes to target a static buffer, rather
 			//  than a dynamic string, making the formatter usable in
@@ -2306,8 +2306,8 @@ where C: Cursor, T: Bits {
 			let writer =
 			|l: &mut DebugList, w: &mut [u8; 64], e: &T, from: u8, to: u8| {
 				let (from, to) = (from as usize, to as usize);
-				for n in from .. to {
-					w[n] = if e.get::<C>((n as u8).into()) { b'1' }
+				for (n, byte) in w.iter_mut().enumerate().take(to).skip(from) {
+					*byte = if e.get::<C>((n as u8).into()) { b'1' }
 					else { b'0' };
 				}
 				l.entry(&Part(unsafe {
@@ -2344,8 +2344,8 @@ where C: Cursor, T: Bits {
 					}
 				},
 			}
-			dbg.finish()
 		}
+		dbg.finish()
 	}
 }
 
@@ -2461,6 +2461,9 @@ where C: Cursor, T: Bits,
 	/// *accum += &*one;
 	/// assert_eq!(accum, &steps[4 ..]);
 	/// ```
+	//  Clippy doesn’t like single-letter names (which is accurate) but this is
+	//  pretty standard mathematical notation in EE.
+	#[allow(clippy::many_single_char_names)]
 	fn add_assign(&mut self, addend: I) {
 		use core::iter::repeat;
 		//  zero-extend the addend if it’s shorter than self
@@ -2681,14 +2684,32 @@ where C: Cursor, T: Bits {
 	type Output = Self;
 
 	fn index(&self, index: RangeInclusive<usize>) -> &Self::Output {
-		&self[*index.start() .. *index.end() + 1]
+		let start = *index.start();
+		//  This *should* be impossible, but that is presently an implementation
+		//  detail of the `BitPtr` representation, and should not be considered
+		//  an axiom for ranged indexing.
+		if let Some(end) = index.end().checked_add(1) {
+			&self[start .. end]
+		}
+		else {
+			&self[start ..]
+		}
 	}
 }
 
 impl<C, T> IndexMut<RangeInclusive<usize>> for BitSlice<C, T>
 where C: Cursor, T: Bits {
 	fn index_mut(&mut self, index: RangeInclusive<usize>) -> &mut Self::Output {
-		&mut self[*index.start() .. *index.end() + 1]
+		let start = *index.start();
+		//  This *should* be impossible, but that is presently an implementation
+		//  detail of the `BitPtr` representation, and should not be considered
+		//  an axiom for ranged indexing.
+		if let Some(end) = index.end().checked_add(1) {
+			&mut self[start .. end]
+		}
+		else {
+			&mut self[start ..]
+		}
 	}
 }
 
@@ -2755,7 +2776,7 @@ where C: Cursor, T: Bits {
 		&self,
 		RangeToInclusive { end }: RangeToInclusive<usize>,
 	) -> &Self::Output {
-		&self[0 .. end + 1]
+		&self[0 ..= end]
 	}
 }
 
@@ -2765,7 +2786,7 @@ where C: Cursor, T: Bits {
 		&mut self,
 		RangeToInclusive { end }: RangeToInclusive<usize>,
 	) -> &mut Self::Output {
-		&mut self[0 .. end + 1]
+		&mut self[0 ..= end]
 	}
 }
 
@@ -3008,6 +3029,7 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(bits.as_ref(), &[0b01_011_101, 0b001_000_01]);
 	/// ```
 	fn shl_assign(&mut self, shamt: usize) {
+		use core::ops::Shr;
 		if shamt == 0 {
 			return;
 		}
@@ -3020,12 +3042,12 @@ where C: Cursor, T: Bits {
 		//  `ptr::copy` instead of a bitwise crawl.
 		if shamt & T::MASK as usize == 0 {
 			//  Compute the shift distance measured in elements.
-			let offset = shamt >> T::BITS;
+			let offset = shamt.shr(T::BITS);
 			//  Compute the number of elements that will remain.
-			let rem = self.as_ref().len() - offset;
+			let rem = self.as_ref().len().saturating_sub(offset);
 			//  Clear the bits after the tail cursor before the move.
 			for n in *self.bitptr().tail() .. T::SIZE {
-				self.as_mut()[len - 1].set::<C>(n.into(), false);
+				self.as_mut()[len.saturating_sub(1)].set::<C>(n.into(), false);
 			}
 			//  Memory model: suppose we have this slice of sixteen elements,
 			//  that is shifted five elements to the left. We have three
@@ -3056,7 +3078,7 @@ where C: Cursor, T: Bits {
 			let val = self[from];
 			self.set(to, val);
 		}
-		for bit in (len - shamt) .. len {
+		for bit in (len.saturating_sub(shamt)) .. len {
 			self.set(bit, false);
 		}
 	}
@@ -3127,7 +3149,7 @@ where C: Cursor, T: Bits {
 			//  Compute the shift amount measured in elements.
 			let offset = shamt >> T::BITS;
 			// Compute the number of elements that will remain.
-			let rem = self.as_ref().len() - offset;
+			let rem = self.as_ref().len().saturating_sub(offset);
 			//  Clear the bits ahead of the head cursor before the move.
 			for n in 0 .. *self.bitptr().head() {
 				self.as_mut()[0].set::<C>(n.into(), false);
@@ -3156,7 +3178,7 @@ where C: Cursor, T: Bits {
 			self.set(to, val);
 		}
 		for bit in 0 .. shamt {
-			self.set(bit.into(), false);
+			self.set(bit, false);
 		}
 	}
 }

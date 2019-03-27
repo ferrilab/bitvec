@@ -26,7 +26,10 @@ a feature gate, `serdes`, which depends on the `alloc` feature.
   is not exposed to the public API.
 - Internal domain models for the memory regions governed by `BitPtr`. These
   models provide improved logical support for manipulating bit sequences with as
-  little inefficiency as possible
+  little inefficiency as possible.
+- `BitPtr::bare_parts` and `BitPtr::region_data` internal APIs for accessing
+  components of the pointer structure.
+- Clippy is now part of the development routine.
 
 ### Changed
 

@@ -223,6 +223,8 @@ where C: Cursor, T: Bits {
 	/// [`BitSlice`]: ../struct.BitSlice.html
 	#[cfg_attr(not(feature = "std"), doc = "[`Box`]: https://doc.rust-lang.org/stable/alloc/boxed/struct.Box.html")]
 	#[cfg_attr(feature = "std", doc = "[`Box`]: https://doc.rust-lang.org/stable/std/boxed/struct.Box.html")]
+	//  Permit associated function rather than method
+	#[allow(clippy::wrong_self_convention)]
 	pub unsafe fn into_raw(b: BitBox<C, T>) -> BitPtr<T> {
 		let out = b.bitptr();
 		mem::forget(b);

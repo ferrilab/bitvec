@@ -210,7 +210,7 @@ where T: Bits {
 	/// the zeroth `T`.
 	pub const PTR_DATA_BITS: usize = PTR_BITS - Self::PTR_HEAD_BITS;
 	/// Marks the bits of `self.ptr` that are the `data` section.
-	pub const PTR_DATA_MASK: usize = !0 & !Self::PTR_HEAD_MASK;
+	pub const PTR_DATA_MASK: usize = !Self::PTR_HEAD_MASK;
 
 	/// The number of low bits in `self.ptr` that are the high bits of the head
 	/// `BitIdx` cursor.
@@ -223,9 +223,9 @@ where T: Bits {
 	///
 	/// This is always `3`, until Rust tries to target a machine whose bytes are
 	/// not eight bits wide.
-	pub const LEN_HEAD_BITS: usize = 3;
+	pub const LEN_HEAD_BITS: usize = 0b0011;
 	/// Marks the bits of `self.len` that are the `head` section.
-	pub const LEN_HEAD_MASK: usize = 7;
+	pub const LEN_HEAD_MASK: usize = 0b0111;
 
 	/// The number of middle bits in `self.len` that are the tail `BitIdx`
 	/// cursor.
@@ -237,7 +237,7 @@ where T: Bits {
 	/// elements in the slice.
 	pub const LEN_DATA_BITS: usize = USZ_BITS - Self::LEN_INDX_BITS;
 	/// Marks the bits of `self.len` that are the `data` section.
-	pub const LEN_DATA_MASK: usize = !0 & !Self::LEN_INDX_MASK;
+	pub const LEN_DATA_MASK: usize = !Self::LEN_INDX_MASK;
 
 	/// The number of bits occupied by the `tail` `BitIdx` and the low 3 bits of
 	/// `head`.
@@ -367,6 +367,12 @@ where T: Bits {
 		head: Head,
 		tail: Tail,
 	) -> Self {
+		//  Everything gets weird if this axiom is disproven.
+		assert!(
+			elts <= isize::max_value() as usize,
+			"elts cannot exceed isize::max_value()",
+		);
+
 		let (head, tail) = (head.into(), tail.into());
 		//  null pointers, and pointers to empty regions, are run through the
 		//  uninhabited constructor instead
@@ -389,7 +395,7 @@ where T: Bits {
 
 		//  Check that the pointer is not so high in the address space that the
 		//  slice domain wraps.
-		if data.wrapping_offset(elts as isize) < data {
+		if data.wrapping_add(elts) < data {
 			panic!("BitPtr slices MUST NOT wrap around the address space");
 		}
 
@@ -531,6 +537,22 @@ where T: Bits {
 		(self.pointer(), self.elements(), self.head(), self.tail())
 	}
 
+	/// Produces the bare structural components of the pointer handle.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// - `*const ()`: The pointer member. This is unlikely to be the address
+	///   of the region, and is meaningless to dereference.
+	/// - `usize`: The length member. This is *not* the length of the region and
+	///   is *not* valid to use for indexing.
+	pub(crate) unsafe fn bare_parts(&self) -> (*const (), usize) {
+		(self.ptr.as_ptr() as *const (), self.len)
+	}
+
 	/// Produces the element count, head index, and tail index, which describe
 	/// the region.
 	///
@@ -666,15 +688,15 @@ where T: Bits {
 			//  Empty slice
 			(0, _, _)           => &             [          ],
 			//  Single-element slice, with cursors at the far edges
-			(1, 0, t) if t == w => &self.as_ref()[0 .. e - 0],
+			(1, 0, t) if t == w => &self.as_ref()[0 .. e    ],
 			//  Single-element slice, with partial cursors
 			(1, _, _)           => &             [          ],
 			//  Multiple-element slice, with cursors at the far edges
-			(_, 0, t) if t == w => &self.as_ref()[0 .. e - 0],
+			(_, 0, t) if t == w => &self.as_ref()[0 .. e    ],
 			//  Multiple-element slice, with full head and partial tail
 			(_, 0, _)           => &self.as_ref()[0 .. e - 1],
 			//  Multiple-element slice, with partial tail and full head
-			(_, _, t) if t == w => &self.as_ref()[1 .. e - 0],
+			(_, _, t) if t == w => &self.as_ref()[1 .. e    ],
 			//  Multiple-element slice, with partial cursors
 			(_, _, _)           => &self.as_ref()[1 .. e - 1],
 		}
@@ -836,12 +858,12 @@ where T: Bits {
 	/// will differ from the allocator’s.
 	pub unsafe fn incr_head(&mut self) {
 		let (data, elts, head, tail) = self.raw_parts();
-		let (new_head, wrap) = head.incr::<T>();
+		let (h, wrap) = head.incr::<T>();
 		if wrap {
-			*self = Self::new(data.offset(1), elts - 1, new_head, tail);
+			*self = Self::new(data.offset(1), elts.saturating_sub(1), h, tail);
 		}
 		else {
-			*self = Self::new(data, elts, new_head, tail);
+			*self = Self::new(data, elts, h, tail);
 		}
 	}
 
@@ -863,12 +885,12 @@ where T: Bits {
 	/// will differ from the allocator’s.
 	pub unsafe fn decr_head(&mut self) {
 		let (data, elts, head, tail) = self.raw_parts();
-		let (new_head, wrap) = head.decr::<T>();
+		let (h, wrap) = head.decr::<T>();
 		if wrap {
-			*self = Self::new(data.offset(-1), elts + 1, new_head, tail);
+			*self = Self::new(data.offset(-1), elts.saturating_add(1), h, tail);
 		}
 		else {
-			*self = Self::new(data, elts, new_head, tail);
+			*self = Self::new(data, elts, h, tail);
 		}
 	}
 
@@ -980,12 +1002,10 @@ where T: Bits {
 impl<'a, C, T> From<&'a BitSlice<C, T>> for BitPtr<T>
 where C: Cursor, T: 'a + Bits {
 	fn from(src: &'a BitSlice<C, T>) -> Self {
-		let src: &[()] = unsafe {
-			mem::transmute::<&'a BitSlice<C, T>, &[()]>(src)
-		};
-		let (ptr, len) = match (src.as_ptr() as usize, src.len()) {
+		let src = unsafe { &*(src as *const BitSlice<C, T> as *const [()]) };
+		let (ptr, len) = match (src.as_ptr(), src.len()) {
 			(_, 0) => (NonNull::dangling(), 0),
-			(0, _) => unreachable!(
+			(p, _) if p.is_null() => unreachable!(
 				"Slices cannot have a length when they begin at address 0"
 			),
 			(p, l) => (unsafe { NonNull::new_unchecked(p as *mut u8) }, l),
@@ -998,12 +1018,10 @@ where C: Cursor, T: 'a + Bits {
 impl<'a, C, T> From<&'a mut BitSlice<C, T>> for BitPtr<T>
 where C: Cursor, T: 'a + Bits {
 	fn from(src: &'a mut BitSlice<C, T>) -> Self {
-		let src: &[()] = unsafe {
-			mem::transmute::<&'a mut BitSlice<C, T>, &[()]>(src)
-		};
-		let (ptr, len) = match (src.as_ptr() as usize, src.len()) {
+		let src = unsafe { &*(src as *const BitSlice<C, T> as *const [()]) };
+		let (ptr, len) = match (src.as_ptr(), src.len()) {
 			(_, 0) => (NonNull::dangling(), 0),
-			(0, _) => unreachable!(
+			(p, _) if p.is_null() => unreachable!(
 				"Slices cannot have a length when they begin at address 0"
 			),
 			(p, l) => (unsafe { NonNull::new_unchecked(p as *mut u8) }, l),
