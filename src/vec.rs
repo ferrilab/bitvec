@@ -103,6 +103,7 @@ use core::{
 		self,
 		NonNull,
 	},
+    slice,
 };
 #[cfg(feature = "std")]
 use std::{
@@ -1167,7 +1168,7 @@ where C: Cursor, T: Bits {
 	pub fn set_elements(&mut self, element: T) {
 		self.do_unto_vec(|v| {
 			let (ptr, len) = (v.as_mut_ptr(), v.capacity());
-			for elt in unsafe { std::slice::from_raw_parts_mut(ptr, len) } {
+			for elt in unsafe { slice::from_raw_parts_mut(ptr, len) } {
 				*elt = element;
 			}
 		})
