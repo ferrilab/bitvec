@@ -50,41 +50,21 @@ extern crate serde;
 mod macros;
 
 mod atomic;
-mod bits;
-mod cursor;
+pub mod bits;
+pub mod cursor;
 mod domain;
 mod pointer;
-mod slice;
+pub mod prelude;
+pub mod slice;
 
 #[cfg(feature = "alloc")]
-mod boxed;
+pub mod boxed;
 
 #[cfg(feature = "alloc")]
-mod vec;
+pub mod vec;
 
 #[cfg(all(feature = "alloc", feature = "serdes"))]
 mod serdes;
-
-use crate::{
-	bits::BitIdx,
-	pointer::BitPtr,
-};
-
-pub use crate::{
-	bits::Bits,
-	cursor::{
-		Cursor,
-		BigEndian,
-		LittleEndian,
-	},
-	slice::BitSlice,
-};
-
-#[cfg(feature = "alloc")]
-pub use crate::{
-	boxed::BitBox,
-	vec::BitVec,
-};
 
 /// Expose crate internals for use in doctests and external tests.
 #[cfg(feature = "testing")]

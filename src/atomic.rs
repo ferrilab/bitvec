@@ -19,7 +19,7 @@ results in a race condition. The following snippet is an example:
 
 ```rust
 # #[cfg(feature = "std")] {
-use bitvec::*;
+use bitvec::prelude::*;
 use std::thread;
 
 static mut src: [u8; 1] = [0];

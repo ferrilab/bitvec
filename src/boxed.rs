@@ -7,12 +7,14 @@ the more appropriate and useful type for most collections.
 #![cfg(feature = "alloc")]
 
 use crate::{
-	BigEndian,
-	BitPtr,
-	BitSlice,
-	BitVec,
-	Bits,
-	Cursor,
+	bits::Bits,
+	cursor::{
+		BigEndian,
+		Cursor,
+	},
+	pointer::BitPtr,
+	slice::BitSlice,
+	vec::BitVec,
 };
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 use alloc::{
@@ -490,7 +492,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let src: &[u8] = &[5, 10];
 	/// let bv: BitBox = src.into();
@@ -536,7 +538,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let src: Box<[u8]> = Box::new([3, 6, 9, 12, 15]);
 	/// let bv: BitBox = src.into();

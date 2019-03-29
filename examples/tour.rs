@@ -10,7 +10,7 @@ This example prints **a lot** of text to the console.
 extern crate bitvec;
 
 #[cfg(feature = "alloc")]
-use bitvec::{
+use bitvec::prelude::{
 	//  `bitvec!` macro
 	bitvec,
 	//  trait unifying the primitives (you shouldn’t explicitly need this)

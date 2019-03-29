@@ -72,7 +72,7 @@ and include it in your crate root `src/main.rs` or `src/lib.rs`:
 ```rust,no-run
 extern crate bitvec;
 
-use bitvec::*;
+use bitvec::prelude::*;
 ```
 
 This imports the following symbols:
@@ -171,7 +171,7 @@ functionality.
 ```rust
 extern crate bitvec;
 
-use bitvec::*;
+use bitvec::prelude::*;
 
 use std::iter::repeat;
 

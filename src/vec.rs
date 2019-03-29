@@ -10,13 +10,17 @@ slice and vector types.
 #![cfg(feature = "alloc")]
 
 use crate::{
-	BigEndian,
-	BitBox,
-	BitIdx,
-	BitPtr,
-	BitSlice,
-	Bits,
-	Cursor,
+	bits::{
+		BitIdx,
+		Bits,
+	},
+	boxed::BitBox,
+	cursor::{
+		BigEndian,
+		Cursor,
+	},
+	pointer::BitPtr,
+	slice::BitSlice,
 };
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 use alloc::{
@@ -128,7 +132,7 @@ size on the stack.
 # Examples
 
 ```rust
-use bitvec::*;
+use bitvec::prelude::*;
 
 let mut bv: BitVec = BitVec::new();
 bv.push(false);
@@ -153,7 +157,7 @@ assert_eq!(bv, bitvec![1, 0, 1, 0]);
 The [`bitvec!`] macro is provided to make initialization more convenient.
 
 ```rust
-use bitvec::*;
+use bitvec::prelude::*;
 
 let mut bv = bitvec![0, 1, 2, 3];
 bv.push(false);
@@ -165,7 +169,7 @@ may be more efficient than performing allocation and initialization in separate
 steps, especially when initializing a vector of zeros:
 
 ```rust
-use bitvec::*;
+use bitvec::prelude::*;
 
 let bv = bitvec![0; 15];
 assert_eq!(bv, bitvec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
@@ -178,7 +182,7 @@ bv1.resize(15, false);
 Use a `BitVec<T>` as an efficient stack:
 
 ```rust
-use bitvec::*;
+use bitvec::prelude::*;
 let mut stack: BitVec = BitVec::new();
 
 stack.push(false);
@@ -197,7 +201,7 @@ The `BitVec` type allows you to access values by index, because it implements
 the [`Index`] trait. An example will be more explicit:
 
 ```rust
-use bitvec::*;
+use bitvec::prelude::*;
 
 let bv = bitvec![0, 0, 1, 1];
 println!("{}", bv[1]); // it will display 'false'
@@ -207,7 +211,7 @@ However, be careful: if you try to access an index which isn’t in the `BitVec`
 your software will panic! You cannot do this:
 
 ```rust,should_panic
-use bitvec::*;
+use bitvec::prelude::*;
 
 let bv = bitvec![0, 1, 0, 1];
 println!("{}", bv[6]); // it will panic!
@@ -222,7 +226,7 @@ A `BitVec` is growable. A [`BitSlice`], on the other hand, is fixed size. To get
 a bit slice, use `&`. Example:
 
 ```rust
-use bitvec::*;
+use bitvec::prelude::*;
 fn read_bitslice(slice: &BitSlice) {
 	// use slice
 }
@@ -354,7 +358,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let bv: BitVec = BitVec::new();
 	/// assert!(bv.is_empty());
@@ -381,7 +385,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let bv: BitVec = BitVec::with_capacity(10);
 	/// assert!(bv.is_empty());
@@ -462,7 +466,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let bv: BitVec = BitVec::with_capacity(10);
 	/// assert!(bv.is_empty());
@@ -492,7 +496,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![1; 5];
 	/// assert!(bv.capacity() >= 5);
@@ -532,7 +536,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![1; 5];
 	/// assert!(bv.capacity() >= 5);
@@ -566,7 +570,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![1; 100];
 	/// let cap = bv.capacity();
@@ -591,7 +595,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![1; 15];
 	/// bv.truncate(10);
@@ -625,7 +629,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let bv = bitvec![0, 1, 1, 0];
 	/// let bs = bv.as_bitslice();
@@ -649,7 +653,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![0, 1, 1, 0];
 	/// let bs = bv.as_mut_bitslice();
@@ -682,7 +686,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv: BitVec = BitVec::with_capacity(15);
 	/// assert!(bv.is_empty());
@@ -721,7 +725,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![0, 0, 0, 0, 1];
 	/// assert!(!bv[2]);
@@ -759,7 +763,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![0, 0, 0, 0];
 	/// bv.insert(2, true);
@@ -794,7 +798,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![0, 0, 1, 0, 0];
 	/// assert!(bv.remove(2));
@@ -826,7 +830,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![0, 1, 0, 1, 0, 1];
 	/// bv.retain(|b| b);
@@ -857,7 +861,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv: BitVec = BitVec::new();
 	/// assert!(bv.is_empty());
@@ -893,7 +897,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv: BitVec = BitVec::new();
 	/// assert!(bv.is_empty());
@@ -929,7 +933,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv1 = bitvec![0; 10];
 	/// let mut bv2 = bitvec![1; 10];
@@ -971,7 +975,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![0, 0, 1, 1, 1, 0, 0];
 	/// assert_eq!(bv.len(), 7);
@@ -1027,7 +1031,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![1; 30];
 	/// assert_eq!(bv.len(), 30);
@@ -1068,7 +1072,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv1 = bitvec![0, 0, 0, 1, 1, 1];
 	/// let bv2 = bv1.split_off(3);
@@ -1106,7 +1110,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![0; 4];
 	/// bv.resize(8, true);
@@ -1158,7 +1162,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![0; 10];
 	/// assert_eq!(bv.as_slice(), &[0, 0]);
@@ -1304,7 +1308,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	/// use std::borrow::Borrow;
 	///
 	/// let bv = bitvec![0; 13];
@@ -1332,7 +1336,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	/// use std::borrow::BorrowMut;
 	///
 	/// let mut bv = bitvec![0; 13];
@@ -1406,7 +1410,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let l: BitVec<LittleEndian, u16> = bitvec![LittleEndian, u16; 0, 1, 0, 1];
 	/// let r: BitVec<BigEndian, u32> = bitvec![BigEndian, u32; 0, 1, 0, 1];
@@ -1417,7 +1421,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	/// not used for equality comparison.
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let l: BitVec<BigEndian, u8> = bitvec![BigEndian, u8; 0, 1, 0, 1];
 	/// let r: BitVec<LittleEndian, u8> = bitvec![LittleEndian, u8; 0, 1, 0, 1];
@@ -1461,7 +1465,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let a = bitvec![0, 1, 0, 0];
 	/// let b = bitvec![0, 1, 0, 1];
@@ -1513,7 +1517,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let bv = bitvec![0, 0, 0, 0, 0, 0, 0, 0, 1];
 	/// assert_eq!(&[0, 0b1000_0000], bv.as_slice());
@@ -1583,7 +1587,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let src: &[u8] = &[5, 10];
 	/// let bv: BitVec = src.into();
@@ -1618,7 +1622,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let src: Box<[u8]> = Box::new([3, 6, 9, 12, 15]);
 	/// let bv: BitVec = src.into();
@@ -1660,7 +1664,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let src: Vec<u8> = vec![1, 2, 4, 8];
 	/// let bv: BitVec = src.into();
@@ -1719,7 +1723,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let bv = bitvec![LittleEndian, u16;
 	///   0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1
@@ -1756,7 +1760,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let bv = bitvec![BigEndian, u8; 0, 1, 0, 0, 1, 0, 1, 1, 0, 1];
 	/// assert_eq!("[01001011, 01]", &format!("{}", bv));
@@ -1814,7 +1818,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![0; 4];
 	/// bv.extend(bitvec![1; 4]);
@@ -1839,7 +1843,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// use std::iter::repeat;
 	/// let bv: BitVec = repeat(true)
@@ -1877,7 +1881,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let bv = bitvec![BigEndian, u8; 1, 1, 1, 1, 0, 0, 0, 0];
 	/// let mut count = 0;
@@ -1932,7 +1936,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let a = bitvec![0, 1, 0, 1];
 	/// let b = bitvec![0, 0, 1, 1];
@@ -1944,7 +1948,7 @@ where C: Cursor, T: Bits {
 	/// and will overflow.
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let a = bitvec![1; 4];
 	/// let b = bitvec![1; 1];
@@ -1979,7 +1983,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut a = bitvec![1, 0, 0, 1];
 	/// let b = bitvec![0, 1, 1, 1];
@@ -2062,7 +2066,7 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let lhs = bitvec![BigEndian, u8; 0, 1, 0, 1];
 	/// let rhs = bitvec![BigEndian, u8; 0, 0, 1, 1];
@@ -2085,7 +2089,7 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut src  = bitvec![BigEndian, u8; 0, 1, 0, 1];
 	///         src &= bitvec![BigEndian, u8; 0, 0, 1, 1];
@@ -2116,7 +2120,7 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let lhs = bitvec![0, 1, 0, 1];
 	/// let rhs = bitvec![0, 0, 1, 1];
@@ -2139,7 +2143,7 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut src  = bitvec![0, 1, 0, 1];
 	///         src |= bitvec![0, 0, 1, 1];
@@ -2170,7 +2174,7 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let lhs = bitvec![0, 1, 0, 1];
 	/// let rhs = bitvec![0, 0, 1, 1];
@@ -2193,7 +2197,7 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut src  = bitvec![0, 1, 0, 1];
 	///         src ^= bitvec![0, 0, 1, 1];
@@ -2222,7 +2226,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let bv: BitVec = bitvec![1; 4];
 	/// let bref: &BitSlice = &bv;
@@ -2243,7 +2247,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv: BitVec = bitvec![0; 6];
 	/// let bref: &mut BitSlice = &mut bv;
@@ -2280,7 +2284,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 0, 0, 0, 0, 0, 1, 0];
 	/// assert!(!bv[7]); // ---------------------------------^  |  |
@@ -2295,7 +2299,7 @@ where C: Cursor, T: Bits {
 	/// valid.
 	///
 	/// ```rust,should_panic
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv: BitVec = BitVec::new();
 	/// bv.push(true);
@@ -2449,7 +2453,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let bv = bitvec![0, 1, 1];
 	/// let ne = -bv;
@@ -2477,7 +2481,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let bv: BitVec<BigEndian, u32> = BitVec::from(&[0u32] as &[u32]);
 	/// let flip = !bv;
@@ -2528,7 +2532,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 1, 1, 1];
 	/// assert_eq!("[000111]", &format!("{}", bv));
@@ -2580,7 +2584,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![LittleEndian, u8; 0, 0, 0, 1, 1, 1];
 	/// assert_eq!("[000111]", &format!("{}", bv));
@@ -2652,7 +2656,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 1, 1, 1];
 	/// assert_eq!("[000111]", &format!("{}", bv));
@@ -2706,7 +2710,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![LittleEndian, u8; 0, 0, 0, 1, 1, 1];
 	/// assert_eq!("[000111]", &format!("{}", bv));
@@ -2771,7 +2775,7 @@ where C: Cursor, T: Bits {
 	/// Minuend larger than subtrahend, positive difference.
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let a = bitvec![1, 0];
 	/// let b = bitvec![   1];
@@ -2782,7 +2786,7 @@ where C: Cursor, T: Bits {
 	/// Minuend smaller than subtrahend, negative difference.
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let a = bitvec![   1];
 	/// let b = bitvec![1, 0];
@@ -2793,7 +2797,7 @@ where C: Cursor, T: Bits {
 	/// Subtraction from self is correctly handled.
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let a = bitvec![0, 1, 1, 0];
 	/// let b = a.clone();
@@ -2825,7 +2829,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let a = bitvec![0, 0, 0, 1];
 	/// let b = bitvec![0, 0, 0, 0];
@@ -3043,7 +3047,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let bv = bitvec![1, 0];
 	/// let mut iter = bv.iter();
@@ -3075,7 +3079,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	///
 	/// let bv = bitvec![0, 1];
 	/// let mut iter = bv.iter();
@@ -3106,7 +3110,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	/// let bv = bitvec![BigEndian, u8; 0, 1, 0, 1, 0];
 	/// assert_eq!(bv.into_iter().count(), 5);
 	/// ```
@@ -3137,7 +3141,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 1];
 	/// let mut iter = bv.into_iter();
 	/// assert_eq!(iter.len(), 4);
@@ -3156,7 +3160,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 1];
 	/// assert!(bv.into_iter().last().unwrap());
 	/// ```
@@ -3164,7 +3168,7 @@ where C: Cursor, T: Bits {
 	/// Empty iterators return `None`
 	///
 	/// ```rust
-	/// use bitvec::*;
+	/// use bitvec::prelude::*;
 	/// assert!(bitvec![].into_iter().last().is_none());
 	/// ```
 	fn last(mut self) -> Option<Self::Item> {

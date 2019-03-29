@@ -5,7 +5,7 @@
 extern crate bitvec;
 
 #[cfg(feature = "alloc")]
-use bitvec::*;
+use bitvec::prelude::*;
 
 #[cfg(feature = "alloc")]
 use std::iter::repeat;

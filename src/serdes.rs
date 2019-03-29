@@ -4,18 +4,29 @@
 
 #![cfg(all(feature = "alloc", feature = "serdes"))]
 
-use super::{
-	BitBox,
-	BitPtr,
-	BitSlice,
-	BitVec,
-	Bits,
-	Cursor,
+use crate::{
+	bits::Bits,
+	cursor::Cursor,
+	pointer::BitPtr,
+	slice::BitSlice,
 };
+
+#[cfg(feature = "alloc")]
+use crate::{
+	boxed::BitBox,
+	vec::BitVec,
+};
+
 use core::{
 	cmp,
+	fmt::{
+		self,
+		Formatter,
+	},
+	marker::PhantomData,
 	mem,
 };
+
 use serde::{
 	Deserialize,
 	Serialize,
@@ -31,12 +42,8 @@ use serde::{
 		SerializeStruct,
 	},
 };
-use std::{
-	fmt::{
 		self,
-		Formatter,
 	},
-	marker::PhantomData,
 };
 
 /// Markers for the four fields of a bit slice handle and data.

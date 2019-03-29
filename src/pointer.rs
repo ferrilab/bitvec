@@ -7,11 +7,13 @@ work.
 !*/
 
 use crate::{
-	BitIdx,
-	BitSlice,
-	Bits,
-	Cursor,
+	bits::{
+		BitIdx,
+		Bits,
+	},
+	cursor::Cursor,
 	domain::*,
+	slice::BitSlice,
 };
 use core::{
 	convert::{

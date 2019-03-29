@@ -8,9 +8,11 @@ handle operations.
 !*/
 
 use crate::{
-	BitIdx,
-	BitPtr,
-	Bits,
+	bits::{
+		BitIdx,
+		Bits,
+	},
+	pointer::BitPtr,
 };
 
 /// Variant markers for the kinds of domains.

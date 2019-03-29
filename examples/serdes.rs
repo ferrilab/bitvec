@@ -8,7 +8,7 @@ extern crate bitvec;
 extern crate serde;
 extern crate serde_json;
 
-use bitvec::*;
+use bitvec::prelude::*;
 
 #[cfg(all(feature = "alloc", feature = "serdes"))]
 fn main() {

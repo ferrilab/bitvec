@@ -146,7 +146,7 @@ version has been upgraded to `1.31.0`. The crate is written against the Rust
   edition does not change *intra-crate* macro usage. Clients at `1.30.0` and
   above no longer need `#[macro_use]` above `extern crate bitvec;`, and are able
   to import the `bitvec!` macro directly with `use bitvec::bitvec;` or
-  `use bitvec::*;`.
+  `use bitvec::prelude::*`.
 
   Implementation note: References to literals stabilized at *some* point between
   `1.20.0` and `1.30.0`, so the static bool items used for indexing are no

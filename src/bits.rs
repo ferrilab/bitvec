@@ -138,7 +138,7 @@ pub trait Bits:
 	/// This example sets and unsets bits in a byte.
 	///
 	/// ```rust
-	/// use bitvec::{Bits, BigEndian};
+	/// use bitvec::prelude::{Bits, BigEndian};
 	/// let mut elt: u8 = 0;
 	/// elt.set::<BigEndian>(0.into(), true);
 	/// assert_eq!(elt, 0b1000_0000);
@@ -151,7 +151,7 @@ pub trait Bits:
 	/// This example overruns the index, and panics.
 	///
 	/// ```rust,should_panic
-	/// use bitvec::{Bits, BigEndian};
+	/// use bitvec::prelude::{Bits, BigEndian};
 	/// let mut elt: u8 = 0;
 	/// elt.set::<BigEndian>(8.into(), true);
 	/// ```
@@ -178,7 +178,7 @@ pub trait Bits:
 	/// This example sets and unsets bits in a byte.
 	///
 	/// ```rust
-	/// use bitvec::Bits;
+	/// use bitvec::bits::Bits;
 	/// let mut elt: u8 = 0;
 	/// elt.set_at(0.into(), true);
 	/// assert_eq!(elt, 0b0000_0001);
@@ -189,7 +189,7 @@ pub trait Bits:
 	/// This example overshoots the width, and panics.
 	///
 	/// ```rust,should_panic
-	/// use bitvec::Bits;
+	/// use bitvec::bits::Bits;
 	/// let mut elt: u8 = 0;
 	/// elt.set_at(8.into(), true);
 	/// ```
@@ -235,7 +235,7 @@ pub trait Bits:
 	/// This example gets two bits from a byte.
 	///
 	/// ```rust
-	/// use bitvec::{Bits, BigEndian};
+	/// use bitvec::prelude::{Bits, BigEndian};
 	/// let elt: u8 = 0b0010_0000;
 	/// assert!(!elt.get::<BigEndian>(1.into()));
 	/// assert!(elt.get::<BigEndian>(2.into()));
@@ -245,7 +245,7 @@ pub trait Bits:
 	/// This example overruns the index, and panics.
 	///
 	/// ```rust,should_panic
-	/// use bitvec::{Bits, BigEndian};
+	/// use bitvec::prelude::{Bits, BigEndian};
 	/// 0u8.get::<BigEndian>(8.into());
 	/// ```
 	fn get<C: Cursor>(&self, place: BitIdx) -> bool {
@@ -274,7 +274,7 @@ pub trait Bits:
 	/// This example gets two bits from a byte.
 	///
 	/// ```rust
-	/// use bitvec::Bits;
+	/// use bitvec::bits::Bits;
 	/// let elt: u8 = 0b0010_0000;
 	/// assert!(!elt.get_at(4.into()));
 	/// assert!(elt.get_at(5.into()));
@@ -284,7 +284,7 @@ pub trait Bits:
 	/// This example overruns the index, and panics.
 	///
 	/// ```rust,should_panic
-	/// use bitvec::Bits;
+	/// use bitvec::bits::Bits;
 	/// 0u8.get_at(8.into());
 	/// ```
 	fn get_at(&self, place: BitPos) -> bool {
@@ -315,7 +315,7 @@ pub trait Bits:
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::Bits;
+	/// use bitvec::bits::Bits;
 	/// assert_eq!(Bits::count_ones(&0u8), 0);
 	/// assert_eq!(Bits::count_ones(&128u8), 1);
 	/// assert_eq!(Bits::count_ones(&192u8), 2);
@@ -351,7 +351,7 @@ pub trait Bits:
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::Bits;
+	/// use bitvec::bits::Bits;
 	/// assert_eq!(Bits::count_zeros(&0u8), 8);
 	/// assert_eq!(Bits::count_zeros(&1u8), 7);
 	/// assert_eq!(Bits::count_zeros(&3u8), 6);
@@ -467,7 +467,7 @@ impl BitIdx {
 	/// ```
 	pub fn incr<T: Bits>(self) -> (Self, bool) {
 		assert!(
-			self.load() < T::SIZE,
+			self.is_valid::<T>(),
 			"Index out of range: {} overflows {}",
 			self.load(),
 			T::SIZE,
@@ -518,7 +518,7 @@ impl BitIdx {
 	/// # }
 	pub fn decr<T: Bits>(self) -> (Self, bool) {
 		assert!(
-			self.load() < T::SIZE,
+			self.is_valid::<T>(),
 			"Index out of range: {} overflows {}",
 			self.load(),
 			T::SIZE,
