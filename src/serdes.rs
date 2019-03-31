@@ -2,7 +2,7 @@
 
 !*/
 
-#![cfg(all(feature = "alloc", feature = "serdes"))]
+#![cfg(all(feature = "serdes"))]
 
 use crate::{
 	bits::Bits,
@@ -28,8 +28,16 @@ use core::{
 };
 
 use serde::{
-	Deserialize,
 	Serialize,
+	ser::{
+		Serializer,
+		SerializeStruct,
+	},
+};
+
+#[cfg(feature = "alloc")]
+use serde::{
+	Deserialize,
 	de::{
 		self,
 		Deserializer,
@@ -37,31 +45,10 @@ use serde::{
 		SeqAccess,
 		Visitor,
 	},
-	ser::{
-		Serializer,
-		SerializeStruct,
-	},
 };
-		self,
-	},
-};
-
-/// Markers for the four fields of a bit slice handle and data.
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-#[repr(u8)]
-enum Field {
-	/// Element count
-	Elts = 0,
-	/// Head cursor
-	Head = 1,
-	//// Tail cursor
-	Tail = 2,
-	/// The data making up the slice.
-	Data = 3,
-}
 
 /// A Serde visitor to pull `BitBox` data out of a serialized stream
+#[cfg(feature = "alloc")]
 #[derive(Clone, Copy, Default, Debug)]
 pub struct BitBoxVisitor<'de, C, T>
 where C: Cursor, T: Bits + Deserialize<'de> {
@@ -69,6 +56,7 @@ where C: Cursor, T: Bits + Deserialize<'de> {
 	_storage: PhantomData<&'de T>,
 }
 
+#[cfg(feature = "alloc")]
 impl<'de, C, T> BitBoxVisitor<'de, C, T>
 where C: Cursor, T: Bits + Deserialize<'de> {
 	fn new() -> Self {
@@ -76,6 +64,7 @@ where C: Cursor, T: Bits + Deserialize<'de> {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl<'de, C, T> Visitor<'de> for BitBoxVisitor<'de, C, T>
 where C: Cursor, T: Bits + Deserialize<'de> {
 	type Value = BitBox<C, T>;
@@ -113,18 +102,21 @@ where C: Cursor, T: Bits + Deserialize<'de> {
 
 		while let Some(key) = map.next_key()? {
 			match key {
-				Field::Elts => if elts.replace(map.next_value()?).is_some() {
+				"elts" => if elts.replace(map.next_value()?).is_some() {
 					return Err(de::Error::duplicate_field("elts"));
-				}
-				Field::Head => if head.replace(map.next_value()?).is_some() {
+				},
+				"head" => if head.replace(map.next_value()?).is_some() {
 					return Err(de::Error::duplicate_field("head"));
-				}
-				Field::Tail => if tail.replace(map.next_value()?).is_some() {
+				},
+				"tail" => if tail.replace(map.next_value()?).is_some() {
 					return Err(de::Error::duplicate_field("tail"));
-				}
-				Field::Data => if data.replace(map.next_value()?).is_some() {
+				},
+				"data" => if data.replace(map.next_value()?).is_some() {
 					return Err(de::Error::duplicate_field("data"));
-				}
+				},
+				f => return Err(de::Error::unknown_field(
+					f, &["elts", "head", "tail", "data"]
+				)),
 			}
 		}
 		let elts = elts.ok_or_else(|| de::Error::missing_field("elts"))?;
@@ -132,20 +124,29 @@ where C: Cursor, T: Bits + Deserialize<'de> {
 		let tail = tail.ok_or_else(|| de::Error::missing_field("tail"))?;
 		let data = data.ok_or_else(|| de::Error::missing_field("data"))?;
 
-		let bitptr = BitPtr::new(data.as_ptr(), cmp::min(elts, data.len()), head, tail);
+		let bitptr = BitPtr::new(
+			data.as_ptr(),
+			cmp::min(elts as usize, data.len()),
+			head,
+			tail,
+		);
 		mem::forget(data);
 		Ok(unsafe { BitBox::from_raw(bitptr) })
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl<'de, C, T> Deserialize<'de> for BitBox<C, T>
 where C: Cursor, T: 'de + Bits + Deserialize<'de> {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
-		deserializer.deserialize_struct("BitSet", &["elts", "head", "tail", "data"], BitBoxVisitor::new())
+		deserializer.deserialize_struct("BitSet", &[
+			"elts", "head", "tail", "data",
+		], BitBoxVisitor::new())
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl<'de, C, T> Deserialize<'de> for BitVec<C, T>
 where C: Cursor, T: 'de + Bits + Deserialize<'de> {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -161,7 +162,7 @@ where C: Cursor, T: Bits + Serialize {
 		let (e, h, t) = self.bitptr().region_data();
 		let mut state = serializer.serialize_struct("BitSet", 4)?;
 
-		state.serialize_field("elts", &e)?;
+		state.serialize_field("elts", &(e as u64))?;
 		state.serialize_field("head", &*h)?;
 		state.serialize_field("tail", &*t)?;
 		state.serialize_field("data", self.as_ref())?;
@@ -170,6 +171,7 @@ where C: Cursor, T: Bits + Serialize {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl<C, T> Serialize for BitBox<C, T>
 where C: Cursor, T: Bits + Serialize {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -178,10 +180,87 @@ where C: Cursor, T: Bits + Serialize {
 	}
 }
 
+#[cfg(feature = "alloc")]
 impl<C, T> Serialize for BitVec<C, T>
 where C: Cursor, T: Bits + Serialize {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		BitSlice::serialize(&*self, serializer)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::prelude::*;
+	use serde_test::{
+		Token,
+		assert_de_tokens,
+		assert_ser_tokens,
+		assert_tokens,
+	};
+
+	macro_rules! bvtok {
+		( s $elts:expr, $head:expr, $tail:expr, $len:expr, $ty:ident $( , $data:expr )* ) => {
+			&[
+				Token::Struct { name: "BitSet", len: 4, },
+				Token::Str("elts"), Token::U64( $elts ),
+				Token::Str("head"), Token::U8( $head ),
+				Token::Str("tail"), Token::U8( $tail ),
+				Token::Str("data"), Token::Seq { len: Some( $len ) },
+				$( Token:: $ty ( $data ), )*
+				Token::SeqEnd,
+				Token::StructEnd,
+			]
+		};
+		( d $elts:expr, $head:expr, $tail:expr, $len:expr, $ty:ident $( , $data:expr )* ) => {
+			&[
+				Token::Struct { name: "BitSet", len: 4, },
+				Token::BorrowedStr("elts"), Token::U64( $elts ),
+				Token::BorrowedStr("head"), Token::U8( $head ),
+				Token::BorrowedStr("tail"), Token::U8( $tail ),
+				Token::BorrowedStr("data"), Token::Seq { len: Some( $len ) },
+				$( Token:: $ty ( $data ), )*
+				Token::SeqEnd,
+				Token::StructEnd,
+			]
+		};
+	}
+
+	#[test]
+	fn empty() {
+		let slice = BitSlice::<BigEndian, u8>::empty();
+		//  TODO(myrrlyn): Refactor BitPtr impl so the empty slice is 0/0
+		assert_ser_tokens(&slice, bvtok![s 0, 0, 8, 0, U8]);
+		assert_de_tokens(&bitvec![], bvtok![ d 0, 0, 8, 0, U8 ]);
+	}
+
+	#[test]
+	fn small() {
+		let bv = bitvec![1; 5];
+		eprintln!("made vec");
+		let bs = &bv[1 ..];
+		assert_ser_tokens(&bs, bvtok![s 1, 1, 5, 1, U8, 0b1111_1000]);
+
+		let bv = bitvec![LittleEndian, u16; 1; 12];
+		assert_ser_tokens(&bv, bvtok![s 1, 0, 12, 1, U16, 0b00001111_11111111]);
+
+		let bb: BitBox<_, _> = bitvec![LittleEndian, u32; 1; 10].into();
+		assert_ser_tokens(&bb, bvtok![s 1, 0, 10, 1, U32, 0x00_00_03_FF]);
+	}
+
+	#[test]
+	fn wide() {
+		let src: &[u8] = &[0, !0];
+		let bs: &BitSlice = src.into();
+		assert_ser_tokens(&(&bs[1 .. 15]), bvtok![s 2, 1, 7, 2, U8, 0, !0]);
+	}
+
+	#[test]
+	fn deser() {
+		let bv = bitvec![0, 1, 1, 0, 1, 0];
+		assert_de_tokens(&bv, bvtok![d 1, 0, 6, 1, U8, 0b0110_1000]);
+		//  test that the bits outside the bits domain don't matter in deser
+		assert_de_tokens(&bv, bvtok![d 1, 0, 6, 1, U8, 0b0110_1010]);
+		assert_de_tokens(&bv, bvtok![d 1, 0, 6, 1, U8, 0b0110_1001]);
 	}
 }

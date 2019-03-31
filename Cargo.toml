@@ -28,7 +28,6 @@ default = [
 	"std",
 ]
 serdes = [
-	"alloc",
 	"serde",
 ]
 std = [
@@ -49,6 +48,7 @@ version = "1"
 [dev-dependencies]
 serde = "1"
 serde_json = "1"
+serde_test = "1"
 
 [package.metadata.docs.rs]
 features = [
