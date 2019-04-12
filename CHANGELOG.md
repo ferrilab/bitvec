@@ -2,6 +2,19 @@
 
 All notable changes will be documented in this file.
 
+## 0.10.1
+
+Bugfix for [Issue #7](https://github.com/myrrlyn/bitvec/issues/7).
+`BitSlice::count_ones` and `BitSlice::count_zeros` counted the total number of
+bits present in a slice, not the number of bits set or unset, when operating
+inside a single element.
+
+The small case used `.map().count()`, but the large case correctly used
+`.map().filter().count()`. The missing `.filter()` call, to remove unset or set
+bits from the counting, was the cause of the bug.
+
+Thanks to GitHub user [@geq1t](https://github.com/geq1t) for the report!
+
 ## 0.10.0
 
 This version was a complete rewrite of the entire crate. The minimum compiler

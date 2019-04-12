@@ -1,8 +1,8 @@
 [package]
 name = "bitvec"
-version = "0.10.0"
+version = "0.10.1"
 authors = [
-	"myrrlyn <myrrlyn@outlook.com>",
+	"myrrlyn <self@myrrlyn.dev>",
 ]
 categories = [
 	"data-structures",

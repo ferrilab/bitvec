@@ -1428,7 +1428,10 @@ where C: Cursor, T: Bits {
 	pub fn count_ones(&self) -> usize {
 		match self.inner() {
 			Inner::Minor(head, elt, tail) => {
-				(*head .. *tail).map(|n| elt.get::<C>(n.into())).count()
+				(*head .. *tail)
+					.map(|n| elt.get::<C>(n.into()))
+					.filter(|b| *b)
+					.count()
 			},
 			Inner::Major(head, body, tail) => {
 				head.map(|t| (*self.bitptr().head() .. T::SIZE)
@@ -1464,7 +1467,10 @@ where C: Cursor, T: Bits {
 	pub fn count_zeros(&self) -> usize {
 		match self.inner() {
 			Inner::Minor(head, elt, tail) => {
-				(*head .. *tail).map(|n| !elt.get::<C>(n.into())).count()
+				(*head .. *tail)
+					.map(|n| !elt.get::<C>(n.into()))
+					.filter(|b| !*b)
+					.count()
 			},
 			Inner::Major(head, body, tail) => {
 				head.map(|t| (*self.bitptr().head() .. T::SIZE)
