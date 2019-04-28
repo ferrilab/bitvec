@@ -64,7 +64,10 @@ use core::{
 		Iterator,
 		IntoIterator,
 	},
-	marker::PhantomData,
+	marker::{
+		PhantomData,
+		Send,
+	},
 	mem,
 	ops::{
 		Add,
@@ -1869,6 +1872,10 @@ where C: Cursor, T: 'a + Bits {
 		<&'a BitSlice<C, T> as IntoIterator>::into_iter(self)
 	}
 }
+
+/// `BitVec` is safe to send across threads, but cannot be shared between them.
+unsafe impl<C, T> Send for BitVec<C, T>
+where C: Cursor, T: Bits {}
 
 /// Adds two `BitVec`s together, zero-extending the shorter.
 ///

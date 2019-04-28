@@ -18,6 +18,10 @@ use core::{
 		LowerHex,
 		UpperHex,
 	},
+	marker::{
+		Send,
+		Sync,
+	},
 	mem::size_of,
 	ops::{
 		BitAnd,
@@ -64,12 +68,14 @@ pub trait Bits:
 	+ Into<u64>
 	+ LowerHex
 	+ Not<Output=Self>
+	+ Send
 	+ Shl<u8, Output=Self>
 	+ ShlAssign<u8>
 	+ Shr<u8, Output=Self>
 	+ ShrAssign<u8>
 	//  Allow direct access to a concrete implementor type.
 	+ Sized
+	+ Sync
 	+ UpperHex
 {
 	/// The size, in bits, of this type.

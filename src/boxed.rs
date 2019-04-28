@@ -57,7 +57,10 @@ use core::{
 		Iterator,
 		IntoIterator,
 	},
-	marker::PhantomData,
+	marker::{
+		PhantomData,
+		Send,
+	},
 	mem,
 	ops::{
 		Add,
@@ -599,6 +602,10 @@ where C: Cursor, T: 'a + Bits {
 		(&**self).into_iter()
 	}
 }
+
+/// `BitBox` is safe to send across threads, but cannot be shared between them.
+unsafe impl<C, T> Send for BitBox<C, T>
+where C: Cursor, T: Bits {}
 
 impl<C, T> Add<Self> for BitBox<C, T>
 where C: Cursor, T: Bits {

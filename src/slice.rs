@@ -46,7 +46,11 @@ use core::{
 		Iterator,
 		IntoIterator,
 	},
-	marker::PhantomData,
+	marker::{
+		PhantomData,
+		Send,
+		Sync,
+	},
 	mem,
 	ops::{
 		AddAssign,
@@ -2226,6 +2230,14 @@ where C: Cursor, T: 'a + Bits {
 		}
 	}
 }
+
+/// `BitSlice` is safe to move across thread boundaries.
+unsafe impl<C, T> Send for BitSlice<C, T>
+where C: Cursor, T: Bits {}
+
+/// `BitSlice` is safe to share between multiple threads.
+unsafe impl<C, T> Sync for BitSlice<C, T>
+where C: Cursor, T: Bits {}
 
 /// Performs unsigned addition in place on a `BitSlice`.
 ///

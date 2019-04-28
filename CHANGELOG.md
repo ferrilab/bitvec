@@ -2,6 +2,16 @@
 
 All notable changes will be documented in this file.
 
+## 0.10.2
+
+Bugfix for [Issue #8](https://github.com/myrrlyn/bitvec/issues/8). This provides
+explicit implementations of the threading traits `Send` and `Sync`. These traits
+were formerly automatically implemented; the implementation change in `0.10.0`
+appears to have removed the automatic impls.
+
+`BitSlice` is both `Send` and `Sync`, as it is unowned memory. `BitBox` and
+`BitVec` are `Send` but not `Sync`, as they are owned memory.
+
 ## 0.10.1
 
 Bugfix for [Issue #7](https://github.com/myrrlyn/bitvec/issues/7).
