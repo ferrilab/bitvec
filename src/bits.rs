@@ -5,7 +5,10 @@ storage of a fundamental, and is the constraint for the storage type of the data
 structures of the rest of the crate.
 !*/
 
-use crate::Cursor;
+use crate::{
+	atomic::Atomic,
+	cursor::Cursor,
+};
 use core::{
 	cmp::Eq,
 	convert::From,
@@ -23,6 +26,7 @@ use core::{
 		Sync,
 	},
 	mem::size_of,
+	sync::atomic,
 	ops::{
 		BitAnd,
 		BitAndAssign,
@@ -95,6 +99,24 @@ pub trait Bits:
 	/// Name of the implementing type.
 	const TYPENAME: &'static str;
 
+	/// Atomic version of the storage type, to have properly fenced access.
+	type Atom: Atomic<Self>;
+
+	/// Performs a synchronized load on the underlying element.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// The element referred to by the `self` reference, loaded synchronously
+	/// after any in-progress accesses have concluded.
+	fn load(&self) -> Self {
+		let aptr = self as *const Self as *const Self::Atom;
+		unsafe { &*aptr }.get()
+	}
+
 	/// Sets a specific bit in an element to a given value.
 	///
 	/// # Parameters
@@ -144,10 +166,13 @@ pub trait Bits:
 			*place,
 			Self::SIZE,
 		);
-		//  Blank the selected bit
-		*self &= !(Self::from(1u8) << *place);
-		//  Set the selected bit
-		*self |= Self::from(value as u8) << *place;
+		let aptr: *const Self::Atom = self as *const Self as *const Self::Atom;
+		if value {
+			unsafe { &*aptr }.set(place);
+		}
+		else {
+			unsafe { &*aptr }.clear(place);
+		}
 	}
 
 	/// Gets a specific bit in an element.
@@ -198,7 +223,7 @@ pub trait Bits:
 			Self::SIZE,
 		);
 		//  Shift down so the targeted bit is in LSb, then blank all other bits.
-		(*self >> *place) & Self::from(1) == Self::from(1)
+		(self.load() >> *place) & Self::from(1) == Self::from(1)
 	}
 
 	/// Counts how many bits in `self` are set to `1`.
@@ -233,7 +258,7 @@ pub trait Bits:
 	/// [`u64::count_ones`]: https://doc.rust-lang.org/stable/std/primitive.u64.html#method.count_ones
 	#[inline(always)]
 	fn count_ones(&self) -> usize {
-		u64::count_ones((*self).into()) as usize
+		u64::count_ones((self.load()).into()) as usize
 	}
 
 	/// Counts how many bits in `self` are set to `0`.
@@ -269,7 +294,7 @@ pub trait Bits:
 	/// [`u64::count_ones`]: https://doc.rust-lang.org/stable/std/primitive.u64.html#method.count_ones
 	#[inline(always)]
 	fn count_zeros(&self) -> usize {
-		u64::count_ones((!*self).into()) as usize
+		u64::count_ones((!self.load()).into()) as usize
 	}
 }
 
@@ -303,7 +328,7 @@ impl BitIdx {
 	///
 	/// - `T: Bits`: The storage type used to determine index validity.
 	pub fn is_valid<T: Bits>(self) -> bool {
-		*self < T::SIZE
+		self.load() < T::SIZE
 	}
 
 	/// Increments a cursor to the next value, wrapping if needed.
@@ -348,12 +373,12 @@ impl BitIdx {
 	/// ```
 	pub fn incr<T: Bits>(self) -> (Self, bool) {
 		assert!(
-			*self < T::SIZE,
+			self.load() < T::SIZE,
 			"Index out of range: {} overflows {}",
-			*self,
+			self.load(),
 			T::SIZE,
 		);
-		let next = (*self).wrapping_add(1) & T::MASK;
+		let next = (self.load()).wrapping_add(1) & T::MASK;
 		(next.into(), next == 0)
 	}
 
@@ -399,12 +424,12 @@ impl BitIdx {
 	/// # }
 	pub fn decr<T: Bits>(self) -> (Self, bool) {
 		assert!(
-			*self < T::SIZE,
+			self.load() < T::SIZE,
 			"Index out of range: {} overflows {}",
-			*self,
+			self.load(),
 			T::SIZE,
 		);
-		let (prev, wrap) = (*self).overflowing_sub(1);
+		let (prev, wrap) = (self.load()).overflowing_sub(1);
 		((prev & T::MASK).into(), wrap)
 	}
 
@@ -478,14 +503,14 @@ impl BitIdx {
 	/// [`ptr::offset`]: https://doc.rust-lang.org/stable/std/primitive.pointer.html#method.offset
 	pub fn offset<T: Bits>(self, by: isize) -> (isize, Self) {
 		assert!(
-			*self < T::SIZE,
+			self.load() < T::SIZE,
 			"Index out of range: {} overflows {}",
-			*self,
+			self.load(),
 			T::SIZE,
 		);
 		//  If the `isize` addition does not overflow, then the sum can be used
 		//  directly.
-		if let (far, false) = by.overflowing_add(*self as isize) {
+		if let (far, false) = by.overflowing_add(self.load() as isize) {
 			//  If `far` is in the domain `0 .. T::SIZE`, then the offset did
 			//  not depart the element.
 			if far >= 0 && far < T::SIZE as isize {
@@ -507,7 +532,7 @@ impl BitIdx {
 		//  because `isize -> usize` doubles the domain, but `self` is limited
 		//  to `0 .. T::SIZE`.
 		else {
-			let far = *self as usize + by as usize;
+			let far = self.load() as usize + by as usize;
 			//  This addition will always result in a `usize` whose lowest
 			//  `T::BITS` bits are the bit index in the destination element,
 			//  and the rest of the high bits (shifted down) are the number of
@@ -549,7 +574,7 @@ impl BitIdx {
 	/// ```
 	pub fn span<T: Bits>(self, len: usize) -> (usize, BitIdx) {
 		//  Number of bits in the head *element*. Domain 32 .. 0.
-		let bits_in_head = (T::SIZE - *self) as usize;
+		let bits_in_head = (T::SIZE - self.load()) as usize;
 		//  If there are n bits live between the head cursor (which marks the
 		//  address of the first live bit) and the back edge of the element,
 		//  then when len is <= n, the span covers one element.
@@ -557,7 +582,7 @@ impl BitIdx {
 		//  TODO(myrrlyn): Separate BitIdx into Head and Tail types, which have
 		//  their proper range enforcements.
 		if len <= bits_in_head {
-			(1, (*self + len as u8).into())
+			(1, (self.load() + len as u8).into())
 		}
 		//  If there are more bits in the span than n, then subtract n from len
 		//  and use the difference to count elements and bits.
@@ -637,7 +662,7 @@ impl BitPos {
 	///
 	/// - `T: Bits`: The storage type used to determine position validity.
 	pub fn is_valid<T: Bits>(self) -> bool {
-		*self < T::SIZE
+		self.load() < T::SIZE
 	}
 }
 
@@ -670,12 +695,30 @@ impl DerefMut for BitPos {
 	fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
 }
 
-impl Bits for u8  { const BITS: u8 = 3; const TYPENAME: &'static str = "u8";  }
-impl Bits for u16 { const BITS: u8 = 4; const TYPENAME: &'static str = "u16"; }
-impl Bits for u32 { const BITS: u8 = 5; const TYPENAME: &'static str = "u32"; }
+impl Bits for u8 {
+	const BITS: u8 = 3; const TYPENAME: &'static str = "u8";
+
+	type Atom = atomic::AtomicU8;
+}
+
+impl Bits for u16 {
+	const BITS: u8 = 4; const TYPENAME: &'static str = "u16";
+
+	type Atom = atomic::AtomicU16;
+}
+
+impl Bits for u32 {
+	const BITS: u8 = 5; const TYPENAME: &'static str = "u32";
+
+	type Atom = atomic::AtomicU32;
+}
 
 #[cfg(target_pointer_width = "64")]
-impl Bits for u64 { const BITS: u8 = 6; const TYPENAME: &'static str = "u64"; }
+impl Bits for u64 {
+	const BITS: u8 = 6; const TYPENAME: &'static str = "u64";
+
+	type Atom = atomic::AtomicU64;
+}
 
 /// Marker trait to seal `Bits` against downstream implementation.
 ///

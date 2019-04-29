@@ -2,6 +2,23 @@
 
 All notable changes will be documented in this file.
 
+## 0.10.3
+
+Upgraded the minimum compiler version to `1.34.0` for access to atomic
+synchronous operations.
+
+## Changed
+
+The `Bits` trait now uses synchronized access to elements for write operations,
+to prevent race conditions between adjacent bit slices that overlap in an
+element.
+
+## Added
+
+The internal `atomic` module and `Atomic` trait permit atomic access to elements
+for the `Bits` trait to use when performing bit set operations. This is not
+exposed to the public API.
+
 ## 0.10.2
 
 Bugfix for [Issue #8](https://github.com/myrrlyn/bitvec/issues/8). This provides

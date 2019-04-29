@@ -48,7 +48,7 @@ and rendering for `Display` and `Debug`.
 
 ## Usage
 
-**Minimum Rust Version**: `1.31.0`
+**Minimum Rust Version**: `1.34.0`
 
 I wrote this crate because I was unhappy with the other bit-vector crates
 available. I specifically need to manage raw memory in bit-level precision, and

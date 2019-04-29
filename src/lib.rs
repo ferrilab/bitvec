@@ -46,6 +46,7 @@ extern crate core;
 #[macro_use]
 mod macros;
 
+mod atomic;
 mod bits;
 mod cursor;
 mod pointer;
