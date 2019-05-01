@@ -22,6 +22,20 @@ fn main() {
     assert_eq!(bv.len(), 12);
     assert!(bv.capacity() >= 16);
 
+    //  Stack operations
+    bv.push(true);
+    bv.push(false);
+    bv.push(true);
+
+    assert!(bv[12]);
+    assert!(!bv[13]);
+    assert!(bv[14]);
+    assert!(bv.get(15).is_none());
+
+    bv.pop();
+    bv.pop();
+    bv.pop();
+
     //  Set operations
     bv &= repeat(true);
     bv = bv | repeat(false);
