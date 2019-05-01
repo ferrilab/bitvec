@@ -697,7 +697,10 @@ where C: Cursor, T: Bits {
 		assert!(len < BitPtr::<T>::MAX_BITS, "Capacity overflow");
 		assert!(len <= self.capacity(), "Capacity overflow");
 		let (ptr, _, head, _) = self.bitptr().raw_parts();
-		let (elts, tail) = self.bitptr().head().offset::<T>(len as isize);
+		let (elts, tail) = match self.bitptr().head().offset::<T>(len as isize) {
+			(e, BitIdx(0)) => (e - 1, T::BITS.into()),
+			(e, t) => (e, t),
+		};
 		//  Add one to elts because the value in elts is the *offset* from the
 		//  first element, and `BitPtr` needs to know the total number of
 		//  elements in the span.
