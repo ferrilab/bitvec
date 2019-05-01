@@ -6,7 +6,7 @@
 ################################################################################
 
 # Cargo features
-features = "serde,std,testing"
+features = "atomic,serde,std,testing"
 
 # Builds the library.
 build:
@@ -56,4 +56,8 @@ publish: checkout
 
 # Runs the test suites.
 test: check
+	cargo test --no-default-features
 	cargo test --features {{features}}
+	cargo run --features {{features}} --example serdes
+	cargo run --features {{features}} --example sieve
+	cargo run --features {{features}} --example tour

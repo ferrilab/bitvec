@@ -24,7 +24,9 @@ repository = "https://github.com/myrrlyn/bitvec"
 
 [features]
 alloc = []
+atomic = []
 default = [
+	"atomic",
 	"std",
 ]
 std = [
@@ -49,6 +51,7 @@ serde_test = "1"
 
 [package.metadata.docs.rs]
 features = [
+	"atomic",
 	"serdes",
 	"std",
 ]

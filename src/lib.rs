@@ -52,7 +52,6 @@ extern crate serde_test;
 #[macro_use]
 mod macros;
 
-mod atomic;
 pub mod bits;
 pub mod cursor;
 mod domain;
@@ -65,6 +64,9 @@ pub mod boxed;
 
 #[cfg(feature = "alloc")]
 pub mod vec;
+
+#[cfg(feature = "atomic")]
+mod atomic;
 
 #[cfg(feature = "serde")]
 mod serdes;

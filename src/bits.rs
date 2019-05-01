@@ -5,10 +5,7 @@ storage of a fundamental, and is the constraint for the storage type of the data
 structures of the rest of the crate.
 !*/
 
-use crate::{
-	atomic::Atomic,
-	cursor::Cursor,
-};
+use crate::cursor::Cursor;
 use core::{
 	cmp::Eq,
 	convert::From,
@@ -26,7 +23,6 @@ use core::{
 		Sync,
 	},
 	mem::size_of,
-	sync::atomic,
 	ops::{
 		BitAnd,
 		BitAndAssign,
@@ -40,6 +36,12 @@ use core::{
 		ShrAssign,
 	},
 };
+
+#[cfg(feature = "atomic")]
+use crate::atomic::Atomic;
+
+#[cfg(feature = "atomic")]
+use core::sync::atomic;
 
 /** Generalizes over the fundamental types for use in `bitvec` data structures.
 
@@ -97,6 +99,7 @@ pub trait Bits:
 	const TYPENAME: &'static str;
 
 	/// Atomic version of the storage type, to have properly fenced access.
+	#[cfg(feature = "atomic")]
 	type Atom: Atomic<Self>;
 
 	/// Performs a synchronized load on the underlying element.
@@ -109,9 +112,26 @@ pub trait Bits:
 	///
 	/// The element referred to by the `self` reference, loaded synchronously
 	/// after any in-progress accesses have concluded.
+	#[cfg(feature = "atomic")]
 	fn load(&self) -> Self {
 		let aptr = self as *const Self as *const Self::Atom;
 		unsafe { &*aptr }.get()
+	}
+
+	/// Performs an unsynchronized load on the underlying element.
+	///
+	/// When atomic operations are absent, this is a standard dereference.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// The referent element.
+	#[cfg(not(feature = "atomic"))]
+	fn load(&self) -> Self {
+		*self
 	}
 
 	/// Sets a specific bit in an element to a given value.
@@ -200,12 +220,22 @@ pub trait Bits:
 			*place,
 			Self::BITS,
 		);
-		let aptr: *const Self::Atom = self as *const Self as *const Self::Atom;
-		if value {
-			unsafe { &*aptr }.set(place);
+		#[cfg(feature = "atomic")] {
+			let aptr = self as *const Self as *const Self::Atom;
+			if value {
+				unsafe { &*aptr }.set(place);
+			}
+			else {
+				unsafe { &*aptr }.clear(place);
+			}
 		}
-		else {
-			unsafe { &*aptr }.clear(place);
+		#[cfg(not(feature = "atomic"))] {
+			if value {
+				*self |= Self::from(1 << *place);
+			}
+			else {
+				*self &= !Self::from(1 << *place);
+			}
 		}
 	}
 
@@ -790,18 +820,21 @@ impl DerefMut for BitPos {
 impl Bits for u8 {
 	const TYPENAME: &'static str = "u8";
 
+	#[cfg(feature = "atomic")]
 	type Atom = atomic::AtomicU8;
 }
 
 impl Bits for u16 {
 	const TYPENAME: &'static str = "u16";
 
+	#[cfg(feature = "atomic")]
 	type Atom = atomic::AtomicU16;
 }
 
 impl Bits for u32 {
 	const TYPENAME: &'static str = "u32";
 
+	#[cfg(feature = "atomic")]
 	type Atom = atomic::AtomicU32;
 }
 
@@ -809,6 +842,7 @@ impl Bits for u32 {
 impl Bits for u64 {
 	const TYPENAME: &'static str = "u64";
 
+	#[cfg(feature = "atomic")]
 	type Atom = atomic::AtomicU64;
 }
 

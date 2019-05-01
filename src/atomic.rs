@@ -54,6 +54,8 @@ in the core library corresponding to each storage element, and enforces the use
 of synchronized read/modify/write sequences.
 !*/
 
+#![cfg(feature = "atomic")]
+
 use crate::bits::BitPos;
 
 use core::sync::atomic::{
