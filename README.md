@@ -166,6 +166,25 @@ The `std` feature turns on `alloc`, so using this crate without any feature
 flags *or* by explicitly enabling the `std` feature will enable full
 functionality.
 
+### Serde Support
+
+The `serde` feature, by default, enables serialization for the `BitSlice` type.
+Enabling the `alloc` or `std` features enables both serialization and
+deserialization for the `BitBox` and `BitVec` types.
+
+The `serde` feature is opt-in, and requires setting it in your `Cargo.toml`:
+
+```toml
+# Cargo.toml
+
+[dependencies.bitvec]
+version = "0.11"
+features = [
+  "serde", # enables serialization
+  "std", # enables deserialization
+]
+```
+
 ## Example
 
 ```rust

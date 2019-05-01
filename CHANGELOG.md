@@ -8,14 +8,14 @@ This contains the last (planned) compiler version upgrade, to `1.34.0`, and the
 last major feature add before `1.0`: Serde-powered de/serialization.
 
 Deserialization is not possible without access to an allocator, so it is behind
-a feature gate, `serdes`, which depends on the `alloc` feature.
+a feature gate, `serde`, which depends on the `alloc` feature.
 
 `BitSlice`, `BitBox`, and `BitVec` all support serialization, and `BitBox` and
 `BitVec` support deserialization
 
 ### Added
 
-- `serdes` feature to serialize `BitSlice`, `BitBox`, and `BitVec`, and
+- `serde` feature to serialize `BitSlice`, `BitBox`, and `BitVec`, and
   deserialize `BitBox` and `BitVec`.
 - `change_cursor<D>` method on `BitSlice`, `BitBox`, and `BitVec`, which enable
   changing the element traversal order on a data set without modifying that

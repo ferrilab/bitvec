@@ -6,7 +6,7 @@
 ################################################################################
 
 # Cargo features
-features = "serdes,std,testing"
+features = "serde,std,testing"
 
 # Builds the library.
 build:

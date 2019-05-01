@@ -27,9 +27,6 @@ alloc = []
 default = [
 	"std",
 ]
-serdes = [
-	"serde",
-]
 std = [
 	"alloc",
 ]

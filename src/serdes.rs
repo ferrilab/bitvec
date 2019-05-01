@@ -2,7 +2,7 @@
 
 !*/
 
-#![cfg(all(feature = "serdes"))]
+#![cfg(all(feature = "serde"))]
 
 use crate::{
 	bits::Bits,
