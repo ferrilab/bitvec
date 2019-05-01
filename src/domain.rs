@@ -51,7 +51,7 @@ impl<T> From<BitPtr<T>> for BitDomainKind
 where T: Bits {
 	fn from(bitptr: BitPtr<T>) -> Self {
 		let (e, h, t) = bitptr.region_data();
-		let w = T::SIZE;
+		let w = T::BITS;
 
 		match (e, *h, *t) {
 			//  Empty
@@ -131,7 +131,7 @@ where T: 'a + Bits {
 	/// # Behavior
 	///
 	/// This variant is produced when the domain’s head cursor is past `0`, and
-	/// its tail cursor is exactly `T::SIZE`.
+	/// its tail cursor is exactly `T::BITS`.
 	PartialHead(BitIdx, &'a T, &'a [T]),
 	/// Domain with a fully extended head cursor and partial tail cursor.
 	///
@@ -144,7 +144,7 @@ where T: 'a + Bits {
 	/// # Behavior
 	///
 	/// This variant is produced when the domain’s head cursor is exactly `0`,
-	/// and its tail cursor is less than `T::SIZE`.
+	/// and its tail cursor is less than `T::BITS`.
 	PartialTail(&'a [T], &'a T, BitIdx),
 	/// Domain which fully spans its containing elements.
 	///
@@ -245,7 +245,7 @@ where T: 'a + Bits {
 	/// # Behavior
 	///
 	/// This variant is produced when the domain’s head cursor is past `0`, and
-	/// its tail cursor is exactly `T::SIZE`.
+	/// its tail cursor is exactly `T::BITS`.
 	PartialHead(BitIdx, &'a mut T, &'a mut [T]),
 	/// Domain with a fully extended head cursor and partial tail cursor.
 	///
@@ -259,7 +259,7 @@ where T: 'a + Bits {
 	/// # Behavior
 	///
 	/// This variant is produced when the domain’s head cursor is exactly `0`,
-	/// and its tail cursor is less than `T::SIZE`.
+	/// and its tail cursor is less than `T::BITS`.
 	PartialTail(&'a mut [T], &'a mut T, BitIdx),
 	/// Domain which fully spans its containing elements.
 	///

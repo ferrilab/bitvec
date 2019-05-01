@@ -83,15 +83,15 @@ pub trait Bits:
 	+ UpperHex
 {
 	/// The size, in bits, of this type.
-	const SIZE: u8 = size_of::<Self>() as u8 * 8;
+	const BITS: u8 = size_of::<Self>() as u8 * 8;
 
 	/// The number of bits required to index the type. This is always
 	/// log<sub>2</sub> of the type’s bit size.
-	const BITS: u8 = Self::SIZE.trailing_zeros() as u8;
+	const INDX: u8 = Self::BITS.trailing_zeros() as u8;
 
 	/// The bitmask to turn an arbitrary `usize` into a bit index. Bit indices
 	/// are always stored in the lowest bits of an index value.
-	const MASK: u8 = Self::SIZE - 1;
+	const MASK: u8 = Self::BITS - 1;
 
 	/// Name of the implementing type.
 	const TYPENAME: &'static str;
@@ -130,7 +130,7 @@ pub trait Bits:
 	///
 	/// # Panics
 	///
-	/// This function panics if `place` is not less than `T::SIZE`, in order to
+	/// This function panics if `place` is not less than `T::BITS`, in order to
 	/// avoid index out of range errors.
 	///
 	/// # Examples
@@ -170,7 +170,7 @@ pub trait Bits:
 	///
 	/// # Panics
 	///
-	/// This function panics if `place` is not less than `T::SIZE`, in order to
+	/// This function panics if `place` is not less than `T::BITS`, in order to
 	/// avoid index out of range errors.
 	///
 	/// # Examples
@@ -195,10 +195,10 @@ pub trait Bits:
 	/// ```
 	fn set_at(&mut self, place: BitPos, value: bool) {
 		assert!(
-			*place < Self::SIZE,
+			*place < Self::BITS,
 			"Index out of range: {} overflows {}",
 			*place,
-			Self::SIZE,
+			Self::BITS,
 		);
 		let aptr: *const Self::Atom = self as *const Self as *const Self::Atom;
 		if value {
@@ -227,7 +227,7 @@ pub trait Bits:
 	///
 	/// # Panics
 	///
-	/// This function panics if `place` is not less than `T::SIZE`, in order to
+	/// This function panics if `place` is not less than `T::BITS`, in order to
 	/// avoid index out of range errors.
 	///
 	/// # Examples
@@ -266,7 +266,7 @@ pub trait Bits:
 	///
 	/// # Panics
 	///
-	/// This function panics if `place` is not less than `T::SIZE`, in order to
+	/// This function panics if `place` is not less than `T::BITS`, in order to
 	/// avoid index out of range errors.
 	///
 	/// # Examples
@@ -289,10 +289,10 @@ pub trait Bits:
 	/// ```
 	fn get_at(&self, place: BitPos) -> bool {
 		assert!(
-			*place < Self::SIZE,
+			*place < Self::BITS,
 			"Index out of range: {} overflows {}",
 			*place,
-			Self::SIZE,
+			Self::BITS,
 		);
 		//  Shift down so the targeted bit is in LSb, then blank all other bits.
 		(self.load() >> *place) & Self::from(1) == Self::from(1)
@@ -389,7 +389,7 @@ pub struct BitIdx(pub(crate) u8);
 impl BitIdx {
 	/// Checks if the index is valid for a type.
 	///
-	/// Indices are valid in the range `0 .. T::SIZE`.
+	/// Indices are valid in the range `0 .. T::BITS`.
 	///
 	/// # Parameters
 	///
@@ -403,12 +403,12 @@ impl BitIdx {
 	///
 	/// - `T: Bits`: The storage type used to determine index validity.
 	pub fn is_valid<T: Bits>(self) -> bool {
-		self.load() < T::SIZE
+		self.load() < T::BITS
 	}
 
 	/// Checks if the index is valid as a tail index for a type.
 	///
-	/// Tail indices are vaild in the range `1 ..= T::SIZE`.
+	/// Tail indices are vaild in the range `1 ..= T::BITS`.
 	///
 	/// # Parameters
 	///
@@ -422,7 +422,7 @@ impl BitIdx {
 	///
 	/// - `T: Bits`: The storage used to determine index tail validity.
 	pub fn is_valid_tail<T: Bits>(self) -> bool {
-		*self > 0 && *self <= T::SIZE
+		*self > 0 && *self <= T::BITS
 	}
 
 	/// Increments a cursor to the next value, wrapping if needed.
@@ -443,7 +443,7 @@ impl BitIdx {
 	///
 	/// # Panics
 	///
-	/// This method panics if `self` is not less than `T::SIZE`, in order to
+	/// This method panics if `self` is not less than `T::BITS`, in order to
 	/// avoid index out of range errors.
 	///
 	/// # Examples
@@ -470,7 +470,7 @@ impl BitIdx {
 			self.is_valid::<T>(),
 			"Index out of range: {} overflows {}",
 			self.load(),
-			T::SIZE,
+			T::BITS,
 		);
 		let next = (self.load()).wrapping_add(1) & T::MASK;
 		(next.into(), next == 0)
@@ -494,7 +494,7 @@ impl BitIdx {
 	///
 	/// # Panics
 	///
-	/// This method panics if `self` is not less than `T::SIZE`, in order to
+	/// This method panics if `self` is not less than `T::BITS`, in order to
 	/// avoid index out of range errors.
 	///
 	/// # Examples
@@ -521,7 +521,7 @@ impl BitIdx {
 			self.is_valid::<T>(),
 			"Index out of range: {} overflows {}",
 			self.load(),
-			T::SIZE,
+			T::BITS,
 		);
 		let (prev, wrap) = (self.load()).overflowing_sub(1);
 		((prev & T::MASK).into(), wrap)
@@ -535,7 +535,7 @@ impl BitIdx {
 	/// # Parameters
 	///
 	/// - `self`: The bit index in an element of the starting position. This
-	///   must be in the domain `0 .. T::SIZE`.
+	///   must be in the domain `0 .. T::BITS`.
 	/// - `by`: The number of bits by which to move. Negative values move
 	///   downwards in memory: towards `LSb`, then starting again at `MSb` of
 	///   the prior element in memory (decreasing address). Positive values move
@@ -547,7 +547,7 @@ impl BitIdx {
 	/// - `isize`: The number of elements by which to change the caller’s
 	///   element cursor. This value can be passed directly into [`ptr::offset`]
 	/// - `BitIdx`: The bit index of the destination bit in the newly selected
-	///   element. This will always be in the domain `0 .. T::SIZE`. This
+	///   element. This will always be in the domain `0 .. T::BITS`. This
 	///   value can be passed directly into [`Cursor`] functions to compute the
 	///   correct place in the element.
 	///
@@ -557,7 +557,7 @@ impl BitIdx {
 	///
 	/// # Panics
 	///
-	/// This function panics if `from` is not less than `T::SIZE`, in order
+	/// This function panics if `from` is not less than `T::BITS`, in order
 	/// to avoid index out of range errors.
 	///
 	/// # Safety
@@ -597,26 +597,26 @@ impl BitIdx {
 	/// [`ptr::offset`]: https://doc.rust-lang.org/stable/std/primitive.pointer.html#method.offset
 	pub fn offset<T: Bits>(self, by: isize) -> (isize, Self) {
 		assert!(
-			self.load() < T::SIZE,
+			self.load() < T::BITS,
 			"Index out of range: {} overflows {}",
 			self.load(),
-			T::SIZE,
+			T::BITS,
 		);
 		//  If the `isize` addition does not overflow, then the sum can be used
 		//  directly.
 		if let (far, false) = by.overflowing_add(self.load() as isize) {
-			//  If `far` is in the domain `0 .. T::SIZE`, then the offset did
+			//  If `far` is in the domain `0 .. T::BITS`, then the offset did
 			//  not depart the element.
-			if far >= 0 && far < T::SIZE as isize {
+			if far >= 0 && far < T::BITS as isize {
 				(0, (far as u8).into())
 			}
 			//  If `far` is negative, then the offset leaves the initial element
-			//  going down. If `far` is not less than `T::SIZE`, then the
+			//  going down. If `far` is not less than `T::BITS`, then the
 			//  offset leaves the initial element going up.
 			else {
 				//  `Shr` on `isize` sign-extends
 				(
-					far >> T::BITS,
+					far >> T::INDX,
 					((far & (T::MASK as isize)) as u8).into(),
 				)
 			}
@@ -624,15 +624,15 @@ impl BitIdx {
 		//  If the `isize` addition overflows, then the `by` offset is positive.
 		//  Add as `usize` and use that. This is guaranteed not to overflow,
 		//  because `isize -> usize` doubles the domain, but `self` is limited
-		//  to `0 .. T::SIZE`.
+		//  to `0 .. T::BITS`.
 		else {
 			let far = self.load() as usize + by as usize;
 			//  This addition will always result in a `usize` whose lowest
-			//  `T::BITS` bits are the bit index in the destination element,
+			//  `T::INDX` bits are the bit index in the destination element,
 			//  and the rest of the high bits (shifted down) are the number of
 			//  elements by which to advance.
 			(
-				(far >> T::BITS) as isize,
+				(far >> T::INDX) as isize,
 				((far & (T::MASK as usize)) as u8).into(),
 			)
 		}
@@ -650,7 +650,7 @@ impl BitIdx {
 	/// - `usize`: The number of elements `T` included in the span. This will
 	///   be in the domain `1 .. usize::max_value()`.
 	/// - `BitIdx`: The index of the first bit *after* the span. This will be in
-	///   the domain `1 ..= T::SIZE`.
+	///   the domain `1 ..= T::BITS`.
 	///
 	/// # Type Parameters
 	///
@@ -668,28 +668,28 @@ impl BitIdx {
 	/// ```
 	pub fn span<T: Bits>(self, len: usize) -> (usize, BitIdx) {
 		//  Number of bits in the head *element*. Domain 32 .. 0.
-		let bits_in_head = (T::SIZE - self.load()) as usize;
-		//  If there are n bits live between the head cursor (which marks the
+		let bits_in_head = (T::BITS - self.load()) as usize;
+		//  If there are `n` bits live between the head cursor (which marks the
 		//  address of the first live bit) and the back edge of the element,
-		//  then when len is <= n, the span covers one element.
-		//  When len == n, the tail will be T::SIZE, which is valid for a tail.
+		//  then when `len <= n`, the span covers one element. When `len == n`,
+		//  the tail will be `T::BITS`, which is valid for a tail.
 		if len <= bits_in_head {
 			(1, (self.load() + len as u8).into())
 		}
-		//  If there are more bits in the span than n, then subtract n from len
-		//  and use the difference to count elements and bits.
+		//  If there are more bits in the span than `n`, then subtract `n` from
+		//  `len` and use the difference to count elements and bits.
 		else {
 			//  1 ..
 			let bits_after_head = len - bits_in_head;
 			//  Count the number of wholly filled elements
-			let whole_elts = bits_after_head >> T::BITS;
+			let whole_elts = bits_after_head >> T::INDX;
 			//  Count the number of bits in the *next* element. If this is zero,
-			//  become T::SIZE; if it is nonzero, add one more to elts. elts
-			//  must have one added to it by default to account for the head
-			//  element.
+			//  become `T::BITS`; if it is nonzero, add one more to `elts`.
+			//  `elts` must have one added to it by default to account for the
+			//  head element.
 			let tail_bits = bits_after_head as u8 & T::MASK;
 			if tail_bits == 0 {
-				(whole_elts + 1, T::SIZE.into())
+				(whole_elts + 1, T::BITS.into())
 			}
 			else {
 				(whole_elts + 2, tail_bits.into())
@@ -754,7 +754,7 @@ impl BitPos {
 	///
 	/// - `T: Bits`: The storage type used to determine position validity.
 	pub fn is_valid<T: Bits>(self) -> bool {
-		self.load() < T::SIZE
+		self.load() < T::BITS
 	}
 }
 
@@ -838,11 +838,11 @@ mod tests {
 		//  than the start bit.
 		for n in 1 .. 8 {
 			let (elt, bit) = BitIdx::from(n).offset::<u8>(isize::max_value());
-			assert_eq!(elt, (isize::max_value() >> u8::BITS) + 1);
+			assert_eq!(elt, (isize::max_value() >> u8::INDX) + 1);
 			assert_eq!(*bit, n - 1);
 		}
 		let (elt, bit) = BitIdx::from(0).offset::<u8>(isize::max_value());
-		assert_eq!(elt, isize::max_value() >> u8::BITS);
+		assert_eq!(elt, isize::max_value() >> u8::INDX);
 		assert_eq!(*bit, 7);
 	}
 
@@ -852,7 +852,7 @@ mod tests {
 		//  the start bit
 		for n in 0 .. 8 {
 			let (elt, bit) = BitIdx::from(n).offset::<u8>(isize::min_value());
-			assert_eq!(elt, isize::min_value() >> u8::BITS);
+			assert_eq!(elt, isize::min_value() >> u8::INDX);
 			assert_eq!(*bit, n);
 		}
 	}

@@ -122,7 +122,7 @@ version has been upgraded to `1.31.0`. The crate is written against the Rust
 
 ### Changed
 
-- Compute `Bits::WIDTH` as `size_of::<Self>() * 8` instead of `1 << Bits::BITS`.
+- Compute `Bits::WIDTH` as `size_of::<Self>() * 8` instead of `1 << Bits::INDX`.
 
 ## 0.7.0
 

@@ -547,7 +547,7 @@ where C: Cursor, T: Bits {
 		assert!(src.len() < BitPtr::<T>::MAX_ELTS, "Box overflow");
 		let out = Self {
 			_cursor: PhantomData,
-			pointer: BitPtr::new(src.as_ptr(), src.len(), 0, T::SIZE)
+			pointer: BitPtr::new(src.as_ptr(), src.len(), 0, T::BITS)
 		};
 		mem::forget(src);
 		out

@@ -474,7 +474,7 @@ where C: Cursor, T: Bits {
 	/// ```
 	pub fn capacity(&self) -> usize {
 		assert!(self.capacity < BitPtr::<T>::MAX_ELTS, "Capacity overflow");
-		self.capacity << T::BITS
+		self.capacity << T::INDX
 	}
 
 	/// Reserves capacity for at least `additional` more bits to be inserted.
@@ -874,7 +874,7 @@ where C: Cursor, T: Bits {
 		let slot = self.len();
 		//  If self is empty *or* tail is at the back edge of an element, push
 		//  an element onto the vector.
-		if self.is_empty() || *self.pointer.tail() == T::SIZE {
+		if self.is_empty() || *self.pointer.tail() == T::BITS {
 			self.do_unto_vec(|v| v.push(0.into()));
 		}
 		//  At this point, it is always safe to increment the tail, and then
@@ -1679,7 +1679,7 @@ where C: Cursor, T: Bits {
 		mem::forget(src);
 		Self {
 			_cursor: PhantomData,
-			pointer: BitPtr::new(ptr, len, 0, T::SIZE),
+			pointer: BitPtr::new(ptr, len, 0, T::BITS),
 			capacity: cap,
 		}
 	}

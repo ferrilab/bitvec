@@ -1224,7 +1224,7 @@ where C: Cursor, T: Bits {
 				}
 			},
 			BitDomain::Major(h, head, body, tail, t) => {
-				for n in *h .. T::SIZE {
+				for n in *h .. T::BITS {
 					if !head.get::<C>(n.into()) {
 						return false;
 					}
@@ -1237,7 +1237,7 @@ where C: Cursor, T: Bits {
 				return body.iter().all(|e| *e == T::from(!0));
 			},
 			BitDomain::PartialHead(h, head, body) => {
-				for n in *h .. T::SIZE {
+				for n in *h .. T::BITS {
 					if !head.get::<C>(n.into()) {
 						return false;
 					}
@@ -1299,7 +1299,7 @@ where C: Cursor, T: Bits {
 				}
 			},
 			BitDomain::Major(h, head, body, tail, t) => {
-				for n in *h .. T::SIZE {
+				for n in *h .. T::BITS {
 					if head.get::<C>(n.into()) {
 						return true;
 					}
@@ -1312,7 +1312,7 @@ where C: Cursor, T: Bits {
 				return body.iter().any(|e| *e != T::from(0));
 			},
 			BitDomain::PartialHead(h, head, body) => {
-				for n in *h .. T::SIZE {
+				for n in *h .. T::BITS {
 					if head.get::<C>(n.into()) {
 						return true;
 					}
@@ -1466,14 +1466,14 @@ where C: Cursor, T: Bits {
 					.count()
 			},
 			BitDomain::Major(h, head, body, tail, t) => {
-				(*h .. T::SIZE)
+				(*h .. T::BITS)
 					.map(|n| head.get::<C>(n.into())).filter(|b| *b).count() +
 				body.iter().map(T::count_ones).sum::<usize>() +
 				(0 .. *t)
 					.map(|n| tail.get::<C>(n.into())).filter(|b| *b).count()
 			},
 			BitDomain::PartialHead(h, head, body) => {
-				(*h .. T::SIZE)
+				(*h .. T::BITS)
 					.map(|n| head.get::<C>(n.into())).filter(|b| *b).count() +
 				body.iter().map(T::count_ones).sum::<usize>()
 			},
@@ -1517,14 +1517,14 @@ where C: Cursor, T: Bits {
 					.count()
 			},
 			BitDomain::Major(h, head, body, tail, t) => {
-				(*h .. T::SIZE)
+				(*h .. T::BITS)
 					.map(|n| head.get::<C>(n.into())).filter(|b| !*b).count() +
 				body.iter().map(T::count_zeros).sum::<usize>() +
 				(0 .. *t)
 					.map(|n| tail.get::<C>(n.into())).filter(|b| !*b).count()
 			},
 			BitDomain::PartialHead(h, head, body) => {
-				(*h .. T::SIZE)
+				(*h .. T::BITS)
 					.map(|n| head.get::<C>(n.into())).filter(|b| !*b).count() +
 				body.iter().map(T::count_zeros).sum::<usize>()
 			},
@@ -1569,7 +1569,7 @@ where C: Cursor, T: Bits {
 				}
 			},
 			BitDomainMut::Major(h, head, body, tail, t) => {
-				for n in *h .. T::SIZE {
+				for n in *h .. T::BITS {
 					head.set::<C>(n.into(), value);
 				}
 				for elt in body {
@@ -1580,7 +1580,7 @@ where C: Cursor, T: Bits {
 				}
 			},
 			BitDomainMut::PartialHead(h, head, body) => {
-				for n in *h .. T::SIZE {
+				for n in *h .. T::BITS {
 					head.set::<C>(n.into(), value);
 				}
 				for elt in body {
@@ -2098,7 +2098,7 @@ where C: Cursor, T: 'a + Bits {
 	///
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
 	fn from(src: &'a [T]) -> Self {
-		BitPtr::new(src.as_ptr(), src.len(), 0, T::SIZE).into()
+		BitPtr::new(src.as_ptr(), src.len(), 0, T::BITS).into()
 	}
 }
 
@@ -2139,7 +2139,7 @@ where C: Cursor, T: 'a + Bits {
 	///
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
 	fn from(src: &'a mut [T]) -> Self {
-		BitPtr::new(src.as_ptr(), src.len(), 0, T::SIZE).into()
+		BitPtr::new(src.as_ptr(), src.len(), 0, T::BITS).into()
 	}
 }
 
@@ -2297,7 +2297,7 @@ where C: Cursor, T: Bits {
 
 		let mut dbg = f.debug_list();
 		if !self.is_empty() {
-			//  Unfortunately, `T::SIZE` cannot be used as the size for the
+			//  Unfortunately, `T::BITS` cannot be used as the size for the
 			//  array, due to limitations in the type system. As such, set it to
 			//  the maximum used size.
 			//
@@ -2322,27 +2322,27 @@ where C: Cursor, T: Bits {
 					writer(&mut dbg, &mut w, elt, *head, *tail)
 				},
 				BitDomain::Major(h, head, body, tail, t) => {
-					writer(&mut dbg, &mut w, head, *h, T::SIZE);
+					writer(&mut dbg, &mut w, head, *h, T::BITS);
 					for elt in body {
-						writer(&mut dbg, &mut w, elt, 0, T::SIZE);
+						writer(&mut dbg, &mut w, elt, 0, T::BITS);
 					}
 					writer(&mut dbg, &mut w, tail, 0, *t);
 				},
 				BitDomain::PartialHead(h, head, body) => {
-					writer(&mut dbg, &mut w, head, *h, T::SIZE);
+					writer(&mut dbg, &mut w, head, *h, T::BITS);
 					for elt in body {
-						writer(&mut dbg, &mut w, elt, 0, T::SIZE);
+						writer(&mut dbg, &mut w, elt, 0, T::BITS);
 					}
 				},
 				BitDomain::PartialTail(body, tail, t) => {
 					for elt in body {
-						writer(&mut dbg, &mut w, elt, 0, T::SIZE);
+						writer(&mut dbg, &mut w, elt, 0, T::BITS);
 					}
 					writer(&mut dbg, &mut w, tail, 0, *t);
 				},
 				BitDomain::Spanning(body) => {
 					for elt in body {
-						writer(&mut dbg, &mut w, elt, 0, T::SIZE);
+						writer(&mut dbg, &mut w, elt, 0, T::BITS);
 					}
 				},
 			}
@@ -2938,7 +2938,7 @@ where C: Cursor, T: 'a + Bits {
 				}
 			},
 			BitDomainMut::Major(h, head, body, tail, t) => {
-				for n in *h .. T::SIZE {
+				for n in *h .. T::BITS {
 					let tmp = head.get::<C>(n.into());
 					head.set::<C>(n.into(), !tmp);
 				}
@@ -2951,7 +2951,7 @@ where C: Cursor, T: 'a + Bits {
 				}
 			},
 			BitDomainMut::PartialHead(h, head, body) => {
-				for n in *h .. T::SIZE {
+				for n in *h .. T::BITS {
 					let tmp = head.get::<C>(n.into());
 					head.set::<C>(n.into(), !tmp);
 				}
@@ -3044,11 +3044,11 @@ where C: Cursor, T: Bits {
 		//  `ptr::copy` instead of a bitwise crawl.
 		if shamt & T::MASK as usize == 0 {
 			//  Compute the shift distance measured in elements.
-			let offset = shamt.shr(T::BITS);
+			let offset = shamt.shr(T::INDX);
 			//  Compute the number of elements that will remain.
 			let rem = self.as_ref().len().saturating_sub(offset);
 			//  Clear the bits after the tail cursor before the move.
-			for n in *self.bitptr().tail() .. T::SIZE {
+			for n in *self.bitptr().tail() .. T::BITS {
 				self.as_mut()[len.saturating_sub(1)].set::<C>(n.into(), false);
 			}
 			//  Memory model: suppose we have this slice of sixteen elements,
@@ -3149,7 +3149,7 @@ where C: Cursor, T: Bits {
 		//  `ptr::copy` instead of a bitwise crawl.
 		if shamt & T::MASK as usize == 0 {
 			//  Compute the shift amount measured in elements.
-			let offset = shamt >> T::BITS;
+			let offset = shamt >> T::INDX;
 			// Compute the number of elements that will remain.
 			let rem = self.as_ref().len().saturating_sub(offset);
 			//  Clear the bits ahead of the head cursor before the move.

@@ -216,7 +216,7 @@ where T: Bits {
 
 	/// The number of low bits in `self.ptr` that are the high bits of the head
 	/// `BitIdx` cursor.
-	pub const PTR_HEAD_BITS: usize = T::BITS as usize - Self::LEN_HEAD_BITS;
+	pub const PTR_HEAD_BITS: usize = T::INDX as usize - Self::LEN_HEAD_BITS;
 	/// Marks the bits of `self.ptr` that are the `head` section.
 	pub const PTR_HEAD_MASK: usize = T::MASK as usize >> Self::LEN_HEAD_BITS;
 
@@ -231,7 +231,7 @@ where T: Bits {
 
 	/// The number of middle bits in `self.len` that are the tail `BitIdx`
 	/// cursor.
-	pub const LEN_TAIL_BITS: usize = T::BITS as usize;
+	pub const LEN_TAIL_BITS: usize = T::INDX as usize;
 	/// Marks the bits of `self.len` that are the `tail` section.
 	pub const LEN_TAIL_MASK: usize = (T::MASK as usize) << Self::LEN_HEAD_BITS;
 
@@ -318,14 +318,14 @@ where T: Bits {
 	/// - `elts`: A number of storage elements in the domain of the new
 	///   `BitPtr`. This number must be in `0 .. Self::MAX_ELTS`.
 	/// - `head`: The bit index of the first live bit in the domain. This must
-	///   be in the domain `0 .. T::SIZE`.
+	///   be in the domain `0 .. T::BITS`.
 	/// - `tail`: The bit index of the first dead bit after the domain. This
 	///   must be:
 	///   - equal to `head` when `elts` is `1`, to create an empty slice.
-	///   - in `head + 1 ..= T::SIZE` when `elts` is `1` to create a
+	///   - in `head + 1 ..= T::BITS` when `elts` is `1` to create a
 	///     single-element slice.
-	///   - in `1 ..= T::SIZE` when `elts` is greater than `1`.
-	///   - in `1 .. T::SIZE` when `elts` is `Self::MAX_ELTS - 1`.
+	///   - in `1 ..= T::BITS` when `elts` is greater than `1`.
+	///   - in `1 .. T::BITS` when `elts` is `Self::MAX_ELTS - 1`.
 	///
 	/// # Returns
 	///
@@ -405,14 +405,14 @@ where T: Bits {
 		assert!(
 			head.is_valid::<T>(),
 			"BitPtr head cursors must be in the domain 0 .. {}",
-			T::SIZE,
+			T::BITS,
 		);
 
 		//  Check that the tail cursor index is in the appropriate domain.
 		assert!(
 			tail.is_valid_tail::<T>(),
 			"BitPtr tail cursors must be in the domain 1 ..= {}",
-			T::SIZE,
+			T::BITS,
 		);
 
 		//  For single-element slices, check that the tail cursor is after the
@@ -429,7 +429,7 @@ where T: Bits {
 				tail.is_valid::<T>(),
 				"BitPtr domains with maximum elements must have the tail \
 				cursor in 1 .. {}",
-				T::SIZE,
+				T::BITS,
 			);
 		}
 
@@ -438,7 +438,7 @@ where T: Bits {
 		let ptr_head = *head as usize >> Self::LEN_HEAD_BITS;
 
 		let len_elts = elts << Self::LEN_INDX_BITS;
-		//  Store tail. Note that this wraps T::SIZE to 0. This must be
+		//  Store tail. Note that this wraps `T::BITS` to 0. This must be
 		//  reconstructed during retrieval.
 		let len_tail
 			= ((*tail as usize) << Self::LEN_HEAD_BITS)
@@ -499,7 +499,7 @@ where T: Bits {
 	/// # Returns
 	///
 	/// A `BitIdx` that is the index of the first live bit in the first element.
-	/// This will be in the domain `0 .. T::SIZE`.
+	/// This will be in the domain `0 .. T::BITS`.
 	pub fn head(&self) -> BitIdx {
 		((((self.ptr.as_ptr() as usize & Self::PTR_HEAD_MASK) << 3)
 		| (self.len & Self::LEN_HEAD_MASK)) as u8).into()
@@ -514,10 +514,10 @@ where T: Bits {
 	/// # Returns
 	///
 	/// A `BitIdx` that is the index of the first dead bit after the last live
-	/// bit in the last element. This will be in the domain `1 ..= T::SIZE`.
+	/// bit in the last element. This will be in the domain `1 ..= T::BITS`.
 	pub fn tail(&self) -> BitIdx {
 		let bits = (self.len & Self::LEN_TAIL_MASK) >> Self::LEN_HEAD_BITS;
-		if bits == 0 { T::SIZE } else { bits as u8 }.into()
+		if bits == 0 { T::BITS } else { bits as u8 }.into()
 	}
 
 	/// Decomposes the pointer into raw components.
@@ -643,7 +643,7 @@ where T: Bits {
 		//  `head` (which is the number of dead bits in the front of the first
 		//  element), and adding `tail` (which is the number of live bits in the
 		//  front of the last element).
-		((elts - 1) << T::BITS)
+		((elts - 1) << T::INDX)
 			.saturating_add(*tail as usize)
 			.saturating_sub(*head as usize)
 	}
@@ -684,7 +684,7 @@ where T: Bits {
 	///
 	/// A slice of fully live storage elements.
 	pub fn body_elts(&self) -> &[T] {
-		let w = T::SIZE;
+		let w = T::BITS;
 		let (_, e, h, t) = self.raw_parts();
 		match (e, *h, *t) {
 			//  Empty slice
@@ -720,7 +720,7 @@ where T: Bits {
 	///
 	/// `None` if the slice is empty, or if the last element is completely live.
 	pub fn tail_elt(&self) -> Option<&T> {
-		if !self.is_empty() && *self.tail() < T::SIZE {
+		if !self.is_empty() && *self.tail() < T::BITS {
 			return Some(&self.as_ref()[self.elements() - 1]);
 		}
 		None
@@ -822,7 +822,7 @@ where T: Bits {
 		assert!(
 			head.is_valid::<T>(),
 			"Head indices must be in the domain 0 .. {}",
-			T::SIZE,
+			T::BITS,
 		);
 		if self.elements() == 1 {
 			assert!(
@@ -915,7 +915,7 @@ where T: Bits {
 		assert!(
 			tail.is_valid_tail::<T>(),
 			"Tail indices must be in the domain 1 ..= {}",
-			T::SIZE,
+			T::BITS,
 		);
 		if self.elements() == 1 {
 			assert!(
@@ -1064,7 +1064,7 @@ where T: Bits {
 		struct BinAddr<T: Bits>(BitIdx, PhantomData<T>);
 		impl<T: Bits>  Debug for BinAddr<T> {
 			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-				f.write_fmt(format_args!("0b{:0>1$b}", *self.0, T::BITS as usize))
+				f.write_fmt(format_args!("0b{:0>1$b}", *self.0, T::INDX as usize))
 			}
 		}
 		write!(f, "BitPtr<{}>", T::TYPENAME)?;

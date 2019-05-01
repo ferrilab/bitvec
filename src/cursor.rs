@@ -7,7 +7,7 @@ also defines the order of traversal over an element.
 
 The only requirement on implementors of `Cursor` is that the transform function
 from cursor (`BitIdx`) to position (`BitPos`) is *total* (every integer in the
-domain `0 .. T::SIZE` is used) and *unique* (each cursor maps to one and only
+domain `0 .. T::BITS` is used) and *unique* (each cursor maps to one and only
 one position, and each position is mapped by one and only one cursor).
 Contiguity is not required.
 
@@ -50,7 +50,7 @@ pub trait Cursor {
 	///
 	/// - A concrete position. This value can be used for shifting and masking
 	///   to extract a bit from an element. This must be in the domain
-	///   `0 .. T::SIZE`.
+	///   `0 .. T::BITS`.
 	///
 	/// # Type Parameters
 	///
@@ -58,21 +58,21 @@ pub trait Cursor {
 	///
 	/// # Invariants
 	///
-	/// The function **must** be *total* for the domain `.. T::SIZE`. All values
+	/// The function **must** be *total* for the domain `.. T::BITS`. All values
 	/// in this domain are valid indices that the library will pass to it, and
 	/// which this function must satisfy.
 	///
-	/// The function **must** be *bijective* over the domain `.. T::SIZE`. All
+	/// The function **must** be *bijective* over the domain `.. T::BITS`. All
 	/// input values in this domain must have one and only one correpsonding
 	/// output, which must also be in this domain.
 	///
-	/// The function *may* support input in the domain `T::SIZE ..`. The library
+	/// The function *may* support input in the domain `T::BITS ..`. The library
 	/// will not produce any values in this domain as input indices. The
-	/// function **must not** produce output in the domain `T::SIZE ..`. It must
-	/// choose between panicking, or producing an output in `.. T::SIZE`. The
-	/// reduction in domain from `T::SIZE ..` to `.. T::SIZE` removes the
-	/// requirement for inputs in `T::SIZE ..` to have unique outputs in
-	/// `.. T::SIZE`.
+	/// function **must not** produce output in the domain `T::BITS ..`. It must
+	/// choose between panicking, or producing an output in `.. T::BITS`. The
+	/// reduction in domain from `T::BITS ..` to `.. T::BITS` removes the
+	/// requirement for inputs in `T::BITS ..` to have unique outputs in
+	/// `.. T::BITS`.
 	///
 	/// This function **must** be *pure*. Calls which have the same input must
 	/// produce the same output. This invariant is only required to be upheld
@@ -88,9 +88,9 @@ pub trait Cursor {
 	///
 	/// # Safety
 	///
-	/// This function requires that the output be in the domain `.. T::SIZE`.
+	/// This function requires that the output be in the domain `.. T::BITS`.
 	/// Implementors must uphold this themselves. Outputs in the domain
-	/// `T::SIZE ..` will induce panics elsewhere in the library.
+	/// `T::BITS ..` will induce panics elsewhere in the library.
 	fn at<T: Bits>(cursor: BitIdx) -> BitPos;
 }
 
@@ -102,10 +102,10 @@ impl Cursor for BigEndian {
 	/// `BigEndian` order moves from `MSbit` first to `LSbit` last.
 	fn at<T: Bits>(cursor: BitIdx) -> BitPos {
 		assert!(
-			*cursor < T::SIZE,
+			*cursor < T::BITS,
 			"Index out of range: {} overflows {}",
 			*cursor,
-			T::SIZE,
+			T::BITS,
 		);
 		(T::MASK - *cursor).into()
 	}
@@ -119,10 +119,10 @@ impl Cursor for LittleEndian {
 	/// `LittleEndian` order moves from `LSbit` first to `MSbit` last.
 	fn at<T: Bits>(cursor: BitIdx) -> BitPos {
 		assert!(
-			*cursor < T::SIZE,
+			*cursor < T::BITS,
 			"Index out of range: {} overflows {}",
 			*cursor,
-			T::SIZE,
+			T::BITS,
 		);
 		(*cursor).into()
 	}
