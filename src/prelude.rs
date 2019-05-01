@@ -3,7 +3,6 @@
 !*/
 
 pub use crate::{
-	bitvec,
 	bits::Bits,
 	cursor::{
 		Cursor,
@@ -15,6 +14,7 @@ pub use crate::{
 
 #[cfg(feature = "alloc")]
 pub use crate::{
+	bitvec,
 	boxed::BitBox,
 	vec::BitVec,
 };

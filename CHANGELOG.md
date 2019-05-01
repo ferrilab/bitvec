@@ -2,6 +2,8 @@
 
 All notable changes will be documented in this file.
 
+This document is written according to the [Keep a Changelog][kac] style.
+
 ## 0.11.0
 
 This contains the last (planned) compiler version upgrade, to `1.34.0`, and the
@@ -275,3 +277,5 @@ Initial implementation and release.
 - `Endian` and `Bits` traits
 - `BitVec` type with basic `Vec` idioms and parallel trait implementations
 - `bitvec!` generator macro
+
+[kac]: https://keepachangelog.com/en/1.0.0/

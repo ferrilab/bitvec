@@ -7,7 +7,7 @@ Contributions are absolutely welcome!
 In order of likelihood that I will actionably receive your contact, my
 information is:
 
-- [appayne@outlook.com](mailto:appayne@outlook.com)
+- [self@myrrlyn.dev](mailto:self@myrrlyn.dev)
 - [@myrrlyn](//github.com/myrrlyn)
 - [@myrrlyn](//twitter.com/myrrlyn)
 - [@myrrlyn@cybre.space](//cybre.space/myrrlyn)
@@ -26,7 +26,7 @@ a beginner.
 
 Be comfortable using `U+0009 CHARACTER TABULATION` as your indentation setting.
 
-That’s about it for prerequisites! This crate intends to power the lowest-level
+That’s about it for prerequisites! This crate intends to power the lowest level
 of memory manipulation while also offering a convenient, powerful, and idiomatic
 high-level API, so I encourage and welcome inputs on any aspect of this crate’s
 construction. I know that I personally am much more capable at the low end than

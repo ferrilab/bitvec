@@ -404,14 +404,16 @@ where T: Bits {
 		//  Check that the head cursor index is within the storage element.
 		assert!(
 			head.is_valid::<T>(),
-			"BitPtr head cursors must be in the domain 0 .. {}",
+			"{} is outside the domain 0 .. {}",
+			*head,
 			T::BITS,
 		);
 
 		//  Check that the tail cursor index is in the appropriate domain.
 		assert!(
 			tail.is_valid_tail::<T>(),
-			"BitPtr tail cursors must be in the domain 1 ..= {}",
+			"{} is outside the domain 1 ..= {}",
+			*tail,
 			T::BITS,
 		);
 

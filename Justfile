@@ -1,7 +1,7 @@
 ################################################################################
 #                                   Justfile                                   #
 #                                                                              #
-# Set of routines to execute for development work. As of 2019-03-31, `just`    #
+# Set of routines to execute for development work. As of 2019-05-01, `just`    #
 # does not work on Windows.                                                    #
 ################################################################################
 

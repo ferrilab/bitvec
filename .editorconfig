@@ -1,21 +1,34 @@
+################################################################################
+#                             Editor Configuration                             #
+#                                                                              #
+# Configuration file controlling language-specific editor settings for text    #
+# editors capable of understanding this file.                                  #
+################################################################################
+
+# All files must be encoded in UTF-8, use ␊ line endings, including a final
+# newline.
 [*]
 charset = utf-8
 end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
 
+# Markdown files use two-space indentation.
 [*.md]
 indent_size = 2
 indent_style = space
 
+# Rust files use ␉ indentation, with each tab rendered four columns wide.
 [*.rs]
 indent_size = 4
 indent_style = tab
 
+# TOML files use ␉ indentation, with each tab rendered eight columns wide.
 [*.toml]
 indent_size = 8
 indent_style = tab
 
+# YAML files use two-space indentation.
 [*.yml]
 indent_size = 2
 indent_style = space

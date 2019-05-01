@@ -246,10 +246,11 @@ you do not want to grow or shrink it. The same goes for [`Vec`] and [`&[]`], and
 # Capacity and Reallocation
 
 The capacity of a bit vector is the amount of space allocated for any future
-elements that will be added onto the vector. This is not to be confused with the
-*length* of a vector, which specifies the number of actual bits within the
+bits that will be added onto the vector. This is not to be confused with the
+*length* of a vector, which specifies the number of live, useful bits within the
 vector. If a vector’s length exceeds its capacity, its capacity will
-automatically be increased, but its elements will have to be reallocated.
+automatically be increased, but its storage elements will have to be
+reallocated.
 
 For example, a bit vector with capacity 10 and length 0 would be an allocated,
 but uninhabited, vector, with space for ten more bits. Pushing ten or fewer bits
@@ -266,7 +267,7 @@ about its design. This ensures that it is as low-overhead as possible in the
 general case, and can be correctly manipulated in fundamental ways by `unsafe`
 code.
 
-Most fundamentally, `BitVec` is an always will be a `([`BitPtr`], capacity)`
+Most fundamentally, `BitVec` is and always will be a `([`BitPtr`], capacity)`
 doublet. No more, no less. The order of these fields is unspecified, and you
 should **only** interact with the members through the provided APIs. Note that
 `BitPtr` is ***not directly manipulable***, and must ***never*** be written or
@@ -338,6 +339,7 @@ is ***extremely binary incompatible*** with them. Attempting to treat
 #[repr(C)]
 pub struct BitVec<C = BigEndian, T = u8>
 where C: Cursor, T: Bits {
+	/// Phantom `Cursor` member to satisfy the constraint checker.
 	_cursor: PhantomData<C>,
 	/// Slice pointer over the owned memory.
 	pointer: BitPtr<T>,
@@ -557,7 +559,7 @@ where C: Cursor, T: Bits {
 	/// Shrinks the capacity of the vector as much as possible.
 	///
 	/// It will drop down as close as possible to the length, but the allocator
-	/// may still inform the vector that there is space for a few more elements.
+	/// may still inform the vector that there is space for bits.
 	///
 	/// This does not modify the contents of the memory store! It will not zero
 	/// any memory that had been used and then removed from the vector’s live
@@ -614,7 +616,7 @@ where C: Cursor, T: Bits {
 		}
 	}
 
-	/// Extracts a `BitSlice` containing the entire vector.
+	/// Produces a `BitSlice` containing the entire vector.
 	///
 	/// Equivalent to `&s[..]`.
 	///
@@ -638,7 +640,7 @@ where C: Cursor, T: Bits {
 		self.pointer.into()
 	}
 
-	/// Extracts a mutable `BitSlice` containing the entire vector.
+	/// Produces a mutable `BitSlice` containing the entire vector.
 	///
 	/// Equivalent to `&mut s[..]`.
 	///
@@ -839,7 +841,8 @@ where C: Cursor, T: Bits {
 	/// bv.retain(|b| b);
 	/// assert_eq!(bv, bitvec![1, 1, 1]);
 	/// ```
-	pub fn retain<F: FnMut(bool) -> bool>(&mut self, mut pred: F) {
+	pub fn retain<F>(&mut self, mut pred: F)
+	where F: FnMut(bool) -> bool {
 		for n in (0 .. self.len()).rev() {
 			if !pred(self[n]) {
 				self.remove(n);
@@ -895,7 +898,7 @@ where C: Cursor, T: Bits {
 	/// # Returns
 	///
 	/// If the vector is not empty, this returns the last bit; if it is empty,
-	/// this returns None.
+	/// this returns `None`.
 	///
 	/// # Examples
 	///
@@ -988,7 +991,8 @@ where C: Cursor, T: Bits {
 	/// assert!(bv.not_any());
 	/// assert_eq!(bv.len(), 4);
 	/// ```
-	pub fn drain<R: RangeBounds<usize>>(&mut self, range: R) -> Drain<C, T> {
+	pub fn drain<R>(&mut self, range: R) -> Drain<C, T>
+	where R: RangeBounds<usize> {
 		use core::ops::Bound::*;
 		let len = self.len();
 		let from = match range.start_bound() {
@@ -1134,15 +1138,66 @@ where C: Cursor, T: Bits {
 	/// Creates a splicing iterator that exchanges the specified range for the
 	/// `replacement` iterator, yielding the removed items. The range and its
 	/// replacement do not need to be the same size.
+	///
+	/// # Notes
+	///
+	/// 1. The element range is removed and replaced even if the iterator
+	///    produced by this method is not fully consumed.
+	/// 2. It is unspecified how many bits are removed from the `BitVec` if the
+	///    returned iterator is leaked.
+	/// 3. The input iterator `replacement` is only consumed when the returned
+	///    iterator is dropped.
+	/// 4. This is optimal if:
+	///    - the tail (elements in the `BitVec` after `range`) is empty,
+	///    - `replace_with` yields fewer characters than `range`’s length,
+	///    - the lower bound of `replacement.size_hint()` is exact.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `range`: A range of indices in the `BitVec` to pull out of the
+	///   collection.
+	/// - `replacement`: Something which can be used to provide new bits to
+	///   replace the removed range.
+	///
+	/// The entirety of `replacement` will be inserted into the slot marked by
+	/// `range`. If `replacement` is an infinite iterator, then this will hang,
+	/// and crash your program.
+	///
+	/// # Returns
+	///
+	/// An iterator over the bits marked by `range`.
+	///
+	/// # Panics
+	///
+	/// Panics if the range is ill-formed, or extends past the end of the
+	/// `BitVec`.
+	///
+	/// # Examples
+	///
+	/// This example starts with six bits of zero, and then splices out bits 2
+	/// and 3 and replaces them with four bits of one.
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut bv = bitvec![0; 6];
+	/// let bv2 = bitvec![1; 4];
+	///
+	/// let s = bv.splice(2 .. 4, bv2).collect::<BitVec<LittleEndian, u16>>();
+	/// assert_eq!(s.len(), 2);
+	/// assert!(!s[0]);
+	/// assert_eq!(bv, bitvec![0, 0, 1, 1, 1, 1, 0, 0]);
+	/// ```
 	pub fn splice<R, I>(
 		&mut self,
 		range: R,
 		replacement: I,
 	) -> Splice<C, T, <I as IntoIterator>::IntoIter>
-	where R: RangeBounds<usize>, I: Iterator<Item=bool> {
+	where R: RangeBounds<usize>, I: IntoIterator<Item=bool> {
 		Splice {
 			drain: self.drain(range),
-			splice: replacement,
+			splice: replacement.into_iter(),
 		}
 	}
 
@@ -1202,6 +1257,37 @@ where C: Cursor, T: Bits {
 		unsafe { BitVec::from_raw_parts(bp, cap) }
 	}
 
+	/// Degrades a `BitVec` to a standard boxed slice.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// A boxed slice of the data the `BitVec` had owned.
+	pub fn into_boxed_slice(self) -> Box<[T]> {
+		self.into_vec().into_boxed_slice()
+	}
+
+	/// Degrades a `BitVec` to a standard `Vec`.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The plain vector underlying the `BitVec`.
+	pub fn into_vec(self) -> Vec<T> {
+		let (data, elts, _, _) = self.bitptr().raw_parts();
+		let out = unsafe {
+			Vec::from_raw_parts(data as *mut T, elts, self.capacity)
+		};
+		mem::forget(self);
+		out
+	}
+
 	/// Gets the raw `BitPtr` powering the vector.
 	///
 	/// # Parameters
@@ -1211,7 +1297,29 @@ where C: Cursor, T: Bits {
 	/// # Returns
 	///
 	/// The underlying `BitPtr` for the vector.
-	pub(crate) fn bitptr(&self) -> BitPtr<T> {
+	///
+	/// # Notes
+	///
+	/// The `BitPtr<T>` return type is opaque, and not exported by the crate.
+	/// Users are not able to use it in any way except to construct another
+	/// `BitVec<_, T>` from it. It is not possible for user code to even express
+	/// the name of the type.
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	/// use std::mem;
+	///
+	/// let bv = bitvec![1; 10];
+	/// let bitptr = bv.bitptr();
+	/// let cap = bv.capacity();
+	/// mem::forget(bv);
+	/// let bv2 = unsafe {
+	///   BitVec::<BigEndian, _>::from_raw_parts(bitptr, cap)
+	/// };
+	/// assert_eq!(bv2.len(), 10);
+	/// assert!(bv2[9]);
+	/// ```
+	pub fn bitptr(&self) -> BitPtr<T> {
 		self.pointer
 	}
 
@@ -2886,7 +2994,7 @@ where C: Cursor, T: Bits {
 /// - `'a`: The lifetime of the underlying vector.
 pub struct Drain<'a, C, T>
 where C: Cursor, T: 'a + Bits {
-	/// Vector being drained.
+	/// Pointer to the `BitVec` being drained.
 	bitvec: NonNull<BitVec<C, T>>,
 	/// Current remaining range to remove.
 	iter: crate::slice::Iter<'a, C, T>,
@@ -2962,7 +3070,9 @@ where C: Cursor, T: 'a + Bits {
 
 impl<'a, C, T> DoubleEndedIterator for Drain<'a, C, T>
 where C: Cursor, T: 'a + Bits {
-	fn next_back(&mut self) -> Option<Self::Item> { self.iter.next_back() }
+	fn next_back(&mut self) -> Option<Self::Item> {
+		self.iter.next_back()
+	}
 }
 
 impl<'a, C, T> ExactSizeIterator for Drain<'a, C, T>
@@ -2974,11 +3084,26 @@ where C: Cursor, T: 'a + Bits {}
 impl<'a, C, T> Iterator for Drain<'a, C, T>
 where C: Cursor, T: 'a + Bits {
 	type Item = bool;
-	fn next(&mut self) -> Option<Self::Item> { self.iter.next() }
-	fn size_hint(&self) -> (usize, Option<usize>) { self.iter.size_hint() }
-	fn count(self) -> usize { self.len() }
-	fn nth(&mut self, n: usize) -> Option<Self::Item> { self.iter.nth(n) }
-	fn last(mut self) -> Option<Self::Item> { self.iter.next_back() }
+
+	fn next(&mut self) -> Option<Self::Item> {
+		self.iter.next()
+	}
+
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		self.iter.size_hint()
+	}
+
+	fn count(self) -> usize {
+		self.len()
+	}
+
+	fn nth(&mut self, n: usize) -> Option<Self::Item> {
+		self.iter.nth(n)
+	}
+
+	fn last(mut self) -> Option<Self::Item> {
+		self.iter.next_back()
+	}
 }
 
 impl<'a, C, T> Drop for Drain<'a, C, T>
@@ -3213,7 +3338,9 @@ where C: Cursor, T: 'a + Bits, I: Iterator<Item=bool> {
 
 impl<'a, C, T, I> DoubleEndedIterator for Splice<'a, C, T, I>
 where C: Cursor, T: 'a + Bits, I: Iterator<Item=bool> {
-	fn next_back(&mut self) -> Option<Self::Item> { self.drain.next_back() }
+	fn next_back(&mut self) -> Option<Self::Item> {
+		self.drain.next_back()
+	}
 }
 
 impl<'a, C, T, I> ExactSizeIterator for Splice<'a, C, T, I>
@@ -3226,11 +3353,36 @@ where C: Cursor, T: 'a + Bits, I: Iterator<Item=bool> {}
 impl<'a, C, T, I> Iterator for Splice<'a, C, T, I>
 where C: Cursor, T: 'a + Bits, I: Iterator<Item=bool> {
 	type Item = bool;
-	fn next(&mut self) -> Option<Self::Item> { self.drain.next() }
-	fn size_hint(&self) -> (usize, Option<usize>) { self.drain.size_hint() }
-	fn count(self) -> usize { self.drain.len() }
-	fn nth(&mut self, n: usize) -> Option<Self::Item> { self.drain.nth(n) }
-	fn last(mut self) -> Option<Self::Item> { self.drain.next_back() }
+
+	fn next(&mut self) -> Option<Self::Item> {
+		//  If the drain produced a bit, then try to pull a bit from the
+		//  replacement. If the replacement produced a bit, push it into the
+		//  `BitVec` that the drain is managing. This works because the `Drain`
+		//  type truncates the `BitVec` to the front of the region being
+		//  drained, then tracks the remainder of the memory.
+		self.drain.next().map(|bit| {
+			if let Some(new_bit) = self.splice.next() {
+				unsafe { self.drain.bitvec.as_mut() }.push(new_bit);
+			}
+			bit
+		})
+	}
+
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		self.drain.size_hint()
+	}
+
+	fn count(self) -> usize {
+		self.drain.len()
+	}
+
+	fn nth(&mut self, n: usize) -> Option<Self::Item> {
+		self.drain.nth(n)
+	}
+
+	fn last(mut self) -> Option<Self::Item> {
+		self.drain.next_back()
+	}
 }
 
 impl<'a, C, T, I> Drop for Splice<'a, C, T, I>
@@ -3241,8 +3393,10 @@ where C: Cursor, T: 'a + Bits, I: Iterator<Item=bool> {
 			return;
 		}
 
-		//  Fill the drain span from the splice. If this exhausts the splice,
-		//  exit.
+		//  Fill the drained span from the splice. If this exhausts the splice,
+		//  exit. Note that `Drain::fill` runs from the current `BitVec.len`
+		//  value, so the fact that `Splice::next` attempts to push onto the
+		//  vector is not a problem here.
 		if !self.drain.fill(&mut self.splice) {
 			return;
 		}

@@ -1,3 +1,9 @@
+################################################################################
+#                               Project Manifest                               #
+#                                                                              #
+# This file describes the `bitvec` Rust project to the Rust build tool, Cargo. #
+################################################################################
+
 [package]
 name = "bitvec"
 version = "0.11.0"
@@ -13,7 +19,7 @@ categories = [
 description = "A crate for manipulating memory, bit by bit"
 documentation = "https://docs.rs/bitvec"
 edition = "2018"
-homepage = "https://myrrlyn.net/bitvec"
+homepage = "https://myrrlyn.net/crates/bitvec"
 keywords = [
 	"bits",
 	"bitvec",
@@ -44,11 +50,13 @@ features = [
 optional = true
 version = "1"
 
+# Crates required when running the test suite.
 [dev-dependencies]
 serde = "1"
 serde_json = "1"
 serde_test = "1"
 
+# Indicates the features that docs.rs should enable when building documentation.
 [package.metadata.docs.rs]
 features = [
 	"atomic",

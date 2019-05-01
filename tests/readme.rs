@@ -1,4 +1,8 @@
 /*! Prove that the example code in `README.md` executes.
+
+Until the README.md file can be linked into the library directly for `rustdoc`
+to use, this file must be consistently updated whenever the README’s code
+samples are modified.
 !*/
 
 #[cfg(feature = "alloc")]
@@ -18,7 +22,7 @@ fn main() {
 
     //  Memory access
     assert_eq!(bv.as_slice(), &[0b0101_0000, 0b1111_0000]);
-    //                 index 0 -^               ^- index 11
+    //                   index 0 -^               ^- index 11
     assert_eq!(bv.len(), 12);
     assert!(bv.capacity() >= 16);
 

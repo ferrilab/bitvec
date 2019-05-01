@@ -20,7 +20,7 @@ system.
 Like `vec!`, `bitvec!` supports bit lists `[0, 1, …]` and repetition markers
 `[1; n]`.
 
-# All Syntaxes
+# Examples
 
 ```rust
 use bitvec::prelude::*;
@@ -103,22 +103,26 @@ macro_rules! bitvec {
 macro_rules! __bitslice_shift {
 	( $( $t:ty ),+ ) => { $(
 		#[doc(hidden)]
-		impl < C , T > core :: ops :: ShlAssign< $t >
-		for $crate :: prelude :: BitSlice<C, T>
-		where C : $crate :: cursor :: Cursor , T : $crate :: bits :: Bits
-		{
-			fn shl_assign(&mut self, shamt: $t ) {
-				core :: ops :: ShlAssign::<usize>::shl_assign(self, shamt as usize);
+		impl < C , T > core :: ops :: ShlAssign < $t >
+		for $crate :: prelude :: BitSlice < C , T >
+		where C : $crate :: cursor :: Cursor , T : $crate :: bits :: Bits {
+			fn shl_assign ( & mut self , shamt : $t ) {
+				core :: ops :: ShlAssign :: < usize > :: shl_assign (
+					self ,
+					shamt as usize ,
+				)
 			}
 		}
 
 		#[doc(hidden)]
-		impl < C , T > core :: ops :: ShrAssign< $t >
-		for $crate :: prelude :: BitSlice<C, T>
-		where C : $crate :: cursor :: Cursor , T : $crate :: bits :: Bits
-		{
-			fn shr_assign(&mut self, shamt: $t ) {
-				core :: ops :: ShrAssign::<usize>::shr_assign(self, shamt as usize);
+		impl < C , T > core :: ops :: ShrAssign < $t >
+		for $crate :: prelude :: BitSlice < C , T >
+		where C : $crate :: cursor :: Cursor , T : $crate :: bits :: Bits {
+			fn shr_assign ( & mut self , shamt : $t ) {
+				core :: ops :: ShrAssign :: < usize > :: shr_assign (
+					self,
+					shamt as usize ,
+				)
 			}
 		}
 	)+ };
@@ -129,46 +133,48 @@ macro_rules! __bitslice_shift {
 macro_rules! __bitvec_shift {
 	( $( $t:ty ),+ ) => { $(
 		#[doc(hidden)]
-		impl < C , T > core :: ops :: Shl< $t >
+		impl < C , T > core :: ops :: Shl < $t >
 		for $crate :: vec :: BitVec < C , T >
-		where C : $crate :: cursor :: Cursor , T : $crate :: bits :: Bits
-		{
-			type Output = <Self as core :: ops :: Shl<usize>>::Output;
+		where C : $crate :: cursor :: Cursor , T : $crate :: bits :: Bits {
+			type Output = < Self as core :: ops :: Shl < usize > > :: Output ;
 
-			fn shl(self, shamt: $t ) -> Self :: Output {
-				core :: ops :: Shl::<usize>::shl(self, shamt as usize)
+			fn shl ( self , shamt : $t ) -> Self :: Output {
+				core :: ops :: Shl :: < usize > :: shl ( self , shamt as usize )
 			}
 		}
 
 		#[doc(hidden)]
-		impl < C , T > core :: ops :: ShlAssign< $t >
+		impl < C , T > core :: ops :: ShlAssign < $t >
 		for $crate :: vec :: BitVec < C , T >
-		where C : $crate :: cursor :: Cursor , T : $crate :: bits :: Bits
-		{
-			fn shl_assign(&mut self, shamt: $t ) {
-				core :: ops :: ShlAssign::<usize>::shl_assign(self, shamt as usize)
+		where C : $crate :: cursor :: Cursor , T : $crate :: bits :: Bits {
+			fn shl_assign ( & mut self , shamt : $t ) {
+				core :: ops :: ShlAssign :: < usize > :: shl_assign (
+					self ,
+					shamt as usize,
+				)
 			}
 		}
 
 		#[doc(hidden)]
-		impl < C , T > core :: ops :: Shr< $t >
+		impl < C , T > core :: ops :: Shr < $t >
 		for $crate :: vec :: BitVec < C , T >
-		where C : $crate :: cursor :: Cursor , T : $crate :: bits :: Bits
-		{
-			type Output = <Self as core :: ops :: Shr<usize>>::Output;
+		where C : $crate :: cursor :: Cursor , T : $crate :: bits :: Bits {
+			type Output = < Self as core :: ops :: Shr < usize > > :: Output ;
 
-			fn shr(self, shamt: $t ) -> Self :: Output {
-				core :: ops :: Shr::<usize>::shr(self, shamt as usize)
+			fn shr ( self , shamt : $t ) -> Self :: Output {
+				core :: ops :: Shr :: < usize > :: shr ( self , shamt as usize )
 			}
 		}
 
 		#[doc(hidden)]
-		impl < C , T> core :: ops :: ShrAssign< $t >
+		impl < C , T> core :: ops :: ShrAssign < $t >
 		for $crate :: vec :: BitVec < C , T >
-		where C : $crate :: cursor :: Cursor , T : $crate :: bits :: Bits
-		{
-			fn shr_assign(&mut self, shamt: $t ) {
-				core :: ops :: ShrAssign::<usize>::shr_assign(self, shamt as usize)
+		where C : $crate :: cursor :: Cursor , T : $crate :: bits :: Bits {
+			fn shr_assign ( & mut self , shamt : $t ) {
+				core :: ops :: ShrAssign :: < usize > :: shr_assign (
+					self ,
+					shamt as usize ,
+				)
 			}
 		}
 	)+ };
