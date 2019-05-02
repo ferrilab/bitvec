@@ -78,7 +78,7 @@ use core::{
 	str,
 };
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 use crate::vec::BitVec;
 
 #[cfg(all(feature = "alloc", not(feature = "std")))]
@@ -2001,7 +2001,7 @@ where C: Cursor, T: Bits {
 }
 
 /// Creates an owned `BitVec<C, T>` from a borrowed `BitSlice<C, T>`.
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl<C, T> ToOwned for BitSlice<C, T>
 where C: Cursor, T: Bits {
 	type Owned = BitVec<C, T>;
@@ -2011,7 +2011,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
+	/// # #[cfg(any(feature = "alloc", feature = "std"))] {
 	/// use bitvec::prelude::*;
 	///
 	/// let store: &[u8] = &[0; 2];
@@ -2078,7 +2078,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 }
 
 /// Allow comparison against the allocated form.
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl<A, B, C, D> PartialEq<BitVec<C, D>> for BitSlice<A, B>
 where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
@@ -2086,7 +2086,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	}
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl<A, B, C, D> PartialEq<BitVec<C, D>> for &BitSlice<A, B>
 where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
@@ -2147,7 +2147,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	}
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl<A, B, C, D> PartialOrd<BitVec<C, D>> for BitSlice<A, B>
 where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<Ordering> {
@@ -2155,7 +2155,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	}
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl<A, B, C, D> PartialOrd<BitVec<C, D>> for &BitSlice<A, B>
 where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<Ordering> {
@@ -2345,7 +2345,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
+	/// # #[cfg(any(feature = "alloc", feature = "std"))] {
 	/// use bitvec::prelude::*;
 	/// let bits: &BitSlice<LittleEndian, u16> = &bitvec![
 	///   LittleEndian, u16;
@@ -2394,7 +2394,7 @@ where C: Cursor, T: Bits {
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
+	/// # #[cfg(any(feature = "alloc", feature = "std"))] {
 	/// use bitvec::prelude::*;
 	///
 	/// let store: &[u8] = &[0b01001011, 0b0100_0000];

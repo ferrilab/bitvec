@@ -4,7 +4,7 @@ This module holds the type for an owned but ungrowable bit sequence. `BitVec` is
 the more appropriate and useful type for most collections.
 !*/
 
-#![cfg(feature = "alloc")]
+#![cfg(any(feature = "alloc", feature = "std"))]
 
 use crate::{
 	bits::Bits,

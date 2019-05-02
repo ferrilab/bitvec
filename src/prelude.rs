@@ -12,7 +12,7 @@ pub use crate::{
 	slice::BitSlice,
 };
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 pub use crate::{
 	bitvec,
 	boxed::BitBox,

@@ -35,9 +35,7 @@ default = [
 	"atomic",
 	"std",
 ]
-std = [
-	"alloc",
-]
+std = []
 testing = [
 	"std",
 ]
@@ -60,7 +58,7 @@ serde_test = "1"
 [package.metadata.docs.rs]
 features = [
 	"atomic",
-	"serdes",
+	"serde",
 	"std",
 ]
 

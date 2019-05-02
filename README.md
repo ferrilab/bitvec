@@ -187,7 +187,7 @@ The `alloc` feature restores the owned-memory types and their macros. The only
 difference between `alloc` and `std` is the presence of the standard library
 façade and runtime support.
 
-The `std` feature turns on `alloc`, so using this crate without any feature
+The `std` feature includes allocation, so using this crate without any feature
 flags *or* by explicitly enabling the `std` feature will enable full
 functionality.
 

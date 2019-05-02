@@ -59,10 +59,10 @@ mod pointer;
 pub mod prelude;
 pub mod slice;
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 pub mod boxed;
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 pub mod vec;
 
 #[cfg(feature = "atomic")]

@@ -1,5 +1,10 @@
 /*! `serde`-powered de/serialization
 
+This module implements the Serde traits for the `bitvec` types, as possible.
+
+Without an allocator, only `BitSlice` exists, and can only implement
+`Serialize`. With an allocator, the `BitBox` and `BitVec` types exist, and are
+able to implement `Deserialize` as well.
 !*/
 
 #![cfg(all(feature = "serde"))]
@@ -11,7 +16,7 @@ use crate::{
 	slice::BitSlice,
 };
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 use crate::{
 	boxed::BitBox,
 	vec::BitVec,
@@ -35,7 +40,7 @@ use serde::{
 	},
 };
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 use serde::{
 	Deserialize,
 	de::{
@@ -48,7 +53,7 @@ use serde::{
 };
 
 /// A Serde visitor to pull `BitBox` data out of a serialized stream
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 #[derive(Clone, Copy, Default, Debug)]
 pub struct BitBoxVisitor<'de, C, T>
 where C: Cursor, T: Bits + Deserialize<'de> {
@@ -56,7 +61,7 @@ where C: Cursor, T: Bits + Deserialize<'de> {
 	_storage: PhantomData<&'de T>,
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl<'de, C, T> BitBoxVisitor<'de, C, T>
 where C: Cursor, T: Bits + Deserialize<'de> {
 	fn new() -> Self {
@@ -64,7 +69,7 @@ where C: Cursor, T: Bits + Deserialize<'de> {
 	}
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl<'de, C, T> Visitor<'de> for BitBoxVisitor<'de, C, T>
 where C: Cursor, T: Bits + Deserialize<'de> {
 	type Value = BitBox<C, T>;
@@ -135,7 +140,7 @@ where C: Cursor, T: Bits + Deserialize<'de> {
 	}
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl<'de, C, T> Deserialize<'de> for BitBox<C, T>
 where C: Cursor, T: 'de + Bits + Deserialize<'de> {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -146,7 +151,7 @@ where C: Cursor, T: 'de + Bits + Deserialize<'de> {
 	}
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl<'de, C, T> Deserialize<'de> for BitVec<C, T>
 where C: Cursor, T: 'de + Bits + Deserialize<'de> {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -171,7 +176,7 @@ where C: Cursor, T: Bits + Serialize {
 	}
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl<C, T> Serialize for BitBox<C, T>
 where C: Cursor, T: Bits + Serialize {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -180,7 +185,7 @@ where C: Cursor, T: Bits + Serialize {
 	}
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl<C, T> Serialize for BitVec<C, T>
 where C: Cursor, T: Bits + Serialize {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -196,7 +201,6 @@ mod tests {
 		Token,
 		assert_de_tokens,
 		assert_ser_tokens,
-		assert_tokens,
 	};
 
 	macro_rules! bvtok {
@@ -260,7 +264,8 @@ mod tests {
 		let bv = bitvec![0, 1, 1, 0, 1, 0];
 		assert_de_tokens(&bv, bvtok![d 1, 0, 6, 1, U8, 0b0110_1000]);
 		//  test that the bits outside the bits domain don't matter in deser
-		assert_de_tokens(&bv, bvtok![d 1, 0, 6, 1, U8, 0b0110_1010]);
 		assert_de_tokens(&bv, bvtok![d 1, 0, 6, 1, U8, 0b0110_1001]);
+		assert_de_tokens(&bv, bvtok![d 1, 0, 6, 1, U8, 0b0110_1010]);
+		assert_de_tokens(&bv, bvtok![d 1, 0, 6, 1, U8, 0b0110_1011]);
 	}
 }

@@ -36,7 +36,7 @@ bitvec![LittleEndian; 0; 5];
 bitvec![1; 5];
 ```
 **/
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 #[macro_export]
 macro_rules! bitvec {
 	//  bitvec![ endian , type ; 0 , 1 , … ]
@@ -128,7 +128,7 @@ macro_rules! __bitslice_shift {
 	)+ };
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 #[doc(hidden)]
 macro_rules! __bitvec_shift {
 	( $( $t:ty ),+ ) => { $(

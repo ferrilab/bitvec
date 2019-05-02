@@ -5,16 +5,16 @@ to use, this file must be consistently updated whenever the README’s code
 samples are modified.
 !*/
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 extern crate bitvec;
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 use bitvec::prelude::*;
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 use std::iter::repeat;
 
-#[cfg(feature = "alloc")]
+#[cfg(any(feature = "alloc", feature = "std"))]
 fn main() {
     let mut bv = bitvec![BigEndian, u8; 0, 1, 0, 1];
     bv.reserve(8);
@@ -62,7 +62,7 @@ fn main() {
     assert_eq!(iter.len(), 10);
 }
 
-#[cfg(not(feature = "alloc"))]
+#[cfg(not(any(feature = "alloc", feature = "std")))]
 fn main() {
 	println!("This example only runs when an allocator is present");
 }
