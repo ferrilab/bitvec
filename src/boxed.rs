@@ -16,6 +16,7 @@ use crate::{
 	slice::BitSlice,
 	vec::BitVec,
 };
+
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 use alloc::{
 	borrow::{
@@ -92,6 +93,7 @@ use core::{
 		ShrAssign,
 	},
 };
+
 #[cfg(feature = "std")]
 use std::{
 	borrow::{
@@ -139,19 +141,15 @@ where C: Cursor, T: Bits {
 
 impl<C, T> BitBox<C, T>
 where C: Cursor, T: Bits {
-	/// Constructs an empty slice at a given location.
-	///
-	/// # Parameters
-	///
-	/// - `data`: The address of the empty `BitBox` to construct.
+	/// Constructs an empty boxed bitslice.
 	///
 	/// # Returns
 	///
-	/// An empty `BitBox` at the given location.
-	pub fn uninhabited(data: *const T) -> Self {
+	/// An empty `BitBox` at an arbitrary location.
+	pub fn empty() -> Self {
 		Self {
 			_cursor: PhantomData,
-			pointer: BitPtr::uninhabited(data),
+			pointer: BitPtr::empty(),
 		}
 	}
 
@@ -173,6 +171,158 @@ where C: Cursor, T: Bits {
 			pointer: BitPtr::new(data, elts, head, tail),
 		};
 		mem::forget(store);
+		out
+	}
+
+	/// Produces a `BitBox` from a single element.
+	///
+	/// # Parameters
+	///
+	/// - `elt`: The source element from which to make the `BitBox`.
+	///
+	/// # Returns
+	///
+	/// A `BitBox` containing the provided element.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bb: BitBox<BigEndian, u16> = BitBox::from_element(!0);
+	/// eprintln!("{}", bb);
+	/// assert!(bb.all());
+	/// ```
+	pub fn from_element(elt: T) -> Self {
+		BitSlice::<C, T>::from_element(&elt).into()
+	}
+
+	/// Builds a `BitBox` from a borrowed slice of elements.
+	///
+	/// # Parameters
+	///
+	/// - `slice`: The source slice from which to make the `BitBox`.
+	///
+	/// # Returns
+	///
+	/// A `BitBox` containing the (cloned) provided slice.
+	///
+	/// # Panics
+	///
+	/// This function may panic if the provided slice is longer than the
+	/// `BitBox` can support.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let src: &[u8] = &[5, 10];
+	/// let bv: BitBox = src.into();
+	/// assert!(bv[5]);
+	/// assert!(bv[7]);
+	/// assert!(bv[12]);
+	/// assert!(bv[14]);
+	/// ```
+	pub fn from_slice(slice: &[T]) -> Self {
+		assert!(slice.len() < BitPtr::<T>::MAX_ELTS, "Box overflow");
+		BitSlice::<C, T>::from_slice(slice).into()
+	}
+
+	/// Clones a `&BitSlice` into a `BitBox`.
+	///
+	/// # Parameters
+	///
+	/// - `slice`: The bit slice to clone into a bit box.
+	///
+	/// # Returns
+	///
+	/// A `BitBox` containing the same bits as the source slice.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let src: &[u8] = &[0, !0];
+	/// let bs: &BitSlice = src.into();
+	/// let bb = BitBox::from_bitslice(bs);
+	/// assert_eq!(bb.len(), 16);
+	/// assert!(bb.some());
+	/// ```
+	pub fn from_bitslice(slice: &BitSlice<C, T>) -> Self {
+		let (elts, head, tail) = slice.bitptr().region_data();
+		let b: Box<[T]> = slice.as_ref().to_owned().into_boxed_slice();
+		let out = Self {
+			_cursor: PhantomData,
+			pointer: BitPtr::new(b.as_ptr(), elts, head, tail),
+		};
+		mem::forget(b);
+		out
+	}
+
+	/// Produces a `BitBox` from an owned slice of elements.
+	///
+	/// # Parameters
+	///
+	/// - `slice`: The source boxed slice from which to make the `BitBox`.
+	///
+	/// # Returns
+	///
+	/// A `BitBox` governing the same slice that was passed in. This function
+	/// does not reallocate.
+	///
+	/// # Panics
+	///
+	/// This function may panic if the provided slice is longer than the
+	/// `BitBox` can support.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let slice: Box<[u16]> = vec![0, !0].into_boxed_slice();
+	/// let bb = BitBox::<LittleEndian, _>::from_boxed_slice(slice);
+	/// assert!(bb.some());
+	/// assert_eq!(bb.len(), 32);
+	/// ```
+	pub fn from_boxed_slice(slice: Box<[T]>) -> Self {
+		assert!(slice.len() < BitPtr::<T>::MAX_ELTS, "Box overflow");
+		let out = Self {
+			_cursor: PhantomData,
+			pointer: BitPtr::new(slice.as_ptr(), slice.len(), 0, T::BITS)
+		};
+		mem::forget(slice);
+		out
+	}
+
+	/// Removes the `BitBox` wrapper from a `Box<[T]>`.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The `Box<[T]>` underneath `self`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let slice: Box<[u16]> = vec![0, !0].into_boxed_slice();
+	/// let bb = BitBox::<LittleEndian, _>::from_boxed_slice(slice);
+	/// assert_eq!(bb.len(), 32);
+	/// let slice = bb.into_boxed_slice();
+	/// assert_eq!(slice.len(), 2);
+	/// ```
+	pub fn into_boxed_slice(self) -> Box<[T]> {
+		let (ptr, len, _, _) = self.bitptr().raw_parts();
+		let out = unsafe { Vec::from_raw_parts(ptr as *mut T, len, len) }
+			.into_boxed_slice();
+		mem::forget(self);
 		out
 	}
 
@@ -217,19 +367,10 @@ where C: Cursor, T: Bits {
 	/// The proper way to do so is to convert the `BitPtr` back into a `BitBox`
 	/// with the [`BitBox::from_raw`] function.
 	///
-	/// Note: this is an associated function, which means that you must call it
-	/// as `BitBox::into_raw(b)` instead of `b.into_raw()`. This is to match the
-	/// API of [`Box`]; there is no method conflict with [`BitSlice`].
-	///
 	/// [`BitBox::from_raw`]: #method.from_raw
-	/// [`BitSlice`]: ../struct.BitSlice.html
-	#[cfg_attr(not(feature = "std"), doc = "[`Box`]: https://doc.rust-lang.org/stable/alloc/boxed/struct.Box.html")]
-	#[cfg_attr(feature = "std", doc = "[`Box`]: https://doc.rust-lang.org/stable/std/boxed/struct.Box.html")]
-	//  Permit associated function rather than method
-	#[allow(clippy::wrong_self_convention)]
-	pub unsafe fn into_raw(b: BitBox<C, T>) -> BitPtr<T> {
-		let out = b.bitptr();
-		mem::forget(b);
+	pub unsafe fn into_raw(self) -> BitPtr<T> {
+		let out = self.bitptr();
+		mem::forget(self);
 		out
 	}
 
@@ -244,10 +385,6 @@ where C: Cursor, T: Bits {
 	/// `BitBox`. This `BitBox` can then be dropped which will properly
 	/// deallocate the memory.
 	///
-	/// Note: this is an associated function, which means that you must call it
-	/// as `BitBox::leak(b)` instead of `b.leak()`. This is to match the API of
-	/// [`Box`]; there is no method conflict with [`BitSlice`].
-	///
 	/// # Parameters
 	///
 	/// - `b`: The `BitBox` to deconstruct.
@@ -257,12 +394,9 @@ where C: Cursor, T: Bits {
 	/// The raw pointer from inside the `BitBox`.
 	///
 	/// [`BitBox::from_raw`]: #method.from_raw
-	/// [`BitSlice`]: ../struct.BitSlice.html
-	#[cfg_attr(not(feature = "std"), doc = "[`Box`]: https://doc.rust-lang.org/stable/alloc/boxed/struct.Box.html")]
-	#[cfg_attr(feature = "std", doc = "[`Box`]: https://doc.rust-lang.org/stable/std/boxed/struct.Box.html")]
-	pub fn leak<'a>(b: BitBox<C, T>) -> &'a mut BitSlice<C, T> {
-		let out = b.bitptr();
-		mem::forget(b);
+	pub fn leak<'a>(self) -> &'a mut BitSlice<C, T> {
+		let out = self.bitptr();
+		mem::forget(self);
 		out.into()
 	}
 
@@ -462,48 +596,14 @@ where C: Cursor, T: Bits {
 impl<C, T> From<&BitSlice<C, T>> for BitBox<C, T>
 where C: Cursor, T: Bits {
 	fn from(src: &BitSlice<C, T>) -> Self {
-		let (_, elts, head, tail) = src.bitptr().raw_parts();
-		let b: Box<[T]> = src.as_ref().to_owned().into_boxed_slice();
-		let out = Self {
-			_cursor: PhantomData,
-			pointer: BitPtr::new(b.as_ptr(), elts, head, tail),
-		};
-		mem::forget(b);
-		out
+		Self::from_bitslice(src)
 	}
 }
 
-/// Builds a `BitBox` out of a borrowed slice of elements.
-///
-/// This copies the memory as-is from the source buffer into the new `BitBox`.
-/// The source buffer will be unchanged by this operation, so you don't need to
-/// worry about using the correct cursor type for the read.
-///
-/// This operation does a copy from the source buffer into a new allocation, as
-/// it can only borrow the source and not take ownership.
 impl<C, T> From<&[T]> for BitBox<C, T>
 where C: Cursor, T: Bits {
-	/// Builds a `BitBox<C: Cursor, T: Bits>` from a borrowed `&[T]`.
-	///
-	/// # Parameters
-	///
-	/// - `src`: The elements to use as the values for the new vector.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let src: &[u8] = &[5, 10];
-	/// let bv: BitBox = src.into();
-	/// assert!(bv[5]);
-	/// assert!(bv[7]);
-	/// assert!(bv[12]);
-	/// assert!(bv[14]);
-	/// ```
 	fn from(src: &[T]) -> Self {
-		assert!(src.len() < BitPtr::<T>::MAX_ELTS, "Box overflow");
-		<&BitSlice<C, T>>::from(src).into()
+		Self::from_slice(src)
 	}
 }
 
@@ -517,51 +617,17 @@ where C: Cursor, T: Bits {
 	}
 }
 
-/// Builds a `BitBox` out of an owned slice of elements.
-///
-/// This moves the memory as-is from the source buffer into the new `BitBox`.
-/// The source buffer will be unchanged by this operation, so you don't need to
-/// worry about using the correct cursor type.
 impl<C, T> From<Box<[T]>> for BitBox<C, T>
 where C: Cursor, T: Bits {
-	/// Consumes a `Box<[T: Bits]>` and creates a `BitBox<C: Cursor, T>` from
-	/// it.
-	///
-	/// # Parameters
-	///
-	/// - `src`: The source box whose memory will be used.
-	///
-	/// # Returns
-	///
-	/// A new `BitBox` using the `src` `Box`’s memory.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let src: Box<[u8]> = Box::new([3, 6, 9, 12, 15]);
-	/// let bv: BitBox = src.into();
-	/// ```
 	fn from(src: Box<[T]>) -> Self {
-		assert!(src.len() < BitPtr::<T>::MAX_ELTS, "Box overflow");
-		let out = Self {
-			_cursor: PhantomData,
-			pointer: BitPtr::new(src.as_ptr(), src.len(), 0, T::BITS)
-		};
-		mem::forget(src);
-		out
+		Self::from_boxed_slice(src)
 	}
 }
 
 impl<C, T> Into<Box<[T]>> for BitBox<C, T>
 where C: Cursor, T: Bits {
 	fn into(self) -> Box<[T]> {
-		let (ptr, len, _, _) = self.bitptr().raw_parts();
-		let out = unsafe { Vec::from_raw_parts(ptr as *mut T, len, len) }
-			.into_boxed_slice();
-		mem::forget(self);
-		out
+		self.into_boxed_slice()
 	}
 }
 

@@ -22,6 +22,7 @@ use crate::{
 	pointer::BitPtr,
 	slice::BitSlice,
 };
+
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 use alloc::{
 	borrow::{
@@ -32,6 +33,7 @@ use alloc::{
 	boxed::Box,
 	vec::Vec,
 };
+
 use core::{
 	clone::Clone,
 	cmp::{
@@ -109,6 +111,7 @@ use core::{
 	},
 	slice,
 };
+
 #[cfg(feature = "std")]
 use std::{
 	borrow::{
@@ -410,6 +413,124 @@ where C: Cursor, T: Bits {
 			pointer: BitPtr::uninhabited(ptr),
 			capacity: cap,
 		}
+	}
+
+	/// Constructs a `BitVec` from a single element.
+	///
+	/// The produced `BitVec` will span the element, and include all bits in it.
+	///
+	/// # Parameters
+	///
+	/// - `elt`: The source element.
+	///
+	/// # Returns
+	///
+	/// A `BitVec` over the provided element.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bv = BitVec::<BigEndian, u8>::from_element(5);
+	/// assert_eq!(bv.count_ones(), 2);
+	/// ```
+	pub fn from_element(elt: T) -> Self {
+		Self::from_vec(vec![elt])
+	}
+
+	/// Constructs a `BitVec` from a slice of elements.
+	///
+	/// The produced `BitVec` will span the provided slice.
+	///
+	/// # Parameters
+	///
+	/// - `slice`: The source elements to copy into the new `BitVec`.
+	///
+	/// # Returns
+	///
+	/// A `BitVec` set to the provided slice values.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let src: &[u8] = &[0, !0];
+	/// let bv: BitVec = BitVec::from_slice(src);
+	/// assert!(bv.some());
+	/// ```
+	pub fn from_slice(slice: &[T]) -> Self {
+		BitSlice::<C, T>::from_slice(slice).to_owned()
+	}
+
+	/// Consumes a `Vec<T>` and creates a `BitVec<C, T>` from it.
+	///
+	/// # Parameters
+	///
+	/// - `vec`: The source vector whose memory will be used.
+	///
+	/// # Returns
+	///
+	/// A new `BitVec` using the `vec` `Vec`’s memory.
+	///
+	/// # Panics
+	///
+	/// Panics if the source vector would cause the `BitVec` to overflow
+	/// capacity.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let src: Vec<u8> = vec![1, 2, 4, 8];
+	/// let bv: BitVec = src.into();
+	/// assert_eq!(
+	///   "[00000001, 00000010, 00000100, 00001000]",
+	///   &format!("{}", bv),
+	/// );
+	/// ```
+	pub fn from_vec(vec: Vec<T>) -> Self {
+		assert!(vec.len() < BitPtr::<T>::MAX_ELTS, "Vector overflow");
+		let (ptr, len, cap) = (vec.as_ptr(), vec.len(), vec.capacity());
+		mem::forget(vec);
+		Self {
+			_cursor: PhantomData,
+			pointer: BitPtr::new(ptr, len, 0, T::BITS),
+			capacity: cap,
+		}
+	}
+
+	/// Clones a `&BitSlice` into a `BitVec`.
+	///
+	/// # Parameters
+	///
+	/// - `slice`
+	///
+	/// # Returns
+	///
+	/// A `BitVec` containing the same bits as the source slice.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let src: &[u8] = &[0, !0];
+	/// let bs: &BitSlice = src.into();
+	/// let bv = BitVec::from_bitslice(bs);
+	/// assert_eq!(bv.len(), 16);
+	/// assert!(bv.some());
+	/// ```
+	pub fn from_bitslice(slice: &BitSlice<C, T>) -> Self {
+		let (elts, head, tail) = slice.bitptr().region_data();
+		let v: Vec<T> = slice.as_slice().to_owned();
+		let data = v.as_ptr();
+		let cap = v.capacity();
+		mem::forget(v);
+		let bp = BitPtr::new(data, elts, head, tail);
+		unsafe { Self::from_raw_parts(bp, cap) }
 	}
 
 	/// Creates a new `BitVec<C, T>` directly from the raw parts of another.
@@ -1184,7 +1305,7 @@ where C: Cursor, T: Bits {
 	/// let mut bv = bitvec![0; 6];
 	/// let bv2 = bitvec![1; 4];
 	///
-	/// let s = bv.splice(2 .. 4, bv2).collect::<BitVec<LittleEndian, u16>>();
+	/// let s = bv.splice(2 .. 4, bv2).collect::<BitVec>();
 	/// assert_eq!(s.len(), 2);
 	/// assert!(!s[0]);
 	/// assert_eq!(bv, bitvec![0, 0, 1, 1, 1, 1, 0, 0]);
@@ -1638,20 +1759,10 @@ where C: Cursor, T: Bits {
 	}
 }
 
-/// Copies a `BitSlice` into an owned `BitVec`.
-///
-/// The idiomatic `BitSlice` to `BitVec` conversion is `BitSlice::to_owned`, but
-/// just as `&[T].into()` yields a `Vec`, `&BitSlice.into()` yields a `BitVec`.
 impl<C, T> From<&BitSlice<C, T>> for BitVec<C, T>
 where C: Cursor, T: Bits {
 	fn from(src: &BitSlice<C, T>) -> Self {
-		let (_, elts, head, tail) = src.bitptr().raw_parts();
-		let v: Vec<T> = src.as_slice().to_owned();
-		let data = v.as_ptr();
-		let cap = v.capacity();
-		mem::forget(v);
-		let bp = BitPtr::new(data, elts, head, tail);
-		unsafe { Self::from_raw_parts(bp, cap) }
+		Self::from_bitslice(src)
 	}
 }
 
@@ -1708,7 +1819,7 @@ where C: Cursor, T: Bits {
 	/// assert!(bv[14]);
 	/// ```
 	fn from(src: &[T]) -> Self {
-		<&BitSlice<C, T>>::from(src).to_owned()
+		Self::from_slice(src)
 	}
 }
 
@@ -1757,52 +1868,15 @@ where C: Cursor, T: Bits {
 /// worry about using the correct cursor type.
 impl<C, T> From<Vec<T>> for BitVec<C, T>
 where C: Cursor, T: Bits {
-	/// Consumes a `Vec<T: Bits>` and creates a `BitVec<C: Cursor, T>` from it.
-	///
-	/// # Parameters
-	///
-	/// - `src`: The source vector whose memory will be used.
-	///
-	/// # Returns
-	///
-	/// A new `BitVec` using the `src` `Vec`’s memory.
-	///
-	/// # Panics
-	///
-	/// Panics if the source vector would cause the `BitVec` to overflow
-	/// capacity.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let src: Vec<u8> = vec![1, 2, 4, 8];
-	/// let bv: BitVec = src.into();
-	/// assert_eq!(
-	///   "[00000001, 00000010, 00000100, 00001000]",
-	///   &format!("{}", bv),
-	/// );
-	/// ```
 	fn from(src: Vec<T>) -> Self {
-		assert!(src.len() < BitPtr::<T>::MAX_ELTS, "Vector overflow");
-		let (ptr, len, cap) = (src.as_ptr(), src.len(), src.capacity());
-		mem::forget(src);
-		Self {
-			_cursor: PhantomData,
-			pointer: BitPtr::new(ptr, len, 0, T::BITS),
-			capacity: cap,
-		}
+		Self::from_vec(src)
 	}
 }
 
 impl<C, T> Into<Vec<T>> for BitVec<C, T>
 where C: Cursor, T: Bits {
 	fn into(self) -> Vec<T> {
-		let (pointer, capacity) = (self.pointer, self.capacity);
-		mem::forget(self);
-		let (ptr, len, _, _) = pointer.raw_parts();
-		unsafe { Vec::from_raw_parts(ptr as *mut T, len, capacity) }
+		self.into_vec()
 	}
 }
 

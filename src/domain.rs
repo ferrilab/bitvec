@@ -285,19 +285,23 @@ where T: 'a + Bits {
 			Bdk::Empty => BitDomainMut::Empty,
 			Bdk::Minor => BitDomainMut::Minor(h, &mut data[0], t),
 			Bdk::Major => {
-				let (head, body) = data.split_first_mut()
+				let (head, body) = data
+					.split_first_mut()
 					.expect("Major cannot fail to split head");
-				let (tail, body) = body.split_last_mut()
+				let (tail, body) = body
+					.split_last_mut()
 					.expect("Major cannot fail to split tail");
 				BitDomainMut::Major(h, head, body, tail, t)
 			},
 			Bdk::PartialHead => {
-				let (head, tail) = data.split_first_mut()
+				let (head, tail) = data
+					.split_first_mut()
 					.expect("PartialHead cannot fail to split");
 				BitDomainMut::PartialHead(h, head, tail)
 			},
 			Bdk::PartialTail => {
-				let (tail, head) = data.split_last_mut()
+				let (tail, head) = data
+					.split_last_mut()
 					.expect("PartialTail cannot fail to split");
 				BitDomainMut::PartialTail(head, tail, t)
 			},

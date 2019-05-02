@@ -17,6 +17,7 @@ use crate::{
 	domain::*,
 	pointer::BitPtr,
 };
+
 use core::{
 	cmp::{
 		Eq,
@@ -200,6 +201,127 @@ where C: Cursor, T: Bits {
 		BitPtr::empty().into()
 	}
 
+	/// Produces an immutable `BitSlice` over a single element.
+	///
+	/// # Parameters
+	///
+	/// - `elt`: A reference to an element over which the `BitSlice` will be
+	///   created.
+	///
+	/// # Returns
+	///
+	/// A `BitSlice` over the provided element.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let elt: u8 = !0;
+	/// let bs: &BitSlice = BitSlice::from_element(&elt);
+	/// assert!(bs.all());
+	/// ```
+	pub fn from_element(elt: &T) -> &Self {
+		BitPtr::new(elt, 1, 0, T::BITS).into()
+	}
+
+	/// Produces a mutable `BitSlice` over a single element.
+	///
+	/// # Parameters
+	///
+	/// - `elt`: A reference to an element over which the `BitSlice` will be
+	///   created.
+	///
+	/// # Returns
+	///
+	/// A `BitSlice` over the provided element.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut elt: u8 = !0;
+	/// let bs: &mut BitSlice = BitSlice::from_element_mut(&mut elt);
+	/// bs.set(0, false);
+	/// assert!(!bs.all());
+	/// ```
+	pub fn from_element_mut(elt: &mut T) -> &mut Self {
+		BitPtr::new(elt, 1, 0, T::BITS).into()
+	}
+
+	/// Wraps a `&[T: Bits]` in a `&BitSlice<C: Cursor, T>`. The endianness must
+	/// be specified at the call site. The element type cannot be changed.
+	///
+	/// # Parameters
+	///
+	/// - `src`: The elements over which the new `BitSlice` will operate.
+	///
+	/// # Returns
+	///
+	/// A `BitSlice` representing the original element slice.
+	///
+	/// # Panics
+	///
+	/// The source slice must not exceed the maximum number of elements that a
+	/// `BitSlice` can contain. This value is documented in [`BitPtr`].
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let src: &[u8] = &[1, 2, 3];
+	/// let bits: &BitSlice = src.into();
+	/// assert_eq!(bits.len(), 24);
+	/// assert_eq!(bits.as_ref().len(), 3);
+	/// assert!(bits[7]);  // src[0] == 0b0000_0001
+	/// assert!(bits[14]); // src[1] == 0b0000_0010
+	/// assert!(bits[22]); // src[2] == 0b0000_0011
+	/// assert!(bits[23]);
+	/// ```
+	///
+	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
+	pub fn from_slice(slice: &[T]) -> &Self {
+		BitPtr::new(slice.as_ptr(), slice.len(), 0, T::BITS).into()
+	}
+
+	/// Wraps a `&mut [T: Bits]` in a `&mut BitSlice<C: Cursor, T>`. The
+	/// endianness must be specified by the call site. The element type cannot
+	/// be changed.
+	///
+	/// # Parameters
+	///
+	/// - `src`: The elements over which the new `BitSlice` will operate.
+	///
+	/// # Returns
+	///
+	/// A `BitSlice` representing the original element slice.
+	///
+	/// # Panics
+	///
+	/// The source slice must not exceed the maximum number of elements that a
+	/// `BitSlice` can contain. This value is documented in [`BitPtr`].
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let src: &mut [u8] = &mut [1, 2, 3];
+	/// let bits: &mut BitSlice<LittleEndian, _> = src.into();
+	/// //  The first bit is the LSb of the first element.
+	/// assert!(bits[0]);
+	/// bits.set(0, false);
+	/// assert!(!bits[0]);
+	/// assert_eq!(bits.as_ref(), &[0, 2, 3]);
+	/// ```
+	///
+	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
+	pub fn from_slice_mut(slice: &mut [T]) -> &mut Self {
+		BitPtr::new(slice.as_ptr(), slice.len(), 0, T::BITS).into()
+	}
+
 	/// Returns the number of bits contained in the `BitSlice`.
 	///
 	/// # Parameters
@@ -267,8 +389,7 @@ where C: Cursor, T: Bits {
 	/// assert!(bv.first().unwrap());
 	/// ```
 	pub fn first(&self) -> Option<bool> {
-		if self.is_empty() { None }
-		else { Some(self[0]) }
+		self.get(0)
 	}
 
 	/// Returns the first and all the rest of the bits of the slice, or `None`
@@ -305,8 +426,12 @@ where C: Cursor, T: Bits {
 	/// assert!(t.is_empty());
 	/// ```
 	pub fn split_first(&self) -> Option<(bool, &Self)> {
-		if self.is_empty() { None }
-		else { Some((self[0], &self[1 ..])) }
+		if self.is_empty() {
+			None
+		}
+		else {
+			Some((self[0], &self[1 ..]))
+		}
 	}
 
 	/// Returns the first and all the rest of the bits of the slice, or `None`
@@ -324,8 +449,12 @@ where C: Cursor, T: Bits {
 	/// - the first bit
 	/// - a `&mut BitSlice` of all the rest of the bits (this may be empty)
 	pub fn split_first_mut(&mut self) -> Option<(bool, &mut Self)> {
-		if self.is_empty() { None }
-		else { Some((self[0], &mut self[1 ..])) }
+		if self.is_empty() {
+			None
+		}
+		else {
+			Some((self[0], &mut self[1 ..]))
+		}
 	}
 
 	/// Returns the last and all the rest of the bits in the slice, or `None`
@@ -361,7 +490,9 @@ where C: Cursor, T: Bits {
 	/// assert!(h.is_empty());
 	/// ```
 	pub fn split_last(&self) -> Option<(bool, &Self)> {
-		if self.is_empty() { None }
+		if self.is_empty() {
+			None
+		}
 		else {
 			let len = self.len();
 			Some((self[len - 1], &self[.. len - 1]))
@@ -383,7 +514,9 @@ where C: Cursor, T: Bits {
 	/// - the last bit
 	/// - a `&BitSlice` of all the rest of the bits (this may be empty)
 	pub fn split_last_mut(&mut self) -> Option<(bool, &mut Self)> {
-		if self.is_empty() { None }
+		if self.is_empty() {
+			None
+		}
 		else {
 			let len = self.len();
 			Some((self[len - 1], &mut self[.. len - 1]))
@@ -410,8 +543,12 @@ where C: Cursor, T: Bits {
 	/// assert!(bv.last().unwrap());
 	/// ```
 	pub fn last(&self) -> Option<bool> {
-		if self.is_empty() { None }
-		else { Some(self[self.len() - 1]) }
+		if self.is_empty() {
+			None
+		}
+		else {
+			Some(self[self.len() - 1])
+		}
 	}
 
 	/// Gets the bit value at the given position.
@@ -436,8 +573,12 @@ where C: Cursor, T: Bits {
 	/// assert!(bv.get(10).is_none());
 	/// ```
 	pub fn get(&self, index: usize) -> Option<bool> {
-		if index >= self.len() { None }
-		else { Some(self[index]) }
+		if index >= self.len() {
+			None
+		}
+		else {
+			Some(self[index])
+		}
 	}
 
 	/// Sets the bit value at the given position.
@@ -1024,15 +1165,7 @@ where C: Cursor, T: Bits {
 	/// Panics if `mid > self.len()`.
 	pub fn split_at_mut(&mut self, mid: usize) -> (&mut Self, &mut Self) {
 		let (head, tail) = self.split_at(mid);
-		let h_mut = {
-			let (p, e, h, t) = head.bitptr().raw_parts();
-			BitPtr::new(p, e, h, t)
-		};
-		let t_mut = {
-			let (p, e, h, t) = tail.bitptr().raw_parts();
-			BitPtr::new(p, e, h, t)
-		};
-		(h_mut.into(), t_mut.into())
+		(head.bitptr().into(), tail.bitptr().into())
 	}
 
 	/// Tests if the slice begins with the given prefix.
@@ -1234,7 +1367,7 @@ where C: Cursor, T: Bits {
 						return false;
 					}
 				}
-				return body.iter().all(|e| *e == T::from(!0));
+				return body.iter().all(|e| *e == !T::from(0));
 			},
 			BitDomain::PartialHead(h, head, body) => {
 				for n in *h .. T::BITS {
@@ -1242,7 +1375,7 @@ where C: Cursor, T: Bits {
 						return false;
 					}
 				}
-				return body.iter().all(|e| *e == T::from(!0));
+				return body.iter().all(|e| *e == !T::from(0));
 			},
 			BitDomain::PartialTail(body, tail, t) => {
 				for n in 0 .. *t {
@@ -1250,10 +1383,10 @@ where C: Cursor, T: Bits {
 						return false;
 					}
 				}
-				return body.iter().all(|e| *e == T::from(!0));
+				return body.iter().all(|e| *e == !T::from(0));
 			},
 			BitDomain::Spanning(body) => {
-				return body.iter().all(|e| *e == T::from(!0));
+				return body.iter().all(|e| *e == !T::from(0));
 			},
 		}
 		true
@@ -1467,23 +1600,39 @@ where C: Cursor, T: Bits {
 			},
 			BitDomain::Major(h, head, body, tail, t) => {
 				(*h .. T::BITS)
-					.map(|n| head.get::<C>(n.into())).filter(|b| *b).count() +
-				body.iter().map(T::count_ones).sum::<usize>() +
+					.map(|n| head.get::<C>(n.into()))
+					.filter(|b| *b)
+					.count() +
+				body.iter()
+					.map(T::count_ones)
+					.sum::<usize>() +
 				(0 .. *t)
-					.map(|n| tail.get::<C>(n.into())).filter(|b| *b).count()
+					.map(|n| tail.get::<C>(n.into()))
+					.filter(|b| *b)
+					.count()
 			},
 			BitDomain::PartialHead(h, head, body) => {
 				(*h .. T::BITS)
-					.map(|n| head.get::<C>(n.into())).filter(|b| *b).count() +
-				body.iter().map(T::count_ones).sum::<usize>()
+					.map(|n| head.get::<C>(n.into()))
+					.filter(|b| *b)
+					.count() +
+				body.iter()
+					.map(T::count_ones)
+					.sum::<usize>()
 			},
 			BitDomain::PartialTail(body, tail, t) => {
-				body.iter().map(T::count_ones).sum::<usize>() +
+				body.iter()
+					.map(T::count_ones)
+					.sum::<usize>() +
 				(0 .. *t)
-					.map(|n| tail.get::<C>(n.into())).filter(|b| *b).count()
+					.map(|n| tail.get::<C>(n.into()))
+					.filter(|b| *b)
+					.count()
 			},
 			BitDomain::Spanning(body) => {
-				body.iter().map(T::count_ones).sum::<usize>()
+				body.iter()
+					.map(T::count_ones)
+					.sum::<usize>()
 			}
 		}
 	}
@@ -1518,23 +1667,39 @@ where C: Cursor, T: Bits {
 			},
 			BitDomain::Major(h, head, body, tail, t) => {
 				(*h .. T::BITS)
-					.map(|n| head.get::<C>(n.into())).filter(|b| !*b).count() +
-				body.iter().map(T::count_zeros).sum::<usize>() +
+					.map(|n| head.get::<C>(n.into()))
+					.filter(|b| !*b)
+					.count() +
+				body.iter()
+					.map(T::count_zeros)
+					.sum::<usize>() +
 				(0 .. *t)
-					.map(|n| tail.get::<C>(n.into())).filter(|b| !*b).count()
+					.map(|n| tail.get::<C>(n.into()))
+					.filter(|b| !*b)
+					.count()
 			},
 			BitDomain::PartialHead(h, head, body) => {
 				(*h .. T::BITS)
-					.map(|n| head.get::<C>(n.into())).filter(|b| !*b).count() +
-				body.iter().map(T::count_zeros).sum::<usize>()
+					.map(|n| head.get::<C>(n.into()))
+					.filter(|b| !*b)
+					.count() +
+				body.iter()
+					.map(T::count_zeros)
+					.sum::<usize>()
 			},
 			BitDomain::PartialTail(body, tail, t) => {
-				body.iter().map(T::count_zeros).sum::<usize>() +
+				body.iter()
+					.map(T::count_zeros)
+					.sum::<usize>() +
 				(0 .. *t)
-					.map(|n| tail.get::<C>(n.into())).filter(|b| !*b).count()
+					.map(|n| tail.get::<C>(n.into()))
+					.filter(|b| !*b)
+					.count()
 			},
 			BitDomain::Spanning(body) => {
-				body.iter().map(T::count_zeros).sum::<usize>()
+				body.iter()
+					.map(T::count_zeros)
+					.sum::<usize>()
 			},
 		}
 	}
@@ -1856,7 +2021,7 @@ where C: Cursor, T: Bits {
 	/// # }
 	/// ```
 	fn to_owned(&self) -> Self::Owned {
-		self.into()
+		Self::Owned::from_bitslice(self)
 	}
 }
 
@@ -2061,44 +2226,26 @@ where C: Cursor, T: Bits {
 	}
 }
 
+impl<'a, C, T> From<&'a T> for &'a BitSlice<C, T>
+where C: Cursor, T: 'a + Bits {
+	fn from(src: &'a T) -> Self {
+		BitSlice::<C, T>::from_element(src)
+	}
+}
+
 /// Builds a `BitSlice` from a slice of elements. The resulting `BitSlice` will
 /// always completely fill the original slice.
 impl<'a, C, T> From<&'a [T]> for &'a BitSlice<C, T>
 where C: Cursor, T: 'a + Bits {
-	/// Wraps a `&[T: Bits]` in a `&BitSlice<C: Cursor, T>`. The endianness must
-	/// be specified at the call site. The element type cannot be changed.
-	///
-	/// # Parameters
-	///
-	/// - `src`: The elements over which the new `BitSlice` will operate.
-	///
-	/// # Returns
-	///
-	/// A `BitSlice` representing the original element slice.
-	///
-	/// # Panics
-	///
-	/// The source slice must not exceed the maximum number of elements that a
-	/// `BitSlice` can contain. This value is documented in [`BitPtr`].
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let src: &[u8] = &[1, 2, 3];
-	/// let bits: &BitSlice = src.into();
-	/// assert_eq!(bits.len(), 24);
-	/// assert_eq!(bits.as_ref().len(), 3);
-	/// assert!(bits[7]);  // src[0] == 0b0000_0001
-	/// assert!(bits[14]); // src[1] == 0b0000_0010
-	/// assert!(bits[22]); // src[2] == 0b0000_0011
-	/// assert!(bits[23]);
-	/// ```
-	///
-	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
 	fn from(src: &'a [T]) -> Self {
-		BitPtr::new(src.as_ptr(), src.len(), 0, T::BITS).into()
+		BitSlice::<C, T>::from_slice(src)
+	}
+}
+
+impl<'a, C, T> From<&'a mut T> for &'a mut BitSlice<C, T>
+where C: Cursor, T: 'a + Bits {
+	fn from(src: &'a mut T) -> Self {
+		BitSlice::<C, T>::from_element_mut(src)
 	}
 }
 
@@ -2106,40 +2253,8 @@ where C: Cursor, T: 'a + Bits {
 /// `BitSlice` will always completely fill the original slice.
 impl<'a, C, T> From<&'a mut [T]> for &'a mut BitSlice<C, T>
 where C: Cursor, T: 'a + Bits {
-	/// Wraps a `&mut [T: Bits]` in a `&mut BitSlice<C: Cursor, T>`. The
-	/// endianness must be specified by the call site. The element type cannot
-	/// be changed.
-	///
-	/// # Parameters
-	///
-	/// - `src`: The elements over which the new `BitSlice` will operate.
-	///
-	/// # Returns
-	///
-	/// A `BitSlice` representing the original element slice.
-	///
-	/// # Panics
-	///
-	/// The source slice must not exceed the maximum number of elements that a
-	/// `BitSlice` can contain. This value is documented in [`BitPtr`].
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let src: &mut [u8] = &mut [1, 2, 3];
-	/// let bits: &mut BitSlice<LittleEndian, _> = src.into();
-	/// //  The first bit is the LSb of the first element.
-	/// assert!(bits[0]);
-	/// bits.set(0, false);
-	/// assert!(!bits[0]);
-	/// assert_eq!(bits.as_ref(), &[0, 2, 3]);
-	/// ```
-	///
-	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
 	fn from(src: &'a mut [T]) -> Self {
-		BitPtr::new(src.as_ptr(), src.len(), 0, T::BITS).into()
+		BitSlice::<C, T>::from_slice_mut(src)
 	}
 }
 
@@ -2894,7 +3009,7 @@ where C: Cursor, T: 'a + Bits {
 			self.set(0, true);
 		}
 		let _ = Not::not(&mut *self);
-		let one: &[T] = &[T::from(!0)];
+		let one: &[T] = &[!T::from(0)];
 		let one_bs: &BitSlice<C, T> = one.into();
 		AddAssign::add_assign(&mut *self, &one_bs[.. 1]);
 		self
