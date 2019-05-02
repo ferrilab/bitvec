@@ -14,7 +14,6 @@ build:
 	cargo build --features {{features}} --example sieve
 	cargo build --features {{features}} --example tour
 	cargo build --features {{features}} --example serdes
-	cargo build --features {{features}} --example readme
 
 # Checks the library for syntax and HIR errors.
 check:
