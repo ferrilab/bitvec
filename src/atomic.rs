@@ -56,7 +56,10 @@ of synchronized read/modify/write sequences.
 
 #![cfg(feature = "atomic")]
 
-use crate::bits::BitPos;
+use crate::bits::{
+	BitPos,
+	Bits,
+};
 
 use core::sync::atomic::{
 	AtomicU8,
@@ -118,11 +121,11 @@ pub trait Atomic<Fundamental: Sized>: Sized {
 
 impl Atomic<u8> for AtomicU8 {
 	fn clear(&self, bit: BitPos) {
-		self.fetch_and(!(1 << *bit), Ordering::Relaxed);
+		self.fetch_and(!<u8 as Bits>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	fn set(&self, bit: BitPos) {
-		self.fetch_or(1 << *bit, Ordering::Relaxed);
+		self.fetch_or(<u8 as Bits>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	fn get(&self) -> u8 {
@@ -132,11 +135,11 @@ impl Atomic<u8> for AtomicU8 {
 
 impl Atomic<u16> for AtomicU16 {
 	fn clear(&self, bit: BitPos) {
-		self.fetch_and(!(1 << *bit), Ordering::Relaxed);
+		self.fetch_and(!<u16 as Bits>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	fn set(&self, bit: BitPos) {
-		self.fetch_or(1 << *bit, Ordering::Relaxed);
+		self.fetch_or(<u16 as Bits>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	fn get(&self) -> u16 {
@@ -146,11 +149,11 @@ impl Atomic<u16> for AtomicU16 {
 
 impl Atomic<u32> for AtomicU32 {
 	fn clear(&self, bit: BitPos) {
-		self.fetch_and(!(1 << *bit), Ordering::Relaxed);
+		self.fetch_and(!<u32 as Bits>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	fn set(&self, bit: BitPos) {
-		self.fetch_or(1 << *bit, Ordering::Relaxed);
+		self.fetch_or(<u32 as Bits>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	fn get(&self) -> u32 {
@@ -161,11 +164,11 @@ impl Atomic<u32> for AtomicU32 {
 #[cfg(target_pointer_width = "64")]
 impl Atomic<u64> for AtomicU64 {
 	fn clear(&self, bit: BitPos) {
-		self.fetch_and(!(1 << *bit), Ordering::Relaxed);
+		self.fetch_and(!<u64 as Bits>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	fn set(&self, bit: BitPos) {
-		self.fetch_or(1 << *bit, Ordering::Relaxed);
+		self.fetch_or(<u64 as Bits>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	fn get(&self) -> u64 {

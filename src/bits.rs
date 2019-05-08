@@ -175,7 +175,8 @@ pub trait Bits:
 	/// let mut elt: u8 = 0;
 	/// elt.set::<BigEndian>(8.into(), true);
 	/// ```
-	fn set<C: Cursor>(&mut self, place: BitIdx, value: bool) {
+	fn set<C>(&mut self, place: BitIdx, value: bool)
+	where C: Cursor {
 		self.set_at(C::at::<Self>(place), value)
 	}
 
@@ -231,10 +232,10 @@ pub trait Bits:
 		}
 		#[cfg(not(feature = "atomic"))] {
 			if value {
-				*self |= Self::from(1 << *place);
+				*self |= Self::mask_at(place);
 			}
 			else {
-				*self &= !Self::from(1 << *place);
+				*self &= !Self::mask_at(place);
 			}
 		}
 	}
@@ -278,7 +279,8 @@ pub trait Bits:
 	/// use bitvec::prelude::{Bits, BigEndian};
 	/// 0u8.get::<BigEndian>(8.into());
 	/// ```
-	fn get<C: Cursor>(&self, place: BitIdx) -> bool {
+	fn get<C>(&self, place: BitIdx) -> bool
+	where C: Cursor {
 		self.get_at(C::at::<Self>(place))
 	}
 
@@ -324,8 +326,23 @@ pub trait Bits:
 			*place,
 			Self::BITS,
 		);
-		//  Shift down so the targeted bit is in LSb, then blank all other bits.
-		(self.load() >> *place) & Self::from(1) == Self::from(1)
+		self.load() & Self::mask_at(place) != Self::from(0u8)
+	}
+
+	/// Produces the bit mask which selects only the bit at the requested
+	/// position.
+	///
+	/// This mask must be inverted in order to clear the bit.
+	///
+	/// # Parameters
+	///
+	/// - `place`: The bit position for which to create a bitmask.
+	///
+	/// # Returns
+	///
+	/// The one-hot encoding of the bit position index.
+	fn mask_at(place: BitPos) -> Self {
+		Self::from(1u8) << *place
 	}
 
 	/// Counts how many bits in `self` are set to `1`.

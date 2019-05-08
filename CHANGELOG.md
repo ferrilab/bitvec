@@ -4,6 +4,13 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+## 0.11.1
+
+Bugfix for [Issue #9], which revealed a severe logic error in the construction
+of bit masks in `Bits::set_at`.
+
+Thanks to GitHub user [@torce] for the bug report!
+
 ## 0.11.0
 
 This contains the last (planned) compiler version upgrade, to `1.34.0`, and the
@@ -43,28 +50,27 @@ a feature gate, `serde`, which depends on the `alloc` feature.
 
 ## 0.10.2
 
-Bugfix for [Issue #8](https://github.com/myrrlyn/bitvec/issues/8). This provides
-explicit implementations of the threading traits `Send` and `Sync`. These traits
-were formerly automatically implemented; the implementation change in `0.10.0`
-appears to have removed the automatic impls.
+Bugfix for [Issue #8]. This provides explicit implementations of the threading
+traits `Send` and `Sync`. These traits were formerly automatically implemented;
+the implementation change in `0.10.0` appears to have removed the automatic
+impls.
 
 `BitSlice` is both `Send` and `Sync`, as it is unowned memory. `BitBox` and
 `BitVec` are `Send` but not `Sync`, as they are owned memory.
 
-Thanks to GitHub user [@ratorx](https://github.com/ratorx) for the report!
+Thanks to GitHub user [@ratorx] for the report!
 
 ## 0.10.1
 
-Bugfix for [Issue #7](https://github.com/myrrlyn/bitvec/issues/7).
-`BitSlice::count_ones` and `BitSlice::count_zeros` counted the total number of
-bits present in a slice, not the number of bits set or unset, when operating
-inside a single element.
+Bugfix for [Issue #7]. `BitSlice::count_ones` and `BitSlice::count_zeros`
+counted the total number of bits present in a slice, not the number of bits set
+or unset, when operating inside a single element.
 
 The small case used `.map().count()`, but the large case correctly used
 `.map().filter().count()`. The missing `.filter()` call, to remove unset or set
 bits from the counting, was the cause of the bug.
 
-Thanks to GitHub user [@geq1t](https://github.com/geq1t) for the report!
+Thanks to GitHub user [@geq1t] for the report!
 
 ## 0.10.0
 
@@ -278,4 +284,10 @@ Initial implementation and release.
 - `BitVec` type with basic `Vec` idioms and parallel trait implementations
 - `bitvec!` generator macro
 
+[@geq1t]: https://github.com/geq1t
+[@ratorx]: https://github.com/ratorx
+[@torce]: https://github.com/torce
+[Issue #7]: https://github.com/myrrlyn/bitvec/issues/7
+[Issue #8]: https://github.com/myrrlyn/bitvec/issues/8
+[Issue #9]: https://github.com/myrrlyn/bitvec/issues/9
 [kac]: https://keepachangelog.com/en/1.0.0/

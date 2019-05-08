@@ -37,7 +37,6 @@ use alloc::{
 use core::{
 	clone::Clone,
 	cmp::{
-		self,
 		Eq,
 		Ord,
 		Ordering,
@@ -120,6 +119,7 @@ use std::{
 		ToOwned,
 	},
 	boxed::Box,
+	cmp,
 	io::{
 		self,
 		Write,
@@ -436,7 +436,11 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(bv.count_ones(), 2);
 	/// ```
 	pub fn from_element(elt: T) -> Self {
-		Self::from_vec(vec![elt])
+		Self::from_vec({
+			let mut v = Vec::with_capacity(1);
+			v.push(elt);
+			v
+		})
 	}
 
 	/// Constructs a `BitVec` from a slice of elements.
@@ -3038,7 +3042,7 @@ where C: Cursor, T: Bits {
 			*self += subtrahend;
 		}
 		else {
-			//  If the minuend is longer than the subtrahend, 1-extend the
+			//  If the minuend is longer than the subtrahend, sign-extend the
 			//  subtrahend.
 			if llen > rlen {
 				let diff = llen - rlen;
