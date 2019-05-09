@@ -22,11 +22,11 @@ use alloc::{
 	borrow::{
 		Borrow,
 		BorrowMut,
-		ToOwned,
 	},
 	boxed::Box,
 	vec::Vec,
 };
+
 use core::{
 	clone::Clone,
 	cmp::{
@@ -99,7 +99,6 @@ use std::{
 	borrow::{
 		Borrow,
 		BorrowMut,
-		ToOwned,
 	},
 	boxed::Box,
 	vec::Vec,
@@ -146,32 +145,20 @@ where C: Cursor, T: Bits {
 	/// # Returns
 	///
 	/// An empty `BitBox` at an arbitrary location.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bb: BitBox = BitBox::empty();
+	/// assert!(bb.is_empty());
+	/// ```
 	pub fn empty() -> Self {
 		Self {
 			_cursor: PhantomData,
 			pointer: BitPtr::empty(),
 		}
-	}
-
-	/// Copies a `BitSlice` into an owned `BitBox`.
-	///
-	/// # Parameters
-	///
-	/// - `src`: The `&BitSlice` to make owned.
-	///
-	/// # Returns
-	///
-	/// An owned clone of the given bit slice.
-	pub fn new(src: &BitSlice<C, T>) -> Self {
-		let store: Box<[T]> = src.as_ref().to_owned().into_boxed_slice();
-		let data = store.as_ptr();
-		let (_, elts, head, tail) = src.bitptr().raw_parts();
-		let out = Self {
-			_cursor: PhantomData,
-			pointer: BitPtr::new(data, elts, head, tail),
-		};
-		mem::forget(store);
-		out
 	}
 
 	/// Produces a `BitBox` from a single element.
@@ -190,7 +177,6 @@ where C: Cursor, T: Bits {
 	/// use bitvec::prelude::*;
 	///
 	/// let bb: BitBox<BigEndian, u16> = BitBox::from_element(!0);
-	/// eprintln!("{}", bb);
 	/// assert!(bb.all());
 	/// ```
 	pub fn from_element(elt: T) -> Self {
@@ -226,7 +212,7 @@ where C: Cursor, T: Bits {
 	/// ```
 	pub fn from_slice(slice: &[T]) -> Self {
 		assert!(slice.len() < BitPtr::<T>::MAX_ELTS, "Box overflow");
-		BitSlice::<C, T>::from_slice(slice).into()
+		BitVec::from_slice(slice).into_boxed_bitslice()
 	}
 
 	/// Clones a `&BitSlice` into a `BitBox`.
@@ -384,7 +370,8 @@ where C: Cursor, T: Bits {
 	///
 	/// # Returns
 	///
-	/// The raw pointer from inside the `BitBox`.
+	/// The slice formerly governed by the `BitBox`, which will never
+	/// deallocate.
 	///
 	/// [`BitBox::from_raw`]: #method.from_raw
 	pub fn leak<'a>(self) -> &'a mut BitSlice<C, T> {
@@ -512,49 +499,49 @@ where C: Cursor, T: Bits {}
 impl<C, T> Ord for BitBox<C, T>
 where C: Cursor, T: Bits {
 	fn cmp(&self, rhs: &Self) -> Ordering {
-		(&**self).cmp(&**rhs)
+		self.as_bitslice().cmp(rhs.as_bitslice())
 	}
 }
 
 impl<A, B, C, D> PartialEq<BitBox<C, D>> for BitBox<A, B>
 where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	fn eq(&self, rhs: &BitBox<C, D>) -> bool {
-		(&**self).eq(&**rhs)
+		self.as_bitslice().eq(rhs.as_bitslice())
 	}
 }
 
 impl<A, B, C, D> PartialEq<BitSlice<C, D>> for BitBox<A, B>
 where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	fn eq(&self, rhs: &BitSlice<C, D>) -> bool {
-		(&**self).eq(rhs)
+		self.as_bitslice().eq(rhs)
 	}
 }
 
 impl<A, B, C, D> PartialEq<BitBox<C, D>> for BitSlice<A, B>
 where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	fn eq(&self, rhs: &BitBox<C, D>) -> bool {
-		self.eq(&**rhs)
+		self.eq(rhs.as_bitslice())
 	}
 }
 
 impl<A, B, C, D> PartialOrd<BitBox<C, D>> for BitBox<A, B>
 where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	fn partial_cmp(&self, rhs: &BitBox<C, D>) -> Option<Ordering> {
-		(&**self).partial_cmp(&**rhs)
+		self.as_bitslice().partial_cmp(rhs.as_bitslice())
 	}
 }
 
 impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for BitBox<A, B>
 where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<Ordering> {
-		(&**self).partial_cmp(rhs)
+		self.as_bitslice().partial_cmp(rhs)
 	}
 }
 
 impl<A, B, C, D> PartialOrd<BitBox<C, D>> for BitSlice<A, B>
 where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	fn partial_cmp(&self, rhs: &BitBox<C, D>) -> Option<Ordering> {
-		self.partial_cmp(&**rhs)
+		self.partial_cmp(rhs.as_bitslice())
 	}
 }
 
@@ -568,7 +555,7 @@ where C: Cursor, T: Bits {
 impl<C, T> AsMut<[T]> for BitBox<C, T>
 where C: Cursor, T: Bits {
 	fn as_mut(&mut self) -> &mut [T] {
-		(&mut **self).as_mut()
+		self.as_mut_bitslice().as_mut()
 	}
 }
 
@@ -582,7 +569,7 @@ where C: Cursor, T: Bits {
 impl<C, T> AsRef<[T]> for BitBox<C, T>
 where C: Cursor, T: Bits {
 	fn as_ref(&self) -> &[T] {
-		(&**self).as_ref()
+		self.as_bitslice().as_ref()
 	}
 }
 
@@ -602,11 +589,8 @@ where C: Cursor, T: Bits {
 
 impl<C, T> From<BitVec<C, T>> for BitBox<C, T>
 where C: Cursor, T: Bits {
-	fn from(mut src: BitVec<C, T>) -> Self {
-		src.shrink_to_fit();
-		let pointer = src.bitptr();
-		mem::forget(src);
-		unsafe { Self::from_raw(pointer) }
+	fn from(src: BitVec<C, T>) -> Self {
+		src.into_boxed_bitslice()
 	}
 }
 
@@ -656,7 +640,7 @@ where C: Cursor, T: Bits {
 impl<C, T> Hash for BitBox<C, T>
 where C: Cursor, T: Bits {
 	fn hash<H: Hasher>(&self, hasher: &mut H) {
-		(&**self).hash(hasher)
+		self.as_bitslice().hash(hasher)
 	}
 }
 
@@ -679,7 +663,7 @@ where C: Cursor, T: 'a + Bits {
 	type IntoIter = <&'a BitSlice<C, T> as IntoIterator>::IntoIter;
 
 	fn into_iter(self) -> Self::IntoIter {
-		(&**self).into_iter()
+		self.as_bitslice().into_iter()
 	}
 }
 
