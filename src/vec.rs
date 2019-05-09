@@ -1660,14 +1660,21 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	/// assert_ne!(l.as_slice(), r.as_slice());
 	/// ```
 	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
-		<BitSlice<A, B> as PartialEq<BitSlice<C, D>>>::eq(&self, &rhs)
+		self.as_bitslice().eq(rhs.as_bitslice())
 	}
 }
 
 impl<A, B, C, D> PartialEq<BitSlice<C, D>> for BitVec<A, B>
 where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	fn eq(&self, rhs: &BitSlice<C, D>) -> bool {
-		rhs == self
+		self.as_bitslice().eq(rhs)
+	}
+}
+
+impl<A, B, C, D> PartialEq<&BitSlice<C, D>> for BitVec<A, B>
+where A: Cursor, B: Bits, C: Cursor, D: Bits {
+	fn eq(&self, rhs: &&BitSlice<C, D>) -> bool {
+		self.as_bitslice().eq(*rhs)
 	}
 }
 
@@ -1704,14 +1711,21 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	/// assert!(b < c);
 	/// ```
 	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<Ordering> {
-		<BitSlice<A, B> as PartialOrd<BitSlice<C, D>>>::partial_cmp(&self, &rhs)
+		self.as_bitslice().partial_cmp(rhs.as_bitslice())
 	}
 }
 
 impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for BitVec<A, B>
 where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<Ordering> {
-		rhs.partial_cmp(self)
+		self.as_bitslice().partial_cmp(rhs)
+	}
+}
+
+impl<A, B, C, D> PartialOrd<&BitSlice<C, D>> for BitVec<A, B>
+where A: Cursor, B: Bits, C: Cursor, D: Bits {
+	fn partial_cmp(&self, rhs: &&BitSlice<C, D>) -> Option<Ordering> {
+		self.as_bitslice().partial_cmp(*rhs)
 	}
 }
 
