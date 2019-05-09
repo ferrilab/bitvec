@@ -180,19 +180,21 @@ regime.
 **/
 #[repr(C)]
 #[derive(Clone, Copy, Eq, Hash, PartialEq, PartialOrd, Ord)]
-pub struct BitPtr<T>
+pub struct BitPtr<T = u8>
 where T: Bits {
 	_ty: PhantomData<T>,
-	/// Pointer to the first storage element of the slice.
+	/// Two-element bitfield structure, holding pointer and head information.
 	///
-	/// This will always be a pointer to one byte, regardless of the storage
-	/// type of the `BitSlice` or the type parameter of `Self`. It is a
-	/// combination of a correctly typed and aligned pointer to `T`, and the
-	/// index of a byte within that element.
+	/// This stores a pointer to the zeroth element of the slice, and the high
+	/// bits of the head bit cursor. It is typed as a `NonNull<u8>` in order to
+	/// provide null-value optimizations to `Option<BitPtr<T>>`, and because the
+	/// presence of head-bit cursor information in the lowest bits means the
+	/// bit pattern will not uphold alignment properties assumed by
+	/// `NonNull<T>`.
 	///
-	/// It is not necessarily the address of the byte with the first live bit.
-	/// The location of the first live bit within the first element is governed
-	/// by the [`Cursor`] type of the `BitSlice` using this structure.
+	/// This field cannot be treated as an address of the zeroth byte of the
+	/// slice domain, because the owning handle’s [`Cursor`] implementation
+	/// governs the bit pattern of the head cursor.
 	///
 	/// [`Cursor`]: ../trait.Cursor.html
 	ptr: NonNull<u8>,
@@ -211,12 +213,14 @@ where T: Bits {
 	/// The number of high bits in `self.ptr` that are actually the address of
 	/// the zeroth `T`.
 	pub const PTR_DATA_BITS: usize = PTR_BITS - Self::PTR_HEAD_BITS;
+
 	/// Marks the bits of `self.ptr` that are the `data` section.
 	pub const PTR_DATA_MASK: usize = !Self::PTR_HEAD_MASK;
 
 	/// The number of low bits in `self.ptr` that are the high bits of the head
 	/// `BitIdx` cursor.
 	pub const PTR_HEAD_BITS: usize = T::INDX as usize - Self::LEN_HEAD_BITS;
+
 	/// Marks the bits of `self.ptr` that are the `head` section.
 	pub const PTR_HEAD_MASK: usize = T::MASK as usize >> Self::LEN_HEAD_BITS;
 
@@ -226,29 +230,33 @@ where T: Bits {
 	/// This is always `3`, until Rust tries to target a machine whose bytes are
 	/// not eight bits wide.
 	pub const LEN_HEAD_BITS: usize = 0b0011;
+
 	/// Marks the bits of `self.len` that are the `head` section.
 	pub const LEN_HEAD_MASK: usize = 0b0111;
 
 	/// The number of middle bits in `self.len` that are the tail `BitIdx`
 	/// cursor.
 	pub const LEN_TAIL_BITS: usize = T::INDX as usize;
+
 	/// Marks the bits of `self.len` that are the `tail` section.
 	pub const LEN_TAIL_MASK: usize = (T::MASK as usize) << Self::LEN_HEAD_BITS;
 
 	/// The number of high bits in `self.len` that are used to count `T`
 	/// elements in the slice.
-	pub const LEN_DATA_BITS: usize = USZ_BITS - Self::LEN_INDX_BITS;
+	pub const LEN_ELTS_BITS: usize = USZ_BITS - Self::LEN_INDX_BITS;
+
 	/// Marks the bits of `self.len` that are the `data` section.
-	pub const LEN_DATA_MASK: usize = !Self::LEN_INDX_MASK;
+	pub const LEN_ELTS_MASK: usize = !Self::LEN_INDX_MASK;
 
 	/// The number of bits occupied by the `tail` `BitIdx` and the low 3 bits of
 	/// `head`.
 	pub const LEN_INDX_BITS: usize = Self::LEN_TAIL_BITS + Self::LEN_HEAD_BITS;
+
 	/// Marks the bits of `self.len` that are either `tail` or `head`.
 	pub const LEN_INDX_MASK: usize = Self::LEN_TAIL_MASK | Self::LEN_HEAD_MASK;
 
 	/// The maximum number of elements that can be stored in a `BitPtr` domain.
-	pub const MAX_ELTS: usize = 1 << Self::LEN_DATA_BITS;
+	pub const MAX_ELTS: usize = 1 << Self::LEN_ELTS_BITS;
 
 	/// The maximum number of bits that can be stored in a `BitPtr` domain.
 	pub const MAX_BITS: usize = !0 >> Self::LEN_HEAD_BITS;
@@ -429,8 +437,9 @@ where T: Bits {
 		else if elts == Self::MAX_ELTS - 1 {
 			assert!(
 				tail.is_valid::<T>(),
-				"BitPtr domains with maximum elements must have the tail \
+				"BitPtr domains with maximum elements must have the tail ({}) \
 				cursor in 1 .. {}",
+				*tail,
 				T::BITS,
 			);
 		}
@@ -816,7 +825,8 @@ where T: Bits {
 	///
 	/// - `Head: Into<BitIdx>`: A type which can be used as a semantic bit
 	/// index.
-	pub fn set_head<Head: Into<BitIdx>>(&mut self, head: Head) {
+	pub fn set_head<Head>(&mut self, head: Head)
+	where Head: Into<BitIdx> {
 		if self.is_empty() {
 			return;
 		}
@@ -861,6 +871,9 @@ where T: Bits {
 	/// solely responsible for owned memory, its conception of the allocation
 	/// will differ from the allocator’s.
 	pub unsafe fn incr_head(&mut self) {
+		if self.is_empty() {
+			return;
+		}
 		let (data, elts, head, tail) = self.raw_parts();
 		let (h, wrap) = head.incr::<T>();
 		if wrap {
@@ -888,6 +901,9 @@ where T: Bits {
 	/// solely responsible for owned memory, its conception of the allocation
 	/// will differ from the allocator’s.
 	pub unsafe fn decr_head(&mut self) {
+		if self.is_empty() {
+			return;
+		}
 		let (data, elts, head, tail) = self.raw_parts();
 		let (h, wrap) = head.decr::<T>();
 		if wrap {
@@ -909,7 +925,8 @@ where T: Bits {
 	///
 	/// - `Tail: Into<BitIdx>`: A type which can be used as a semantic bit
 	/// index.
-	pub fn set_tail<Tail: Into<BitIdx>>(&mut self, tail: Tail) {
+	pub fn set_tail<Tail>(&mut self, tail: Tail)
+	where Tail: Into<BitIdx> {
 		if self.is_empty() {
 			return;
 		}
@@ -970,6 +987,9 @@ where T: Bits {
 	/// responsible for owned memory, its conception of the allocation will
 	/// differ from the allocator’s.
 	pub unsafe fn decr_tail(&mut self) {
+		if self.is_empty() {
+			return;
+		}
 		let (data, elts, head, tail) = self.raw_parts();
 		let decr = BitIdx::from(*tail - 1);
 		let (mut new_tail, wrap) = decr.decr::<T>();
@@ -1087,12 +1107,12 @@ mod tests {
 	fn associated_consts_u8() {
 		assert_eq!(BitPtr::<u8>::PTR_DATA_BITS, PTR_BITS);
 		assert_eq!(BitPtr::<u8>::PTR_HEAD_BITS, 0);
-		assert_eq!(BitPtr::<u8>::LEN_DATA_BITS, USZ_BITS - 6);
+		assert_eq!(BitPtr::<u8>::LEN_ELTS_BITS, USZ_BITS - 6);
 		assert_eq!(BitPtr::<u8>::LEN_TAIL_BITS, 3);
 
 		assert_eq!(BitPtr::<u8>::PTR_DATA_MASK, !0);
 		assert_eq!(BitPtr::<u8>::PTR_HEAD_MASK, 0);
-		assert_eq!(BitPtr::<u8>::LEN_DATA_MASK, !0 << 6);
+		assert_eq!(BitPtr::<u8>::LEN_ELTS_MASK, !0 << 6);
 		assert_eq!(BitPtr::<u8>::LEN_TAIL_MASK, 7 << 3);
 		assert_eq!(BitPtr::<u8>::LEN_INDX_MASK, 63);
 	}
@@ -1101,12 +1121,12 @@ mod tests {
 	fn associated_consts_u16() {
 		assert_eq!(BitPtr::<u16>::PTR_DATA_BITS, PTR_BITS - 1);
 		assert_eq!(BitPtr::<u16>::PTR_HEAD_BITS, 1);
-		assert_eq!(BitPtr::<u16>::LEN_DATA_BITS, USZ_BITS - 7);
+		assert_eq!(BitPtr::<u16>::LEN_ELTS_BITS, USZ_BITS - 7);
 		assert_eq!(BitPtr::<u16>::LEN_TAIL_BITS, 4);
 
 		assert_eq!(BitPtr::<u16>::PTR_DATA_MASK, !0 << 1);
 		assert_eq!(BitPtr::<u16>::PTR_HEAD_MASK, 1);
-		assert_eq!(BitPtr::<u16>::LEN_DATA_MASK, !0 << 7);
+		assert_eq!(BitPtr::<u16>::LEN_ELTS_MASK, !0 << 7);
 		assert_eq!(BitPtr::<u16>::LEN_TAIL_MASK, 15 << 3);
 		assert_eq!(BitPtr::<u16>::LEN_INDX_MASK, 127);
 	}
@@ -1115,12 +1135,12 @@ mod tests {
 	fn associated_consts_u32() {
 		assert_eq!(BitPtr::<u32>::PTR_DATA_BITS, PTR_BITS - 2);
 		assert_eq!(BitPtr::<u32>::PTR_HEAD_BITS, 2);
-		assert_eq!(BitPtr::<u32>::LEN_DATA_BITS, USZ_BITS - 8);
+		assert_eq!(BitPtr::<u32>::LEN_ELTS_BITS, USZ_BITS - 8);
 		assert_eq!(BitPtr::<u32>::LEN_TAIL_BITS, 5);
 
 		assert_eq!(BitPtr::<u32>::PTR_DATA_MASK, !0 << 2);
 		assert_eq!(BitPtr::<u32>::PTR_HEAD_MASK, 3);
-		assert_eq!(BitPtr::<u32>::LEN_DATA_MASK, !0 << 8);
+		assert_eq!(BitPtr::<u32>::LEN_ELTS_MASK, !0 << 8);
 		assert_eq!(BitPtr::<u32>::LEN_TAIL_MASK, 31 << 3);
 		assert_eq!(BitPtr::<u32>::LEN_INDX_MASK, 255);
 	}
@@ -1129,12 +1149,12 @@ mod tests {
 	fn associated_consts_u64() {
 		assert_eq!(BitPtr::<u64>::PTR_DATA_BITS, PTR_BITS - 3);
 		assert_eq!(BitPtr::<u64>::PTR_HEAD_BITS, 3);
-		assert_eq!(BitPtr::<u64>::LEN_DATA_BITS, USZ_BITS - 9);
+		assert_eq!(BitPtr::<u64>::LEN_ELTS_BITS, USZ_BITS - 9);
 		assert_eq!(BitPtr::<u64>::LEN_TAIL_BITS, 6);
 
 		assert_eq!(BitPtr::<u64>::PTR_DATA_MASK, !0 << 3);
 		assert_eq!(BitPtr::<u64>::PTR_HEAD_MASK, 7);
-		assert_eq!(BitPtr::<u64>::LEN_DATA_MASK, !0 << 9);
+		assert_eq!(BitPtr::<u64>::LEN_ELTS_MASK, !0 << 9);
 		assert_eq!(BitPtr::<u64>::LEN_TAIL_MASK, 63 << 3);
 		assert_eq!(BitPtr::<u64>::LEN_INDX_MASK, 511);
 	}
