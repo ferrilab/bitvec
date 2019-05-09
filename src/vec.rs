@@ -528,13 +528,7 @@ where C: Cursor, T: Bits {
 	/// assert!(bv.some());
 	/// ```
 	pub fn from_bitslice(slice: &BitSlice<C, T>) -> Self {
-		let (elts, head, tail) = slice.bitptr().region_data();
-		let v: Vec<T> = slice.as_slice().to_owned();
-		let data = v.as_ptr();
-		let cap = v.capacity();
-		mem::forget(v);
-		let bp = BitPtr::new(data, elts, head, tail);
-		unsafe { Self::from_raw_parts(bp, cap) }
+		Self::from_iter(slice.iter())
 	}
 
 	/// Creates a new `BitVec<C, T>` directly from the raw parts of another.
