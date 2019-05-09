@@ -6,7 +6,7 @@
 ################################################################################
 
 # Cargo features
-features = "atomic,serde,std,testing"
+features = "atomic,serde,std"
 
 # Builds the library.
 build:
@@ -17,6 +17,7 @@ build:
 
 # Checks the library for syntax and HIR errors.
 check:
+	cargo check --no-default-features
 	cargo check --features {{features}}
 
 # Runs all of the recipes necessary for pre-publish.
@@ -32,6 +33,7 @@ clean:
 
 # Runs clippy.
 clippy: check
+	cargo clippy --no-default-features
 	cargo clippy --features {{features}}
 
 # Runs the development routines.
@@ -54,9 +56,9 @@ publish: checkout
 	cargo publish
 
 # Runs the test suites.
-test: check
+test: check clippy
 	cargo test --no-default-features
-	cargo test --features {{features}}
+	cargo test --features testing,{{features}}
 	cargo run --features {{features}} --example serdes
 	cargo run --features {{features}} --example sieve
 	cargo run --features {{features}} --example tour

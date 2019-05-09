@@ -4,13 +4,6 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
-## 0.11.1
-
-Bugfix for [Issue #9], which revealed a severe logic error in the construction
-of bit masks in `Bits::set_at`.
-
-Thanks to GitHub user [@torce] for the bug report!
-
 ## 0.11.0
 
 This contains the last (planned) compiler version upgrade, to `1.34.0`, and the
@@ -47,6 +40,39 @@ a feature gate, `serde`, which depends on the `alloc` feature.
   implementations. It now uses synchronized access to elements for write
   operations, to prevent race conditions between adjacent bit slices that
   overlap in an element.
+- The internal `BitPtr` representation had its bit pattern rules modified. There
+  is now only one empty-slice region representation, and the pointer is able to
+  index one more element than it previously could. In addition, `BitPtr::tail()`
+  produces `0` when empty, rather than `T::BITS`, allowing for more correct
+  values in `serde`.
+
+### Removed
+
+- The methods `set_head`, `set_tail`, `head_elt`, `body_elts`, and `tail_elt`
+  have been removed from `BitPtr`; the first two were unused and dangerous, and
+  the latter three were superseded by the `domain` module.
+
+### Issues Resolved
+
+- [Issue #9] revealed a severe logic error in the construction of bit masks in
+  `Bits::set_at`. Thanks to GitHub user [@torce] for the bug report!
+- [Issue #10] revealed a logic error in the construction of bit vectors from bit
+  slices which did not begin at the front of an element.
+
+  `BitVec::from_bitslice` cloned the entire underlying `&[T]` of the source
+  `BitSlice`, which is incorrect, as `BitVec` currently cannot support offset
+  head cursors. The correct behavior is to use `<BitVec as FromIterator<bool>>`
+  to collect the source slice into a fresh `BitVec`.
+
+  It may be possible in the future to permit offset head cursors in `BitBox` and
+  `BitVec`.
+
+  Thanks to GitHub user [@overminder] for the bug report!
+- `BitSlice::set_all` had a bug where fully spanned elements were zeroed, rather
+  than filled with the requested bit. This was only detected when the
+  subtraction example in the `README` code sample broke. Resolution: add a
+  function to the `Bits` trait which fills an element with a bit, producing all
+  zero or all one.
 
 ## 0.10.2
 
@@ -285,9 +311,11 @@ Initial implementation and release.
 - `bitvec!` generator macro
 
 [@geq1t]: https://github.com/geq1t
+[@overminder]: https://github.com/overminder
 [@ratorx]: https://github.com/ratorx
 [@torce]: https://github.com/torce
 [Issue #7]: https://github.com/myrrlyn/bitvec/issues/7
 [Issue #8]: https://github.com/myrrlyn/bitvec/issues/8
 [Issue #9]: https://github.com/myrrlyn/bitvec/issues/9
+[Issue #10]: https://github.com/myrrlyn/bitvec/issues/10
 [kac]: https://keepachangelog.com/en/1.0.0/

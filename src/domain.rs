@@ -16,7 +16,7 @@ use crate::{
 };
 
 /// Variant markers for the kinds of domains.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub enum BitDomainKind {
 	/// Zero elements
 	Empty,
@@ -47,25 +47,25 @@ impl BitDomainKind {
 	pub fn is_spanning(self)     -> bool { self == BitDomainKind::Spanning    }
 }
 
-impl<T> From<BitPtr<T>> for BitDomainKind
+impl<T> From<&BitPtr<T>> for BitDomainKind
 where T: Bits {
-	fn from(bitptr: BitPtr<T>) -> Self {
+	fn from(bitptr: &BitPtr<T>) -> Self {
 		let (e, h, t) = bitptr.region_data();
 		let w = T::BITS;
 
 		match (e, *h, *t) {
 			//  Empty
-			(0, _, _)             => BitDomainKind::Empty,
+			(0, _, _)           => BitDomainKind::Empty,
 			//  Reaches both edges, for any number of elements
-			(_, 0, tc) if tc == w => BitDomainKind::Spanning,
+			(_, 0, t) if t == w => BitDomainKind::Spanning,
 			//  Reaches only the tail edge, for any number of elements
-			(_, _, tc) if tc == w => BitDomainKind::PartialHead,
+			(_, _, t) if t == w => BitDomainKind::PartialHead,
 			//  Reaches only the head edge, for any number of elements
-			(_, 0, _ )            => BitDomainKind::PartialTail,
+			(_, 0, _)           => BitDomainKind::PartialTail,
 			//  Reaches neither edge, for one element
-			(1, _, _)             => BitDomainKind::Minor,
+			(1, _, _)           => BitDomainKind::Minor,
 			//  Reaches neither edge, for multiple elements
-			(_, _, _ )            => BitDomainKind::Major,
+			(_, _, _ )          => BitDomainKind::Major,
 		}
 	}
 }

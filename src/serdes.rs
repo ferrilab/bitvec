@@ -239,11 +239,10 @@ mod tests {
 	fn empty() {
 		let slice = BitSlice::<BigEndian, u8>::empty();
 
-		//  TODO(myrrlyn): Refactor BitPtr impl so the empty slice is 0/0
-		assert_ser_tokens(&slice, bvtok![s 0, 0, 8, 0, U8]);
+		assert_ser_tokens(&slice, bvtok![s 0, 0, 0, 0, U8]);
 
 		#[cfg(any(feature = "alloc", feature = "std"))]
-		assert_de_tokens(&bitvec![], bvtok![ d 0, 0, 8, 0, U8 ]);
+		assert_de_tokens(&bitvec![], bvtok![ d 0, 0, 0, 0, U8 ]);
 	}
 
 	#[cfg(any(feature = "alloc", feature = "std"))]

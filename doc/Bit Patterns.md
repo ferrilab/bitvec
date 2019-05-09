@@ -31,28 +31,24 @@ LEu8  | HGFEDCBA PONMLKJI XWVUTSRQ fedcbaZY nmlkjihg vutsrqpo 3210zyxw /+987654
 `<BigEndian, u8>` and `<LittleEndian, u8>` will always have the same
 representation in memory on all machines. The wider cursors will not.
 
-# Pointer Representation
+## Pointer Representation
 
-Currently, the bitslice pointer uses the `len` field to address an individual
-bit in the slice. This means that all bitslices can address `usize::MAX` bits,
-regardless of the underlying storage fundamental. The bottom `3 <= n <= 6` bits
-of `len` address the bit in the fundamental, and the high bits address the
-fundamental in the slice.
+The bit region pointer allows addressing of any individual bit as the start and
+end points of the span. The region pointer does not have any `Cursor`
+information for mapping bit semantics onto bit positions; this is provided by
+the public handle types. The added information in the pointer representation
+reduces the bit-addressable span of a bit region to `usize::max_value() / 8`.
 
-The next representation of bitslice pointer will permit the data pointer to
-address any *byte*, regardless of fundamental type, and address any bit in that
-byte by storing the bit position in `len`. This reduces the bit storage capacity
-of bitslice from `usize::MAX` to `usize::MAX / 8`. 2<sup>29</sup> is still a
-very large number, so I do not anticipate 32-bit machines being too limited by
-this.
+2<sup>29 bits is still a very large number, so I do not anticipate 32-bit
+machines being overly constrained by this problem.
 
-This means that bitslice pointers will have the following representation, in C++
-because Rust lacks bitfield syntax.
+The logical structure of the bit region pointer is laid out roughly as follows,
+written in C++ as Rust does not have bitfield syntax:
 
 ```cpp
-template<typename T>
-struct WidePtr<T> {
-  size_t ptr_byte : __builtin_ctzll(alignof(T)); // 0 ... 3
+template <typename T>
+struct BitPtr {
+  size_t ptr_head : __builtin_ctzll(alignof(T)); // 0 ... 3
   size_t ptr_data : sizeof(T*) * 8
                   - __builtin_ctzll(alignof(T)); // 64 ... 61
 
@@ -68,51 +64,58 @@ So, for any storage fundamental, its bitslice pointer representation has:
 - the low `alignof` bits of the pointer for selecting a byte, and the rest of
   the pointer for selecting the fundamental. This is just a `*const u8` except
   the type remembers how to find the correctly aligned pointer.
-
 - the lowest 3 bits of the length counter for selecting the bit under the head
   pointer
-- the *next* (3 + log<sub>2</sub>(bit size)) bits of the length counter address
-  the final bit within the final *storage fundamental* of the slice.
-- the remaining high bits address the final *storage fundamental* of the slice,
+- the *next* (3 + log<sub>2</sub>(bit width)) bits of the length counter address
+  the first dead bit *after* the live span ends.
+- the remaining high bits index the final *storage fundamental* of the slice,
   counting from the correctly aligned address in the pointer.
 
-# Calculations
+## Value Patterns
 
-Given an arbitrary `WidePtr<T>` value,
+### Null Value
 
-- the initial `*const T` pointer is retrieved by masking away the low bits of
-  the `ptr` value
+The null value, `ptr: 0, len: 0` is reserved as an illegal value of `BitPtr<T>`
+so that it may be used as `Option<BitPtr<T>>::None`.
 
-- the number of `T` elements *between* the first and the last is found by taking
-  the `len` value, masking away the low bits, and shifting right/down.
+### Empty Slices
 
-- the number of `T` elements in the slice is found by taking the above and
-  adding one
+The empty slices all have *some* pointer value, and fully zeroed other fields.
+The canonical empty slice uses `NonNull::<T>::dangling()` as its pointer value,
+and empty vectors use their allocation address.
 
-- the address of the last `T` element in the slice is found by taking the
-  initial pointer, and adding the `T`-element-count to it
+### Inhabited Slices
 
-- the slot number of the first live bit in the slice is found by masking away
-  the high bits of `ptr` and shifting the result left/up by three, then adding
-  the low three bits of `len`
+For inhabited slices, `elts` contains the offset of the last inhabited element
+in the underlying region.
 
-# Values
+A slice with its head and tail in the same element will have an `elts` count of
+`0`. Since the `tail` count marks the first *unusable* bit, when `tail` is `0`
+then there are exactly `elts` elements in the domain; when `tail` is non-zero,
+there are `elts + 1` elements.
 
-## Uninhabited Domains
+A slice with `elts` at `0` *must* have a `tail` which is greater than both zero
+and `head`, in order to be considered inhabited.
 
-All pointers whose non-`data` members are fully zeroed are considered
-uninhabited. When the `data` member is the null pointer, then the slice is
-*empty*; when it is non-null, the slice points to a validly allocated region of
-memory and is merely uninhabited. This distinction is important for vectors.
+### Full Slices
 
-## Full Domains
+The full slices have `0` as their `head` value, and `!0` as their `tail` and
+`elts` values. This means that they will contain `1 << P - N` elements, where
+`P` is the local CPU word size and `N` is `3 + 3..=6`.
 
-The longest possible domain has `!0` as its `elts`, and `tail` values, and `0`
-as its `head` value.
+|Type |Word Size|Maximum Elements|
+|----:|--------:|---------------:|
+| `u8`|       64|       `1 << 58`|
+|`u16`|       64|       `1 << 57`|
+|`u32`|       64|       `1 << 56`|
+|`u64`|       64|       `1 << 55`|
+| `u8`|       32|       `1 << 24`|
+|`u16`|       32|       `1 << 23`|
+|`u32`|       32|       `1 << 22`|
+|`u64`|       32|       `1 << 21`|
 
-When `elts` and `tail` are both `!0`, then the `!0`th element has `!0 - 1` live
-bits. The final bit in the final element is a tombstone that cannot be used.
-This is a regrettable consequence of the need to distinguish between the nil and
-uninhabited slices.
+The final element in the slice is not able to use its final bit, as this would
+cause a `tail` value of `0`, incrementing `elts` from `!0` to `0`, becoming the
+empty slice.
 
 [base64]: https://en.wikipedia.org/wiki/Base64

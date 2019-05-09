@@ -211,7 +211,7 @@ where C: Cursor, T: Bits {
 	/// assert!(bv[14]);
 	/// ```
 	pub fn from_slice(slice: &[T]) -> Self {
-		assert!(slice.len() < BitPtr::<T>::MAX_ELTS, "Box overflow");
+		assert!(slice.len() <= BitPtr::<T>::MAX_ELTS, "Box overflow");
 		BitVec::from_slice(slice).into_boxed_bitslice()
 	}
 
@@ -267,7 +267,7 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(bb.len(), 32);
 	/// ```
 	pub fn from_boxed_slice(slice: Box<[T]>) -> Self {
-		assert!(slice.len() < BitPtr::<T>::MAX_ELTS, "Box overflow");
+		assert!(slice.len() <= BitPtr::<T>::MAX_ELTS, "Box overflow");
 		let out = Self {
 			_cursor: PhantomData,
 			pointer: BitPtr::new(slice.as_ptr(), slice.len(), 0, T::BITS)

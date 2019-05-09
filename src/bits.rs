@@ -495,6 +495,25 @@ pub trait Bits:
 		//  invert (0 becomes 1, 1 becomes 0), zero-extend, count ones
 		u64::count_ones((!self.load()).into()) as usize
 	}
+
+	/// Extends a single bit to fill the entire element.
+	///
+	/// # Parameters
+	///
+	/// - `bit`: The bit to extend.
+	///
+	/// # Returns
+	///
+	/// An element with all bits set to the input.
+	#[inline]
+	fn bits(bit: bool) -> Self {
+		if bit {
+			!Self::from(0)
+		}
+		else {
+			Self::from(0)
+		}
+	}
 }
 
 /** Newtype indicating a semantic index into an element.
@@ -584,7 +603,7 @@ impl BitIdx {
 	/// ```rust
 	/// # #[cfg(feature = "testing")] {
 	/// use bitvec::testing::BitIdx;
-	/// assert_eq!(BitIdx::from(3).incr::<u8>(), (4.into(), false));
+	/// assert_eq!(BitIdx::from(6).incr::<u8>(), (7.into(), false));
 	/// # }
 	/// ```
 	///
@@ -609,7 +628,80 @@ impl BitIdx {
 		(next.into(), next == 0)
 	}
 
-	/// Decrements a cursor to the previous value, wrapping if needed.
+	/// Increments a tail cursor to the next value, wrapping if needed.
+	///
+	/// Tail cursors have the domain `1 ..= T::BITS`, with the exception that
+	/// the tail of an empty domain is `0`. As such, it is valid for a tail to
+	/// increment *from* `0`, but will never return to it.
+	///
+	/// # Parameters
+	///
+	/// - `self`: The original tail cursor.
+	///
+	/// # Returns
+	///
+	/// - `Self`: An incremented tail cursor.
+	/// - `bool`: Marks whether the increment crossed an element boundary
+	///   (including from `0` to `1`).
+	///
+	/// # Type Parameters
+	///
+	/// - `T: Bits`: The storage type for which the increment will be
+	///   calculated.
+	///
+	/// # Panics
+	///
+	/// This method panics if `self` is outside the range `0 ..= T::BITS`, in
+	/// order to avoid index out of range errors.
+	///
+	/// # Examples
+	///
+	/// This example increments from zero.
+	///
+	/// ```rust
+	/// # #[cfg(feature = "testing")] {
+	/// use bitvec::testing::BitIdx;
+	/// assert_eq!(BitIdx::from(0).incr_tail::<u8>(), (1.into(), true));
+	/// # }
+	/// ```
+	///
+	/// This example increments inside an element.
+	///
+	/// ```rust
+	/// # #[cfg(feature = "testing")] {
+	/// use bitvec::testing::BitIdx;
+	/// assert_eq!(BitIdx::from(7).incr_tail::<u8>(), (8.into(), false));
+	/// # }
+	/// ```
+	///
+	/// This example increments at the high edge, and wraps to the next element.
+	///
+	/// ```rust
+	/// # #[cfg(feature = "testing")] {
+	/// use bitvec::testing::BitIdx;
+	/// assert_eq!(BitIdx::from(8).incr_tail::<u8>(), (1.into(), true));
+	/// # }
+	/// ```
+	pub fn incr_tail<T>(self) -> (Self, bool)
+	where T: Bits {
+		let val = self.load();
+		//  Permit 0 ..= T::BITS, rather than 1 ..= T::BITS, for the empty tail.
+		assert!(
+			val <= T::BITS,
+			"Index out of range: {} exceeds {}",
+			val,
+			T::BITS,
+		);
+		if val == T::BITS {
+			(1.into(), true)
+		}
+		else {
+			//  Signal wrap if the tail was empty
+			(val.wrapping_add(1).into(), val == 0)
+		}
+	}
+
+	/// Decrements a cursor to the prior value, wrapping if needed.
 	///
 	/// # Parameters
 	///
@@ -637,12 +729,11 @@ impl BitIdx {
 	/// ```rust
 	/// # #[cfg(feature = "testing")] {
 	/// use bitvec::testing::BitIdx;
-	/// assert_eq!(BitIdx::from(5).decr::<u8>(), (4.into(), false));
+	/// assert_eq!(BitIdx::from(1).decr::<u8>(), (0.into(), false));
 	/// # }
 	/// ```
 	///
-	/// This example decrements at the low edge, and wraps to the previous
-	/// element.
+	/// This example decrements at the low edge, and wraps to the prior element.
 	///
 	/// ```rust
 	/// # #[cfg(feature = "testing")] {
@@ -660,6 +751,80 @@ impl BitIdx {
 		);
 		let (prev, wrap) = val.overflowing_sub(1);
 		((prev & T::MASK).into(), wrap)
+	}
+
+	/// Decrements a tail cursor to the prior value, wrapping if needed.
+	///
+	/// Tail cursors have the domain `1 ..= T::BITS`. It is forbidden to
+	/// decrement the tail of an empty slice, so this method disallows tails of
+	/// value zero.
+	///
+	/// # Parameters
+	///
+	/// - `self`: The original tail cursor.
+	///
+	/// # Returns
+	///
+	/// - `Self`: A decremented tail cursor.
+	/// - `bool`: Marks whether the decrement crossed an element boundary (from
+	///   `1` to `T::BITS`).
+	///
+	/// # Type Parameters
+	///
+	/// - `T: Bits`: The storage type for which the decrement will be
+	///   calculated.
+	///
+	/// # Panics
+	///
+	/// This method panics if `self` is outside the range `1 ..= T::BITS`, in
+	/// order to avoid index out of range errors.
+	///
+	/// # Examples
+	///
+	/// This example demonstrates that the zero tail cannot decrement.
+	///
+	/// ```rust,should_panic
+	/// # #[cfg(feature = "testing")] {
+	/// use bitvec::testing::BitIdx;
+	/// BitIdx::from(0).decr_tail::<u8>();
+	/// # }
+	/// # #[cfg(not(feature = "testing"))]
+	/// # panic!("Keeping the test green even when this can't run");
+	/// ```
+	///
+	/// This example decrements inside an element.
+	///
+	/// ```rust
+	/// # #[cfg(feature = "testing")] {
+	/// use bitvec::testing::BitIdx;
+	/// assert_eq!(BitIdx::from(2).decr_tail::<u8>(), (1.into(), false));
+	/// # }
+	/// ```
+	///
+	/// This example decrements at the low edge, and wraps to the prior element.
+	///
+	/// ```rust
+	/// # #[cfg(feature = "testing")] {
+	/// use bitvec::testing::BitIdx;
+	/// assert_eq!(BitIdx::from(1).decr_tail::<u8>(), (8.into(), true));
+	/// # }
+	/// ```
+	pub fn decr_tail<T>(self) -> (Self, bool)
+	where T: Bits {
+		let val = self.load();
+		//  The empty tail cannot decrement.
+		assert!(
+			self.is_valid_tail::<T>(),
+			"Index out of range: {} departs 1 ..= {}",
+			val,
+			T::BITS,
+		);
+		if val == 1 {
+			(T::BITS.into(), true)
+		}
+		else {
+			(val.wrapping_sub(1).into(), false)
+		}
 	}
 
 	/// Finds the destination bit a certain distance away from a starting bit.

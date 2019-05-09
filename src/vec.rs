@@ -370,7 +370,11 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(bv.capacity(), 0);
 	/// ```
 	pub fn new() -> Self {
-		Default::default()
+		Self {
+			_cursor: PhantomData,
+			pointer: BitPtr::empty(),
+			capacity: 0,
+		}
 	}
 
 	/// Constructs a new, empty, `BitVec<T>` with the specified capacity.
@@ -501,7 +505,7 @@ where C: Cursor, T: Bits {
 	pub fn from_vec(vec: Vec<T>) -> Self {
 		let len = vec.len();
 		assert!(
-			len < BitPtr::<T>::MAX_ELTS,
+			len <= BitPtr::<T>::MAX_ELTS,
 			"Vector length {} overflows {}",
 			len,
 			BitPtr::<T>::MAX_ELTS,
@@ -621,7 +625,7 @@ where C: Cursor, T: Bits {
 	/// ```
 	pub fn capacity(&self) -> usize {
 		assert!(
-			self.capacity < BitPtr::<T>::MAX_ELTS,
+			self.capacity <= BitPtr::<T>::MAX_ELTS,
 			"Capacity {} overflows {}",
 			self.capacity,
 			BitPtr::<T>::MAX_ELTS,
@@ -656,9 +660,12 @@ where C: Cursor, T: Bits {
 	/// assert!(bv.capacity() >= 15);
 	/// ```
 	pub fn reserve(&mut self, additional: usize) {
+		let newlen = self.len() + additional;
 		assert!(
-			self.len() + additional < BitPtr::<T>::MAX_BITS,
-			"Capacity overflow",
+			newlen < BitPtr::<T>::MAX_BITS,
+			"Capacity overflow: {} exceeds {}",
+			newlen,
+			BitPtr::<T>::MAX_BITS,
 		);
 		//  Compute the number of additional elements needed to store the
 		//  requested number of additional bits.
@@ -699,7 +706,7 @@ where C: Cursor, T: Bits {
 		let newlen = self.len() + additional;
 		assert!(
 			newlen < BitPtr::<T>::MAX_BITS,
-			"Capacity overflow: {} overflows {}",
+			"Capacity overflow: {} exceeds {}",
 			newlen,
 			BitPtr::<T>::MAX_BITS,
 		);
@@ -765,7 +772,7 @@ where C: Cursor, T: Bits {
 			//  Find the new element count and tail position
 			let (e, t) = h.span::<T>(len);
 			//  And reset the pointer to use that span.
-			self.pointer = BitPtr::new(p, e, h, t);
+			self.pointer = unsafe { BitPtr::new_unchecked(p, e, h, t) };
 		}
 	}
 
@@ -871,10 +878,12 @@ where C: Cursor, T: Bits {
 			(e, t) => (e, t),
 		};
 		//  Add one to elts because the value in elts is the *offset* from the
-		//  first element, and `BitPtr` needs to know the total number of
+		//  first element, and `BitPtr` needs to know the *total* number of
 		//  elements in the span.
-		self.pointer = BitPtr::new(
+		self.pointer = BitPtr::new_unchecked(
 			ptr,
+			//  This is safe because `len` was checked above to fit in bounds,
+			//  and `elts` is computed from that.
 			(elts as usize).saturating_add(1),
 			head,
 			tail,
@@ -1554,12 +1563,15 @@ where C: Cursor, T: Bits {
 	/// - `R`: The return value from the called function or closure.
 	fn do_unto_vec<F, R>(&mut self, func: F) -> R
 	where F: FnOnce(&mut Vec<T>) -> R {
-		let (data, elts, head, tail) = self.pointer.raw_parts();
+		let (p, e, h, t) = self.pointer.raw_parts();
 		let mut v = unsafe {
-			Vec::from_raw_parts(data as *mut T, elts, self.capacity)
+			Vec::from_raw_parts(p as *mut T, e, self.capacity)
 		};
 		let out = func(&mut v);
-		self.pointer = BitPtr::new(v.as_ptr(), elts, head, tail);
+		//  The only change is that the pointer might relocate. The region data
+		//  will remain untouched. Vec guarantees it will never produce an
+		//  invalid pointer.
+		self.pointer = unsafe { BitPtr::new_unchecked(v.as_ptr(), e, h, t) };
 		self.capacity = v.capacity();
 		mem::forget(v);
 		out
@@ -1668,7 +1680,7 @@ where C: Cursor, T: Bits {
 		mem::forget(new_vec);
 		Self {
 			_cursor: PhantomData,
-			pointer: BitPtr::new(ptr, e, h, t),
+			pointer: unsafe { BitPtr::new_unchecked(ptr, e, h, t) },
 			capacity: cap,
 		}
 	}
@@ -1681,7 +1693,7 @@ where C: Cursor, T: Bits {
 		unsafe {
 			ptr::copy_nonoverlapping(from, to, elts);
 		}
-		self.pointer = BitPtr::new(to, elts, h, t);
+		self.pointer = unsafe { BitPtr::new_unchecked(to, elts, h, t) };
 	}
 }
 
@@ -1916,11 +1928,7 @@ where C: Cursor, T: Bits {
 impl<C, T> Default for BitVec<C, T>
 where C: Cursor, T: Bits {
 	fn default() -> Self {
-		Self {
-			_cursor: PhantomData,
-			pointer: BitPtr::default(),
-			capacity: 0,
-		}
+		Self::new()
 	}
 }
 
@@ -3067,7 +3075,6 @@ where C: Cursor, T: Bits {
 		if rlen > llen {
 			let diff = rlen - llen;
 			*self >>= diff;
-			*self += subtrahend;
 		}
 		else {
 			//  If the minuend is longer than the subtrahend, sign-extend the
@@ -3078,12 +3085,13 @@ where C: Cursor, T: Bits {
 				subtrahend >>= diff;
 				subtrahend[.. diff].set_all(sign);
 			}
-			let old = self.len();
-			*self += subtrahend;
-			//  If the subtraction emitted a carry, remove it.
-			if self.len() > old {
-				*self <<= 1;
-			}
+		}
+		let old = self.len();
+		eprintln!("subtra: {}", subtrahend);
+		*self += subtrahend;
+		//  If the subtraction emitted a carry, remove it.
+		if self.len() > old {
+			*self <<= 1;
 		}
 	}
 }

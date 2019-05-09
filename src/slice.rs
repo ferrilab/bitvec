@@ -342,7 +342,7 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(bv.len(), 8);
 	/// ```
 	pub fn len(&self) -> usize {
-		self.bitptr().bits()
+		self.bitptr().len()
 	}
 
 	/// Tests if the slice is empty.
@@ -1367,7 +1367,7 @@ where C: Cursor, T: Bits {
 						return false;
 					}
 				}
-				return body.iter().all(|e| *e == !T::from(0));
+				return body.iter().all(|e| *e == T::bits(true));
 			},
 			BitDomain::PartialHead(h, head, body) => {
 				for n in *h .. T::BITS {
@@ -1375,7 +1375,7 @@ where C: Cursor, T: Bits {
 						return false;
 					}
 				}
-				return body.iter().all(|e| *e == !T::from(0));
+				return body.iter().all(|e| *e == T::bits(true));
 			},
 			BitDomain::PartialTail(body, tail, t) => {
 				for n in 0 .. *t {
@@ -1383,10 +1383,10 @@ where C: Cursor, T: Bits {
 						return false;
 					}
 				}
-				return body.iter().all(|e| *e == !T::from(0));
+				return body.iter().all(|e| *e == T::bits(true));
 			},
 			BitDomain::Spanning(body) => {
-				return body.iter().all(|e| *e == !T::from(0));
+				return body.iter().all(|e| *e == T::bits(true));
 			},
 		}
 		true
@@ -1442,7 +1442,7 @@ where C: Cursor, T: Bits {
 						return true;
 					}
 				}
-				return body.iter().any(|e| *e != T::from(0));
+				return body.iter().any(|e| *e != T::bits(false));
 			},
 			BitDomain::PartialHead(h, head, body) => {
 				for n in *h .. T::BITS {
@@ -1450,7 +1450,7 @@ where C: Cursor, T: Bits {
 						return true;
 					}
 				}
-				return body.iter().any(|e| *e != T::from(0));
+				return body.iter().any(|e| *e != T::bits(false));
 			},
 			BitDomain::PartialTail(body, tail, t) => {
 				for n in 0 .. *t {
@@ -1458,10 +1458,10 @@ where C: Cursor, T: Bits {
 						return true;
 					}
 				}
-				return body.iter().any(|e| *e != T::from(0));
+				return body.iter().any(|e| *e != T::bits(false));
 			},
 			BitDomain::Spanning(body) => {
-				return body.iter().any(|e| *e != T::from(0));
+				return body.iter().any(|e| *e != T::bits(false));
 			},
 		}
 		false
@@ -1738,7 +1738,7 @@ where C: Cursor, T: Bits {
 					head.set::<C>(n.into(), value);
 				}
 				for elt in body {
-					*elt = T::from(0);
+					*elt = T::bits(value);
 				}
 				for n in 0 .. *t {
 					tail.set::<C>(n.into(), value);
@@ -1749,12 +1749,12 @@ where C: Cursor, T: Bits {
 					head.set::<C>(n.into(), value);
 				}
 				for elt in body {
-					*elt = T::from(0);
+					*elt = T::bits(value);
 				}
 			},
 			BitDomainMut::PartialTail(body, tail, t) => {
 				for elt in body {
-					*elt = T::from(0);
+					*elt = T::bits(value);
 				}
 				for n in 0 .. *t {
 					tail.set::<C>(n.into(), value);
@@ -1762,7 +1762,7 @@ where C: Cursor, T: Bits {
 			},
 			BitDomainMut::Spanning(body) => {
 				for elt in body {
-					*elt = T::from(0);
+					*elt = T::bits(value);
 				}
 			},
 		}
@@ -1855,97 +1855,6 @@ where C: Cursor, T: Bits {
 		let (ptr, len) = (bp.pointer() as *mut T, bp.elements());
 		//  Create a slice from them.
 		unsafe { slice::from_raw_parts_mut(ptr, len) }
-	}
-
-	/// Gets an immutable reference to the first element in the slice.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// Mutable reference to the first element, if and only if it is fully live.
-	pub fn head(&self) -> Option<&T> {
-		//  Transmute into the correct lifetime.
-		unsafe { mem::transmute(self.bitptr().head_elt()) }
-	}
-
-	/// Gets a mutable reference to the first element in the slice.
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`
-	///
-	/// # Returns
-	///
-	/// Reference to the first element, if and only if it is fully live.
-	pub fn head_mut(&mut self) -> Option<&mut T> {
-		unsafe { mem::transmute(self.bitptr().head_elt()) }
-	}
-
-	/// Gets an immutable reference to the fully-populated elements in the
-	/// slice.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// An immutable slice of all the full elements in the slice. This may be
-	/// empty, if the slice has zero, one, or two elements, which are not fully
-	/// live.
-	pub fn body(&self) -> &[T] {
-		let bitptr = self.bitptr();
-		let body = bitptr.body_elts();
-		unsafe { slice::from_raw_parts(body.as_ptr(), body.len()) }
-	}
-
-	/// Gets a mutable reference to the fully-populated elements in the slice.
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`
-	///
-	/// # Returns
-	///
-	/// A mutable slice of all the full elements in the slice. This may be
-	/// empty, if the slice has zero, one, or two elements, which are not fully
-	/// live.
-	pub fn body_mut(&mut self) -> &mut [T] {
-		let bitptr = self.bitptr();
-		let body = bitptr.body_elts();
-		unsafe {
-			slice::from_raw_parts_mut(body.as_ptr() as *mut T, body.len())
-		}
-	}
-
-	/// Gets an immutable reference to the last element in the slice.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// Reference to the last element, if and only if it is fully live.
-	pub fn tail(&self) -> Option<&T> {
-		//  Transmute into the correct lifetime.
-		unsafe { mem::transmute(self.bitptr().tail_elt()) }
-	}
-
-	/// Gets a mutable reference to the last element in the slice.
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`
-	///
-	/// # Returns
-	///
-	/// Mutable reference to the last element, if and only if it is fully live.
-	pub fn tail_mut(&mut self) -> Option<&mut T> {
-		unsafe { mem::transmute(self.bitptr().tail_elt()) }
 	}
 
 	/// Changes the cursor type of the slice handle.
@@ -2776,12 +2685,12 @@ where C: Cursor, T: Bits {
 		//  Find the number of elements contained in the new span, and the index
 		//  of the new tail.
 		let (new_elts, new_tail) = new_head.span::<T>(end - start);
-		BitPtr::new(
-			unsafe { data.offset(skip) },
+		unsafe { BitPtr::new_unchecked(
+			data.offset(skip),
 			new_elts,
 			new_head,
 			new_tail,
-		).into()
+		) }.into()
 	}
 }
 
@@ -3009,7 +2918,7 @@ where C: Cursor, T: 'a + Bits {
 			self.set(0, true);
 		}
 		let _ = Not::not(&mut *self);
-		let one: &[T] = &[!T::from(0)];
+		let one: &[T] = &[T::bits(true)];
 		let one_bs: &BitSlice<C, T> = one.into();
 		AddAssign::add_assign(&mut *self, &one_bs[.. 1]);
 		self

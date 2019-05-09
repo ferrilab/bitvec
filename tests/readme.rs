@@ -15,7 +15,8 @@ use bitvec::prelude::*;
 use std::iter::repeat;
 
 #[cfg(any(feature = "alloc", feature = "std"))]
-fn main() {
+#[test]
+fn readme() {
     let mut bv = bitvec![BigEndian, u8; 0, 1, 0, 1];
     bv.reserve(8);
     bv.extend(repeat(false).take(4).chain(repeat(true).take(4)));
@@ -60,9 +61,4 @@ fn main() {
     //  index 11
     assert_eq!(iter.next_back().unwrap(), true);
     assert_eq!(iter.len(), 10);
-}
-
-#[cfg(not(any(feature = "alloc", feature = "std")))]
-fn main() {
-	println!("This example only runs when an allocator is present");
 }
