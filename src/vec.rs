@@ -531,6 +531,23 @@ where C: Cursor, T: Bits {
 		Self::from_iter(slice.iter())
 	}
 
+	/// Converts a frozen `BitBox` allocation into a growable `BitVec`.
+	///
+	/// This does not copy or reallocate.
+	///
+	/// # Parameters
+	///
+	/// - `slice`: A `BitBox` to be thawed.
+	///
+	/// # Returns
+	///
+	/// A growable collection over the original memory of the slice.
+	pub fn from_boxed_bitslice(slice: BitBox<C, T>) -> Self {
+		let bitptr = slice.bitptr();
+		mem::forget(slice);
+		unsafe { Self::from_raw_parts(bitptr, bitptr.elements()) }
+	}
+
 	/// Creates a new `BitVec<C, T>` directly from the raw parts of another.
 	///
 	/// # Parameters
@@ -1374,6 +1391,22 @@ where C: Cursor, T: Bits {
 		let (bp, cap) = (self.bitptr(), self.capacity);
 		mem::forget(self);
 		unsafe { BitVec::from_raw_parts(bp, cap) }
+	}
+
+	/// Degrades a `BitVec` to a `BitBox`, freezing its size.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// Itself, with its size frozen and ungrowable.
+	pub fn into_boxed_bitslice(self) -> BitBox<C, T> {
+		let pointer = self.bitptr();
+		//  Convert the Vec allocation into a Box<[T]> allocation
+		mem::forget(self.into_boxed_slice());
+		unsafe { BitBox::from_raw(pointer) }
 	}
 
 	/// Degrades a `BitVec` to a standard boxed slice.

@@ -251,14 +251,7 @@ where C: Cursor, T: Bits {
 	/// assert!(bb.some());
 	/// ```
 	pub fn from_bitslice(slice: &BitSlice<C, T>) -> Self {
-		let (elts, head, tail) = slice.bitptr().region_data();
-		let b: Box<[T]> = slice.as_ref().to_owned().into_boxed_slice();
-		let out = Self {
-			_cursor: PhantomData,
-			pointer: BitPtr::new(b.as_ptr(), elts, head, tail),
-		};
-		mem::forget(b);
-		out
+		BitVec::from_bitslice(slice).into_boxed_bitslice()
 	}
 
 	/// Produces a `BitBox` from an owned slice of elements.
