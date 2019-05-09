@@ -1,8 +1,12 @@
-/*! Bit Management
+/*! Bit management
 
-The `Bits` trait defines constants and free functions suitable for managing bit
-storage of a fundamental, and is the constraint for the storage type of the data
-structures of the rest of the crate.
+The `Bits` trait defines constants and associated functions suitable for
+managing the bit patterns of a fundamental, and is the constraint for the
+storage type of the data structures of the rest of the crate.
+
+The other types in this module provide stronger rules about how indices map to
+concrete bits in fundamental elements. They are implementation details, and are
+not exported in the prelude.
 !*/
 
 use crate::cursor::Cursor;
@@ -84,22 +88,24 @@ pub trait Bits:
 	+ Sync
 	+ UpperHex
 {
-	/// The size, in bits, of this type.
+	/// The width, in bits, of this type.
 	const BITS: u8 = size_of::<Self>() as u8 * 8;
 
-	/// The number of bits required to index the type. This is always
-	/// log<sub>2</sub> of the type’s bit size.
+	/// The number of bits required to index a bit inside the type. This is
+	/// always log<sub>2</sub> of the type’s bit width.
 	const INDX: u8 = Self::BITS.trailing_zeros() as u8;
 
-	/// The bitmask to turn an arbitrary `usize` into a bit index. Bit indices
+	/// The bitmask to turn an arbitrary number into a bit index. Bit indices
 	/// are always stored in the lowest bits of an index value.
 	const MASK: u8 = Self::BITS - 1;
 
-	/// Name of the implementing type.
+	/// Name of the implementing type. This is only necessary until the compiler
+	/// stabilizes `type_name()`.
 	const TYPENAME: &'static str;
 
 	/// Atomic version of the storage type, to have properly fenced access.
 	#[cfg(feature = "atomic")]
+	#[doc(hidden)]
 	type Atom: Atomic<Self>;
 
 	/// Performs a synchronized load on the underlying element.
@@ -113,6 +119,7 @@ pub trait Bits:
 	/// The element referred to by the `self` reference, loaded synchronously
 	/// after any in-progress accesses have concluded.
 	#[cfg(feature = "atomic")]
+	#[inline(always)]
 	fn load(&self) -> Self {
 		let aptr = self as *const Self as *const Self::Atom;
 		unsafe { &*aptr }.get()
@@ -120,7 +127,7 @@ pub trait Bits:
 
 	/// Performs an unsynchronized load on the underlying element.
 	///
-	/// When atomic operations are absent, this is a standard dereference.
+	/// As atomic operations are unavailable, this is a standard dereference.
 	///
 	/// # Parameters
 	///
@@ -130,6 +137,7 @@ pub trait Bits:
 	///
 	/// The referent element.
 	#[cfg(not(feature = "atomic"))]
+	#[inline(always)]
 	fn load(&self) -> Self {
 		*self
 	}
@@ -158,14 +166,23 @@ pub trait Bits:
 	/// This example sets and unsets bits in a byte.
 	///
 	/// ```rust
-	/// use bitvec::prelude::{Bits, BigEndian};
-	/// let mut elt: u8 = 0;
-	/// elt.set::<BigEndian>(0.into(), true);
-	/// assert_eq!(elt, 0b1000_0000);
-	/// elt.set::<BigEndian>(4.into(), true);
-	/// assert_eq!(elt, 0b1000_1000);
-	/// elt.set::<BigEndian>(0.into(), false);
-	/// assert_eq!(elt, 0b0000_1000);
+	/// use bitvec::prelude::{
+	///   Bits,
+	///   BigEndian,
+	///   LittleEndian,
+	/// };
+	///
+	/// let mut elt: u16 = 0;
+	///
+	/// elt.set::<BigEndian>(1.into(), true);
+	/// assert_eq!(elt, 0b0100_0000__0000_0000);
+	/// elt.set::<LittleEndian>(1.into(), true);
+	/// assert_eq!(elt, 0b0100_0000__0000_0010);
+	///
+	/// elt.set::<BigEndian>(1.into(), false);
+	/// assert_eq!(elt, 0b0000_0000__0000_0010);
+	/// elt.set::<LittleEndian>(1.into(), false);
+	/// assert_eq!(elt, 0);
 	/// ```
 	///
 	/// This example overruns the index, and panics.
@@ -175,6 +192,7 @@ pub trait Bits:
 	/// let mut elt: u8 = 0;
 	/// elt.set::<BigEndian>(8.into(), true);
 	/// ```
+	#[inline(always)]
 	fn set<C>(&mut self, place: BitIdx, value: bool)
 	where C: Cursor {
 		self.set_at(C::at::<Self>(place), value)
@@ -215,12 +233,6 @@ pub trait Bits:
 	/// elt.set_at(8.into(), true);
 	/// ```
 	fn set_at(&mut self, place: BitPos, value: bool) {
-		assert!(
-			*place < Self::BITS,
-			"Index out of range: {} overflows {}",
-			*place,
-			Self::BITS,
-		);
 		#[cfg(feature = "atomic")] {
 			let aptr = self as *const Self as *const Self::Atom;
 			if value {
@@ -320,12 +332,6 @@ pub trait Bits:
 	/// 0u8.get_at(8.into());
 	/// ```
 	fn get_at(&self, place: BitPos) -> bool {
-		assert!(
-			*place < Self::BITS,
-			"Index out of range: {} overflows {}",
-			*place,
-			Self::BITS,
-		);
 		self.load() & Self::mask_at(place) != Self::from(0u8)
 	}
 
@@ -341,7 +347,80 @@ pub trait Bits:
 	/// # Returns
 	///
 	/// The one-hot encoding of the bit position index.
+	///
+	/// # Panics
+	///
+	/// This function panics if `place` is not less than `T::BITS`, in order to
+	/// avoid index out of range errors.
+	///
+	/// # Examples
+	///
+	/// This example produces the one-hot encodings for indices.
+	///
+	/// ```rust
+	/// use bitvec::prelude::Bits;
+	///
+	/// assert_eq!(u8::mask_at(0.into()), 0b0000_0001);
+	/// assert_eq!(u8::mask_at(1.into()), 0b0000_0010);
+	/// assert_eq!(u8::mask_at(2.into()), 0b0000_0100);
+	/// assert_eq!(u8::mask_at(3.into()), 0b0000_1000);
+	/// assert_eq!(u8::mask_at(4.into()), 0b0001_0000);
+	/// assert_eq!(u8::mask_at(5.into()), 0b0010_0000);
+	/// assert_eq!(u8::mask_at(6.into()), 0b0100_0000);
+	/// assert_eq!(u8::mask_at(7.into()), 0b1000_0000);
+	///
+	/// assert_eq!(u16::mask_at(8.into()),  0b0000_0001__0000_0000);
+	/// assert_eq!(u16::mask_at(9.into()),  0b0000_0010__0000_0000);
+	/// assert_eq!(u16::mask_at(10.into()), 0b0000_0100__0000_0000);
+	/// assert_eq!(u16::mask_at(11.into()), 0b0000_1000__0000_0000);
+	/// assert_eq!(u16::mask_at(12.into()), 0b0001_0000__0000_0000);
+	/// assert_eq!(u16::mask_at(13.into()), 0b0010_0000__0000_0000);
+	/// assert_eq!(u16::mask_at(14.into()), 0b0100_0000__0000_0000);
+	/// assert_eq!(u16::mask_at(15.into()), 0b1000_0000__0000_0000);
+	///
+	/// assert_eq!(u32::mask_at(16.into()), 1 << 16);
+	/// assert_eq!(u32::mask_at(24.into()), 1 << 24);
+	/// assert_eq!(u32::mask_at(31.into()), 1 << 31);
+	///
+	/// # #[cfg(target_pointer_width = "64")] {
+	/// assert_eq!(u64::mask_at(32.into()), 1 << 32);
+	/// assert_eq!(u64::mask_at(48.into()), 1 << 48);
+	/// assert_eq!(u64::mask_at(63.into()), 1 << 63);
+	/// # }
+	/// ```
+	///
+	/// These examples ensure that indices panic when out of bounds.
+	///
+	/// ```rust,should_panic
+	/// use bitvec::prelude::Bits;
+	/// u8::mask_at(8.into());
+	/// ```
+	///
+	/// ```rust,should_panic
+	/// use bitvec::prelude::Bits;
+	/// u16::mask_at(16.into());
+	/// ```
+	///
+	/// ```rust,should_panic
+	/// use bitvec::prelude::Bits;
+	/// u32::mask_at(32.into());
+	/// ```
+	///
+	/// ```rust,should_panic
+	/// # #[cfg(target_pointer_width = "64")] {
+	/// use bitvec::prelude::Bits;
+	/// u64::mask_at(64.into());
+	/// # }
+	/// ```
+	#[inline(always)]
 	fn mask_at(place: BitPos) -> Self {
+		assert!(
+			*place < Self::BITS,
+			"Index out of range: {} overflows {}",
+			*place,
+			Self::BITS,
+		);
+		//  Pad 1 to the correct width, then shift up to the correct bit place.
 		Self::from(1u8) << *place
 	}
 
@@ -413,7 +492,7 @@ pub trait Bits:
 	/// [`u64::count_ones`]: https://doc.rust-lang.org/stable/std/primitive.u64.html#method.count_ones
 	#[inline(always)]
 	fn count_zeros(&self) -> usize {
-		//  invert (0 become 1, 1 become 0), zero-extend, count ones
+		//  invert (0 becomes 1, 1 becomes 0), zero-extend, count ones
 		u64::count_ones((!self.load()).into()) as usize
 	}
 }
@@ -428,9 +507,10 @@ ordering. Values of `BitIdx` refer strictly to abstract ordering, and not to the
 actual position in an element, so `BitIdx(0)` is the first bit in an element,
 but is not required to be the electrical `LSb`, `MSb`, or any other.
 
-[`Cursor`]: ../trait.Cursor.html
+[`Cursor`]: ../cursor/trait.Cursor.html
 **/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[doc(hidden)]
 pub struct BitIdx(pub(crate) u8);
 
 impl BitIdx {
@@ -449,7 +529,9 @@ impl BitIdx {
 	/// # Type Parameters
 	///
 	/// - `T: Bits`: The storage type used to determine index validity.
-	pub fn is_valid<T: Bits>(self) -> bool {
+	#[inline]
+	pub fn is_valid<T>(self) -> bool
+	where T: Bits {
 		self.load() < T::BITS
 	}
 
@@ -468,7 +550,9 @@ impl BitIdx {
 	/// # Type Parameters
 	///
 	/// - `T: Bits`: The storage used to determine index tail validity.
-	pub fn is_valid_tail<T: Bits>(self) -> bool {
+	#[inline]
+	pub fn is_valid_tail<T>(self) -> bool
+	where T: Bits {
 		*self > 0 && *self <= T::BITS
 	}
 
@@ -512,14 +596,16 @@ impl BitIdx {
 	/// assert_eq!(BitIdx::from(7).incr::<u8>(), (0.into(), true));
 	/// # }
 	/// ```
-	pub fn incr<T: Bits>(self) -> (Self, bool) {
+	pub fn incr<T>(self) -> (Self, bool)
+	where T: Bits {
+		let val = self.load();
 		assert!(
 			self.is_valid::<T>(),
 			"Index out of range: {} overflows {}",
-			self.load(),
+			val,
 			T::BITS,
 		);
-		let next = (self.load()).wrapping_add(1) & T::MASK;
+		let next = val.wrapping_add(1) & T::MASK;
 		(next.into(), next == 0)
 	}
 
@@ -563,14 +649,16 @@ impl BitIdx {
 	/// use bitvec::testing::BitIdx;
 	/// assert_eq!(BitIdx::from(0).decr::<u8>(), (7.into(), true));
 	/// # }
-	pub fn decr<T: Bits>(self) -> (Self, bool) {
+	pub fn decr<T>(self) -> (Self, bool)
+	where T: Bits {
+		let val = self.load();
 		assert!(
 			self.is_valid::<T>(),
 			"Index out of range: {} overflows {}",
-			self.load(),
+			val,
 			T::BITS,
 		);
-		let (prev, wrap) = (self.load()).overflowing_sub(1);
+		let (prev, wrap) = val.overflowing_sub(1);
 		((prev & T::MASK).into(), wrap)
 	}
 
@@ -640,9 +728,10 @@ impl BitIdx {
 	/// # }
 	/// ```
 	///
-	/// [`Cursor`]: ../trait.Cursor.html
+	/// [`Cursor`]: ../cursor/trait.Cursor.html
 	/// [`ptr::offset`]: https://doc.rust-lang.org/stable/std/primitive.pointer.html#method.offset
-	pub fn offset<T: Bits>(self, by: isize) -> (isize, Self) {
+	pub fn offset<T>(self, by: isize) -> (isize, Self)
+	where T: Bits {
 		assert!(
 			self.load() < T::BITS,
 			"Index out of range: {} overflows {}",
@@ -713,7 +802,8 @@ impl BitIdx {
 	/// assert_eq!(BitIdx::from(0).span::<u8>(8), (1, 8.into()))
 	/// # }
 	/// ```
-	pub fn span<T: Bits>(self, len: usize) -> (usize, BitIdx) {
+	pub fn span<T>(self, len: usize) -> (usize, BitIdx)
+	where T: Bits {
 		//  Number of bits in the head *element*. Domain 32 .. 0.
 		let bits_in_head = (T::BITS - self.load()) as usize;
 		//  If there are `n` bits live between the head cursor (which marks the
@@ -767,10 +857,16 @@ impl Display for BitIdx {
 
 impl Deref for BitIdx {
 	type Target = u8;
-	fn deref(&self) -> &Self::Target { &self.0 } }
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
 
 impl DerefMut for BitIdx {
-	fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		&mut self.0
+	}
 }
 
 /** Newtype indicating a concrete index into an element.
@@ -781,9 +877,10 @@ an element rather than a semantic bit.
 `Cursor` implementors translate `BitIdx` values, which are semantic places, into
 `BitPos` values, which are concrete electrical positions.
 
-[`Cursor`]: ../trait.Cursor.html
+[`Cursor`]: ../cursor/trait.Cursor.html
 **/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[doc(hidden)]
 pub struct BitPos(u8);
 
 impl BitPos {
@@ -800,7 +897,8 @@ impl BitPos {
 	/// # Type Parameters
 	///
 	/// - `T: Bits`: The storage type used to determine position validity.
-	pub fn is_valid<T: Bits>(self) -> bool {
+	pub fn is_valid<T>(self) -> bool
+	where T: Bits {
 		self.load() < T::BITS
 	}
 }
@@ -827,11 +925,16 @@ impl Display for BitPos {
 
 impl Deref for BitPos {
 	type Target = u8;
-	fn deref(&self) -> &Self::Target { &self.0 }
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
 }
 
 impl DerefMut for BitPos {
-	fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		&mut self.0
+	}
 }
 
 impl Bits for u8 {
