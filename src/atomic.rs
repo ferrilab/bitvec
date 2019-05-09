@@ -1,4 +1,4 @@
-/*! Atomic Element Access
+/*! Atomic element access
 
 This module allows the `Bits` trait to access its storage elements as atomic
 variants, in order to ensure parallel consistency.
@@ -6,7 +6,7 @@ variants, in order to ensure parallel consistency.
 This is necessary because while individual bit domains are forbidden from
 parallel overlap by the Rust type system, CPUs do not have bit-level granularity
 (that is the whole *raison d’être* of this crate), and so adjacent bit domains
-that use the same storage element encounter race conditions.
+that use the same storage element may encounter race conditions.
 
 The sequence of operations needed to modify a single bit is:
 
@@ -43,15 +43,17 @@ bit being manipulated by `set`.
 > The Rust compiler (rightly) warns that use of a `static mut` item is a race
 > condition waiting to happen. However, `thread::spawn` requires `'static`
 > lifetimes, while other threading libraries do not. As there is no reason to
-> pull in another crate just for scoped threads, the `unsafe` use of
-> `static mut` remains as a demonstration.
+> pull in another crate just for scoped threads in an example, the `unsafe` use
+> of `static mut` remains as a demonstration.
 >
 > Note that there would be no race condition if the source array was two bytes,
 > and each thread receieved one of those bytes.
 
-This crate provides a trait, `Atomic`, which is implemented by the atomic types
+This module provides a trait, `Atomic`, which is implemented on the atomic types
 in the core library corresponding to each storage element, and enforces the use
-of synchronized read/modify/write sequences.
+of synchronized read/modify/write sequences. The module is feature-gated so that
+it may be removed on systems which lack either atomic instructions or the
+concurrency mechanisms needed to induce a race condition.
 !*/
 
 #![cfg(feature = "atomic")]
@@ -71,9 +73,9 @@ use core::sync::atomic::{
 #[cfg(target_pointer_width = "64")]
 use core::sync::atomic::AtomicU64;
 
-/** Atomic Element Access
+/** Atomic element access
 
-This is not part of the public API; it is an implementation detail of `Bits`,
+This is not part of the public API; it is an implementation detail of [`Bits`],
 which is public API but is not publicly implementable.
 
 This trait provides three methods, which the `Bits` trait uses to manipulate or
@@ -82,29 +84,34 @@ inspect storage items in a synchronized manner.
 # Type Parameters
 
 - `Fundamental`: This type is used to pass in to the trait what the underlying
-  fundamental type is, so that `.get()` can return it directly, rather than as
-  a set of trait bounds.
+  fundamental type is, so that `.get()` can return it directly. This is
+  necessary because there is no other way to inform Rust that two independent
+  trait implementation blocks are coupled.
 
 # Synchrony
 
 All access uses [`Relaxed`] ordering.
+
+[`Bits`]: ../bits/trait.Bits.html
 **/
-#[cfg_attr(not(feature = "std"), doc = "[`Relaxed`]: https://doc.rust-lang.org/core/sync/atomic/enum.Ordering.html#variant.Relaxed")]
-#[cfg_attr(feature = "std", doc = "[`Relaxed`]: https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html#variant.Relaxed")]
+#[cfg_attr(not(feature = "std"), doc = "[`Relaxed`]: https://doc.rust-lang.org/stable/core/sync/atomic/enum.Ordering.html#variant.Relaxed")]
+#[cfg_attr(feature = "std", doc = "[`Relaxed`]: https://doc.rust-lang.org/stable/std/sync/atomic/enum.Ordering.html#variant.Relaxed")]
 pub trait Atomic<Fundamental: Sized>: Sized {
-	/// Sets the bit at a position to `0`.
+	/// Sets the bit at some position to `0`.
 	///
 	/// # Parameters
 	///
 	/// - `&self`: This is able to be immutable, rather than mutable, because
 	///   the atomic type is a `Cell`-type wrapper.
 	/// - `bit`: The position in the element to set low.
+	#[inline(always)]
 	fn clear(&self, bit: BitPos);
 
-	/// Sets the bit at a position to `1`.
+	/// Sets the bit at some position to `1`.
 	///
 	/// - `&self`
 	/// - `bit`: The position in the element to set high.
+	#[inline(always)]
 	fn set(&self, bit: BitPos);
 
 	/// Gets the element underneath the atomic access.
@@ -116,46 +123,56 @@ pub trait Atomic<Fundamental: Sized>: Sized {
 	/// # Returns
 	///
 	/// The fundamental type underneath the atomic type.
+	#[inline(always)]
 	fn get(&self) -> Fundamental;
 }
 
 impl Atomic<u8> for AtomicU8 {
+	#[inline(always)]
 	fn clear(&self, bit: BitPos) {
 		self.fetch_and(!<u8 as Bits>::mask_at(bit), Ordering::Relaxed);
 	}
 
+	#[inline(always)]
 	fn set(&self, bit: BitPos) {
 		self.fetch_or(<u8 as Bits>::mask_at(bit), Ordering::Relaxed);
 	}
 
+	#[inline(always)]
 	fn get(&self) -> u8 {
 		self.load(Ordering::Relaxed)
 	}
 }
 
 impl Atomic<u16> for AtomicU16 {
+	#[inline(always)]
 	fn clear(&self, bit: BitPos) {
 		self.fetch_and(!<u16 as Bits>::mask_at(bit), Ordering::Relaxed);
 	}
 
+	#[inline(always)]
 	fn set(&self, bit: BitPos) {
 		self.fetch_or(<u16 as Bits>::mask_at(bit), Ordering::Relaxed);
 	}
 
+	#[inline(always)]
 	fn get(&self) -> u16 {
 		self.load(Ordering::Relaxed)
 	}
 }
 
 impl Atomic<u32> for AtomicU32 {
+	#[inline(always)]
 	fn clear(&self, bit: BitPos) {
 		self.fetch_and(!<u32 as Bits>::mask_at(bit), Ordering::Relaxed);
 	}
 
+	#[inline(always)]
 	fn set(&self, bit: BitPos) {
 		self.fetch_or(<u32 as Bits>::mask_at(bit), Ordering::Relaxed);
 	}
 
+	#[inline(always)]
 	fn get(&self) -> u32 {
 		self.load(Ordering::Relaxed)
 	}
@@ -163,14 +180,17 @@ impl Atomic<u32> for AtomicU32 {
 
 #[cfg(target_pointer_width = "64")]
 impl Atomic<u64> for AtomicU64 {
+	#[inline(always)]
 	fn clear(&self, bit: BitPos) {
 		self.fetch_and(!<u64 as Bits>::mask_at(bit), Ordering::Relaxed);
 	}
 
+	#[inline(always)]
 	fn set(&self, bit: BitPos) {
 		self.fetch_or(<u64 as Bits>::mask_at(bit), Ordering::Relaxed);
 	}
 
+	#[inline(always)]
 	fn get(&self) -> u64 {
 		self.load(Ordering::Relaxed)
 	}
