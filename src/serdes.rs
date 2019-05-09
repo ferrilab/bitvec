@@ -12,16 +12,17 @@ able to implement `Deserialize` as well.
 use crate::{
 	bits::Bits,
 	cursor::Cursor,
-	pointer::BitPtr,
 	slice::BitSlice,
 };
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 use crate::{
 	boxed::BitBox,
+	pointer::BitPtr,
 	vec::BitVec,
 };
 
+#[cfg(any(feature = "alloc", feature = "std"))]
 use core::{
 	cmp,
 	fmt::{
@@ -145,9 +146,12 @@ impl<'de, C, T> Deserialize<'de> for BitBox<C, T>
 where C: Cursor, T: 'de + Bits + Deserialize<'de> {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
-		deserializer.deserialize_struct("BitSet", &[
-			"elts", "head", "tail", "data",
-		], BitBoxVisitor::new())
+		deserializer
+			.deserialize_struct(
+				"BitSet",
+				&["elts", "head", "tail", "data"],
+				BitBoxVisitor::new(),
+			)
 	}
 }
 
@@ -199,9 +203,10 @@ mod tests {
 	use crate::prelude::*;
 	use serde_test::{
 		Token,
-		assert_de_tokens,
 		assert_ser_tokens,
 	};
+	#[cfg(any(feature = "alloc", feature = "std"))]
+	use serde_test::assert_de_tokens;
 
 	macro_rules! bvtok {
 		( s $elts:expr, $head:expr, $tail:expr, $len:expr, $ty:ident $( , $data:expr )* ) => {
@@ -233,15 +238,18 @@ mod tests {
 	#[test]
 	fn empty() {
 		let slice = BitSlice::<BigEndian, u8>::empty();
+
 		//  TODO(myrrlyn): Refactor BitPtr impl so the empty slice is 0/0
 		assert_ser_tokens(&slice, bvtok![s 0, 0, 8, 0, U8]);
+
+		#[cfg(any(feature = "alloc", feature = "std"))]
 		assert_de_tokens(&bitvec![], bvtok![ d 0, 0, 8, 0, U8 ]);
 	}
 
+	#[cfg(any(feature = "alloc", feature = "std"))]
 	#[test]
 	fn small() {
 		let bv = bitvec![1; 5];
-		eprintln!("made vec");
 		let bs = &bv[1 ..];
 		assert_ser_tokens(&bs, bvtok![s 1, 1, 5, 1, U8, 0b1111_1000]);
 
@@ -252,6 +260,7 @@ mod tests {
 		assert_ser_tokens(&bb, bvtok![s 1, 0, 10, 1, U32, 0x00_00_03_FF]);
 	}
 
+	#[cfg(any(feature = "alloc", feature = "std"))]
 	#[test]
 	fn wide() {
 		let src: &[u8] = &[0, !0];
@@ -259,6 +268,7 @@ mod tests {
 		assert_ser_tokens(&(&bs[1 .. 15]), bvtok![s 2, 1, 7, 2, U8, 0, !0]);
 	}
 
+	#[cfg(any(feature = "alloc", feature = "std"))]
 	#[test]
 	fn deser() {
 		let bv = bitvec![0, 1, 1, 0, 1, 0];
