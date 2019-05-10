@@ -44,13 +44,18 @@ a feature gate, `serde`, which depends on the `alloc` feature.
   is now only one empty-slice region representation, and the pointer is able to
   index one more element than it previously could. In addition, `BitPtr::tail()`
   produces `0` when empty, rather than `T::BITS`, allowing for more correct
-  values in `serde`.
+  values in `serde` de/serialization.
 
 ### Removed
 
-- The methods `set_head`, `set_tail`, `head_elt`, `body_elts`, and `tail_elt`
-  have been removed from `BitPtr`; the first two were unused and dangerous, and
-  the latter three were superseded by the `domain` module.
+- `BitPtr::set_head` and `BitPtr::set_tail`: in practice, `::new` and
+  `::new_unchecked` were used at all potential use sites for these functions, as
+  they are more powerful and better validated.
+- `BitPtr::head_elt`, `BitPtr::body_elts`, and `BitPtr::tail_elt` were
+  superseded by the `domain` module. Their public use is better served by
+  the `AsRef` trait.
+- `BitPtr::is_full`: removed for being never used in the library, and not an
+  interesting query.
 
 ### Issues Resolved
 

@@ -22,6 +22,12 @@ will find all primes less than ten million, and print the primes below 625 in a
 square 25x25.
 !*/
 
+//  Impl notes: If this executable starts segfaulting, `BitPtr::len` might be
+//  the culprit. Replace the bare + and - in that function with .saturating_ops
+//  and see if that solves it.
+//
+//  Heisenbugs are weird.
+
 #[cfg(any(feature = "alloc", feature = "std"))]
 extern crate bitvec;
 
@@ -30,29 +36,32 @@ use bitvec::prelude::{
 	BitVec,
 	BigEndian,
 };
+
 #[cfg(any(feature = "alloc", feature = "std"))]
-use std::env;
+use std::{
+	cmp,
+	env,
+	iter,
+};
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 fn main() {
-	let max_prime: usize = env::args()
+	let max: usize = env::args()
 		.nth(1)
 		.unwrap_or("1000000".into())
 		.parse()
 		.unwrap_or(1_000_000);
 
 	let primes = {
-		let mut bv = BitVec::<BigEndian, u64>::with_capacity(max_prime);
-		bv.set_elements(!0u64);
-
-		//  Consider the vector fully populated
-		unsafe { bv.set_len(max_prime); }
+		let mut bv = iter::repeat(true)
+			.take(max)
+			.collect::<BitVec<BigEndian, u64>>();
 
 		//  0 and 1 are not primes
 		bv.set(0, false);
 		bv.set(1, false);
 
-		for n in 2 .. (1 + (max_prime as f64).sqrt() as usize) {
+		for n in 2 .. (1 + (max as f64).sqrt() as usize) {
 			//  Adjust the frequency of log statements vaguely logarithmically.
 			if n <  20_000 && n %  1_000 == 0
 			|| n <  50_000 && n %  5_000 == 0
@@ -61,13 +70,13 @@ fn main() {
 			}
 			//  If n is prime, mark all multiples as non-prime
 			if bv[n] {
-				if n < 50 {
+				if n < 100 {
 					println!("Calculating {}…", n);
 				}
 				'inner:
 				for i in n .. {
 					let j = n * i;
-					if j >= max_prime {
+					if j >= max {
 						break 'inner;
 					}
 					bv.set(j, false);
@@ -78,6 +87,11 @@ fn main() {
 
 		bv
 	};
+
+	if primes.not_any() {
+		println!("There are no primes smaller than {}", max);
+		std::process::exit(0);
+	}
 
 	//  Count primes and non-primes.
 	let (mut one, mut zero) = (0u64, 0u64);
@@ -90,7 +104,6 @@ fn main() {
 		}
 	}
 	println!("Counting complete!");
-	println!("There are {} primes and {} non-primes below {}", one, zero, max_prime);
 
 	let dim: usize = env::args()
 		.nth(2)
@@ -98,25 +111,43 @@ fn main() {
 		.parse()
 		.unwrap_or(10);
 
-	println!("The primes smaller than {} are:", dim * dim);
 	let len = primes.len();
+	let limit = cmp::min(dim * dim, len);
+	//  Find the widest number that will be printed, and get its width.
+	let cell_width = primes[.. limit]
+		.iter()
+		//  search from the back
+		.rev()
+		.enumerate()
+		//  stop at the first prime
+		.find(|(_, bit)| *bit)
+		//  ceil(log10) is the number of digits to print
+		.map(|(idx, _)| ((limit - 1 - idx) as f64).log(10.0).ceil() as usize)
+		.expect("Failed to find a prime.");
+
+	println!("There are {} primes and {} non-primes below {}", one, zero, max);
+	println!("The primes smaller than {} are:", limit);
 	'outer:
 	for i in 0 .. dim {
+		let h = i * dim;
+		if h >= limit {
+			break;
+		}
+		println!();
 		for j in 0 .. dim {
-			let k = i * dim + j;
-			if k >= len {
-				println!();
+			let k = h + j;
+			if k >= limit {
 				break 'outer;
 			}
 			if primes[k] {
-				print!("{:>4} ", k);
+				print!("{:>1$} ", k, cell_width);
 			}
 			else {
-				print!("     ");
+				print!("{:^1$} ", "-", cell_width);
 			}
 		}
-		println!();
 	}
+	println!();
 }
 
 #[cfg(not(any(feature = "alloc", feature = "std")))]

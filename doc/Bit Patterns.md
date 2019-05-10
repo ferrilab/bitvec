@@ -33,29 +33,94 @@ representation in memory on all machines. The wider cursors will not.
 
 ## Pointer Representation
 
-The bit region pointer allows addressing of any individual bit as the start and
-end points of the span. The region pointer does not have any `Cursor`
-information for mapping bit semantics onto bit positions; this is provided by
-the public handle types. The added information in the pointer representation
-reduces the bit-addressable span of a bit region to `usize::max_value() / 8`.
+The bit pointer type `BitPtr<T>` is the fundamental component of the library. It
+is a slice pointer with the capability to refine its concept of start and span
+to bit-level granularity, allowing it to “point to” a single bit and count how
+many bits after the pointed-to bit are included in the slice span.
 
-2<sup>29 bits is still a very large number, so I do not anticipate 32-bit
-machines being overly constrained by this problem.
+The naïve implementation of such a pointer might be
 
-The logical structure of the bit region pointer is laid out roughly as follows,
-written in C++ as Rust does not have bitfield syntax:
+```rust
+struct BitPtr<T> {
+  eltptr: *const T,
+  elts: usize,
+  first_bit: u8,
+  last_bit: u8,
+}
+```
+
+but this is three words wide, whereas a standard slice pointer is two. It also
+has many invalid states, as indices into a slice of any type are traditionally
+`usize`, and there only `usize::max_value() / 8` bytes in a fully widened bit
+slice.
+
+The next step might be for the struct to count bits, instead of elements, and
+compute how many elements are in its domain based on the first live bit in the
+slice and the count of all live bits. This eliminates the `last_bit` field,
+folding it into `elts` to become `bits`,
+
+```rust
+struct BitPtr<T> {
+  ptr: *const T,
+  bits: usize,
+  first_bit: u8,
+}
+```
+
+but the width problem remains.
+
+The (far too) clever solution is to fold the first-bit counter into the pointer
+and length fields. This was not a problem with the last-bit counter, because
+doing so brought the `bits` counter to match the indexing `usize` domain rather
+than being far too large for it. However, there is not space to hold the
+first-bit counter inside the other two elements!
+
+Not without sacrificing range, anyway.
+
+The naïve clever answer is to store both `last_bit` and `first_bit` in their
+entirety inside the `len` field. However, each bit counter is a minimum of three
+bits (indexing inside a `u8`) to a maximum of six bits (indexing inside a `u64`)
+wide. On 32-bit systems, a bit slice over `u32` would lose ten bits to bit
+tracking, but only had two bits to spare.
+
+The astute observer will note that all architectures “require” – more of a
+strongly prefer, but will grudgingly allow violation – pointers to be aligned to
+the width of their pointed type. That is, a pointer to a `u32` must have an
+address that is an even multiple of four, and so addresses like `6` or `102` are
+not valid places in memory for a `u32` to begin.
+
+That means that there is a bit available in the low end of the *pointer* for
+every power of 2 element size above a byte. Narrowing from a byte to a bit still
+requires three bits, which must be placed in the length field, but the low bits
+of the pointer are able to take the rest.
+
+> It so happens that pointers on x64 systems only use the low 48 bits of space,
+> and the high 16 bits are unused. Some environments use the empty high bits for
+> data storage, but this is risky as the high bits are considered “not used
+> YET”, and not “available for whatever use”. Also, MMUs tend to trap when those
+> bits are not zero.
+>
+> Also, this trick does not work on 32-bit systems.
+>
+> While `bitvec` *could* have used pointer-mangling on 32-bit and dead-region
+> storage on 64-bit, I made an executive decision that one sin was enough, and
+> two unnecessary.
+
+The end result of this packing scheme is that bit slice pointers will have the
+following representation, written in C++ because Rust does not have bitfield
+syntax.
 
 ```cpp
 template <typename T>
 struct BitPtr {
   size_t ptr_head : __builtin_ctzll(alignof(T)); // 0 ... 3
   size_t ptr_data : sizeof(T*) * 8
-                  - __builtin_ctzll(alignof(T)); // 64 ... 61
+                  - __builtin_ctzll(alignof(T)); // 64/32 ... 61/29
 
   size_t len_head : 3;
   size_t len_tail : 3 + __builtin_ctzll(alignof(T)); // 3 ... 6
   size_t len_data : sizeof(size_t) * 8
-                  - 6 - __builtin_ctzll(alignof(T)); // 58 ... 55
+                  - 6 - __builtin_ctzll(alignof(T)); // 58/26 ... 55/23
 };
 ```
 
@@ -66,10 +131,10 @@ So, for any storage fundamental, its bitslice pointer representation has:
   the type remembers how to find the correctly aligned pointer.
 - the lowest 3 bits of the length counter for selecting the bit under the head
   pointer
-- the *next* (3 + log<sub>2</sub>(bit width)) bits of the length counter address
-  the first dead bit *after* the live span ends.
-- the remaining high bits index the final *storage fundamental* of the slice,
-  counting from the correctly aligned address in the pointer.
+- the *next* log<sub>2</sub>(bit size) bits of the length counter index the
+  first *dead* bit *after* the slice ends.
+- the remaining high bits count how many total storage fundamentals are included
+  in the bit pointer domain.
 
 ## Value Patterns
 

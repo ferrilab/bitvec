@@ -89,9 +89,9 @@ use std::borrow::ToOwned;
 
 /** A compact slice of bits, whose cursor and storage types can be customized.
 
-`BitSlice` is a newtype wrapper over [`[()]`], with a specialized reference
-handle. As an unsized slice, it can only ever be held by reference. The
-reference type is **binary incompatible** with any other Rust slice handles.
+`BitSlice` is a specialized slice type, which can only ever be held by
+reference. The value patterns of its reference handles are opaque binary
+structures, which cannot be meaningfully inspected by user code.
 
 `BitSlice` can only be dynamically allocated by this library. Creation of any
 other `BitSlice` collections will result in catastrophically incorrect behavior.
@@ -148,7 +148,6 @@ is ***catastrophically*** unsafe and unsound.
 [`BitVec`]: ../struct.BitVec.html
 [`From`]: https://doc.rust-lang.org/stable/std/convert/trait.From.html
 [`bitvec!`]: ../macro.bitvec.html
-[`[()]`]: https://doc.rust-lang.org/stable/std/primitive.slice.html
 **/
 #[repr(transparent)]
 pub struct BitSlice<C = BigEndian, T = u8>
@@ -180,7 +179,7 @@ where C: Cursor, T: Bits {
 	/// let bv: &BitSlice = BitSlice::empty();
 	/// ```
 	pub fn empty<'a>() -> &'a Self {
-		BitPtr::empty().into()
+		BitPtr::empty().into_bitslice()
 	}
 
 	/// Produces the empty mutable slice. This is equivalent to `&mut []` for
@@ -198,7 +197,7 @@ where C: Cursor, T: Bits {
 	/// let bv: &mut BitSlice = BitSlice::empty_mut();
 	/// ```
 	pub fn empty_mut<'a>() -> &'a mut Self {
-		BitPtr::empty().into()
+		BitPtr::empty().into_bitslice_mut()
 	}
 
 	/// Produces an immutable `BitSlice` over a single element.
@@ -222,7 +221,7 @@ where C: Cursor, T: Bits {
 	/// assert!(bs.all());
 	/// ```
 	pub fn from_element(elt: &T) -> &Self {
-		BitPtr::new(elt, 1, 0, T::BITS).into()
+		BitPtr::new(elt, 1, 0, T::BITS).into_bitslice()
 	}
 
 	/// Produces a mutable `BitSlice` over a single element.
@@ -247,7 +246,7 @@ where C: Cursor, T: Bits {
 	/// assert!(!bs.all());
 	/// ```
 	pub fn from_element_mut(elt: &mut T) -> &mut Self {
-		BitPtr::new(elt, 1, 0, T::BITS).into()
+		BitPtr::new(elt, 1, 0, T::BITS).into_bitslice_mut()
 	}
 
 	/// Wraps a `&[T: Bits]` in a `&BitSlice<C: Cursor, T>`. The endianness must
@@ -283,7 +282,7 @@ where C: Cursor, T: Bits {
 	///
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
 	pub fn from_slice(slice: &[T]) -> &Self {
-		BitPtr::new(slice.as_ptr(), slice.len(), 0, T::BITS).into()
+		BitPtr::new(slice.as_ptr(), slice.len(), 0, T::BITS).into_bitslice()
 	}
 
 	/// Wraps a `&mut [T: Bits]` in a `&mut BitSlice<C: Cursor, T>`. The
@@ -319,7 +318,7 @@ where C: Cursor, T: Bits {
 	///
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
 	pub fn from_slice_mut(slice: &mut [T]) -> &mut Self {
-		BitPtr::new(slice.as_ptr(), slice.len(), 0, T::BITS).into()
+		BitPtr::new(slice.as_ptr(), slice.len(), 0, T::BITS).into_bitslice_mut()
 	}
 
 	/// Returns the number of bits contained in the `BitSlice`.
@@ -1165,7 +1164,7 @@ where C: Cursor, T: Bits {
 	/// Panics if `mid > self.len()`.
 	pub fn split_at_mut(&mut self, mid: usize) -> (&mut Self, &mut Self) {
 		let (head, tail) = self.split_at(mid);
-		(head.bitptr().into(), tail.bitptr().into())
+		(head.bitptr().into_bitslice_mut(), tail.bitptr().into_bitslice_mut())
 	}
 
 	/// Tests if the slice begins with the given prefix.
@@ -1872,7 +1871,7 @@ where C: Cursor, T: Bits {
 	/// - `D: Cursor` The new cursor type to use for the handle.
 	pub fn change_cursor<D>(&self) -> &BitSlice<D, T>
 	where D: Cursor {
-		self.bitptr().into()
+		self.bitptr().into_bitslice()
 	}
 
 	/// Changes the cursor type of the slice handle.
@@ -1890,7 +1889,7 @@ where C: Cursor, T: Bits {
 	/// - `D: Cursor` The new cursor type to use for the handle.
 	pub fn change_cursor_mut<D>(&mut self) -> &mut BitSlice<D, T>
 	where D: Cursor {
-		self.bitptr().into()
+		self.bitptr().into_bitslice_mut()
 	}
 
 	/// Accesses the underlying pointer structure.
@@ -1905,7 +1904,7 @@ where C: Cursor, T: Bits {
 	///
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
 	pub fn bitptr(&self) -> BitPtr<T> {
-		self.into()
+		BitPtr::from_bitslice(self)
 	}
 }
 
@@ -2195,11 +2194,9 @@ where C: Cursor, T: 'a + Bits {
 	/// assert_eq!(bv.as_ref(), store);
 	/// # }
 	/// ```
-	fn from(src: BitPtr<T>) -> Self { unsafe {
-		let (ptr, len) = src.bare_parts();
-		let store = slice::from_raw_parts(ptr, len);
-		&*(store as *const [()] as *const _)
-	} }
+	fn from(src: BitPtr<T>) -> Self {
+		src.into_bitslice()
+	}
 }
 
 /// Converts a `BitPtr` representation into a `BitSlice` handle.
@@ -2230,11 +2227,9 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(bv.as_ref(), store);
 	/// # }
 	/// ```
-	fn from(src: BitPtr<T>) -> Self { unsafe {
-		let (ptr, len) = src.bare_parts();
-		let store = slice::from_raw_parts_mut(ptr as *mut (), len);
-		&mut *(store as *mut [()] as *mut _)
-	} }
+	fn from(src: BitPtr<T>) -> Self {
+		src.into_bitslice_mut()
+	}
 }
 
 /// Prints the `BitSlice` for debugging.
@@ -2701,7 +2696,7 @@ where C: Cursor, T: Bits {
 		Range { start, end }: Range<usize>,
 	) -> &mut Self::Output {
 		//  Get an immutable slice, and then type-hack mutability back in.
-		(&self[start .. end]).bitptr().into()
+		(&self[start .. end]).bitptr().into_bitslice_mut()
 	}
 }
 

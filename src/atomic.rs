@@ -22,8 +22,8 @@ results in a race condition. The following snippet is an example:
 use bitvec::prelude::*;
 use std::thread;
 
-static mut src: [u8; 1] = [0];
-let bs: &mut BitSlice<BigEndian, u8> = (unsafe { &mut src as &mut [u8] }).into();
+static mut SRC: [u8; 1] = [0];
+let bs: &mut BitSlice<BigEndian, u8> = (unsafe { &mut SRC as &mut [u8] }).into();
 let (left, right) = bs.split_at_mut(4);
 let l = thread::spawn(move || {
   left.set(1, true);

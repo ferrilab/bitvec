@@ -507,12 +507,8 @@ pub trait Bits:
 	/// An element with all bits set to the input.
 	#[inline]
 	fn bits(bit: bool) -> Self {
-		if bit {
-			!Self::from(0)
-		}
-		else {
-			Self::from(0)
-		}
+		//  convert 0 to !0 and 1 to 0, then invert.
+		!Self::from((bit as u8).wrapping_sub(1))
 	}
 }
 
@@ -551,7 +547,7 @@ impl BitIdx {
 	#[inline]
 	pub fn is_valid<T>(self) -> bool
 	where T: Bits {
-		self.load() < T::BITS
+		*self < T::BITS
 	}
 
 	/// Checks if the index is valid as a tail index for a type.
@@ -617,7 +613,7 @@ impl BitIdx {
 	/// ```
 	pub fn incr<T>(self) -> (Self, bool)
 	where T: Bits {
-		let val = self.load();
+		let val = *self;
 		assert!(
 			self.is_valid::<T>(),
 			"Index out of range: {} overflows {}",
@@ -684,7 +680,7 @@ impl BitIdx {
 	/// ```
 	pub fn incr_tail<T>(self) -> (Self, bool)
 	where T: Bits {
-		let val = self.load();
+		let val = *self;
 		//  Permit 0 ..= T::BITS, rather than 1 ..= T::BITS, for the empty tail.
 		assert!(
 			val <= T::BITS,
@@ -742,7 +738,7 @@ impl BitIdx {
 	/// # }
 	pub fn decr<T>(self) -> (Self, bool)
 	where T: Bits {
-		let val = self.load();
+		let val = *self;
 		assert!(
 			self.is_valid::<T>(),
 			"Index out of range: {} overflows {}",
@@ -811,7 +807,7 @@ impl BitIdx {
 	/// ```
 	pub fn decr_tail<T>(self) -> (Self, bool)
 	where T: Bits {
-		let val = self.load();
+		let val = *self;
 		//  The empty tail cannot decrement.
 		assert!(
 			self.is_valid_tail::<T>(),
@@ -897,15 +893,16 @@ impl BitIdx {
 	/// [`ptr::offset`]: https://doc.rust-lang.org/stable/std/primitive.pointer.html#method.offset
 	pub fn offset<T>(self, by: isize) -> (isize, Self)
 	where T: Bits {
+		let val = *self;
 		assert!(
-			self.load() < T::BITS,
+			val < T::BITS,
 			"Index out of range: {} overflows {}",
-			self.load(),
+			val,
 			T::BITS,
 		);
 		//  If the `isize` addition does not overflow, then the sum can be used
 		//  directly.
-		if let (far, false) = by.overflowing_add(self.load() as isize) {
+		if let (far, false) = by.overflowing_add(val as isize) {
 			//  If `far` is in the domain `0 .. T::BITS`, then the offset did
 			//  not depart the element.
 			if far >= 0 && far < T::BITS as isize {
@@ -927,7 +924,7 @@ impl BitIdx {
 		//  because `isize -> usize` doubles the domain, but `self` is limited
 		//  to `0 .. T::BITS`.
 		else {
-			let far = self.load() as usize + by as usize;
+			let far = val as usize + by as usize;
 			//  This addition will always result in a `usize` whose lowest
 			//  `T::INDX` bits are the bit index in the destination element,
 			//  and the rest of the high bits (shifted down) are the number of
@@ -970,13 +967,13 @@ impl BitIdx {
 	pub fn span<T>(self, len: usize) -> (usize, BitIdx)
 	where T: Bits {
 		//  Number of bits in the head *element*. Domain 32 .. 0.
-		let bits_in_head = (T::BITS - self.load()) as usize;
+		let bits_in_head = (T::BITS - *self) as usize;
 		//  If there are `n` bits live between the head cursor (which marks the
 		//  address of the first live bit) and the back edge of the element,
 		//  then when `len <= n`, the span covers one element. When `len == n`,
 		//  the tail will be `T::BITS`, which is valid for a tail.
 		if len <= bits_in_head {
-			(1, (self.load() + len as u8).into())
+			(1, (*self + len as u8).into())
 		}
 		//  If there are more bits in the span than `n`, then subtract `n` from
 		//  `len` and use the difference to count elements and bits.

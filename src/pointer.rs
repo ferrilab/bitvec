@@ -15,6 +15,7 @@ use crate::{
 	domain::*,
 	slice::BitSlice,
 };
+
 use core::{
 	convert::{
 		AsMut,
@@ -28,17 +29,16 @@ use core::{
 		Formatter,
 	},
 	marker::PhantomData,
-	mem,
+	mem::size_of,
 	ptr::NonNull,
 	slice,
 };
 
-
 /// Width in bits of a pointer on the target machine.
-const PTR_BITS: usize = mem::size_of::<*const u8>() * 8;
+const PTR_BITS: usize = size_of::<*const u8>() * 8;
 
 /// Width in bits of a processor word on the target machine.
-const USZ_BITS: usize = mem::size_of::<usize>() * 8;
+const USZ_BITS: usize = size_of::<usize>() * 8;
 
 /** In-memory representation of `&BitSlice` handles.
 
@@ -50,8 +50,8 @@ counter fundamentals into sub-field components. Rust does not have bitfield
 syntax, so the below description of the element layout is in C++.
 
 ```cpp
-template<typename T>
-struct BitPtr<T> {
+template <typename T>
+struct BitPtr {
   size_t ptr_head : __builtin_ctzll(alignof(T));
   size_t ptr_data : sizeof(T*) * 8
                   - __builtin_ctzll(alignof(T));
@@ -126,18 +126,9 @@ The following value sets are edge cases of valid `BitPtr` structures.
 
 ## Empty Slice
 
-The empty slice is canonically represented by a wholly zeroed slot:
-
-- `data`: `core::ptr::null::<T>()`
-- `elts`: `0usize`
-- `head`: `0u8`
-- `tail`: `0u8`
-- `ptr`: `core::ptr::null::<u8>()`
-- `len`: `0usize`
-
-All `BitPtr` values whose `data` pointer is `null` represents the empty slice,
-regardless of other field contents, but the normalized form zeros all other
-fields also.
+The empty slice has all its fields zeroed except for the data pointer, which is
+any non-null pointer. The null pointer value is used to indicate
+`Option::<BitPtr<T>::None`.
 
 ## Allocated, Uninhabited, Slice
 
@@ -145,7 +136,7 @@ An allocated, owned, region of memory that is uninhabited. This is functionally
 the empty slice, but it must retain its pointer information. All other fields in
 the slot are zeroed.
 
-- `data`: (any valid `*const T`)
+- `data`: (any valid `*const T` other than `NonNull::<T>::dangling()`)
 - `elts`: `0usize`
 - `head`: `0u8`
 - `tail`: `0u8`
@@ -229,7 +220,7 @@ where T: Bits {
 	///
 	/// This is always `3`, until Rust tries to target a machine whose bytes are
 	/// not eight bits wide.
-	pub const LEN_HEAD_BITS: usize = 0b0011;
+	pub const LEN_HEAD_BITS: usize = 3;
 
 	/// Marks the bits of `self.len` that are the `head` section.
 	pub const LEN_HEAD_MASK: usize = 0b0111;
@@ -255,17 +246,19 @@ where T: Bits {
 	/// Marks the bits of `self.len` that are either `tail` or `head`.
 	pub const LEN_INDX_MASK: usize = Self::LEN_TAIL_MASK | Self::LEN_HEAD_MASK;
 
-	/// The maximum number of elements that can be stored in a `BitPtr` domain.
+	/// The inclusive maximum number of elements that can be stored in a
+	/// `BitPtr` domain.
 	pub const MAX_ELTS: usize = 1 << Self::LEN_ELTS_BITS;
 
-	/// The maximum number of bits that can be stored in a `BitPtr` domain.
+	/// The inclusive maximum number of bits that can be stored in a `BitPtr`
+	/// domain.
 	pub const MAX_BITS: usize = !0 >> Self::LEN_HEAD_BITS;
 
 	/// Produces an empty-slice representation.
 	///
 	/// This has no live bits, and has a dangling pointer. It is useful as a
 	/// default value (and is the function used by `Default`) to indicate
-	/// arbitrary null slices.
+	/// arbitrary empty slices.
 	///
 	/// # Returns
 	///
@@ -307,7 +300,9 @@ where T: Bits {
 		//  Null pointers are always well aligned.
 		assert!(
 			(ptr as usize).trailing_zeros() as usize >= Self::PTR_HEAD_BITS,
-			"BitPtr domain pointers must be well aligned",
+			"Pointer {:p} does not satisfy minimum alignment requirements {}",
+			ptr,
+			Self::PTR_HEAD_BITS,
 		);
 		Self {
 			_ty: PhantomData,
@@ -322,9 +317,11 @@ where T: Bits {
 	///
 	/// - `data`: A well-aligned pointer to a storage element. If this is null,
 	///   then the empty-slice representation is returned, regardless of other
-	///   parameter values.
+	///   argument values.
 	/// - `elts`: A number of storage elements in the domain of the new
-	///   `BitPtr`. This number must be in `0 .. Self::MAX_ELTS`.
+	///   `BitPtr`. This number must be in `0 .. Self::MAX_ELTS`. If it is zero,
+	///   then the empty-slice representation is returned, regardless of other
+	///   argument values.
 	/// - `head`: The bit index of the first live bit in the domain. This must
 	///   be in the domain `0 .. T::BITS`.
 	/// - `tail`: The bit index of the first dead bit after the domain. This
@@ -333,15 +330,14 @@ where T: Bits {
 	///   - in `head + 1 ..= T::BITS` when `elts` is `1` to create a
 	///     single-element slice.
 	///   - in `1 ..= T::BITS` when `elts` is greater than `1`.
-	///   - in `1 .. T::BITS` when `elts` is `Self::MAX_ELTS - 1`.
+	///   - in `1 .. T::BITS` when `elts` is `Self::MAX_ELTS`.
 	///
 	/// # Returns
 	///
-	/// If `data` is null, then the empty slice is returned.
+	/// If any of the following conditions are true, then an empty slice is
+	/// returned:
 	///
-	/// If either of the following conditions are true, then the uninhabited
-	/// slice is returned:
-	///
+	/// - `data` is the null pointer,
 	/// - `elts` is `0`,
 	/// - `elts` is `1` **and** `head` is equal to `tail`.
 	///
@@ -368,9 +364,9 @@ where T: Bits {
 	/// # Safety
 	///
 	/// The `data` pointer and `elts` counter must describe a correctly aligned,
-	/// validly allocated, region of memory. The caller is responsible for
-	/// ensuring that the slice of memory that the new `BitPtr` will govern is
-	/// all governable.
+	/// validly allocated, region of memory, or the canonical dangling pointer
+	/// and empty slice. The caller is responsible for ensuring that the slice
+	/// of memory that the new `BitPtr` will govern is all governable.
 	pub fn new<Head, Tail>(
 		data: *const T,
 		elts: usize,
@@ -379,6 +375,7 @@ where T: Bits {
 	) -> Self
 	where Head: Into<BitIdx>, Tail: Into<BitIdx> {
 		let (head, tail) = (head.into(), tail.into());
+
 		//  null pointers, and pointers to empty regions, are run through the
 		//  uninhabited constructor instead
 		if data.is_null() || elts == 0 || (elts == 1 && head == tail) {
@@ -399,16 +396,10 @@ where T: Bits {
 			Self::MAX_ELTS,
 		);
 
-		//  Check that the pointer is not so high in the address space that the
-		//  slice domain wraps.
-		if data.wrapping_add(elts) < data {
-			panic!("BitPtr slices MUST NOT wrap around the address space");
-		}
-
 		//  Check that the head cursor index is within the storage element.
 		assert!(
 			head.is_valid::<T>(),
-			"{} is outside the domain 0 .. {}",
+			"{} is outside the head domain 0 .. {}",
 			*head,
 			T::BITS,
 		);
@@ -416,7 +407,7 @@ where T: Bits {
 		//  Check that the tail cursor index is in the appropriate domain.
 		assert!(
 			tail.is_valid_tail::<T>(),
-			"{} is outside the domain 1 ..= {}",
+			"{} is outside the tail domain 1 ..= {}",
 			*tail,
 			T::BITS,
 		);
@@ -443,7 +434,7 @@ where T: Bits {
 		unsafe { Self::new_unchecked(data, elts, head, tail) }
 	}
 
-	/// Creates a new `BitPtr` from its components, without validity checks.
+	/// Creates a new `BitPtr<T>` from its components, without validity checks.
 	///
 	/// # Safety
 	///
@@ -470,14 +461,26 @@ where T: Bits {
 		head: BitIdx,
 		tail: BitIdx,
 	) -> Self {
-		//  All invariants satisfied; build the fields
+		//  This check cannot ever be elided. Check that the pointer is not so
+		//  high in the address space that the slice domain wraps.
+		assert!(
+			data.wrapping_add(elts) >= data,
+			"The region overflows the address space: {:p} + {:02X} is {:p}",
+			data,
+			elts,
+			data.wrapping_add(elts),
+		);
+
 		let ptr_data = data as usize & Self::PTR_DATA_MASK;
 		let ptr_head = *head as usize >> Self::LEN_HEAD_BITS;
 
-		//  If the tail is not maximal, subtract one element. If the tail is
-		//  maximal, leave the element count as-is.
+		//  If `tail` is not maximal, it will be wrapped to zero, and `elts`
+		//  will be incremented. Since `elts` is about to be unconditionally
+		//  decremented, the equivalent behavior is to not increment, and
+		//  decrement only if `tail` is not maximal.
 		let len_elts = elts.saturating_sub((*tail < T::BITS) as usize)
 			<< Self::LEN_INDX_BITS;
+
 		//  Store tail. Note that this wraps `T::BITS` to 0. This must be
 		//  reconstructed during retrieval.
 		let len_tail
@@ -505,7 +508,7 @@ where T: Bits {
 	/// # Safety
 	///
 	/// This pointer must be valid in the user’s memory model and allocation
-	/// regime.
+	/// regime in order for the caller to dereference it.
 	pub fn pointer(&self) -> *const T {
 		(self.ptr.as_ptr() as usize & Self::PTR_DATA_MASK) as *const T
 	}
@@ -527,9 +530,9 @@ where T: Bits {
 	pub fn elements(&self) -> usize {
 		//  Count the elements as marked in the elts field, adding one unless
 		//  the tail is `T::BITS` or `0`.
-		let t = self.len & Self::LEN_TAIL_MASK;
-		let i = t != 0;
-		(self.len >> Self::LEN_INDX_BITS) + i as usize
+		let tail_bits = self.len & Self::LEN_TAIL_MASK;
+		let incr = tail_bits != 0;
+		(self.len >> Self::LEN_INDX_BITS) + incr as usize
 	}
 
 	/// Extracts the element cursor of the head bit.
@@ -543,8 +546,10 @@ where T: Bits {
 	/// A `BitIdx` that is the index of the first live bit in the first element.
 	/// This will be in the domain `0 .. T::BITS`.
 	pub fn head(&self) -> BitIdx {
-		((((self.ptr.as_ptr() as usize & Self::PTR_HEAD_MASK) << 3)
-		| (self.len & Self::LEN_HEAD_MASK)) as u8).into()
+		let ptr = self.ptr.as_ptr() as usize & Self::PTR_HEAD_MASK;
+		let ptr = ptr << Self::LEN_HEAD_BITS;
+		let len = self.len & Self::LEN_HEAD_MASK;
+		((ptr | len) as u8).into()
 	}
 
 	/// Extracts the element cursor of the first dead bit *after* the tail bit.
@@ -558,20 +563,36 @@ where T: Bits {
 	/// A `BitIdx` that is the index of the first dead bit after the last live
 	/// bit in the last element. This will be in the domain `1 ..= T::BITS`.
 	pub fn tail(&self) -> BitIdx {
-		//  If the slice is empty, return 0 directly.
+		/* This function is one of the most-used in the library. As such, its
+		 * implementation is written in a straight linear style. The compiler is
+		 * free to rearrange the code as it sees fit, and may not reflect the
+		 * code below. The equivalent, user-friendly function body is:
+
 		if self.is_empty() {
 			return 0.into();
 		}
+		let bits = (self.len & Self::LEN_TAIL_MASK) >> Self::LEN_HEAD_BITS;
+		if bits == 0 { T::BITS } else { bits as u8 }.into()
+		 */
+
 		//  The tail is stored in the LEN_TAIL_MASK region.
 		let bits = (self.len & Self::LEN_TAIL_MASK) >> Self::LEN_HEAD_BITS;
-		//  If the bit pattern is zero, wrap it to the maximal.
-		if bits == 0 { T::BITS } else { bits as u8 }.into()
+		(
+			//  Becomes 0 when the slice is empty, and !0 when not. This clamps
+			//  the tail to 0 on the empty slice, or itself on non-empty.
+			//  `0 & rhs` is always `0`, `!0 & rhs` is always `rhs`.
+			(self.is_empty() as u8).wrapping_sub(1) &
+			//  If the tail’s bit pattern is zero, wrap it to the maximal. This
+			//  upshifts `1` (pattern is zero) or `0` (pattern is not), then
+			//  sets the upshift bit on the pattern.
+			((((bits == 0) as u8) << T::INDX) | bits as u8)
+		).into()
 	}
 
 	/// Decomposes the pointer into raw components.
 	///
-	/// The values returned from this can be immediately passed into `::new` in
-	/// order to rebuild the pointer.
+	/// The values returned from this can be immediately passed into `::new` or
+	/// `::new_unchecked` in order to rebuild the pointer.
 	///
 	/// # Parameters
 	///
@@ -585,22 +606,6 @@ where T: Bits {
 	/// - `BitIdx`: The index of the first dead bit in the last element.
 	pub fn raw_parts(&self) -> (*const T, usize, BitIdx, BitIdx) {
 		(self.pointer(), self.elements(), self.head(), self.tail())
-	}
-
-	/// Produces the bare structural components of the pointer handle.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// - `*const ()`: The pointer member. This is unlikely to be the address
-	///   of the region, and is meaningless to dereference.
-	/// - `usize`: The length member. This is *not* the length of the region and
-	///   is *not* valid to use for indexing.
-	pub(crate) unsafe fn bare_parts(&self) -> (*const (), usize) {
-		(self.ptr.as_ptr() as *const (), self.len)
 	}
 
 	/// Produces the element count, head index, and tail index, which describe
@@ -646,25 +651,7 @@ where T: Bits {
 	///
 	/// Whether the slice is empty or inhabited.
 	pub fn is_empty(&self) -> bool {
-		(self.len == 0) &&
-		(self.ptr.as_ptr() as usize & Self::PTR_HEAD_MASK == 0)
-	}
-
-	/// Checks if the pointer represents the full slice.
-	///
-	/// The full slice has `!0` as its `elts` and `tail` values, and `0` as its
-	/// `head` value
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// Whether the slice is fully extended or not.
-	pub fn is_full(&self) -> bool {
-		(self.len == !Self::LEN_HEAD_MASK) &&
-		(self.ptr.as_ptr() as usize & Self::PTR_HEAD_MASK == 0)
+		self.len == 0 && self.ptr.as_ptr() as usize & Self::PTR_HEAD_MASK == 0
 	}
 
 	/// Counts how many bits are in the domain of a `BitPtr` slice.
@@ -686,9 +673,7 @@ where T: Bits {
 			//  subtracting `head` (which is the number of dead bits in the
 			//  front of the first element), and adding `tail` (which is the
 			//  number of live bits in the front of the last element).
-			e => ((e - 1) << T::INDX)
-				.saturating_add(*tail as usize)
-				.saturating_sub(*head as usize)
+			e => ((e - 1) << T::INDX) + (*tail as usize) - (*head as usize),
 		}
 	}
 
@@ -910,6 +895,64 @@ where T: Bits {
 			},
 		}
 	}
+
+	/// Converts a `BitSlice` handle into its `BitPtr` representation.
+	///
+	/// # Parameters
+	///
+	/// - `bs: &BitSlice<C, T>`: a `BitSlice` handle
+	///
+	/// # Returns
+	///
+	/// The `BitPtr<T>` structure composing the handle.
+	pub(crate) fn from_bitslice<C>(bs: &BitSlice<C, T>) -> Self
+	where C: Cursor {
+		let src = unsafe { &*(bs as *const BitSlice<C, T> as *const [()]) };
+		let (ptr, len) = match (src.as_ptr(), src.len()) {
+			(_, 0) => (NonNull::dangling(), 0),
+			(p, _) if p.is_null() => unreachable!("Rust forbids null refs"),
+			(p, l) => (unsafe { NonNull::new_unchecked(p as *mut u8) }, l),
+		};
+		Self { ptr, len, _ty: PhantomData }
+	}
+
+	/// Converts a `BitPtr` structure into an immutable `BitSlice` handle.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// A `BitSlice` handle composed of the `BitPtr` structure.
+	pub(crate) fn into_bitslice<'a, C>(self) -> &'a BitSlice<C, T>
+	where C: Cursor {
+		unsafe {
+			&*(slice::from_raw_parts(
+				self.ptr.as_ptr() as *const (),
+				self.len,
+			) as *const [()] as *const BitSlice<C, T>)
+		}
+	}
+
+	/// Converts a `BitPtr` structure into a mutable `BitSlice` handle.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// A `BitSlice` handle composed of the `BitPtr` structure.
+	pub(crate) fn into_bitslice_mut<'a, C>(self) -> &'a mut BitSlice<C, T>
+	where C: Cursor {
+		unsafe {
+			&mut *(slice::from_raw_parts_mut(
+				self.ptr.as_ptr() as *const () as *mut (),
+				self.len,
+			) as *mut [()] as *mut BitSlice<C, T>)
+		}
+	}
 }
 
 /// Gets write access to all elements in the underlying storage, including the
@@ -936,35 +979,17 @@ where T: Bits {
 	}
 }
 
-/// Constructs from an immutable `BitSlice` reference handle.
 impl<'a, C, T> From<&'a BitSlice<C, T>> for BitPtr<T>
 where C: Cursor, T: 'a + Bits {
 	fn from(src: &'a BitSlice<C, T>) -> Self {
-		let src = unsafe { &*(src as *const BitSlice<C, T> as *const [()]) };
-		let (ptr, len) = match (src.as_ptr(), src.len()) {
-			(_, 0) => (NonNull::dangling(), 0),
-			(p, _) if p.is_null() => unreachable!(
-				"Slices cannot have a length when they begin at address 0"
-			),
-			(p, l) => (unsafe { NonNull::new_unchecked(p as *mut u8) }, l),
-		};
-		Self { ptr, len, _ty: PhantomData }
+		Self::from_bitslice(src)
 	}
 }
 
-/// Constructs from a mutable `BitSlice` reference handle.
 impl<'a, C, T> From<&'a mut BitSlice<C, T>> for BitPtr<T>
 where C: Cursor, T: 'a + Bits {
 	fn from(src: &'a mut BitSlice<C, T>) -> Self {
-		let src = unsafe { &*(src as *const BitSlice<C, T> as *const [()]) };
-		let (ptr, len) = match (src.as_ptr(), src.len()) {
-			(_, 0) => (NonNull::dangling(), 0),
-			(p, _) if p.is_null() => unreachable!(
-				"Slices cannot have a length when they begin at address 0"
-			),
-			(p, l) => (unsafe { NonNull::new_unchecked(p as *mut u8) }, l),
-		};
-		Self { ptr, len, _ty: PhantomData }
+		Self::from_bitslice(src)
 	}
 }
 
@@ -1088,28 +1113,6 @@ mod tests {
 		let data = [0u8; 4];
 		//  anything with 0 elements is unconditionally empty
 		assert!(BitPtr::<u8>::new(&data as *const u8, 0, 2, 4).is_empty());
-	}
-
-	#[test]
-	fn full() {
-		let elt_ct = BitPtr::<u32>::MAX_ELTS;
-		//  maximum elements, maximum bits
-		let bp = BitPtr::<u32>::new(8 as *const u32, elt_ct, 0, 31);
-		assert!(bp.is_full());
-
-		//  one bit fewer
-		let bp = BitPtr::<u32>::new(8 as *const u32, elt_ct, 0, 30);
-		assert!(!bp.is_full());
-		assert_eq!(*bp.tail(), 30);
-
-		let bp = BitPtr::<u32>::new(8 as *const u32, elt_ct, 1, 31);
-		assert!(!bp.is_full());
-		assert_eq!(*bp.head(), 1);
-		assert_eq!(*bp.tail(), 31);
-
-		//  one element fewer
-		let bp = BitPtr::<u32>::new(8 as *const u32, elt_ct - 1, 0, 32);
-		assert!(!bp.is_full());
 	}
 
 	#[test]
