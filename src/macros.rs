@@ -99,6 +99,58 @@ macro_rules! bitvec {
 	}};
 }
 
+/** Construct a `BitBox` out of a literal array in source code, like `bitvec!`.
+
+This has exactly the same syntax as [`bitvec!`], and in fact is a thin wrapper
+around `bitvec!` that calls `.into_boxed_slice()` on the produced `BitVec` to
+freeze it.
+
+[`bitvec!`]: #macro.bitvec
+**/
+#[cfg(any(feature = "alloc", feature = "std"))]
+#[macro_export]
+macro_rules! bitbox {
+	//  bitbox![ endian , type ; 0 , 1 , … ]
+	( $endian:path , $bits:ty ; $( $element:expr ),* ) => {
+		bitvec![ $endian , $bits ; $( $element ),* ].into_boxed_bitslice()
+	};
+	//  bitbox![ endian , type ; 0 , 1 , … , ]
+	( $endian:path , $bits:ty ; $( $element:expr , )* ) => {
+		bitvec![ $endian , $bits ; $( $element ),* ].into_boxed_bitslice()
+	};
+
+	//  bitbox![ endian ; 0 , 1 , … ]
+	( $endian:path ; $( $element:expr ),* ) => {
+		bitvec![ $endian , u8 ; $( $element ),* ].into_boxed_bitslice()
+	};
+	//  bitbox![ endian ; 0 , 1 , … , ]
+	( $endian:path ; $( $element:expr , )* ) => {
+		bitvec![ $endian , u8 ; $( $element ),* ].into_boxed_bitslice()
+	};
+
+	//  bitbox![ 0 , 1 , … ]
+	( $( $element:expr ),* ) => {
+		bitvec![ $crate::prelude::BigEndian , u8 ; $( $element ),* ].into_boxed_bitslice()
+	};
+	//  bitbox![ 0 , 1 , … , ]
+	( $( $element:expr , )* ) => {
+		bitvec![ $crate::prelude::BigEndian , u8 ; $( $element ),* ].into_boxed_bitslice()
+	};
+
+	//  bitbox![ endian , type ; bit ; rep ]
+	( $endian:path , $bits:ty ; $element:expr ; $rep:expr ) => {
+		bitvec![ $endian , $bits ; $element; $rep ].into_boxed_bitslice()
+	};
+	//  bitbox![ endian ; bit ; rep ]
+	( $endian:path ; $element:expr ; $rep:expr ) => {
+		bitvec![ $endian , u8 ; $element ; $rep ].into_boxed_bitslice()
+	};
+	//  bitbox![ bit ; rep ]
+	( $element:expr ; $rep:expr ) => {
+		bitvec![ $crate::prelude::BigEndian , u8 ; $element ; $rep ].into_boxed_bitslice()
+	};
+}
+
 #[doc(hidden)]
 macro_rules! __bitslice_shift {
 	( $( $t:ty ),+ ) => { $(
@@ -180,7 +232,7 @@ macro_rules! __bitvec_shift {
 	)+ };
 }
 
-#[cfg(all(test, feature = "alloc"))]
+#[cfg(all(test, any(feature = "alloc", feature = "std")))]
 mod tests {
 	#[allow(unused_imports)]
 	use crate::cursor::{
@@ -189,7 +241,7 @@ mod tests {
 	};
 
 	#[test]
-	fn compile_macros() {
+	fn compile_bitvec_macros() {
 		bitvec![0, 1];
 		bitvec![BigEndian; 0, 1];
 		bitvec![LittleEndian; 0, 1];
@@ -213,5 +265,32 @@ mod tests {
 		bitvec![LittleEndian, u32; 1; 70];
 		bitvec![BigEndian, u64; 0; 70];
 		bitvec![LittleEndian, u64; 1; 70];
+	}
+
+	#[test]
+	fn compile_bitbox_macros() {
+		bitbox![0, 1];
+		bitbox![BigEndian; 0, 1];
+		bitbox![LittleEndian; 0, 1];
+		bitbox![BigEndian, u8; 0, 1];
+		bitbox![LittleEndian, u8; 0, 1];
+		bitbox![BigEndian, u16; 0, 1];
+		bitbox![LittleEndian, u16; 0, 1];
+		bitbox![BigEndian, u32; 0, 1];
+		bitbox![LittleEndian, u32; 0, 1];
+		bitbox![BigEndian, u64; 0, 1];
+		bitbox![LittleEndian, u64; 0, 1];
+
+		bitbox![1; 70];
+		bitbox![BigEndian; 0; 70];
+		bitbox![LittleEndian; 1; 70];
+		bitbox![BigEndian, u8; 0; 70];
+		bitbox![LittleEndian, u8; 1; 70];
+		bitbox![BigEndian, u16; 0; 70];
+		bitbox![LittleEndian, u16; 1; 70];
+		bitbox![BigEndian, u32; 0; 70];
+		bitbox![LittleEndian, u32; 1; 70];
+		bitbox![BigEndian, u64; 0; 70];
+		bitbox![LittleEndian, u64; 1; 70];
 	}
 }

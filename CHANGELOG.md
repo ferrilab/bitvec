@@ -32,6 +32,7 @@ a feature gate, `serde`, which depends on the `alloc` feature.
 - `BitPtr::bare_parts` and `BitPtr::region_data` internal APIs for accessing
   components of the pointer structure.
 - Clippy is now part of the development routine.
+- `bitbox!` macro wraps `bitvec!` to freeze the produced vector.
 
 ### Changed
 
