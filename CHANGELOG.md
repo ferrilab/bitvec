@@ -4,6 +4,11 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+## 0.11.1
+
+[Issue #12]: I left in an `eprintln!` statement from debugging
+`BitSlice::set_all`. Thanks to GitHub user [@koushiro] for the report.
+
 ## 0.11.0
 
 This contains the last (planned) compiler version upgrade, to `1.34.0`, and the
@@ -317,6 +322,7 @@ Initial implementation and release.
 - `bitvec!` generator macro
 
 [@geq1t]: https://github.com/geq1t
+[@koushiro]: https://github.com/koushiro
 [@overminder]: https://github.com/overminder
 [@ratorx]: https://github.com/ratorx
 [@torce]: https://github.com/torce
@@ -324,4 +330,5 @@ Initial implementation and release.
 [Issue #8]: https://github.com/myrrlyn/bitvec/issues/8
 [Issue #9]: https://github.com/myrrlyn/bitvec/issues/9
 [Issue #10]: https://github.com/myrrlyn/bitvec/issues/10
+[Issue #12]: https://github.com/myrrlyn/bitvec/issues/12
 [kac]: https://keepachangelog.com/en/1.0.0/

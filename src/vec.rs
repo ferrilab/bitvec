@@ -3087,7 +3087,6 @@ where C: Cursor, T: Bits {
 			}
 		}
 		let old = self.len();
-		eprintln!("subtra: {}", subtrahend);
 		*self += subtrahend;
 		//  If the subtraction emitted a carry, remove it.
 		if self.len() > old {
