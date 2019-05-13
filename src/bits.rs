@@ -415,10 +415,10 @@ pub trait Bits:
 	#[inline(always)]
 	fn mask_at(place: BitPos) -> Self {
 		assert!(
-			*place < Self::BITS,
-			"Index out of range: {} overflows {}",
+			place.is_valid::<Self>(),
+			"Index {} is not a valid position for type {}",
 			*place,
-			Self::BITS,
+			Self::TYPENAME,
 		);
 		//  Pad 1 to the correct width, then shift up to the correct bit place.
 		Self::from(1u8) << *place
@@ -1043,7 +1043,7 @@ an element rather than a semantic bit.
 **/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[doc(hidden)]
-pub struct BitPos(u8);
+pub struct BitPos(pub(crate) u8);
 
 impl BitPos {
 	/// Checks if the position is valid for a type.
@@ -1061,7 +1061,7 @@ impl BitPos {
 	/// - `T: Bits`: The storage type used to determine position validity.
 	pub fn is_valid<T>(self) -> bool
 	where T: Bits {
-		self.load() < T::BITS
+		*self < T::BITS
 	}
 }
 
