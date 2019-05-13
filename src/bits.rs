@@ -912,11 +912,7 @@ impl BitIdx {
 			//  going down. If `far` is not less than `T::BITS`, then the
 			//  offset leaves the initial element going up.
 			else {
-				//  `Shr` on `isize` sign-extends
-				(
-					far >> T::INDX,
-					((far & (T::MASK as isize)) as u8).into(),
-				)
+				(far >> T::INDX, ((far & (T::MASK as isize)) as u8).into())
 			}
 		}
 		//  If the `isize` addition overflows, then the `by` offset is positive.
@@ -966,6 +962,12 @@ impl BitIdx {
 	/// ```
 	pub fn span<T>(self, len: usize) -> (usize, BitIdx)
 	where T: Bits {
+		assert!(
+			self.is_valid::<T>(),
+			"Index {} is invalid for type {}",
+			*self,
+			T::TYPENAME,
+		);
 		//  Number of bits in the head *element*. Domain 32 .. 0.
 		let bits_in_head = (T::BITS - *self) as usize;
 		//  If there are `n` bits live between the head cursor (which marks the
@@ -973,27 +975,35 @@ impl BitIdx {
 		//  then when `len <= n`, the span covers one element. When `len == n`,
 		//  the tail will be `T::BITS`, which is valid for a tail.
 		if len <= bits_in_head {
-			(1, (*self + len as u8).into())
+			return (1, (*self + len as u8).into());
 		}
 		//  If there are more bits in the span than `n`, then subtract `n` from
 		//  `len` and use the difference to count elements and bits.
-		else {
-			//  1 ..
-			let bits_after_head = len - bits_in_head;
-			//  Count the number of wholly filled elements
-			let whole_elts = bits_after_head >> T::INDX;
-			//  Count the number of bits in the *next* element. If this is zero,
-			//  become `T::BITS`; if it is nonzero, add one more to `elts`.
-			//  `elts` must have one added to it by default to account for the
-			//  head element.
-			let tail_bits = bits_after_head as u8 & T::MASK;
-			if tail_bits == 0 {
-				(whole_elts + 1, T::BITS.into())
-			}
-			else {
-				(whole_elts + 2, tail_bits.into())
-			}
+
+		//  1 ..
+		let bits_after_head = len - bits_in_head;
+		//  Count the number of wholly filled elements
+		let elts = bits_after_head >> T::INDX;
+		//  Count the number of bits in the *next* element. If this is zero,
+		//  become `T::BITS`; if it is nonzero, add one more to `elts`.
+		//  `elts` must have one added to it by default to account for the
+		//  head element.
+		let bits = bits_after_head as u8 & T::MASK;
+
+		/*
+			* The expression below this comment is equivalent to the branched
+			* structure below, but branchless.
+
+		if bits == 0 {
+			(elts + 1, T::BITS.into())
 		}
+		else {
+			(elts + 2, bits.into())
+		}
+		*/
+
+		let tbz = (bits == 0) as u8;
+		(elts + 2 - tbz as usize, ((tbz << T::INDX) | bits).into())
 	}
 }
 
@@ -1177,5 +1187,73 @@ mod tests {
 	#[should_panic]
 	fn offset_out_of_bound() {
 		BitIdx::from(64).offset::<u64>(isize::max_value());
+	}
+
+	#[test]
+	fn incr() {
+		assert_eq!(BitIdx(6).incr::<u8>(), (BitIdx(7), false));
+		assert_eq!(BitIdx(7).incr::<u8>(), (BitIdx(0), true));
+
+		assert_eq!(BitIdx(14).incr::<u16>(), (BitIdx(15), false));
+		assert_eq!(BitIdx(15).incr::<u16>(), (BitIdx(0), true));
+
+		assert_eq!(BitIdx(30).incr::<u32>(), (BitIdx(31), false));
+		assert_eq!(BitIdx(31).incr::<u32>(), (BitIdx(0), true));
+
+		#[cfg(target_pointer_width = "64")]
+		assert_eq!(BitIdx(62).incr::<u64>(), (BitIdx(63), false));
+		#[cfg(target_pointer_width = "64")]
+		assert_eq!(BitIdx(63).incr::<u64>(), (BitIdx(0), true));
+	}
+
+	#[test]
+	fn incr_tail() {
+		assert_eq!(BitIdx(7).incr_tail::<u8>(), (BitIdx(8), false));
+		assert_eq!(BitIdx(8).incr_tail::<u8>(), (BitIdx(1), true));
+
+		assert_eq!(BitIdx(15).incr_tail::<u16>(), (BitIdx(16), false));
+		assert_eq!(BitIdx(16).incr_tail::<u16>(), (BitIdx(1), true));
+
+		assert_eq!(BitIdx(31).incr_tail::<u32>(), (BitIdx(32), false));
+		assert_eq!(BitIdx(32).incr_tail::<u32>(), (BitIdx(1), true));
+
+		#[cfg(target_pointer_width = "64")]
+		assert_eq!(BitIdx(63).incr_tail::<u64>(), (BitIdx(64), false));
+		#[cfg(target_pointer_width = "64")]
+		assert_eq!(BitIdx(64).incr_tail::<u64>(), (BitIdx(1), true));
+	}
+
+	#[test]
+	fn decr() {
+		assert_eq!(BitIdx(1).decr::<u8>(), (BitIdx(0), false));
+		assert_eq!(BitIdx(0).decr::<u8>(), (BitIdx(7), true));
+
+		assert_eq!(BitIdx(1).decr::<u16>(), (BitIdx(0), false));
+		assert_eq!(BitIdx(0).decr::<u16>(), (BitIdx(15), true));
+
+		assert_eq!(BitIdx(1).decr::<u32>(), (BitIdx(0), false));
+		assert_eq!(BitIdx(0).decr::<u32>(), (BitIdx(31), true));
+
+		#[cfg(target_pointer_width = "64")]
+		assert_eq!(BitIdx(1).decr::<u64>(), (BitIdx(0), false));
+		#[cfg(target_pointer_width = "64")]
+		assert_eq!(BitIdx(0).decr::<u64>(), (BitIdx(63), true));
+	}
+
+	#[test]
+	fn decr_tail() {
+		assert_eq!(BitIdx(1).decr_tail::<u8>(), (BitIdx(8), true));
+		assert_eq!(BitIdx(8).decr_tail::<u8>(), (BitIdx(7), false));
+
+		assert_eq!(BitIdx(1).decr_tail::<u16>(), (BitIdx(16), true));
+		assert_eq!(BitIdx(16).decr_tail::<u16>(), (BitIdx(15), false));
+
+		assert_eq!(BitIdx(1).decr_tail::<u32>(), (BitIdx(32), true));
+		assert_eq!(BitIdx(32).decr_tail::<u32>(), (BitIdx(31), false));
+
+		#[cfg(target_pointer_width = "64")]
+		assert_eq!(BitIdx(1).decr_tail::<u64>(), (BitIdx(64), true));
+		#[cfg(target_pointer_width = "64")]
+		assert_eq!(BitIdx(64).decr_tail::<u64>(), (BitIdx(63), false));
 	}
 }
