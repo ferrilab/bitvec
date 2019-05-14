@@ -60,6 +60,9 @@ use core::{
 		BitAndAssign,
 		BitOrAssign,
 		BitXorAssign,
+		Deref,
+		DerefMut,
+		Drop,
 		Index,
 		IndexMut,
 		Neg,
@@ -612,6 +615,85 @@ where C: Cursor, T: Bits {
 		//  Find the index of the containing element, and of the bit within it.
 		let (elt, bit) = h.offset::<T>(index as isize);
 		self.as_mut()[elt as usize].set::<C>(bit, value);
+	}
+
+	/// Produces a write reference to a single bit in the slice.
+	///
+	/// The structure returned by this method extends the borrow until it drops,
+	/// which precludes parallel use.
+	///
+	/// The [`split_at_mut`] method allows splitting the borrows of a slice, and
+	/// will enable safe parallel use of these write references. The `atomic`
+	/// feature guarantees that parallel use does not cause data races when
+	/// modifying the underlying slice.
+	///
+	/// # Lifetimes
+	///
+	/// - `'a` Propagates the lifetime of the referent slice to the single-bit
+	///   reference produced.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `index`: The index of the bit in `self` selected.
+	///
+	/// # Returns
+	///
+	/// A write reference to the requested bit. Due to Rust limitations, this is
+	/// not a native reference type, but is a custom structure that holds the
+	/// address of the requested bit and its value. The produced structure
+	/// implements `Deref` and `DerefMut` to its cached bit, and commits the
+	/// cached bit to the parent slice on drop.
+	///
+	/// # Usage
+	///
+	/// You must use the dereference operator on the `.at()` expression in order
+	/// to assign to it. In general, you should prefer immediately using and
+	/// discarding the returned value, rather than binding it to a name and
+	/// letting it live for more than one statement.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let src: &mut [u8] = &mut [0];
+	/// let bs: &mut BitSlice = src.into();
+	///
+	/// assert!(!bs[0]);
+	/// *bs.at(0) = true;
+	/// //  note the leading dereference.
+	/// assert!(bs[0]);
+	/// ```
+	///
+	/// This example shows multiple usage by using `split_at_mut`.
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let src: &mut [u8] = &mut [0];
+	/// let bs: &mut BitSlice = src.into();
+	///
+	/// {
+	///  let (mut a, rest) = bs.split_at_mut(1);
+	///  let (mut b, rest) = rest.split_at_mut(1);
+	///  *a.at(0) = true;
+	///  *b.at(0) = true;
+	/// }
+	///
+	/// assert_eq!(bs.as_slice()[0], 0b1100_0000);
+	/// ```
+	///
+	/// The above example splits the slice into three (the first, the second,
+	/// and the rest) in order to hold multiple write references into the slice.
+	///
+	/// [`split_at_mut`]: #method.split_at_mut
+	pub fn at<'a>(&'a mut self, index: usize) -> BitGuard<'a, C, T> {
+		BitGuard {
+			_m: PhantomData,
+			bit: self[index],
+			slot: &mut self[index .. index + 1],
+		}
 	}
 
 	/// Retrieves a read pointer to the start of the underlying data slice.
@@ -3198,6 +3280,55 @@ where C: Cursor, T: Bits {
 		}
 	}
 }
+
+/** Write reference to a single bit.
+
+Rust requires that `DerefMut` produce the plain address of a value which can be
+written with a `memcpy`, so, there is no way to make plain write assignments
+work nicely in Rust. This reference structure is the second best option.
+
+It contains a write reference to a single-bit slice, and a local cache `bool`.
+This structure `Deref`s to the local cache, and commits the cache to the slice
+on drop. This allows writing to the guard with `=` assignment.
+**/
+#[derive(Debug)]
+pub struct BitGuard<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	slot: &'a mut BitSlice<C, T>,
+	bit: bool,
+	_m: PhantomData<*mut T>,
+}
+
+/// Read from the local cache.
+impl<'a, C, T> Deref for BitGuard<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	type Target = bool;
+
+	fn deref(&self) -> &Self::Target {
+		&self.bit
+	}
+}
+
+/// Write to the local cache.
+impl<'a, C, T> DerefMut for BitGuard<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		&mut self.bit
+	}
+}
+
+/// Commit the local cache to the backing slice.
+impl<'a, C, T> Drop for BitGuard<'a, C, T>
+where C: Cursor, T: 'a + Bits {
+	fn drop(&mut self) {
+		self.slot.set(0, self.bit);
+	}
+}
+
+/// This type is a mutable reference with extra steps, so, it should be moveable
+/// but not shareable.
+unsafe impl<'a, C, T> Send for BitGuard<'a, C, T>
+where C: Cursor, T: 'a + Bits {}
 
 /// State keeper for chunked iteration over a `BitSlice`.
 ///

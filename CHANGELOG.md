@@ -6,6 +6,41 @@ This document is written according to the [Keep a Changelog][kac] style.
 
 ## 0.12.0
 
+### Added
+
+- `BitSlice::at` simulates a write reference to a single bit. It creates an
+  instance of `slice::BitGuard`, which holds a mutable reference to the
+  requested bit and a `bool` slot. `BitGuard` implements `Deref` and `DerefMut`
+  to its local `bool`, and writes its local `bool` value to the specified bit in
+  `Drop`.
+
+  This allows writing the following:
+
+  ```rust
+  *slice.at(index) = some_bit();
+  ```
+
+  as equivalent to
+
+  ```rust
+  slice.set(index, some_bit());
+  ```
+
+  Note that binding the value produced by `BitSlice::at` will cause the write to
+  occur when that binding *goes out of scope*, not in the assigning statement.
+
+  ```rust
+  let slot = slice.at(index);
+  *index = some_bit();
+  //  write has not yet occurred in `slot`
+  //  ... more work
+  //  <- write occurs HERE
+  ```
+
+  In practice, this should not be an issue, since the rules for mutable borrows
+  mean that the original slice is not observable until the slot value produced
+  by `.at()` goes out of scope.
+
 ### Changed
 
 - `BitVec::retain` changed its function argument from `(bool) -> bool` to
