@@ -79,7 +79,7 @@ To use this crate, you need to depend on it in `Cargo.toml`:
 
 ```toml
 [dependencies]
-bitvec = "0.11"
+bitvec = "0.12"
 ```
 
 and include it in your crate root `src/main.rs` or `src/lib.rs`:
@@ -157,14 +157,14 @@ feature set. In your `Cargo.toml`, write:
 
 ```toml
 [dependencies]
-bitvec = { version = "0.11", default-features = false }
+bitvec = { version = "0.12", default-features = false }
 ```
 
 or
 
 ```toml
 [dependencies.bitvec]
-version = "0.11"
+version = "0.12"
 default-features = false
 ```
 
@@ -178,7 +178,7 @@ re-enable the `alloc` feature, like so:
 
 ```toml
 [dependencies.bitvec]
-version = "0.11"
+version = "0.12"
 default-features = false
 features = ["alloc"]
 ```
@@ -203,7 +203,7 @@ The `serde` feature is opt-in, and requires setting it in your `Cargo.toml`:
 # Cargo.toml
 
 [dependencies.bitvec]
-version = "0.11"
+version = "0.12"
 features = [
   "serde", # enables serialization
   "std", # enables deserialization

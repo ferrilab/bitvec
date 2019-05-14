@@ -1023,7 +1023,7 @@ impl Into<u8> for BitIdx {
 
 impl Display for BitIdx {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		write!(f, "BitIdx({})", self.0)
+		Display::fmt(&self.0, f)
 	}
 }
 
@@ -1091,7 +1091,7 @@ impl Into<u8> for BitPos {
 
 impl Display for BitPos {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		write!(f, "BitPos({})", self.0)
+		Display::fmt(&self.0, f)
 	}
 }
 

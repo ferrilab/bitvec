@@ -494,7 +494,7 @@ where T: Bits {
 		assert!(
 			head.is_valid::<T>(),
 			"{} is outside the head domain 0 .. {}",
-			*head,
+			head,
 			T::BITS,
 		);
 
@@ -502,7 +502,7 @@ where T: Bits {
 		assert!(
 			tail.is_valid_tail::<T>(),
 			"{} is outside the tail domain 1 ..= {}",
-			*tail,
+			tail,
 			T::BITS,
 		);
 
@@ -520,7 +520,7 @@ where T: Bits {
 				tail.is_valid::<T>(),
 				"BitPtr domains with maximum elements must have the tail ({}) \
 				cursor in 1 .. {}",
-				*tail,
+				tail,
 				T::BITS,
 			);
 		}

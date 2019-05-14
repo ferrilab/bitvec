@@ -514,7 +514,7 @@ where C: Cursor, T: Bits {
 			len,
 			BitPtr::<T>::MAX_ELTS,
 		);
-		let (ptr, len, cap) = (vec.as_ptr(), len, vec.capacity());
+		let (ptr, cap) = (vec.as_ptr(), vec.capacity());
 		mem::forget(vec);
 		Self {
 			_cursor: PhantomData,
@@ -666,7 +666,7 @@ where C: Cursor, T: Bits {
 	pub fn reserve(&mut self, additional: usize) {
 		let newlen = self.len() + additional;
 		assert!(
-			newlen < BitPtr::<T>::MAX_BITS,
+			newlen <= BitPtr::<T>::MAX_BITS,
 			"Capacity overflow: {} exceeds {}",
 			newlen,
 			BitPtr::<T>::MAX_BITS,
@@ -709,7 +709,7 @@ where C: Cursor, T: Bits {
 	pub fn reserve_exact(&mut self, additional: usize) {
 		let newlen = self.len() + additional;
 		assert!(
-			newlen < BitPtr::<T>::MAX_BITS,
+			newlen <= BitPtr::<T>::MAX_BITS,
 			"Capacity overflow: {} exceeds {}",
 			newlen,
 			BitPtr::<T>::MAX_BITS,
@@ -801,7 +801,7 @@ where C: Cursor, T: Bits {
 	/// let bs = bv.as_bitslice();
 	/// ```
 	pub fn as_bitslice(&self) -> &BitSlice<C, T> {
-		self.pointer.into()
+		self.pointer.into_bitslice()
 	}
 
 	/// Produces a mutable `BitSlice` containing the entire vector.
@@ -825,7 +825,7 @@ where C: Cursor, T: Bits {
 	/// let bs = bv.as_mut_bitslice();
 	/// ```
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<C, T> {
-		self.pointer.into()
+		self.pointer.into_bitslice_mut()
 	}
 
 	/// Sets the length of the vector.
@@ -865,7 +865,7 @@ where C: Cursor, T: Bits {
 			return;
 		}
 		assert!(
-			len < BitPtr::<T>::MAX_BITS,
+			len <= BitPtr::<T>::MAX_BITS,
 			"Capacity overflow: {} overflows maximum length {}",
 			len,
 			BitPtr::<T>::MAX_BITS,
@@ -997,7 +997,8 @@ where C: Cursor, T: Bits {
 		let len = self.len();
 		assert!(index < len, "Index {} is out of bounds: {}", index, len);
 		self[index ..].rotate_left(1);
-		self.pop().expect("BitVec::remove cannot fail after index validation")
+		self.pop()
+			.expect("BitVec::remove cannot fail after index validation")
 	}
 
 	/// Retains only the bits that pass the predicate.
@@ -1013,8 +1014,10 @@ where C: Cursor, T: Bits {
 	///
 	/// # Type Parameters
 	///
-	/// - `F: FnMut(bool) -> bool`: A function that can be invoked on each bit,
-	///   returning whether the bit should be kept or not.
+	/// - `F: FnMut(usize, bool) -> bool`: A function that can be invoked on
+	///   each bit, returning whether the bit should be kept or not. Receives
+	///   the index (following [`BitSlice::for_each`]) to provide additional
+	///   context to determine whether the entry satisfies the condition.
 	///
 	/// # Examples
 	///
@@ -1022,13 +1025,15 @@ where C: Cursor, T: Bits {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![0, 1, 0, 1, 0, 1];
-	/// bv.retain(|b| b);
+	/// bv.retain(|_, b| b);
 	/// assert_eq!(bv, bitvec![1, 1, 1]);
 	/// ```
+	///
+	/// [`BitSlice::for_each`]: ../slice/struct.BitSlice.html#method.for_each
 	pub fn retain<F>(&mut self, mut pred: F)
-	where F: FnMut(bool) -> bool {
+	where F: FnMut(usize, bool) -> bool {
 		for n in (0 .. self.len()).rev() {
-			if !pred(self[n]) {
+			if !pred(n, self[n]) {
 				self.remove(n);
 			}
 		}
@@ -1062,7 +1067,7 @@ where C: Cursor, T: Bits {
 	pub fn push(&mut self, value: bool) {
 		let len = self.len();
 		assert!(
-			len < BitPtr::<T>::MAX_BITS,
+			len <= BitPtr::<T>::MAX_BITS,
 			"Capacity overflow: {} >= {}",
 			len,
 			BitPtr::<T>::MAX_BITS,
@@ -1203,7 +1208,7 @@ where C: Cursor, T: Bits {
 				.as_bitslice()[from .. upto]
 				//  remove the lifetime and borrow awareness
 				.bitptr()
-				.into();
+				.into_bitslice();
 			self.set_len(from);
 
 			Drain {

@@ -4,6 +4,15 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+## 0.12.0
+
+### Changed
+
+- `BitVec::retain` changed its function argument from `(bool) -> bool` to
+  `(usize, bool) -> bool`, and passes the index as well as the value.
+- `Display` implementations of the `BitIdx` and `BitPos` types now just defer to
+  the interior number, and do not write their own type.
+
 ## 0.11.2
 
 ### Added
