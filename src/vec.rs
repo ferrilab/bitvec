@@ -19,7 +19,10 @@ use crate::{
 		BigEndian,
 		Cursor,
 	},
-	pointer::BitPtr,
+	pointer::{
+		BitPtr,
+		Pointer,
+	},
 	slice::BitSlice,
 };
 
@@ -1489,7 +1492,7 @@ where C: Cursor, T: Bits {
 	pub fn into_vec(self) -> Vec<T> {
 		let (data, elts, _, _) = self.pointer.raw_parts();
 		let out = unsafe {
-			Vec::from_raw_parts(data as *mut T, elts, self.capacity)
+			Vec::from_raw_parts(data.w(), elts, self.capacity)
 		};
 		mem::forget(self);
 		out
@@ -1565,7 +1568,7 @@ where C: Cursor, T: Bits {
 	where F: FnOnce(&mut Vec<T>) -> R {
 		let (p, e, h, t) = self.pointer.raw_parts();
 		let mut v = unsafe {
-			Vec::from_raw_parts(p as *mut T, e, self.capacity)
+			Vec::from_raw_parts(p.w(), e, self.capacity)
 		};
 		let out = func(&mut v);
 		//  The only change is that the pointer might relocate. The region data
@@ -1605,7 +1608,7 @@ where C: Cursor, T: Bits {
 	where F: FnOnce(&Vec<T>) -> R {
 		let (data, elts, _, _) = self.pointer.raw_parts();
 		let v: Vec<T> = unsafe {
-			Vec::from_raw_parts(data as *mut T, elts, self.capacity)
+			Vec::from_raw_parts(data.w(), elts, self.capacity)
 		};
 		let out = func(&v);
 		mem::forget(v);
@@ -1689,9 +1692,9 @@ where C: Cursor, T: Bits {
 		let (from, elts, h, t) = other.pointer.raw_parts();
 		self.clear();
 		self.reserve(other.len());
-		let to = self.pointer.pointer() as *mut T;
+		let to = self.pointer.pointer();
 		unsafe {
-			ptr::copy_nonoverlapping(from, to, elts);
+			ptr::copy_nonoverlapping(from.r(), to.w(), elts);
 		}
 		self.pointer = unsafe { BitPtr::new_unchecked(to, elts, h, t) };
 	}
@@ -2118,7 +2121,7 @@ where C: Cursor, T: Bits {
 	/// ```
 	fn into_iter(self) -> Self::IntoIter {
 		IntoIter {
-			slab: self.pointer.pointer() as *const T,
+			slab: self.pointer.pointer(),
 			inner: self,
 		}
 	}
@@ -2494,7 +2497,7 @@ where C: Cursor, T: Bits {
 		let bp = mem::replace(&mut self.pointer, BitPtr::empty());
 		//  Build a Vec<T> out of the elements, and run its destructor.
 		let (ptr, cap) = (bp.pointer(), self.capacity);
-		drop(unsafe { Vec::from_raw_parts(ptr as *mut T, 0, cap) });
+		drop(unsafe { Vec::from_raw_parts(ptr.w(), 0, cap) });
 	}
 }
 
@@ -3252,7 +3255,7 @@ where C: Cursor, T: Bits {
 	/// The destructor for this can never be run.
 	inner: BitVec<C, T>,
 	/// Pointer to the original allocation. This cannot be forgotten.
-	slab: *const T,
+	slab: Pointer<T>,
 }
 
 impl<C, T> DoubleEndedIterator for IntoIter<C, T>
@@ -3427,7 +3430,7 @@ where C: Cursor, T: Bits {
 		mem::forget(mem::replace(&mut self.inner, BitVec::new()));
 		//  Build a Vec from the slab pointer and the capacity, and allow that
 		//  to drop.
-		unsafe { Vec::from_raw_parts(self.slab as *mut T, 0, cap) };
+		unsafe { Vec::from_raw_parts(self.slab.w(), 0, cap) };
 	}
 }
 

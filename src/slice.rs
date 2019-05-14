@@ -642,7 +642,7 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(store.as_ptr(), bv.as_ptr());
 	/// ```
 	pub fn as_ptr(&self) -> *const T {
-		self.bitptr().pointer()
+		self.bitptr().pointer().r()
 	}
 
 	/// Retrieves a write pointer to the start of the underlying data slice.
@@ -674,7 +674,7 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(store_ptr, bv.as_mut_ptr());
 	/// ```
 	pub fn as_mut_ptr(&mut self) -> *mut T {
-		self.bitptr().pointer() as *mut T
+		self.bitptr().pointer().w()
 	}
 
 	/// Swaps two bits in the slice.
@@ -1830,7 +1830,7 @@ where C: Cursor, T: Bits {
 		//  Get the pointer and element counts from it.
 		let (ptr, len) = (bp.pointer(), bp.elements());
 		//  Create a slice from them.
-		unsafe { slice::from_raw_parts(ptr, len) }
+		unsafe { slice::from_raw_parts(ptr.r(), len) }
 	}
 
 	/// Accesses the underlying store.
@@ -1851,9 +1851,9 @@ where C: Cursor, T: Bits {
 		//  Get the `BitPtr` structure.
 		let bp = self.bitptr();
 		//  Get the pointer and element counts from it.
-		let (ptr, len) = (bp.pointer() as *mut T, bp.elements());
+		let (ptr, len) = (bp.pointer(), bp.elements());
 		//  Create a slice from them.
-		unsafe { slice::from_raw_parts_mut(ptr, len) }
+		unsafe { slice::from_raw_parts_mut(ptr.w(), len) }
 	}
 
 	/// Changes the cursor type of the slice handle.
@@ -2681,7 +2681,7 @@ where C: Cursor, T: Bits {
 		//  of the new tail.
 		let (new_elts, new_tail) = new_head.span::<T>(end - start);
 		unsafe { BitPtr::new_unchecked(
-			data.offset(skip),
+			data.r().offset(skip),
 			new_elts,
 			new_head,
 			new_tail,

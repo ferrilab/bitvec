@@ -40,6 +40,103 @@ const PTR_BITS: usize = size_of::<*const u8>() * 8;
 /// Width in bits of a processor word on the target machine.
 const USZ_BITS: usize = size_of::<usize>() * 8;
 
+/// Union to permit reinterpreting a pointer-shaped value as a read pointer,
+/// write pointer, or bare numeric address.
+///
+/// # Safety
+///
+/// Absolutely none whatsoever. This is probably flirting with undefined
+/// behavior, and should be presumed to be the origin site of failure if the
+/// crate ever breaks in the future.
+///
+/// # Type Parameters
+///
+/// - `T`: The referent data type.
+///
+/// # Usage
+///
+/// Don’t.
+#[doc(hidden)]
+pub union Pointer<T> {
+	/// A read pointer to some data.
+	r: *const T,
+	/// A write pointer to some data.
+	w: *mut T,
+	/// The pointer address as a bare integer.
+	u: usize,
+}
+
+impl<T> Pointer<T> {
+	/// Accesses the address as a read pointer.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// The stored address, as a read pointer.
+	pub(crate) fn r(&self) -> *const T {
+		unsafe { self.r }
+	}
+
+	/// Accesses the address as a write pointer.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// The stored address, as a write pointer.
+	pub(crate) fn w(&self) -> *mut T {
+		unsafe { self.w }
+	}
+
+	/// Accesses the address as a bare integral value.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// The stored address, as a bare integer.
+	pub(crate) fn u(&self) -> usize {
+		unsafe { self.u }
+	}
+}
+
+impl<T> From<&T> for Pointer<T> {
+	fn from(r: &T) -> Self {
+		Self { r }
+	}
+}
+
+impl<T> From<*const T> for Pointer<T> {
+	fn from(r: *const T) -> Self {
+		Self { r }
+	}
+}
+
+impl<T> From<&mut T> for Pointer<T> {
+	fn from(w: &mut T) -> Self {
+		Self { w }
+	}
+}
+
+impl<T> From<*mut T> for Pointer<T> {
+	fn from(w: *mut T) -> Self {
+		Self { w }
+	}
+}
+
+impl<T> From<usize> for Pointer<T> {
+	fn from(u: usize) -> Self {
+		Self { u }
+	}
+}
+
 /** In-memory representation of `&BitSlice` handles.
 
 # Layout
@@ -279,7 +376,7 @@ where T: Bits {
 	///
 	/// # Parameters
 	///
-	/// - `ptr`: A pointer to `T`.
+	/// - `ptr`: Some kind of pointer to `T`.
 	///
 	/// # Returns
 	///
@@ -295,18 +392,20 @@ where T: Bits {
 	///
 	/// The provided pointer must be either null, or valid in the caller’s
 	/// memory model and allocation regime.
-	pub fn uninhabited(ptr: *const T) -> Self {
+	pub fn uninhabited(ptr: impl Into<Pointer<T>>) -> Self {
+		let ptr = ptr.into();
 		//  Check that the pointer is properly aligned for the storage type.
 		//  Null pointers are always well aligned.
 		assert!(
-			(ptr as usize).trailing_zeros() as usize >= Self::PTR_HEAD_BITS,
+			(ptr.u()).trailing_zeros() as usize >= Self::PTR_HEAD_BITS,
 			"Pointer {:p} does not satisfy minimum alignment requirements {}",
-			ptr,
+			ptr.r(),
 			Self::PTR_HEAD_BITS,
 		);
 		Self {
 			_ty: PhantomData,
-			ptr: NonNull::new(ptr as *mut u8).unwrap_or_else(NonNull::dangling),
+			ptr: NonNull::new(ptr.w() as *mut u8)
+				.unwrap_or_else(NonNull::dangling),
 			len: 0,
 		}
 	}
@@ -326,6 +425,7 @@ where T: Bits {
 	///   be in the domain `0 .. T::BITS`.
 	/// - `tail`: The bit index of the first dead bit after the domain. This
 	///   must be:
+	///   - zero, when and only when `elts` and `head` are also zero.
 	///   - equal to `head` when `elts` is `1`, to create an empty slice.
 	///   - in `head + 1 ..= T::BITS` when `elts` is `1` to create a
 	///     single-element slice.
@@ -343,11 +443,6 @@ where T: Bits {
 	///
 	/// Otherwise, a `BitPtr` structure representing the given domain is
 	/// returned.
-	///
-	/// # Type Parameters
-	///
-	/// - `Head: Into<BitIdx>`: A type which can be used as a `BitIdx`.
-	/// - `Tail: Into<BitIdx>`: A type which can be used as a `BitIdx`.
 	///
 	/// # Panics
 	///
@@ -367,24 +462,23 @@ where T: Bits {
 	/// validly allocated, region of memory, or the canonical dangling pointer
 	/// and empty slice. The caller is responsible for ensuring that the slice
 	/// of memory that the new `BitPtr` will govern is all governable.
-	pub fn new<Head, Tail>(
-		data: *const T,
+	pub fn new(
+		data: impl Into<Pointer<T>>,
 		elts: usize,
-		head: Head,
-		tail: Tail,
-	) -> Self
-	where Head: Into<BitIdx>, Tail: Into<BitIdx> {
-		let (head, tail) = (head.into(), tail.into());
+		head: impl Into<BitIdx>,
+		tail: impl Into<BitIdx>,
+	) -> Self {
+		let (data, head, tail) = (data.into(), head.into(), tail.into());
 
 		//  null pointers, and pointers to empty regions, are run through the
 		//  uninhabited constructor instead
-		if data.is_null() || elts == 0 || (elts == 1 && head == tail) {
+		if data.r().is_null() || elts == 0 || (elts == 1 && head == tail) {
 			return Self::uninhabited(data);
 		}
 
 		//  Check that the pointer is properly aligned for the storage type.
 		assert!(
-			(data as usize).trailing_zeros() as usize >= Self::PTR_HEAD_BITS,
+			(data.u()).trailing_zeros() as usize >= Self::PTR_HEAD_BITS,
 			"BitPtr domain pointers must be well aligned",
 		);
 
@@ -456,22 +550,24 @@ where T: Bits {
 	///
 	/// [`::new`]: #method.new
 	pub(crate) unsafe fn new_unchecked(
-		data: *const T,
+		data: impl Into<Pointer<T>>,
 		elts: usize,
 		head: BitIdx,
 		tail: BitIdx,
 	) -> Self {
+		let data = data.into();
+		let sum = data.r().wrapping_add(elts);
 		//  This check cannot ever be elided. Check that the pointer is not so
 		//  high in the address space that the slice domain wraps.
 		assert!(
-			data.wrapping_add(elts) >= data,
+			sum >= data.r(),
 			"The region overflows the address space: {:p} + {:02X} is {:p}",
-			data,
+			data.r(),
 			elts,
-			data.wrapping_add(elts),
+			sum,
 		);
 
-		let ptr_data = data as usize & Self::PTR_DATA_MASK;
+		let ptr_data = data.u & Self::PTR_DATA_MASK;
 		let ptr_head = *head as usize >> Self::LEN_HEAD_BITS;
 
 		//  If `tail` is not maximal, it will be wrapped to zero, and `elts`
@@ -503,14 +599,15 @@ where T: Bits {
 	///
 	/// # Returns
 	///
-	/// The `*const T` address of the first storage element in the slice domain.
+	/// A pointer to the first storage element in the slice domain. The concrete
+	/// type returned is opaque, and unusable outside this library.
 	///
 	/// # Safety
 	///
 	/// This pointer must be valid in the user’s memory model and allocation
 	/// regime in order for the caller to dereference it.
-	pub fn pointer(&self) -> *const T {
-		(self.ptr.as_ptr() as usize & Self::PTR_DATA_MASK) as *const T
+	pub fn pointer(&self) -> Pointer<T> {
+		(self.ptr.as_ptr() as usize & Self::PTR_DATA_MASK).into()
 	}
 
 	/// Produces the count of all elements in the slice domain.
@@ -600,11 +697,11 @@ where T: Bits {
 	///
 	/// # Returns
 	///
-	/// - `*const T`: A well aligned pointer to the first element of the slice.
+	/// - `Pointer<T>`: A well aligned pointer to the first element of the slice.
 	/// - `usize`: The number of elements in the slice.
 	/// - `BitIdx`: The index of the first live bit in the first element.
 	/// - `BitIdx`: The index of the first dead bit in the last element.
-	pub fn raw_parts(&self) -> (*const T, usize, BitIdx, BitIdx) {
+	pub fn raw_parts(&self) -> (Pointer<T>, usize, BitIdx, BitIdx) {
 		(self.pointer(), self.elements(), self.head(), self.tail())
 	}
 
@@ -691,7 +788,7 @@ where T: Bits {
 	///
 	/// - `'a`: Lifetime for which the data behind the pointer is live.
 	pub fn as_slice<'a>(&self) -> &'a [T] {
-		unsafe { slice::from_raw_parts(self.pointer(), self.elements()) }
+		unsafe { slice::from_raw_parts(self.pointer().r, self.elements()) }
 	}
 
 	/// Accesses the element slice behind the pointer as a Rust mutable slice.
@@ -708,9 +805,7 @@ where T: Bits {
 	///
 	/// - `'a`: Lifetime for which the data behind the pointer is live.
 	pub fn as_mut_slice<'a>(&self) -> &'a mut [T] {
-		unsafe {
-			slice::from_raw_parts_mut(self.pointer() as *mut T, self.elements())
-		}
+		unsafe { slice::from_raw_parts_mut(self.pointer().w, self.elements()) }
 	}
 
 	/// Gets the domain kind for the region the pointer describes.
@@ -781,7 +876,7 @@ where T: Bits {
 				let (h, wrap) = head.incr::<T>();
 				if wrap {
 					*self = Self::new_unchecked(
-						data.offset(1),
+						data.r().offset(1),
 						elts.saturating_sub(1),
 						h,
 						tail,
@@ -819,7 +914,7 @@ where T: Bits {
 		let (h, wrap) = head.decr::<T>();
 		if wrap {
 			*self = Self::new_unchecked(
-				data.offset(-1),
+				data.r().offset(-1),
 				elts.saturating_add(1),
 				h,
 				tail,
@@ -908,10 +1003,11 @@ where T: Bits {
 	pub(crate) fn from_bitslice<C>(bs: &BitSlice<C, T>) -> Self
 	where C: Cursor {
 		let src = unsafe { &*(bs as *const BitSlice<C, T> as *const [()]) };
-		let (ptr, len) = match (src.as_ptr(), src.len()) {
+		let ptr = Pointer::from(src.as_ptr() as *const u8);
+		let (ptr, len) = match (ptr.w(), src.len()) {
 			(_, 0) => (NonNull::dangling(), 0),
 			(p, _) if p.is_null() => unreachable!("Rust forbids null refs"),
-			(p, l) => (unsafe { NonNull::new_unchecked(p as *mut u8) }, l),
+			(p, l) => (unsafe { NonNull::new_unchecked(p) }, l),
 		};
 		Self { ptr, len, _ty: PhantomData }
 	}
@@ -929,7 +1025,7 @@ where T: Bits {
 	where C: Cursor {
 		unsafe {
 			&*(slice::from_raw_parts(
-				self.ptr.as_ptr() as *const (),
+				self.ptr.as_ptr() as *const u8 as *const (),
 				self.len,
 			) as *const [()] as *const BitSlice<C, T>)
 		}
@@ -948,7 +1044,7 @@ where T: Bits {
 	where C: Cursor {
 		unsafe {
 			&mut *(slice::from_raw_parts_mut(
-				self.ptr.as_ptr() as *const () as *mut (),
+				Pointer::from(self.ptr.as_ptr()).w() as *mut (),
 				self.len,
 			) as *mut [()] as *mut BitSlice<C, T>)
 		}
@@ -1030,7 +1126,7 @@ where T: Bits {
 		}
 		write!(f, "BitPtr<{}>", T::TYPENAME)?;
 		f.debug_struct("")
-			.field("data", &HexPtr::<T>(self.pointer()))
+			.field("data", &HexPtr::<T>(self.pointer().r()))
 			.field("elts", &HexAddr(self.elements()))
 			.field("head", &BinAddr::<T>(self.head(), PhantomData))
 			.field("tail", &BinAddr::<T>(self.tail(), PhantomData))
@@ -1102,7 +1198,7 @@ mod tests {
 	fn ctors() {
 		let data: [u32; 4] = [0x756c6153, 0x2c6e6f74, 0x6e6f6d20, 0x00216f64];
 		let bp = BitPtr::<u32>::new(&data as *const u32, 4, 0, 32);
-		assert_eq!(bp.pointer(), &data as *const u32);
+		assert_eq!(bp.pointer().r(), &data as *const u32);
 		assert_eq!(bp.elements(), 4);
 		assert_eq!(*bp.head(), 0);
 		assert_eq!(*bp.tail(), 32);
@@ -1123,8 +1219,14 @@ mod tests {
 
 	#[test]
 	fn patterns() {
+		/// Typehack a tuple of raw bit patterns directly into a bit pointer.
 		fn bp(ptr: *const u32, len: usize) -> BitPtr<u32> {
-			unsafe { core::mem::transmute((ptr, len)) }
+			let ptr = Pointer::from(ptr as *const u8);
+			BitPtr {
+				_ty: PhantomData,
+				ptr: unsafe { NonNull::new_unchecked(ptr.w()) },
+				len,
+			}
 		}
 
 		let ptr = NonNull::<u32>::dangling().as_ptr();

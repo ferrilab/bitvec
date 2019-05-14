@@ -299,7 +299,7 @@ where C: Cursor, T: Bits {
 	/// ```
 	pub fn into_boxed_slice(self) -> Box<[T]> {
 		let (ptr, len, _, _) = self.bitptr().raw_parts();
-		let out = unsafe { Vec::from_raw_parts(ptr as *mut T, len, len) }
+		let out = unsafe { Vec::from_raw_parts(ptr.w(), len, len) }
 			.into_boxed_slice();
 		mem::forget(self);
 		out
@@ -457,7 +457,7 @@ where C: Cursor, T: Bits {
 	where F: FnOnce(&Box<[T]>) -> R {
 		let (data, elts, _, _) = self.bitptr().raw_parts();
 		let b: Box<[T]> = unsafe {
-			Vec::from_raw_parts(data as *mut T, elts, elts)
+			Vec::from_raw_parts(data.w(), elts, elts)
 		}.into_boxed_slice();
 		let out = func(&b);
 		mem::forget(b);
