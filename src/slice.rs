@@ -1797,9 +1797,6 @@ where C: Cursor, T: Bits {
 	/// Accesses the backing storage of the `BitSlice` as a slice of its
 	/// elements.
 	///
-	/// This is different from [`.body()`] in that it always includes the head
-	/// and tail elements, even if they are partial.
-	///
 	/// # Parameters
 	///
 	/// - `&self`
@@ -1822,8 +1819,6 @@ where C: Cursor, T: Bits {
 	/// }
 	/// assert_eq!(accum, 2);
 	/// ```
-	///
-	/// [`.body()`]: #fn.body
 	pub fn as_slice(&self) -> &[T] {
 		//  Get the `BitPtr` structure.
 		let bp = self.bitptr();
