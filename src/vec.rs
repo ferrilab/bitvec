@@ -75,6 +75,7 @@ use core::{
 	marker::{
 		PhantomData,
 		Send,
+		Sync,
 	},
 	mem,
 	ops::{
@@ -2137,8 +2138,12 @@ where C: Cursor, T: 'a + Bits {
 	}
 }
 
-/// `BitVec` is safe to send across threads, but cannot be shared between them.
+/// `BitVec` is safe to move across thread boundaries, as is `&mut BitVec`.
 unsafe impl<C, T> Send for BitVec<C, T>
+where C: Cursor, T: Bits {}
+
+/// `&BitVec` is safe to move across thread boundaries.
+unsafe impl<C, T> Sync for BitVec<C, T>
 where C: Cursor, T: Bits {}
 
 /// Adds two `BitVec`s together, zero-extending the shorter.

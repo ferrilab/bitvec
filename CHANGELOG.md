@@ -4,6 +4,14 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+## 0.11.2
+
+### Added
+
+- `BitBox` and `BitVec` implement [`Sync`], as discussion with [@ratorx] and
+  more careful reading of the documentation for `Sync` has persuaded me that
+  this is sound.
+
 ## 0.11.1
 
 [Issue #12]: I left in an `eprintln!` statement from debugging
@@ -331,4 +339,5 @@ Initial implementation and release.
 [Issue #9]: https://github.com/myrrlyn/bitvec/issues/9
 [Issue #10]: https://github.com/myrrlyn/bitvec/issues/10
 [Issue #12]: https://github.com/myrrlyn/bitvec/issues/12
+[`Sync`]: https://doc.rust-lang.org/stable/core/marker/trait.Sync.html
 [kac]: https://keepachangelog.com/en/1.0.0/

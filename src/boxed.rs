@@ -63,6 +63,7 @@ use core::{
 	marker::{
 		PhantomData,
 		Send,
+		Sync,
 	},
 	mem,
 	ops::{
@@ -667,8 +668,12 @@ where C: Cursor, T: 'a + Bits {
 	}
 }
 
-/// `BitBox` is safe to send across threads, but cannot be shared between them.
+/// `BitBox` is safe to move across thread boundaries, as is `&mut BitBox`.
 unsafe impl<C, T> Send for BitBox<C, T>
+where C: Cursor, T: Bits {}
+
+/// `&BitBox` is safe to move across thread boundaries.
+unsafe impl<C, T> Sync for BitBox<C, T>
 where C: Cursor, T: Bits {}
 
 impl<C, T> Add<Self> for BitBox<C, T>
