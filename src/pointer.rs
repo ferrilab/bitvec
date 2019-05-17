@@ -418,9 +418,9 @@ where T: Bits {
 	///   then the empty-slice representation is returned, regardless of other
 	///   argument values.
 	/// - `elts`: A number of storage elements in the domain of the new
-	///   `BitPtr`. This number must be in `0 .. Self::MAX_ELTS`. If it is zero,
-	///   then the empty-slice representation is returned, regardless of other
-	///   argument values.
+	///   `BitPtr`. This number must be in `0 ..= Self::MAX_ELTS`. If it is
+	///   zero, then the empty-slice representation is returned, regardless of
+	///   other argument values.
 	/// - `head`: The bit index of the first live bit in the domain. This must
 	///   be in the domain `0 .. T::BITS`.
 	/// - `tail`: The bit index of the first dead bit after the domain. This
@@ -450,7 +450,7 @@ where T: Bits {
 	///
 	/// - If the `data` pointer is not aligned to at least the type `T`,
 	/// - If the `elts` counter is not within the countable elements domain,
-	///   `0 .. Self::MAX_ELTS`,
+	///   `0 ..= Self::MAX_ELTS`,
 	/// - If the `data` pointer is so high in the address space that addressing
 	///   the last element would cause the pointer to wrap,
 	/// - If `head` or `tail` are too large for indexing bits within `T`,
@@ -485,7 +485,7 @@ where T: Bits {
 		//  Check that the slice domain is below the ceiling.
 		assert!(
 			elts <= Self::MAX_ELTS,
-			"{} exceeds the BitPtr domain maximum, {}",
+			"{} is outside the element count domain 1 ..= {}",
 			elts,
 			Self::MAX_ELTS,
 		);

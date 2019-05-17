@@ -1,5 +1,10 @@
 # Bit Patterns
 
+This document describes how bit slices describe memory, and how their pointer
+structures are composed.
+
+## Cursor Addressing
+
 This table displays the *bit index*, in [base64], of each position in a
 `BitSlice<Cursor, Fundamental>` on a little-endian machine.
 
@@ -14,7 +19,7 @@ BEu16 | IJKLMNOP ABCDEFGH YZabcdef QRSTUVWX opqrstuv ghijklmn 456789+/ wxyz0123
 BEu8  | ABCDEFGH IJKLMNOP QRSTUVWX YZabcdef ghijklmn opqrstuv wxyz0123 456789+/
 ```
 
-This table displays the bit index in [base64] of each position in a
+This table displays the bit index, in [base64], of each position in a
 `BitSlice<Cursor, Fundamental>` on a big-endian machine.
 
 ```text
@@ -133,8 +138,8 @@ So, for any storage fundamental, its bitslice pointer representation has:
   pointer
 - the *next* log<sub>2</sub>(bit size) bits of the length counter index the
   first *dead* bit *after* the slice ends.
-- the remaining high bits count how many total storage fundamentals are included
-  in the bit pointer domain.
+- the remaining high bits index the final *storage fundamental* of the slice,
+  counting from the correctly aligned address in the pointer.
 
 ## Value Patterns
 
@@ -145,9 +150,14 @@ so that it may be used as `Option<BitPtr<T>>::None`.
 
 ### Empty Slices
 
-The empty slices all have *some* pointer value, and fully zeroed other fields.
-The canonical empty slice uses `NonNull::<T>::dangling()` as its pointer value,
-and empty vectors use their allocation address.
+All pointers whose non-`data` members are fully zeroed are considered
+uninhabited. All empty pointers have the same element address, as provided by
+the `NonNull::<T>::dangling()` function. The pointer is marked as `NonNull` in
+order to take advantage of the null-pointer optimization of `Option`. A fully
+zeroed `BitPtr<T>` slot is only legal as `Option::<BitPtr<T>>::None`. Bit
+pointers to empty space with no backing allocation use the uninhabited address,
+and bit pointers to an allocation with no bits stored use the allocation
+address. The distinction is important for `BitVec`.
 
 ### Inhabited Slices
 

@@ -77,7 +77,6 @@ use core::{
 		ShrAssign,
 	},
 	ptr,
-	slice,
 	str,
 };
 
@@ -148,7 +147,7 @@ handles, but it is ***extremely binary incompatible*** with them. Attempting to
 treat `&BitSlice<_, T>` as `&[T]` in any manner except through the provided APIs
 is ***catastrophically*** unsafe and unsound.
 
-[`BitVec`]: ../struct.BitVec.html
+[`BitVec`]: ../vec/struct.BitVec.html
 [`From`]: https://doc.rust-lang.org/stable/std/convert/trait.From.html
 [`bitvec!`]: ../macro.bitvec.html
 **/
@@ -1902,12 +1901,7 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(accum, 2);
 	/// ```
 	pub fn as_slice(&self) -> &[T] {
-		//  Get the `BitPtr` structure.
-		let bp = self.bitptr();
-		//  Get the pointer and element counts from it.
-		let (ptr, len) = (bp.pointer(), bp.elements());
-		//  Create a slice from them.
-		unsafe { slice::from_raw_parts(ptr.r(), len) }
+		self.bitptr().as_slice()
 	}
 
 	/// Accesses the underlying store.
@@ -1925,12 +1919,7 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(&[3, 66], bs.as_slice());
 	/// ```
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
-		//  Get the `BitPtr` structure.
-		let bp = self.bitptr();
-		//  Get the pointer and element counts from it.
-		let (ptr, len) = (bp.pointer(), bp.elements());
-		//  Create a slice from them.
-		unsafe { slice::from_raw_parts_mut(ptr.w(), len) }
+		self.bitptr().as_mut_slice()
 	}
 
 	/// Changes the cursor type of the slice handle.

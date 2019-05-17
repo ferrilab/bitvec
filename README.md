@@ -61,6 +61,13 @@ Your concern with the memory representation of bitsets includes compression.
 memory. Compressed bit sets can be found in other crates, such as the
 [`compacts`] crate, which uses the [Roaring BitSet] format.
 
+## Why *Wouldn’t* You Use This
+
+`bitvec` aims to satisfy all use cases that require compact bit storage. If you
+don’t need that compactness, `Vec<bool>` should be more than sufficient; if
+`bitvec` does not work for you and you do need that compactness, please contact
+me so I can either fix the problem, or put your story here.
+
 ## Usage
 
 **Minimum Rust Version**: `1.34.0`
@@ -280,6 +287,21 @@ appropriate.
 `BitVec` can relinquish its owned memory with `.into_vec()` or
 `.into_boxed_slice()`, and `BitSlice` can relinquish its borrow by going out
 of scope.
+
+## Warnings
+
+The `BitSlice` type is able to cause memory aliasing, as multiple independent
+`&mut BitSlice` instances may use the same underlying memory. This crate takes
+care to ensure that all observed behavior is exactly as expected, without any
+side effects.
+
+The `BitSlice` methods only use whole-element instructions when the slice spans
+the full width of the element; when the slice has only partial use, the methods
+crawl each bit individually. This is slower on most architectures, but
+guarantees safety.
+
+Race conditions are avoided through use of the atomic read/modify/write
+instructions stabilized in `1.34.0`.
 
 ## Warnings
 
