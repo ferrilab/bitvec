@@ -31,6 +31,7 @@ use core::{
 		AsRef,
 		From,
 	},
+	default::Default,
 	fmt::{
 		self,
 		Debug,
@@ -2295,6 +2296,20 @@ where C: Cursor, T: Bits {
 	/// ```
 	fn from(src: BitPtr<T>) -> Self {
 		src.into_bitslice_mut()
+	}
+}
+
+impl<'a, C, T> Default for &'a BitSlice<C, T>
+where C: Cursor, T: 'a + Bits {
+	fn default() -> Self {
+		BitSlice::empty()
+	}
+}
+
+impl<'a, C, T> Default for &'a mut BitSlice<C, T>
+where C: Cursor, T: 'a + Bits {
+	fn default() -> Self {
+		BitSlice::empty_mut()
 	}
 }
 
