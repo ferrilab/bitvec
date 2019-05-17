@@ -507,8 +507,12 @@ pub trait Bits:
 	/// An element with all bits set to the input.
 	#[inline]
 	fn bits(bit: bool) -> Self {
-		//  convert 0 to !0 and 1 to 0, then invert.
-		!Self::from((bit as u8).wrapping_sub(1))
+		if bit {
+			!Self::from(0)
+		}
+		else {
+			Self::from(0)
+		}
 	}
 }
 
@@ -1255,5 +1259,22 @@ mod tests {
 		assert_eq!(BitIdx(1).decr_tail::<u64>(), (BitIdx(64), true));
 		#[cfg(target_pointer_width = "64")]
 		assert_eq!(BitIdx(64).decr_tail::<u64>(), (BitIdx(63), false));
+	}
+
+	#[test]
+	fn bits() {
+		assert_eq!(u8::bits(false), 0);
+		assert_eq!(u8::bits(true), u8::max_value());
+
+		assert_eq!(u16::bits(false), 0);
+		assert_eq!(u16::bits(true), u16::max_value());
+
+		assert_eq!(u32::bits(false), 0);
+		assert_eq!(u32::bits(true), u32::max_value());
+
+		#[cfg(target_pointer_width = "64")]
+		assert_eq!(u64::bits(false), 0);
+		#[cfg(target_pointer_width = "64")]
+		assert_eq!(u64::bits(true), u64::max_value());
 	}
 }
