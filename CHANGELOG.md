@@ -47,6 +47,8 @@ This document is written according to the [Keep a Changelog][kac] style.
   `(usize, bool) -> bool`, and passes the index as well as the value.
 - `Display` implementations of the `BitIdx` and `BitPos` types now just defer to
   the interior number, and do not write their own type.
+- `BitSlice::as_ptr` and `::as_mut_ptr` now return the null pointer if they are
+  the empty slice, rather than a dangling pointer.
 
 ## 0.11.2
 

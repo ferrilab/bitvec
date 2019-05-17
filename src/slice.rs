@@ -706,6 +706,8 @@ where C: Cursor, T: Bits {
 	///
 	/// A pointer to the first element, partial or not, in the underlying store.
 	///
+	/// If `self` is empty, then the null pointer is returned.
+	///
 	/// # Safety
 	///
 	/// The caller must ensure that the slice outlives the pointer this function
@@ -724,7 +726,12 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(store.as_ptr(), bv.as_ptr());
 	/// ```
 	pub fn as_ptr(&self) -> *const T {
-		self.bitptr().pointer().r()
+		if self.is_empty() {
+			ptr::null()
+		}
+		else {
+			self.bitptr().pointer().r()
+		}
 	}
 
 	/// Retrieves a write pointer to the start of the underlying data slice.
@@ -736,6 +743,8 @@ where C: Cursor, T: Bits {
 	/// # Returns
 	///
 	/// A pointer to the first element, partial or not, in the underlying store.
+	///
+	/// If `self` is empty, then the null pointer is return.
 	///
 	/// # Safety
 	///
@@ -756,7 +765,12 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(store_ptr, bv.as_mut_ptr());
 	/// ```
 	pub fn as_mut_ptr(&mut self) -> *mut T {
-		self.bitptr().pointer().w()
+		if self.is_empty() {
+			ptr::null_mut()
+		}
+		else {
+			self.bitptr().pointer().w()
+		}
 	}
 
 	/// Swaps two bits in the slice.
