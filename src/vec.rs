@@ -2230,10 +2230,9 @@ where C: Cursor, T: Bits {
 	/// ```
 	fn add_assign(&mut self, mut addend: Self) {
 		use core::iter::repeat;
-		//  If the other vec is longer, swap them and try again.
+		//  If the other vec is longer, swap them before continuing.
 		if addend.len() > self.len() {
 			mem::swap(self, &mut addend);
-			return *self += addend;
 		}
 		//  Now that self.len() >= addend.len(), proceed with addition.
 		//
@@ -2334,12 +2333,17 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 	/// assert_eq!("[0001]", &format!("{}", src));
 	/// ```
 	fn bitand_assign(&mut self, rhs: I) {
-		let mut len = 0;
-		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter()) {
-			let val = self[idx] & other;
-			self.set(idx, val);
-			len += 1;
-		}
+		// let mut len = 0;
+		// for (idx, other) in (0 .. self.len()).zip(rhs.into_iter()) {
+		// 	let val = self[idx] & other;
+		// 	self.set(idx, val);
+		// 	len += 1;
+		// }
+		let len = rhs.into_iter()
+			.take(self.len())
+			.enumerate()
+			.map(|(i, r)| self.get(i).map(|l| self.set(i, l & r)))
+			.count();
 		self.truncate(len);
 	}
 }
@@ -2388,12 +2392,17 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 	/// assert_eq!("[0111]", &format!("{}", src));
 	/// ```
 	fn bitor_assign(&mut self, rhs: I) {
-		let mut len = 0;
-		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter()) {
-			let val = self[idx] | other;
-			self.set(idx, val);
-			len += 1;
-		}
+		// let mut len = 0;
+		// for (idx, other) in (0 .. self.len()).zip(rhs.into_iter()) {
+		// 	let val = self[idx] | other;
+		// 	self.set(idx, val);
+		// 	len += 1;
+		// }
+		let len = rhs.into_iter()
+			.take(self.len())
+			.enumerate()
+			.map(|(i, r)| self.get(i).map(|l| self.set(i, l | r)))
+			.count();
 		self.truncate(len);
 	}
 }
@@ -2442,12 +2451,17 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 	/// assert_eq!("[0110]", &format!("{}", src));
 	/// ```
 	fn bitxor_assign(&mut self, rhs: I) {
-		let mut len = 0;
-		for (idx, other) in (0 .. self.len()).zip(rhs.into_iter()) {
-			let val = self[idx] ^ other;
-			self.set(idx, val);
-			len += 1;
-		}
+		// let mut len = 0;
+		// for (idx, other) in (0 .. self.len()).zip(rhs.into_iter()) {
+		// 	let val = self[idx] ^ other;
+		// 	self.set(idx, val);
+		// 	len += 1;
+		// }
+		let len = rhs.into_iter()
+			.take(self.len())
+			.enumerate()
+			.map(|(i, r)| self.get(i).map(|l| self.set(i, l ^ r)))
+			.count();
 		self.truncate(len);
 	}
 }
@@ -2835,11 +2849,8 @@ where C: Cursor, T: Bits {
 	fn shl_assign(&mut self, shamt: usize) {
 		let len = self.len();
 		if shamt >= len {
+			self.set_all(false);
 			self.clear();
-			let buf: &mut [T] = self.as_mut();
-			let ptr = buf.as_mut_ptr();
-			let len = buf.len();
-			unsafe { core::ptr::write_bytes(ptr, 0, len); }
 			return;
 		}
 		for idx in shamt .. len {
