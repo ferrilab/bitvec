@@ -932,8 +932,7 @@ where C: Cursor, T: Bits {
 			.expect("BitVec::swap_remove cannot fail after index validation")
 	}
 
-	/// Inserts an element at a position, shifting all elements after it to the
-	/// right.
+	/// Inserts a bit at a position, shifting all bits after it to the right.
 	///
 	/// Note that this is `O(n)` runtime.
 	///
@@ -943,7 +942,7 @@ where C: Cursor, T: Bits {
 	/// - `index`: The position at which to insert. This may be any value from
 	///   `0` up to *and including* `self.len()`. At `self.len()`, it is
 	///   equivalent to calling `self.push(value)`.
-	/// - `value`: The value to be inserted.
+	/// - `value`: The bit to be inserted.
 	///
 	/// # Panics
 	///
@@ -967,8 +966,8 @@ where C: Cursor, T: Bits {
 		self[index ..].rotate_right(1);
 	}
 
-	/// Removes and returns the element at position `index`, shifting all
-	/// elements after it to the left.
+	/// Removes and returns the bit at position `index`, shifting all bits after
+	/// it to the left.
 	///
 	/// # Parameters
 	///

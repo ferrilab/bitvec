@@ -2059,6 +2059,13 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	/// assert_eq!(lbv, rbv);
 	/// ```
 	fn eq(&self, rhs: &BitSlice<C, D>) -> bool {
+		(&self).eq(rhs)
+	}
+}
+
+impl<A, B, C, D> PartialEq<BitSlice<C, D>> for &BitSlice<A, B>
+where A: Cursor, B: Bits, C: Cursor, D: Bits {
+	fn eq(&self, rhs: &BitSlice<C, D>) -> bool {
 		if self.len() != rhs.len() {
 			return false;
 		}
@@ -2071,7 +2078,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 impl<A, B, C, D> PartialEq<BitVec<C, D>> for BitSlice<A, B>
 where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
-		<Self as PartialEq<BitSlice<C, D>>>::eq(self, &*rhs)
+		self.eq(rhs.as_bitslice())
 	}
 }
 
@@ -2079,7 +2086,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 impl<A, B, C, D> PartialEq<BitVec<C, D>> for &BitSlice<A, B>
 where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
-		<BitSlice<A, B> as PartialEq<BitSlice<C, D>>>::eq(self, &*rhs)
+		self.eq(rhs.as_bitslice())
 	}
 }
 
@@ -2124,6 +2131,13 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	/// assert!(b < c);
 	/// assert!(c < d);
 	/// ```
+	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<Ordering> {
+		(&self).partial_cmp(rhs)
+	}
+}
+
+impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for &BitSlice<A, B>
+where A: Cursor, B: Bits, C: Cursor, D: Bits {
 	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<Ordering> {
 		for (l, r) in self.iter().zip(rhs.iter()) {
 			match (l, r) {
@@ -2222,8 +2236,6 @@ where C: Cursor, T: 'a + Bits {
 	}
 }
 
-/// Builds a `BitSlice` from a slice of elements. The resulting `BitSlice` will
-/// always completely fill the original slice.
 impl<'a, C, T> From<&'a [T]> for &'a BitSlice<C, T>
 where C: Cursor, T: 'a + Bits {
 	fn from(src: &'a [T]) -> Self {
@@ -2238,8 +2250,6 @@ where C: Cursor, T: 'a + Bits {
 	}
 }
 
-/// Builds a mutable `BitSlice` from a slice of mutable elements. The resulting
-/// `BitSlice` will always completely fill the original slice.
 impl<'a, C, T> From<&'a mut [T]> for &'a mut BitSlice<C, T>
 where C: Cursor, T: 'a + Bits {
 	fn from(src: &'a mut [T]) -> Self {
@@ -2247,7 +2257,6 @@ where C: Cursor, T: 'a + Bits {
 	}
 }
 
-/// Converts a `BitPtr` representation into a `BitSlice` handle.
 impl<'a, C, T> From<BitPtr<T>> for &'a BitSlice<C, T>
 where C: Cursor, T: 'a + Bits {
 	/// Converts a `BitPtr` representation into a `BitSlice` handle.
@@ -2280,7 +2289,6 @@ where C: Cursor, T: 'a + Bits {
 	}
 }
 
-/// Converts a `BitPtr` representation into a `BitSlice` handle.
 impl<C, T> From<BitPtr<T>> for &mut BitSlice<C, T>
 where C: Cursor, T: Bits {
 	/// Converts a `BitPtr` representation into a `BitSlice` handle.
