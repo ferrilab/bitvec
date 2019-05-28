@@ -408,7 +408,7 @@ where C: Cursor, T: Bits {
 	///
 	/// The slice of bits behind the box.
 	pub fn as_bitslice(&self) -> &BitSlice<C, T> {
-		self.pointer.into()
+		self.pointer.into_bitslice()
 	}
 
 	/// Accesses the `BitSlice<C, T>` to which the `BitBox` refers.
@@ -421,7 +421,7 @@ where C: Cursor, T: Bits {
 	///
 	/// The slice of bits behind the box.
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<C, T> {
-		self.pointer.into()
+		self.pointer.into_bitslice_mut()
 	}
 
 	/// Gives read access to the `BitPtr<T>` structure powering the box.
@@ -652,8 +652,8 @@ where C: Cursor, T: Bits {
 
 	fn into_iter(self) -> Self::IntoIter {
 		IntoIter {
-			iterator: self.bitptr(),
-			_original: self,
+			region: self.bitptr(),
+			bitbox: self,
 		}
 	}
 }
@@ -689,7 +689,7 @@ where C: Cursor, T: Bits {
 impl<C, T> AddAssign for BitBox<C, T>
 where C: Cursor, T: Bits {
 	fn add_assign(&mut self, addend: Self) {
-		**self += &*addend
+		self.as_mut_bitslice().add_assign(addend.as_bitslice())
 	}
 }
 
@@ -706,7 +706,7 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 impl<C, T, I> BitAndAssign<I> for BitBox<C, T>
 where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 	fn bitand_assign(&mut self, rhs: I) {
-		**self &= rhs;
+		self.as_mut_bitslice().bitand_assign(rhs);
 	}
 }
 
@@ -723,7 +723,7 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 impl<C, T, I> BitOrAssign<I> for BitBox<C, T>
 where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 	fn bitor_assign(&mut self, rhs: I) {
-		**self |= rhs;
+		self.as_mut_bitslice().bitor_assign(rhs);
 	}
 }
 
@@ -740,7 +740,7 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 impl<C, T, I> BitXorAssign<I> for BitBox<C, T>
 where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 	fn bitxor_assign(&mut self, rhs: I) {
-		**self ^= rhs;
+		self.as_mut_bitslice().bitxor_assign(rhs);
 	}
 }
 
@@ -749,24 +749,24 @@ where C: Cursor, T: Bits {
 	type Target = BitSlice<C, T>;
 
 	fn deref(&self) -> &Self::Target {
-		self.pointer.into()
+		self.as_bitslice()
 	}
 }
 
 impl<C, T> DerefMut for BitBox<C, T>
 where C: Cursor, T: Bits {
 	fn deref_mut(&mut self) -> &mut Self::Target {
-		self.pointer.into()
+		self.as_mut_bitslice()
 	}
 }
 
 impl<C, T> Drop for BitBox<C, T>
 where C: Cursor, T: Bits {
 	fn drop(&mut self) {
-		let ptr = self.as_mut_bitslice().as_mut_ptr();
-		let len = self.as_bitslice().len();
+		let ptr = self.as_mut_slice().as_mut_ptr();
+		let len = self.as_slice().len();
 		//  Run the `Box<[T]>` destructor.
-		drop(unsafe { Vec::from_raw_parts(ptr, len, len).into_boxed_slice() });
+		drop(unsafe { Vec::from_raw_parts(ptr, 0, len) }.into_boxed_slice());
 	}
 }
 
@@ -775,7 +775,7 @@ where C: Cursor, T: Bits {
 	type Output = bool;
 
 	fn index(&self, index: usize) -> &Self::Output {
-		&(**self)[index]
+		&self.as_bitslice()[index]
 	}
 }
 
@@ -784,14 +784,14 @@ where C: Cursor, T: Bits {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, range: Range<usize>) -> &Self::Output {
-		&(**self)[range]
+		&self.as_bitslice()[range]
 	}
 }
 
 impl<C, T> IndexMut<Range<usize>> for BitBox<C, T>
 where C: Cursor, T: Bits {
 	fn index_mut(&mut self, range: Range<usize>) -> &mut Self::Output {
-		&mut (**self)[range]
+		&mut self.as_mut_bitslice()[range]
 	}
 }
 
@@ -800,14 +800,14 @@ where C: Cursor, T: Bits {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, range: RangeFrom<usize>) -> &Self::Output {
-		&(**self)[range]
+		&self.as_bitslice()[range]
 	}
 }
 
 impl<C, T> IndexMut<RangeFrom<usize>> for BitBox<C, T>
 where C: Cursor, T: Bits {
 	fn index_mut(&mut self, range: RangeFrom<usize>) -> &mut Self::Output {
-		&mut (**self)[range]
+		&mut self.as_mut_bitslice()[range]
 	}
 }
 
@@ -815,15 +815,15 @@ impl<C, T> Index<RangeFull> for BitBox<C, T>
 where C: Cursor, T: Bits {
 	type Output = BitSlice<C, T>;
 
-	fn index(&self, range: RangeFull) -> &Self::Output {
-		&(**self)[range]
+	fn index(&self, _: RangeFull) -> &Self::Output {
+		self.as_bitslice()
 	}
 }
 
 impl<C, T> IndexMut<RangeFull> for BitBox<C, T>
 where C: Cursor, T: Bits {
-	fn index_mut(&mut self, range: RangeFull) -> &mut Self::Output {
-		&mut (**self)[range]
+	fn index_mut(&mut self, _: RangeFull) -> &mut Self::Output {
+		self.as_mut_bitslice()
 	}
 }
 
@@ -832,14 +832,14 @@ where C: Cursor, T: Bits {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, range: RangeInclusive<usize>) -> &Self::Output {
-		&(**self)[range]
+		&self.as_bitslice()[range]
 	}
 }
 
 impl<C, T> IndexMut<RangeInclusive<usize>> for BitBox<C, T>
 where C: Cursor, T: Bits {
 	fn index_mut(&mut self, range: RangeInclusive<usize>) -> &mut Self::Output {
-		&mut (**self)[range]
+		&mut self.as_mut_bitslice()[range]
 	}
 }
 
@@ -848,14 +848,14 @@ where C: Cursor, T: Bits {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, range: RangeTo<usize>) -> &Self::Output {
-		&(**self)[range]
+		&self.as_bitslice()[range]
 	}
 }
 
 impl<C, T> IndexMut<RangeTo<usize>> for BitBox<C, T>
 where C: Cursor, T: Bits {
 	fn index_mut(&mut self, range: RangeTo<usize>) -> &mut Self::Output {
-		&mut (**self)[range]
+		&mut self.as_mut_bitslice()[range]
 	}
 }
 
@@ -864,14 +864,14 @@ where C: Cursor, T: Bits {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, range: RangeToInclusive<usize>) -> &Self::Output {
-		&(**self)[range]
+		&self.as_bitslice()[range]
 	}
 }
 
 impl<C, T> IndexMut<RangeToInclusive<usize>> for BitBox<C, T>
 where C: Cursor, T: Bits {
 	fn index_mut(&mut self, range: RangeToInclusive<usize>) -> &mut Self::Output {
-		&mut (**self)[range]
+		&mut self.as_mut_bitslice()[range]
 	}
 }
 
@@ -880,7 +880,7 @@ where C: Cursor, T: Bits {
 	type Output = Self;
 
 	fn neg(mut self) -> Self::Output {
-		let _ = -(&mut *self);
+		let _ = self.as_mut_bitslice().neg();
 		self
 	}
 }
@@ -890,7 +890,7 @@ where C: Cursor, T: Bits {
 	type Output = Self;
 
 	fn not(mut self) -> Self::Output {
-		let _ = !(&mut *self);
+		let _ = self.as_mut_bitslice().not();
 		self
 	}
 }
@@ -908,7 +908,7 @@ where C: Cursor, T: Bits {
 impl<C, T> ShlAssign<usize> for BitBox<C, T>
 where C: Cursor, T: Bits {
 	fn shl_assign(&mut self, shamt: usize) {
-		**self <<= shamt;
+		self.as_mut_bitslice().shl_assign(shamt);
 	}
 }
 
@@ -925,7 +925,7 @@ where C: Cursor, T: Bits {
 impl<C, T> ShrAssign<usize> for BitBox<C, T>
 where C: Cursor, T: Bits {
 	fn shr_assign(&mut self, shamt: usize) {
-		**self >>= shamt;
+		self.as_mut_bitslice().shr_assign(shamt);
 	}
 }
 
@@ -933,15 +933,15 @@ where C: Cursor, T: Bits {
 pub struct IntoIter<C, T>
 where C: Cursor, T: Bits {
 	/// Owning pointer to the full slab
-	_original: BitBox<C, T>,
+	bitbox: BitBox<C, T>,
 	/// Slice descriptor for the region undergoing iteration.
-	iterator: BitPtr<T>,
+	region: BitPtr<T>,
 }
 
 impl<C, T> IntoIter<C, T>
 where C: Cursor, T: Bits {
 	fn iterator(&self) -> <&BitSlice<C, T> as IntoIterator>::IntoIter {
-		<&BitSlice<C, T>>::from(self.iterator).into_iter()
+		self.region.into_bitslice().into_iter()
 	}
 }
 
@@ -950,7 +950,7 @@ where C: Cursor, T: Bits {
 	fn next_back(&mut self) -> Option<Self::Item> {
 		let mut slice_iter = self.iterator();
 		let out = slice_iter.next_back();
-		self.iterator = slice_iter.bitptr();
+		self.region = slice_iter.bitptr();
 		out
 	}
 }
@@ -968,7 +968,7 @@ where C: Cursor, T: Bits {
 	fn next(&mut self) -> Option<Self::Item> {
 		let mut slice_iter = self.iterator();
 		let out = slice_iter.next();
-		self.iterator = slice_iter.bitptr();
+		self.region = slice_iter.bitptr();
 		out
 	}
 
@@ -983,7 +983,7 @@ where C: Cursor, T: Bits {
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
 		let mut slice_iter = self.iterator();
 		let out = slice_iter.nth(n);
-		self.iterator = slice_iter.bitptr();
+		self.region = slice_iter.bitptr();
 		out
 	}
 

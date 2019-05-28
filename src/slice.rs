@@ -252,7 +252,7 @@ where C: Cursor, T: Bits {
 		BitPtr::new(elt, 1, 0, T::BITS).into_bitslice_mut()
 	}
 
-	/// Wraps a `&[T: Bits]` in a `&BitSlice<C: Cursor, T>`. The endianness must
+	/// Wraps a `&[T: Bits]` in a `&BitSlice<C: Cursor, T>`. The cursor must
 	/// be specified at the call site. The element type cannot be changed.
 	///
 	/// # Parameters
@@ -289,7 +289,7 @@ where C: Cursor, T: Bits {
 	}
 
 	/// Wraps a `&mut [T: Bits]` in a `&mut BitSlice<C: Cursor, T>`. The
-	/// endianness must be specified by the call site. The element type cannot
+	/// cursor must be specified by the call site. The element type cannot
 	/// be changed.
 	///
 	/// # Parameters
@@ -1429,7 +1429,8 @@ where C: Cursor, T: Bits {
 	///
 	/// # Returns
 	///
-	/// Whether all bits in the slice domain are set.
+	/// Whether all bits in the slice domain are set. The empty slice returns
+	/// `true`.
 	///
 	/// # Examples
 	///
@@ -1443,8 +1444,8 @@ where C: Cursor, T: Bits {
 	/// ```
 	pub fn all(&self) -> bool {
 		match self.bitptr().domain() {
-			BitDomain::Empty => return false,
-			BitDomain::Minor(head, elt, tail) =>  {
+			BitDomain::Empty => {},
+			BitDomain::Minor(head, elt, tail) => {
 				for n in *head .. *tail {
 					if !elt.get::<C>(n.into()) {
 						return false;
@@ -1504,7 +1505,8 @@ where C: Cursor, T: Bits {
 	///
 	/// # Returns
 	///
-	/// Whether any bit in the slice domain is set.
+	/// Whether any bit in the slice domain is set. The empty slice returns
+	/// `false`.
 	///
 	/// # Examples
 	///
@@ -1518,7 +1520,7 @@ where C: Cursor, T: Bits {
 	/// ```
 	pub fn any(&self) -> bool {
 		match self.bitptr().domain() {
-			BitDomain::Empty => return false,
+			BitDomain::Empty => {},
 			BitDomain::Minor(head, elt, tail) => {
 				for n in *head .. *tail {
 					if elt.get::<C>(n.into()) {
@@ -1648,7 +1650,8 @@ where C: Cursor, T: Bits {
 	///
 	/// # Returns
 	///
-	/// Whether the slice domain has mixed content.
+	/// Whether the slice domain has mixed content. The empty slice returns
+	/// `false`.
 	///
 	/// # Examples
 	///
@@ -2027,7 +2030,7 @@ where C: Cursor, T: Bits {
 
 /// Tests if two `BitSlice`s are semantically — not bitwise — equal.
 ///
-/// It is valid to compare two slices of different endianness or element types.
+/// It is valid to compare two slices of different cursor or element types.
 ///
 /// The equality condition requires that they have the same number of total bits
 /// and that each pair of bits in semantic order are identical.
@@ -2809,9 +2812,8 @@ where C: Cursor, T: Bits {
 
 	fn index(&self, index: RangeInclusive<usize>) -> &Self::Output {
 		let start = *index.start();
-		//  This *should* be impossible, but that is presently an implementation
-		//  detail of the `BitPtr` representation, and should not be considered
-		//  an axiom for ranged indexing.
+		//  This check can never fail, due to implementation details of
+		//  `BitPtr<T>`.
 		if let Some(end) = index.end().checked_add(1) {
 			&self[start .. end]
 		}
@@ -2825,9 +2827,8 @@ impl<C, T> IndexMut<RangeInclusive<usize>> for BitSlice<C, T>
 where C: Cursor, T: Bits {
 	fn index_mut(&mut self, index: RangeInclusive<usize>) -> &mut Self::Output {
 		let start = *index.start();
-		//  This *should* be impossible, but that is presently an implementation
-		//  detail of the `BitPtr` representation, and should not be considered
-		//  an axiom for ranged indexing.
+		//  This check can never fail, due to implementation details of
+		//  `BitPtr<T>`.
 		if let Some(end) = index.end().checked_add(1) {
 			&mut self[start .. end]
 		}

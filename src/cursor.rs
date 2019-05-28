@@ -14,7 +14,7 @@ Contiguity is not required.
 `Cursor` is a stateless trait, and implementors should be zero-sized types.
 !*/
 
-use super::bits::{
+use crate::bits::{
 	BitIdx,
 	BitPos,
 	Bits,

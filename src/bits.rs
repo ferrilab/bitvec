@@ -10,6 +10,7 @@ not exported in the prelude.
 !*/
 
 use crate::cursor::Cursor;
+
 use core::{
 	cmp::Eq,
 	convert::From,
@@ -995,8 +996,8 @@ impl BitIdx {
 		let bits = bits_after_head as u8 & T::MASK;
 
 		/*
-			* The expression below this comment is equivalent to the branched
-			* structure below, but branchless.
+		 * The expression below this comment is equivalent to the branched
+		 * structure below, but branchless.
 
 		if bits == 0 {
 			(elts + 1, T::BITS.into())
@@ -1004,7 +1005,7 @@ impl BitIdx {
 		else {
 			(elts + 2, bits.into())
 		}
-		*/
+		 */
 
 		let tbz = (bits == 0) as u8;
 		(elts + 2 - tbz as usize, ((tbz << T::INDX) | bits).into())

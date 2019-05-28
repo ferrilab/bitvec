@@ -19,10 +19,7 @@ use crate::{
 		BigEndian,
 		Cursor,
 	},
-	pointer::{
-		BitPtr,
-		Pointer,
-	},
+	pointer::BitPtr,
 	slice::BitSlice,
 };
 
@@ -444,11 +441,7 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(bv.count_ones(), 2);
 	/// ```
 	pub fn from_element(elt: T) -> Self {
-		Self::from_vec({
-			let mut v = Vec::with_capacity(1);
-			v.push(elt);
-			v
-		})
+		Self::from_vec(vec![elt])
 	}
 
 	/// Constructs a `BitVec` from a slice of elements.
@@ -1717,7 +1710,7 @@ where C: Cursor, T: Bits {
 
 /// Tests if two `BitVec`s are semantically — not bitwise — equal.
 ///
-/// It is valid to compare two vectors of different endianness or element types.
+/// It is valid to compare two vectors of different cursor or element types.
 ///
 /// The equality condition requires that they have the same number of stored
 /// bits and that each pair of bits in semantic order are identical.
@@ -1943,8 +1936,8 @@ where C: Cursor, T: Bits {
 /// Prints the `BitVec` for debugging.
 ///
 /// The output is of the form `BitVec<C, T> [ELT, *]`, where `<C, T>` is the
-/// endianness and element type, with square brackets on each end of the bits
-/// and all the live elements in the vector printed in binary. The printout is
+/// cursor and element type, with square brackets on each end of the bits and
+/// all the live elements in the vector printed in binary. The printout is
 /// always in semantic order, and may not reflect the underlying store. To see
 /// the underlying store, use `format!("{:?}", self.as_slice());` instead.
 ///
@@ -2126,8 +2119,8 @@ where C: Cursor, T: Bits {
 	/// ```
 	fn into_iter(self) -> Self::IntoIter {
 		IntoIter {
-			slab: self.pointer.pointer(),
-			inner: self,
+			region: self.pointer,
+			bitvec: self,
 		}
 	}
 }
@@ -2557,7 +2550,7 @@ where C: Cursor, T: Bits {
 	/// bv[1];
 	/// ```
 	fn index(&self, cursor: usize) -> &Self::Output {
-		if self.as_bitslice()[cursor] { &true } else { &false }
+		&self.as_bitslice()[cursor]
 	}
 }
 
@@ -2565,46 +2558,15 @@ impl<C, T> Index<Range<usize>> for BitVec<C, T>
 where C: Cursor, T: Bits {
 	type Output = BitSlice<C, T>;
 
-	fn index(&self, Range { start, end }: Range<usize>) -> &Self::Output {
-		&self.as_bitslice()[start .. end]
+	fn index(&self, range: Range<usize>) -> &Self::Output {
+		&self.as_bitslice()[range]
 	}
 }
 
 impl<C, T> IndexMut<Range<usize>> for BitVec<C, T>
 where C: Cursor, T: Bits {
-	fn index_mut(
-		&mut self,
-		Range { start, end }: Range<usize>,
-	) -> &mut Self::Output {
-		&mut self.as_mut_bitslice()[start .. end]
-	}
-}
-
-impl<C, T> Index<RangeInclusive<usize>> for BitVec<C, T>
-where C: Cursor, T: Bits {
-	type Output = BitSlice<C, T>;
-
-	fn index(&self, index: RangeInclusive<usize>) -> &Self::Output {
-		let start = *index.start();
-		if let Some(end) = index.end().checked_add(1) {
-			&self.as_bitslice()[start .. end]
-		}
-		else {
-			&self.as_bitslice()[start ..]
-		}
-	}
-}
-
-impl<C, T> IndexMut<RangeInclusive<usize>> for BitVec<C, T>
-where C: Cursor, T: Bits {
-	fn index_mut(&mut self, index: RangeInclusive<usize>) -> &mut Self::Output {
-		let start = *index.start();
-		if let Some(end) = index.end().checked_add(1) {
-			&mut self.as_mut_bitslice()[start .. end]
-		}
-		else {
-			&mut self.as_mut_bitslice()[start ..]
-		}
+	fn index_mut(&mut self, range: Range<usize>) -> &mut Self::Output {
+		&mut self.as_mut_bitslice()[range]
 	}
 }
 
@@ -2612,19 +2574,15 @@ impl<C, T> Index<RangeFrom<usize>> for BitVec<C, T>
 where C: Cursor, T: Bits {
 	type Output = BitSlice<C, T>;
 
-	fn index(&self, RangeFrom { start }: RangeFrom<usize>) -> &Self::Output {
-		&self.as_bitslice()[start .. self.len()]
+	fn index(&self, range: RangeFrom<usize>) -> &Self::Output {
+		&self.as_bitslice()[range]
 	}
 }
 
 impl<C, T> IndexMut<RangeFrom<usize>> for BitVec<C, T>
 where C: Cursor, T: Bits {
-	fn index_mut(
-		&mut self,
-		RangeFrom { start }: RangeFrom<usize>,
-	) -> &mut Self::Output {
-		let len = self.len();
-		&mut self.as_mut_bitslice()[start .. len]
+	fn index_mut(&mut self, range: RangeFrom<usize>) -> &mut Self::Output {
+		&mut self.as_mut_bitslice()[range]
 	}
 }
 
@@ -2644,22 +2602,35 @@ where C: Cursor, T: Bits {
 	}
 }
 
+impl<C, T> Index<RangeInclusive<usize>> for BitVec<C, T>
+where C: Cursor, T: Bits {
+	type Output = BitSlice<C, T>;
+
+	fn index(&self, range: RangeInclusive<usize>) -> &Self::Output {
+		&self.as_bitslice()[range]
+	}
+}
+
+impl<C, T> IndexMut<RangeInclusive<usize>> for BitVec<C, T>
+where C: Cursor, T: Bits {
+	fn index_mut(&mut self, range: RangeInclusive<usize>) -> &mut Self::Output {
+		&mut self.as_mut_bitslice()[range]
+	}
+}
+
 impl<C, T> Index<RangeTo<usize>> for BitVec<C, T>
 where C: Cursor, T: Bits {
 	type Output = BitSlice<C, T>;
 
-	fn index(&self, RangeTo { end }: RangeTo<usize>) -> &Self::Output {
-		&self.as_bitslice()[0 .. end]
+	fn index(&self, range: RangeTo<usize>) -> &Self::Output {
+		&self.as_bitslice()[range]
 	}
 }
 
 impl<C, T> IndexMut<RangeTo<usize>> for BitVec<C, T>
 where C: Cursor, T: Bits {
-	fn index_mut(
-		&mut self,
-		RangeTo { end }: RangeTo<usize>,
-	) -> &mut Self::Output {
-		&mut self.as_mut_bitslice()[0 .. end]
+	fn index_mut(&mut self, range: RangeTo<usize>) -> &mut Self::Output {
+		&mut self.as_mut_bitslice()[range]
 	}
 }
 
@@ -2667,21 +2638,15 @@ impl<C, T> Index<RangeToInclusive<usize>> for BitVec<C, T>
 where C: Cursor, T: Bits {
 	type Output = BitSlice<C, T>;
 
-	fn index(
-		&self,
-		RangeToInclusive { end }: RangeToInclusive<usize>,
-	) -> &Self::Output {
-		&self.as_bitslice()[0 ..= end]
+	fn index(&self, range: RangeToInclusive<usize>) -> &Self::Output {
+		&self.as_bitslice()[range]
 	}
 }
 
 impl<C, T> IndexMut<RangeToInclusive<usize>> for BitVec<C, T>
 where C: Cursor, T: Bits {
-	fn index_mut(
-		&mut self,
-		RangeToInclusive { end }: RangeToInclusive<usize>,
-	) -> &mut Self::Output {
-		&mut self.as_mut_bitslice()[0 ..= end]
+	fn index_mut(&mut self, range: RangeToInclusive<usize>) -> &mut Self::Output {
+		&mut self.as_mut_bitslice()[range]
 	}
 }
 
@@ -2739,7 +2704,7 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(!0u32, flip.as_slice()[0]);
 	/// ```
 	fn not(mut self) -> Self::Output {
-		let _ = !(self.as_mut_bitslice());
+		let _ = self.as_mut_bitslice().not();
 		self
 	}
 }
@@ -3270,20 +3235,25 @@ where C: Cursor, T: 'a + Bits {
 #[repr(C)]
 pub struct IntoIter<C, T>
 where C: Cursor, T: Bits {
-	/// Mostly-owning pointer to the bit slice.
-	///
-	/// The destructor for this can never be run.
-	inner: BitVec<C, T>,
-	/// Pointer to the original allocation. This cannot be forgotten.
-	slab: Pointer<T>,
+	/// Owning descriptor for the allocation. This is not modified by iteration.
+	bitvec: BitVec<C, T>,
+	/// Descriptor for the live portion of the vector as iteration proceeds.
+	region: BitPtr<T>,
+}
+
+impl<C, T> IntoIter<C, T>
+where C: Cursor, T: Bits {
+	fn iterator(&self) -> <&BitSlice<C, T> as IntoIterator>::IntoIter {
+		self.region.into_bitslice().into_iter()
+	}
 }
 
 impl<C, T> DoubleEndedIterator for IntoIter<C, T>
 where C: Cursor, T: Bits {
 	fn next_back(&mut self) -> Option<Self::Item> {
-		let mut slice_iter = (*self.inner).into_iter();
+		let mut slice_iter = self.iterator();
 		let out = slice_iter.next_back();
-		self.inner.pointer = slice_iter.bitptr();
+		self.region = slice_iter.bitptr();
 		out
 	}
 }
@@ -3320,9 +3290,9 @@ where C: Cursor, T: Bits {
 	/// assert!(iter.next().is_none());
 	/// ```
 	fn next(&mut self) -> Option<Self::Item> {
-		let mut slice_iter = (*self.inner).into_iter();
+		let mut slice_iter = self.iterator();
 		let out = slice_iter.next();
-		self.inner.pointer = slice_iter.bitptr();
+		self.region = slice_iter.bitptr();
 		out
 	}
 
@@ -3354,8 +3324,7 @@ where C: Cursor, T: Bits {
 	/// assert_eq!(iter.size_hint(), (0, Some(0)));
 	/// ```
 	fn size_hint(&self) -> (usize, Option<usize>) {
-		let rem = self.inner.len();
-		(rem, Some(rem))
+		self.iterator().size_hint()
 	}
 
 	/// Counts how many bits are live in the iterator, consuming it.
@@ -3381,7 +3350,7 @@ where C: Cursor, T: Bits {
 	///
 	/// [`BitSlice`]: ../struct.BitSlice.html#method.iter
 	fn count(self) -> usize {
-		self.len()
+		self.bitvec.len()
 	}
 
 	/// Advances the iterator by `n` bits, starting from zero.
@@ -3413,9 +3382,9 @@ where C: Cursor, T: Bits {
 	/// assert!(iter.nth(0).is_none());
 	/// ```
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
-		let mut slice_iter = (*self.inner).into_iter();
+		let mut slice_iter = self.iterator();
 		let out = slice_iter.nth(n);
-		self.inner.pointer = slice_iter.bitptr();
+		self.region = slice_iter.bitptr();
 		out
 	}
 
@@ -3437,20 +3406,6 @@ where C: Cursor, T: Bits {
 	/// ```
 	fn last(mut self) -> Option<Self::Item> {
 		self.next_back()
-	}
-}
-
-impl<C, T> Drop for IntoIter<C, T>
-where C: Cursor, T: Bits {
-	fn drop(&mut self) {
-		let cap = self.inner.capacity;
-		//  Yank the interior BitVec, and *forget it*. This is important because
-		//  the interior *does not have the correct pointer anymore*, and cannot
-		//  be allowed to run the destructor.
-		mem::forget(mem::replace(&mut self.inner, BitVec::new()));
-		//  Build a Vec from the slab pointer and the capacity, and allow that
-		//  to drop.
-		unsafe { Vec::from_raw_parts(self.slab.w(), 0, cap) };
 	}
 }
 
