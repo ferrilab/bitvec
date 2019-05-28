@@ -8,11 +8,11 @@ handle operations.
 !*/
 
 use crate::{
-	bits::{
-		BitIdx,
-		Bits,
-	},
 	pointer::BitPtr,
+	store::{
+		BitIdx,
+		BitStore,
+	},
 };
 
 /// Variant markers for the kinds of domains.
@@ -48,7 +48,7 @@ impl BitDomainKind {
 }
 
 impl<T> From<&BitPtr<T>> for BitDomainKind
-where T: Bits {
+where T: BitStore {
 	fn from(bitptr: &BitPtr<T>) -> Self {
 		let (e, h, t) = bitptr.region_data();
 		let w = T::BITS;
@@ -78,10 +78,10 @@ where T: Bits {
 ///
 /// # Type Parameters
 ///
-/// - `T: Bits` The type of the elements the domain inhabits.
+/// - `T: BitStore` The type of the elements the domain inhabits.
 #[derive(Clone, Debug)]
 pub enum BitDomain<'a, T>
-where T: 'a + Bits {
+where T: 'a + BitStore {
 	/// Empty domain.
 	Empty,
 	/// Single element domain which does not reach either edge.
@@ -160,7 +160,7 @@ where T: 'a + Bits {
 }
 
 impl<'a, T> From<BitPtr<T>> for BitDomain<'a, T>
-where T: 'a + Bits {
+where T: 'a + BitStore {
 	fn from(bitptr: BitPtr<T>) -> Self {
 		use BitDomainKind as Bdk;
 		let (e, h, t) = bitptr.region_data();
@@ -191,10 +191,10 @@ where T: 'a + Bits {
 ///
 /// # Type Parameters
 ///
-/// - `T: Bits` The type of the elements the domain inhabits.
+/// - `T: BitStore` The type of the elements the domain inhabits.
 #[derive(Debug)]
 pub enum BitDomainMut<'a, T>
-where T: 'a + Bits {
+where T: 'a + BitStore {
 	/// Empty domain.
 	Empty,
 	/// Single element domain which does not reach either edge.
@@ -275,7 +275,7 @@ where T: 'a + Bits {
 }
 
 impl<'a, T> From<BitPtr<T>> for BitDomainMut<'a, T>
-where T: 'a + Bits {
+where T: 'a + BitStore {
 	fn from(bitptr: BitPtr<T>) -> Self {
 		use BitDomainKind as Bdk;
 		let (h, t) = bitptr.cursors();

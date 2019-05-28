@@ -33,15 +33,14 @@ extern crate bitvec;
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 use bitvec::prelude::{
-	BitVec,
 	BigEndian,
+	bitvec,
 };
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 use std::{
 	cmp,
 	env,
-	iter,
 };
 
 #[cfg(any(feature = "alloc", feature = "std"))]
@@ -53,9 +52,7 @@ fn main() {
 		.unwrap_or(1_000_000);
 
 	let primes = {
-		let mut bv = iter::repeat(true)
-			.take(max)
-			.collect::<BitVec<BigEndian, u64>>();
+		let mut bv = bitvec![BigEndian, u64; 1; max];
 
 		//  0 and 1 are not primes
 		bv.set(0, false);

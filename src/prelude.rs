@@ -5,13 +5,13 @@ This collects the general public API into a single spot for inclusion, as
 !*/
 
 pub use crate::{
-	bits::Bits,
 	cursor::{
 		Cursor,
 		BigEndian,
 		LittleEndian,
 	},
 	slice::BitSlice,
+	store::BitStore,
 };
 
 #[cfg(any(feature = "alloc", feature = "std"))]

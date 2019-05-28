@@ -9,13 +9,13 @@ Rust slices, and must never be interchanged except through the provided APIs.
 !*/
 
 use crate::{
-	bits::Bits,
 	cursor::{
 		BigEndian,
 		Cursor,
 	},
 	domain::*,
 	pointer::BitPtr,
+	store::BitStore,
 };
 
 use core::{
@@ -138,8 +138,9 @@ assert_eq!(base[1], 4);
 - `C: Cursor`: An implementor of the `Cursor` trait. This type is used to
   convert semantic indices into concrete bit positions in elements, and store or
   retrieve bit values from the storage type.
-- `T: Bits`: An implementor of the `Bits` trait: `u8`, `u16`, `u32`, `u64`. This
-  is the actual type in memory the slice will use to store data.
+- `T: BitStore`: An implementor of the `BitStore` trait: `u8`, `u16`, `u32`, or
+  `u64` (64-bit systems only). This is the actual type in memory that the slice
+  will use to store data.
 
 # Safety
 
@@ -154,7 +155,7 @@ is ***catastrophically*** unsafe and unsound.
 **/
 #[repr(transparent)]
 pub struct BitSlice<C = BigEndian, T = u8>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Cursor type for selecting bits inside an element.
 	_kind: PhantomData<C>,
 	/// Element type of the slice.
@@ -167,7 +168,7 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Produces the empty slice. This is equivalent to `&[]` for Rust slices.
 	///
 	/// # Returns
@@ -252,7 +253,7 @@ where C: Cursor, T: Bits {
 		BitPtr::new(elt, 1, 0, T::BITS).into_bitslice_mut()
 	}
 
-	/// Wraps a `&[T: Bits]` in a `&BitSlice<C: Cursor, T>`. The cursor must
+	/// Wraps a `&[T: BitStore]` in a `&BitSlice<C: Cursor, T>`. The cursor must
 	/// be specified at the call site. The element type cannot be changed.
 	///
 	/// # Parameters
@@ -288,7 +289,7 @@ where C: Cursor, T: Bits {
 		BitPtr::new(slice.as_ptr(), slice.len(), 0, T::BITS).into_bitslice()
 	}
 
-	/// Wraps a `&mut [T: Bits]` in a `&mut BitSlice<C: Cursor, T>`. The
+	/// Wraps a `&mut [T: BitStore]` in a `&mut BitSlice<C: Cursor, T>`. The
 	/// cursor must be specified by the call site. The element type cannot
 	/// be changed.
 	///
@@ -1287,7 +1288,7 @@ where C: Cursor, T: Bits {
 	/// assert!(!bv.starts_with(&bv[3 ..]));
 	/// ```
 	pub fn starts_with<D, U>(&self, prefix: &BitSlice<D, U>) -> bool
-	where D: Cursor, U: Bits {
+	where D: Cursor, U: BitStore {
 		let plen = prefix.len();
 		self.len() >= plen && prefix == &self[.. plen]
 	}
@@ -1316,7 +1317,7 @@ where C: Cursor, T: Bits {
 	/// assert!(!bv.ends_with(&bv[.. 5]));
 	/// ```
 	pub fn ends_with<D, U>(&self, suffix: &BitSlice<D, U>) -> bool
-	where D: Cursor, U: Bits {
+	where D: Cursor, U: BitStore {
 		let slen = suffix.len();
 		let len = self.len();
 		len >= slen && suffix == &self[len - slen ..]
@@ -1995,7 +1996,7 @@ where C: Cursor, T: Bits {
 /// Creates an owned `BitVec<C, T>` from a borrowed `BitSlice<C, T>`.
 #[cfg(any(feature = "alloc", feature = "std"))]
 impl<C, T> ToOwned for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Owned = BitVec<C, T>;
 
 	/// Clones a borrowed `BitSlice` into an owned `BitVec`.
@@ -2018,10 +2019,10 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> Eq for BitSlice<C, T>
-where C: Cursor, T: Bits {}
+where C: Cursor, T: BitStore {}
 
 impl<C, T> Ord for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn cmp(&self, rhs: &Self) -> Ordering {
 		self.partial_cmp(rhs)
 			.unwrap_or_else(|| unreachable!("`BitSlice` has a total ordering"))
@@ -2035,7 +2036,7 @@ where C: Cursor, T: Bits {
 /// The equality condition requires that they have the same number of total bits
 /// and that each pair of bits in semantic order are identical.
 impl<A, B, C, D> PartialEq<BitSlice<C, D>> for BitSlice<A, B>
-where A: Cursor, B: Bits, C: Cursor, D: Bits {
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	/// Performas a comparison by `==`.
 	///
 	/// # Parameters
@@ -2067,7 +2068,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 }
 
 impl<A, B, C, D> PartialEq<BitSlice<C, D>> for &BitSlice<A, B>
-where A: Cursor, B: Bits, C: Cursor, D: Bits {
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn eq(&self, rhs: &BitSlice<C, D>) -> bool {
 		if self.len() != rhs.len() {
 			return false;
@@ -2079,7 +2080,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 /// Allow comparison against the allocated form.
 #[cfg(any(feature = "alloc", feature = "std"))]
 impl<A, B, C, D> PartialEq<BitVec<C, D>> for BitSlice<A, B>
-where A: Cursor, B: Bits, C: Cursor, D: Bits {
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
 		self.eq(rhs.as_bitslice())
 	}
@@ -2087,7 +2088,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 impl<A, B, C, D> PartialEq<BitVec<C, D>> for &BitSlice<A, B>
-where A: Cursor, B: Bits, C: Cursor, D: Bits {
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
 		self.eq(rhs.as_bitslice())
 	}
@@ -2102,7 +2103,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 /// If one of the slices is exhausted before they differ, the longer slice is
 /// greater.
 impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for BitSlice<A, B>
-where A: Cursor, B: Bits, C: Cursor, D: Bits {
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	/// Performs a comparison by `<` or `>`.
 	///
 	/// # Parameters
@@ -2140,7 +2141,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 }
 
 impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for &BitSlice<A, B>
-where A: Cursor, B: Bits, C: Cursor, D: Bits {
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<Ordering> {
 		for (l, r) in self.iter().zip(rhs.iter()) {
 			match (l, r) {
@@ -2155,7 +2156,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 impl<A, B, C, D> PartialOrd<BitVec<C, D>> for BitSlice<A, B>
-where A: Cursor, B: Bits, C: Cursor, D: Bits {
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<Ordering> {
 		self.partial_cmp(&**rhs)
 	}
@@ -2163,7 +2164,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 impl<A, B, C, D> PartialOrd<BitVec<C, D>> for &BitSlice<A, B>
-where A: Cursor, B: Bits, C: Cursor, D: Bits {
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<Ordering> {
 		(*self).partial_cmp(&**rhs)
 	}
@@ -2172,7 +2173,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 /// Provides write access to all elements in the underlying storage, including
 /// the partial head and tail elements if present.
 impl<C, T> AsMut<[T]> for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Accesses the underlying store.
 	///
 	/// # Parameters
@@ -2206,7 +2207,7 @@ where C: Cursor, T: Bits {
 /// Provides read access to all elements in the underlying storage, including
 /// the partial head and tail elements if present.
 impl<C, T> AsRef<[T]> for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Accesses the underlying store.
 	///
 	/// # Parameters
@@ -2233,35 +2234,35 @@ where C: Cursor, T: Bits {
 }
 
 impl<'a, C, T> From<&'a T> for &'a BitSlice<C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	fn from(src: &'a T) -> Self {
 		BitSlice::<C, T>::from_element(src)
 	}
 }
 
 impl<'a, C, T> From<&'a [T]> for &'a BitSlice<C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	fn from(src: &'a [T]) -> Self {
 		BitSlice::<C, T>::from_slice(src)
 	}
 }
 
 impl<'a, C, T> From<&'a mut T> for &'a mut BitSlice<C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	fn from(src: &'a mut T) -> Self {
 		BitSlice::<C, T>::from_element_mut(src)
 	}
 }
 
 impl<'a, C, T> From<&'a mut [T]> for &'a mut BitSlice<C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	fn from(src: &'a mut [T]) -> Self {
 		BitSlice::<C, T>::from_slice_mut(src)
 	}
 }
 
 impl<'a, C, T> From<BitPtr<T>> for &'a BitSlice<C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// Converts a `BitPtr` representation into a `BitSlice` handle.
 	///
 	/// # Parameters
@@ -2293,7 +2294,7 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<C, T> From<BitPtr<T>> for &mut BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Converts a `BitPtr` representation into a `BitSlice` handle.
 	///
 	/// # Parameters
@@ -2325,14 +2326,14 @@ where C: Cursor, T: Bits {
 }
 
 impl<'a, C, T> Default for &'a BitSlice<C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	fn default() -> Self {
 		BitSlice::empty()
 	}
 }
 
 impl<'a, C, T> Default for &'a mut BitSlice<C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	fn default() -> Self {
 		BitSlice::empty_mut()
 	}
@@ -2349,7 +2350,7 @@ where C: Cursor, T: 'a + Bits {
 /// The alternate character `{:#?}` prints each element on its own line, rather
 /// than having all elements on the same line.
 impl<C, T> Debug for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Renders the `BitSlice` type header and contents for debug.
 	///
 	/// # Examples
@@ -2389,7 +2390,7 @@ where C: Cursor, T: Bits {
 /// To see the in-memory representation, use `.as_ref()` to get access to the
 /// raw elements and print that slice instead.
 impl<C, T> Display for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Renders the `BitSlice` contents for display.
 	///
 	/// # Parameters
@@ -2478,7 +2479,7 @@ where C: Cursor, T: Bits {
 
 /// Writes the contents of the `BitSlice`, in semantic bit order, into a hasher.
 impl<C, T> Hash for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Writes each bit of the `BitSlice`, as a full `bool`, into the hasher.
 	///
 	/// # Parameters
@@ -2504,7 +2505,7 @@ where C: Cursor, T: Bits {
 /// `ExactSizeIterator` as `BitSlice` has a known, fixed, length, and
 /// `DoubleEndedIterator` as it has known ends.
 impl<'a, C, T> IntoIterator for &'a BitSlice<C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	type Item = bool;
 	type IntoIter = Iter<'a, C, T>;
 
@@ -2540,11 +2541,11 @@ where C: Cursor, T: 'a + Bits {
 
 /// `BitSlice` is safe to move across thread boundaries.
 unsafe impl<C, T> Send for BitSlice<C, T>
-where C: Cursor, T: Bits {}
+where C: Cursor, T: BitStore {}
 
 /// `BitSlice` is safe to share between multiple threads.
 unsafe impl<C, T> Sync for BitSlice<C, T>
-where C: Cursor, T: Bits {}
+where C: Cursor, T: BitStore {}
 
 /// Performs unsigned addition in place on a `BitSlice`.
 ///
@@ -2568,7 +2569,7 @@ where C: Cursor, T: Bits {}
 ///   to add into `self`. It must be finite and double-ended, since addition
 ///   operates in reverse.
 impl<C, T, I> AddAssign<I> for BitSlice<C, T>
-where C: Cursor, T: Bits,
+where C: Cursor, T: BitStore,
 	I: IntoIterator<Item=bool>, I::IntoIter: DoubleEndedIterator {
 	/// Performs unsigned wrapping addition in place.
 	///
@@ -2619,7 +2620,7 @@ where C: Cursor, T: Bits,
 /// - `I: IntoIterator<Item=bool>`: A stream of bits, which may be a `BitSlice`
 ///   or some other bit producer as desired.
 impl<C, T, I> BitAndAssign<I> for BitSlice<C, T>
-where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
+where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `AND`s a bitstream into a slice.
 	///
 	/// # Parameters
@@ -2661,7 +2662,7 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 /// - `I: IntoIterator<Item=bool>`: A stream of bits, which may be a `BitSlice`
 ///   or some other bit producer as desired.
 impl<C, T, I> BitOrAssign<I> for BitSlice<C, T>
-where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
+where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `OR`s a bitstream into a slice.
 	///
 	/// # Parameters
@@ -2697,7 +2698,7 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 /// - `I: IntoIterator<Item=bool>`: A stream of bits, which may be a `BitSlice`
 ///   or some other bit producer as desired.
 impl<C, T, I> BitXorAssign<I> for BitSlice<C, T>
-where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
+where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `XOR`s a bitstream into a slice.
 	///
 	/// # Parameters
@@ -2731,7 +2732,7 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 /// Indexes a single bit by semantic count. The index must be less than the
 /// length of the `BitSlice`.
 impl<C, T> Index<usize> for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = bool;
 
 	/// Looks up a single bit by semantic index.
@@ -2766,7 +2767,7 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> Index<Range<usize>> for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = Self;
 
 	fn index(&self, Range { start, end }: Range<usize>) -> &Self::Output {
@@ -2796,7 +2797,7 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> IndexMut<Range<usize>> for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn index_mut(
 		&mut self,
 		Range { start, end }: Range<usize>,
@@ -2807,7 +2808,7 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> Index<RangeInclusive<usize>> for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = Self;
 
 	fn index(&self, index: RangeInclusive<usize>) -> &Self::Output {
@@ -2824,7 +2825,7 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> IndexMut<RangeInclusive<usize>> for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn index_mut(&mut self, index: RangeInclusive<usize>) -> &mut Self::Output {
 		let start = *index.start();
 		//  This check can never fail, due to implementation details of
@@ -2839,7 +2840,7 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> Index<RangeFrom<usize>> for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = Self;
 
 	fn index(&self, RangeFrom { start }: RangeFrom<usize>) -> &Self::Output {
@@ -2848,7 +2849,7 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> IndexMut<RangeFrom<usize>> for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn index_mut(
 		&mut self,
 		RangeFrom { start }: RangeFrom<usize>,
@@ -2859,7 +2860,7 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> Index<RangeFull> for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = Self;
 
 	fn index(&self, _: RangeFull) -> &Self::Output {
@@ -2868,14 +2869,14 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> IndexMut<RangeFull> for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn index_mut(&mut self, _: RangeFull) -> &mut Self::Output {
 		self
 	}
 }
 
 impl<C, T> Index<RangeTo<usize>> for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = Self;
 
 	fn index(&self, RangeTo { end }: RangeTo<usize>) -> &Self::Output {
@@ -2884,7 +2885,7 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> IndexMut<RangeTo<usize>> for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn index_mut(
 		&mut self,
 		RangeTo { end }: RangeTo<usize>,
@@ -2894,7 +2895,7 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> Index<RangeToInclusive<usize>> for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = Self;
 
 	fn index(
@@ -2906,7 +2907,7 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> IndexMut<RangeToInclusive<usize>> for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn index_mut(
 		&mut self,
 		RangeToInclusive { end }: RangeToInclusive<usize>,
@@ -2936,7 +2937,7 @@ where C: Cursor, T: Bits {
 ///
 /// Because `BitSlice` cannot move, the negation is performed in place.
 impl<'a, C, T> Neg for &'a mut BitSlice<C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	type Output = Self;
 
 	/// Perform 2’s-complement fixed-width negation.
@@ -3026,7 +3027,7 @@ where C: Cursor, T: 'a + Bits {
 
 /// Flips all bits in the slice, in place.
 impl<'a, C, T> Not for &'a mut BitSlice<C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	type Output = Self;
 
 	/// Inverts all bits in the slice.
@@ -3046,8 +3047,8 @@ where C: Cursor, T: 'a + Bits {
 	/// let bv: &mut BitSlice = store.into();
 	/// let bits = &mut bv[2 .. 14];
 	/// let new_bits = !bits;
-	/// //  The `bits` binding is consumed by the `!` operator, and a new reference
-	/// //  is returned.
+	/// //  The `bits` binding is consumed by the `!` operator, and a new
+	/// //  reference is returned.
 	/// // assert_eq!(bits.as_ref(), &[!0, !0]);
 	/// assert_eq!(new_bits.as_ref(), &[0x3F, 0xFC]);
 	/// ```
@@ -3133,7 +3134,7 @@ __bitslice_shift!(u8, u16, u32, u64, i8, i16, i32, i64);
 ///
 /// A shift amount of zero is a no-op, and returns immediately.
 impl<C, T> ShlAssign<usize> for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Shifts a slice left, in place.
 	///
 	/// # Parameters
@@ -3239,7 +3240,7 @@ where C: Cursor, T: Bits {
 ///
 /// A shift amount of zero is a no-op, and returns immediately.
 impl<C, T> ShrAssign<usize> for BitSlice<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Shifts a slice right, in place.
 	///
 	/// # Parameters
@@ -3320,7 +3321,7 @@ on drop. This allows writing to the guard with `=` assignment.
 **/
 #[derive(Debug)]
 pub struct BitGuard<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	slot: &'a mut BitSlice<C, T>,
 	bit: bool,
 	_m: PhantomData<*mut T>,
@@ -3328,7 +3329,7 @@ where C: Cursor, T: 'a + Bits {
 
 /// Read from the local cache.
 impl<'a, C, T> Deref for BitGuard<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	type Target = bool;
 
 	fn deref(&self) -> &Self::Target {
@@ -3338,7 +3339,7 @@ where C: Cursor, T: 'a + Bits {
 
 /// Write to the local cache.
 impl<'a, C, T> DerefMut for BitGuard<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		&mut self.bit
 	}
@@ -3346,7 +3347,7 @@ where C: Cursor, T: 'a + Bits {
 
 /// Commit the local cache to the backing slice.
 impl<'a, C, T> Drop for BitGuard<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	fn drop(&mut self) {
 		self.slot.set(0, self.bit);
 	}
@@ -3355,21 +3356,21 @@ where C: Cursor, T: 'a + Bits {
 /// This type is a mutable reference with extra steps, so, it should be moveable
 /// but not shareable.
 unsafe impl<'a, C, T> Send for BitGuard<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 /// State keeper for chunked iteration over a `BitSlice`.
 ///
 /// # Type Parameters
 ///
 /// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
 ///
 /// # Lifetimes
 ///
 /// - `'a`: The lifetime of the underlying `BitSlice`.
 #[derive(Clone, Debug)]
 pub struct Chunks<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// The `BitSlice` being iterated.
 	inner: &'a BitSlice<C, T>,
 	/// The width of the chunks.
@@ -3377,7 +3378,7 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> DoubleEndedIterator for Chunks<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// Produces the next chunk from the back of the slice.
 	///
 	/// # Parameters
@@ -3415,14 +3416,14 @@ where C: Cursor, T: 'a + Bits {
 
 /// Mark that the iterator has an exact size.
 impl<'a, C, T> ExactSizeIterator for Chunks<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 /// Mark that the iterator will not resume after halting.
 impl<'a, C, T> FusedIterator for Chunks<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 impl<'a, C, T> Iterator for Chunks<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	type Item = &'a BitSlice<C, T>;
 
 	/// Advances the iterator by one, returning the first chunk in it (if any).
@@ -3594,14 +3595,14 @@ where C: Cursor, T: 'a + Bits {
 /// # Type Parameters
 ///
 /// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
 ///
 /// # Lifetimes
 ///
 /// - `'a`: The lifetime of the underlying `BitSlice`.
 #[derive(Debug)]
 pub struct ChunksMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// The `BitSlice` being iterated.
 	inner: &'a mut BitSlice<C, T>,
 	/// The width of the chunks.
@@ -3609,7 +3610,7 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> DoubleEndedIterator for ChunksMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// Produces the next chunk from the back of the slice.
 	///
 	/// # Parameters
@@ -3634,13 +3635,13 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> ExactSizeIterator for ChunksMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 impl<'a, C, T> FusedIterator for ChunksMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 impl<'a, C, T> Iterator for ChunksMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	type Item = &'a mut BitSlice<C, T>;
 
 	/// Advances the iterator by one, returning the first chunk in it (if any).
@@ -3754,14 +3755,14 @@ where C: Cursor, T: 'a + Bits {
 /// # Type Parameters
 ///
 /// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
 ///
 /// # Lifetimes
 ///
 /// - `'a`: The lifetime of the underlying `BitSlice`.
 #[derive(Clone, Debug)]
 pub struct ChunksExact<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// The `BitSlice` being iterated.
 	inner: &'a BitSlice<C, T>,
 	/// The excess of the original `BitSlice`, which is not iterated.
@@ -3771,7 +3772,7 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> ChunksExact<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// Produces the remainder of the original slice, which will not be included
 	/// in the iteration.
 	///
@@ -3799,7 +3800,7 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> DoubleEndedIterator for ChunksExact<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// Produces the next chunk from the back of the slice.
 	///
 	/// # Parameters
@@ -3835,14 +3836,14 @@ where C: Cursor, T: 'a + Bits {
 
 /// Mark that the iterator has an exact size.
 impl<'a, C, T> ExactSizeIterator for ChunksExact<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 /// Mark that the iterator will not resume after halting.
 impl<'a, C, T> FusedIterator for ChunksExact<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 impl<'a, C, T> Iterator for ChunksExact<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	type Item = &'a BitSlice<C, T>;
 
 	/// Advances the iterator by one, returning the first chunk in it (if any).
@@ -4002,14 +4003,14 @@ where C: Cursor, T: 'a + Bits {
 /// # Type Parameters
 ///
 /// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
 ///
 /// # Lifetimes
 ///
 /// - `'a`: The lifetime of the underlying `BitSlice`.
 #[derive(Debug)]
 pub struct ChunksExactMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// The `BitSlice` being iterated.
 	inner: &'a mut BitSlice<C, T>,
 	/// The excess of the original `BitSlice`, which is not iterated.
@@ -4019,7 +4020,7 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> ChunksExactMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// Produces the remainder of the original slice, which will not be included
 	/// in the iteration.
 	///
@@ -4036,7 +4037,7 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> DoubleEndedIterator for ChunksExactMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// Produces the next chunk from the back of th eslice.
 	///
 	/// # Parameters
@@ -4052,13 +4053,13 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> ExactSizeIterator for ChunksExactMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 impl<'a, C, T> FusedIterator for ChunksExactMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 impl<'a, C, T> Iterator for ChunksExactMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	type Item = &'a mut BitSlice<C, T>;
 
 	/// Advances the iterator by one, returning the first chunk in it (if any).
@@ -4160,20 +4161,20 @@ where C: Cursor, T: 'a + Bits {
 /// # Type Parameters
 ///
 /// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
 ///
 /// # Lifetimes
 ///
 /// - `'a`: The lifetime of the underlying `BitSlice`.
 #[derive(Clone, Debug)]
 pub struct Iter<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// The `BitSlice` being iterated.
 	inner: &'a BitSlice<C, T>,
 }
 
 impl<'a, C, T> Iter<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// Accesses the `BitPtr` representation of the slice.
 	///
 	/// # Parameters
@@ -4191,7 +4192,7 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> DoubleEndedIterator for Iter<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// Produces the next bit from the back of the slice.
 	///
 	/// # Parameters
@@ -4228,14 +4229,14 @@ where C: Cursor, T: 'a + Bits {
 
 /// Mark that the iterator has an exact size.
 impl<'a, C, T> ExactSizeIterator for Iter<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 /// Mark that the iterator will not resume after halting.
 impl<'a, C, T> FusedIterator for Iter<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 impl<'a, C, T> Iterator for Iter<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	type Item = bool;
 
 	/// Advances the iterator by one, returning the first bit in it (if any).
@@ -4395,14 +4396,14 @@ where C: Cursor, T: 'a + Bits {
 /// # Type Parameters
 ///
 /// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
 ///
 /// # Lifetimes
 ///
 /// - `'a`: The lifetime of the underlying `BitSlice`.
 #[derive(Clone, Debug)]
 pub struct RChunks<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// The `BitSlice` being iterated.
 	inner: &'a BitSlice<C, T>,
 	/// The width of the chunks.
@@ -4410,7 +4411,7 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> DoubleEndedIterator for RChunks<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// Produces the next chunk from the front of the slice.
 	///
 	/// # Parameters
@@ -4448,14 +4449,14 @@ where C: Cursor, T: 'a + Bits {
 
 /// Mark that the iterator has an exact size.
 impl<'a, C, T> ExactSizeIterator for RChunks<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 /// Mark that the iterator will not resume after halting.
 impl<'a, C, T> FusedIterator for RChunks<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 impl<'a, C, T> Iterator for RChunks<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	type Item = &'a BitSlice<C, T>;
 
 	/// Advances the iterator by one, returning the first chunk in it (if any).
@@ -4625,14 +4626,14 @@ where C: Cursor, T: 'a + Bits {
 /// # Type Parameters
 ///
 /// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
 ///
 /// # Lifetimes
 ///
 /// - `'a`: The lifetime of the underlying `BitSlice`.
 #[derive(Debug)]
 pub struct RChunksMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// The `BitSlice` being iterated.
 	inner: &'a mut BitSlice<C, T>,
 	/// The width of the chunks.
@@ -4640,7 +4641,7 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> DoubleEndedIterator for RChunksMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// Produces the next chunk from the front of the slice.
 	///
 	/// # Parameters
@@ -4664,13 +4665,13 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> ExactSizeIterator for RChunksMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 impl<'a, C, T> FusedIterator for RChunksMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 impl<'a, C, T> Iterator for RChunksMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	type Item = &'a mut BitSlice<C, T>;
 
 	/// Advances the iterator by one, returning the first chunk in it (if any).
@@ -4783,14 +4784,14 @@ where C: Cursor, T: 'a + Bits {
 /// # Type Parameters
 ///
 /// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
 ///
 /// # Lifetimes
 ///
 /// - `'a`: The lifetime of the underlying `BitSlice`.
 #[derive(Clone, Debug)]
 pub struct RChunksExact<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// The `BitSlice` being iterated.
 	inner: &'a BitSlice<C, T>,
 	/// The excess of the original `BitSlice`, which is not iterated.
@@ -4800,7 +4801,7 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> RChunksExact<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// Produces the remainder of the original slice, which will not be included
 	/// in the iteration.
 	///
@@ -4828,7 +4829,7 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> DoubleEndedIterator for RChunksExact<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// Produces the next chunk from the front of the slice.
 	///
 	/// # Parameters
@@ -4864,14 +4865,14 @@ where C: Cursor, T: 'a + Bits {
 
 /// Mark that the iterator has an exact size.
 impl<'a, C, T> ExactSizeIterator for RChunksExact<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 /// Mark that the iterator will not resume after halting.
 impl<'a, C, T> FusedIterator for RChunksExact<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 impl<'a, C, T> Iterator for RChunksExact<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	type Item = &'a BitSlice<C, T>;
 
 	/// Advances the iterator by one, returning the first chunk in it (if any).
@@ -5031,14 +5032,14 @@ where C: Cursor, T: 'a + Bits {
 /// # Type Parameters
 ///
 /// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
 ///
 /// # Lifetimes
 ///
 /// - `'a`: The lifetime of the underlying `BitSlice`.
 #[derive(Debug)]
 pub struct RChunksExactMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// The `BitSlice` being iterated.
 	inner: &'a mut BitSlice<C, T>,
 	/// The excess of the original `BitSlice`, which is not iterated.
@@ -5048,7 +5049,7 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> RChunksExactMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// Produces the remainder of the original slice, which will not be included
 	/// in the iteration.
 	///
@@ -5065,7 +5066,7 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> DoubleEndedIterator for RChunksExactMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// Produces the next chunk from the front of the slice.
 	///
 	/// # Parameters
@@ -5088,13 +5089,13 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> ExactSizeIterator for RChunksExactMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 impl<'a, C, T> FusedIterator for RChunksExactMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 impl<'a, C, T> Iterator for RChunksExactMut<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	type Item = &'a mut BitSlice<C, T>;
 
 	/// Advances the iterator by one, returning the first chunk in it (if any).
@@ -5198,14 +5199,14 @@ where C: Cursor, T: 'a + Bits {
 /// # Type Parameters
 ///
 /// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + Bits`: The storage type of the underlying `BitSlice`.
+/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
 ///
 /// # Lifetimes
 ///
 /// - `'a`: The lifetime of the underlying `BitSlice`.
 #[derive(Clone, Debug)]
 pub struct Windows<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// The `BitSlice` being iterated.
 	inner: &'a BitSlice<C, T>,
 	/// The width of the windows.
@@ -5213,7 +5214,7 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> DoubleEndedIterator for Windows<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// Produces the next window from the back of the slice.
 	///
 	/// # Parameters
@@ -5251,14 +5252,14 @@ where C: Cursor, T: 'a + Bits {
 
 /// Mark that the iterator has an exact size.
 impl<'a, C, T> ExactSizeIterator for Windows<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 /// Mark that the iterator will not resume after halting.
 impl<'a, C, T> FusedIterator for Windows<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 impl<'a, C, T> Iterator for Windows<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	type Item = &'a BitSlice<C, T>;
 
 	/// Advances the iterator by one, returning the first window in it (if any).
@@ -5364,9 +5365,9 @@ where C: Cursor, T: 'a + Bits {
 	/// # Parameters
 	///
 	/// - `&mut self`
-	/// - `n`: The number of windows to skip, before producing the next bit after
-	///   skips. If this overshoots the iterator’s remaining length, then the
-	///   iterator is marked empty before returning `None`.
+	/// - `n`: The number of windows to skip, before producing the next bit
+	///   after the skips. If this overshoots the iterator’s remaining length,
+	///   then the iterator is marked empty before returning `None`.
 	///
 	/// # Returns
 	///

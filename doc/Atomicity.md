@@ -51,15 +51,15 @@ This is the `core::sync::atomic::Ordering::Relaxed` constraint.
 
 ## Implementation
 
-The `Bits::set_at` method is the only function in the whole library that writes
-to memory regions. Changing it from
+The `BitStore::set_at` method is the only function in the whole library that
+writes to memory regions. Changing it from
 
 ```rust,ignore
 if (bit) {
-	*self |= 1 << place;
+  *self |= 1 << place;
 }
 else {
-	*self &= !(1 << place);
+  *self &= !(1 << place);
 }
 ```
 
@@ -68,10 +68,10 @@ to
 ```rust,ignore
 let aptr: *const Atomic<T> = &self as *const Atomic<T>;
 if (bit) {
-	unsafe { &*aptr }.fetch_or(1 << place);
+  unsafe { &*aptr }.fetch_or(1 << place);
 }
 else {
-	unsafe { &*aptr }.fetch_and(!(1 << place));
+  unsafe { &*aptr }.fetch_and(!(1 << place));
 }
 ```
 
@@ -81,8 +81,8 @@ default unsynchronized instructions.
 The exact implementation is slightly more complex, because Rust does not provide
 atomicity as a wrapper property of the fundamental types, but as sibling types.
 This required storing the name of the atomic sibling type as an associated type
-in the `Bits` trait, and using `Self::Atom` instead of `Atomic<T>`, though the
-latter would have been a nicer design.
+in the `BitStore` trait, and using `Self::Atom` instead of `Atomic<T>`, though
+the latter would have been a nicer design.
 
 This is a design document about `bitvec`, not a complaint about the Rust
 standard library, so I will end here.

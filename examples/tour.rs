@@ -13,9 +13,11 @@ extern crate bitvec;
 use bitvec::prelude::{
 	//  `bitvec!` macro
 	bitvec,
+	//  slice type, analagous to `[u1]`
+	BitSlice,
 	//  trait unifying the primitives (you shouldn’t explicitly need this)
-	Bits,
-	//  primary type of the whole crate! this is where the magic happens
+	BitStore,
+	//  vector type, analagous to `Vec<u1>`
 	BitVec,
 	//  element-traversal trait (you shouldn’t explicitly need this)
 	Cursor,
@@ -75,10 +77,13 @@ fn main() {
 	render(&bv);
 
 	println!("\
-Notice that `^` did not affect the parts of the tail that were not in
-use, while `!` did affect them. `^` requires a second source, while `!`
-can just flip all elements. `!` is faster, but `^` is less likely to
-break your assumptions about what the memory looks like.\
+Bit slice operations will never affect or observe memory outside the domain of
+the slice descriptor. This can result in slow behavior when operations must work
+bit-by-bit on partial outer elements, especially as the slice uses more of the
+outer, but any whole elements in the slice will always use the full-element
+operations. This makes `u8` faster than `u32` in cases where the partially-used
+edge elements dominate, but `u32` faster than `u8` when wholly-used elements
+are dominant.\
 	");
 
 	//  Push and pop to the bitvec
@@ -93,14 +98,19 @@ break your assumptions about what the memory looks like.\
 
 	println!("End example");
 
-	fn render<C: Cursor, T: Bits>(bv: &BitVec<C, T>) {
-		println!("Memory information: {} elements, {}", bv.as_slice().len(), bv.len());
+	fn render<C, T>(bs: &BitSlice<C, T>)
+	where C: Cursor, T: BitStore {
+		println!(
+			"Memory information: {} elements, {} bits",
+			bs.as_slice().len(),
+			bs.len(),
+		);
 		println!("Print out the semantic contents");
-		println!("{:#?}", bv);
+		println!("{:#?}", bs);
 		println!("Print out the memory contents");
-		println!("{:?}", bv.as_slice());
+		println!("{:?}", bs.as_slice());
 		println!("Show the bits in memory");
-		for elt in bv.as_slice() {
+		for elt in bs.as_slice() {
 			println!("{:0w$b} ", elt, w=std::mem::size_of::<T>() * 8);
 		}
 		println!();

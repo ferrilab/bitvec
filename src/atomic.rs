@@ -1,6 +1,6 @@
 /*! Atomic element access
 
-This module allows the `Bits` trait to access its storage elements as atomic
+This module allows the `BitStore` trait to access its storage elements as atomic
 variants, in order to ensure parallel consistency.
 
 This is necessary because while individual bit domains are forbidden from
@@ -58,9 +58,9 @@ concurrency mechanisms needed to induce a race condition.
 
 #![cfg(feature = "atomic")]
 
-use crate::bits::{
+use crate::store::{
 	BitPos,
-	Bits,
+	BitStore,
 };
 
 use core::sync::atomic::{
@@ -75,11 +75,11 @@ use core::sync::atomic::AtomicU64;
 
 /** Atomic element access
 
-This is not part of the public API; it is an implementation detail of [`Bits`],
-which is public API but is not publicly implementable.
+This is not part of the public API; it is an implementation detail of
+[`BitStore`], which is public API but is not publicly implementable.
 
-This trait provides three methods, which the `Bits` trait uses to manipulate or
-inspect storage items in a synchronized manner.
+This trait provides three methods, which the `BitStore` trait uses to manipulate
+or inspect storage items in a synchronized manner.
 
 # Type Parameters
 
@@ -92,7 +92,7 @@ inspect storage items in a synchronized manner.
 
 All access uses [`Relaxed`] ordering.
 
-[`Bits`]: ../bits/trait.Bits.html
+[`BitStore`]: ../bits/trait.BitStore.html
 **/
 #[cfg_attr(not(feature = "std"), doc = "[`Relaxed`]: https://doc.rust-lang.org/stable/core/sync/atomic/enum.Ordering.html#variant.Relaxed")]
 #[cfg_attr(feature = "std", doc = "[`Relaxed`]: https://doc.rust-lang.org/stable/std/sync/atomic/enum.Ordering.html#variant.Relaxed")]
@@ -130,12 +130,12 @@ pub trait Atomic<Fundamental: Sized>: Sized {
 impl Atomic<u8> for AtomicU8 {
 	#[inline(always)]
 	fn clear(&self, bit: BitPos) {
-		self.fetch_and(!<u8 as Bits>::mask_at(bit), Ordering::Relaxed);
+		self.fetch_and(!<u8 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
 	fn set(&self, bit: BitPos) {
-		self.fetch_or(<u8 as Bits>::mask_at(bit), Ordering::Relaxed);
+		self.fetch_or(<u8 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
@@ -147,12 +147,12 @@ impl Atomic<u8> for AtomicU8 {
 impl Atomic<u16> for AtomicU16 {
 	#[inline(always)]
 	fn clear(&self, bit: BitPos) {
-		self.fetch_and(!<u16 as Bits>::mask_at(bit), Ordering::Relaxed);
+		self.fetch_and(!<u16 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
 	fn set(&self, bit: BitPos) {
-		self.fetch_or(<u16 as Bits>::mask_at(bit), Ordering::Relaxed);
+		self.fetch_or(<u16 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
@@ -164,12 +164,12 @@ impl Atomic<u16> for AtomicU16 {
 impl Atomic<u32> for AtomicU32 {
 	#[inline(always)]
 	fn clear(&self, bit: BitPos) {
-		self.fetch_and(!<u32 as Bits>::mask_at(bit), Ordering::Relaxed);
+		self.fetch_and(!<u32 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
 	fn set(&self, bit: BitPos) {
-		self.fetch_or(<u32 as Bits>::mask_at(bit), Ordering::Relaxed);
+		self.fetch_or(<u32 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
@@ -182,12 +182,12 @@ impl Atomic<u32> for AtomicU32 {
 impl Atomic<u64> for AtomicU64 {
 	#[inline(always)]
 	fn clear(&self, bit: BitPos) {
-		self.fetch_and(!<u64 as Bits>::mask_at(bit), Ordering::Relaxed);
+		self.fetch_and(!<u64 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
 	fn set(&self, bit: BitPos) {
-		self.fetch_or(<u64 as Bits>::mask_at(bit), Ordering::Relaxed);
+		self.fetch_or(<u64 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]

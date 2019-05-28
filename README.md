@@ -98,7 +98,7 @@ This imports the following symbols:
   of any desired cursor, storage type, and contents. The documentation page has
   a detailed explanation of its syntax.
 
-- `BitSlice<C: Cursor, T: Bits>` – the actual bit-slice reference type. It is
+- `BitSlice<C: Cursor, T: BitStore>` – the actual bit-slice reference type. It is
   generic over a cursor type (`C`) and storage type (`T`). Note that `BitSlice`
   is unsized, and can never be held directly; it must always be behind a
   reference such as `&BitSlice` or `&mut BitSlice`.
@@ -109,9 +109,9 @@ This imports the following symbols:
   change in the future as I learn how to better manage this library, but for now
   this limitation stands.
 
-- `BitBox<C: Cursor, T: Bits>` – a fixed-size bit collection in owned memory.
+- `BitBox<C: Cursor, T: BitStore>` – a fixed-size bit collection in owned memory.
 
-- `BitVec<C: Cursor, T: Bits>` – the actual bit-vector structure type. It is
+- `BitVec<C: Cursor, T: BitStore>` – the actual bit-vector structure type. It is
   generic over a cursor type (`C`) and storage type (`T`). This type is the main
   worker of the crate. It supports the full `Vec<T>` API and trait
   implementations, with the exception that (at this time) it is impossible to
@@ -123,7 +123,7 @@ This imports the following symbols:
   Little and big endian orderings are provided by default. If you wish to
   implement other ordering types, the `Cursor` trait requires one function:
 
-  - `fn at<T: Bits>(index: u8) -> u8` takes a semantic index and computes a bit
+  - `fn at<T: BitStore>(index: u8) -> u8` takes a semantic index and computes a bit
     offset into the primitive `T` for it.
 
 - `BigEndian` – a marker type that implements `Cursor` by defining the forward
@@ -132,10 +132,10 @@ This imports the following symbols:
 - `LittleEndian` – a marker type that implements `Cursor` by defining the
   forward direction as towards MSb and the backward direction as towards LSb.
 
-- `Bits` – a sealed trait that provides generic access to the four Rust
+- `BitStore` – a sealed trait that provides generic access to the four Rust
   primitives usable as storage types: `u8`, `u16`, `u32`, and `u64`. `usize`
-  and the signed integers do *not* implement `Bits` and cannot be used as the
-  storage type. `u128` also does not implement `Bits`, as I am not confident in
+  and the signed integers do *not* implement `BitStore` and cannot be used as the
+  storage type. `u128` also does not implement `BitStore`, as I am not confident in
   its memory representation.
 
 `BitVec` has the same API as `Vec`, and should be easy to use.

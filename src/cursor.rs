@@ -14,10 +14,10 @@ Contiguity is not required.
 `Cursor` is a stateless trait, and implementors should be zero-sized types.
 !*/
 
-use crate::bits::{
+use crate::store::{
 	BitIdx,
 	BitPos,
-	Bits,
+	BitStore,
 };
 
 /// Traverses an element from `MSbit` to `LSbit`.
@@ -54,7 +54,8 @@ pub trait Cursor {
 	///
 	/// # Type Parameters
 	///
-	/// - `T: Bits`: The storage type for which the position will be calculated.
+	/// - `T: BitStore`: The storage type for which the position will be
+	///   calculated.
 	///
 	/// # Invariants
 	///
@@ -91,7 +92,8 @@ pub trait Cursor {
 	/// This function requires that the output be in the domain `.. T::BITS`.
 	/// Implementors must uphold this themselves. Outputs in the domain
 	/// `T::BITS ..` will induce panics elsewhere in the library.
-	fn at<T: Bits>(cursor: BitIdx) -> BitPos;
+	fn at<T>(cursor: BitIdx) -> BitPos
+	where T: BitStore;
 }
 
 impl Cursor for BigEndian {
@@ -100,7 +102,8 @@ impl Cursor for BigEndian {
 	/// Maps a semantic count to a concrete position.
 	///
 	/// `BigEndian` order moves from `MSbit` first to `LSbit` last.
-	fn at<T: Bits>(cursor: BitIdx) -> BitPos {
+	fn at<T>(cursor: BitIdx) -> BitPos
+	where T: BitStore {
 		assert!(
 			cursor.is_valid::<T>(),
 			"Index {} is invalid for cursor {} on type {}",
@@ -118,7 +121,8 @@ impl Cursor for LittleEndian {
 	/// Maps a semantic count to a concrete position.
 	///
 	/// `LittleEndian` order moves from `LSbit` first to `MSbit` last.
-	fn at<T: Bits>(cursor: BitIdx) -> BitPos {
+	fn at<T>(cursor: BitIdx) -> BitPos
+	where T: BitStore {
 		assert!(
 			cursor.is_valid::<T>(),
 			"Index {} is invalid for cursor {} on type {}",

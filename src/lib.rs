@@ -52,12 +52,12 @@ extern crate serde_test;
 #[macro_use]
 mod macros;
 
-pub mod bits;
 pub mod cursor;
 mod domain;
 mod pointer;
 pub mod prelude;
 pub mod slice;
+pub mod store;
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 pub mod boxed;
@@ -75,11 +75,11 @@ mod serdes;
 #[cfg(feature = "testing")]
 pub mod testing {
 	pub use crate::{
-		bits::*,
 		domain::*,
 		macros::*,
 		pointer::*,
 		slice::*,
+		store::*,
 		vec::*,
 	};
 }

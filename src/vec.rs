@@ -10,10 +10,6 @@ slice and vector types.
 #![cfg(any(feature = "alloc", feature = "std"))]
 
 use crate::{
-	bits::{
-		BitIdx,
-		Bits,
-	},
 	boxed::BitBox,
 	cursor::{
 		BigEndian,
@@ -21,6 +17,10 @@ use crate::{
 	},
 	pointer::BitPtr,
 	slice::BitSlice,
+	store::{
+		BitIdx,
+		BitStore,
+	},
 };
 
 #[cfg(all(feature = "alloc", not(feature = "std")))]
@@ -316,8 +316,9 @@ space, then increasing the length to match, is always valid.
 - `C: Cursor`: An implementor of the [`Cursor`] trait. This type is used to
   convert semantic indices into concrete bit positions in elements, and store or
   retrieve bit values from the storage type.
-- `T: Bits`: An implementor of the [`Bits`] trait: `u8`, `u16`, `u32`, `u64`.
-  This is the actual type in memory the slice will use to store data.
+- `T: BitStore`: An implementor of the [`BitStore`] trait: `u8`, `u16`, `u32`,
+  or `u64` (64-bit systems only). This is the actual type in memory that the
+  vector will use to store data.
 
 # Safety
 
@@ -328,7 +329,7 @@ is ***extremely binary incompatible*** with them. Attempting to treat
 
 [`BitSlice`]: ../struct.BitSlice.html
 [`BitVec::with_capacity`]: #method.with_capacity
-[`Bits`]: ../trait.Bits.html
+[`BitStore`]: ../trait.BitStore.html
 [`Cursor`]: ../trait.Cursor.html
 [`Index`]: https://doc.rust-lang.org/stable/std/ops/trait.Index.html
 [`String`]: https://doc.rust-lang.org/stable/std/string/struct.String.html
@@ -342,7 +343,7 @@ is ***extremely binary incompatible*** with them. Attempting to treat
 **/
 #[repr(C)]
 pub struct BitVec<C = BigEndian, T = u8>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Phantom `Cursor` member to satisfy the constraint checker.
 	_cursor: PhantomData<C>,
 	/// Slice pointer over the owned memory.
@@ -352,7 +353,7 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Constructs a new, empty, `BitVec<C, T>`.
 	///
 	/// The vector does not allocate until bits are written into it.
@@ -1135,7 +1136,7 @@ where C: Cursor, T: Bits {
 	/// assert!(bv2.is_empty());
 	/// ```
 	pub fn append<D, U>(&mut self, other: &mut BitVec<D, U>)
-	where D: Cursor, U: Bits {
+	where D: Cursor, U: BitStore {
 		self.extend(other.iter());
 		other.clear();
 	}
@@ -1616,7 +1617,7 @@ where C: Cursor, T: Bits {
 
 /// Signifies that `BitSlice` is the borrowed form of `BitVec`.
 impl<C, T> Borrow<BitSlice<C, T>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Borrows the `BitVec` as a `BitSlice`.
 	///
 	/// # Parameters
@@ -1644,7 +1645,7 @@ where C: Cursor, T: Bits {
 
 /// Signifies that `BitSlice` is the borrowed form of `BitVec`.
 impl<C, T> BorrowMut<BitSlice<C, T>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Mutably borrows the `BitVec` as a `BitSlice`.
 	///
 	/// # Parameters
@@ -1673,7 +1674,7 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> Clone for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn clone(&self) -> Self {
 		let (e, h, t) = self.pointer.region_data();
 		let new_vec = self.do_with_vec(Clone::clone);
@@ -1699,10 +1700,10 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> Eq for BitVec<C, T>
-where C: Cursor, T: Bits {}
+where C: Cursor, T: BitStore {}
 
 impl<C, T> Ord for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn cmp(&self, rhs: &Self) -> Ordering {
 		self.as_bitslice().cmp(rhs.as_bitslice())
 	}
@@ -1715,7 +1716,7 @@ where C: Cursor, T: Bits {
 /// The equality condition requires that they have the same number of stored
 /// bits and that each pair of bits in semantic order are identical.
 impl<A, B, C, D> PartialEq<BitVec<C, D>> for BitVec<A, B>
-where A: Cursor, B: Bits, C: Cursor, D: Bits {
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	/// Performs a comparison by `==`.
 	///
 	/// # Parameters
@@ -1755,14 +1756,14 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 }
 
 impl<A, B, C, D> PartialEq<BitSlice<C, D>> for BitVec<A, B>
-where A: Cursor, B: Bits, C: Cursor, D: Bits {
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn eq(&self, rhs: &BitSlice<C, D>) -> bool {
 		self.as_bitslice().eq(rhs)
 	}
 }
 
 impl<A, B, C, D> PartialEq<&BitSlice<C, D>> for BitVec<A, B>
-where A: Cursor, B: Bits, C: Cursor, D: Bits {
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn eq(&self, rhs: &&BitSlice<C, D>) -> bool {
 		self.as_bitslice().eq(*rhs)
 	}
@@ -1777,7 +1778,7 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 /// If one of the vectors is exhausted before they differ, the longer vector is
 /// greater.
 impl<A, B, C, D> PartialOrd<BitVec<C, D>> for BitVec<A, B>
-where A: Cursor, B: Bits, C: Cursor, D: Bits {
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	/// Performs a comparison by `<` or `>`.
 	///
 	/// # Parameters
@@ -1806,21 +1807,21 @@ where A: Cursor, B: Bits, C: Cursor, D: Bits {
 }
 
 impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for BitVec<A, B>
-where A: Cursor, B: Bits, C: Cursor, D: Bits {
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<Ordering> {
 		self.as_bitslice().partial_cmp(rhs)
 	}
 }
 
 impl<A, B, C, D> PartialOrd<&BitSlice<C, D>> for BitVec<A, B>
-where A: Cursor, B: Bits, C: Cursor, D: Bits {
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn partial_cmp(&self, rhs: &&BitSlice<C, D>) -> Option<Ordering> {
 		self.as_bitslice().partial_cmp(*rhs)
 	}
 }
 
 impl<C, T> AsMut<BitSlice<C, T>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn as_mut(&mut self) -> &mut BitSlice<C, T> {
 		self.as_mut_bitslice()
 	}
@@ -1829,14 +1830,14 @@ where C: Cursor, T: Bits {
 /// Gives write access to all live elements in the underlying storage, including
 /// the partially-filled tail.
 impl<C, T> AsMut<[T]> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn as_mut(&mut self) -> &mut [T] {
 		self.as_mut_slice()
 	}
 }
 
 impl<C, T> AsRef<BitSlice<C, T>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn as_ref(&self) -> &BitSlice<C, T> {
 		self.as_bitslice()
 	}
@@ -1845,7 +1846,7 @@ where C: Cursor, T: Bits {
 /// Gives read access to all live elements in the underlying storage, including
 /// the partially-filled tail.
 impl<C, T> AsRef<[T]> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Accesses the underlying store.
 	///
 	/// # Examples
@@ -1862,7 +1863,7 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> From<&BitSlice<C, T>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn from(src: &BitSlice<C, T>) -> Self {
 		Self::from_bitslice(src)
 	}
@@ -1873,35 +1874,35 @@ where C: Cursor, T: Bits {
 /// This is primarily for the `bitvec!` macro; it is not recommended for general
 /// use.
 impl<C, T> From<&[bool]> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn from(src: &[bool]) -> Self {
 		src.iter().cloned().collect()
 	}
 }
 
 impl<C, T> From<BitBox<C, T>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn from(src: BitBox<C, T>) -> Self {
 		Self::from_boxed_bitslice(src)
 	}
 }
 
 impl<C, T> From<&[T]> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn from(src: &[T]) -> Self {
 		Self::from_slice(src)
 	}
 }
 
 impl<C, T> From<Box<[T]>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn from(src: Box<[T]>) -> Self {
 		Self::from_boxed_bitslice(BitBox::from_boxed_slice(src))
 	}
 }
 
 impl<C, T> Into<Box<[T]>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn into(self) -> Box<[T]> {
 		self.into_boxed_slice()
 	}
@@ -1913,21 +1914,21 @@ where C: Cursor, T: Bits {
 /// The source buffer will be unchanged by this operation, so you don't need to
 /// worry about using the correct cursor type.
 impl<C, T> From<Vec<T>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn from(src: Vec<T>) -> Self {
 		Self::from_vec(src)
 	}
 }
 
 impl<C, T> Into<Vec<T>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn into(self) -> Vec<T> {
 		self.into_vec()
 	}
 }
 
 impl<C, T> Default for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn default() -> Self {
 		Self::new()
 	}
@@ -1944,7 +1945,7 @@ where C: Cursor, T: Bits {
 /// The alternate character `{:#?}` prints each element on its own line, rather
 /// than separated by a space.
 impl<C, T> Debug for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Renders the `BitVec` type header and contents for debug.
 	///
 	/// # Examples
@@ -1981,7 +1982,7 @@ where C: Cursor, T: Bits {
 /// To see the in-memory representation, use `AsRef` to get access to the raw
 /// elements and print that slice instead.
 impl<C, T> Display for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Renders the `BitVec` contents for display.
 	///
 	/// # Examples
@@ -1999,7 +2000,7 @@ where C: Cursor, T: Bits {
 
 /// Writes the contents of the `BitVec`, in semantic bit order, into a hasher.
 impl<C, T> Hash for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Writes each bit of the `BitVec`, as a full `bool`, into the hasher.
 	///
 	/// # Parameters
@@ -2013,7 +2014,7 @@ where C: Cursor, T: Bits {
 
 #[cfg(feature = "std")]
 impl<C, T> Write for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
 		let amt = cmp::min(buf.len(), BitPtr::<T>::MAX_BITS - self.len());
 		self.extend(<&BitSlice<C, u8>>::from(buf));
@@ -2029,7 +2030,7 @@ where C: Cursor, T: Bits {
 /// available, it will be able to more intelligently perform bulk moves from the
 /// source into `self` when the source is `BitSlice`-compatible.
 impl<C, T> Extend<bool> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Extends a `BitVec` from another bitstream.
 	///
 	/// # Parameters
@@ -2064,7 +2065,7 @@ where C: Cursor, T: Bits {
 /// Permits the construction of a `BitVec` by using `.collect()` on an iterator
 /// of `bool`.
 impl<C, T> FromIterator<bool> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Collects an iterator of `bool` into a vector.
 	///
 	/// # Examples
@@ -2099,7 +2100,7 @@ where C: Cursor, T: Bits {
 /// `ExactSizeIterator`, since `BitVec`s always know exactly how large they are,
 /// and `DoubleEndedIterator`, since they have known ends.
 impl<C, T> IntoIterator for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Item = bool;
 	type IntoIter = IntoIter<C, T>;
 
@@ -2126,7 +2127,7 @@ where C: Cursor, T: Bits {
 }
 
 impl<'a, C, T> IntoIterator for &'a BitVec<C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	type Item = bool;
 	type IntoIter = <&'a BitSlice<C, T> as IntoIterator>::IntoIter;
 
@@ -2137,11 +2138,11 @@ where C: Cursor, T: 'a + Bits {
 
 /// `BitVec` is safe to move across thread boundaries, as is `&mut BitVec`.
 unsafe impl<C, T> Send for BitVec<C, T>
-where C: Cursor, T: Bits {}
+where C: Cursor, T: BitStore {}
 
 /// `&BitVec` is safe to move across thread boundaries.
 unsafe impl<C, T> Sync for BitVec<C, T>
-where C: Cursor, T: Bits {}
+where C: Cursor, T: BitStore {}
 
 /// Adds two `BitVec`s together, zero-extending the shorter.
 ///
@@ -2159,7 +2160,7 @@ where C: Cursor, T: Bits {}
 /// intended for arithmetic, and `bitvec` makes no guarantees about sustained
 /// correctness in arithmetic at this time.
 impl<C, T> Add for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = Self;
 
 	/// Adds two `BitVec`s.
@@ -2208,7 +2209,7 @@ where C: Cursor, T: Bits {
 /// intended for arithmetic, and `bitvec` makes no guarantees about sustained
 /// correctness in arithmetic at this time.
 impl<C, T> AddAssign for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Adds another `BitVec` into `self`.
 	///
 	/// # Examples
@@ -2288,7 +2289,7 @@ where C: Cursor, T: Bits {
 /// have the length of the shorter sequence of bits -- if one is longer than the
 /// other, the extra bits will be ignored.
 impl<C, T, I> BitAnd<I> for BitVec<C, T>
-where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
+where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	type Output = Self;
 
 	/// `AND`s a vector and a bitstream, producing a new vector.
@@ -2313,7 +2314,7 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 /// of `bool` values as the other bit for each operation. If the other stream is
 /// shorter than `self`, `self` will be truncated when the other stream expires.
 impl<C, T, I> BitAndAssign<I> for BitVec<C, T>
-where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
+where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `AND`s another bitstream into a vector.
 	///
 	/// # Examples
@@ -2347,7 +2348,7 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 /// have the length of the shorter sequence of bits -- if one is longer than the
 /// other, the extra bits will be ignored.
 impl<C, T, I> BitOr<I> for BitVec<C, T>
-where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
+where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	type Output = Self;
 
 	/// `OR`s a vector and a bitstream, producing a new vector.
@@ -2372,7 +2373,7 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 /// of `bool` values as the other bit for each operation. If the other stream is
 /// shorter than `self`, `self` will be truncated when the other stream expires.
 impl<C, T, I> BitOrAssign<I> for BitVec<C, T>
-where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
+where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `OR`s another bitstream into a vector.
 	///
 	/// # Examples
@@ -2406,7 +2407,7 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 /// have the length of the shorter sequence of bits -- if one is longer than the
 /// other, the extra bits will be ignored.
 impl<C, T, I> BitXor<I> for BitVec<C, T>
-where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
+where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	type Output = Self;
 
 	/// `XOR`s a vector and a bitstream, producing a new vector.
@@ -2431,7 +2432,7 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 /// of `bool` values as the other bit for each operation. If the other stream is
 /// shorter than `self`, `self` will be truncated when the other stream expires.
 impl<C, T, I> BitXorAssign<I> for BitVec<C, T>
-where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
+where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `XOR`s another bitstream into a vector.
 	///
 	/// # Examples
@@ -2463,7 +2464,7 @@ where C: Cursor, T: Bits, I: IntoIterator<Item=bool> {
 ///
 /// This mimics the separation between `Vec<T>` and `[T]`.
 impl<C, T> Deref for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Target = BitSlice<C, T>;
 
 	/// Dereferences `&BitVec` down to `&BitSlice`.
@@ -2486,7 +2487,7 @@ where C: Cursor, T: Bits {
 ///
 /// This mimics the separation between `Vec<T>` and `[T]`.
 impl<C, T> DerefMut for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Dereferences `&mut BitVec` down to `&mut BitSlice`.
 	///
 	/// # Examples
@@ -2507,7 +2508,7 @@ where C: Cursor, T: Bits {
 
 /// Readies the underlying storage for Drop.
 impl<C, T> Drop for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Rebuild the interior `Vec` and let it run the deallocator.
 	fn drop(&mut self) {
 		let bp = mem::replace(&mut self.pointer, BitPtr::empty());
@@ -2520,7 +2521,7 @@ where C: Cursor, T: Bits {
 /// Gets the bit at a specific index. The index must be less than the length of
 /// the `BitVec`.
 impl<C, T> Index<usize> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = bool;
 
 	/// Looks up a single bit by semantic count.
@@ -2555,7 +2556,7 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> Index<Range<usize>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, range: Range<usize>) -> &Self::Output {
@@ -2564,14 +2565,14 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> IndexMut<Range<usize>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn index_mut(&mut self, range: Range<usize>) -> &mut Self::Output {
 		&mut self.as_mut_bitslice()[range]
 	}
 }
 
 impl<C, T> Index<RangeFrom<usize>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, range: RangeFrom<usize>) -> &Self::Output {
@@ -2580,14 +2581,14 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> IndexMut<RangeFrom<usize>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn index_mut(&mut self, range: RangeFrom<usize>) -> &mut Self::Output {
 		&mut self.as_mut_bitslice()[range]
 	}
 }
 
 impl<C, T> Index<RangeFull> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, _: RangeFull) -> &Self::Output {
@@ -2596,14 +2597,14 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> IndexMut<RangeFull> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn index_mut(&mut self, _: RangeFull) -> &mut Self::Output {
 		self.as_mut_bitslice()
 	}
 }
 
 impl<C, T> Index<RangeInclusive<usize>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, range: RangeInclusive<usize>) -> &Self::Output {
@@ -2612,14 +2613,14 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> IndexMut<RangeInclusive<usize>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn index_mut(&mut self, range: RangeInclusive<usize>) -> &mut Self::Output {
 		&mut self.as_mut_bitslice()[range]
 	}
 }
 
 impl<C, T> Index<RangeTo<usize>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, range: RangeTo<usize>) -> &Self::Output {
@@ -2628,14 +2629,14 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> IndexMut<RangeTo<usize>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn index_mut(&mut self, range: RangeTo<usize>) -> &mut Self::Output {
 		&mut self.as_mut_bitslice()[range]
 	}
 }
 
 impl<C, T> Index<RangeToInclusive<usize>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, range: RangeToInclusive<usize>) -> &Self::Output {
@@ -2644,7 +2645,7 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> IndexMut<RangeToInclusive<usize>> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn index_mut(&mut self, range: RangeToInclusive<usize>) -> &mut Self::Output {
 		&mut self.as_mut_bitslice()[range]
 	}
@@ -2661,7 +2662,7 @@ where C: Cursor, T: Bits {
 /// intended for arithmetic, and `bitvec` makes no guarantees about sustained
 /// correctness in arithmetic at this time.
 impl<C, T> Neg for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = Self;
 
 	/// Numerically negates a `BitVec` using 2’s-complement arithmetic.
@@ -2689,7 +2690,7 @@ where C: Cursor, T: Bits {
 
 /// Flips all bits in the vector.
 impl<C, T> Not for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = Self;
 
 	/// Inverts all bits in the vector.
@@ -2740,7 +2741,7 @@ __bitvec_shift!(u8, u16, u32, u64, i8, i16, i32, i64);
 /// If the shift amount is greater than the length, the vector calls `clear()`
 /// and zeroes its memory. This is *not* an error.
 impl<C, T> Shl<usize> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = Self;
 
 	/// Shifts a `BitVec` to the left, shortening it.
@@ -2794,7 +2795,7 @@ where C: Cursor, T: Bits {
 /// If the shift amount is greater than the length, the vector calls `clear()`
 /// and zeroes its memory. This is *not* an error.
 impl<C, T> ShlAssign<usize> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Shifts a `BitVec` to the left in place, shortening it.
 	///
 	/// # Examples
@@ -2860,7 +2861,7 @@ where C: Cursor, T: Bits {
 /// If the new length of the vector would overflow, a panic occurs. This *is* an
 /// error.
 impl<C, T> Shr<usize> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = Self;
 
 	/// Shifts a `BitVec` to the right, lengthening it and filling the front
@@ -2916,7 +2917,7 @@ where C: Cursor, T: Bits {
 /// If the new length of the vector would overflow, a panic occurs. This *is* an
 /// error.
 impl<C, T> ShrAssign<usize> for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Shifts a `BitVec` to the right in place, lengthening it and filling the
 	/// front with 0.
 	///
@@ -2978,7 +2979,7 @@ where C: Cursor, T: Bits {
 /// intended for arithmetic, and `bitvec` makes no guarantees about sustained
 /// correctness in arithmetic at this time.
 impl<C, T> Sub for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Output = Self;
 
 	/// Subtracts one `BitVec` from another.
@@ -3036,7 +3037,7 @@ where C: Cursor, T: Bits {
 /// intended for arithmetic, and `bitvec` makes no guarantees about sustained
 /// correctness in arithmetic at this time.
 impl<C, T> SubAssign for BitVec<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Subtracts another `BitVec` from `self`.
 	///
 	/// # Examples
@@ -3088,13 +3089,13 @@ where C: Cursor, T: Bits {
 /// # Type Parameters
 ///
 /// - `C: Cursor`: The cursor type of the underlying vector.
-/// - `T: 'a + Bits`: The storage type of the underlying vector.
+/// - `T: 'a + BitStore`: The storage type of the underlying vector.
 ///
 /// # Lifetimes
 ///
 /// - `'a`: The lifetime of the underlying vector.
 pub struct Drain<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// Pointer to the `BitVec` being drained.
 	bitvec: NonNull<BitVec<C, T>>,
 	/// Current remaining range to remove.
@@ -3106,7 +3107,7 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> Drain<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	/// Fills the drain span with another iterator.
 	///
 	/// If the stream exhausts before the drain is filled, then the tail
@@ -3170,20 +3171,20 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> DoubleEndedIterator for Drain<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.iter.next_back()
 	}
 }
 
 impl<'a, C, T> ExactSizeIterator for Drain<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 impl<'a, C, T> FusedIterator for Drain<'a, C, T>
-where C: Cursor, T: 'a + Bits {}
+where C: Cursor, T: 'a + BitStore {}
 
 impl<'a, C, T> Iterator for Drain<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	type Item = bool;
 
 	fn next(&mut self) -> Option<Self::Item> {
@@ -3208,7 +3209,7 @@ where C: Cursor, T: 'a + Bits {
 }
 
 impl<'a, C, T> Drop for Drain<'a, C, T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	fn drop(&mut self) { unsafe {
 		let bv: &mut BitVec<C, T> = self.bitvec.as_mut();
 		//  Get the start of the drained span.
@@ -3234,7 +3235,7 @@ where C: Cursor, T: 'a + Bits {
 /// A consuming iterator for `BitVec`.
 #[repr(C)]
 pub struct IntoIter<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	/// Owning descriptor for the allocation. This is not modified by iteration.
 	bitvec: BitVec<C, T>,
 	/// Descriptor for the live portion of the vector as iteration proceeds.
@@ -3242,14 +3243,14 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> IntoIter<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn iterator(&self) -> <&BitSlice<C, T> as IntoIterator>::IntoIter {
 		self.region.into_bitslice().into_iter()
 	}
 }
 
 impl<C, T> DoubleEndedIterator for IntoIter<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	fn next_back(&mut self) -> Option<Self::Item> {
 		let mut slice_iter = self.iterator();
 		let out = slice_iter.next_back();
@@ -3259,13 +3260,13 @@ where C: Cursor, T: Bits {
 }
 
 impl<C, T> ExactSizeIterator for IntoIter<C, T>
-where C: Cursor, T: Bits {}
+where C: Cursor, T: BitStore {}
 
 impl<C, T> FusedIterator for IntoIter<C, T>
-where C: Cursor, T: Bits {}
+where C: Cursor, T: BitStore {}
 
 impl<C, T> Iterator for IntoIter<C, T>
-where C: Cursor, T: Bits {
+where C: Cursor, T: BitStore {
 	type Item = bool;
 
 	/// Advances the iterator by one, returning the first bit in it (if any).
@@ -3422,27 +3423,27 @@ where C: Cursor, T: Bits {
 /// - `I: Iterator<Item=bool>`: Any bitstream. This will be used to fill the
 ///   removed span.
 pub struct Splice<'a, C, T, I>
-where C: Cursor, T: 'a + Bits, I: Iterator<Item=bool> {
+where C: Cursor, T: 'a + BitStore, I: Iterator<Item=bool> {
 	drain: Drain<'a, C, T>,
 	splice: I,
 }
 
 impl<'a, C, T, I> DoubleEndedIterator for Splice<'a, C, T, I>
-where C: Cursor, T: 'a + Bits, I: Iterator<Item=bool> {
+where C: Cursor, T: 'a + BitStore, I: Iterator<Item=bool> {
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.drain.next_back()
 	}
 }
 
 impl<'a, C, T, I> ExactSizeIterator for Splice<'a, C, T, I>
-where C: Cursor, T: 'a + Bits, I: Iterator<Item=bool> {}
+where C: Cursor, T: 'a + BitStore, I: Iterator<Item=bool> {}
 
 impl<'a, C, T, I> FusedIterator for Splice<'a, C, T, I>
-where C: Cursor, T: 'a + Bits, I: Iterator<Item=bool> {}
+where C: Cursor, T: 'a + BitStore, I: Iterator<Item=bool> {}
 
 //  Forward iteration to the interior drain
 impl<'a, C, T, I> Iterator for Splice<'a, C, T, I>
-where C: Cursor, T: 'a + Bits, I: Iterator<Item=bool> {
+where C: Cursor, T: 'a + BitStore, I: Iterator<Item=bool> {
 	type Item = bool;
 
 	fn next(&mut self) -> Option<Self::Item> {
@@ -3477,7 +3478,7 @@ where C: Cursor, T: 'a + Bits, I: Iterator<Item=bool> {
 }
 
 impl<'a, C, T, I> Drop for Splice<'a, C, T, I>
-where C: Cursor, T: 'a + Bits, I: Iterator<Item=bool> {
+where C: Cursor, T: 'a + BitStore, I: Iterator<Item=bool> {
 	fn drop(&mut self) { unsafe {
 		if self.drain.tail_len == 0 {
 			self.drain.bitvec.as_mut().extend(self.splice.by_ref());

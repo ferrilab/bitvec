@@ -7,15 +7,15 @@ for code generation.
 /** Construct a `BitVec` out of a literal array in source code, like `vec!`.
 
 `bitvec!` can be invoked in a number of ways. It takes the name of a `Cursor`
-implementation, the name of a `Bits`-implementing fundamental, and zero or more
-fundamentals (integer, floating-point, or boolean) which are used to build the
-bits. Each fundamental literal corresponds to one bit, and is considered to
+implementation, the name of a `BitStore`-implementing fundamental, and zero or
+more fundamentals (integer, floating-point, or boolean) which are used to build
+the bits. Each fundamental literal corresponds to one bit, and is considered to
 represent `1` if it is any other value than exactly zero.
 
 `bitvec!` can be invoked with no specifiers, a `Cursor` specifier, or a `Cursor`
-and a `Bits` specifier. It cannot be invoked with a `Bits` specifier but no
-`Cursor` specifier, due to overlap in how those tokens are matched by the macro
-system.
+and a `BitStore` specifier. It cannot be invoked with a `BitStore` specifier but
+no `Cursor` specifier, due to overlap in how those tokens are matched by the
+macro system.
 
 Like `vec!`, `bitvec!` supports bit lists `[0, 1, …]` and repetition markers
 `[1; n]`.
@@ -157,7 +157,7 @@ macro_rules! __bitslice_shift {
 		#[doc(hidden)]
 		impl < C , T > core :: ops :: ShlAssign < $t >
 		for $crate :: prelude :: BitSlice < C , T >
-		where C : $crate :: cursor :: Cursor , T : $crate :: bits :: Bits {
+		where C : $crate :: cursor :: Cursor , T : $crate :: store :: BitStore {
 			fn shl_assign ( & mut self , shamt : $t ) {
 				core :: ops :: ShlAssign :: < usize > :: shl_assign (
 					self ,
@@ -169,7 +169,7 @@ macro_rules! __bitslice_shift {
 		#[doc(hidden)]
 		impl < C , T > core :: ops :: ShrAssign < $t >
 		for $crate :: prelude :: BitSlice < C , T >
-		where C : $crate :: cursor :: Cursor , T : $crate :: bits :: Bits {
+		where C : $crate :: cursor :: Cursor , T : $crate :: store :: BitStore {
 			fn shr_assign ( & mut self , shamt : $t ) {
 				core :: ops :: ShrAssign :: < usize > :: shr_assign (
 					self,
@@ -187,7 +187,7 @@ macro_rules! __bitvec_shift {
 		#[doc(hidden)]
 		impl < C , T > core :: ops :: Shl < $t >
 		for $crate :: vec :: BitVec < C , T >
-		where C : $crate :: cursor :: Cursor , T : $crate :: bits :: Bits {
+		where C : $crate :: cursor :: Cursor , T : $crate :: store :: BitStore {
 			type Output = < Self as core :: ops :: Shl < usize > > :: Output ;
 
 			fn shl ( self , shamt : $t ) -> Self :: Output {
@@ -198,7 +198,7 @@ macro_rules! __bitvec_shift {
 		#[doc(hidden)]
 		impl < C , T > core :: ops :: ShlAssign < $t >
 		for $crate :: vec :: BitVec < C , T >
-		where C : $crate :: cursor :: Cursor , T : $crate :: bits :: Bits {
+		where C : $crate :: cursor :: Cursor , T : $crate :: store :: BitStore {
 			fn shl_assign ( & mut self , shamt : $t ) {
 				core :: ops :: ShlAssign :: < usize > :: shl_assign (
 					self ,
@@ -210,7 +210,7 @@ macro_rules! __bitvec_shift {
 		#[doc(hidden)]
 		impl < C , T > core :: ops :: Shr < $t >
 		for $crate :: vec :: BitVec < C , T >
-		where C : $crate :: cursor :: Cursor , T : $crate :: bits :: Bits {
+		where C : $crate :: cursor :: Cursor , T : $crate :: store :: BitStore {
 			type Output = < Self as core :: ops :: Shr < usize > > :: Output ;
 
 			fn shr ( self , shamt : $t ) -> Self :: Output {
@@ -221,7 +221,7 @@ macro_rules! __bitvec_shift {
 		#[doc(hidden)]
 		impl < C , T> core :: ops :: ShrAssign < $t >
 		for $crate :: vec :: BitVec < C , T >
-		where C : $crate :: cursor :: Cursor , T : $crate :: bits :: Bits {
+		where C : $crate :: cursor :: Cursor , T : $crate :: store :: BitStore {
 			fn shr_assign ( & mut self , shamt : $t ) {
 				core :: ops :: ShrAssign :: < usize > :: shr_assign (
 					self ,

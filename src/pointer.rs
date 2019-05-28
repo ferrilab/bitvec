@@ -7,13 +7,13 @@ work.
 !*/
 
 use crate::{
-	bits::{
-		BitIdx,
-		Bits,
-	},
 	cursor::Cursor,
 	domain::*,
 	slice::BitSlice,
+	store::{
+		BitIdx,
+		BitStore,
+	},
 };
 
 use core::{
@@ -248,7 +248,7 @@ element unavailable.
 
 # Type Parameters
 
-- `T: Bits` is the storage type over which the pointer governs.
+- `T: BitStore` is the storage type over which the pointer governs.
 
 # Safety
 
@@ -269,7 +269,7 @@ regime.
 #[repr(C)]
 #[derive(Clone, Copy, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct BitPtr<T = u8>
-where T: Bits {
+where T: BitStore {
 	_ty: PhantomData<T>,
 	/// Two-element bitfield structure, holding pointer and head information.
 	///
@@ -297,7 +297,7 @@ where T: Bits {
 }
 
 impl<T> BitPtr<T>
-where T: Bits {
+where T: BitStore {
 	/// The number of high bits in `self.ptr` that are actually the address of
 	/// the zeroth `T`.
 	pub const PTR_DATA_BITS: usize = PTR_BITS - Self::PTR_HEAD_BITS;
@@ -1060,7 +1060,7 @@ where T: Bits {
 /// Mutability is not encoded in the `BitPtr` type system at this time, and thus
 /// is not enforced by the compiler yet.
 impl<T> AsMut<[T]> for BitPtr<T>
-where T: Bits {
+where T: BitStore {
 	fn as_mut(&mut self) -> &mut [T] {
 		self.as_mut_slice()
 	}
@@ -1069,21 +1069,21 @@ where T: Bits {
 /// Gets read access to all elements in the underlying storage, including the
 /// partial head and tail elements.
 impl<T> AsRef<[T]> for BitPtr<T>
-where T: Bits {
+where T: BitStore {
 	fn as_ref(&self) -> &[T] {
 		self.as_slice()
 	}
 }
 
 impl<'a, C, T> From<&'a BitSlice<C, T>> for BitPtr<T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	fn from(src: &'a BitSlice<C, T>) -> Self {
 		Self::from_bitslice(src)
 	}
 }
 
 impl<'a, C, T> From<&'a mut BitSlice<C, T>> for BitPtr<T>
-where C: Cursor, T: 'a + Bits {
+where C: Cursor, T: 'a + BitStore {
 	fn from(src: &'a mut BitSlice<C, T>) -> Self {
 		Self::from_bitslice(src)
 	}
@@ -1091,7 +1091,7 @@ where C: Cursor, T: 'a + Bits {
 
 /// Produces the empty-slice representation.
 impl<T> Default for BitPtr<T>
-where T: Bits {
+where T: BitStore {
 	/// Produces an empty-slice representation.
 	///
 	/// The empty slice has no size or cursors, and its pointer is the alignment
@@ -1104,10 +1104,10 @@ where T: Bits {
 
 /// Prints the `BitPtr` data structure for debugging.
 impl<T> Debug for BitPtr<T>
-where T: Bits {
+where T: BitStore {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		struct HexPtr<T: Bits>(*const T);
-		impl<T: Bits> Debug for HexPtr<T> {
+		struct HexPtr<T: BitStore>(*const T);
+		impl<T: BitStore> Debug for HexPtr<T> {
 			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 				f.write_fmt(format_args!("0x{:0>1$X}", self.0 as usize, PTR_BITS >> 2))
 			}
@@ -1118,8 +1118,8 @@ where T: Bits {
 				f.write_fmt(format_args!("{:#X}", self.0))
 			}
 		}
-		struct BinAddr<T: Bits>(BitIdx, PhantomData<T>);
-		impl<T: Bits>  Debug for BinAddr<T> {
+		struct BinAddr<T: BitStore>(BitIdx, PhantomData<T>);
+		impl<T: BitStore>  Debug for BinAddr<T> {
 			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 				f.write_fmt(format_args!("0b{:0>1$b}", *self.0, T::INDX as usize))
 			}

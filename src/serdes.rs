@@ -10,9 +10,9 @@ able to implement `Deserialize` as well.
 #![cfg(all(feature = "serde"))]
 
 use crate::{
-	bits::Bits,
 	cursor::Cursor,
 	slice::BitSlice,
+	store::BitStore,
 };
 
 #[cfg(any(feature = "alloc", feature = "std"))]
@@ -57,14 +57,14 @@ use serde::{
 #[cfg(any(feature = "alloc", feature = "std"))]
 #[derive(Clone, Copy, Default, Debug)]
 pub struct BitBoxVisitor<'de, C, T>
-where C: Cursor, T: Bits + Deserialize<'de> {
+where C: Cursor, T: BitStore + Deserialize<'de> {
 	_cursor: PhantomData<C>,
 	_storage: PhantomData<&'de T>,
 }
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 impl<'de, C, T> BitBoxVisitor<'de, C, T>
-where C: Cursor, T: Bits + Deserialize<'de> {
+where C: Cursor, T: BitStore + Deserialize<'de> {
 	fn new() -> Self {
 		BitBoxVisitor { _cursor: PhantomData, _storage: PhantomData }
 	}
@@ -72,7 +72,7 @@ where C: Cursor, T: Bits + Deserialize<'de> {
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 impl<'de, C, T> Visitor<'de> for BitBoxVisitor<'de, C, T>
-where C: Cursor, T: Bits + Deserialize<'de> {
+where C: Cursor, T: BitStore + Deserialize<'de> {
 	type Value = BitBox<C, T>;
 
 	fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -143,7 +143,7 @@ where C: Cursor, T: Bits + Deserialize<'de> {
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 impl<'de, C, T> Deserialize<'de> for BitBox<C, T>
-where C: Cursor, T: 'de + Bits + Deserialize<'de> {
+where C: Cursor, T: 'de + BitStore + Deserialize<'de> {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		deserializer
@@ -157,7 +157,7 @@ where C: Cursor, T: 'de + Bits + Deserialize<'de> {
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 impl<'de, C, T> Deserialize<'de> for BitVec<C, T>
-where C: Cursor, T: 'de + Bits + Deserialize<'de> {
+where C: Cursor, T: 'de + BitStore + Deserialize<'de> {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		BitBox::deserialize(deserializer).map(Into::into)
@@ -165,7 +165,7 @@ where C: Cursor, T: 'de + Bits + Deserialize<'de> {
 }
 
 impl<C, T> Serialize for BitSlice<C, T>
-where C: Cursor, T: Bits + Serialize {
+where C: Cursor, T: BitStore + Serialize {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		let (e, h, t) = self.bitptr().region_data();
@@ -182,7 +182,7 @@ where C: Cursor, T: Bits + Serialize {
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 impl<C, T> Serialize for BitBox<C, T>
-where C: Cursor, T: Bits + Serialize {
+where C: Cursor, T: BitStore + Serialize {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		BitSlice::serialize(&*self, serializer)
@@ -191,7 +191,7 @@ where C: Cursor, T: Bits + Serialize {
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 impl<C, T> Serialize for BitVec<C, T>
-where C: Cursor, T: Bits + Serialize {
+where C: Cursor, T: BitStore + Serialize {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		BitSlice::serialize(&*self, serializer)

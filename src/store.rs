@@ -1,6 +1,6 @@
 /*! Bit management
 
-The `Bits` trait defines constants and associated functions suitable for
+The `BitStore` trait defines constants and associated functions suitable for
 managing the bit patterns of a fundamental, and is the constraint for the
 storage type of the data structures of the rest of the crate.
 
@@ -57,7 +57,7 @@ on 32-bit systems.
 The `Sealed` supertrait ensures that this can only be implemented locally, and
 will never be implemented by downstream crates on new types.
 **/
-pub trait Bits:
+pub trait BitStore:
 	//  Forbid external implementation
 	Sealed
 	+ Binary
@@ -168,7 +168,7 @@ pub trait Bits:
 	///
 	/// ```rust
 	/// use bitvec::prelude::{
-	///   Bits,
+	///   BitStore,
 	///   BigEndian,
 	///   LittleEndian,
 	/// };
@@ -189,7 +189,7 @@ pub trait Bits:
 	/// This example overruns the index, and panics.
 	///
 	/// ```rust,should_panic
-	/// use bitvec::prelude::{Bits, BigEndian};
+	/// use bitvec::prelude::{BitStore, BigEndian};
 	/// let mut elt: u8 = 0;
 	/// elt.set::<BigEndian>(8.into(), true);
 	/// ```
@@ -218,7 +218,7 @@ pub trait Bits:
 	/// This example sets and unsets bits in a byte.
 	///
 	/// ```rust
-	/// use bitvec::prelude::Bits;
+	/// use bitvec::prelude::BitStore;
 	/// let mut elt: u8 = 0;
 	/// elt.set_at(0.into(), true);
 	/// assert_eq!(elt, 0b0000_0001);
@@ -229,7 +229,7 @@ pub trait Bits:
 	/// This example overshoots the width, and panics.
 	///
 	/// ```rust,should_panic
-	/// use bitvec::prelude::Bits;
+	/// use bitvec::prelude::BitStore;
 	/// let mut elt: u8 = 0;
 	/// elt.set_at(8.into(), true);
 	/// ```
@@ -279,7 +279,7 @@ pub trait Bits:
 	/// This example gets two bits from a byte.
 	///
 	/// ```rust
-	/// use bitvec::prelude::{Bits, BigEndian};
+	/// use bitvec::prelude::{BitStore, BigEndian};
 	/// let elt: u8 = 0b0010_0000;
 	/// assert!(!elt.get::<BigEndian>(1.into()));
 	/// assert!(elt.get::<BigEndian>(2.into()));
@@ -289,7 +289,7 @@ pub trait Bits:
 	/// This example overruns the index, and panics.
 	///
 	/// ```rust,should_panic
-	/// use bitvec::prelude::{Bits, BigEndian};
+	/// use bitvec::prelude::{BitStore, BigEndian};
 	/// 0u8.get::<BigEndian>(8.into());
 	/// ```
 	fn get<C>(&self, place: BitIdx) -> bool
@@ -319,7 +319,7 @@ pub trait Bits:
 	/// This example gets two bits from a byte.
 	///
 	/// ```rust
-	/// use bitvec::prelude::Bits;
+	/// use bitvec::prelude::BitStore;
 	/// let elt: u8 = 0b0010_0000;
 	/// assert!(!elt.get_at(4.into()));
 	/// assert!(elt.get_at(5.into()));
@@ -329,7 +329,7 @@ pub trait Bits:
 	/// This example overruns the index, and panics.
 	///
 	/// ```rust,should_panic
-	/// use bitvec::prelude::Bits;
+	/// use bitvec::prelude::BitStore;
 	/// 0u8.get_at(8.into());
 	/// ```
 	fn get_at(&self, place: BitPos) -> bool {
@@ -359,7 +359,7 @@ pub trait Bits:
 	/// This example produces the one-hot encodings for indices.
 	///
 	/// ```rust
-	/// use bitvec::prelude::Bits;
+	/// use bitvec::prelude::BitStore;
 	///
 	/// assert_eq!(u8::mask_at(0.into()), 0b0000_0001);
 	/// assert_eq!(u8::mask_at(1.into()), 0b0000_0010);
@@ -393,23 +393,23 @@ pub trait Bits:
 	/// These examples ensure that indices panic when out of bounds.
 	///
 	/// ```rust,should_panic
-	/// use bitvec::prelude::Bits;
+	/// use bitvec::prelude::BitStore;
 	/// u8::mask_at(8.into());
 	/// ```
 	///
 	/// ```rust,should_panic
-	/// use bitvec::prelude::Bits;
+	/// use bitvec::prelude::BitStore;
 	/// u16::mask_at(16.into());
 	/// ```
 	///
 	/// ```rust,should_panic
-	/// use bitvec::prelude::Bits;
+	/// use bitvec::prelude::BitStore;
 	/// u32::mask_at(32.into());
 	/// ```
 	///
 	/// ```rust,should_panic
 	/// # #[cfg(target_pointer_width = "64")] {
-	/// use bitvec::prelude::Bits;
+	/// use bitvec::prelude::BitStore;
 	/// u64::mask_at(64.into());
 	/// # }
 	/// ```
@@ -442,16 +442,16 @@ pub trait Bits:
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::prelude::Bits;
-	/// assert_eq!(Bits::count_ones(&0u8), 0);
-	/// assert_eq!(Bits::count_ones(&128u8), 1);
-	/// assert_eq!(Bits::count_ones(&192u8), 2);
-	/// assert_eq!(Bits::count_ones(&224u8), 3);
-	/// assert_eq!(Bits::count_ones(&240u8), 4);
-	/// assert_eq!(Bits::count_ones(&248u8), 5);
-	/// assert_eq!(Bits::count_ones(&252u8), 6);
-	/// assert_eq!(Bits::count_ones(&254u8), 7);
-	/// assert_eq!(Bits::count_ones(&255u8), 8);
+	/// use bitvec::prelude::BitStore;
+	/// assert_eq!(BitStore::count_ones(&0u8), 0);
+	/// assert_eq!(BitStore::count_ones(&128u8), 1);
+	/// assert_eq!(BitStore::count_ones(&192u8), 2);
+	/// assert_eq!(BitStore::count_ones(&224u8), 3);
+	/// assert_eq!(BitStore::count_ones(&240u8), 4);
+	/// assert_eq!(BitStore::count_ones(&248u8), 5);
+	/// assert_eq!(BitStore::count_ones(&252u8), 6);
+	/// assert_eq!(BitStore::count_ones(&254u8), 7);
+	/// assert_eq!(BitStore::count_ones(&255u8), 8);
 	/// ```
 	///
 	/// [`u64::count_ones`]: https://doc.rust-lang.org/stable/std/primitive.u64.html#method.count_ones
@@ -478,16 +478,16 @@ pub trait Bits:
 	/// # Examples
 	///
 	/// ```rust
-	/// use bitvec::prelude::Bits;
-	/// assert_eq!(Bits::count_zeros(&0u8), 8);
-	/// assert_eq!(Bits::count_zeros(&1u8), 7);
-	/// assert_eq!(Bits::count_zeros(&3u8), 6);
-	/// assert_eq!(Bits::count_zeros(&7u8), 5);
-	/// assert_eq!(Bits::count_zeros(&15u8), 4);
-	/// assert_eq!(Bits::count_zeros(&31u8), 3);
-	/// assert_eq!(Bits::count_zeros(&63u8), 2);
-	/// assert_eq!(Bits::count_zeros(&127u8), 1);
-	/// assert_eq!(Bits::count_zeros(&255u8), 0);
+	/// use bitvec::prelude::BitStore;
+	/// assert_eq!(BitStore::count_zeros(&0u8), 8);
+	/// assert_eq!(BitStore::count_zeros(&1u8), 7);
+	/// assert_eq!(BitStore::count_zeros(&3u8), 6);
+	/// assert_eq!(BitStore::count_zeros(&7u8), 5);
+	/// assert_eq!(BitStore::count_zeros(&15u8), 4);
+	/// assert_eq!(BitStore::count_zeros(&31u8), 3);
+	/// assert_eq!(BitStore::count_zeros(&63u8), 2);
+	/// assert_eq!(BitStore::count_zeros(&127u8), 1);
+	/// assert_eq!(BitStore::count_zeros(&255u8), 0);
 	/// ```
 	///
 	/// [`u64::count_ones`]: https://doc.rust-lang.org/stable/std/primitive.u64.html#method.count_ones
@@ -548,10 +548,10 @@ impl BitIdx {
 	///
 	/// # Type Parameters
 	///
-	/// - `T: Bits`: The storage type used to determine index validity.
+	/// - `T: BitStore`: The storage type used to determine index validity.
 	#[inline]
 	pub fn is_valid<T>(self) -> bool
-	where T: Bits {
+	where T: BitStore {
 		*self < T::BITS
 	}
 
@@ -569,10 +569,10 @@ impl BitIdx {
 	///
 	/// # Type Parameters
 	///
-	/// - `T: Bits`: The storage used to determine index tail validity.
+	/// - `T: BitStore`: The storage used to determine index tail validity.
 	#[inline]
 	pub fn is_valid_tail<T>(self) -> bool
-	where T: Bits {
+	where T: BitStore {
 		*self > 0 && *self <= T::BITS
 	}
 
@@ -589,7 +589,7 @@ impl BitIdx {
 	///
 	/// # Type Parameters
 	///
-	/// - `T: Bits`: The storage type for which the increment will be
+	/// - `T: BitStore`: The storage type for which the increment will be
 	///   calculated.
 	///
 	/// # Panics
@@ -617,7 +617,7 @@ impl BitIdx {
 	/// # }
 	/// ```
 	pub fn incr<T>(self) -> (Self, bool)
-	where T: Bits {
+	where T: BitStore {
 		let val = *self;
 		assert!(
 			self.is_valid::<T>(),
@@ -647,7 +647,7 @@ impl BitIdx {
 	///
 	/// # Type Parameters
 	///
-	/// - `T: Bits`: The storage type for which the increment will be
+	/// - `T: BitStore`: The storage type for which the increment will be
 	///   calculated.
 	///
 	/// # Panics
@@ -684,7 +684,7 @@ impl BitIdx {
 	/// # }
 	/// ```
 	pub fn incr_tail<T>(self) -> (Self, bool)
-	where T: Bits {
+	where T: BitStore {
 		let val = *self;
 		//  Permit 0 ..= T::BITS, rather than 1 ..= T::BITS, for the empty tail.
 		assert!(
@@ -715,7 +715,7 @@ impl BitIdx {
 	///
 	/// # Type Parameters
 	///
-	/// - `T: Bits`: The storage type for which the decrement will be
+	/// - `T: BitStore`: The storage type for which the decrement will be
 	///   calculated.
 	///
 	/// # Panics
@@ -742,7 +742,7 @@ impl BitIdx {
 	/// assert_eq!(BitIdx::from(0).decr::<u8>(), (7.into(), true));
 	/// # }
 	pub fn decr<T>(self) -> (Self, bool)
-	where T: Bits {
+	where T: BitStore {
 		let val = *self;
 		assert!(
 			self.is_valid::<T>(),
@@ -772,7 +772,7 @@ impl BitIdx {
 	///
 	/// # Type Parameters
 	///
-	/// - `T: Bits`: The storage type for which the decrement will be
+	/// - `T: BitStore`: The storage type for which the decrement will be
 	///   calculated.
 	///
 	/// # Panics
@@ -811,7 +811,7 @@ impl BitIdx {
 	/// # }
 	/// ```
 	pub fn decr_tail<T>(self) -> (Self, bool)
-	where T: Bits {
+	where T: BitStore {
 		let val = *self;
 		//  The empty tail cannot decrement.
 		assert!(
@@ -854,7 +854,7 @@ impl BitIdx {
 	///
 	/// # Type Parameters
 	///
-	/// - `T: Bits`: The storage type with which the offset will be calculated.
+	/// - `T: BitStore`: The storage type with which the offset will be calculated.
 	///
 	/// # Panics
 	///
@@ -897,7 +897,7 @@ impl BitIdx {
 	/// [`Cursor`]: ../cursor/trait.Cursor.html
 	/// [`ptr::offset`]: https://doc.rust-lang.org/stable/std/primitive.pointer.html#method.offset
 	pub fn offset<T>(self, by: isize) -> (isize, Self)
-	where T: Bits {
+	where T: BitStore {
 		let val = *self;
 		assert!(
 			val < T::BITS,
@@ -953,20 +953,20 @@ impl BitIdx {
 	///
 	/// # Type Parameters
 	///
-	/// - `T: Bits`: The type of the elements for which this span is computed.
+	/// - `T: BitStore`: The type of the elements for which this span is computed.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// # #[cfg(feature = "testing")] {
-	/// use bitvec::testing::{BitIdx, Bits};
+	/// use bitvec::testing::{BitIdx, BitStore};
 	///
 	/// let h: BitIdx = 0.into();
 	/// assert_eq!(BitIdx::from(0).span::<u8>(8), (1, 8.into()))
 	/// # }
 	/// ```
 	pub fn span<T>(self, len: usize) -> (usize, BitIdx)
-	where T: Bits {
+	where T: BitStore {
 		assert!(
 			self.is_valid::<T>(),
 			"Index {} is invalid for type {}",
@@ -1073,9 +1073,9 @@ impl BitPos {
 	///
 	/// # Type Parameters
 	///
-	/// - `T: Bits`: The storage type used to determine position validity.
+	/// - `T: BitStore`: The storage type used to determine position validity.
 	pub fn is_valid<T>(self) -> bool
-	where T: Bits {
+	where T: BitStore {
 		*self < T::BITS
 	}
 }
@@ -1114,21 +1114,21 @@ impl DerefMut for BitPos {
 	}
 }
 
-impl Bits for u8 {
+impl BitStore for u8 {
 	const TYPENAME: &'static str = "u8";
 
 	#[cfg(feature = "atomic")]
 	type Atom = atomic::AtomicU8;
 }
 
-impl Bits for u16 {
+impl BitStore for u16 {
 	const TYPENAME: &'static str = "u16";
 
 	#[cfg(feature = "atomic")]
 	type Atom = atomic::AtomicU16;
 }
 
-impl Bits for u32 {
+impl BitStore for u32 {
 	const TYPENAME: &'static str = "u32";
 
 	#[cfg(feature = "atomic")]
@@ -1136,19 +1136,19 @@ impl Bits for u32 {
 }
 
 #[cfg(target_pointer_width = "64")]
-impl Bits for u64 {
+impl BitStore for u64 {
 	const TYPENAME: &'static str = "u64";
 
 	#[cfg(feature = "atomic")]
 	type Atom = atomic::AtomicU64;
 }
 
-/// Marker trait to seal `Bits` against downstream implementation.
+/// Marker trait to seal `BitStore` against downstream implementation.
 ///
 /// This trait is public in the module, so that other modules in the crate can
 /// use it, but so long as it is not exported by the crate root and this module
 /// is private, this trait effectively forbids downstream implementation of the
-/// `Bits` trait.
+/// `BitStore` trait.
 #[doc(hidden)]
 pub trait Sealed {}
 
