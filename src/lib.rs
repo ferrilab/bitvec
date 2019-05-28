@@ -52,6 +52,7 @@ extern crate serde_test;
 #[macro_use]
 mod macros;
 
+pub mod bits;
 pub mod cursor;
 mod domain;
 mod pointer;
