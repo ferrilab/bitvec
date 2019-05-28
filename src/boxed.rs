@@ -205,12 +205,12 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let src: &[u8] = &[5, 10];
-	/// let bv: BitBox = src.into();
-	/// assert!(bv[5]);
-	/// assert!(bv[7]);
-	/// assert!(bv[12]);
-	/// assert!(bv[14]);
+	/// let src = [5, 10];
+	/// let bb: BitBox = BitBox::from_slice(&src[..]);
+	/// assert!(bb[5]);
+	/// assert!(bb[7]);
+	/// assert!(bb[12]);
+	/// assert!(bb[14]);
 	/// ```
 	pub fn from_slice(slice: &[T]) -> Self {
 		assert!(slice.len() <= BitPtr::<T>::MAX_ELTS, "Box overflow");
@@ -232,9 +232,8 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let src: &[u8] = &[0, !0];
-	/// let bs: &BitSlice = src.into();
-	/// let bb = BitBox::from_bitslice(bs);
+	/// let src = [0u8, !0];
+	/// let bb = BitBox::<BigEndian, _>::from_bitslice(src.as_bitslice());
 	/// assert_eq!(bb.len(), 16);
 	/// assert!(bb.some());
 	/// ```
@@ -379,7 +378,7 @@ where C: Cursor, T: BitStore {
 	pub fn leak<'a>(self) -> &'a mut BitSlice<C, T> {
 		let out = self.bitptr();
 		mem::forget(self);
-		out.into()
+		out.into_bitslice_mut()
 	}
 
 	/// Changes the cursor on a box handle, without changing the data it
@@ -470,14 +469,14 @@ where C: Cursor, T: BitStore {
 impl<C, T> Borrow<BitSlice<C, T>> for BitBox<C, T>
 where C: Cursor, T: BitStore {
 	fn borrow(&self) -> &BitSlice<C, T> {
-		&*self
+		self.as_bitslice()
 	}
 }
 
 impl<C, T> BorrowMut<BitSlice<C, T>> for BitBox<C, T>
 where C: Cursor, T: BitStore {
 	fn borrow_mut(&mut self) -> &mut BitSlice<C, T> {
-		&mut *self
+		self.as_mut_bitslice()
 	}
 }
 
@@ -628,14 +627,14 @@ where C: Cursor, T: BitStore {
 		f.write_str(", ")?;
 		f.write_str(T::TYPENAME)?;
 		f.write_str("> ")?;
-		Display::fmt(&**self, f)
+		Display::fmt(self.as_bitslice(), f)
 	}
 }
 
 impl<C, T> Display for BitBox<C, T>
 where C: Cursor, T: BitStore {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		Display::fmt(&**self, f)
+		Display::fmt(self.as_bitslice(), f)
 	}
 }
 
@@ -871,7 +870,10 @@ where C: Cursor, T: BitStore {
 
 impl<C, T> IndexMut<RangeToInclusive<usize>> for BitBox<C, T>
 where C: Cursor, T: BitStore {
-	fn index_mut(&mut self, range: RangeToInclusive<usize>) -> &mut Self::Output {
+	fn index_mut(
+		&mut self,
+		range: RangeToInclusive<usize>,
+	) -> &mut Self::Output {
 		&mut self.as_mut_bitslice()[range]
 	}
 }

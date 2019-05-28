@@ -40,6 +40,16 @@ This document is written according to the [Keep a Changelog][kac] style.
   In practice, this should not be an issue, since the rules for mutable borrows
   mean that the original slice is not observable until the slot value produced
   by `.at()` goes out of scope.
+- **SEE THE RENAME BELOW.** The `Bits` and `BitsMut` traits provide reference
+  conversion from many Rust fundamental types to `BitSlice` regions. `Bits` is
+  analagous to `AsRef`, and `BitsMut` to `AsMut`. These traits are implemented
+  on the `BitStore` fundamentals, slices of them, and arrays up to 32.
+- `BitSlice::get_unchecked` and `BitSlice::set_unchecked` perform read and write
+  actions without any bounds checking to ensure the index is within the slice
+  bounds. This allows faster work in tight loops where the index is already
+  checked against the slice length. These methods are, of course, incredibly
+  unsafe, as they are raw memory access with no safeguards to ensure the read or
+  write is within bounds.
 
 ### Changed
 
@@ -49,6 +59,13 @@ This document is written according to the [Keep a Changelog][kac] style.
   the interior number, and do not write their own type.
 - `BitSlice::as_ptr` and `::as_mut_ptr` now return the null pointer if they are
   the empty slice, rather than a dangling pointer.
+- The trait formerly known as `Bits` in all previous versions is now `BitStore`,
+  and the module `bits` is renamed to `store`. Only the `Bits` → `BitStore`
+  rename affects public API.
+- Rewrote the README to better describe all the recent work.
+- The documentation examples use the new `as_bitslice` methods instead of the
+  much less pleasant `Into` conversions to create `BitSlice` handles. This also
+  serves to demonstrate the new favored method to access regions as bit slices.
 
 ## 0.11.2
 

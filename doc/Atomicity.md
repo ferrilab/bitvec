@@ -54,7 +54,7 @@ This is the `core::sync::atomic::Ordering::Relaxed` constraint.
 The `BitStore::set_at` method is the only function in the whole library that
 writes to memory regions. Changing it from
 
-```rust,ignore
+```rust
 if (bit) {
   *self |= 1 << place;
 }
@@ -65,7 +65,7 @@ else {
 
 to
 
-```rust,ignore
+```rust
 let aptr: *const Atomic<T> = &self as *const Atomic<T>;
 if (bit) {
   unsafe { &*aptr }.fetch_or(1 << place);

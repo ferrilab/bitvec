@@ -40,21 +40,21 @@ bitvec![1; 5];
 #[macro_export]
 macro_rules! bitvec {
 	//  bitvec![ endian , type ; 0 , 1 , … ]
-	( $endian:path , $bits:ty ; $( $element:expr ),* ) => {
-		bitvec![ __bv_impl__ $endian , $bits ; $( $element ),* ]
+	( $cursor:path , $bits:ty ; $( $element:expr ),* ) => {
+		bitvec![ __bv_impl__ $cursor , $bits ; $( $element ),* ]
 	};
 	//  bitvec![ endian , type ; 0 , 1 , … , ]
-	( $endian:path , $bits:ty ; $( $element:expr , )* ) => {
-		bitvec![ __bv_impl__ $endian , $bits ; $( $element ),* ]
+	( $cursor:path , $bits:ty ; $( $element:expr , )* ) => {
+		bitvec![ __bv_impl__ $cursor , $bits ; $( $element ),* ]
 	};
 
 	//  bitvec![ endian ; 0 , 1 , … ]
-	( $endian:path ; $( $element:expr ),* ) => {
-		bitvec![ __bv_impl__ $endian , u8 ; $( $element ),* ]
+	( $cursor:path ; $( $element:expr ),* ) => {
+		bitvec![ __bv_impl__ $cursor , u8 ; $( $element ),* ]
 	};
 	//  bitvec![ endian ; 0 , 1 , … , ]
-	( $endian:path ; $( $element:expr , )* ) => {
-		bitvec![ __bv_impl__ $endian , u8 ; $( $element ),* ]
+	( $cursor:path ; $( $element:expr , )* ) => {
+		bitvec![ __bv_impl__ $cursor , u8 ; $( $element ),* ]
 	};
 
 	//  bitvec![ 0 , 1 , … ]
@@ -67,12 +67,12 @@ macro_rules! bitvec {
 	};
 
 	//  bitvec![ endian , type ; bit ; rep ]
-	( $endian:path , $bits:ty ; $element:expr ; $rep:expr ) => {
-		bitvec![ __bv_impl__ $endian , $bits ; $element; $rep ]
+	( $cursor:path , $bits:ty ; $element:expr ; $rep:expr ) => {
+		bitvec![ __bv_impl__ $cursor , $bits ; $element; $rep ]
 	};
 	//  bitvec![ endian ; bit ; rep ]
-	( $endian:path ; $element:expr ; $rep:expr ) => {
-		bitvec![ __bv_impl__ $endian , u8 ; $element ; $rep ]
+	( $cursor:path ; $element:expr ; $rep:expr ) => {
+		bitvec![ __bv_impl__ $cursor , u8 ; $element ; $rep ]
 	};
 	//  bitvec![ bit ; rep ]
 	( $element:expr ; $rep:expr ) => {
@@ -87,15 +87,15 @@ macro_rules! bitvec {
 	//  I’m sure there is a way, but I don’t think I need to spend the effort
 	//  yet. Maybe a proc-macro.
 
-	( __bv_impl__ $endian:path , $bits:ty ; $( $element:expr ),* ) => {{
+	( __bv_impl__ $cursor:path , $bits:ty ; $( $element:expr ),* ) => {{
 		let init: &[bool] = &[ $( $element != 0 ),* ];
-		$crate :: vec :: BitVec :: < $endian , $bits > :: from ( init )
+		$crate::vec::BitVec::<$cursor, $bits>::from(init)
 	}};
 
-	( __bv_impl__ $endian:path , $bits:ty ; $element:expr ; $rep:expr ) => {{
-		core :: iter :: repeat ( $element != 0 )
-			.take ( $rep )
-			.collect :: < $crate :: vec :: BitVec < $endian , $bits > > ( )
+	( __bv_impl__ $cursor:path , $bits:ty ; $element:expr ; $rep:expr ) => {{
+		core::iter::repeat($element != 0)
+			.take($rep)
+			.collect::<$crate::vec::BitVec<$cursor, $bits>>()
 	}};
 }
 
@@ -111,21 +111,21 @@ freeze it.
 #[macro_export]
 macro_rules! bitbox {
 	//  bitbox![ endian , type ; 0 , 1 , … ]
-	( $endian:path , $bits:ty ; $( $element:expr ),* ) => {
-		bitvec![ $endian , $bits ; $( $element ),* ].into_boxed_bitslice()
+	( $cursor:path , $bits:ty ; $( $element:expr ),* ) => {
+		bitvec![ $cursor , $bits ; $( $element ),* ].into_boxed_bitslice()
 	};
 	//  bitbox![ endian , type ; 0 , 1 , … , ]
-	( $endian:path , $bits:ty ; $( $element:expr , )* ) => {
-		bitvec![ $endian , $bits ; $( $element ),* ].into_boxed_bitslice()
+	( $cursor:path , $bits:ty ; $( $element:expr , )* ) => {
+		bitvec![ $cursor , $bits ; $( $element ),* ].into_boxed_bitslice()
 	};
 
 	//  bitbox![ endian ; 0 , 1 , … ]
-	( $endian:path ; $( $element:expr ),* ) => {
-		bitvec![ $endian , u8 ; $( $element ),* ].into_boxed_bitslice()
+	( $cursor:path ; $( $element:expr ),* ) => {
+		bitvec![ $cursor , u8 ; $( $element ),* ].into_boxed_bitslice()
 	};
 	//  bitbox![ endian ; 0 , 1 , … , ]
-	( $endian:path ; $( $element:expr , )* ) => {
-		bitvec![ $endian , u8 ; $( $element ),* ].into_boxed_bitslice()
+	( $cursor:path ; $( $element:expr , )* ) => {
+		bitvec![ $cursor , u8 ; $( $element ),* ].into_boxed_bitslice()
 	};
 
 	//  bitbox![ 0 , 1 , … ]
@@ -138,12 +138,12 @@ macro_rules! bitbox {
 	};
 
 	//  bitbox![ endian , type ; bit ; rep ]
-	( $endian:path , $bits:ty ; $element:expr ; $rep:expr ) => {
-		bitvec![ $endian , $bits ; $element; $rep ].into_boxed_bitslice()
+	( $cursor:path , $bits:ty ; $element:expr ; $rep:expr ) => {
+		bitvec![ $cursor , $bits ; $element; $rep ].into_boxed_bitslice()
 	};
 	//  bitbox![ endian ; bit ; rep ]
-	( $endian:path ; $element:expr ; $rep:expr ) => {
-		bitvec![ $endian , u8 ; $element ; $rep ].into_boxed_bitslice()
+	( $cursor:path ; $element:expr ; $rep:expr ) => {
+		bitvec![ $cursor , u8 ; $element ; $rep ].into_boxed_bitslice()
 	};
 	//  bitbox![ bit ; rep ]
 	( $element:expr ; $rep:expr ) => {
@@ -155,25 +155,25 @@ macro_rules! bitbox {
 macro_rules! __bitslice_shift {
 	( $( $t:ty ),+ ) => { $(
 		#[doc(hidden)]
-		impl < C , T > core :: ops :: ShlAssign < $t >
-		for $crate :: prelude :: BitSlice < C , T >
-		where C : $crate :: cursor :: Cursor , T : $crate :: store :: BitStore {
-			fn shl_assign ( & mut self , shamt : $t ) {
-				core :: ops :: ShlAssign :: < usize > :: shl_assign (
-					self ,
-					shamt as usize ,
+		impl<C, T >core::ops::ShlAssign<$t>
+		for $crate::prelude::BitSlice<C,T>
+		where C: $crate::cursor::Cursor, T: $crate::store::BitStore {
+			fn shl_assign(&mut self, shamt: $t) {
+				core::ops::ShlAssign::<usize>::shl_assign(
+					self,
+					shamt as usize,
 				)
 			}
 		}
 
 		#[doc(hidden)]
-		impl < C , T > core :: ops :: ShrAssign < $t >
-		for $crate :: prelude :: BitSlice < C , T >
-		where C : $crate :: cursor :: Cursor , T : $crate :: store :: BitStore {
-			fn shr_assign ( & mut self , shamt : $t ) {
-				core :: ops :: ShrAssign :: < usize > :: shr_assign (
+		impl<C, T> core::ops::ShrAssign<$t>
+		for $crate::prelude::BitSlice<C,T>
+		where C: $crate::cursor::Cursor, T: $crate::store::BitStore {
+			fn shr_assign(&mut self,shamt: $t){
+				core::ops::ShrAssign::<usize>::shr_assign(
 					self,
-					shamt as usize ,
+					shamt as usize,
 				)
 			}
 		}
@@ -185,47 +185,47 @@ macro_rules! __bitslice_shift {
 macro_rules! __bitvec_shift {
 	( $( $t:ty ),+ ) => { $(
 		#[doc(hidden)]
-		impl < C , T > core :: ops :: Shl < $t >
-		for $crate :: vec :: BitVec < C , T >
-		where C : $crate :: cursor :: Cursor , T : $crate :: store :: BitStore {
-			type Output = < Self as core :: ops :: Shl < usize > > :: Output ;
+		impl<C, T> core::ops::Shl<$t>
+		for $crate::vec::BitVec<C, T>
+		where C: $crate::cursor::Cursor, T: $crate::store::BitStore {
+			type Output = <Self as core::ops::Shl<usize>>::Output;
 
-			fn shl ( self , shamt : $t ) -> Self :: Output {
-				core :: ops :: Shl :: < usize > :: shl ( self , shamt as usize )
+			fn shl(self, shamt: $t) -> Self::Output {
+				core::ops::Shl::<usize>::shl(self, shamt as usize)
 			}
 		}
 
 		#[doc(hidden)]
-		impl < C , T > core :: ops :: ShlAssign < $t >
-		for $crate :: vec :: BitVec < C , T >
-		where C : $crate :: cursor :: Cursor , T : $crate :: store :: BitStore {
-			fn shl_assign ( & mut self , shamt : $t ) {
-				core :: ops :: ShlAssign :: < usize > :: shl_assign (
-					self ,
+		impl<C, T> core::ops::ShlAssign<$t>
+		for $crate::vec::BitVec<C, T>
+		where C: $crate::cursor::Cursor, T: $crate::store::BitStore {
+			fn shl_assign(&mut self, shamt: $t) {
+				core::ops::ShlAssign::<usize>::shl_assign(
+					self,
 					shamt as usize,
 				)
 			}
 		}
 
 		#[doc(hidden)]
-		impl < C , T > core :: ops :: Shr < $t >
-		for $crate :: vec :: BitVec < C , T >
-		where C : $crate :: cursor :: Cursor , T : $crate :: store :: BitStore {
-			type Output = < Self as core :: ops :: Shr < usize > > :: Output ;
+		impl<C, T> core::ops::Shr<$t>
+		for $crate::vec::BitVec<C, T>
+		where C: $crate::cursor::Cursor, T: $crate::store::BitStore {
+			type Output = <Self as core::ops::Shr<usize>>::Output;
 
-			fn shr ( self , shamt : $t ) -> Self :: Output {
-				core :: ops :: Shr :: < usize > :: shr ( self , shamt as usize )
+			fn shr(self, shamt: $t) -> Self::Output {
+				core::ops::Shr::<usize>::shr(self, shamt as usize)
 			}
 		}
 
 		#[doc(hidden)]
-		impl < C , T> core :: ops :: ShrAssign < $t >
-		for $crate :: vec :: BitVec < C , T >
-		where C : $crate :: cursor :: Cursor , T : $crate :: store :: BitStore {
-			fn shr_assign ( & mut self , shamt : $t ) {
-				core :: ops :: ShrAssign :: < usize > :: shr_assign (
-					self ,
-					shamt as usize ,
+		impl<C, T> core::ops::ShrAssign<$t>
+		for $crate::vec::BitVec<C, T>
+		where C: $crate::cursor::Cursor, T: $crate::store::BitStore {
+			fn shr_assign(&mut self, shamt: $t) {
+				core::ops::ShrAssign::<usize>::shr_assign(
+					self,
+					shamt as usize,
 				)
 			}
 		}

@@ -57,7 +57,7 @@ const USZ_BITS: usize = size_of::<usize>() * 8;
 ///
 /// Don’t.
 #[doc(hidden)]
-pub union Pointer<T> {
+pub(crate) union Pointer<T> {
 	/// A read pointer to some data.
 	r: *const T,
 	/// A write pointer to some data.
@@ -392,7 +392,7 @@ where T: BitStore {
 	///
 	/// The provided pointer must be either null, or valid in the caller’s
 	/// memory model and allocation regime.
-	pub fn uninhabited(ptr: impl Into<Pointer<T>>) -> Self {
+	pub(crate) fn uninhabited(ptr: impl Into<Pointer<T>>) -> Self {
 		let ptr = ptr.into();
 		//  Check that the pointer is properly aligned for the storage type.
 		//  Null pointers are always well aligned.
@@ -462,7 +462,7 @@ where T: BitStore {
 	/// validly allocated, region of memory, or the canonical dangling pointer
 	/// and empty slice. The caller is responsible for ensuring that the slice
 	/// of memory that the new `BitPtr` will govern is all governable.
-	pub fn new(
+	pub(crate) fn new(
 		data: impl Into<Pointer<T>>,
 		elts: usize,
 		head: impl Into<BitIdx>,
@@ -606,7 +606,7 @@ where T: BitStore {
 	///
 	/// This pointer must be valid in the user’s memory model and allocation
 	/// regime in order for the caller to dereference it.
-	pub fn pointer(&self) -> Pointer<T> {
+	pub(crate) fn pointer(&self) -> Pointer<T> {
 		(self.ptr.as_ptr() as usize & Self::PTR_DATA_MASK).into()
 	}
 
@@ -697,11 +697,12 @@ where T: BitStore {
 	///
 	/// # Returns
 	///
-	/// - `Pointer<T>`: A well aligned pointer to the first element of the slice.
+	/// - `Pointer<T>`: A well aligned pointer to the first element of the
+	///   slice.
 	/// - `usize`: The number of elements in the slice.
 	/// - `BitIdx`: The index of the first live bit in the first element.
 	/// - `BitIdx`: The index of the first dead bit in the last element.
-	pub fn raw_parts(&self) -> (Pointer<T>, usize, BitIdx, BitIdx) {
+	pub(crate) fn raw_parts(&self) -> (Pointer<T>, usize, BitIdx, BitIdx) {
 		(self.pointer(), self.elements(), self.head(), self.tail())
 	}
 
@@ -1025,7 +1026,7 @@ where T: BitStore {
 	where C: Cursor {
 		unsafe {
 			&*(slice::from_raw_parts(
-				self.ptr.as_ptr() as *const u8 as *const (),
+				Pointer::from(self.ptr.as_ptr()).r() as *const (),
 				self.len,
 			) as *const [()] as *const BitSlice<C, T>)
 		}
@@ -1109,21 +1110,24 @@ where T: BitStore {
 		struct HexPtr<T: BitStore>(*const T);
 		impl<T: BitStore> Debug for HexPtr<T> {
 			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-				f.write_fmt(format_args!("0x{:0>1$X}", self.0 as usize, PTR_BITS >> 2))
+				write!(f, "0x{:0>1$X}", self.0 as usize, PTR_BITS >> 2)
 			}
 		}
+
 		struct HexAddr(usize);
 		impl Debug for HexAddr {
 			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 				f.write_fmt(format_args!("{:#X}", self.0))
 			}
 		}
+
 		struct BinAddr<T: BitStore>(BitIdx, PhantomData<T>);
 		impl<T: BitStore>  Debug for BinAddr<T> {
 			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-				f.write_fmt(format_args!("0b{:0>1$b}", *self.0, T::INDX as usize))
+				write!(f, "0b{:0>1$b}", *self.0, T::INDX as usize)
 			}
 		}
+
 		write!(f, "BitPtr<{}>", T::TYPENAME)?;
 		f.debug_struct("")
 			.field("data", &HexPtr::<T>(self.pointer().r()))

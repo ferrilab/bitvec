@@ -5,7 +5,10 @@ This collects the general public API into a single spot for inclusion, as
 !*/
 
 pub use crate::{
-	bits::*,
+	bits::{
+		Bits,
+		BitsMut,
+	},
 	cursor::{
 		Cursor,
 		BigEndian,

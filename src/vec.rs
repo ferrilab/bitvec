@@ -442,7 +442,11 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(bv.count_ones(), 2);
 	/// ```
 	pub fn from_element(elt: T) -> Self {
-		Self::from_vec(vec![elt])
+		Self::from_vec({
+			let mut v = Vec::with_capacity(1);
+			v.push(elt);
+			v
+		})
 	}
 
 	/// Constructs a `BitVec` from a slice of elements.
@@ -462,8 +466,8 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let src: &[u8] = &[5, 10];
-	/// let bv: BitVec = src.into();
+	/// let src = [5, 10];
+	/// let bv = BitVec::<BigEndian, u8>::from_slice(&src[..]);
 	/// assert!(bv[5]);
 	/// assert!(bv[7]);
 	/// assert!(bv[12]);
@@ -493,8 +497,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let src: Vec<u8> = vec![1, 2, 4, 8];
-	/// let bv: BitVec = src.into();
+	/// let bv = BitVec::<BigEndian, u8>::from_vec(vec![1, 2, 4, 8]);
 	/// assert_eq!(
 	///   "[00000001, 00000010, 00000100, 00001000]",
 	///   &format!("{}", bv),
@@ -532,8 +535,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let src: &[u8] = &[0, !0];
-	/// let bs: &BitSlice = src.into();
+	/// let bs = [0u8, !0].as_bitslice::<BigEndian>();
 	/// let bv = BitVec::from_bitslice(bs);
 	/// assert_eq!(bv.len(), 16);
 	/// assert!(bv.some());
@@ -553,6 +555,16 @@ where C: Cursor, T: BitStore {
 	/// # Returns
 	///
 	/// A growable collection over the original memory of the slice.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bv = BitVec::from_boxed_bitslice(bitbox![0, 1]);
+	/// assert_eq!(bv.len(), 2);
+	/// assert!(bv.some());
+	/// ```
 	pub fn from_boxed_bitslice(slice: BitBox<C, T>) -> Self {
 		let bitptr = slice.bitptr();
 		mem::forget(slice);
@@ -582,7 +594,7 @@ where C: Cursor, T: BitStore {
 	/// - `pointer`’s element count needs to be less than or equal to the
 	///   original allocation capacity.
 	/// - `capacity` needs to be the original allocation capacity for the
-	///   pointer.
+	///   vector. This is *not* the value produced by `.capacity()`.
 	///
 	/// Violating these ***will*** cause problems, like corrupting the handle’s
 	/// concept of memory, the allocator’s internal data structures, and the
@@ -2229,45 +2241,15 @@ where C: Cursor, T: BitStore {
 			mem::swap(self, &mut addend);
 		}
 		//  Now that self.len() >= addend.len(), proceed with addition.
-		//
-		//  I don't, at this time, want to implement a carry-lookahead adder in
-		//  software, so this is going to be a plain ripple-carry adder with
-		//  O(n) runtime. Furthermore, until I think of an optimization
-		//  strategy, it is going to build up another bitvec to use as a stack.
-		//
-		//  Computers are fast. Whatever.
 		let mut c = false;
 		let mut stack = BitVec::<C, T>::with_capacity(self.len());
-		//  Reverse self, reverse addend and zero-extend, and zip both together.
-		//  This walks both vecs from rightmost to leftmost, and considers an
-		//  early expiration of addend to continue with 0 bits.
-		//
-		//  100111
-		// +  0010
-		//  ^^---- semantically zero
 		let addend = addend.into_iter().rev().chain(repeat(false));
 		for (a, b) in self.iter().rev().zip(addend) {
-			//  Addition is a finite state machine that can be precomputed into
-			//  a single jump table rather than requiring more complex
-			//  branching. The table is indexed as (carry, a, b) and returns
-			//  (bit, carry).
-			static JUMP: [u8; 8] = [
-				0,  //  0 + 0 + 0 => (0, 0)
-				2,  //  0 + 1 + 0 => (1, 0)
-				2,  //  1 + 0 + 0 => (1, 0)
-				1,  //  1 + 1 + 1 => (0, 1)
-				2,  //  0 + 0 + 1 => (1, 0)
-				1,  //  0 + 1 + 0 => (0, 1)
-				1,  //  1 + 0 + 0 => (0, 1)
-				3,  //  1 + 1 + 1 => (1, 1)
-			];
-			let idx = ((c as u8) << 2) | ((a as u8) << 1) | (b as u8);
-			let yz = JUMP[idx as usize];
+			//  See `<BitSlice as AddAssign>::add_assign`.
+			static JUMP: [u8; 8] = [0, 2, 2, 1, 2, 1, 1, 3];
+			let jmp = ((c as u8) << 2) | ((a as u8) << 1) | (b as u8);
+			let yz = JUMP[jmp as usize];
 			let (y, z) = (yz & 2 != 0, yz & 1 != 0);
-			//  Note: I checked in Godbolt, and the above comes out to ten
-			//  simple instructions with the JUMP baked in as immediate values.
-			//  The more semantically clear match statement does not optimize
-			//  nearly as well.
 			stack.push(y);
 			c = z;
 		}
@@ -2277,9 +2259,7 @@ where C: Cursor, T: BitStore {
 		}
 		//  Unwind the stack into `self`.
 		self.clear();
-		while let Some(bit) = stack.pop() {
-			self.push(bit);
-		}
+		self.extend(stack.into_iter().rev());
 	}
 }
 
@@ -2336,7 +2316,7 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 		let len = rhs.into_iter()
 			.take(self.len())
 			.enumerate()
-			.map(|(i, r)| self.get(i).map(|l| self.set(i, l & r)))
+			.flat_map(|(i, r)| self.get(i).map(|l| self.set(i, l & r)))
 			.count();
 		self.truncate(len);
 	}
@@ -2395,7 +2375,7 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 		let len = rhs.into_iter()
 			.take(self.len())
 			.enumerate()
-			.map(|(i, r)| self.get(i).map(|l| self.set(i, l | r)))
+			.flat_map(|(i, r)| self.get(i).map(|l| self.set(i, l | r)))
 			.count();
 		self.truncate(len);
 	}
@@ -2454,7 +2434,7 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 		let len = rhs.into_iter()
 			.take(self.len())
 			.enumerate()
-			.map(|(i, r)| self.get(i).map(|l| self.set(i, l ^ r)))
+			.flat_map(|(i, r)| self.get(i).map(|l| self.set(i, l ^ r)))
 			.count();
 		self.truncate(len);
 	}

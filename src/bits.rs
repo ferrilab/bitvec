@@ -61,6 +61,16 @@ pub trait Bits {
 	///
 	/// A `BitSlice` handle over `self`’s data, using the provided `Cursor` type
 	/// and using `Self::Store` as the data type.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let src = 8u8;
+	/// let bits = src.as_bitslice::<BigEndian>();
+	/// assert!(bits[4]);
+	/// ```
 	fn as_bitslice<C>(&self) -> &BitSlice<C, Self::Store>
 	where C: Cursor;
 }
@@ -87,6 +97,18 @@ pub trait BitsMut: Bits {
 	///
 	/// A `BitSlice` handle over `self`’s data, using the provided `Cursor` type
 	/// and using `Self::Store` as the data type.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut src = 8u8;
+	/// let bits = src.as_mut_bitslice::<LittleEndian>();
+	/// assert!(bits[3]);
+	/// *bits.at(3) = false;
+	/// assert!(!bits[3]);
+	/// ```
 	fn as_mut_bitslice<C>(&mut self) -> &mut BitSlice<C, Self::Store>
 	where C: Cursor;
 }

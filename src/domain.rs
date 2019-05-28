@@ -95,7 +95,7 @@ where T: 'a + BitStore {
 	/// # Invariants
 	///
 	/// - `.0` must satisfy `BitIdx::is_valid::<T>`
-	/// - `.1` must satisfy `BitIdx::is_valid_tail::<T>`
+	/// - `.2` must satisfy `BitIdx::is_valid_tail::<T>`
 	///
 	/// # Behavior
 	///
@@ -114,6 +114,11 @@ where T: 'a + BitStore {
 	/// - `.3`: reference to the partial tail edge element
 	/// - `.4`: index of the first dead bit after the domain
 	///
+	/// # Invariants
+	///
+	/// - `.0` must satisfy `BitIdx::is_valid::<T>`
+	/// - `.4` must satisfy `BitIdx::is_valid_tail::<T>`
+	///
 	/// # Behavior
 	///
 	/// This variant is produced when the domain uses at least two elements, and
@@ -128,6 +133,10 @@ where T: 'a + BitStore {
 	/// - `.1`: reference to the partial head element
 	/// - `.2`: reference to the full elements of the domain. This may be empty.
 	///
+	/// # Invariants
+	///
+	/// - `.0` must satisfy `BitIdx::is_valid::<T>`
+	///
 	/// # Behavior
 	///
 	/// This variant is produced when the domain’s head cursor is past `0`, and
@@ -140,6 +149,10 @@ where T: 'a + BitStore {
 	/// - `.0`: reference to the full elements of the domain. This may be empty.
 	/// - `.1`: reference to the partial tail element
 	/// - `.2`: index of the first dead bit after the live bits in the tail
+	///
+	/// # Invariants
+	///
+	/// - `.2` must satisfy `BitIdx::is_valid_tail::<T>`
 	///
 	/// # Behavior
 	///
@@ -208,7 +221,7 @@ where T: 'a + BitStore {
 	/// # Invariants
 	///
 	/// - `.0` must satisfy `BitIdx::is_valid::<T>`
-	/// - `.1` must satisfy `BitIdx::is_valid_tail::<T>`
+	/// - `.2` must satisfy `BitIdx::is_valid_tail::<T>`
 	///
 	/// # Behavior
 	///
@@ -227,6 +240,11 @@ where T: 'a + BitStore {
 	/// - `.3`: mutable reference to the partial tail edge element
 	/// - `.4`: index of the first dead bit after the domain
 	///
+	/// # Invariants
+	///
+	/// - `.0` must satisfy `BitIdx::is_valid::<T>`
+	/// - `.4` must satisfy `BitIdx::is_valid_tail::<T>`
+	///
 	/// # Behavior
 	///
 	/// This variant is produced when the domain uses at least two elements, and
@@ -242,6 +260,10 @@ where T: 'a + BitStore {
 	/// - `.2`: mutable reference to the full elements of the domain. This may
 	///   be empty.
 	///
+	/// # Invariants
+	///
+	/// - `.0` must satisfy `BitIdx::is_valid::<T>`
+	///
 	/// # Behavior
 	///
 	/// This variant is produced when the domain’s head cursor is past `0`, and
@@ -255,6 +277,10 @@ where T: 'a + BitStore {
 	///   be empty.
 	/// - `.1`: mutable reference to the partial tail element
 	/// - `.2`: index of the first dead bit after the live bits in the tail
+	///
+	/// # Invariants
+	///
+	/// - `.2` must satisfy `BitIdx::is_valid_tail::<T>`
 	///
 	/// # Behavior
 	///

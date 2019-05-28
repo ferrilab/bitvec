@@ -1,4 +1,4 @@
-# `BitVec` – Managing memory bit by bit
+# `bitvec` – Managing Memory Bit by Bit
 
 [![Crate][crate_img]][crate]
 [![Documentation][docs_img]][docs]
@@ -10,21 +10,22 @@
 
 ## Summary
 
-This crate provides data structures which allow working with `bool` as if it
-were truly one bit wide in memory, rather than a `u8` with only two valid
-values. Currently, it only provides `[u1]`, `Box<[u1]>`, and `Vec<u1>`
-structures.
+`bitvec` enables refining memory manipulation from single-byte precision to
+single-bit precision. The bit-precision pointers in this crate allow creation of
+more powerful bit-masks, set arithmetic, and I/O packet processing.
 
-In addition to compact memory representation, this crate also allows you to
-specify the order in which individual bits are stored in Rust fundamentals, and
-which fundamental element (`u8`, `u16`, `u32`, and on 64-bit systems, `u64`) is
-used to store the bits.
+The core export of this crate is the type `BitSlice`. This type is a region of
+memory with individually-addressable bits. It is accessed by standard Rust
+references: `&BitSlice` and `&mut BitSlice`. These references are able to
+describe and operate on regions that start and end on any arbitrary bit address,
+regardless of alignment to a byte or processor word.
 
-The data structures provided by this crate track as closely as possible the APIs
-and trait implementations of their proper types in the Rust standard library.
-`BitSlice` corresponds to `[bool]`, `BitBox` to `Box<[bool]>`, and `BitVec` to
-`Vec<bool>`, and each of these types should be drop-in compatible replacements
-for their standard library counterparts.
+Rust provides three types to manipulate a sequence of memory: `&[T]`/`&mut [T]`
+to borrow a region, `Box<[T]>` to statically own a region, and `Vec<T>` to
+dynamically own a region. `bitvec` provides parallel types for each: `&BitSlice`
+and `&mut BitSlice` borrow, `BitBox` statically owns, and `BitVec` dynamically
+owns. These types mirror the relationships and APIs, including inherent methods
+and trait implementations, that are found in the standard library.
 
 ## What Makes `bitvec` Different Than All The Other Bit Vector Crates
 
@@ -47,7 +48,7 @@ logic.
 ## Why Would You Use This
 
 - You need to directly control a bitstream’s representation in memory.
-- You need to do unpleasant things with communications protocols.
+- You need to do unpleasant things with I/O communications protocols.
 - You need a list of `bool`s that doesn’t waste 7 bits for every bit used.
 - You need to do set arithmetic, or numeric arithmetic, on those lists.
 - You are running a find/replace command on your repository from `&[bool]` to
@@ -56,161 +57,282 @@ logic.
 
 ## Why *Wouldn’t* You Use This
 
-Your concern with the memory representation of bitsets includes compression.
-`BitSlice` performs absolutely no compression, and maps bits directly into
-memory. Compressed bit sets can be found in other crates, such as the
-[`compacts`] crate, which uses the [Roaring BitSet] format.
+- Your concern with the memory representation of bitsets includes sequence
+  compression. `BitSlice` performs absolutely no compression, and maps bits
+  directly into memory. Compressed bit sets can be found in other crates, such
+  as the [`compacts`] crate, which uses the [Roaring BitSet] format.
+- You want discontiguous data structures, such as a hash table, a tree, or any
+  other hallmark of computer science beyond the flat array. `bitvec` does not,
+  and will not, accomplish this. You may be able to use `bitvec`’s flat
+  structures beneath a type wrapper which handles index processing, but `bitvec`
+  types are incapable of accomplishing this task themselves. Also, I don’t know
+  how any of those data structures work.
 
 ## Usage
 
 **Minimum Rust Version**: `1.34.0`
 
-I wrote this crate because I was unhappy with the other bit-vector crates
-available. I specifically need to manage raw memory in bit-level precision, and
-this is not a behavior pattern the other bit-vector crates made easily available
-to me. This served as the guiding star for my development process on this crate,
-and remains the crate’s primary goal.
+The `1.34` release of Rust added `const fn` items in the standard library that
+`bitvec` uses for internal work. I am willing to assist you in patching `bitvec`
+to work on an older compiler, but I will not do so in the primary repository.
 
-To this end, the default type parameters for the `BitVec` type use `u8` as the
-storage primitive and use big-endian ordering of bits: the forwards direction is
-from MSb to LSb, and the backwards direction is from LSb to MSb.
-
-To use this crate, you need to depend on it in `Cargo.toml`:
+### Symbol Import
 
 ```toml
+# Cargo.toml
 [dependencies]
 bitvec = "0.12"
 ```
 
-and include it in your crate root `src/main.rs` or `src/lib.rs`:
+`bitvec` is highly modular, and requires several items to function correctly.
+The simplest way to use it is via prelude glob import:
 
-```rust,ignore
-//  Only if you’re in Rust 2015
-#[macro_use]
-extern crate bitvec;
-
+```rust
 use bitvec::prelude::*;
 ```
 
 This imports the following symbols:
 
-- `bitvec!` – a macro similar to `vec!`, which allows the creation of `BitVec`s
-  of any desired cursor, storage type, and contents. The documentation page has
-  a detailed explanation of its syntax.
+- `BigEndian`
+- `BitBox` (only when an allocator is present)
+- `BitSlice`
+- `BitStore`
+- `BitVec` (only when an allocator is present)
+- `Bits`
+- `BitsMut`
+- `Cursor`
+- `LittleEndian`
+- `bitbox!` (only when an allocator is present)
+- `bitvec!` (only when an allocator is present)
 
-- `BitSlice<C: Cursor, T: BitStore>` – the actual bit-slice reference type. It is
-  generic over a cursor type (`C`) and storage type (`T`). Note that `BitSlice`
-  is unsized, and can never be held directly; it must always be behind a
-  reference such as `&BitSlice` or `&mut BitSlice`.
+If you do not want these names imported directly into the local scope –
+`Cursor`, `BigEndian`, and `LittleEndian` are likely culprits for name collision
+– then you can import the prelude with a scope guard:
 
-  Furthermore, it is *impossible* to put `BitSlice` into any kind of intelligent
-  pointer such as a `Box` or `Rc`! Any work that involves managing the memory
-  behind a bitwise type *must* go through `BitBox` or `BitVec` instead. This may
-  change in the future as I learn how to better manage this library, but for now
-  this limitation stands.
-
-- `BitBox<C: Cursor, T: BitStore>` – a fixed-size bit collection in owned memory.
-
-- `BitVec<C: Cursor, T: BitStore>` – the actual bit-vector structure type. It is
-  generic over a cursor type (`C`) and storage type (`T`). This type is the main
-  worker of the crate. It supports the full `Vec<T>` API and trait
-  implementations, with the exception that (at this time) it is impossible to
-  take a mutable reference to a single bit. This means that everything except
-  for `let elt: &mut bool = &mut bv[index];` and `bv[index] = some_bool();` is
-  possible to express.
-
-- `Cursor` – an open trait that defines an ordering schema for `BitVec` to use.
-  Little and big endian orderings are provided by default. If you wish to
-  implement other ordering types, the `Cursor` trait requires one function:
-
-  - `fn at<T: BitStore>(index: u8) -> u8` takes a semantic index and computes a bit
-    offset into the primitive `T` for it.
-
-- `BigEndian` – a marker type that implements `Cursor` by defining the forward
-  direction as towards LSb and the backward direction as towards MSb.
-
-- `LittleEndian` – a marker type that implements `Cursor` by defining the
-  forward direction as towards MSb and the backward direction as towards LSb.
-
-- `BitStore` – a sealed trait that provides generic access to the four Rust
-  primitives usable as storage types: `u8`, `u16`, `u32`, and `u64`. `usize`
-  and the signed integers do *not* implement `BitStore` and cannot be used as the
-  storage type. `u128` also does not implement `BitStore`, as I am not confident in
-  its memory representation.
-
-`BitVec` has the same API as `Vec`, and should be easy to use.
-
-The `bitvec!` macro can take type information in its first two arguments.
-Because macros do not have access to the type checker, it currently only accepts
-the literal tokens `BigEndian` or `LittleEndian` as the first argument, one of
-the four unsigned integer primitives as the second argument, and then as many
-values as you wish to insert into the collection. It accepts any integer value,
-and maps them to bits by comparing against 0. `0` becomes `false` and any other
-integer, whether it is odd or not, becomes `true`. While the syntax is loose,
-you should only use `0` and `1` to fill the macro, for readability and lack of
-surprise.
-
-### `no_std`
-
-This crate can be used in `#![no_std]` libraries, by disabling the default
-feature set. In your `Cargo.toml`, write:
-
-```toml
-[dependencies]
-bitvec = { version = "0.12", default-features = false }
+```rust
+use bitvec::prelude as bv;
 ```
 
-or
+and those symbols will all be available only with a `bv::` prefix.
 
-```toml
-[dependencies.bitvec]
-version = "0.12"
-default-features = false
-```
+### Cargo Features
 
-This turns off the standard library imports *and* all usage of dynamic memory
-allocation. Without an allocator, the `bitvec!` and `bitbox!` macros, and the
-`BitVec` and `BitBox` types, are all disabled and removed from the library,
-leaving only the `BitSlice` type.
+`bitvec` uses Cargo features to conditionally control some behavior.
 
-To use `bitvec` in a `#![no_std]` environment that *does* have an allocator,
-re-enable the `alloc` feature, like so:
+The most prominent such behavior is one that cannot be controlled by Cargo
+configuration: `u64` is only usable with this library when targeting a 64-bit
+system. 32-bit system targets are only permitted to use `u8`, `u16`, and `u32`.
 
-```toml
-[dependencies.bitvec]
-version = "0.12"
-default-features = false
-features = ["alloc"]
-```
+#### Atomic Behavior
 
-The `alloc` feature restores the owned-memory types and their macros. The only
-difference between `alloc` and `std` is the presence of the standard library
-façade and runtime support.
-
-The `std` feature includes allocation, so using this crate without any feature
-flags *or* by explicitly enabling the `std` feature will enable full
-functionality.
-
-### Serde Support
-
-The `serde` feature, by default, enables serialization for the `BitSlice` type.
-Enabling the `alloc` or `std` features enables both serialization and
-deserialization for the `BitBox` and `BitVec` types.
-
-The `serde` feature is opt-in, and requires setting it in your `Cargo.toml`:
+`bitvec` uses atomic read/modify/write instructions by default. This is
+necessary to avoid data races in `&mut BitSlice` operations without using
+heavier synchronization mechanisms. If your target does not support Rust’s
+`AtomicU*` types, or you do not want to use atomic RMW instructions, you may
+disable the `atomic` feature:
 
 ```toml
 # Cargo.toml
 
 [dependencies.bitvec]
-version = "0.12"
+default-features = false
 features = [
-  "serde", # enables serialization
-  "std", # enables deserialization
+  # "atomic",
+  "std",
 ]
 ```
 
-## Example
+#### Allocator Support
+
+The two owning structures, `BitBox` and `BitVec`, require the presence of an
+allocator. As `bitvec` is written specifically for use cases where an allocator
+may not exist, this dependence can be disabled. `bitvec` is
+`#![no_std]`-compatible once the `std` feature is disabled. It is not a design
+goal to be `#![no_core]`-compatible.
+
+```toml
+# Cargo.toml
+
+[dependencies.bitvec]
+default-features = false
+features = [
+  "atomic",
+  # "std",
+]
+```
+
+If you are working in a `#![no_std]` environment that does have an allocator
+available, you can reënable allocator support with the `alloc` feature:
+
+```toml
+# Cargo.toml
+
+[dependencies.bitvec]
+default-features = false # disables "std"
+features = ["alloc"] # enables the allocator
+```
+
+This uses `#![feature(alloc)]`, which requires the nightly compiler.
+
+#### Serde Support
+
+De/serialization of bit slices is implemented through the `serde` crate. This
+functionality is governed by both the `serde` feature and the `std` feature.
+
+By default, when `serde` is enabled, `BitSlice`, `BitBox`, and `BitVec` all gain
+the `Serialize` trait, and `BitBox` and `BitVec` gain the `Deserialize` trait.
+
+When `std` is disabled, the `BitBox` and `BitVec` types are removed, leaving
+only `BitSlice` with `Serialize`.
+
+```toml
+# Cargo.toml
+
+[dependencies.bitvec]
+features = ["serde"]
+```
+
+### Data Structures
+
+`bitvec`’s three data structures are `&BitSlice`, `BitBox`, and `BitVec`. Each
+of these types takes two type parameters, which I have elided previously.
+
+The first type parameter is the `Cursor` trait. This trait governs how a bit
+index maps to a bit position in the underlying memory. This parameter defaults
+to the `BigEndian` type, which counts from the most significant bit first to the
+least significant bit last. The `LittleEndian` type counts in the opposite
+direction.
+
+The second type parameter is the `BitStore` trait. This trait abstracts over the
+Rust fundamental types `u8`, `u16`, and `u32`. On 64-bit targets, `u64` is also
+available. This parameter defaults to `u8`, which acts on individual bytes.
+
+These traits are both explained in the next section.
+
+`&BitSlice<C: Cursor, T: BitStore>` is an immutable region of memory,
+addressable at bit precision. This has all the inherent methods of Rust’s slice
+primitive, `&[bool]`, and all the trait implementations. It has additional
+methods which are specialized to its status as a slice of individual bits.
+
+`&mut BitSlice<C: Cursor, T: BitStore>` is a mutable region of memory. This
+functions identically to `&mut [bool]`, with the exception that `IndexMut` is
+impossible: you cannot write `bitslice[index] = bit;`. This restriction is
+sidestepped with the C++-style method `at`: `*bitslice.at(index) = bit;` is the
+shim for write indexing.
+
+The slice references have no restrictions on the alignment of their start or
+end bits.
+
+The owning references, described below, will always begin their slice aligned to
+the edge of their `T: BitStore` type parameter. While this is not strictly
+required by the implementation, it is convenient for ensuring that the
+allocation pointer is preserved.
+
+`BitBox<C: Cursor, T: BitStore>` is a `&mut BitSlice<C: Cursor, T: BitStore>` in
+owned memory. It has few useful methods and no trait implementations of its own.
+It is only capable of taking a bit slice into owned memory.
+
+`BitVec<C: Cursor, T: BitStore>` is a `BitBox` that can adjust its allocation
+size. It follows the inherent and trait API of the standard library’s `Vec`
+type.
+
+The API for these types is deliberately uninteresting. They are written to be as
+close to drop-in replacements for the standard library types as possible. The
+end goal of `bitvec` is that you should be able to adopt it by running three
+`sed` find/replace commands on your repository. This is not literally possible,
+but the work required for replacement is intended to be minimal.
+
+### Traits
+
+`bitvec` generalizes its behavior through the use of traits. In order to
+optimize performance, these traits are *not* object-safe, and may *not* be used
+as `dyn Trait` patterns for type erasure. Refactoring `bitvec` to support type
+erasure would require significantly rewriting core infrastructure, and this is
+not a design goal. I am willing to consider it if demand is shown, but I am not
+going to proactively pursue it.
+
+#### `Cursor`
+
+The `Cursor` trait is an open-ended trait, that you are free to implement
+yourself. It has one required function: `fn at<T: BitStore>(BitIdx) -> BitPos`.
+
+This function translates a semantic index to an electrical position. `bitvec`
+provides two implementations for you: `BigEndian` and `LittleEndian`, described
+above. The invariants this function must uphold are listed in its documentation.
+
+#### `BitStore`
+
+The `BitStore` trait is sealed, and may only be implemented by this library. It
+is used to abstract over the Rust fundamentals `u8`, `u16`, `u32`, and (on
+64-bit systems) `u64`.
+
+Your choice in fundamental types governs how the `Cursor` type translates
+indices, and how the memory underneath your slice is written. The document
+`doc/Bit Patterns.md` enumerates the effect of the `Cursor` and `BitStore`
+combinations on raw memory.
+
+If you are using `bitvec` to perform set arithmetic, and you expect that your
+sets will have more full elements in the interior than partially-used elements
+on the front and back edge, it is advantageous to use the local CPU word. The
+`BitSlice` operations which traverse the slice are required to perform
+bit-by-bit crawls on partial-use elements, but are able to use whole-word
+instructions on full elements. The latter is a marked acceleration.
+
+If you are using `bitvec` to perform I/O packet manipulation, you should use the
+fundamental best suited for your protocols. This is likely `u8`, which is why it
+is the default type.
+
+#### `Bits` and `BitsMut`
+
+The `Bits` and `BitsMut` traits are entry interfaces to the `BitSlice` types.
+These are equivalent to the `AsRef` and `AsMut` reference conversion traits in
+the standard library, and should be used as such.
+
+These traits are implemented on the Rust fundamentals that implement `BitStore`
+(`uN`), on slices of those fundamentals (`[uN]`), and the first thirty-two
+arrays of them (`[uN; 0]` to `[uN; 32]`). Each implementation of these traits
+causes a linear expansion of compile time, and going beyond thirty-two both
+surpasses the standard library’s manual implementation limits, and is a
+denial-of-service attack on each rebuild.
+
+These traits are left open so that if you need to implement them on wider
+arrays, you are able to do so.
+
+You can use these traits to attach `.as_bitslice::<C: Cursor>()` and
+`.as_mut_bitslice::<C: Cursor>()` conversion methods to any implementor, and
+gain access to a `BitSlice` over that type, or to bound a generic function
+similar to how the standard library uses `AsRef<Path>`:
+
+```rust
+let mut base = [0u8; 8];
+let bits = base.as_mut_bitslice::<LittleEndian>();
+//  bits is now an `&mut BitSlice<LittleEndian, u8>`
+println!("{}", bits.len()); // 64
+
+fn operate_on_bits(mut data: impl BitsMut) {
+  let bits = data.as_mut_bitslice::<BigEndian>();
+  //  `bits` is now an `&mut BitSlice<BigEndian, _>`
+}
+```
+
+### Macros
+
+The `bitbox!` and `bitvec!` macros allow convenient production of their
+eponymous types, equivalent to the `vec!` macro in the standard library.
+
+These macros accept an optional cursor token, an optional type token, and either
+a list of bits or a single bit and a repetition counter.
+
+Because these are standard macros, not proc-macros, they do not yet produce
+well-optimized expanded code.
+
+These macros are more thoroughly explained, including a list of all available
+use syntaxes, in their documentation.
+
+## Example Usage
+
+This snippet runs through a selection of library functionality to demonstrate
+behavior. It is deliberately not representative of likely usage.
 
 ```rust
 extern crate bitvec;
@@ -244,7 +366,7 @@ fn main() {
     bv.pop();
     bv.pop();
 
-    //  Set operations
+    //  Set operations. These deliberately have no effect.
     bv &= repeat(true);
     bv = bv | repeat(false);
     bv ^= repeat(true);
@@ -294,7 +416,7 @@ crawl each bit individually. This is slower on most architectures, but
 guarantees safety.
 
 Race conditions are avoided through use of the atomic read/modify/write
-instructions stabilized in `1.34.0`.
+instructions stabilized in `1.34.0`, as described above.
 
 ## Planned Features
 

@@ -94,16 +94,27 @@ the width of their pointed type. That is, a pointer to a `u32` must have an
 address that is an even multiple of four, and so addresses like `6` or `102` are
 not valid places in memory for a `u32` to begin.
 
+I personally find this easier to show than to write. The diagram below shows the
+acceptable placements of each value type in a region of sixteen bytes, and the
+number after each `[` glyph is an acceptable modulus for the address.
+
+> ```text
+> u64 |[0---------------------][8---------------------]
+> u32 |[0---------][4---------][8---------][c---------]
+> u16 |[0---][2---][4---][6---][8---][a---][c---][e---]
+>  u8 |[0][1][2][3][4][5][6][7][8][9][a][b][c][d][e][f]
+> ```
+
 That means that there is a bit available in the low end of the *pointer* for
 every power of 2 element size above a byte. Narrowing from a byte to a bit still
 requires three bits, which must be placed in the length field, but the low bits
 of the pointer are able to take the rest.
 
 > It so happens that pointers on x64 systems only use the low 48 bits of space,
-> and the high 16 bits are unused. Some environments use the empty high bits for
-> data storage, but this is risky as the high bits are considered “not used
-> YET”, and not “available for whatever use”. Also, MMUs tend to trap when those
-> bits are not zero.
+> and the high 16 bits are not used for addressing. Some environments use the
+> empty high bits for data storage, but this is risky as the high bits are
+> considered “not used YET”, and not “available for whatever use”. Also, MMUs
+> tend to trap when these bits are not sign-extensions of bit 47.
 >
 > Also, this trick does not work on 32-bit systems.
 >
@@ -113,13 +124,13 @@ of the pointer are able to take the rest.
 
 The end result of this packing scheme is that bit slice pointers will have the
 following representation, written in C++ because Rust does not have bitfield
-syntax.
+syntax. The ranges in comments are the range of the field width.
 
 ```cpp
 template <typename T>
 struct BitPtr {
   size_t ptr_head : __builtin_ctzll(alignof(T)); // 0 ... 3
-  size_t ptr_data : sizeof(T*) * 8
+  size_t ptr_data : sizeof(uintptr_t) * 8
                   - __builtin_ctzll(alignof(T)); // 64/32 ... 61/29
 
   size_t len_head : 3;
@@ -145,24 +156,33 @@ So, for any storage fundamental, its bitslice pointer representation has:
 
 ### Null Value
 
-The null value, `ptr: 0, len: 0` is reserved as an illegal value of `BitPtr<T>`
+The null value, `ptr: 0, len: 0` is reserved as an invalid value of `BitPtr<T>`
 so that it may be used as `Option<BitPtr<T>>::None`.
 
 ### Empty Slices
 
 All pointers whose non-`data` members are fully zeroed are considered
-uninhabited. All empty pointers have the same element address, as provided by
-the `NonNull::<T>::dangling()` function. The pointer is marked as `NonNull` in
-order to take advantage of the null-pointer optimization of `Option`. A fully
-zeroed `BitPtr<T>` slot is only legal as `Option::<BitPtr<T>>::None`. Bit
-pointers to empty space with no backing allocation use the uninhabited address,
-and bit pointers to an allocation with no bits stored use the allocation
-address. The distinction is important for `BitVec`.
+uninhabited. All empty pointers have the same data address, as provided by the
+`NonNull::<T>::dangling()` function. The pointer is marked as `NonNull` in order
+to take advantage of the null-pointer optimization of `Option`. Bit pointers to
+empty space with no backing allocation use the uninhabited address, and bit
+pointers to an allocation with no bits stored use the allocation address. The
+distinction is important for `BitVec`.
+
+Terminology: I will strive to use *uninhabited* to mean a pointer that does not
+have an associated memory region, and *inhabited* to mean a pointer that does
+have an associated memory region. All *uninhabited* slices **must** be empty;
+*inhabited* slices may be empty or non-empty.
+
+The region associated with a pointer is not required to be granted by the memory
+allocator, nor managed by the pointer. This information is provided by the
+semantic types atop the pointer; the pointer itself is solely a region
+descriptor.
 
 ### Inhabited Slices
 
-For inhabited slices, `elts` contains the offset of the last inhabited element
-in the underlying region.
+For inhabited slices, `elts` contains the offset of the last live element in the
+underlying region.
 
 A slice with its head and tail in the same element will have an `elts` count of
 `0`. Since the `tail` count marks the first *unusable* bit, when `tail` is `0`
