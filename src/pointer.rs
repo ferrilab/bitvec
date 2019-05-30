@@ -552,10 +552,10 @@ where T: BitStore {
 	pub(crate) unsafe fn new_unchecked(
 		data: impl Into<Pointer<T>>,
 		elts: usize,
-		head: BitIdx,
-		tail: BitIdx,
+		head: impl Into<BitIdx>,
+		tail: impl Into<BitIdx>,
 	) -> Self {
-		let data = data.into();
+		let (data, head, tail) = (data.into(), head.into(), tail.into());
 		let sum = data.r().wrapping_add(elts);
 		//  This check cannot ever be elided. Check that the pointer is not so
 		//  high in the address space that the slice domain wraps.
@@ -747,7 +747,7 @@ where T: BitStore {
 	///
 	/// # Returns
 	///
-	/// Whether the slice is empty or inhabited.
+	/// Whether the slice is empty or populated.
 	pub fn is_empty(&self) -> bool {
 		self.len == 0 && self.ptr.as_ptr() as usize & Self::PTR_HEAD_MASK == 0
 	}

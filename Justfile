@@ -13,7 +13,6 @@ build:
 	cargo build --features {{features}}
 	cargo build --features {{features}} --example sieve
 	cargo build --features {{features}} --example tour
-	cargo build --features {{features}} --example serdes
 
 # Checks the library for syntax and HIR errors.
 check:
@@ -59,6 +58,5 @@ publish: checkout
 test: check clippy
 	cargo test --no-default-features
 	cargo test --features testing,{{features}}
-	cargo run --features {{features}} --example serdes
 	cargo run --features {{features}} --example sieve
 	cargo run --features {{features}} --example tour

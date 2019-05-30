@@ -231,7 +231,7 @@ where C: Cursor, T: BitStore {
 	/// assert!(bs.all());
 	/// ```
 	pub fn from_element(elt: &T) -> &Self {
-		BitPtr::new(elt, 1, 0, T::BITS).into_bitslice()
+		unsafe { BitPtr::new_unchecked(elt, 1, 0, T::BITS) }.into_bitslice()
 	}
 
 	/// Produces a mutable `BitSlice` over a single element.
@@ -256,7 +256,7 @@ where C: Cursor, T: BitStore {
 	/// assert!(!bs.all());
 	/// ```
 	pub fn from_element_mut(elt: &mut T) -> &mut Self {
-		BitPtr::new(elt, 1, 0, T::BITS).into_bitslice_mut()
+		unsafe { BitPtr::new_unchecked(elt, 1, 0, T::BITS) }.into_bitslice_mut()
 	}
 
 	/// Wraps a `&[T: BitStore]` in a `&BitSlice<C: Cursor, T>`. The cursor must
@@ -328,7 +328,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
 	pub fn from_slice_mut(slice: &mut [T]) -> &mut Self {
-		BitPtr::new(slice.as_ptr(), slice.len(), 0, T::BITS).into_bitslice_mut()
+		Self::from_slice(slice).bitptr().into_bitslice_mut()
 	}
 
 	/// Returns the number of bits contained in the `BitSlice`.
