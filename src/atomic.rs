@@ -104,14 +104,12 @@ pub trait Atomic<Fundamental: Sized>: Sized {
 	/// - `&self`: This is able to be immutable, rather than mutable, because
 	///   the atomic type is a `Cell`-type wrapper.
 	/// - `bit`: The position in the element to set low.
-	#[inline(always)]
 	fn clear(&self, bit: BitPos);
 
 	/// Sets the bit at some position to `1`.
 	///
 	/// - `&self`
 	/// - `bit`: The position in the element to set high.
-	#[inline(always)]
 	fn set(&self, bit: BitPos);
 
 	/// Gets the element underneath the atomic access.
@@ -123,7 +121,6 @@ pub trait Atomic<Fundamental: Sized>: Sized {
 	/// # Returns
 	///
 	/// The fundamental type underneath the atomic type.
-	#[inline(always)]
 	fn get(&self) -> Fundamental;
 }
 

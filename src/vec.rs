@@ -1271,7 +1271,7 @@ where C: Cursor, T: BitStore {
 			0 => unsafe {
 				let out = Self::from_raw_parts(self.pointer, self.capacity);
 				ptr::write(self, Self::new());
-				return out;
+				out
 			},
 			n if n == len => Self::new(),
 			_ => {

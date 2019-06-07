@@ -76,6 +76,10 @@ mod serdes;
 #[cfg(feature = "testing")]
 pub mod testing {
 	pub use crate::{
+		atomic::*,
+		bits::*,
+		boxed::*,
+		cursor::*,
 		domain::*,
 		macros::*,
 		pointer::*,

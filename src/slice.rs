@@ -826,11 +826,11 @@ where C: Cursor, T: BitStore {
 	/// and the rest) in order to hold multiple write references into the slice.
 	///
 	/// [`split_at_mut`]: #method.split_at_mut
-	pub fn at<'a>(&'a mut self, index: usize) -> BitGuard<'a, C, T> {
+	pub fn at(&mut self, index: usize) -> BitGuard<C, T> {
 		BitGuard {
 			_m: PhantomData,
 			bit: self[index],
-			slot: &mut self[index .. index + 1],
+			slot: &mut self[index ..= index],
 		}
 	}
 
@@ -1491,7 +1491,7 @@ where C: Cursor, T: BitStore {
 	pub fn starts_with<D, U>(&self, prefix: &BitSlice<D, U>) -> bool
 	where D: Cursor, U: BitStore {
 		let plen = prefix.len();
-		self.len() >= plen && prefix == &self[.. plen]
+		self.len() >= plen && prefix == self[.. plen]
 	}
 
 	/// Tests if the slice ends with the given suffix.
@@ -1520,7 +1520,7 @@ where C: Cursor, T: BitStore {
 	where D: Cursor, U: BitStore {
 		let slen = suffix.len();
 		let len = self.len();
-		len >= slen && suffix == &self[len - slen ..]
+		len >= slen && suffix == self[len - slen ..]
 	}
 
 	/// Rotates the slice, in place, to the left.
@@ -2971,7 +2971,7 @@ where C: Cursor, T: BitStore {
 			len,
 		);
 		assert!(end <= len, "Index {} out of range: {}", end, len);
-		assert!(end >= start, "Ranges can only run from low to high");
+		assert!(start <= end, "Ranges can only run from low to high");
 		//  Find the number of elements to drop from the front, and the index of
 		//  the new head
 		let (skip, new_head) = head.offset::<T>(start as isize);

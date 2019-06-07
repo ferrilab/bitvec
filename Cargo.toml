@@ -37,6 +37,8 @@ default = [
 ]
 std = []
 testing = [
+	"atomic",
+	"serde",
 	"std",
 ]
 
