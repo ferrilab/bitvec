@@ -511,12 +511,14 @@ where C: Cursor, T: BitStore {
 			len,
 			BitPtr::<T>::MAX_ELTS,
 		);
-		let (ptr, cap) = (vec.as_ptr(), vec.capacity());
+		let bs = BitSlice::<C, T>::from_slice(&vec[..]);
+		let pointer = bs.bitptr();
+		let capacity = vec.capacity();
 		mem::forget(vec);
 		Self {
 			_cursor: PhantomData,
-			pointer: BitPtr::new(ptr, len, 0, T::BITS),
-			capacity: cap,
+			pointer,
+			capacity,
 		}
 	}
 
@@ -634,13 +636,9 @@ where C: Cursor, T: BitStore {
 	/// assert!(bv.capacity() >= 10);
 	/// ```
 	pub fn capacity(&self) -> usize {
-		assert!(
-			self.capacity <= BitPtr::<T>::MAX_ELTS,
-			"Capacity {} overflows {}",
-			self.capacity,
-			BitPtr::<T>::MAX_ELTS,
-		);
-		self.capacity << T::INDX
+		self.capacity
+			.checked_mul(T::BITS as usize)
+			.expect("Vector capacity overflow")
 	}
 
 	/// Reserves capacity for at least `additional` more bits to be inserted.
@@ -778,11 +776,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	pub fn truncate(&mut self, len: usize) {
 		if len < self.len() {
-			let (p, _, h, _) = self.pointer.raw_parts();
-			//  Find the new element count and tail position
-			let (e, t) = h.span::<T>(len);
-			//  And reset the pointer to use that span.
-			self.pointer = unsafe { BitPtr::new_unchecked(p, e, h, t) };
+			unsafe { self.bitptr_mut().set_len(len); }
 		}
 	}
 
@@ -866,10 +860,6 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(bv.len(), 10);
 	/// ```
 	pub unsafe fn set_len(&mut self, len: usize) {
-		if len == 0 {
-			self.pointer = BitPtr::uninhabited(self.pointer.pointer());
-			return;
-		}
 		assert!(
 			len <= BitPtr::<T>::MAX_BITS,
 			"Capacity overflow: {} overflows maximum length {}",
@@ -882,22 +872,7 @@ where C: Cursor, T: BitStore {
 			len,
 			self.capacity(),
 		);
-		let (ptr, _, head, _) = self.pointer.raw_parts();
-		let (elts, tail) = match head.offset::<T>(len as isize) {
-			(e, BitIdx(0)) => (e.saturating_sub(1), T::BITS.into()),
-			(e, t) => (e, t),
-		};
-		//  Add one to elts because the value in elts is the *offset* from the
-		//  first element, and `BitPtr` needs to know the *total* number of
-		//  elements in the span.
-		self.pointer = BitPtr::new_unchecked(
-			ptr,
-			//  This is safe because `len` was checked above to fit in bounds,
-			//  and `elts` is computed from that.
-			(elts as usize).saturating_add(1),
-			head,
-			tail,
-		);
+		self.bitptr_mut().set_len(len);
 	}
 
 	/// Removes a bit from the vector and returns it.
@@ -1501,9 +1476,9 @@ where C: Cursor, T: BitStore {
 	///
 	/// The plain vector underlying the `BitVec`.
 	pub fn into_vec(self) -> Vec<T> {
-		let (data, elts, _, _) = self.pointer.raw_parts();
+		let slice = self.pointer.as_mut_slice();
 		let out = unsafe {
-			Vec::from_raw_parts(data.w(), elts, self.capacity)
+			Vec::from_raw_parts(slice.as_mut_ptr(), slice.len(), self.capacity)
 		};
 		mem::forget(self);
 		out
@@ -1577,15 +1552,16 @@ where C: Cursor, T: BitStore {
 	/// - `R`: The return value from the called function or closure.
 	fn do_unto_vec<F, R>(&mut self, func: F) -> R
 	where F: FnOnce(&mut Vec<T>) -> R {
-		let (p, e, h, t) = self.pointer.raw_parts();
+		let slice = self.pointer.as_mut_slice();
 		let mut v = unsafe {
-			Vec::from_raw_parts(p.w(), e, self.capacity)
+			Vec::from_raw_parts(slice.as_mut_ptr(), slice.len(), self.capacity)
 		};
 		let out = func(&mut v);
 		//  The only change is that the pointer might relocate. The region data
 		//  will remain untouched. Vec guarantees it will never produce an
 		//  invalid pointer.
-		self.pointer = unsafe { BitPtr::new_unchecked(v.as_ptr(), e, h, t) };
+		unsafe { self.bitptr_mut().set_pointer(v.as_ptr()); }
+		// self.pointer = unsafe { BitPtr::new_unchecked(v.as_ptr(), e, h, t) };
 		self.capacity = v.capacity();
 		mem::forget(v);
 		out
@@ -1617,9 +1593,9 @@ where C: Cursor, T: BitStore {
 	/// This produces an empty `Vec<T>` if the `BitVec<_, T>` is empty.
 	fn do_with_vec<F, R>(&self, func: F) -> R
 	where F: FnOnce(&Vec<T>) -> R {
-		let (data, elts, _, _) = self.pointer.raw_parts();
+		let slice = self.pointer.as_mut_slice();
 		let v: Vec<T> = unsafe {
-			Vec::from_raw_parts(data.w(), elts, self.capacity)
+			Vec::from_raw_parts(slice.as_mut_ptr(), slice.len(), self.capacity)
 		};
 		let out = func(&v);
 		mem::forget(v);
@@ -1688,26 +1664,34 @@ where C: Cursor, T: BitStore {
 impl<C, T> Clone for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	fn clone(&self) -> Self {
-		let (e, h, t) = self.pointer.region_data();
 		let new_vec = self.do_with_vec(Clone::clone);
-		let (ptr, cap) = (new_vec.as_ptr(), new_vec.capacity());
+		let capacity = new_vec.capacity();
+		let mut pointer = self.pointer;
+		unsafe { pointer.set_pointer(new_vec.as_ptr()); }
 		mem::forget(new_vec);
 		Self {
 			_cursor: PhantomData,
-			pointer: unsafe { BitPtr::new_unchecked(ptr, e, h, t) },
-			capacity: cap,
+			pointer, // unsafe { BitPtr::new_unchecked(ptr, e, h, t) },
+			capacity,
 		}
 	}
 
 	fn clone_from(&mut self, other: &Self) {
-		let (from, elts, h, t) = other.pointer.raw_parts();
+		let slice = other.pointer.as_slice();
 		self.clear();
-		self.reserve(other.len());
-		let to = self.pointer.pointer();
-		unsafe {
-			ptr::copy_nonoverlapping(from.r(), to.w(), elts);
-		}
-		self.pointer = unsafe { BitPtr::new_unchecked(to, elts, h, t) };
+		//  Copy the other data region into the underlying vector, then grab its
+		//  pointer and capacity values.
+		let (ptr, capacity) = self.do_unto_vec(|v| {
+			v.copy_from_slice(slice);
+			(v.as_ptr(), v.capacity())
+		});
+		//  Copy the other `BitPtr<T>`,
+		let mut pointer = other.pointer;
+		//  Then set it to aim at the copied pointer.
+		unsafe { pointer.set_pointer(ptr); }
+		//  And set the new pointer/capacity.
+		self.pointer = pointer;
+		self.capacity = capacity;
 	}
 }
 

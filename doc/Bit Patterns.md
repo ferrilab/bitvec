@@ -82,11 +82,11 @@ first-bit counter inside the other two elements!
 
 Not without sacrificing range, anyway.
 
-The naïve clever answer is to store both `last_bit` and `first_bit` in their
-entirety inside the `len` field. However, each bit counter is a minimum of three
+The naïve clever answer is to store both `bits` and `first_bit` in their
+entirety inside the `len` field. However, the bit counter is a minimum of three
 bits (indexing inside a `u8`) to a maximum of six bits (indexing inside a `u64`)
-wide. On 32-bit systems, a bit slice over `u32` would lose ten bits to bit
-tracking, but only had two bits to spare.
+wide. On 32-bit systems, a bit slice over `u32` would lose five bits to bit
+tracking, but only has two bits to spare.
 
 The astute observer will note that all architectures “require” – more of a
 strongly prefer, but will grudgingly allow violation – pointers to be aligned to
@@ -134,9 +134,7 @@ struct BitPtr {
                   - __builtin_ctzll(alignof(T)); // 64/32 ... 61/29
 
   size_t len_head : 3;
-  size_t len_tail : 3 + __builtin_ctzll(alignof(T)); // 3 ... 6
-  size_t len_data : sizeof(size_t) * 8
-                  - 6 - __builtin_ctzll(alignof(T)); // 58/26 ... 55/23
+  size_t len_bits : sizeof(size_t) * 8 - 3;
 };
 ```
 
@@ -161,56 +159,28 @@ so that it may be used as `Option<BitPtr<T>>::None`.
 
 ### Empty Slices
 
-All pointers whose non-`data` members are fully zeroed are considered
-uninhabited. All empty pointers have the same data address, as provided by the
-`NonNull::<T>::dangling()` function. The pointer is marked as `NonNull` in order
-to take advantage of the null-pointer optimization of `Option`. Bit pointers to
-empty space with no backing allocation use the uninhabited address, and bit
-pointers to an allocation with no bits stored use the allocation address. The
-distinction is important for `BitVec`.
+All pointers whose `bits` member is zero are considered empty. Empty slices are
+not constrained in their `data` or `head` members, but the canonical empty slice
+value uses `NonNull::<T>::dangling()` and `0`, respectively.
 
-Terminology: I will strive to use *uninhabited* to mean a pointer that does not
-have an associated memory region, and *inhabited* to mean a pointer that does
-have an associated memory region. All *uninhabited* slices **must** be empty;
-*inhabited* slices may be empty or non-empty.
+### Uninhabited Slices
 
-The region associated with a pointer is not required to be granted by the memory
-allocator, nor managed by the pointer. This information is provided by the
-semantic types atop the pointer; the pointer itself is solely a region
-descriptor.
+The subset of empty slices with non-dangling `data` members are considered
+uninhabited. All pointer structures retain their `data` value for their
+lifetime; this allows owning supertypes like `BitBox` or `BitVec` to allocate a
+region of storage without immediately beginning to populate it, and allows a
+slice which has been shrunk to zero bits to still be considered a subset (by
+address) of its parent slice.
 
 ### Inhabited Slices
 
-For inhabited slices, `elts` contains the offset of the last live element in the
-underlying region.
+All structures with a non-zero `bits` field are inhabited. The `bits` field may
+range from zero (empty/uninhabited) to `!0` (fully extended).
 
-A slice with its head and tail in the same element will have an `elts` count of
-`0`. Since the `tail` count marks the first *unusable* bit, when `tail` is `0`
-then there are exactly `elts` elements in the domain; when `tail` is non-zero,
-there are `elts + 1` elements.
+## Memory Regions
 
-A slice with `elts` at `0` *must* have a `tail` which is greater than both zero
-and `head`, in order to be considered inhabited.
-
-### Full Slices
-
-The full slices have `0` as their `head` value, and `!0` as their `tail` and
-`elts` values. This means that they will contain `1 << P - N` elements, where
-`P` is the local CPU word size and `N` is `3 + 3..=6`.
-
-|Type |Word Size|Maximum Elements|
-|----:|--------:|---------------:|
-| `u8`|       64|       `1 << 58`|
-|`u16`|       64|       `1 << 57`|
-|`u32`|       64|       `1 << 56`|
-|`u64`|       64|       `1 << 55`|
-| `u8`|       32|       `1 << 24`|
-|`u16`|       32|       `1 << 23`|
-|`u32`|       32|       `1 << 22`|
-|`u64`|       32|       `1 << 21`|
-
-The final element in the slice is not able to use its final bit, as this would
-cause a `tail` value of `0`, incrementing `elts` from `!0` to `0`, becoming the
-empty slice.
+A `BitPtr<T>` is translated to a `[T]` memory region using the `domain` module.
+This module contains all the logic for determining which memory elements under a
+`BitPtr<T>` are partially or fully inhabited by that bit slice.
 
 [base64]: https://en.wikipedia.org/wiki/Base64

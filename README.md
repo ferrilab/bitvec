@@ -81,7 +81,7 @@ to work on an older compiler, but I will not do so in the primary repository.
 ```toml
 # Cargo.toml
 [dependencies]
-bitvec = "0.12"
+bitvec = "0.13"
 ```
 
 `bitvec` is highly modular, and requires several items to function correctly.

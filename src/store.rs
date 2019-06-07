@@ -967,20 +967,28 @@ impl BitIdx {
 	/// ```
 	pub fn span<T>(self, len: usize) -> (usize, BitIdx)
 	where T: BitStore {
+		let val = *self & T::MASK;
 		assert!(
-			self.is_valid::<T>(),
+			*self <= T::BITS,
 			"Index {} is invalid for type {}",
-			*self,
+			val,
 			T::TYPENAME,
 		);
+
+		//  A span of zero bits covers zero elements, and does not move the
+		//  index.
+		if len == 0 {
+			return (0, self);
+		}
+
 		//  Number of bits in the head *element*. Domain 32 .. 0.
-		let bits_in_head = (T::BITS - *self) as usize;
+		let bits_in_head = (T::BITS - val) as usize;
 		//  If there are `n` bits live between the head cursor (which marks the
 		//  address of the first live bit) and the back edge of the element,
 		//  then when `len <= n`, the span covers one element. When `len == n`,
 		//  the tail will be `T::BITS`, which is valid for a tail.
 		if len <= bits_in_head {
-			return (1, (*self + len as u8).into());
+			return (1, (val + len as u8).into());
 		}
 		//  If there are more bits in the span than `n`, then subtract `n` from
 		//  `len` and use the difference to count elements and bits.
@@ -998,13 +1006,13 @@ impl BitIdx {
 		/*
 		 * The expression below this comment is equivalent to the branched
 		 * structure below, but branchless.
-
-		if bits == 0 {
-			(elts + 1, T::BITS.into())
-		}
-		else {
-			(elts + 2, bits.into())
-		}
+		 *
+		 * if bits == 0 {
+		 * 	(elts + 1, T::BITS.into())
+		 * }
+		 * else {
+		 * 	(elts + 2, bits.into())
+		 * }
 		 */
 
 		let tbz = (bits == 0) as u8;
@@ -1186,12 +1194,6 @@ mod tests {
 			assert_eq!(elt, isize::min_value() >> u8::INDX);
 			assert_eq!(*bit, n);
 		}
-	}
-
-	#[test]
-	#[should_panic]
-	fn offset_out_of_bound() {
-		BitIdx::from(64).offset::<u64>(isize::max_value());
 	}
 
 	#[test]

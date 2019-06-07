@@ -213,7 +213,6 @@ where C: Cursor, T: BitStore {
 	/// assert!(bb[14]);
 	/// ```
 	pub fn from_slice(slice: &[T]) -> Self {
-		assert!(slice.len() <= BitPtr::<T>::MAX_ELTS, "Box overflow");
 		BitVec::from_slice(slice).into_boxed_bitslice()
 	}
 
@@ -267,13 +266,21 @@ where C: Cursor, T: BitStore {
 	/// assert!(bb.some());
 	/// assert_eq!(bb.len(), 32);
 	/// ```
-	pub fn from_boxed_slice(slice: Box<[T]>) -> Self {
-		assert!(slice.len() <= BitPtr::<T>::MAX_ELTS, "Box overflow");
+	pub fn from_boxed_slice(boxed: Box<[T]>) -> Self {
+		let len = boxed.len();
+		assert!(
+			len <= BitPtr::<T>::MAX_ELTS,
+			"BitBox cannot address {} elements",
+			len,
+		);
+
+		let bs = BitSlice::<C, T>::from_slice(&boxed[..]);
+		let pointer = bs.bitptr();
 		let out = Self {
 			_cursor: PhantomData,
-			pointer: BitPtr::new(slice.as_ptr(), slice.len(), 0, T::BITS)
+			pointer,
 		};
-		mem::forget(slice);
+		mem::forget(boxed);
 		out
 	}
 
@@ -299,8 +306,9 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(slice.len(), 2);
 	/// ```
 	pub fn into_boxed_slice(self) -> Box<[T]> {
-		let (ptr, len, _, _) = self.bitptr().raw_parts();
-		let out = unsafe { Vec::from_raw_parts(ptr.w(), len, len) }
+		let slice = self.pointer.as_mut_slice();
+		let (data, elts) = (slice.as_mut_ptr(), slice.len());
+		let out = unsafe { Vec::from_raw_parts(data, elts, elts) }
 			.into_boxed_slice();
 		mem::forget(self);
 		out
@@ -456,9 +464,10 @@ where C: Cursor, T: BitStore {
 	/// The return value of the provided function.
 	fn do_with_box<F, R>(&self, func: F) -> R
 	where F: FnOnce(&Box<[T]>) -> R {
-		let (data, elts, _, _) = self.bitptr().raw_parts();
+		let slice = self.pointer.as_mut_slice();
+		let (data, elts) = (slice.as_mut_ptr(), slice.len());
 		let b: Box<[T]> = unsafe {
-			Vec::from_raw_parts(data.w(), elts, elts)
+			Vec::from_raw_parts(data, elts, elts)
 		}.into_boxed_slice();
 		let out = func(&b);
 		mem::forget(b);
@@ -483,13 +492,13 @@ where C: Cursor, T: BitStore {
 impl<C, T> Clone for BitBox<C, T>
 where C: Cursor, T: BitStore {
 	fn clone(&self) -> Self {
-		let (e, h, t) = self.bitptr().region_data();
 		let new_box = self.do_with_box(Clone::clone);
-		let ptr = new_box.as_ptr();
+		let mut pointer = self.pointer;
+		unsafe { pointer.set_pointer(new_box.as_ptr()); }
 		mem::forget(new_box);
 		Self {
 			_cursor: PhantomData,
-			pointer: BitPtr::new(ptr, e, h, t),
+			pointer,
 		}
 	}
 }

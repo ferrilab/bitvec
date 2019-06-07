@@ -231,7 +231,9 @@ where C: Cursor, T: BitStore {
 	/// assert!(bs.all());
 	/// ```
 	pub fn from_element(elt: &T) -> &Self {
-		unsafe { BitPtr::new_unchecked(elt, 1, 0, T::BITS) }.into_bitslice()
+		unsafe {
+			BitPtr::new_unchecked(elt, 0, T::BITS as usize)
+		}.into_bitslice()
 	}
 
 	/// Produces a mutable `BitSlice` over a single element.
@@ -256,7 +258,9 @@ where C: Cursor, T: BitStore {
 	/// assert!(!bs.all());
 	/// ```
 	pub fn from_element_mut(elt: &mut T) -> &mut Self {
-		unsafe { BitPtr::new_unchecked(elt, 1, 0, T::BITS) }.into_bitslice_mut()
+		unsafe {
+			BitPtr::new_unchecked(elt, 0, T::BITS as usize)
+		}.into_bitslice_mut()
 	}
 
 	/// Wraps a `&[T: BitStore]` in a `&BitSlice<C: Cursor, T>`. The cursor must
@@ -292,7 +296,15 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
 	pub fn from_slice(slice: &[T]) -> &Self {
-		BitPtr::new(slice.as_ptr(), slice.len(), 0, T::BITS).into_bitslice()
+		let len = slice.len();
+		assert!(
+			len <= BitPtr::<T>::MAX_ELTS,
+			"BitSlice cannot address {} elements",
+			len,
+		);
+		let bits = len.checked_mul(T::BITS as usize)
+			.expect("Bit length out of range");
+		BitPtr::new(slice.as_ptr(), 0, bits).into_bitslice()
 	}
 
 	/// Wraps a `&mut [T: BitStore]` in a `&mut BitSlice<C: Cursor, T>`. The
@@ -2202,7 +2214,7 @@ where C: Cursor, T: BitStore {
 	/// The [`BitPtr`] structure of the slice handle.
 	///
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
-	pub(crate) fn bitptr(&self) -> BitPtr<T> {
+	pub fn bitptr(&self) -> BitPtr<T> {
 		BitPtr::from_bitslice(self)
 	}
 }
@@ -2951,7 +2963,7 @@ where C: Cursor, T: BitStore {
 	type Output = Self;
 
 	fn index(&self, Range { start, end }: Range<usize>) -> &Self::Output {
-		let len = self.len();
+		let (data, head, len) = self.bitptr().raw_parts();
 		assert!(
 			start <= len,
 			"Index {} out of range: {}",
@@ -2960,19 +2972,15 @@ where C: Cursor, T: BitStore {
 		);
 		assert!(end <= len, "Index {} out of range: {}", end, len);
 		assert!(end >= start, "Ranges can only run from low to high");
-		let (data, _, head, _) = self.bitptr().raw_parts();
 		//  Find the number of elements to drop from the front, and the index of
 		//  the new head
 		let (skip, new_head) = head.offset::<T>(start as isize);
-		//  Find the number of elements contained in the new span, and the index
-		//  of the new tail.
-		let (new_elts, new_tail) = new_head.span::<T>(end - start);
+		let new_len = end - start;
 		unsafe { BitPtr::new_unchecked(
 			data.r().offset(skip),
-			new_elts,
 			new_head,
-			new_tail,
-		) }.into_bitslice()
+			new_len,
+		) }.into_bitslice::<C>()
 	}
 }
 

@@ -16,7 +16,7 @@ use bitvec::prelude::*;
 fn serdes() {
 	let bv = bitvec![1, 0, 1, 1, 0, 0, 1, 0];
 	let json = serde_json::to_string(&bv).expect("cannot fail to serialize");
-	assert_eq!(json.trim(),r#"{"elts":1,"head":0,"tail":8,"data":[178]}"#);
+	assert_eq!(json.trim(),r#"{"head":0,"bits":8,"data":[178]}"#);
 
 	let bb: BitBox = serde_json::from_str(&json).expect("cannot fail to deserialize");
 	assert!(bb[0]);

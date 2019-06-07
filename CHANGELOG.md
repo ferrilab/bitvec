@@ -4,6 +4,15 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+## 0.13.0
+
+### Changed
+
+- The `BitPtr<T>` internal representation replaced the elements/tail tuple with
+  a bit-length counter. Most of the changes as a result of this were purely
+  internal, but as it affected the `Serde` representation, this was moved to a
+  new version.
+
 ## 0.12.0
 
 ### Added
@@ -40,10 +49,12 @@ This document is written according to the [Keep a Changelog][kac] style.
   In practice, this should not be an issue, since the rules for mutable borrows
   mean that the original slice is not observable until the slot value produced
   by `.at()` goes out of scope.
+
 - **SEE THE RENAME BELOW.** The `Bits` and `BitsMut` traits provide reference
   conversion from many Rust fundamental types to `BitSlice` regions. `Bits` is
   analagous to `AsRef`, and `BitsMut` to `AsMut`. These traits are implemented
   on the `BitStore` fundamentals, slices of them, and arrays up to 32.
+
 - `BitSlice::get_unchecked` and `BitSlice::set_unchecked` perform read and write
   actions without any bounds checking to ensure the index is within the slice
   bounds. This allows faster work in tight loops where the index is already

@@ -50,20 +50,21 @@ impl BitDomainKind {
 impl<T> From<&BitPtr<T>> for BitDomainKind
 where T: BitStore {
 	fn from(bitptr: &BitPtr<T>) -> Self {
-		let (e, h, t) = bitptr.region_data();
+		let h = bitptr.head();
+		let (e, t) = h.span::<T>(bitptr.len());
 		let w = T::BITS;
 
-		match (e, *h, *t) {
+		match (*h, e, *t) {
 			//  Empty
-			(0, _, _)           => BitDomainKind::Empty,
+			(_, 0, _)           => BitDomainKind::Empty,
 			//  Reaches both edges, for any number of elements
-			(_, 0, t) if t == w => BitDomainKind::Spanning,
+			(0, _, t) if t == w => BitDomainKind::Spanning,
 			//  Reaches only the tail edge, for any number of elements
 			(_, _, t) if t == w => BitDomainKind::PartialHead,
 			//  Reaches only the head edge, for any number of elements
-			(_, 0, _)           => BitDomainKind::PartialTail,
+			(0, _, _)           => BitDomainKind::PartialTail,
 			//  Reaches neither edge, for one element
-			(1, _, _)           => BitDomainKind::Minor,
+			(_, 1, _)           => BitDomainKind::Minor,
 			//  Reaches neither edge, for multiple elements
 			(_, _, _ )          => BitDomainKind::Major,
 		}
@@ -172,27 +173,26 @@ where T: 'a + BitStore {
 	Spanning(&'a [T]),
 }
 
+impl<'a, T> From<BitDomainMut<'a, T>> for BitDomain<'a, T>
+where T: 'a + BitStore {
+	fn from(source: BitDomainMut<'a, T>) -> Self {
+		use BitDomainMut as Bdm;
+		use BitDomain as Bd;
+		match source {
+			Bdm::Empty => Bd::Empty,
+			Bdm::Minor(hc, e, tc) => Bd::Minor(hc, &*e, tc),
+			Bdm::Major(hc, h, b, t, tc) => Bd::Major(hc, &*h, &b[..], &*t, tc),
+			Bdm::PartialHead(hc, h, t) => Bd::PartialHead(hc, &*h, &t[..]),
+			Bdm::PartialTail(h, t, tc) => Bd::PartialTail(&h[..], &*t, tc),
+			Bdm::Spanning(b) => Bd::Spanning(&b[..]),
+		}
+	}
+}
+
 impl<'a, T> From<BitPtr<T>> for BitDomain<'a, T>
 where T: 'a + BitStore {
 	fn from(bitptr: BitPtr<T>) -> Self {
-		use BitDomainKind as Bdk;
-		let (e, h, t) = bitptr.region_data();
-		let data = bitptr.as_slice();
-
-		match bitptr.domain_kind() {
-			Bdk::Empty => BitDomain::Empty,
-			Bdk::Minor => BitDomain::Minor(h, &data[0], t),
-			Bdk::Major => BitDomain::Major(
-				h, &data[0], &data[1 .. e - 1], &data[e - 1], t
-			),
-			Bdk::PartialHead => BitDomain::PartialHead(
-				h, &data[0], &data[1 ..]
-			),
-			Bdk::PartialTail => BitDomain::PartialTail(
-				&data[.. e - 1], &data[e - 1], t
-			),
-			Bdk::Spanning => BitDomain::Spanning(data),
-		}
+		BitDomainMut::from(bitptr).into()
 	}
 }
 
@@ -304,7 +304,7 @@ impl<'a, T> From<BitPtr<T>> for BitDomainMut<'a, T>
 where T: 'a + BitStore {
 	fn from(bitptr: BitPtr<T>) -> Self {
 		use BitDomainKind as Bdk;
-		let (h, t) = bitptr.cursors();
+		let (h, t) = (bitptr.head(), bitptr.tail());
 		let data = bitptr.as_mut_slice();
 
 		match bitptr.domain_kind() {
@@ -343,7 +343,7 @@ mod tests {
 	#[test]
 	fn minor() {
 		let data: u8 = 0u8;
-		let bp = BitPtr::new(&data, 1, 1, 6);
+		let bp = BitPtr::new(&data, 1, 6);
 
 		assert!(bp.domain_kind().is_minor());
 	}
@@ -351,7 +351,7 @@ mod tests {
 	#[test]
 	fn major() {
 		let data: &[u16] = &[0u16, !0u16];
-		let bp = BitPtr::new(&data[0], 2, 1, 12);
+		let bp = BitPtr::new(&data[0], 1, 28);
 
 		assert!(bp.domain_kind().is_major());
 	}
@@ -359,12 +359,12 @@ mod tests {
 	#[test]
 	fn partial_head() {
 		let data: u32 = 0u32;
-		let bp = BitPtr::new(&data, 1, 4, 32);
+		let bp = BitPtr::new(&data, 4, 28);
 
 		assert!(bp.domain_kind().is_partial_head());
 
 		let data: &[u32] = &[0u32, !0u32];
-		let bp = BitPtr::new(&data[0], 2, 4, 32);
+		let bp = BitPtr::new(&data[0], 4, 60);
 
 		assert!(bp.domain_kind().is_partial_head());
 	}
@@ -372,12 +372,12 @@ mod tests {
 	#[test]
 	fn partial_tail() {
 		let data: u64 = 0u64;
-		let bp = BitPtr::new(&data, 1, 0, 60);
+		let bp = BitPtr::new(&data, 0, 60);
 
 		assert!(bp.domain_kind().is_partial_tail());
 
 		let data: &[u64] = &[0u64, !0u64];
-		let bp = BitPtr::new(&data[0], 2, 0, 60);
+		let bp = BitPtr::new(&data[0], 0, 124);
 
 		assert!(bp.domain_kind().is_partial_tail());
 	}
@@ -385,12 +385,12 @@ mod tests {
 	#[test]
 	fn spanning() {
 		let data: u8 = 0u8;
-		let bp = BitPtr::new(&data, 1, 0, 8);
+		let bp = BitPtr::new(&data, 0, 8);
 
 		assert!(bp.domain_kind().is_spanning());
 
 		let data: &[u16] = &[0u16, !0u16];
-		let bp = BitPtr::new(&data[0], 2, 0, 16);
+		let bp = BitPtr::new(&data[0], 0, 32);
 
 		assert!(bp.domain_kind().is_spanning());
 	}

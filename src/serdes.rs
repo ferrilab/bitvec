@@ -83,58 +83,50 @@ where C: Cursor, T: BitStore + Deserialize<'de> {
 	/// `usize', `u8`, `u8`, `[T]`.
 	fn visit_seq<V>(self, mut seq: V) -> Result<Self::Value, V::Error>
 	where V: SeqAccess<'de> {
-		let elts: usize = seq.next_element()?
-			.ok_or_else(|| de::Error::invalid_length(0, &self))?;
 		let head: u8 = seq.next_element()?
+			.ok_or_else(|| de::Error::invalid_length(0, &self))?;
+		let bits: usize = seq.next_element()?
 			.ok_or_else(|| de::Error::invalid_length(1, &self))?;
-		let tail: u8 = seq.next_element()?
-			.ok_or_else(|| de::Error::invalid_length(2, &self))?;
 		let data: Box<[T]> = seq.next_element()?
-			.ok_or_else(|| de::Error::invalid_length(3, &self))?;
+			.ok_or_else(|| de::Error::invalid_length(2, &self))?;
 
-		let bitptr = BitPtr::new(data.as_ptr(), cmp::min(elts, data.len()), head, tail);
+		let bitptr = BitPtr::new(data.as_ptr(), head, bits);
 		mem::forget(data);
 		Ok(unsafe { BitBox::from_raw(bitptr) })
 	}
 
 	/// Visit a map of named data elements. These may be in any order, and must
-	/// be the pairs `elts: usize`, `head: u8`, `tail: u8`, and `data: [T]`.
+	/// be the pairs `head: u8`, `bits: usize`, and `data: [T]`.
 	fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
 	where V: MapAccess<'de> {
-		let mut elts: Option<usize> = None;
 		let mut head: Option<u8> = None;
-		let mut tail: Option<u8> = None;
+		let mut bits: Option<usize> = None;
 		let mut data: Option<Box<[T]>> = None;
 
 		while let Some(key) = map.next_key()? {
 			match key {
-				"elts" => if elts.replace(map.next_value()?).is_some() {
-					return Err(de::Error::duplicate_field("elts"));
-				},
 				"head" => if head.replace(map.next_value()?).is_some() {
 					return Err(de::Error::duplicate_field("head"));
 				},
-				"tail" => if tail.replace(map.next_value()?).is_some() {
-					return Err(de::Error::duplicate_field("tail"));
+				"bits" => if bits.replace(map.next_value()?).is_some() {
+					return Err(de::Error::duplicate_field("bits"));
 				},
 				"data" => if data.replace(map.next_value()?).is_some() {
 					return Err(de::Error::duplicate_field("data"));
 				},
 				f => return Err(de::Error::unknown_field(
-					f, &["elts", "head", "tail", "data"]
+					f, &["head", "bits", "data"]
 				)),
 			}
 		}
-		let elts = elts.ok_or_else(|| de::Error::missing_field("elts"))?;
 		let head = head.ok_or_else(|| de::Error::missing_field("head"))?;
-		let tail = tail.ok_or_else(|| de::Error::missing_field("tail"))?;
+		let bits = bits.ok_or_else(|| de::Error::missing_field("bits"))?;
 		let data = data.ok_or_else(|| de::Error::missing_field("data"))?;
 
 		let bitptr = BitPtr::new(
 			data.as_ptr(),
-			cmp::min(elts as usize, data.len()),
 			head,
-			tail,
+			cmp::min(bits, data.len() * T::BITS as usize),
 		);
 		mem::forget(data);
 		Ok(unsafe { BitBox::from_raw(bitptr) })
@@ -149,7 +141,7 @@ where C: Cursor, T: 'de + BitStore + Deserialize<'de> {
 		deserializer
 			.deserialize_struct(
 				"BitSet",
-				&["elts", "head", "tail", "data"],
+				&["head", "bits", "data"],
 				BitBoxVisitor::new(),
 			)
 	}
@@ -168,13 +160,12 @@ impl<C, T> Serialize for BitSlice<C, T>
 where C: Cursor, T: BitStore + Serialize {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
-		let (e, h, t) = self.bitptr().region_data();
-		let mut state = serializer.serialize_struct("BitSet", 4)?;
+		let head = self.bitptr().head();
+		let mut state = serializer.serialize_struct("BitSet", 3)?;
 
-		state.serialize_field("elts", &(e as u64))?;
-		state.serialize_field("head", &*h)?;
-		state.serialize_field("tail", &*t)?;
-		state.serialize_field("data", self.as_ref())?;
+		state.serialize_field("head", &*head)?;
+		state.serialize_field("bits", &(self.len() as u64))?;
+		state.serialize_field("data", self.as_slice())?;
 
 		state.end()
 	}
@@ -209,24 +200,22 @@ mod tests {
 	use serde_test::assert_de_tokens;
 
 	macro_rules! bvtok {
-		( s $elts:expr, $head:expr, $tail:expr, $ty:ident $( , $data:expr )* ) => {
+		( s $elts:expr, $head:expr, $bits:expr, $ty:ident $( , $data:expr )* ) => {
 			&[
-				Token::Struct { name: "BitSet", len: 4, },
-				Token::Str("elts"), Token::U64( $elts ),
+				Token::Struct { name: "BitSet", len: 3, },
 				Token::Str("head"), Token::U8( $head ),
-				Token::Str("tail"), Token::U8( $tail ),
+				Token::Str("bits"), Token::U64( $bits ),
 				Token::Str("data"), Token::Seq { len: Some( $elts ) },
 				$( Token:: $ty ( $data ), )*
 				Token::SeqEnd,
 				Token::StructEnd,
 			]
 		};
-		( d $elts:expr, $head:expr, $tail:expr, $ty:ident $( , $data:expr )* ) => {
+		( d $elts:expr, $head:expr, $bits:expr, $ty:ident $( , $data:expr )* ) => {
 			&[
-				Token::Struct { name: "BitSet", len: 4, },
-				Token::BorrowedStr("elts"), Token::U64( $elts ),
+				Token::Struct { name: "BitSet", len: 3, },
 				Token::BorrowedStr("head"), Token::U8( $head ),
-				Token::BorrowedStr("tail"), Token::U8( $tail ),
+				Token::BorrowedStr("bits"), Token::U64( $bits ),
 				Token::BorrowedStr("data"), Token::Seq { len: Some( $elts ) },
 				$( Token:: $ty ( $data ), )*
 				Token::SeqEnd,
@@ -250,7 +239,7 @@ mod tests {
 	fn small() {
 		let bv = bitvec![1; 5];
 		let bs = &bv[1 ..];
-		assert_ser_tokens(&bs, bvtok![s 1, 1, 5, U8, 0b1111_1000]);
+		assert_ser_tokens(&bs, bvtok![s 1, 1, 4, U8, 0b1111_1000]);
 
 		let bv = bitvec![LittleEndian, u16; 1; 12];
 		assert_ser_tokens(&bv, bvtok![s 1, 0, 12, U16, 0b00001111_11111111]);
@@ -264,7 +253,7 @@ mod tests {
 	fn wide() {
 		let src: &[u8] = &[0, !0];
 		let bs: &BitSlice = src.into();
-		assert_ser_tokens(&(&bs[1 .. 15]), bvtok![s 2, 1, 7, U8, 0, !0]);
+		assert_ser_tokens(&(&bs[1 .. 15]), bvtok![s 2, 1, 14, U8, 0, !0]);
 	}
 
 	#[cfg(any(feature = "alloc", feature = "std"))]
