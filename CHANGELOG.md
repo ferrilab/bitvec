@@ -78,6 +78,12 @@ This document is written according to the [Keep a Changelog][kac] style.
   much less pleasant `Into` conversions to create `BitSlice` handles. This also
   serves to demonstrate the new favored method to access regions as bit slices.
 
+## 0.11.3
+
+[Issue #15]: Incorrect validity check in `BitIdx::span`; excluded tail indices
+which were used in `BitVec::push`, inducing false `panic!` events. Thanks to
+GitHub user [@schomatis] for the report.
+
 ## 0.11.2
 
 ### Added
@@ -407,11 +413,13 @@ Initial implementation and release.
 [@koushiro]: https://github.com/koushiro
 [@overminder]: https://github.com/overminder
 [@ratorx]: https://github.com/ratorx
+[@schomatis]: https://github.com/schomatis
 [@torce]: https://github.com/torce
 [Issue #7]: https://github.com/myrrlyn/bitvec/issues/7
 [Issue #8]: https://github.com/myrrlyn/bitvec/issues/8
 [Issue #9]: https://github.com/myrrlyn/bitvec/issues/9
 [Issue #10]: https://github.com/myrrlyn/bitvec/issues/10
 [Issue #12]: https://github.com/myrrlyn/bitvec/issues/12
+[Issue #15]: https://github.com/myrrlyn/bitvec/issues/15
 [`Sync`]: https://doc.rust-lang.org/stable/core/marker/trait.Sync.html
 [kac]: https://keepachangelog.com/en/1.0.0/
