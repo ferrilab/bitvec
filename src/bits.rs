@@ -963,7 +963,7 @@ impl BitIdx {
 	pub fn span<T>(self, len: usize) -> (usize, BitIdx)
 	where T: Bits {
 		assert!(
-			self.is_valid::<T>(),
+			*self <= T::BITS,
 			"Index {} is invalid for type {}",
 			*self,
 			T::TYPENAME,
