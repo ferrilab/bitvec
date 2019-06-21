@@ -4443,13 +4443,10 @@ where C: Cursor, T: 'a + BitStore {
 	/// assert!(iter.next_back().is_none());
 	/// ```
 	fn next_back(&mut self) -> Option<Self::Item> {
-		if self.inner.is_empty() {
-			return None;
-		}
-		let len = self.inner.len();
-		let out = self.inner[len - 1];
-		self.inner = &self.inner[.. len - 1];
-		Some(out)
+		self.inner.split_last().map(|(b, r)| {
+			self.inner = r;
+			b
+		})
 	}
 }
 
@@ -4487,12 +4484,10 @@ where C: Cursor, T: 'a + BitStore {
 	/// assert!(iter.next().is_none());
 	/// ```
 	fn next(&mut self) -> Option<Self::Item> {
-		if self.inner.is_empty() {
-			return None;
-		}
-		let out = self.inner[0];
-		self.inner = &self.inner[1 ..];
-		Some(out)
+		self.inner.split_first().map(|(b, r)| {
+			self.inner = r;
+			b
+		})
 	}
 
 	/// Hints at the number of bits remaining in the iterator.
