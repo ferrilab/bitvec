@@ -88,3 +88,48 @@ pub mod testing {
 		vec::*,
 	};
 }
+
+/** Perform single-bit ripple-carry addition.
+
+This function performs carry-aware binary addition on single bits of each
+addend. It is used in multiple places throughout the library, and so is pulled
+here for deduplication.
+
+# Parameters
+
+- `a: bool`: One bit of addend.
+- `b: bool`: One bit of addend.
+- `c: bool`: The carry-bit input.
+
+# Returns
+
+- `.0: bool`: The sum of `a + b + c`.
+- `.1: bool`: The carry-out of `a + b + c`.
+**/
+#[inline]
+fn rca1(a: bool, b: bool, c: bool) -> (bool, bool) {
+	/// Ripple-carry addition is a reduction operation from three bits of input
+	/// (a, b, carry-in) to two outputs (sum, carry-out). This table contains
+	/// the map of all possible inputs to their output.
+	//  Note: I checked in Godbolt, and the jump table lookup comes out to ~ten
+	//  simple instructions with the table baked in as immediate values. The
+	//  more semantically clear match statement does not optimize nearly as
+	//  well.
+	const RCA: [u8; 8] = [
+		//      a + b + c => (y, z)
+		0,  //  0 + 0 + 0 => (0, 0)
+		2,  //  0 + 1 + 0 => (1, 0)
+		2,  //  1 + 0 + 0 => (1, 0)
+		1,  //  1 + 1 + 0 => (0, 1)
+		2,  //  0 + 0 + 1 => (1, 0)
+		1,  //  0 + 1 + 1 => (0, 1)
+		1,  //  1 + 0 + 1 => (0, 1)
+		3,  //  1 + 1 + 1 => (1, 1)
+	];
+	//  Compute the lookup index from carry-in, left, and right
+	let jmp = ((c as u8) << 2) | ((a as u8) << 1) | (b as u8);
+	//  Look up the output bits
+	let yz = RCA[jmp as usize];
+	//  Split them
+	(yz & 2 != 0, yz & 1 != 0)
+}

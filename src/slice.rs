@@ -2094,6 +2094,82 @@ where C: Cursor, T: BitStore {
 		}
 	}
 
+	/// Performs “reverse” addition (left to right instead of right to left).
+	///
+	/// This addition interprets the slice, and the other addend, as having its
+	/// least significant bits first in the order and its most significant bits
+	/// last. This is most likely to be numerically useful under a
+	/// `LittleEndian` `Cursor` type.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`: The addition uses `self` as one addend, and writes the
+	///   sum back into `self`.
+	/// - `addend: impl IntoIterator<Item=bool>`: A stream of bits. When this is
+	///   another `BitSlice`, iteration proceeds from left to right.
+	///
+	/// # Return
+	///
+	/// The final carry bit is returned
+	///
+	/// # Effects
+	///
+	/// Starting from index `0` and proceeding upwards until either `self` or
+	/// `addend` expires, the carry-propagated addition of `self[i]` and
+	/// `addend[i]` is written to `self[i]`.
+	///
+	/// ```text
+	///   101111
+	/// + 0010__ (the two missing bits are logically zero)
+	/// --------
+	///   100000 1 (the carry-out is returned)
+	/// ```
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut a = 0b0000_1010u8;
+	/// let     b = 0b0000_1100u8;
+	/// //      s =      1 0110
+	/// let ab = &mut a.as_mut_bitslice::<LittleEndian>()[.. 4];
+	/// let bb = &    b.as_bitslice::<LittleEndian>()[.. 4];
+	/// let c = ab.add_assign_reverse(bb);
+	/// assert!(c);
+	/// assert_eq!(ab.as_slice()[0], 0b0000_0110u8);
+	/// ```
+	///
+	/// # Performance Notes
+	///
+	/// When using `LittleEndian` `Cursor` types, this can be accelerated by
+	/// delegating the addition to the underlying types. This is a software
+	/// implementation of the [ripple-carry adder], which has `O(n)` runtime in
+	/// the number of bits. The CPU is much faster, as it has access to
+	/// element-wise or vectorized addition operations.
+	///
+	/// If your use case sincerely needs binary-integer arithmetic operations on
+	/// bit sets
+	///
+	/// [ripple-carry adder]: https://en.wikipedia.org/wiki/Ripple-carry_adder
+	pub fn add_assign_reverse<I>(&mut self, addend: I) -> bool
+	where I: IntoIterator<Item=bool> {
+		//  See AddAssign::add_assign for algorithm details
+		let mut c = false;
+		let len = self.len();
+		let zero = core::iter::repeat(false);
+		for (i, b) in addend.into_iter().chain(zero).enumerate().take(len) {
+			//  The iterator is clamped to the upper bound of `self`.
+			let a = unsafe { self.get_unchecked(i) };
+			let (y, z) = crate::rca1(a, b, c);
+			//  Write the sum into `self`
+			unsafe { self.set_unchecked(i, y); }
+			//  Propagate the carry
+			c = z;
+		}
+		c
+	}
+
 	/// Accesses the backing storage of the `BitSlice` as a slice of its
 	/// elements.
 	///
@@ -2773,29 +2849,9 @@ where C: Cursor, T: BitStore,
 		//  ^^---- semantically zero
 		let addend_iter = addend.into_iter().rev().chain(repeat(false));
 		for (i, b) in (0 .. self.len()).rev().zip(addend_iter) {
-			//  Addition is a finite state machine that can be precomputed into
-			//  a single jump table rather than requiring more complex
-			//  branching. The table is indexed as (carry, a, b) and returns
-			//  (bit, carry).
-			static JUMP: [u8; 8] = [
-				0,  //  0 + 0 + 0 => (0, 0)
-				2,  //  0 + 1 + 0 => (1, 0)
-				2,  //  1 + 0 + 0 => (1, 0)
-				1,  //  1 + 1 + 1 => (0, 1)
-				2,  //  0 + 0 + 1 => (1, 0)
-				1,  //  0 + 1 + 0 => (0, 1)
-				1,  //  1 + 0 + 0 => (0, 1)
-				3,  //  1 + 1 + 1 => (1, 1)
-			];
 			//  Bounds checks are performed in the loop header.
 			let a = unsafe { self.get_unchecked(i) };
-			let jmp = ((c as u8) << 2) | ((a as u8) << 1) | (b as u8);
-			let yz = JUMP[jmp as usize];
-			let (y, z) = (yz & 2 != 0, yz & 1 != 0);
-			//  Note: I checked in Godbolt, and the above comes out to ten
-			//  simple instructions with the JUMP baked in as immediate values.
-			//  The more semantically clear match statement does not optimize
-			//  nearly as well.
+			let (y, z) = crate::rca1(a, b, c);
 			unsafe { self.set_unchecked(i, y); }
 			c = z;
 		}

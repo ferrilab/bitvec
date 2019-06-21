@@ -4,6 +4,20 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+## 0.14.0
+
+### Added
+
+- `add_assign_reverse` on `BitSlice` and `BitVec`, and `add_reverse` on
+  `BitBox` and `BitVec`.
+
+  These methods perform left-to-right addition, propagating the carry from the
+  0th bit in the sequence to the nth. On `BitSlice`, `add_assign_reverse`
+  returns the carry-out bit. On `BitVec`, `add_assign_reverse` and `add_reverse`
+  push the carry-out to the right end of the vector.
+
+  This feature was requested in [Issue #16], by GitHub user [@GeorgeGkas].
+
 ## 0.13.0
 
 ### Changed
@@ -409,6 +423,7 @@ Initial implementation and release.
 - `BitVec` type with basic `Vec` idioms and parallel trait implementations
 - `bitvec!` generator macro
 
+[@GeorgeGkas]: https://github.com/GeorgeGkas
 [@geq1t]: https://github.com/geq1t
 [@koushiro]: https://github.com/koushiro
 [@overminder]: https://github.com/overminder
@@ -421,5 +436,6 @@ Initial implementation and release.
 [Issue #10]: https://github.com/myrrlyn/bitvec/issues/10
 [Issue #12]: https://github.com/myrrlyn/bitvec/issues/12
 [Issue #15]: https://github.com/myrrlyn/bitvec/issues/15
+[Issue #16]: https://github.com/myrrlyn/bitvec/issues/16
 [`Sync`]: https://doc.rust-lang.org/stable/core/marker/trait.Sync.html
 [kac]: https://keepachangelog.com/en/1.0.0/
