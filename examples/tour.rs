@@ -6,10 +6,10 @@ a sample of the various operations that can be applied to it.
 This example prints **a lot** of text to the console.
 !*/
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 extern crate bitvec;
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 use bitvec::prelude::{
 	//  `bitvec!` macro
 	bitvec,
@@ -28,10 +28,10 @@ use bitvec::prelude::{
 	//  this ordering)
 	LittleEndian,
 };
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 use std::iter::repeat;
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 fn main() {
 	let bv = bitvec![   //  BigEndian, u8;  //  default type values
 		0, 0, 0, 0, 0, 0, 0, 1,

@@ -6,7 +6,7 @@
 
 [package]
 name = "bitvec"
-version = "0.14.0"
+version = "0.15.0"
 authors = [
 	"myrrlyn <self@myrrlyn.dev>",
 ]
@@ -35,7 +35,9 @@ default = [
 	"atomic",
 	"std",
 ]
-std = []
+std = [
+	"alloc",
+]
 testing = [
 	"atomic",
 	"serde",

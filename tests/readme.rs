@@ -5,16 +5,16 @@ to use, this file must be consistently updated whenever the README’s code
 samples are modified.
 !*/
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 extern crate bitvec;
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 use bitvec::prelude::*;
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 use std::iter::repeat;
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 #[test]
 fn readme() {
     let mut bv = bitvec![BigEndian, u8; 0, 1, 0, 1];

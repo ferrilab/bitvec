@@ -28,22 +28,22 @@ square 25x25.
 //
 //  Heisenbugs are weird.
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 extern crate bitvec;
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 use bitvec::prelude::{
 	BigEndian,
 	bitvec,
 };
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 use std::{
 	cmp,
 	env,
 };
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 fn main() {
 	let max: usize = env::args()
 		.nth(1)

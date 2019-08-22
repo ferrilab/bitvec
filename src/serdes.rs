@@ -15,14 +15,14 @@ use crate::{
 	store::BitStore,
 };
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 use crate::{
 	boxed::BitBox,
 	pointer::BitPtr,
 	vec::BitVec,
 };
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 use core::{
 	cmp,
 	fmt::{
@@ -41,7 +41,7 @@ use serde::{
 	},
 };
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 use serde::{
 	Deserialize,
 	de::{
@@ -54,7 +54,7 @@ use serde::{
 };
 
 /// A Serde visitor to pull `BitBox` data out of a serialized stream
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 #[derive(Clone, Copy, Default, Debug)]
 pub struct BitBoxVisitor<'de, C, T>
 where C: Cursor, T: BitStore + Deserialize<'de> {
@@ -62,7 +62,7 @@ where C: Cursor, T: BitStore + Deserialize<'de> {
 	_storage: PhantomData<&'de T>,
 }
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 impl<'de, C, T> BitBoxVisitor<'de, C, T>
 where C: Cursor, T: BitStore + Deserialize<'de> {
 	fn new() -> Self {
@@ -70,7 +70,7 @@ where C: Cursor, T: BitStore + Deserialize<'de> {
 	}
 }
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 impl<'de, C, T> Visitor<'de> for BitBoxVisitor<'de, C, T>
 where C: Cursor, T: BitStore + Deserialize<'de> {
 	type Value = BitBox<C, T>;
@@ -133,7 +133,7 @@ where C: Cursor, T: BitStore + Deserialize<'de> {
 	}
 }
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 impl<'de, C, T> Deserialize<'de> for BitBox<C, T>
 where C: Cursor, T: 'de + BitStore + Deserialize<'de> {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -147,7 +147,7 @@ where C: Cursor, T: 'de + BitStore + Deserialize<'de> {
 	}
 }
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 impl<'de, C, T> Deserialize<'de> for BitVec<C, T>
 where C: Cursor, T: 'de + BitStore + Deserialize<'de> {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -171,7 +171,7 @@ where C: Cursor, T: BitStore + Serialize {
 	}
 }
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 impl<C, T> Serialize for BitBox<C, T>
 where C: Cursor, T: BitStore + Serialize {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -180,7 +180,7 @@ where C: Cursor, T: BitStore + Serialize {
 	}
 }
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 impl<C, T> Serialize for BitVec<C, T>
 where C: Cursor, T: BitStore + Serialize {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -196,7 +196,7 @@ mod tests {
 		Token,
 		assert_ser_tokens,
 	};
-	#[cfg(any(feature = "alloc", feature = "std"))]
+	#[cfg(feature = "alloc")]
 	use serde_test::assert_de_tokens;
 
 	macro_rules! bvtok {
@@ -230,11 +230,11 @@ mod tests {
 
 		assert_ser_tokens(&slice, bvtok![s 0, 0, 0, U8]);
 
-		#[cfg(any(feature = "alloc", feature = "std"))]
+		#[cfg(feature = "alloc")]
 		assert_de_tokens(&bitvec![], bvtok![ d 0, 0, 0, U8 ]);
 	}
 
-	#[cfg(any(feature = "alloc", feature = "std"))]
+	#[cfg(feature = "alloc")]
 	#[test]
 	fn small() {
 		let bv = bitvec![1; 5];
@@ -248,7 +248,7 @@ mod tests {
 		assert_ser_tokens(&bb, bvtok![s 1, 0, 10, U32, 0x00_00_03_FF]);
 	}
 
-	#[cfg(any(feature = "alloc", feature = "std"))]
+	#[cfg(feature = "alloc")]
 	#[test]
 	fn wide() {
 		let src: &[u8] = &[0, !0];
@@ -256,9 +256,9 @@ mod tests {
 		assert_ser_tokens(&(&bs[1 .. 15]), bvtok![s 2, 1, 14, U8, 0, !0]);
 	}
 
-	#[cfg(any(feature = "alloc", feature = "std"))]
+	#[cfg(feature = "alloc")]
 	#[test]
-	#[cfg(any(feature = "alloc", feature = "std"))]
+	#[cfg(feature = "alloc")]
 	fn deser() {
 		let bv = bitvec![0, 1, 1, 0, 1, 0];
 		assert_de_tokens(&bv, bvtok![d 1, 0, 6, U8, 0b0110_1000]);

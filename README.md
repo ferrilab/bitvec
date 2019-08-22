@@ -70,18 +70,18 @@ logic.
 
 ## Usage
 
-**Minimum Rust Version**: `1.34.0`
+**Minimum Rust Version**: `1.36.0`
 
-The `1.34` release of Rust added `const fn` items in the standard library that
-`bitvec` uses for internal work. I am willing to assist you in patching `bitvec`
-to work on an older compiler, but I will not do so in the primary repository.
+The `1.36` release of Rust stabilized the `alloc` crate, allowing allocating
+features (such as the `BitVec` type) to be used in `#![no_std]` environments
+with the stable compiler series.
 
 ### Symbol Import
 
 ```toml
 # Cargo.toml
 [dependencies]
-bitvec = "0.13"
+bitvec = "0.15"
 ```
 
 `bitvec` is highly modular, and requires several items to function correctly.

@@ -18,6 +18,12 @@ use crate::{
 	store::BitStore,
 };
 
+#[cfg(feature = "alloc")]
+use {
+	crate::vec::BitVec,
+	alloc::borrow::ToOwned,
+};
+
 use core::{
 	cmp::{
 		Eq,
@@ -81,15 +87,6 @@ use core::{
 	str,
 };
 
-#[cfg(any(feature = "alloc", feature = "std"))]
-use crate::vec::BitVec;
-
-#[cfg(all(feature = "alloc", not(feature = "std")))]
-use alloc::borrow::ToOwned;
-
-#[cfg(feature = "std")]
-use std::borrow::ToOwned;
-
 /** A compact slice of bits, whose cursor and storage types can be customized.
 
 `BitSlice` is a specialized slice type, which can only ever be held by
@@ -111,7 +108,7 @@ other Rust code except through the provided conversion APIs.
 ```rust
 use bitvec::prelude::*;
 
-# #[cfg(any(feature = "alloc", feature = "std"))] {
+# #[cfg(feature = "alloc")] {
 let bv = bitvec![0, 1, 0, 1];
 //  slicing a bitvec
 let bslice: &BitSlice = &bv[..];
@@ -2296,7 +2293,7 @@ where C: Cursor, T: BitStore {
 }
 
 /// Creates an owned `BitVec<C, T>` from a borrowed `BitSlice<C, T>`.
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 impl<C, T> ToOwned for BitSlice<C, T>
 where C: Cursor, T: BitStore {
 	type Owned = BitVec<C, T>;
@@ -2306,7 +2303,7 @@ where C: Cursor, T: BitStore {
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(any(feature = "alloc", feature = "std"))] {
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::prelude::*;
 	///
 	/// let store = [0u8, 2];
@@ -2380,7 +2377,7 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 }
 
 /// Allow comparison against the allocated form.
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 impl<A, B, C, D> PartialEq<BitVec<C, D>> for BitSlice<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
@@ -2388,7 +2385,7 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	}
 }
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 impl<A, B, C, D> PartialEq<BitVec<C, D>> for &BitSlice<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
@@ -2456,7 +2453,7 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	}
 }
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 impl<A, B, C, D> PartialOrd<BitVec<C, D>> for BitSlice<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<Ordering> {
@@ -2464,7 +2461,7 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	}
 }
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 impl<A, B, C, D> PartialOrd<BitVec<C, D>> for &BitSlice<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<Ordering> {
@@ -2592,7 +2589,7 @@ where C: Cursor, T: BitStore {
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(any(feature = "alloc", feature = "std"))] {
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = [0b0101_0000_1111_0101u16, 0b00000000_0000_0010];
@@ -2639,7 +2636,7 @@ where C: Cursor, T: BitStore {
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(any(feature = "alloc", feature = "std"))] {
+	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = [0b01001011u8, 0b0100_0000];

@@ -35,9 +35,8 @@ elements as a slice.
 !*/
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(all(feature = "alloc", not(feature = "std")), feature(alloc))]
 
-#[cfg(all(feature = "alloc", not(feature = "std")))]
+#[cfg(feature = "alloc")]
 extern crate alloc;
 
 #[cfg(feature = "std")]
@@ -60,10 +59,10 @@ pub mod prelude;
 pub mod slice;
 pub mod store;
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 pub mod boxed;
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 pub mod vec;
 
 #[cfg(feature = "atomic")]

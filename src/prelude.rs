@@ -18,7 +18,7 @@ pub use crate::{
 	store::BitStore,
 };
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 pub use crate::{
 	bitbox,
 	bitvec,

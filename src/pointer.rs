@@ -345,7 +345,7 @@ where T: BitStore {
 	///
 	/// The provided pointer must be either null, or valid in the caller’s
 	/// memory model and allocation regime.
-	#[cfg(any(feature = "alloc", feature = "std"))]
+	#[cfg(feature = "alloc")]
 	pub(crate) fn uninhabited(ptr: impl Into<Pointer<T>>) -> Self {
 		let ptr = ptr.into();
 		//  Check that the pointer is properly aligned for the storage type.
@@ -522,7 +522,7 @@ where T: BitStore {
 	///
 	/// None. The invariants of `::new` must be checked at the caller.
 	#[inline]
-	#[cfg(any(feature = "alloc", feature = "std"))]
+	#[cfg(feature = "alloc")]
 	pub(crate) unsafe fn set_pointer(&mut self, ptr: impl Into<Pointer<T>>) {
 		let mut data = ptr.into();
 		if data.r().is_null() {

@@ -18,13 +18,13 @@ partial heads without loss of pointer information.
 [@overminder]: https://github.com/overminder
 !*/
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 extern crate bitvec;
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 use bitvec::prelude::*;
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 #[test]
 fn issue_10() {
 	let bv = bitvec![

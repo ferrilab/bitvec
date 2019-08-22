@@ -4,6 +4,25 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+## 0.15.0
+
+### Changed
+
+The minimum compiler version was increased to `1.36.0`, which stabilized the
+`alloc` crate. As such, the `#![feature(alloc)]` flag has been removed from the
+library, and usage as `--no-default-features --features alloc` may safely use
+allocation on the stable compiler series.
+
+As `alloc` is available on a stable compiler, the `alloc` *crate feature* has
+been made a strict dependency of the `std` crate feature.
+
+Use of `--no-default-features` continues to set the crate in `#![no_std]` mode,
+with no allocation support. `--no-default-features --features alloc` adds a
+dependency on `alloc`, and the allocating types. The `std` feature alone now
+*only* adds operating-system interfaces, such as `io::Write`.
+
+`std` depends on `alloc`, so using the `std` feature will pull in allocation.
+
 ## 0.14.0
 
 ### Added

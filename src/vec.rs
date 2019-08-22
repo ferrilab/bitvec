@@ -23,7 +23,7 @@ use crate::{
 	},
 };
 
-#[cfg(all(feature = "alloc", not(feature = "std")))]
+#[cfg(feature = "alloc")]
 use alloc::{
 	borrow::{
 		Borrow,
@@ -114,18 +114,10 @@ use core::{
 
 #[cfg(feature = "std")]
 use std::{
-	borrow::{
-		Borrow,
-		BorrowMut,
-		ToOwned,
-	},
-	boxed::Box,
-	cmp,
 	io::{
 		self,
 		Write,
 	},
-	vec::Vec,
 };
 
 /** A compact [`Vec`] of bits, whose cursor and storage type can be customized.
@@ -2105,6 +2097,7 @@ where C: Cursor, T: BitStore {
 impl<C, T> Write for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+		use std::cmp;
 		let amt = cmp::min(buf.len(), BitPtr::<T>::MAX_BITS - self.len());
 		self.extend(<&BitSlice<C, u8>>::from(buf));
 		Ok(amt)

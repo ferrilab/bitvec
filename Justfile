@@ -10,6 +10,8 @@ features = "atomic,serde,std"
 
 # Builds the library.
 build:
+	cargo build --no-default-features
+	cargo build --no-default-features --features alloc
 	cargo build --features {{features}}
 	cargo build --features {{features}} --example sieve
 	cargo build --features {{features}} --example tour
@@ -57,6 +59,7 @@ publish: checkout
 # Runs the test suites.
 test: check clippy
 	cargo test --no-default-features
+	cargo test --no-default-features --features alloc
 	cargo test --features testing,{{features}}
 	cargo run --features {{features}} --example sieve
 	cargo run --features {{features}} --example tour
