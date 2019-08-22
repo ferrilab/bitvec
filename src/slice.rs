@@ -5280,7 +5280,7 @@ where C: Cursor, T: 'a + BitStore {
 			return None;
 		}
 		let tmp = mem::replace(&mut self.inner, BitSlice::empty_mut());
-		let (head, tail) = tmp.split_at_mut(self.width);;
+		let (head, tail) = tmp.split_at_mut(self.width);
 		self.inner = tail;
 		Some(head)
 	}
