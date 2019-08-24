@@ -2774,7 +2774,36 @@ where C: Cursor, T: 'a + BitStore {
 	}
 }
 
-/// `BitSlice` is safe to move across thread boundaries.
+/// `BitSlice` is safe to move across thread boundaries, when atomic operations
+/// are enabled.
+///
+/// Consider this (contrived) example:
+///
+/// ```rust
+/// # #[cfg(feature = "std")] {
+/// use bitvec::prelude::*;
+/// use std::thread;
+///
+/// static mut SRC: u8 = 0;
+/// # {
+/// let bits = unsafe { SRC.as_mut_bitslice::<BigEndian>() };
+/// let (l, r) = bits.split_at_mut(4);
+///
+/// let a = thread::spawn(move || l.set(2, true));
+/// let b = thread::spawn(move || r.set(2, true));
+/// a.join();
+/// b.join();
+/// # }
+///
+/// println!("{:02X}", unsafe { SRC });
+/// # }
+/// ```
+///
+/// Without atomic operations, this is logically a data race. It *so happens*
+/// that, on x86, the read/modify/write cycles used in the crate are *basically*
+/// atomic by default, even when not specified as such. This is not necessarily
+/// true on other architectures, however
+#[cfg(feature = "atomic")]
 unsafe impl<C, T> Send for BitSlice<C, T>
 where C: Cursor, T: BitStore {}
 

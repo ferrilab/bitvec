@@ -4,6 +4,28 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+## 0.15.1
+
+### Removed
+
+The `Send` implementation on `BitSlice` is removed when the `atomic` feature is
+disabled.
+
+While the `x86` architecture provides hardware guarantees that a
+read/modify/write instruction sequence will update all other views of the
+referent data, this is a property of the specific underlying machine and *not*
+a property of the Rust abstract machine as interpreted by the compiler and LLVM.
+As such, while `&mut BitSlice` references that alias the same underlying memory
+element will not collide with each other in practice, they still must use atomic
+operations in order to satisfy the Rust abstract machine.
+
+The atomic feature is provided by default, and users must explicitly disable it
+in order to disable atomic instruction access and thus remove the `Send` impl
+allowing `&mut BitSlice` to cross threads.
+
+Because this change does not affect the default interface exported by the crate,
+I have decided to make this a patch release rather than bump the minor version.
+
 ## 0.15.0
 
 ### Changed
