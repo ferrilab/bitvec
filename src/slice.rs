@@ -2135,7 +2135,7 @@ where C: Cursor, T: BitStore {
 	/// let bb = &    b.as_bitslice::<LittleEndian>()[.. 4];
 	/// let c = ab.add_assign_reverse(bb);
 	/// assert!(c);
-	/// assert_eq!(ab.as_slice()[0], 0b0000_0110u8);
+	/// assert_eq!(a, 0b0000_0110u8);
 	/// ```
 	///
 	/// # Performance Notes
@@ -2171,13 +2171,24 @@ where C: Cursor, T: BitStore {
 	/// Accesses the backing storage of the `BitSlice` as a slice of its
 	/// elements.
 	///
+	/// Note that this does *not* include any partial elements of the `BitSlice`
+	/// in the produced element slice. `BitSlice` regions are permitted to be
+	/// adjacent and to occupy different parts of the same element; as such,
+	/// using them to obtain a view of the entire element beyond their
+	/// boundaries is a memory safety violation.
+	///
+	/// Heuristically, this restriction is not considered likely to be a serious
+	/// detriment in practice. If you need to view the underlying elements of a
+	/// `BitSlice`, you likely also do not have a region with partial elements.
+	///
 	/// # Parameters
 	///
 	/// - `&self`
 	///
 	/// # Returns
 	///
-	/// A slice of all the elements that the `BitSlice` uses for storage.
+	/// A slice of all the full elements that the `BitSlice` uses for storage.
+	/// Partial elements at either edge are not included.
 	///
 	/// # Examples
 	///
@@ -2193,11 +2204,68 @@ where C: Cursor, T: BitStore {
 	///   .sum::<usize>();
 	/// assert_eq!(accum, 3);
 	/// ```
+	///
+	/// This demonstrates that the partial edges are not in the output slice.
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let src = [0u8; 3];
+	/// let bits = &src.as_bitslice::<BigEndian>()[4 .. 20];
+	/// assert_eq!(bits.as_slice().len(), 1);
+	/// ```
 	pub fn as_slice(&self) -> &[T] {
+		match self.bitptr().domain() {
+			| BitDomain::Empty
+			| BitDomain::Minor(..) => &[],
+			| BitDomain::Major(_, _, s, _, _)
+			| BitDomain::PartialHead(_, _, s)
+			| BitDomain::PartialTail(s, _, _)
+			| BitDomain::Spanning(s)=> s,
+		}
+	}
+
+	/// Accesses the underlying element store, including partial elements.
+	///
+	/// # Safety
+	///
+	/// This function is marked `unsafe` because it will access the entirety of
+	/// elements to which the `BitSlice` handle does not necessarily have
+	/// complete access. Two adjacent `BitSlice` handles that do not consider
+	/// themselves aliasing because they govern different *bits* can
+	/// nevertheless produce element slices that do alias the same element.
+	///
+	/// While this immutable references are free to alias each other, Rust
+	/// forbids the construction of an immutable reference that aliases a
+	/// mutable reference. This function is permitted to do so, and thus must be
+	/// marked unsafe.
+	///
+	/// Note that constructing aliasing mutable references is undefined
+	/// behavior, and the compiler is permitted to miscompile your crate if it
+	/// can prove that you are doing so.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// A slice of all elements, full and partial, in the `BitSlice`’s domain.
+	pub unsafe fn as_total_slice(&self) -> &[T] {
 		self.bitptr().as_slice()
 	}
 
 	/// Accesses the underlying store.
+	///
+	/// Note that this does *not* include any partial elements of the `BitSlice`
+	/// in the produced element slice. `BitSlice` regions are permitted to be
+	/// adjacent and to occupy different parts of the same element; as such,
+	/// using them to obtain a view of the entire element beyond their
+	/// boundaries is a memory safety violation.
+	///
+	/// Heuristically, this restriction is not considered likely to be a serious
+	/// detriment in practice. If you need to view the underlying elements of a
+	/// `BitSlice`, you likely also do not have a region with partial elements.
 	///
 	/// # Examples
 	///
@@ -2212,6 +2280,42 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(&[3, 66], bits.as_slice());
 	/// ```
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
+		match self.bitptr().domain_mut() {
+			| BitDomainMut::Empty
+			| BitDomainMut::Minor(..) => &mut [],
+			| BitDomainMut::Major(_, _, s, _, _)
+			| BitDomainMut::PartialHead(_, _, s)
+			| BitDomainMut::PartialTail(s, _, _)
+			| BitDomainMut::Spanning(s) => s
+		}
+	}
+
+	/// Accesses the underlying element store, including partial elements.
+	///
+	/// # Safety
+	///
+	/// This function is marked `unsafe` because it will access the entirety of
+	/// elements to which the `BitSlice` handle does not necessarily have
+	/// complete access. Two adjacent `BitSlice` handles that do not consider
+	/// themselves aliasing because they govern different *bits* can
+	/// nevertheless produce element slices that do alias the same element.
+	///
+	/// Mutable references are never allowed to alias any other reference, but
+	/// this function may create an aliased mutable reference if used
+	/// improperly.
+	///
+	/// Note that constructing aliasing mutable references is undefined
+	/// behavior, and the compiler is permitted to miscompile your crate if it
+	/// can prove that you are doing so.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// A slice of all elements, full and partial, in the `BitSlice`’s domain.
+	pub unsafe fn as_total_mut_slice(&mut self) -> &mut [T] {
 		self.bitptr().as_mut_slice()
 	}
 
@@ -2490,7 +2594,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = [0u8, 128];
-	/// let bits = &mut src.as_mut_bitslice::<BigEndian>()[1 .. 9];
+	/// let bits = src.as_mut_bitslice::<BigEndian>();
 	///
 	/// for elt in bits.as_mut() {
 	///   *elt += 2;
@@ -2523,7 +2627,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = [0u8, 128];
-	/// let bits = &src.as_bitslice::<BigEndian>()[1 .. 9];
+	/// let bits = src.as_bitslice::<BigEndian>();
 	/// assert_eq!(&[0, 128], bits.as_ref());
 	/// ```
 	fn as_ref(&self) -> &[T] {
@@ -3319,8 +3423,7 @@ where C: Cursor, T: 'a + BitStore {
 	/// let new_bits = !bits;
 	/// //  The `bits` binding is consumed by the `!` operator, and a new
 	/// //  reference is returned.
-	/// // assert_eq!(bits.as_ref(), &[!0, !0]);
-	/// assert_eq!(new_bits.as_ref(), &[0x3F, 0xFC]);
+	/// assert_eq!(&src, &[0x3F, 0xFC]);
 	/// ```
 	fn not(self) -> Self::Output {
 		match self.bitptr().domain_mut() {
@@ -3416,7 +3519,7 @@ where C: Cursor, T: BitStore {
 	/// let mut src = [0x4Bu8, 0xA5];
 	/// let bits = &mut src.as_mut_bitslice::<BigEndian>()[2 .. 14];
 	/// *bits <<= 3;
-	/// assert_eq!(bits.as_ref(), &[0b01_011_101, 0b001_000_01]);
+	/// assert_eq!(&src, &[0b01_011_101, 0b001_000_01]);
 	/// ```
 	fn shl_assign(&mut self, shamt: usize) {
 		use core::ops::Shr;
@@ -3521,7 +3624,7 @@ where C: Cursor, T: BitStore {
 	/// let mut src = [0x4Bu8, 0xA5];
 	/// let bits = &mut src.as_mut_bitslice::<BigEndian>()[2 .. 14];
 	/// *bits >>= 3;
-	/// assert_eq!(bits.as_ref(), &[0b01_000_00_1, 0b011_101_01])
+	/// assert_eq!(&src, &[0b01_000_00_1, 0b011_101_01])
 	/// ```
 	fn shr_assign(&mut self, shamt: usize) {
 		if shamt == 0 {

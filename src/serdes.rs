@@ -165,7 +165,7 @@ where C: Cursor, T: BitStore + Serialize {
 
 		state.serialize_field("head", &*head)?;
 		state.serialize_field("bits", &(self.len() as u64))?;
-		state.serialize_field("data", self.as_slice())?;
+		state.serialize_field("data", self.bitptr().as_slice())?;
 
 		state.end()
 	}

@@ -820,6 +820,48 @@ where C: Cursor, T: BitStore {
 		self.pointer.into_bitslice_mut()
 	}
 
+	/// Accesses the underlying store as elements.
+	///
+	/// Unlike the `BitSlice` implementation, this does produce the tail element
+	/// even if it is partial. `BitVec` unconditionally owns its memory, so
+	/// there can never be an aliasing condition.
+	///
+	/// Since the elements are all guaranteed to be fully initialized, this does
+	/// not produce any views to uninitialized memory.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// A slice over the raw elements underlying the vector.
+	pub fn as_slice(&self) -> &[T] {
+		self.pointer.as_slice()
+	}
+
+	/// Accesses the underlying store as elements.
+	///
+	/// Unlike the `BitSlice` implementation, this does produce the tail element
+	/// even if it is partial. `BitVec` unconditionally owns its memory, so
+	/// there can never be an aliasing condition. Any operation which would
+	/// cause a `BitSlice` alias would require the code to have borrowed the
+	/// `BitVec`, forbidding access to this method.
+	///
+	/// Since the elements are all guaranteed to be fully initialized, this does
+	/// not produce any views to uninitialized memory.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// A mutable slice over the raw elements underlying the vector.
+	pub fn as_mut_slice(&mut self) -> &mut [T] {
+		self.pointer.as_mut_slice()
+	}
+
 	/// Sets the length of the vector.
 	///
 	/// This unconditionally sets the size of the vector, without modifying its
@@ -2751,7 +2793,10 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(!0u32, flip.as_slice()[0]);
 	/// ```
 	fn not(mut self) -> Self::Output {
-		let _ = self.as_mut_bitslice().not();
+		//  Because `BitVec` will never have its partial tail observable by any
+		//  other binding, it is free to use fast element-wise inversion for the
+		//  whole memory span rather than the more careful `BitSlice` inversion.
+		self.as_mut_slice().iter_mut().for_each(|elt| *elt = !*elt);
 		self
 	}
 }
