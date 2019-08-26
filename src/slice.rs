@@ -58,7 +58,6 @@ use core::{
 	},
 	marker::{
 		PhantomData,
-		Send,
 		Sync,
 	},
 	mem,
@@ -86,6 +85,9 @@ use core::{
 	ptr,
 	str,
 };
+
+#[cfg(feature = "atomic")]
+use core::marker::Send;
 
 /** A compact slice of bits, whose cursor and storage types can be customized.
 
@@ -825,7 +827,6 @@ where C: Cursor, T: BitStore {
 	/// [`split_at_mut`]: #method.split_at_mut
 	pub fn at(&mut self, index: usize) -> BitGuard<C, T> {
 		BitGuard {
-			_m: PhantomData,
 			bit: self[index],
 			slot: &mut self[index ..= index],
 		}
@@ -3580,13 +3581,21 @@ work nicely in Rust. This reference structure is the second best option.
 It contains a write reference to a single-bit slice, and a local cache `bool`.
 This structure `Deref`s to the local cache, and commits the cache to the slice
 on drop. This allows writing to the guard with `=` assignment.
+
+# Type Parameters
+
+- `C`: The `Cursor` implementation of the `BitSlice` this guards.
+- `T`: The `BitStore` implementation of the `BitSlice` this guards.
+
+# Lifetimes
+
+- `'a`: The lifetime of the `BitSlice` this guards.
 **/
 #[derive(Debug)]
 pub struct BitGuard<'a, C, T>
 where C: Cursor, T: 'a + BitStore {
 	slot: &'a mut BitSlice<C, T>,
 	bit: bool,
-	_m: PhantomData<*mut T>,
 }
 
 /// Read from the local cache.
@@ -3617,6 +3626,7 @@ where C: Cursor, T: 'a + BitStore {
 
 /// This type is a mutable reference with extra steps, so, it should be moveable
 /// but not shareable.
+#[cfg(feature = "atomic")]
 unsafe impl<'a, C, T> Send for BitGuard<'a, C, T>
 where C: Cursor, T: 'a + BitStore {}
 
