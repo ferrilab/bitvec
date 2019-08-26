@@ -158,7 +158,7 @@ pub trait BitStore:
 	///   mutate shared data.
 	/// - `place`: A bit index in the element, from `0` to `Self::MASK`. The bit
 	///   under this index will be set according to `value`.
-	/// - `value`: A Boolean value, which sets the bit on `true` and unsets it
+	/// - `value`: A Boolean value, which sets the bit on `true` and clears it
 	///   on `false`.
 	///
 	/// # Type Parameters
@@ -220,7 +220,7 @@ pub trait BitStore:
 	///   mutate shared data.
 	/// - `place`: A bit *position* in the element, where `0` is the LSbit and
 	///   `Self::MASK` is the MSbit.
-	/// - `value`: A Boolean value, which sets the bit high on `true` and unsets
+	/// - `value`: A Boolean value, which sets the bit high on `true` and clears
 	///   it low on `false`.
 	///
 	/// # Panics

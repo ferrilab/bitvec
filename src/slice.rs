@@ -386,7 +386,7 @@ where C: Cursor, T: BitStore {
 	/// assert!(!bs.is_empty());
 	/// ```
 	pub fn is_empty(&self) -> bool {
-		self.len() == 0
+		self.bitptr().is_empty()
 	}
 
 	/// Gets the first element of the slice, if present.
@@ -1761,7 +1761,7 @@ where C: Cursor, T: BitStore {
 		false
 	}
 
-	/// Tests if *any* bit in the slice is unset (logical `¬∧`).
+	/// Tests if *any* bit in the slice is clear (logical `¬∧`).
 	///
 	/// # Truth Table
 	///
@@ -1778,7 +1778,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// # Returns
 	///
-	/// Whether any bit in the slice domain is unset.
+	/// Whether any bit in the slice domain is clear.
 	///
 	/// # Examples
 	///
@@ -1793,7 +1793,7 @@ where C: Cursor, T: BitStore {
 		!self.all()
 	}
 
-	/// Tests if *all* bits in the slice are unset (logical `¬∨`).
+	/// Tests if *all* bits in the slice are clear (logical `¬∨`).
 	///
 	/// # Truth Table
 	///
@@ -1810,7 +1810,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// # Returns
 	///
-	/// Whether all bits in the slice domain are unset.
+	/// Whether all bits in the slice domain are clear.
 	///
 	/// # Examples
 	///
@@ -1826,7 +1826,7 @@ where C: Cursor, T: BitStore {
 	}
 
 	/// Tests whether the slice has some, but not all, bits set and some, but
-	/// not all, bits unset.
+	/// not all, bits clear.
 	///
 	/// This is `false` if either `all()` or `not_any()` are `true`.
 	///
@@ -2501,8 +2501,8 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 /// Compares two `BitSlice`s by semantic — not bitwise — ordering.
 ///
 /// The comparison sorts by testing each index for one slice to have a set bit
-/// where the other has an unset bit. If the slices are different, the slice
-/// with the set bit sorts greater than the slice with the unset bit.
+/// where the other has a clear bit. If the slices are different, the slice
+/// with the set bit sorts greater than the slice with the clear bit.
 ///
 /// If one of the slices is exhausted before they differ, the longer slice is
 /// greater.
@@ -3333,7 +3333,7 @@ where C: Cursor, T: 'a + BitStore {
 	/// `BitVec` for comparison with aquiring a mutable borrow *as a slice* to
 	/// ensure that the `BitSlice` implementation is used, not the `BitVec`.
 	///
-	/// Negate an arbitrary positive number (first bit unset).
+	/// Negate an arbitrary positive number (first bit clear).
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;

@@ -1895,8 +1895,8 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 /// Compares two `BitVec`s by semantic — not bitwise — ordering.
 ///
 /// The comparison sorts by testing each index for one vector to have a set bit
-/// where the other vector has an unset bit. If the vectors are different, the
-/// vector with the set bit sorts greater than the vector with the unset bit.
+/// where the other vector has a clear bit. If the vectors are different, the
+/// vector with the set bit sorts greater than the vector with the clear bit.
 ///
 /// If one of the vectors is exhausted before they differ, the longer vector is
 /// greater.
