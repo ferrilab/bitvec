@@ -2392,7 +2392,7 @@ where C: Cursor, T: BitStore {
 	/// The [`BitPtr`] structure of the slice handle.
 	///
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
-	pub fn bitptr(&self) -> BitPtr<T> {
+	pub(crate) fn bitptr(&self) -> BitPtr<T> {
 		BitPtr::from_bitslice(self)
 	}
 }
