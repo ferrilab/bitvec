@@ -1,7 +1,7 @@
 /*! Atomic element access
 
-This module allows the `BitStore` trait to access its storage elements as atomic
-variants, in order to ensure parallel consistency.
+This module enables the `BitStore` trait to access its storage elements as
+atomic variants, in order to ensure parallel consistency.
 
 This is necessary because while individual bit domains are forbidden from
 parallel overlap by the Rust type system, CPUs do not have bit-level granularity
@@ -78,25 +78,21 @@ use core::sync::atomic::AtomicU64;
 This is not part of the public API; it is an implementation detail of
 [`BitStore`], which is public API but is not publicly implementable.
 
-This trait provides three methods, which the `BitStore` trait uses to manipulate
+This trait provides four methods, which the `BitStore` trait uses to manipulate
 or inspect storage items in a synchronized manner.
-
-# Type Parameters
-
-- `Fundamental`: This type is used to pass in to the trait what the underlying
-  fundamental type is, so that `.get()` can return it directly. This is
-  necessary because there is no other way to inform Rust that two independent
-  trait implementation blocks are coupled.
 
 # Synchrony
 
 All access uses [`Relaxed`] ordering.
 
-[`BitStore`]: ../bits/trait.BitStore.html
+[`BitStore`]: ../store/trait.BitStore.html
 **/
 #[cfg_attr(not(feature = "std"), doc = "[`Relaxed`]: https://doc.rust-lang.org/stable/core/sync/atomic/enum.Ordering.html#variant.Relaxed")]
 #[cfg_attr(feature = "std", doc = "[`Relaxed`]: https://doc.rust-lang.org/stable/std/sync/atomic/enum.Ordering.html#variant.Relaxed")]
-pub trait Atomic<Fundamental: Sized>: Sized {
+pub trait Atomic: Sized {
+	/// Defines the underlying fundamental type that this trait is wrapping.
+	type Fundamental: Sized;
+
 	/// Sets the bit at some position to `0`.
 	///
 	/// # Parameters
@@ -108,9 +104,19 @@ pub trait Atomic<Fundamental: Sized>: Sized {
 
 	/// Sets the bit at some position to `1`.
 	///
+	/// # Parameters
+	///
 	/// - `&self`
 	/// - `bit`: The position in the element to set high.
 	fn set(&self, bit: BitPos);
+
+	/// Inverts the bit at some position.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `bit`: The position in the element to invert.
+	fn invert(&self, bit: BitPos);
 
 	/// Gets the element underneath the atomic access.
 	///
@@ -121,10 +127,12 @@ pub trait Atomic<Fundamental: Sized>: Sized {
 	/// # Returns
 	///
 	/// The fundamental type underneath the atomic type.
-	fn get(&self) -> Fundamental;
+	fn get(&self) -> Self::Fundamental;
 }
 
-impl Atomic<u8> for AtomicU8 {
+impl Atomic for AtomicU8 {
+	type Fundamental = u8;
+
 	#[inline(always)]
 	fn clear(&self, bit: BitPos) {
 		self.fetch_and(!<u8 as BitStore>::mask_at(bit), Ordering::Relaxed);
@@ -136,12 +144,19 @@ impl Atomic<u8> for AtomicU8 {
 	}
 
 	#[inline(always)]
+	fn invert(&self, bit: BitPos) {
+		self.fetch_xor(<u8 as BitStore>::mask_at(bit), Ordering::Relaxed);
+	}
+
+	#[inline(always)]
 	fn get(&self) -> u8 {
 		self.load(Ordering::Relaxed)
 	}
 }
 
-impl Atomic<u16> for AtomicU16 {
+impl Atomic for AtomicU16 {
+	type Fundamental = u16;
+
 	#[inline(always)]
 	fn clear(&self, bit: BitPos) {
 		self.fetch_and(!<u16 as BitStore>::mask_at(bit), Ordering::Relaxed);
@@ -153,12 +168,19 @@ impl Atomic<u16> for AtomicU16 {
 	}
 
 	#[inline(always)]
+	fn invert(&self, bit: BitPos) {
+		self.fetch_xor(<u16 as BitStore>::mask_at(bit), Ordering::Relaxed);
+	}
+
+	#[inline(always)]
 	fn get(&self) -> u16 {
 		self.load(Ordering::Relaxed)
 	}
 }
 
-impl Atomic<u32> for AtomicU32 {
+impl Atomic for AtomicU32 {
+	type Fundamental = u32;
+
 	#[inline(always)]
 	fn clear(&self, bit: BitPos) {
 		self.fetch_and(!<u32 as BitStore>::mask_at(bit), Ordering::Relaxed);
@@ -170,13 +192,20 @@ impl Atomic<u32> for AtomicU32 {
 	}
 
 	#[inline(always)]
+	fn invert(&self, bit: BitPos) {
+		self.fetch_xor(<u32 as BitStore>::mask_at(bit), Ordering::Relaxed);
+	}
+
+	#[inline(always)]
 	fn get(&self) -> u32 {
 		self.load(Ordering::Relaxed)
 	}
 }
 
 #[cfg(target_pointer_width = "64")]
-impl Atomic<u64> for AtomicU64 {
+impl Atomic for AtomicU64 {
+	type Fundamental = u64;
+
 	#[inline(always)]
 	fn clear(&self, bit: BitPos) {
 		self.fetch_and(!<u64 as BitStore>::mask_at(bit), Ordering::Relaxed);
@@ -185,6 +214,11 @@ impl Atomic<u64> for AtomicU64 {
 	#[inline(always)]
 	fn set(&self, bit: BitPos) {
 		self.fetch_or(<u64 as BitStore>::mask_at(bit), Ordering::Relaxed);
+	}
+
+	#[inline(always)]
+	fn invert(&self, bit: BitPos) {
+		self.fetch_xor(<u64 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]

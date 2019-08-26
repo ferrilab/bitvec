@@ -747,7 +747,7 @@ where C: Cursor, T: BitStore {
 	/// [`set`]: #method.set
 	pub unsafe fn set_unchecked(&mut self, index: usize, value: bool) {
 		let (elt, bit) = self.bitptr().head().offset::<T>(index as isize);
-		(&mut *self.as_mut_ptr().offset(elt)).set::<C>(bit, value);
+		(&*self.as_ptr().offset(elt)).set::<C>(bit, value);
 	}
 
 	/// Produces a write reference to a single bit in the slice.
@@ -3326,27 +3326,23 @@ where C: Cursor, T: 'a + BitStore {
 			BitDomainMut::Empty => {},
 			BitDomainMut::Minor(head, elt, tail) => {
 				for n in *head .. *tail {
-					let tmp = elt.get::<C>(n.into());
-					elt.set::<C>(n.into(), !tmp);
+					elt.invert::<C>(n.into());
 				}
 			},
 			BitDomainMut::Major(h, head, body, tail, t) => {
 				for n in *h .. T::BITS {
-					let tmp = head.get::<C>(n.into());
-					head.set::<C>(n.into(), !tmp);
+					head.invert::<C>(n.into());
 				}
 				for elt in body {
 					*elt = !*elt;
 				}
 				for n in 0 .. *t {
-					let tmp = tail.get::<C>(n.into());
-					tail.set::<C>(n.into(), !tmp);
+					tail.invert::<C>(n.into());
 				}
 			},
 			BitDomainMut::PartialHead(h, head, body) => {
 				for n in *h .. T::BITS {
-					let tmp = head.get::<C>(n.into());
-					head.set::<C>(n.into(), !tmp);
+					head.invert::<C>(n.into());
 				}
 				for elt in body {
 					*elt = !*elt;
@@ -3357,8 +3353,7 @@ where C: Cursor, T: 'a + BitStore {
 					*elt = !*elt;
 				}
 				for n in 0 .. *t {
-					let tmp = tail.get::<C>(n.into());
-					tail.set::<C>(n.into(), !tmp);
+					tail.invert::<C>(n.into());
 				}
 			},
 			BitDomainMut::Spanning(body) => {

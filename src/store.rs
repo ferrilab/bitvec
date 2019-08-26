@@ -48,6 +48,12 @@ use crate::atomic::Atomic;
 #[cfg(feature = "atomic")]
 use core::sync::atomic;
 
+#[cfg(not(feature = "atomic"))]
+use crate::cellular::Cellular;
+
+#[cfg(not(feature = "atomic"))]
+use core::cell::Cell;
+
 /** Generalizes over the fundamental types for use in `bitvec` data structures.
 
 This trait must only be implemented on unsigned integer primitives with full
@@ -107,28 +113,24 @@ pub trait BitStore:
 	/// Atomic version of the storage type, to have properly fenced access.
 	#[cfg(feature = "atomic")]
 	#[doc(hidden)]
-	type Atom: Atomic<Self>;
+	type Atom: Atomic<Fundamental = Self>;
 
-	/// Performs a synchronized load on the underlying element.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// The element referred to by the `self` reference, loaded synchronously
-	/// after any in-progress accesses have concluded.
-	#[cfg(feature = "atomic")]
-	#[inline(always)]
-	fn load(&self) -> Self {
-		let aptr = self as *const Self as *const Self::Atom;
-		unsafe { &*aptr }.get()
+	/// Cellular version of the storage type, to have properly bound access.
+	#[cfg(not(feature = "atomic"))]
+	#[doc(hidden)]
+	type Atom: Cellular<Fundamental = Self>;
+
+	/// Reference conversion from `&Self` to `&Self::Atom`.
+	#[doc(hidden)]
+	fn as_atom(&self) -> &Self::Atom {
+		unsafe { &*(self as *const Self as *const Self::Atom) }
 	}
 
-	/// Performs an unsynchronized load on the underlying element.
+	/// Performs a load on the underlying element.
 	///
-	/// As atomic operations are unavailable, this is a standard dereference.
+	/// Under the `atomic` feature, this is a synchronized load that is
+	/// guaranteed to occur only after pending read/modify/write cycles have
+	/// finished. Without the `atomic` feature, this is a normal dereference.
 	///
 	/// # Parameters
 	///
@@ -136,17 +138,24 @@ pub trait BitStore:
 	///
 	/// # Returns
 	///
-	/// The referent element.
-	#[cfg(not(feature = "atomic"))]
+	/// The element referred to by the `self` reference, loaded according to the
+	/// presence or absence of the `atomic` feature.
 	#[inline(always)]
 	fn load(&self) -> Self {
-		*self
+		self.as_atom().get()
 	}
 
 	/// Sets a specific bit in an element to a given value.
 	///
+	/// # Safety
+	///
+	/// This method may only be called from within `&mut BitSlice` contexts.
+	///
 	/// # Parameters
 	///
+	/// - `&self`: An immutable reference to self, which will use interior
+	///   mutation from either an atomic wrapper or a `Cell` wrapper to safely
+	///   mutate shared data.
 	/// - `place`: A bit index in the element, from `0` to `Self::MASK`. The bit
 	///   under this index will be set according to `value`.
 	/// - `value`: A Boolean value, which sets the bit on `true` and unsets it
@@ -154,17 +163,16 @@ pub trait BitStore:
 	///
 	/// # Type Parameters
 	///
-	/// - `C: Cursor`: A `Cursor` implementation to translate the index into a
-	///   position.
+	/// - `C`: A `Cursor` implementation to translate the index into a position.
 	///
 	/// # Panics
 	///
-	/// This function panics if `place` is not less than `T::BITS`, in order to
-	/// avoid index out of range errors.
+	/// This function panics if `place` is not less than `Self::BITS`, in order
+	/// to avoid index out of range errors.
 	///
 	/// # Examples
 	///
-	/// This example sets and unsets bits in a byte.
+	/// This example sets and clears bits in a byte.
 	///
 	/// ```rust
 	/// use bitvec::prelude::{
@@ -194,15 +202,22 @@ pub trait BitStore:
 	/// elt.set::<BigEndian>(8.into(), true);
 	/// ```
 	#[inline(always)]
-	fn set<C>(&mut self, place: BitIdx, value: bool)
+	fn set<C>(&self, place: BitIdx, value: bool)
 	where C: Cursor {
-		self.set_at(C::at::<Self>(place), value)
+		self.set_at(C::at::<Self>(place), value);
 	}
 
 	/// Sets a specific bit in an element to a given value.
 	///
+	/// # Safety
+	///
+	/// This method may only be called within an `&mut BitSlice` context.
+	///
 	/// # Parameters
 	///
+	/// - `&self`: An immutable reference to self, which will use interior
+	///   mutation from either an atomic wrapper or a `Cell` wrapper to safely
+	///   mutate shared data.
 	/// - `place`: A bit *position* in the element, where `0` is the LSbit and
 	///   `Self::MASK` is the MSbit.
 	/// - `value`: A Boolean value, which sets the bit high on `true` and unsets
@@ -210,12 +225,12 @@ pub trait BitStore:
 	///
 	/// # Panics
 	///
-	/// This function panics if `place` is not less than `T::BITS`, in order to
-	/// avoid index out of range errors.
+	/// This function panics if `place` is not less than `Self::BITS`, in order
+	/// to avoid index out of range errors.
 	///
 	/// # Examples
 	///
-	/// This example sets and unsets bits in a byte.
+	/// This example sets and clears bits in a byte.
 	///
 	/// ```rust
 	/// use bitvec::prelude::BitStore;
@@ -233,24 +248,75 @@ pub trait BitStore:
 	/// let mut elt: u8 = 0;
 	/// elt.set_at(8.into(), true);
 	/// ```
-	fn set_at(&mut self, place: BitPos, value: bool) {
-		#[cfg(feature = "atomic")] {
-			let aptr = self as *const Self as *const Self::Atom;
-			if value {
-				unsafe { &*aptr }.set(place);
-			}
-			else {
-				unsafe { &*aptr }.clear(place);
-			}
+	fn set_at(&self, place: BitPos, value: bool) {
+		assert!(
+			*place < Self::BITS,
+			"Bit index {} must be less than the width {}",
+			*place,
+			Self::BITS,
+		);
+		if value {
+			self.as_atom().set(place);
 		}
-		#[cfg(not(feature = "atomic"))] {
-			if value {
-				*self |= Self::mask_at(place);
-			}
-			else {
-				*self &= !Self::mask_at(place);
-			}
+		else {
+			self.as_atom().clear(place);
 		}
+	}
+
+	/// Inverts a specific bit in an element.
+	///
+	/// # Safety
+	///
+	/// This method may only be called from within `&mut BitSlice` contexts.
+	///
+	/// # Parameters
+	///
+	/// - `&self`: An immutable reference to self, which will use interior
+	///   mutation from either an atomic wrapper or a `Cell` wrapper to safely
+	///   mutate shared data.
+	/// - `place`: A bit index in the element, from `0` to `Self::MASK`. The bit
+	///   under this index will be inverted.
+	///
+	/// # Type Parameters
+	///
+	/// - `C`: A `Cursor` implementation to translate the index into a position.
+	///
+	/// # Panics
+	///
+	/// This function panics if `place` is not less than `Self::BITS`, in order
+	/// to avoid index out of range errors.
+	#[inline(always)]
+	fn invert<C>(&self, place: BitIdx)
+	where C: Cursor {
+		self.invert_at(C::at::<Self>(place));
+	}
+
+	/// Inverts a specific bit in an element.
+	///
+	/// # Safety
+	///
+	/// This method may only be called within an `&mut BitSlice` context.
+	///
+	/// # Parameters
+	///
+	/// - `&self`: An immutable reference to self, which will use interior
+	///   mutation from either an atomic wrapper or a `Cell` wrapper to safely
+	///   mutate shared data.
+	/// - `place`: A bit *position* in the element, where `0` is the LSbit and
+	///   `Self::MASK` is the MSbit.
+	///
+	/// # Panics
+	///
+	/// This function panics if `place` is not less than `Self::BITS`, in order
+	/// to avoid index out of range errors.
+	fn invert_at(&self, place: BitPos) {
+		assert!(
+			*place < Self::BITS,
+			"Bit index {} must be less than the width {}",
+			*place,
+			Self::BITS,
+		);
+		self.as_atom().invert(place);
 	}
 
 	/// Gets a specific bit in an element.
@@ -266,13 +332,12 @@ pub trait BitStore:
 	///
 	/// # Type Parameters
 	///
-	/// - `C: Cursor`: A `Cursor` implementation to translate the index into a
-	///   position.
+	/// - `C`: A `Cursor` implementation to translate the index into a position.
 	///
 	/// # Panics
 	///
-	/// This function panics if `place` is not less than `T::BITS`, in order to
-	/// avoid index out of range errors.
+	/// This function panics if `place` is not less than `Self::BITS`, in order
+	/// to avoid index out of range errors.
 	///
 	/// # Examples
 	///
@@ -311,8 +376,8 @@ pub trait BitStore:
 	///
 	/// # Panics
 	///
-	/// This function panics if `place` is not less than `T::BITS`, in order to
-	/// avoid index out of range errors.
+	/// This function panics if `place` is not less than `Self::BITS`, in order
+	/// to avoid index out of range errors.
 	///
 	/// # Examples
 	///
@@ -333,6 +398,12 @@ pub trait BitStore:
 	/// 0u8.get_at(8.into());
 	/// ```
 	fn get_at(&self, place: BitPos) -> bool {
+		assert!(
+			*place < Self::BITS,
+			"Bit index {} must be less than the width {}",
+			*place,
+			Self::BITS,
+		);
 		self.load() & Self::mask_at(place) != Self::from(0u8)
 	}
 
@@ -351,8 +422,8 @@ pub trait BitStore:
 	///
 	/// # Panics
 	///
-	/// This function panics if `place` is not less than `T::BITS`, in order to
-	/// avoid index out of range errors.
+	/// This function panics if `place` is not less than `Self::BITS`, in order
+	/// to avoid index out of range errors.
 	///
 	/// # Examples
 	///
@@ -457,7 +528,7 @@ pub trait BitStore:
 	/// [`u64::count_ones`]: https://doc.rust-lang.org/stable/std/primitive.u64.html#method.count_ones
 	#[inline(always)]
 	fn count_ones(&self) -> usize {
-		u64::count_ones((self.load()).into()) as usize
+		u64::count_ones(self.load().into()) as usize
 	}
 
 	/// Counts how many bits in `self` are set to `0`.
@@ -1127,6 +1198,9 @@ impl BitStore for u8 {
 
 	#[cfg(feature = "atomic")]
 	type Atom = atomic::AtomicU8;
+
+	#[cfg(not(feature = "atomic"))]
+	type Atom = Cell<Self>;
 }
 
 impl BitStore for u16 {
@@ -1134,6 +1208,9 @@ impl BitStore for u16 {
 
 	#[cfg(feature = "atomic")]
 	type Atom = atomic::AtomicU16;
+
+	#[cfg(not(feature = "atomic"))]
+	type Atom = Cell<Self>;
 }
 
 impl BitStore for u32 {
@@ -1141,6 +1218,9 @@ impl BitStore for u32 {
 
 	#[cfg(feature = "atomic")]
 	type Atom = atomic::AtomicU32;
+
+	#[cfg(not(feature = "atomic"))]
+	type Atom = Cell<Self>;
 }
 
 #[cfg(target_pointer_width = "64")]
@@ -1149,6 +1229,9 @@ impl BitStore for u64 {
 
 	#[cfg(feature = "atomic")]
 	type Atom = atomic::AtomicU64;
+
+	#[cfg(not(feature = "atomic"))]
+	type Atom = Cell<Self>;
 }
 
 /// Marker trait to seal `BitStore` against downstream implementation.

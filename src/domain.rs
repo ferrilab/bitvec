@@ -234,10 +234,10 @@ where T: 'a + BitStore {
 	/// # Members
 	///
 	/// - `.0`: index of the first live domain bit in the first element
-	/// - `.1`: mutable reference to the partial head edge element
+	/// - `.1`: immutable reference to the partial head edge element
 	/// - `.2`: mutable slice handle to the fully-live elements in the interior.
 	///   This may be empty.
-	/// - `.3`: mutable reference to the partial tail edge element
+	/// - `.3`: immutable reference to the partial tail edge element
 	/// - `.4`: index of the first dead bit after the domain
 	///
 	/// # Invariants
@@ -250,13 +250,13 @@ where T: 'a + BitStore {
 	/// This variant is produced when the domain uses at least two elements, and
 	/// reaches neither the head edge of the head element nor the tail edge of
 	/// the tail element.
-	Major(BitIdx, &'a mut T, &'a mut [T], &'a mut T, BitIdx),
+	Major(BitIdx, &'a T, &'a mut [T], &'a T, BitIdx),
 	/// Domain with a partial head cursor and fully extended tail cursor.
 	///
 	/// # Members
 	///
 	/// - `.0`: index of the first live bit in the head element
-	/// - `.1`: mutable reference to the partial head element
+	/// - `.1`: immutable reference to the partial head element
 	/// - `.2`: mutable reference to the full elements of the domain. This may
 	///   be empty.
 	///
@@ -268,14 +268,14 @@ where T: 'a + BitStore {
 	///
 	/// This variant is produced when the domain’s head cursor is past `0`, and
 	/// its tail cursor is exactly `T::BITS`.
-	PartialHead(BitIdx, &'a mut T, &'a mut [T]),
+	PartialHead(BitIdx, &'a T, &'a mut [T]),
 	/// Domain with a fully extended head cursor and partial tail cursor.
 	///
 	/// # Members
 	///
 	/// - `.0`: mutable reference to the full elements of the domain. This may
 	///   be empty.
-	/// - `.1`: mutable reference to the partial tail element
+	/// - `.1`: immutable reference to the partial tail element
 	/// - `.2`: index of the first dead bit after the live bits in the tail
 	///
 	/// # Invariants
@@ -286,7 +286,7 @@ where T: 'a + BitStore {
 	///
 	/// This variant is produced when the domain’s head cursor is exactly `0`,
 	/// and its tail cursor is less than `T::BITS`.
-	PartialTail(&'a mut [T], &'a mut T, BitIdx),
+	PartialTail(&'a mut [T], &'a T, BitIdx),
 	/// Domain which fully spans its containing elements.
 	///
 	/// # Members

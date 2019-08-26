@@ -71,6 +71,9 @@ mod atomic;
 #[cfg(feature = "serde")]
 mod serdes;
 
+#[cfg(not(feature = "atomic"))]
+mod cellular;
+
 /// Expose crate internals for use in doctests and external tests.
 #[cfg(feature = "testing")]
 pub mod testing {
