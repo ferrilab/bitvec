@@ -1093,7 +1093,7 @@ where C: Cursor, T: BitStore {
 		}
 		//  At this point, it is always safe to increment the tail, and then
 		//  write to the newly live bit.
-		unsafe { self.bitptr_mut().incr_tail() };
+		self.pointer = unsafe { self.pointer.incr_tail() };
 		self.set(len, value);
 	}
 
@@ -1128,7 +1128,7 @@ where C: Cursor, T: BitStore {
 			return None;
 		}
 		let out = self[self.len() - 1];
-		unsafe { self.bitptr_mut().decr_tail() };
+		self.pointer = unsafe { self.pointer.decr_tail() };
 		Some(out)
 	}
 
