@@ -489,9 +489,21 @@ where C: Cursor, T: BitStore {
 
 	/// Clones a `&BitSlice` into a `BitVec`.
 	///
+	/// This method is the only mechanism by which a `BitVec` can be created
+	/// whose first live bit is not at the `0` index. This behavior, though
+	/// unconventional in common uses of `BitVec`, allows for a convenient clone
+	/// of any `BitSlice` reference without having to shift every bit down.
+	///
+	/// When a `BitVec` created with a non-zero head bit is emptied, its head
+	/// reverts to `0` and will begin there at future fills.
+	///
+	/// The [`::force_align`] method will shift the `BitVec`’s contents to begin
+	/// at the zero index if you need to ensure this property.
+	///
 	/// # Parameters
 	///
-	/// - `slice`
+	/// - `slice`: The source bit-slice. This may have any head index, and its
+	///   memory will be directly `memcpy`ed into the allocation.
 	///
 	/// # Returns
 	///
@@ -507,8 +519,23 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(bv.len(), 16);
 	/// assert!(bv.some());
 	/// ```
+	///
+	/// [`::force_align`]: #method.force_align
 	pub fn from_bitslice(slice: &BitSlice<C, T>) -> Self {
-		Self::from_iter(slice.iter())
+		//  Clone the slice’s underlying storage into a `Vec`.
+		let v = unsafe { slice.as_total_slice() }.to_owned();
+		//  Get a copy of the slice’s `BitPtr`.
+		let mut pointer = slice.bitptr();
+		//  Retarget the `BitPtr` at the allocation block. The `head` and `bits`
+		//  counters are unaffected.
+		unsafe { pointer.set_pointer(v.as_ptr()); }
+		let capacity = v.capacity();
+		mem::forget(v);
+		Self {
+			_cursor: PhantomData,
+			pointer,
+			capacity,
+		}
 	}
 
 	/// Converts a frozen `BitBox` allocation into a growable `BitVec`.
@@ -1535,6 +1562,38 @@ where C: Cursor, T: BitStore {
 		let (bp, cap) = (self.pointer, self.capacity);
 		mem::forget(self);
 		unsafe { BitVec::from_raw_parts(bp, cap) }
+	}
+
+	/// Force the live region of the underlying `BitSlice` to begin at `0`.
+	///
+	/// This method uses `BitSlice::rotate_left` to move all the live bits in
+	/// the slice down to the front edge of the allocation. It exits immediately
+	/// if the vector is already aligned.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let src = &0x7Eu8.as_bitslice::<BigEndian>()[1 .. 7];
+	/// assert_eq!(src.len(), 6);
+	/// let mut bv = src.to_owned();
+	/// assert_eq!(bv.len(), 6);
+	/// assert_eq!(bv.as_slice(), &[0x7E]);
+	/// assert_eq!(&bv, &0xFCu8.as_bitslice::<BigEndian>()[.. 6]);
+	/// bv.force_align();
+	/// assert_eq!(bv.as_slice(), &[0xFC]);
+	/// ```
+	pub fn force_align(&mut self) {
+		let (data, head, bits) = self.pointer.raw_parts();
+		let head = *head as usize;
+		if head == 0 {
+			return;
+		}
+		let full = bits + head;
+		self.pointer = unsafe { BitPtr::new_unchecked(data, 0, full) };
+		self.rotate_left(head);
+		unsafe { self.pointer.set_len(bits); }
 	}
 
 	/// Degrades a `BitVec` to a `BitBox`, freezing its size.

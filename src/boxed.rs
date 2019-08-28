@@ -183,6 +183,20 @@ where C: Cursor, T: BitStore {
 
 	/// Clones a `&BitSlice` into a `BitBox`.
 	///
+	/// Note: this routes through [`BitVec::from_bitslice`], which permits
+	/// misaligned slices to be carried through without incident. As such, the
+	/// memory behind this box may contain a misaligned slice, whose live data
+	/// region does not begin at the `0` index.
+	///
+	/// This method does not force alignment. If you are boxing a bitslice and
+	/// require that the memory is aligned, use the following sequence:
+	///
+	/// 1. Use `BitVec::from_bitslice` or an equivalent function
+	///   (`BitSlice::to_owned`, `BitSlice::into`, `BitVec::from`) to create a
+	///   bit vector.
+	/// 1. Use [`BitVec::force_align`] to ensure alignment to the zero index.
+	/// 1. Use `BitVec::into_boxed_bitslice` or an equivalent function.
+	///
 	/// # Parameters
 	///
 	/// - `slice`: The bit slice to clone into a bit box.
@@ -201,6 +215,9 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(bb.len(), 16);
 	/// assert!(bb.some());
 	/// ```
+	///
+	/// [`BitVec::from_bitslice`]: ../vec/struct.BitVec.html#method.from_bitslice
+	/// [`BitVec::force_align`]: ../vec/struct.BitVec.html#method.force_align
 	pub fn from_bitslice(slice: &BitSlice<C, T>) -> Self {
 		BitVec::from_bitslice(slice).into_boxed_bitslice()
 	}
