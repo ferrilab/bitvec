@@ -276,31 +276,31 @@ where T: BitStore {
 impl<T> BitPtr<T>
 where T: BitStore {
 	/// Marks the bits of `self.ptr` that are the `data` section.
-	pub const PTR_DATA_MASK: usize = !Self::PTR_HEAD_MASK;
+	pub(crate) const PTR_DATA_MASK: usize = !Self::PTR_HEAD_MASK;
 
 	/// The number of low bits in `self.ptr` that are the high bits of the head
 	/// `BitIdx` cursor.
-	pub const PTR_HEAD_BITS: usize = T::INDX as usize - Self::LEN_HEAD_BITS;
+	pub(crate) const PTR_HEAD_BITS: usize = T::INDX as usize - Self::LEN_HEAD_BITS;
 
 	/// Marks the bits of `self.ptr` that are the `head` section.
-	pub const PTR_HEAD_MASK: usize = T::MASK as usize >> Self::LEN_HEAD_BITS;
+	pub(crate) const PTR_HEAD_MASK: usize = T::MASK as usize >> Self::LEN_HEAD_BITS;
 
 	/// The number of low bits in `self.len` that are the low bits of the head
 	/// `BitIdx` cursor.
 	///
 	/// This is always `3`, until Rust tries to target a machine whose bytes are
 	/// not eight bits wide.
-	pub const LEN_HEAD_BITS: usize = 3;
+	pub(crate) const LEN_HEAD_BITS: usize = 3;
 
 	/// Marks the bits of `self.len` that are the `head` section.
-	pub const LEN_HEAD_MASK: usize = 0b0111;
+	pub(crate) const LEN_HEAD_MASK: usize = 0b0111;
 
 	/// The inclusive maximum number of elements that can be stored in a
 	/// `BitPtr` domain.
-	pub const MAX_ELTS: usize = (Self::MAX_BITS >> 3) + 1;
+	pub(crate) const MAX_ELTS: usize = (Self::MAX_BITS >> 3) + 1;
 
 	/// The inclusive maximum bit index.
-	pub const MAX_BITS: usize = !0 >> Self::LEN_HEAD_BITS;
+	pub(crate) const MAX_BITS: usize = !0 >> Self::LEN_HEAD_BITS;
 
 	/// Produces an empty-slice representation.
 	///
@@ -315,7 +315,7 @@ where T: BitStore {
 	/// # Safety
 	///
 	/// The `BitPtr` returned by this function must never be dereferenced.
-	pub fn empty() -> Self {
+	pub(crate) fn empty() -> Self {
 		Self {
 			_ty: PhantomData,
 			ptr: NonNull::dangling(),
@@ -534,7 +534,7 @@ where T: BitStore {
 	/// A `BitIdx` that is the index of the first live bit in the first element.
 	/// This will be in the domain `0 .. T::BITS`.
 	#[inline]
-	pub fn head(&self) -> BitIdx<T> {
+	pub(crate) fn head(&self) -> BitIdx<T> {
 		let ptr = self.ptr.as_ptr() as usize;
 		let ptr_head = (ptr & Self::PTR_HEAD_MASK) << Self::LEN_HEAD_BITS;
 		let len_head = self.len & Self::LEN_HEAD_MASK;
@@ -551,7 +551,7 @@ where T: BitStore {
 	///
 	/// A count of the live bits in the slice.
 	#[inline(always)]
-	pub fn len(&self) -> usize {
+	pub(crate) fn len(&self) -> usize {
 		self.len >> Self::LEN_HEAD_BITS
 	}
 
@@ -567,7 +567,7 @@ where T: BitStore {
 	///
 	/// None. The caller must ensure that the invariants of `::new` are upheld.
 	#[inline]
-	pub unsafe fn set_len(&mut self, len: usize) {
+	pub(crate) unsafe fn set_len(&mut self, len: usize) {
 		let n = (len << Self::LEN_HEAD_BITS) | (self.len & Self::LEN_HEAD_MASK);
 		self.len = n;
 	}
@@ -603,7 +603,7 @@ where T: BitStore {
 	///
 	/// This size must be valid in the user’s memory model and allocation
 	/// regime.
-	pub fn elements(&self) -> usize {
+	pub(crate) fn elements(&self) -> usize {
 		self.head().span(self.len()).0
 	}
 
@@ -619,7 +619,7 @@ where T: BitStore {
 	/// bit in the last element. When the pointer is to an empty span, this is
 	/// `0`, otherwise, this is in the domain `1 ..= T::BITS`.
 	#[inline]
-	pub fn tail(&self) -> TailIdx<T> {
+	pub(crate) fn tail(&self) -> TailIdx<T> {
 		/*
 		This function is used in `BitVec::push` and expects to have a high call
 		count. As such, its implementation is written in a straight linear
@@ -663,7 +663,7 @@ where T: BitStore {
 	///
 	/// Whether the slice is empty or populated.
 	#[inline]
-	pub fn is_empty(&self) -> bool {
+	pub(crate) fn is_empty(&self) -> bool {
 		self.len & !Self::LEN_HEAD_MASK == 0
 	}
 
@@ -680,7 +680,7 @@ where T: BitStore {
 	/// # Lifetimes
 	///
 	/// - `'a`: Lifetime for which the data behind the pointer is live.
-	pub fn as_slice<'a>(&self) -> &'a [T] {
+	pub(crate) fn as_slice<'a>(&self) -> &'a [T] {
 		unsafe { slice::from_raw_parts(self.pointer().r(), self.elements()) }
 	}
 
@@ -697,7 +697,7 @@ where T: BitStore {
 	/// # Lifetimes
 	///
 	/// - `'a`: Lifetime for which the data behind the pointer is live.
-	pub fn as_mut_slice<'a>(&self) -> &'a mut [T] {
+	pub(crate) fn as_mut_slice<'a>(&self) -> &'a mut [T] {
 		unsafe {
 			slice::from_raw_parts_mut(self.pointer().w(), self.elements())
 		}

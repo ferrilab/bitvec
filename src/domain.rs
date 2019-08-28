@@ -213,7 +213,7 @@ where T: 'a + BitStore {
 	///
 	/// This variant is produced when the domain is contained entirely inside
 	/// one element, and does not reach to either edge.
-	Minor(BitIdx<T>, &'a mut T, TailIdx<T>),
+	Minor(BitIdx<T>, &'a T, TailIdx<T>),
 	/// Multpile element domain which does not reach the edge of its edge
 	/// elements.
 	///
@@ -295,7 +295,7 @@ where T: 'a + BitStore {
 
 		match bitptr.domain_kind() {
 			Bdk::Empty => BitDomainMut::Empty,
-			Bdk::Minor => BitDomainMut::Minor(h, &mut data[0], t),
+			Bdk::Minor => BitDomainMut::Minor(h, &data[0], t),
 			Bdk::Major => {
 				let (head, body) = data
 					.split_first_mut()

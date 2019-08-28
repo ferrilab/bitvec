@@ -117,6 +117,7 @@ macro_rules! impl_bits_for {
 	( $( $t:ty ),* ) => { $(
 impl<C> AsMut<BitSlice<C, $t>> for $t
 where C: Cursor {
+	#[inline]
 	fn as_mut(&mut self) -> &mut BitSlice<C, $t> {
 		BitsMut::as_mut_bitslice(self)
 	}
@@ -124,6 +125,7 @@ where C: Cursor {
 
 impl<C> AsRef<BitSlice<C, $t>> for $t
 where C: Cursor {
+	#[inline]
 	fn as_ref(&self) -> &BitSlice<C, $t> {
 		Bits::as_bitslice(self)
 	}
@@ -132,6 +134,7 @@ where C: Cursor {
 impl Bits for $t {
 	type Store = $t;
 
+	#[inline]
 	fn as_bitslice<C>(&self) -> &BitSlice<C, Self::Store>
 	where C: Cursor {
 		BitSlice::from_element(self)
@@ -139,6 +142,7 @@ impl Bits for $t {
 }
 
 impl BitsMut for $t {
+	#[inline]
 	fn as_mut_bitslice<C>(&mut self) -> &mut BitSlice<C, Self::Store>
 	where C: Cursor {
 		BitSlice::from_element_mut(self)
@@ -147,6 +151,7 @@ impl BitsMut for $t {
 
 impl<C> AsMut<BitSlice<C, $t>> for [$t]
 where C: Cursor {
+	#[inline]
 	fn as_mut(&mut self) -> &mut BitSlice<C, $t> {
 		BitsMut::as_mut_bitslice(self)
 	}
@@ -154,6 +159,7 @@ where C: Cursor {
 
 impl<C> AsRef<BitSlice<C, $t>> for [$t]
 where C: Cursor {
+	#[inline]
 	fn as_ref(&self) -> &BitSlice<C, $t> {
 		Bits::as_bitslice(self)
 	}
@@ -162,6 +168,7 @@ where C: Cursor {
 impl Bits for [$t] {
 	type Store = $t;
 
+	#[inline]
 	fn as_bitslice<C>(&self) -> &BitSlice<C, Self::Store>
 	where C: Cursor {
 		BitSlice::from_slice(self)
@@ -169,6 +176,7 @@ impl Bits for [$t] {
 }
 
 impl BitsMut for [$t] {
+	#[inline]
 	fn as_mut_bitslice<C>(&mut self) -> &mut BitSlice<C, Self::Store>
 	where C: Cursor {
 		BitSlice::from_slice_mut(self)
@@ -177,6 +185,7 @@ impl BitsMut for [$t] {
 
 impl<C> AsMut<BitSlice<C, $t>> for [$t; 0]
 where C: Cursor {
+	#[inline]
 	fn as_mut(&mut self) -> &mut BitSlice<C, $t> {
 		BitsMut::as_mut_bitslice(self)
 	}
@@ -184,6 +193,7 @@ where C: Cursor {
 
 impl<C> AsRef<BitSlice<C, $t>> for [$t; 0]
 where C: Cursor {
+	#[inline]
 	fn as_ref(&self) -> &BitSlice<C, $t> {
 		Bits::as_bitslice(self)
 	}
@@ -192,6 +202,7 @@ where C: Cursor {
 impl Bits for [$t; 0] {
 	type Store = $t;
 
+	#[inline]
 	fn as_bitslice<C>(&self) -> &BitSlice<C, Self::Store>
 	where C: Cursor {
 		BitSlice::empty()
@@ -199,6 +210,7 @@ impl Bits for [$t; 0] {
 }
 
 impl BitsMut for [$t; 0] {
+	#[inline]
 	fn as_mut_bitslice<C>(&mut self) -> &mut BitSlice<C, Self::Store>
 	where C: Cursor {
 		BitSlice::empty_mut()
@@ -216,6 +228,7 @@ impl_bits_for! { array $t ;
 	( array $t:ty ; $( $n:expr )* ) => { $(
 impl<C> AsMut<BitSlice<C, $t>> for [$t; $n]
 where C: Cursor {
+	#[inline]
 	fn as_mut(&mut self) -> &mut BitSlice<C, $t> {
 		BitsMut::as_mut_bitslice(self)
 	}
@@ -223,6 +236,7 @@ where C: Cursor {
 
 impl<C> AsRef<BitSlice<C, $t>> for [$t; $n]
 where C: Cursor {
+	#[inline]
 	fn as_ref(&self) -> &BitSlice<C, $t> {
 		Bits::as_bitslice(self)
 	}
@@ -231,6 +245,7 @@ where C: Cursor {
 impl Bits for [$t; $n] {
 	type Store = $t;
 
+	#[inline]
 	fn as_bitslice<C>(&self) -> &BitSlice<C, Self::Store>
 	where C: Cursor {
 		BitSlice::from_slice(&self[..])
@@ -238,6 +253,7 @@ impl Bits for [$t; $n] {
 }
 
 impl BitsMut for [$t; $n] {
+	#[inline]
 	fn as_mut_bitslice<C>(&mut self) -> &mut BitSlice<C, Self::Store>
 	where C: Cursor {
 		BitSlice::from_slice_mut(&mut self[..])
