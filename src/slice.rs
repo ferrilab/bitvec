@@ -3260,8 +3260,8 @@ impl<C, T> IndexMut<RangeInclusive<usize>> for BitSlice<C, T>
 where C: Cursor, T: BitStore {
 	fn index_mut(&mut self, range: RangeInclusive<usize>) -> &mut Self::Output {
 		(&self[range]).bitptr().into_bitslice_mut()
-		}
-		}
+	}
+}
 
 impl<C, T> Index<RangeFrom<usize>> for BitSlice<C, T>
 where C: Cursor, T: BitStore {
