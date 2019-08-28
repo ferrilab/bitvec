@@ -113,17 +113,17 @@ pub trait BitStore:
 	/// Atomic version of the storage type, to have properly fenced access.
 	#[cfg(feature = "atomic")]
 	#[doc(hidden)]
-	type Atom: Atomic<Fundamental = Self>;
+	type Nucleus: Atomic<Fundamental = Self>;
 
 	/// Cellular version of the storage type, to have properly bound access.
 	#[cfg(not(feature = "atomic"))]
 	#[doc(hidden)]
-	type Atom: Cellular<Fundamental = Self>;
+	type Nucleus: Cellular<Fundamental = Self>;
 
-	/// Reference conversion from `&Self` to `&Self::Atom`.
+	/// Reference conversion from `&Self` to `&Self::Nucleus`.
 	#[doc(hidden)]
-	fn as_atom(&self) -> &Self::Atom {
-		unsafe { &*(self as *const Self as *const Self::Atom) }
+	fn nuclear(&self) -> &Self::Nucleus {
+		unsafe { &*(self as *const Self as *const Self::Nucleus) }
 	}
 
 	/// Performs a load on the underlying element.
@@ -142,7 +142,7 @@ pub trait BitStore:
 	/// presence or absence of the `atomic` feature.
 	#[inline(always)]
 	fn load(&self) -> Self {
-		self.as_atom().get()
+		self.nuclear().get()
 	}
 
 	/// Sets a specific bit in an element to a given value.
@@ -256,10 +256,10 @@ pub trait BitStore:
 			Self::BITS,
 		);
 		if value {
-			self.as_atom().set(place);
+			self.nuclear().set(place);
 		}
 		else {
-			self.as_atom().clear(place);
+			self.nuclear().clear(place);
 		}
 	}
 
@@ -316,7 +316,7 @@ pub trait BitStore:
 			*place,
 			Self::BITS,
 		);
-		self.as_atom().invert(place);
+		self.nuclear().invert(place);
 	}
 
 	/// Gets a specific bit in an element.
@@ -924,30 +924,30 @@ impl BitStore for u8 {
 	const TYPENAME: &'static str = "u8";
 
 	#[cfg(feature = "atomic")]
-	type Atom = atomic::AtomicU8;
+	type Nucleus = atomic::AtomicU8;
 
 	#[cfg(not(feature = "atomic"))]
-	type Atom = Cell<Self>;
+	type Nucleus = Cell<Self>;
 }
 
 impl BitStore for u16 {
 	const TYPENAME: &'static str = "u16";
 
 	#[cfg(feature = "atomic")]
-	type Atom = atomic::AtomicU16;
+	type Nucleus = atomic::AtomicU16;
 
 	#[cfg(not(feature = "atomic"))]
-	type Atom = Cell<Self>;
+	type Nucleus = Cell<Self>;
 }
 
 impl BitStore for u32 {
 	const TYPENAME: &'static str = "u32";
 
 	#[cfg(feature = "atomic")]
-	type Atom = atomic::AtomicU32;
+	type Nucleus = atomic::AtomicU32;
 
 	#[cfg(not(feature = "atomic"))]
-	type Atom = Cell<Self>;
+	type Nucleus = Cell<Self>;
 }
 
 #[cfg(target_pointer_width = "64")]
@@ -955,10 +955,10 @@ impl BitStore for u64 {
 	const TYPENAME: &'static str = "u64";
 
 	#[cfg(feature = "atomic")]
-	type Atom = atomic::AtomicU64;
+	type Nucleus = atomic::AtomicU64;
 
 	#[cfg(not(feature = "atomic"))]
-	type Atom = Cell<Self>;
+	type Nucleus = Cell<Self>;
 }
 
 /// Marker trait to seal `BitStore` against downstream implementation.
