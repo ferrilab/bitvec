@@ -976,23 +976,17 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn associated_consts_u8() {
+	fn associated_consts() {
 		assert_eq!(BitPtr::<u8>::PTR_HEAD_BITS, 0);
 
 		assert_eq!(BitPtr::<u8>::PTR_DATA_MASK, !0);
 		assert_eq!(BitPtr::<u8>::PTR_HEAD_MASK, 0);
-	}
 
-	#[test]
-	fn associated_consts_u16() {
 		assert_eq!(BitPtr::<u16>::PTR_HEAD_BITS, 1);
 
 		assert_eq!(BitPtr::<u16>::PTR_DATA_MASK, !0 << 1);
 		assert_eq!(BitPtr::<u16>::PTR_HEAD_MASK, 1);
-	}
 
-	#[test]
-	fn associated_consts_u32() {
 		assert_eq!(BitPtr::<u32>::PTR_HEAD_BITS, 2);
 
 		assert_eq!(BitPtr::<u32>::PTR_DATA_MASK, !0 << 2);
@@ -1009,6 +1003,32 @@ mod tests {
 	}
 
 	#[test]
+	fn empty() {
+		let bp = BitPtr::<u8>::empty();
+		assert_eq!(bp.ptr, NonNull::<u8>::dangling());
+		assert_eq!(bp.len, 0);
+		assert!(bp.is_empty());
+
+		let data = [0u8; 4];
+		//  anything with 0 bits is unconditionally empty
+		let bp = BitPtr::<u8>::new(&data as *const u8, 2, 0);
+		assert!(bp.is_empty());
+		//  empty pointers may still have valid data and head counters
+		assert_eq!(*bp.head(), 2);
+		assert_eq!(*bp.tail(), 2);
+	}
+
+	#[cfg(feature = "alloc")]
+	#[test]
+	fn uninhabited() {
+		let v = Vec::<u16>::new();
+		let bp = BitPtr::<u16>::uninhabited(v.as_ptr());
+		assert_ne!(bp.ptr, NonNull::<u8>::dangling());
+		assert_eq!(bp.len, 0);
+		assert!(bp.is_empty());
+	}
+
+	#[test]
 	fn ctors() {
 		let data: [u32; 4] = [0x756c6153, 0x2c6e6f74, 0x6e6f6d20, 0x00216f64];
 		let bp = BitPtr::<u32>::new(&data as *const u32, 0, 32 * 4);
@@ -1018,15 +1038,14 @@ mod tests {
 		assert_eq!(*bp.tail(), 32);
 	}
 
+	#[cfg(feature = "alloc")]
 	#[test]
-	fn empty() {
-		let data = [0u8; 4];
-		//  anything with 0 bits is unconditionally empty
-		let bp = BitPtr::<u8>::new(&data as *const u8, 2, 0);
-
-		assert!(bp.is_empty());
-		assert_eq!(*bp.head(), 2);
-		assert_eq!(*bp.tail(), 2);
+	fn set_pointer() {
+		let data: [u32; 2] = [0, 1];
+		let mut bp = BitPtr::new(data.as_ptr(), 2, 28);
+		assert_eq!(bp.pointer().r(), data.as_ptr());
+		unsafe { bp.set_pointer(data[1 ..].as_ptr()) };
+		assert_eq!(bp.pointer().r(), unsafe { data.as_ptr().offset(1) });
 	}
 
 	#[test]

@@ -5,10 +5,10 @@ the data segment is used, unlike `[bool]` which ignores seven bits out of every
 byte.
 
 `bitvec`’s data structures provide strong guarantees about, and fine-grained
-control of, the bit-level representation of a sequence of memory. The user is
-empowered to choose the fundamental type underlying the store – `u8`, `u16`,
-`u32`, or `u64` – and the order in which each primitive is traversed –
-big-endian, from the most significant bit to the least, or little-endian, from
+control of, the bit-level representation of a contiguous region of memory. The
+user is empowered to choose the fundamental type underlying the store – `u8`,
+`u16`, `u32`, or `u64` – and the order in which each primitive is traversed –
+big-endian, from the most significant bit to the least; or little-endian, from
 the least significant bit to the most.
 
 This level of control is not necessary for most use cases where users just want
@@ -28,10 +28,8 @@ In addition to providing compact, efficient, and powerful storage and
 manipulation of bits in memory, the `bitvec` structures are capable of acting as
 a queue, set, or stream of bits. They implement the bit-wise operators for
 Boolean arithmetic, arithmetic operators for 2’s-complement numeric arithmetic,
-read indexing, bit shifts, and access to the underlying storage fundamental
+read-only indexing, bit shifts, and access to the underlying storage fundamental
 elements as a slice.
-
-(Write indexing is impossible in Rust semantics.)
 !*/
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -60,9 +58,11 @@ pub mod slice;
 pub mod store;
 
 #[cfg(feature = "alloc")]
+#[cfg_attr(all(not(feature = "alloc"), tarpaulin), skip)]
 pub mod boxed;
 
 #[cfg(feature = "alloc")]
+#[cfg_attr(all(not(feature = "alloc"), tarpaulin), skip)]
 pub mod vec;
 
 #[cfg(feature = "atomic")]
@@ -72,6 +72,7 @@ mod atomic;
 mod serdes;
 
 #[cfg(not(feature = "atomic"))]
+#[cfg_attr(all(feature = "atomic", tarpaulin), skip)]
 mod cellular;
 
 /// Expose crate internals for use in doctests and external tests.
@@ -99,14 +100,31 @@ here for deduplication.
 
 # Parameters
 
-- `a: bool`: One bit of addend.
-- `b: bool`: One bit of addend.
-- `c: bool`: The carry-bit input.
+- `a`: One bit of addend.
+- `b`: One bit of addend.
+- `c`: The carry-bit input.
 
 # Returns
 
-- `.0: bool`: The sum of `a + b + c`.
-- `.1: bool`: The carry-out of `a + b + c`.
+- `.0`: The sum of `a + b + c`.
+- `.1`: The carry-out of `a + b + c`.
+
+# Truth Table
+
+`a` and `b` are the addends, `c` is the carry-input, `y` is the sum, and `z` is
+the carry-output.
+
+```text
+a + b + c => y, z
+-----------------
+0 + 0 + 0 => 0, 0
+0 + 0 + 1 => 1, 0
+0 + 1 + 0 => 1, 0
+0 + 1 + 1 => 0, 1
+1 + 0 + 0 => 1, 0
+1 + 0 + 1 => 0, 1
+1 + 1 + 0 => 0, 1
+1 + 1 + 1 => 1, 1
 **/
 #[inline]
 fn rca1(a: bool, b: bool, c: bool) -> (bool, bool) {
