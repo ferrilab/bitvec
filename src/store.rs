@@ -579,40 +579,8 @@ where T: BitStore {
 	///
 	/// # Returns
 	///
-	/// - `Self`: An incremented cursor.
-	/// - `bool`: Marks whether the increment crossed an element boundary.
-	///
-	/// # Type Parameters
-	///
-	/// - `T: BitStore`: The storage type for which the increment will be
-	///   calculated.
-	///
-	/// # Panics
-	///
-	/// This method panics if `self` is not less than `T::BITS`, in order to
-	/// avoid index out of range errors.
-	///
-	/// # Examples
-	///
-	/// This example increments inside an element.
-	///
-	/// ```rust
-	/// # #[cfg(any(test, feature = "testing"))] {
-	/// use bitvec::testing::BitIdx;
-	/// # use bitvec::store::IntoBitIdx;
-	/// assert_eq!(BitIdx::from(6).incr::<u8>(), (7.idx(), false));
-	/// # }
-	/// ```
-	///
-	/// This example increments at the high edge, and wraps to the next element.
-	///
-	/// ```rust
-	/// # #[cfg(any(test, feature = "testing"))] {
-	/// use bitvec::testing::BitIdx;
-	/// # use bitvec::store::IntoBitIdx;
-	/// assert_eq!(BitIdx::from(7).incr::<u8>(), (0.idx(), true));
-	/// # }
-	/// ```
+	/// - `.0`: An incremented cursor.
+	/// - `.1`: Marks whether the increment crossed an element boundary.
 	pub(crate) fn incr(self) -> (Self, bool) {
 		let next = (*self).wrapping_add(1) & T::MASK;
 		(next.idx(), next == 0)
@@ -654,35 +622,9 @@ where T: BitStore {
 	/// the original allocation. This method has no means of checking this
 	/// requirement.
 	///
-	/// # Examples
-	///
-	/// This example calculates offsets within the same element.
-	///
-	/// ```rust
-	/// # #[cfg(any(test, feature = "testing"))] {
-	/// use bitvec::testing::BitIdx;
-	/// assert_eq!(BitIdx::<u32>::new(1).offset(4isize), (0, BitIdx::new(5)));
-	/// assert_eq!(BitIdx::<u32>::new(6).offset(-3isize), (0, BitIdx::new(3)));
-	/// # }
-	/// ```
-	///
-	/// This example calculates offsets that cross into other elements. It uses
-	/// `u32`, so the bit index domain is `0 ..= 31`.
-	///
-	/// `7 - 18`, modulo 32, wraps down from 0 to 31 and continues decreasing.
-	/// `23 + 68`, modulo 32, wraps up from 31 to 0 and continues increasing.
-	///
-	/// ```rust
-	/// # #[cfg(any(test, feature = "testing"))] {
-	/// use bitvec::testing::BitIdx;
-	/// assert_eq!(BitIdx::<u32>::new(7).offset(-18isize), (-1, BitIdx::new(21)));
-	/// assert_eq!(BitIdx::<u32>::new(23).offset(68isize), (2, BitIdx::new(27)));
-	/// # }
-	/// ```
-	///
 	/// [`Cursor`]: ../cursor/trait.Cursor.html
 	/// [`ptr::offset`]: https://doc.rust-lang.org/stable/std/primitive.pointer.html#method.offset
-	pub fn offset(self, by: isize) -> (isize, Self) {
+	pub(crate) fn offset(self, by: isize) -> (isize, Self) {
 		let val = *self;
 		debug_assert!(
 			val < T::BITS,
@@ -752,7 +694,7 @@ where T: BitStore {
 	///
 	/// [`TailIdx::span`]: struct.TailIdx.html#method.span
 	#[inline(always)]
-	pub fn span(self, len: usize) -> (usize, TailIdx<T>) {
+	pub(crate) fn span(self, len: usize) -> (usize, TailIdx<T>) {
 		self.to_tail().span(len)
 	}
 

@@ -1590,9 +1590,12 @@ where C: Cursor, T: BitStore {
 		if head == 0 {
 			return;
 		}
+		//  Extend the span to include the front of the head element
 		let full = bits + head;
 		self.pointer = unsafe { BitPtr::new_unchecked(data, 0, full) };
+		//  Rotate everything down
 		self.rotate_left(head);
+		//  And discard the garbage now at the back.
 		unsafe { self.pointer.set_len(bits); }
 	}
 
@@ -1641,41 +1644,6 @@ where C: Cursor, T: BitStore {
 		};
 		mem::forget(self);
 		out
-	}
-
-	/// Gets the raw `BitPtr` powering the vector.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// The underlying `BitPtr` for the vector.
-	///
-	/// # Notes
-	///
-	/// The `BitPtr<T>` return type is opaque, and not exported by the crate.
-	/// Users are not able to use it in any way except to construct another
-	/// `BitVec<_, T>` from it. It is not possible for user code to even express
-	/// the name of the type.
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	/// use std::mem;
-	///
-	/// let bv = bitvec![1; 10];
-	/// let bitptr = bv.bitptr();
-	/// let cap = bv.capacity();
-	/// mem::forget(bv);
-	/// let bv2 = unsafe {
-	///   BitVec::<BigEndian, _>::from_raw_parts(bitptr, cap)
-	/// };
-	/// assert_eq!(bv2.len(), 10);
-	/// assert!(bv2[9]);
-	/// ```
-	pub fn bitptr(&self) -> BitPtr<T> {
-		self.pointer
 	}
 
 	/// Gives write access to the `BitPtr` structure powering the vector.
