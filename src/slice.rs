@@ -5766,3 +5766,6 @@ where C: Cursor, T: 'a + BitStore {
 		self.next_back()
 	}
 }
+
+#[cfg(test)]
+mod tests;
