@@ -15,7 +15,10 @@ use crate::{
 	},
 	domain::*,
 	pointer::BitPtr,
-	store::BitStore,
+	store::{
+		BitStore,
+		IntoBitIdx,
+	},
 };
 
 #[cfg(feature = "alloc")]
@@ -669,7 +672,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`get`]: #method.get
 	pub unsafe fn get_unchecked(&self, index: usize) -> bool {
-		let (elt, bit) = self.bitptr().head().offset::<T>(index as isize);
+		let (elt, bit) = self.bitptr().head().offset(index as isize);
 		(&*self.as_ptr().offset(elt)).get::<C>(bit)
 	}
 
@@ -748,7 +751,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`set`]: #method.set
 	pub unsafe fn set_unchecked(&mut self, index: usize, value: bool) {
-		let (elt, bit) = self.bitptr().head().offset::<T>(index as isize);
+		let (elt, bit) = self.bitptr().head().offset(index as isize);
 		(&*self.as_ptr().offset(elt)).set::<C>(bit, value);
 	}
 
@@ -1645,19 +1648,19 @@ where C: Cursor, T: BitStore {
 			BitDomain::Empty => {},
 			BitDomain::Minor(head, elt, tail) => {
 				for n in *head .. *tail {
-					if !elt.get::<C>(n.into()) {
+					if !elt.get::<C>(n.idx()) {
 						return false;
 					}
 				}
 			},
 			BitDomain::Major(h, head, body, tail, t) => {
 				for n in *h .. T::BITS {
-					if !head.get::<C>(n.into()) {
+					if !head.get::<C>(n.idx()) {
 						return false;
 					}
 				}
 				for n in 0 .. *t {
-					if !tail.get::<C>(n.into()) {
+					if !tail.get::<C>(n.idx()) {
 						return false;
 					}
 				}
@@ -1665,7 +1668,7 @@ where C: Cursor, T: BitStore {
 			},
 			BitDomain::PartialHead(h, head, body) => {
 				for n in *h .. T::BITS {
-					if !head.get::<C>(n.into()) {
+					if !head.get::<C>(n.idx()) {
 						return false;
 					}
 				}
@@ -1673,7 +1676,7 @@ where C: Cursor, T: BitStore {
 			},
 			BitDomain::PartialTail(body, tail, t) => {
 				for n in 0 .. *t {
-					if !tail.get::<C>(n.into()) {
+					if !tail.get::<C>(n.idx()) {
 						return false;
 					}
 				}
@@ -1720,19 +1723,19 @@ where C: Cursor, T: BitStore {
 			BitDomain::Empty => {},
 			BitDomain::Minor(head, elt, tail) => {
 				for n in *head .. *tail {
-					if elt.get::<C>(n.into()) {
+					if elt.get::<C>(n.idx()) {
 						return true;
 					}
 				}
 			},
 			BitDomain::Major(h, head, body, tail, t) => {
 				for n in *h .. T::BITS {
-					if head.get::<C>(n.into()) {
+					if head.get::<C>(n.idx()) {
 						return true;
 					}
 				}
 				for n in 0 .. *t {
-					if tail.get::<C>(n.into()) {
+					if tail.get::<C>(n.idx()) {
 						return true;
 					}
 				}
@@ -1740,7 +1743,7 @@ where C: Cursor, T: BitStore {
 			},
 			BitDomain::PartialHead(h, head, body) => {
 				for n in *h .. T::BITS {
-					if head.get::<C>(n.into()) {
+					if head.get::<C>(n.idx()) {
 						return true;
 					}
 				}
@@ -1748,7 +1751,7 @@ where C: Cursor, T: BitStore {
 			},
 			BitDomain::PartialTail(body, tail, t) => {
 				for n in 0 .. *t {
-					if tail.get::<C>(n.into()) {
+					if tail.get::<C>(n.idx()) {
 						return true;
 					}
 				}
@@ -1885,26 +1888,26 @@ where C: Cursor, T: BitStore {
 			BitDomain::Empty => 0,
 			BitDomain::Minor(head, elt, tail) => {
 				(*head .. *tail)
-					.map(|n| elt.get::<C>(n.into()))
+					.map(|n| elt.get::<C>(n.idx()))
 					.filter(|b| *b)
 					.count()
 			},
 			BitDomain::Major(h, head, body, tail, t) => {
 				(*h .. T::BITS)
-					.map(|n| head.get::<C>(n.into()))
+					.map(|n| head.get::<C>(n.idx()))
 					.filter(|b| *b)
 					.count() +
 				body.iter()
 					.map(T::count_ones)
 					.sum::<usize>() +
 				(0 .. *t)
-					.map(|n| tail.get::<C>(n.into()))
+					.map(|n| tail.get::<C>(n.idx()))
 					.filter(|b| *b)
 					.count()
 			},
 			BitDomain::PartialHead(h, head, body) => {
 				(*h .. T::BITS)
-					.map(|n| head.get::<C>(n.into()))
+					.map(|n| head.get::<C>(n.idx()))
 					.filter(|b| *b)
 					.count() +
 				body.iter()
@@ -1916,7 +1919,7 @@ where C: Cursor, T: BitStore {
 					.map(T::count_ones)
 					.sum::<usize>() +
 				(0 .. *t)
-					.map(|n| tail.get::<C>(n.into()))
+					.map(|n| tail.get::<C>(n.idx()))
 					.filter(|b| *b)
 					.count()
 			},
@@ -1951,26 +1954,26 @@ where C: Cursor, T: BitStore {
 			BitDomain::Empty => 0,
 			BitDomain::Minor(head, elt, tail) => {
 				(*head .. *tail)
-					.map(|n| !elt.get::<C>(n.into()))
+					.map(|n| !elt.get::<C>(n.idx()))
 					.filter(|b| !*b)
 					.count()
 			},
 			BitDomain::Major(h, head, body, tail, t) => {
 				(*h .. T::BITS)
-					.map(|n| head.get::<C>(n.into()))
+					.map(|n| head.get::<C>(n.idx()))
 					.filter(|b| !*b)
 					.count() +
 				body.iter()
 					.map(T::count_zeros)
 					.sum::<usize>() +
 				(0 .. *t)
-					.map(|n| tail.get::<C>(n.into()))
+					.map(|n| tail.get::<C>(n.idx()))
 					.filter(|b| !*b)
 					.count()
 			},
 			BitDomain::PartialHead(h, head, body) => {
 				(*h .. T::BITS)
-					.map(|n| head.get::<C>(n.into()))
+					.map(|n| head.get::<C>(n.idx()))
 					.filter(|b| !*b)
 					.count() +
 				body.iter()
@@ -1982,7 +1985,7 @@ where C: Cursor, T: BitStore {
 					.map(T::count_zeros)
 					.sum::<usize>() +
 				(0 .. *t)
-					.map(|n| tail.get::<C>(n.into()))
+					.map(|n| tail.get::<C>(n.idx()))
 					.filter(|b| !*b)
 					.count()
 			},
@@ -2020,23 +2023,23 @@ where C: Cursor, T: BitStore {
 			BitDomainMut::Empty => {},
 			BitDomainMut::Minor(head, elt, tail) => {
 				for n in *head .. *tail {
-					elt.set::<C>(n.into(), value);
+					elt.set::<C>(n.idx(), value);
 				}
 			},
 			BitDomainMut::Major(h, head, body, tail, t) => {
 				for n in *h .. T::BITS {
-					head.set::<C>(n.into(), value);
+					head.set::<C>(n.idx(), value);
 				}
 				for elt in body {
 					*elt = T::bits(value);
 				}
 				for n in 0 .. *t {
-					tail.set::<C>(n.into(), value);
+					tail.set::<C>(n.idx(), value);
 				}
 			},
 			BitDomainMut::PartialHead(h, head, body) => {
 				for n in *h .. T::BITS {
-					head.set::<C>(n.into(), value);
+					head.set::<C>(n.idx(), value);
 				}
 				for elt in body {
 					*elt = T::bits(value);
@@ -2047,7 +2050,7 @@ where C: Cursor, T: BitStore {
 					*elt = T::bits(value);
 				}
 				for n in 0 .. *t {
-					tail.set::<C>(n.into(), value);
+					tail.set::<C>(n.idx(), value);
 				}
 			},
 			BitDomainMut::Spanning(body) => {
@@ -2777,7 +2780,7 @@ where C: Cursor, T: BitStore {
 			where C: Cursor, T: BitStore {
 				let (from, to) = (from as usize, to as usize);
 				for (n, byte) in w.iter_mut().enumerate().take(to).skip(from) {
-					*byte = b'0' + (e.get::<C>((n as u8).into()) as u8);
+					*byte = b'0' + (e.get::<C>((n as u8).idx()) as u8);
 				}
 				l.entry(&Part(unsafe {
 					str::from_utf8_unchecked(&w[from .. to])
@@ -3161,7 +3164,7 @@ where C: Cursor, T: BitStore {
 		assert!(start <= end, "Ranges can only run from low to high");
 		//  Find the number of elements to drop from the front, and the index of
 		//  the new head
-		let (skip, new_head) = head.offset::<T>(start as isize);
+		let (skip, new_head) = head.offset(start as isize);
 		let new_len = end - start;
 		unsafe { BitPtr::new_unchecked(
 			data.r().offset(skip),
@@ -3430,23 +3433,23 @@ where C: Cursor, T: 'a + BitStore {
 			BitDomainMut::Empty => {},
 			BitDomainMut::Minor(head, elt, tail) => {
 				for n in *head .. *tail {
-					elt.invert::<C>(n.into());
+					elt.invert::<C>(n.idx());
 				}
 			},
 			BitDomainMut::Major(h, head, body, tail, t) => {
 				for n in *h .. T::BITS {
-					head.invert::<C>(n.into());
+					head.invert::<C>(n.idx());
 				}
 				for elt in body {
 					*elt = !*elt;
 				}
 				for n in 0 .. *t {
-					tail.invert::<C>(n.into());
+					tail.invert::<C>(n.idx());
 				}
 			},
 			BitDomainMut::PartialHead(h, head, body) => {
 				for n in *h .. T::BITS {
-					head.invert::<C>(n.into());
+					head.invert::<C>(n.idx());
 				}
 				for elt in body {
 					*elt = !*elt;
@@ -3457,7 +3460,7 @@ where C: Cursor, T: 'a + BitStore {
 					*elt = !*elt;
 				}
 				for n in 0 .. *t {
-					tail.invert::<C>(n.into());
+					tail.invert::<C>(n.idx());
 				}
 			},
 			BitDomainMut::Spanning(body) => {
@@ -3540,7 +3543,7 @@ where C: Cursor, T: BitStore {
 			let rem = self.as_ref().len().saturating_sub(offset);
 			//  Clear the bits after the tail cursor before the move.
 			for n in *self.bitptr().tail() .. T::BITS {
-				self.as_mut()[len.saturating_sub(1)].set::<C>(n.into(), false);
+				self.as_mut()[len.saturating_sub(1)].set::<C>(n.idx(), false);
 			}
 			//  Memory model: suppose we have this slice of sixteen elements,
 			//  that is shifted five elements to the left. We have three
@@ -3644,7 +3647,7 @@ where C: Cursor, T: BitStore {
 			let rem = self.as_ref().len().saturating_sub(offset);
 			//  Clear the bits ahead of the head cursor before the move.
 			for n in 0 .. *self.bitptr().head() {
-				self.as_mut()[0].set::<C>(n.into(), false);
+				self.as_mut()[0].set::<C>(n.idx(), false);
 			}
 			//  Memory model: suppose we have this slice of sixteen elements,
 			//  that is shifted five elements to the right. We have two pointers

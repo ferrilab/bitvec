@@ -50,7 +50,7 @@ conditions, race conditions that cause data loss cannot occur.
 **/
 pub trait Cellular: Sized {
 	/// Defines the underlying fundamental type that this trait is wrapping.
-	type Fundamental: Sized;
+	type Fundamental: BitStore;
 
 	/// Sets the bit at some position to `0`.
 	///
@@ -59,7 +59,7 @@ pub trait Cellular: Sized {
 	/// - `&self`: This is able to be immutable, rather than mutable, because
 	///   the trait is implemented on a `Cell` wrapper.
 	/// - `bit`: The position in the element to set low.
-	fn clear(&self, bit: BitPos);
+	fn clear(&self, bit: BitPos<Self::Fundamental>);
 
 	/// Sets the bit at some position to `1`.
 	///
@@ -67,7 +67,7 @@ pub trait Cellular: Sized {
 	///
 	/// - `&self`
 	/// - `bit`: The position in the element to set high.
-	fn set(&self, bit: BitPos);
+	fn set(&self, bit: BitPos<Self::Fundamental>);
 
 	/// Inverts the bit at some position.
 	///
@@ -75,7 +75,7 @@ pub trait Cellular: Sized {
 	///
 	/// - `&self`
 	/// - `bit`: The position in the element to invert.
-	fn invert(&self, bit: BitPos);
+	fn invert(&self, bit: BitPos<Self::Fundamental>);
 
 	/// Gets the element underneath the cellular access.
 	///
@@ -93,17 +93,17 @@ impl Cellular for Cell<u8> {
 	type Fundamental = u8;
 
 	#[inline(always)]
-	fn clear(&self, bit: BitPos) {
+	fn clear(&self, bit: BitPos<Self::Fundamental>) {
 		self.set(self.get() & !<u8 as BitStore>::mask_at(bit));
 	}
 
 	#[inline(always)]
-	fn set(&self, bit: BitPos) {
+	fn set(&self, bit: BitPos<Self::Fundamental>) {
 		self.set(self.get() | <u8 as BitStore>::mask_at(bit));
 	}
 
 	#[inline(always)]
-	fn invert(&self, bit: BitPos) {
+	fn invert(&self, bit: BitPos<Self::Fundamental>) {
 		self.set(self.get() ^ <u8 as BitStore>::mask_at(bit));
 	}
 
@@ -117,17 +117,17 @@ impl Cellular for Cell<u16> {
 	type Fundamental = u16;
 
 	#[inline(always)]
-	fn clear(&self, bit: BitPos) {
+	fn clear(&self, bit: BitPos<Self::Fundamental>) {
 		self.set(self.get() & !<u16 as BitStore>::mask_at(bit));
 	}
 
 	#[inline(always)]
-	fn set(&self, bit: BitPos) {
+	fn set(&self, bit: BitPos<Self::Fundamental>) {
 		self.set(self.get() | <u16 as BitStore>::mask_at(bit));
 	}
 
 	#[inline(always)]
-	fn invert(&self, bit: BitPos) {
+	fn invert(&self, bit: BitPos<Self::Fundamental>) {
 		self.set(self.get() ^ <u16 as BitStore>::mask_at(bit));
 	}
 
@@ -141,17 +141,17 @@ impl Cellular for Cell<u32> {
 	type Fundamental = u32;
 
 	#[inline(always)]
-	fn clear(&self, bit: BitPos) {
+	fn clear(&self, bit: BitPos<Self::Fundamental>) {
 		self.set(self.get() & !<u32 as BitStore>::mask_at(bit));
 	}
 
 	#[inline(always)]
-	fn set(&self, bit: BitPos) {
+	fn set(&self, bit: BitPos<Self::Fundamental>) {
 		self.set(self.get() | <u32 as BitStore>::mask_at(bit));
 	}
 
 	#[inline(always)]
-	fn invert(&self, bit: BitPos) {
+	fn invert(&self, bit: BitPos<Self::Fundamental>) {
 		self.set(self.get() ^ <u32 as BitStore>::mask_at(bit));
 	}
 
@@ -166,17 +166,17 @@ impl Cellular for Cell<u64> {
 	type Fundamental = u64;
 
 	#[inline(always)]
-	fn clear(&self, bit: BitPos) {
+	fn clear(&self, bit: BitPos<Self::Fundamental>) {
 		self.set(self.get() & !<u64 as BitStore>::mask_at(bit));
 	}
 
 	#[inline(always)]
-	fn set(&self, bit: BitPos) {
+	fn set(&self, bit: BitPos<Self::Fundamental>) {
 		self.set(self.get() | <u64 as BitStore>::mask_at(bit));
 	}
 
 	#[inline(always)]
-	fn invert(&self, bit: BitPos) {
+	fn invert(&self, bit: BitPos<Self::Fundamental>) {
 		self.set(self.get() ^ <u64 as BitStore>::mask_at(bit));
 	}
 

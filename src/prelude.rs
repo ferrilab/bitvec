@@ -15,7 +15,11 @@ pub use crate::{
 		LittleEndian,
 	},
 	slice::BitSlice,
-	store::BitStore,
+	store::{
+		BitIdx,
+		BitPos,
+		BitStore,
+	},
 };
 
 #[cfg(feature = "alloc")]

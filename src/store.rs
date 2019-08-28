@@ -24,6 +24,7 @@ use core::{
 		UpperHex,
 	},
 	marker::{
+		PhantomData,
 		Send,
 		Sync,
 	},
@@ -165,17 +166,13 @@ pub trait BitStore:
 	///
 	/// - `C`: A `Cursor` implementation to translate the index into a position.
 	///
-	/// # Panics
-	///
-	/// This function panics if `place` is not less than `Self::BITS`, in order
-	/// to avoid index out of range errors.
-	///
 	/// # Examples
 	///
 	/// This example sets and clears bits in a byte.
 	///
 	/// ```rust
 	/// use bitvec::prelude::{
+	///   BitIdx,
 	///   BitStore,
 	///   BigEndian,
 	///   LittleEndian,
@@ -183,28 +180,20 @@ pub trait BitStore:
 	///
 	/// let mut elt: u16 = 0;
 	///
-	/// elt.set::<BigEndian>(1.into(), true);
+	/// elt.set::<BigEndian>(BitIdx::new(1), true);
 	/// assert_eq!(elt, 0b0100_0000__0000_0000);
-	/// elt.set::<LittleEndian>(1.into(), true);
+	/// elt.set::<LittleEndian>(BitIdx::new(1), true);
 	/// assert_eq!(elt, 0b0100_0000__0000_0010);
 	///
-	/// elt.set::<BigEndian>(1.into(), false);
+	/// elt.set::<BigEndian>(BitIdx::new(1), false);
 	/// assert_eq!(elt, 0b0000_0000__0000_0010);
-	/// elt.set::<LittleEndian>(1.into(), false);
+	/// elt.set::<LittleEndian>(BitIdx::new(1), false);
 	/// assert_eq!(elt, 0);
 	/// ```
-	///
-	/// This example overruns the index, and panics.
-	///
-	/// ```rust,should_panic
-	/// use bitvec::prelude::{BitStore, BigEndian};
-	/// let mut elt: u8 = 0;
-	/// elt.set::<BigEndian>(8.into(), true);
-	/// ```
 	#[inline(always)]
-	fn set<C>(&self, place: BitIdx, value: bool)
+	fn set<C>(&self, place: BitIdx<Self>, value: bool)
 	where C: Cursor {
-		self.set_at(C::at::<Self>(place), value);
+		self.set_at(place.pos::<C>(), value);
 	}
 
 	/// Sets a specific bit in an element to a given value.
@@ -225,31 +214,25 @@ pub trait BitStore:
 	///
 	/// # Panics
 	///
-	/// This function panics if `place` is not less than `Self::BITS`, in order
-	/// to avoid index out of range errors.
+	/// This function only panics in debug mode. In release mode, it is
+	/// impossible to construct a `BitPos` that exceeds `Self`’s width.
 	///
 	/// # Examples
 	///
 	/// This example sets and clears bits in a byte.
 	///
 	/// ```rust
-	/// use bitvec::prelude::BitStore;
+	/// use bitvec::prelude::{BitPos, BitStore};
 	/// let mut elt: u8 = 0;
-	/// elt.set_at(0.into(), true);
+	/// elt.set_at(BitPos::new(0), true);
 	/// assert_eq!(elt, 0b0000_0001);
-	/// elt.set_at(7.into(), true);
+	/// elt.set_at(BitPos::new(7), true);
 	/// assert_eq!(elt, 0b1000_0001);
 	/// ```
-	///
-	/// This example overshoots the width, and panics.
-	///
-	/// ```rust,should_panic
-	/// use bitvec::prelude::BitStore;
-	/// let mut elt: u8 = 0;
-	/// elt.set_at(8.into(), true);
-	/// ```
-	fn set_at(&self, place: BitPos, value: bool) {
-		assert!(
+	fn set_at(&self, place: BitPos<Self>, value: bool) {
+		//  Outside of testing builds, it is only possible to construct `BitPos`
+		//  by going through conformant `Cursor` implementations.
+		debug_assert!(
 			*place < Self::BITS,
 			"Bit index {} must be less than the width {}",
 			*place,
@@ -280,15 +263,10 @@ pub trait BitStore:
 	/// # Type Parameters
 	///
 	/// - `C`: A `Cursor` implementation to translate the index into a position.
-	///
-	/// # Panics
-	///
-	/// This function panics if `place` is not less than `Self::BITS`, in order
-	/// to avoid index out of range errors.
 	#[inline(always)]
-	fn invert<C>(&self, place: BitIdx)
+	fn invert<C>(&self, place: BitIdx<Self>)
 	where C: Cursor {
-		self.invert_at(C::at::<Self>(place));
+		self.invert_at(place.pos::<C>());
 	}
 
 	/// Inverts a specific bit in an element.
@@ -307,10 +285,10 @@ pub trait BitStore:
 	///
 	/// # Panics
 	///
-	/// This function panics if `place` is not less than `Self::BITS`, in order
-	/// to avoid index out of range errors.
-	fn invert_at(&self, place: BitPos) {
-		assert!(
+	/// This function only panics in debug mode. In release mode, it is
+	/// impossible to construct a `BitPos` that exceeds `Self`’s width.
+	fn invert_at(&self, place: BitPos<Self>) {
+		debug_assert!(
 			*place < Self::BITS,
 			"Bit index {} must be less than the width {}",
 			*place,
@@ -334,32 +312,20 @@ pub trait BitStore:
 	///
 	/// - `C`: A `Cursor` implementation to translate the index into a position.
 	///
-	/// # Panics
-	///
-	/// This function panics if `place` is not less than `Self::BITS`, in order
-	/// to avoid index out of range errors.
-	///
 	/// # Examples
 	///
 	/// This example gets two bits from a byte.
 	///
 	/// ```rust
-	/// use bitvec::prelude::{BitStore, BigEndian};
+	/// use bitvec::prelude::{BitIdx, BitStore, BigEndian};
 	/// let elt: u8 = 0b0010_0000;
-	/// assert!(!elt.get::<BigEndian>(1.into()));
-	/// assert!(elt.get::<BigEndian>(2.into()));
-	/// assert!(!elt.get::<BigEndian>(3.into()));
+	/// assert!(!elt.get::<BigEndian>(BitIdx::new(1)));
+	/// assert!(elt.get::<BigEndian>(BitIdx::new(2)));
+	/// assert!(!elt.get::<BigEndian>(BitIdx::new(3)));
 	/// ```
-	///
-	/// This example overruns the index, and panics.
-	///
-	/// ```rust,should_panic
-	/// use bitvec::prelude::{BitStore, BigEndian};
-	/// 0u8.get::<BigEndian>(8.into());
-	/// ```
-	fn get<C>(&self, place: BitIdx) -> bool
+	fn get<C>(&self, place: BitIdx<Self>) -> bool
 	where C: Cursor {
-		self.get_at(C::at::<Self>(place))
+		self.get_at(place.pos::<C>())
 	}
 
 	/// Gets a specific bit in an element.
@@ -376,29 +342,22 @@ pub trait BitStore:
 	///
 	/// # Panics
 	///
-	/// This function panics if `place` is not less than `Self::BITS`, in order
-	/// to avoid index out of range errors.
+	/// This function only panics in debug mode. In release mode, it is
+	/// impossible to construct a `BitPos` that exceeds `Self`’s width.
 	///
 	/// # Examples
 	///
 	/// This example gets two bits from a byte.
 	///
 	/// ```rust
-	/// use bitvec::prelude::BitStore;
+	/// use bitvec::prelude::{BitPos, BitStore};
 	/// let elt: u8 = 0b0010_0000;
-	/// assert!(!elt.get_at(4.into()));
-	/// assert!(elt.get_at(5.into()));
-	/// assert!(!elt.get_at(6.into()));
+	/// assert!(!elt.get_at(BitPos::new(4)));
+	/// assert!(elt.get_at(BitPos::new(5)));
+	/// assert!(!elt.get_at(BitPos::new(6)));
 	/// ```
-	///
-	/// This example overruns the index, and panics.
-	///
-	/// ```rust,should_panic
-	/// use bitvec::prelude::BitStore;
-	/// 0u8.get_at(8.into());
-	/// ```
-	fn get_at(&self, place: BitPos) -> bool {
-		assert!(
+	fn get_at(&self, place: BitPos<Self>) -> bool {
+		debug_assert!(
 			*place < Self::BITS,
 			"Bit index {} must be less than the width {}",
 			*place,
@@ -422,75 +381,51 @@ pub trait BitStore:
 	///
 	/// # Panics
 	///
-	/// This function panics if `place` is not less than `Self::BITS`, in order
-	/// to avoid index out of range errors.
+	/// This function only panics in debug mode. In release mode, it is
+	/// impossible to construct a `BitPos` that exceeds `Self`’s width.
 	///
 	/// # Examples
 	///
 	/// This example produces the one-hot encodings for indices.
 	///
 	/// ```rust
-	/// use bitvec::prelude::BitStore;
+	/// use bitvec::prelude::{BitPos, BitStore};
 	///
-	/// assert_eq!(u8::mask_at(0.into()), 0b0000_0001);
-	/// assert_eq!(u8::mask_at(1.into()), 0b0000_0010);
-	/// assert_eq!(u8::mask_at(2.into()), 0b0000_0100);
-	/// assert_eq!(u8::mask_at(3.into()), 0b0000_1000);
-	/// assert_eq!(u8::mask_at(4.into()), 0b0001_0000);
-	/// assert_eq!(u8::mask_at(5.into()), 0b0010_0000);
-	/// assert_eq!(u8::mask_at(6.into()), 0b0100_0000);
-	/// assert_eq!(u8::mask_at(7.into()), 0b1000_0000);
+	/// assert_eq!(u8::mask_at(BitPos::new(0)), 0b0000_0001);
+	/// assert_eq!(u8::mask_at(BitPos::new(1)), 0b0000_0010);
+	/// assert_eq!(u8::mask_at(BitPos::new(2)), 0b0000_0100);
+	/// assert_eq!(u8::mask_at(BitPos::new(3)), 0b0000_1000);
+	/// assert_eq!(u8::mask_at(BitPos::new(4)), 0b0001_0000);
+	/// assert_eq!(u8::mask_at(BitPos::new(5)), 0b0010_0000);
+	/// assert_eq!(u8::mask_at(BitPos::new(6)), 0b0100_0000);
+	/// assert_eq!(u8::mask_at(BitPos::new(7)), 0b1000_0000);
 	///
-	/// assert_eq!(u16::mask_at(8.into()),  0b0000_0001__0000_0000);
-	/// assert_eq!(u16::mask_at(9.into()),  0b0000_0010__0000_0000);
-	/// assert_eq!(u16::mask_at(10.into()), 0b0000_0100__0000_0000);
-	/// assert_eq!(u16::mask_at(11.into()), 0b0000_1000__0000_0000);
-	/// assert_eq!(u16::mask_at(12.into()), 0b0001_0000__0000_0000);
-	/// assert_eq!(u16::mask_at(13.into()), 0b0010_0000__0000_0000);
-	/// assert_eq!(u16::mask_at(14.into()), 0b0100_0000__0000_0000);
-	/// assert_eq!(u16::mask_at(15.into()), 0b1000_0000__0000_0000);
+	/// assert_eq!(u16::mask_at(BitPos::new(8)),  0b0000_0001__0000_0000);
+	/// assert_eq!(u16::mask_at(BitPos::new(9)),  0b0000_0010__0000_0000);
+	/// assert_eq!(u16::mask_at(BitPos::new(10)), 0b0000_0100__0000_0000);
+	/// assert_eq!(u16::mask_at(BitPos::new(11)), 0b0000_1000__0000_0000);
+	/// assert_eq!(u16::mask_at(BitPos::new(12)), 0b0001_0000__0000_0000);
+	/// assert_eq!(u16::mask_at(BitPos::new(13)), 0b0010_0000__0000_0000);
+	/// assert_eq!(u16::mask_at(BitPos::new(14)), 0b0100_0000__0000_0000);
+	/// assert_eq!(u16::mask_at(BitPos::new(15)), 0b1000_0000__0000_0000);
 	///
-	/// assert_eq!(u32::mask_at(16.into()), 1 << 16);
-	/// assert_eq!(u32::mask_at(24.into()), 1 << 24);
-	/// assert_eq!(u32::mask_at(31.into()), 1 << 31);
+	/// assert_eq!(u32::mask_at(BitPos::new(16)), 1 << 16);
+	/// assert_eq!(u32::mask_at(BitPos::new(24)), 1 << 24);
+	/// assert_eq!(u32::mask_at(BitPos::new(31)), 1 << 31);
 	///
 	/// # #[cfg(target_pointer_width = "64")] {
-	/// assert_eq!(u64::mask_at(32.into()), 1 << 32);
-	/// assert_eq!(u64::mask_at(48.into()), 1 << 48);
-	/// assert_eq!(u64::mask_at(63.into()), 1 << 63);
-	/// # }
-	/// ```
-	///
-	/// These examples ensure that indices panic when out of bounds.
-	///
-	/// ```rust,should_panic
-	/// use bitvec::prelude::BitStore;
-	/// u8::mask_at(8.into());
-	/// ```
-	///
-	/// ```rust,should_panic
-	/// use bitvec::prelude::BitStore;
-	/// u16::mask_at(16.into());
-	/// ```
-	///
-	/// ```rust,should_panic
-	/// use bitvec::prelude::BitStore;
-	/// u32::mask_at(32.into());
-	/// ```
-	///
-	/// ```rust,should_panic
-	/// # #[cfg(target_pointer_width = "64")] {
-	/// use bitvec::prelude::BitStore;
-	/// u64::mask_at(64.into());
+	/// assert_eq!(u64::mask_at(BitPos::new(32)), 1 << 32);
+	/// assert_eq!(u64::mask_at(BitPos::new(48)), 1 << 48);
+	/// assert_eq!(u64::mask_at(BitPos::new(63)), 1 << 63);
 	/// # }
 	/// ```
 	#[inline(always)]
-	fn mask_at(place: BitPos) -> Self {
-		assert!(
-			place.is_valid::<Self>(),
-			"Index {} is not a valid position for type {}",
+	fn mask_at(place: BitPos<Self>) -> Self {
+		debug_assert!(
+			*place < Self::BITS,
+			"Bit index {} must be less than the width {}",
 			*place,
-			Self::TYPENAME,
+			Self::BITS,
 		);
 		//  Pad 1 to the correct width, then shift up to the correct bit place.
 		Self::from(1u8) << *place
@@ -598,32 +533,42 @@ ordering. Values of `BitIdx` refer strictly to abstract ordering, and not to the
 actual position in an element, so `BitIdx(0)` is the first bit in an element,
 but is not required to be the electrical `LSb`, `MSb`, or any other.
 
+# Type Parameters
+
+- `T`: The storage type the index controls.
+
 [`Cursor`]: ../cursor/trait.Cursor.html
 **/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[doc(hidden)]
-pub struct BitIdx(pub(crate) u8);
+pub struct BitIdx<T>
+where T: BitStore {
+	idx: u8,
+	_ty: PhantomData<T>,
+}
 
-impl BitIdx {
-	/// Checks if the index is valid for a type.
-	///
-	/// Indices are valid in the range `0 .. T::BITS`.
-	///
-	/// # Parameters
-	///
-	/// - `self`: The index to validate.
-	///
-	/// # Returns
-	///
-	/// Whether the index is valid for the storage type in question.
-	///
-	/// # Type Parameters
-	///
-	/// - `T: BitStore`: The storage type used to determine index validity.
+impl<T> BitIdx<T>
+where T: BitStore {
 	#[inline]
-	pub(crate) fn is_valid<T>(self) -> bool
-	where T: BitStore {
-		*self < T::BITS
+	pub fn new(idx: u8) -> Self {
+		assert!(
+			idx < T::BITS,
+			"Bit index {} cannot exceed type width {}",
+			idx,
+			T::BITS,
+		);
+		unsafe { Self::new_unchecked(idx) }
+	}
+
+	#[inline(always)]
+	pub unsafe fn new_unchecked(idx: u8) -> Self {
+		Self { idx, _ty: PhantomData }
+	}
+
+	#[inline(always)]
+	pub(crate) fn pos<C>(self) -> BitPos<T>
+	where C: Cursor {
+		C::at::<T>(self)
 	}
 
 	/// Finds the destination bit a certain distance away from a starting bit.
@@ -650,10 +595,6 @@ impl BitIdx {
 	///   value can be passed directly into [`Cursor`] functions to compute the
 	///   correct place in the element.
 	///
-	/// # Type Parameters
-	///
-	/// - `T: BitStore`: The storage type with which the offset will be calculated.
-	///
 	/// # Panics
 	///
 	/// This function panics if `from` is not less than `T::BITS`, in order
@@ -673,8 +614,8 @@ impl BitIdx {
 	/// ```rust
 	/// # #[cfg(feature = "testing")] {
 	/// use bitvec::testing::BitIdx;
-	/// assert_eq!(BitIdx::from(1).offset::<u32>(4isize), (0, 5.into()));
-	/// assert_eq!(BitIdx::from(6).offset::<u32>(-3isize), (0, 3.into()));
+	/// assert_eq!(BitIdx::<u32>::new(1).offset(4isize), (0, BitIdx::new(5)));
+	/// assert_eq!(BitIdx::<u32>::new(6).offset(-3isize), (0, BitIdx::new(3)));
 	/// # }
 	/// ```
 	///
@@ -687,17 +628,16 @@ impl BitIdx {
 	/// ```rust
 	/// # #[cfg(feature = "testing")] {
 	/// use bitvec::testing::BitIdx;
-	/// assert_eq!(BitIdx::from(7).offset::<u32>(-18isize), (-1, 21.into()));
-	/// assert_eq!(BitIdx::from(23).offset::<u32>(68isize), (2, 27.into()));
+	/// assert_eq!(BitIdx::<u32>::new(7).offset(-18isize), (-1, BitIdx::new(21)));
+	/// assert_eq!(BitIdx::<u32>::new(23).offset(68isize), (2, BitIdx::new(27)));
 	/// # }
 	/// ```
 	///
 	/// [`Cursor`]: ../cursor/trait.Cursor.html
 	/// [`ptr::offset`]: https://doc.rust-lang.org/stable/std/primitive.pointer.html#method.offset
-	pub fn offset<T>(self, by: isize) -> (isize, Self)
-	where T: BitStore {
+	pub fn offset(self, by: isize) -> (isize, Self) {
 		let val = *self;
-		assert!(
+		debug_assert!(
 			val < T::BITS,
 			"Index out of range: {} overflows {}",
 			val,
@@ -709,13 +649,13 @@ impl BitIdx {
 			//  If `far` is in the domain `0 .. T::BITS`, then the offset did
 			//  not depart the element.
 			if far >= 0 && far < T::BITS as isize {
-				(0, (far as u8).into())
+				(0, unsafe { Self::new_unchecked(far as u8) })
 			}
 			//  If `far` is negative, then the offset leaves the initial element
 			//  going down. If `far` is not less than `T::BITS`, then the
 			//  offset leaves the initial element going up.
 			else {
-				(far >> T::INDX, ((far & (T::MASK as isize)) as u8).into())
+				(far >> T::INDX, (far as u8 & T::MASK).idx())
 			}
 		}
 		//  If the `isize` addition overflows, then the `by` offset is positive.
@@ -728,10 +668,7 @@ impl BitIdx {
 			//  `T::INDX` bits are the bit index in the destination element,
 			//  and the rest of the high bits (shifted down) are the number of
 			//  elements by which to advance.
-			(
-				(far >> T::INDX) as isize,
-				((far & (T::MASK as usize)) as u8).into(),
-			)
+			((far >> T::INDX) as isize, (far as u8 & T::MASK).idx())
 		}
 	}
 
@@ -744,29 +681,25 @@ impl BitIdx {
 	///
 	/// # Returns
 	///
-	/// - `usize`: The number of elements `T` included in the span. This will
-	///   be in the domain `1 .. usize::max_value()`.
-	/// - `BitIdx`: The index of the first bit *after* the span. This will be in
-	///   the domain `1 ..= T::BITS`.
-	///
-	/// # Type Parameters
-	///
-	/// - `T: BitStore`: The type of the elements for which this span is computed.
+	/// - `.0`: The number of elements `T` included in the span. This will be in
+	///   the domain `1 .. usize::max_value()`.
+	/// - `.1`: The index of the first bit *after* the span. This will be `0` in
+	///   the case that `self` and `len` are both `0`, and otherwise, it will be
+	///   in the domain `1 ..= T::BITS`.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// # #[cfg(feature = "testing")] {
-	/// use bitvec::testing::{BitIdx, BitStore};
+	/// use bitvec::testing::{BitIdx, BitStore, TailIdx};
 	///
-	/// let h: BitIdx = 0.into();
-	/// assert_eq!(BitIdx::from(0).span::<u8>(8), (1, 8.into()))
+	/// let head: BitIdx<u8> = BitIdx::new(0);
+	/// assert_eq!(head.span(8), (1, TailIdx::<u8>::new(8)));
 	/// # }
 	/// ```
-	pub fn span<T>(self, len: usize) -> (usize, BitIdx)
-	where T: BitStore {
+	pub fn span(self, len: usize) -> (usize, TailIdx<T>) {
 		let val = *self & T::MASK;
-		assert!(
+		debug_assert!(
 			*self <= T::BITS,
 			"Index {} is invalid for type {}",
 			val,
@@ -776,7 +709,7 @@ impl BitIdx {
 		//  A span of zero bits covers zero elements, and does not move the
 		//  index.
 		if len == 0 {
-			return (0, self);
+			return (0, self.to_tail());
 		}
 
 		//  Number of bits in the head *element*. Domain 32 .. 0.
@@ -786,7 +719,7 @@ impl BitIdx {
 		//  then when `len <= n`, the span covers one element. When `len == n`,
 		//  the tail will be `T::BITS`, which is valid for a tail.
 		if len <= bits_in_head {
-			return (1, (val + len as u8).into());
+			return (1, (val + len as u8).tail_idx());
 		}
 		//  If there are more bits in the span than `n`, then subtract `n` from
 		//  `len` and use the difference to count elements and bits.
@@ -813,42 +746,126 @@ impl BitIdx {
 		 * }
 		 */
 
-		let tbz = (bits == 0) as u8;
-		(elts + 2 - tbz as usize, ((tbz << T::INDX) | bits).into())
+		let is_zero = (bits == 0) as u8;
+		(elts + 2 - is_zero as usize, ((is_zero << T::INDX) | bits).tail_idx())
 	}
-}
 
-/// Wraps a `u8` as a `BitIdx`.
-impl From<u8> for BitIdx {
-	fn from(src: u8) -> Self {
-		BitIdx(src)
+	/// Converts a bit index into a tail index.
+	///
+	/// This is always safe, as the set of tail indices is strictly greater than
+	/// the set of bit indices.
+	pub(crate) fn to_tail(self) -> TailIdx<T> {
+		unsafe { TailIdx::new_unchecked(*self) }
 	}
 }
 
 /// Unwraps a `BitIdx` to a `u8`.
-impl Into<u8> for BitIdx {
+impl<T> Into<u8> for BitIdx<T>
+where T: BitStore {
 	fn into(self) -> u8 {
-		self.0
+		self.idx
 	}
 }
 
-impl Display for BitIdx {
+impl<T> Display for BitIdx<T>
+where T: BitStore {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		Display::fmt(&self.0, f)
+		Display::fmt(&self.idx, f)
 	}
 }
 
-impl Deref for BitIdx {
+impl<T> Deref for BitIdx<T>
+where T: BitStore {
 	type Target = u8;
 
 	fn deref(&self) -> &Self::Target {
-		&self.0
+		&self.idx
 	}
 }
 
-impl DerefMut for BitIdx {
+impl<T> DerefMut for BitIdx<T>
+where T: BitStore {
 	fn deref_mut(&mut self) -> &mut Self::Target {
-		&mut self.0
+		&mut self.idx
+	}
+}
+
+/** Crate-internal mechanism for turning known-good bare indices into `BitIdx`.
+
+This is not exposed, because it is a thin wrapper over `BitIdx::new_unchecked`.
+It is used only within the crate to wrap known-good index values as a shorthand.
+**/
+#[doc(hidden)]
+pub trait IntoBitIdx {
+	fn idx<T>(self) -> BitIdx<T>
+	where T: BitStore;
+
+	fn tail_idx<T>(self) -> TailIdx<T>
+	where T: BitStore;
+}
+
+impl IntoBitIdx for u8 {
+	fn idx<T>(self) -> BitIdx<T>
+	where T: BitStore {
+		debug_assert!(
+			self < T::BITS,
+			"Bit index {} must be less than the width {}",
+			self,
+			T::BITS,
+		);
+		unsafe { BitIdx::<T>::new_unchecked(self) }
+	}
+
+	fn tail_idx<T>(self) -> TailIdx<T>
+	where T: BitStore {
+		debug_assert!(
+			self <= T::BITS,
+			"Bit index {} must be less than or equal to the width {}",
+			self,
+			T::BITS,
+		);
+		unsafe { TailIdx::<T>::new_unchecked(self) }
+	}
+}
+
+/** Marks that an index is to a dead bit, and cannot be used for indexing.
+
+This type is equivalent to `BitIdx<T>`, except it includes `T::BITS` in its
+domain. Instances of this type will only ever contain `0` when the span they
+describe is *empty*. Non-empty spans always cycle through the domain
+`1 ..= T::BITS`.
+
+Users cannot do anything with this type except view its index as a `u8`.
+**/
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
+pub struct TailIdx<T>
+where T: BitStore {
+	tail: u8,
+	_ty: PhantomData<T>,
+}
+
+impl<T> TailIdx<T>
+where T: BitStore {
+	pub fn new(tail: u8) -> Self {
+		tail.tail_idx()
+	}
+
+	pub(crate) unsafe fn new_unchecked(tail: u8) -> Self {
+		Self { tail, _ty: PhantomData }
+	}
+
+	pub fn span(self, len: usize) -> (usize, Self) {
+		let tail = *self;
+		let (elts, bits) = (tail & T::MASK).idx().span(len);
+		(elts + (tail == T::BITS) as usize, bits)
+	}
+}
+
+impl<T> Deref for TailIdx<T>
+where T: BitStore {
+	type Target = u8;
+	fn deref(&self) -> &Self::Target {
+		&self.tail
 	}
 }
 
@@ -864,59 +881,59 @@ an element rather than a semantic bit.
 **/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[doc(hidden)]
-pub struct BitPos(pub(crate) u8);
-
-impl BitPos {
-	/// Checks if the position is valid for a type.
-	///
-	/// # Parameters
-	///
-	/// - `self`: The position to validate.
-	///
-	/// # Returns
-	///
-	/// Whether the position is valid for the storage type in question.
-	///
-	/// # Type Parameters
-	///
-	/// - `T: BitStore`: The storage type used to determine position validity.
-	pub fn is_valid<T>(self) -> bool
-	where T: BitStore {
-		*self < T::BITS
-	}
+pub struct BitPos<T>
+where T: BitStore {
+	pos: u8,
+	_ty: PhantomData<T>,
 }
 
-/// Wraps a `u8` as a `BitPos`.
-impl From<u8> for BitPos {
-	fn from(src: u8) -> Self {
-		BitPos(src)
+impl<T> BitPos<T>
+where T: BitStore {
+	#[inline]
+	pub fn new(pos: u8) -> Self {
+		assert!(
+			pos < T::BITS,
+			"Bit position {} cannot exceed type width {}",
+			pos,
+			T::BITS,
+		);
+		unsafe { Self::new_unchecked(pos) }
+	}
+
+	#[inline(always)]
+	pub unsafe fn new_unchecked(pos: u8) -> Self {
+		Self { pos, _ty: PhantomData }
 	}
 }
 
 /// Unwraps a `BitPos` to a `u8`.
-impl Into<u8> for BitPos {
+impl<T> Into<u8> for BitPos<T>
+where T: BitStore {
 	fn into(self) -> u8 {
-		self.0
+		self.pos
 	}
 }
 
-impl Display for BitPos {
+impl<T> Display for BitPos<T>
+where T: BitStore {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		Display::fmt(&self.0, f)
+		Display::fmt(&self.pos, f)
 	}
 }
 
-impl Deref for BitPos {
+impl<T> Deref for BitPos<T>
+where T: BitStore {
 	type Target = u8;
 
 	fn deref(&self) -> &Self::Target {
-		&self.0
+		&self.pos
 	}
 }
 
-impl DerefMut for BitPos {
+impl<T> DerefMut for BitPos<T>
+where T: BitStore {
 	fn deref_mut(&mut self) -> &mut Self::Target {
-		&mut self.0
+		&mut self.pos
 	}
 }
 
@@ -986,11 +1003,11 @@ mod tests {
 		//  isize::max_value() is 0x7f...ff, so the result bit will be one less
 		//  than the start bit.
 		for n in 1 .. 8 {
-			let (elt, bit) = BitIdx::from(n).offset::<u8>(isize::max_value());
+			let (elt, bit) = n.idx::<u8>().offset(isize::max_value());
 			assert_eq!(elt, (isize::max_value() >> u8::INDX) + 1);
 			assert_eq!(*bit, n - 1);
 		}
-		let (elt, bit) = BitIdx::from(0).offset::<u8>(isize::max_value());
+		let (elt, bit) = BitIdx::<u8>::new(0).offset(isize::max_value());
 		assert_eq!(elt, isize::max_value() >> u8::INDX);
 		assert_eq!(*bit, 7);
 	}
@@ -1000,7 +1017,7 @@ mod tests {
 		//  isize::min_value() is 0x80...00, so the result bit will be equal to
 		//  the start bit
 		for n in 0 .. 8 {
-			let (elt, bit) = BitIdx::from(n).offset::<u8>(isize::min_value());
+			let (elt, bit) = n.idx::<u8>().offset(isize::min_value());
 			assert_eq!(elt, isize::min_value() >> u8::INDX);
 			assert_eq!(*bit, n);
 		}

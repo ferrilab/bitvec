@@ -13,6 +13,8 @@ use crate::{
 	store::{
 		BitIdx,
 		BitStore,
+		IntoBitIdx,
+		TailIdx,
 	},
 };
 
@@ -38,7 +40,7 @@ use core::{
 const PTR_BITS: usize = size_of::<*const u8>() * 8;
 
 /// Union to permit reinterpreting a pointer-shaped value as a read pointer,
-/// write pointer, or bare numeric address.
+/// write pointer, or bare numeric address value.
 ///
 /// # Safety
 ///
@@ -364,12 +366,11 @@ where T: BitStore {
 	///
 	/// # Parameters
 	///
-	/// - `data: impl Into<Pointer<T>>`: A well-aligned pointer to a storage
-	///   element.
-	/// - `head: impl Into<BitIdx>`: The bit index of the first live bit in the
-	///   element under `*data`.
-	/// - `bits: usize`: The number of live bits in the region the produced
-	///   `BitPtr<T>` describes.
+	/// - `data`: A well-aligned pointer to a storage element.
+	/// - `head`: The bit index of the first live bit in the element under
+	///   `*data`.
+	/// - `bits`: The number of live bits in the region the produced `BitPtr<T>`
+	///   describes.
 	///
 	/// # Returns
 	///
@@ -383,8 +384,7 @@ where T: BitStore {
 	/// This function panics in the following events:
 	///
 	/// - `data` is not well aligned to `T`’s requirements.
-	/// - `head` is not a valid index within `T`, according to
-	/// `BitIdx::is_valid::<T>`.
+	/// - `head` is not a valid index within `T`.
 	/// - `bits` is larger than `Self::MAX_BITS`.
 	/// - `data` and `bits` describe a `[T]` slice which wraps around the edge
 	///   of the memory space.
@@ -398,7 +398,7 @@ where T: BitStore {
 	/// governable in the caller’s context.
 	pub(crate) fn new(
 		data: impl Into<Pointer<T>>,
-		head: impl Into<BitIdx>,
+		head: impl Into<u8>,
 		bits: usize,
 	) -> Self {
 		let (data, head) = (data.into(), head.into());
@@ -423,14 +423,7 @@ where T: BitStore {
 			Self::MAX_BITS,
 		);
 
-		assert!(
-			head.is_valid::<T>(),
-			"BitPtr head index cannot be {}; the valid domain is 0 .. {}",
-			head,
-			T::BITS,
-		);
-
-		let elts = head.span::<T>(bits).0;
+		let elts = BitIdx::<T>::new(head).span(bits).0;
 		let tail = data.r().wrapping_add(elts);
 		assert!(
 			tail >= data.r(),
@@ -465,10 +458,10 @@ where T: BitStore {
 	/// [`::new`]: #method.new
 	pub(crate) unsafe fn new_unchecked(
 		data: impl Into<Pointer<T>>,
-		head: impl Into<BitIdx>,
+		head: impl Into<u8>,
 		bits: usize,
 	) -> Self {
-		let (data, head) = (data.into(), *head.into() as usize);
+		let (data, head) = (data.into(), head.into() as usize);
 
 		let ptr_data = data.u() & Self::PTR_DATA_MASK;
 		let ptr_head = head >> Self::LEN_HEAD_BITS;
@@ -541,11 +534,11 @@ where T: BitStore {
 	/// A `BitIdx` that is the index of the first live bit in the first element.
 	/// This will be in the domain `0 .. T::BITS`.
 	#[inline]
-	pub fn head(&self) -> BitIdx {
+	pub fn head(&self) -> BitIdx<T> {
 		let ptr = self.ptr.as_ptr() as usize;
 		let ptr_head = (ptr & Self::PTR_HEAD_MASK) << Self::LEN_HEAD_BITS;
 		let len_head = self.len & Self::LEN_HEAD_MASK;
-		((ptr_head | len_head) as u8).into()
+		((ptr_head | len_head) as u8).idx()
 	}
 
 	/// Counts how many bits are in the domain of a `BitPtr` slice.
@@ -594,7 +587,7 @@ where T: BitStore {
 	/// - `.1: BitIdx`: The index of the first live bit in the bit region.
 	/// - `.2: usize`: The number of live bits in the bit region.
 	#[inline]
-	pub(crate) fn raw_parts(&self) -> (Pointer<T>, BitIdx, usize) {
+	pub(crate) fn raw_parts(&self) -> (Pointer<T>, BitIdx<T>, usize) {
 		(self.pointer(), self.head(), self.len())
 	}
 
@@ -613,7 +606,7 @@ where T: BitStore {
 	/// This size must be valid in the user’s memory model and allocation
 	/// regime.
 	pub fn elements(&self) -> usize {
-		self.head().span::<T>(self.len()).0
+		self.head().span(self.len()).0
 	}
 
 	/// Extracts the element cursor of the first dead bit *after* the tail bit.
@@ -624,30 +617,40 @@ where T: BitStore {
 	///
 	/// # Returns
 	///
-	/// A `BitIdx` that is the index of the first dead bit after the last live
-	/// bit in the last element. This will be in the domain `1 ..= T::BITS`.
+	/// A `TailIdx` that is the index of the first dead bit after the last live
+	/// bit in the last element. When the pointer is to an empty span, this is
+	/// `0`, otherwise, this is in the domain `1 ..= T::BITS`.
 	#[inline]
-	pub fn tail(&self) -> BitIdx {
+	pub fn tail(&self) -> TailIdx<T> {
 		/*
-		 * This function is one of the most-used in the library. As such, its
-		 * implementation is written in a straight linear style. The compiler is
-		 * free to rearrange the code as it sees fit, and may not reflect the
-		 * code below. The equivalent, user-friendly function body is:
-		 *
-		 * if self.is_empty() {
-		 * 	return 0.into();
-		 * }
-		 * let bits = (self.len & Self::LEN_TAIL_MASK) >> Self::LEN_HEAD_BITS;
-		 * if bits == 0 { T::BITS } else { bits as u8 }.into()
-		 */
+		This function is used in `BitVec::push` and expects to have a high call
+		count. As such, its implementation is written in a straight linear
+		style. The compiler is free to rearrange the code as it sees fit, and
+		may not reflect the code below. The equivalent, reader-friendly function
+		body is:
+
+		match self.len & !Self::LEN_HEAD_MASK {
+			0 => 0,
+			len => {
+				let head = *self.head() as usize;
+				let mask = T::MASK as usize;
+				match (head + (len >> Self::LEN_HEAD_BITS)) & mask {
+					0 => T::BITS,
+					t => t as u8,
+				}
+			},
+		}.into()
+
+		See https://rust.godbolt.org/z/guyZBq for a minimal reproduction
+		*/
 
 		//  Compute the in-element tail index as the head plus the length, with
 		//  the modulus of the element width.
 		let tail = (*self.head() as usize + self.len()) & T::MASK as usize;
 		//  If the tail’s bit pattern is zero, wrap it to the maximal. This
 		//  upshifts `1` (pattern is zero) or `0` (pattern is not), then
-		//  sets the upshift bit on the pattern.
-		((((tail == 0) as u8) << T::INDX) | tail as u8).into()
+		//  sets the upshifted bit on the pattern.
+		((((tail == 0) as u8) << T::INDX) | tail as u8).tail_idx()
 	}
 
 	/// Checks if the pointer represents the empty slice.
@@ -698,7 +701,7 @@ where T: BitStore {
 	///
 	/// - `'a`: Lifetime for which the data behind the pointer is live.
 	pub fn as_slice<'a>(&self) -> &'a [T] {
-		unsafe { slice::from_raw_parts(self.pointer().r, self.elements()) }
+		unsafe { slice::from_raw_parts(self.pointer().r(), self.elements()) }
 	}
 
 	/// Accesses the element slice behind the pointer as a Rust mutable slice.
@@ -715,7 +718,9 @@ where T: BitStore {
 	///
 	/// - `'a`: Lifetime for which the data behind the pointer is live.
 	pub fn as_mut_slice<'a>(&self) -> &'a mut [T] {
-		unsafe { slice::from_raw_parts_mut(self.pointer().w, self.elements()) }
+		unsafe {
+			slice::from_raw_parts_mut(self.pointer().w(), self.elements())
+		}
 	}
 
 	/// Gets the domain kind for the region the pointer describes.
@@ -931,7 +936,7 @@ where T: BitStore {
 			}
 		}
 
-		struct BinAddr<T: BitStore>(BitIdx, PhantomData<T>);
+		struct BinAddr<T: BitStore>(BitIdx<T>, PhantomData<T>);
 		impl<T: BitStore>  Debug for BinAddr<T> {
 			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 				write!(f, "0b{:0>1$b}", *self.0, T::INDX as usize)
@@ -975,6 +980,7 @@ mod tests {
 		assert_eq!(BitPtr::<u32>::PTR_HEAD_MASK, 3);
 	}
 
+	#[cfg(target_pointer_width = "64")]
 	#[test]
 	fn associated_consts_u64() {
 		assert_eq!(BitPtr::<u64>::PTR_HEAD_BITS, 3);

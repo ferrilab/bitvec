@@ -91,7 +91,7 @@ All access uses [`Relaxed`] ordering.
 #[cfg_attr(feature = "std", doc = "[`Relaxed`]: https://doc.rust-lang.org/stable/std/sync/atomic/enum.Ordering.html#variant.Relaxed")]
 pub trait Atomic: Sized {
 	/// Defines the underlying fundamental type that this trait is wrapping.
-	type Fundamental: Sized;
+	type Fundamental: BitStore;
 
 	/// Sets the bit at some position to `0`.
 	///
@@ -100,7 +100,7 @@ pub trait Atomic: Sized {
 	/// - `&self`: This is able to be immutable, rather than mutable, because
 	///   the atomic type is a `Cell`-type wrapper.
 	/// - `bit`: The position in the element to set low.
-	fn clear(&self, bit: BitPos);
+	fn clear(&self, bit: BitPos<Self::Fundamental>);
 
 	/// Sets the bit at some position to `1`.
 	///
@@ -108,7 +108,7 @@ pub trait Atomic: Sized {
 	///
 	/// - `&self`
 	/// - `bit`: The position in the element to set high.
-	fn set(&self, bit: BitPos);
+	fn set(&self, bit: BitPos<Self::Fundamental>);
 
 	/// Inverts the bit at some position.
 	///
@@ -116,7 +116,7 @@ pub trait Atomic: Sized {
 	///
 	/// - `&self`
 	/// - `bit`: The position in the element to invert.
-	fn invert(&self, bit: BitPos);
+	fn invert(&self, bit: BitPos<Self::Fundamental>);
 
 	/// Gets the element underneath the atomic access.
 	///
@@ -134,17 +134,17 @@ impl Atomic for AtomicU8 {
 	type Fundamental = u8;
 
 	#[inline(always)]
-	fn clear(&self, bit: BitPos) {
+	fn clear(&self, bit: BitPos<Self::Fundamental>) {
 		self.fetch_and(!<u8 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
-	fn set(&self, bit: BitPos) {
+	fn set(&self, bit: BitPos<Self::Fundamental>) {
 		self.fetch_or(<u8 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
-	fn invert(&self, bit: BitPos) {
+	fn invert(&self, bit: BitPos<Self::Fundamental>) {
 		self.fetch_xor(<u8 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
@@ -158,17 +158,17 @@ impl Atomic for AtomicU16 {
 	type Fundamental = u16;
 
 	#[inline(always)]
-	fn clear(&self, bit: BitPos) {
+	fn clear(&self, bit: BitPos<Self::Fundamental>) {
 		self.fetch_and(!<u16 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
-	fn set(&self, bit: BitPos) {
+	fn set(&self, bit: BitPos<Self::Fundamental>) {
 		self.fetch_or(<u16 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
-	fn invert(&self, bit: BitPos) {
+	fn invert(&self, bit: BitPos<Self::Fundamental>) {
 		self.fetch_xor(<u16 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
@@ -182,17 +182,17 @@ impl Atomic for AtomicU32 {
 	type Fundamental = u32;
 
 	#[inline(always)]
-	fn clear(&self, bit: BitPos) {
+	fn clear(&self, bit: BitPos<Self::Fundamental>) {
 		self.fetch_and(!<u32 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
-	fn set(&self, bit: BitPos) {
+	fn set(&self, bit: BitPos<Self::Fundamental>) {
 		self.fetch_or(<u32 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
-	fn invert(&self, bit: BitPos) {
+	fn invert(&self, bit: BitPos<Self::Fundamental>) {
 		self.fetch_xor(<u32 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
@@ -207,17 +207,17 @@ impl Atomic for AtomicU64 {
 	type Fundamental = u64;
 
 	#[inline(always)]
-	fn clear(&self, bit: BitPos) {
+	fn clear(&self, bit: BitPos<Self::Fundamental>) {
 		self.fetch_and(!<u64 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
-	fn set(&self, bit: BitPos) {
+	fn set(&self, bit: BitPos<Self::Fundamental>) {
 		self.fetch_or(<u64 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
-	fn invert(&self, bit: BitPos) {
+	fn invert(&self, bit: BitPos<Self::Fundamental>) {
 		self.fetch_xor(<u64 as BitStore>::mask_at(bit), Ordering::Relaxed);
 	}
 
