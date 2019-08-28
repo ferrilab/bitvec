@@ -226,3 +226,73 @@ impl Atomic for AtomicU64 {
 		self.load(Ordering::Relaxed)
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use core::sync::atomic::{
+		AtomicU8,
+		AtomicU16,
+		AtomicU32,
+	};
+
+	#[cfg(target_pointer_width = "64")]
+	use core::sync::atomic::AtomicU64;
+
+	#[test]
+	fn atomic_u8() {
+		let atom = AtomicU8::new(0);
+
+		Atomic::set(&atom, BitPos::new(0));
+		assert_eq!(Atomic::get(&atom), 1);
+
+		Atomic::clear(&atom, BitPos::new(0));
+		assert_eq!(Atomic::get(&atom), 0);
+
+		Atomic::invert(&atom, BitPos::new(1));
+		assert_eq!(Atomic::get(&atom), 2);
+	}
+
+	#[test]
+	fn atomic_u16() {
+		let atom = AtomicU16::new(0);
+
+		Atomic::set(&atom, BitPos::new(0));
+		assert_eq!(Atomic::get(&atom), 1);
+
+		Atomic::clear(&atom, BitPos::new(0));
+		assert_eq!(Atomic::get(&atom), 0);
+
+		Atomic::invert(&atom, BitPos::new(1));
+		assert_eq!(Atomic::get(&atom), 2);
+	}
+
+	#[test]
+	fn atomic_u32() {
+		let atom = AtomicU32::new(0);
+
+		Atomic::set(&atom, BitPos::new(0));
+		assert_eq!(Atomic::get(&atom), 1);
+
+		Atomic::clear(&atom, BitPos::new(0));
+		assert_eq!(Atomic::get(&atom), 0);
+
+		Atomic::invert(&atom, BitPos::new(1));
+		assert_eq!(Atomic::get(&atom), 2);
+	}
+
+	#[cfg(target_pointer_width = "64")]
+	#[test]
+	fn atomic_u64() {
+		let atom = AtomicU64::new(0);
+
+		Atomic::set(&atom, BitPos::new(0));
+		assert_eq!(Atomic::get(&atom), 1);
+
+		Atomic::clear(&atom, BitPos::new(0));
+		assert_eq!(Atomic::get(&atom), 0);
+
+		Atomic::invert(&atom, BitPos::new(1));
+		assert_eq!(Atomic::get(&atom), 2);
+	}
+}

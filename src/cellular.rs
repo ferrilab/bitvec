@@ -185,3 +185,65 @@ impl Cellular for Cell<u64> {
 		self.get()
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn cell_u8() {
+		let cell = Cell::<u8>::new(0);
+
+		Cellular::set(&cell, BitPos::new(0));
+		assert_eq!(Cellular::get(&cell), 1);
+
+		Cellular::clear(&cell, BitPos::new(0));
+		assert_eq!(Cellular::get(&cell), 0);
+
+		Cellular::invert(&cell, BitPos::new(1));
+		assert_eq!(Cellular::get(&cell), 2);
+	}
+
+	#[test]
+	fn cell_u16() {
+		let cell = Cell::<u16>::new(0);
+
+		Cellular::set(&cell, BitPos::new(0));
+		assert_eq!(Cellular::get(&cell), 1);
+
+		Cellular::clear(&cell, BitPos::new(0));
+		assert_eq!(Cellular::get(&cell), 0);
+
+		Cellular::invert(&cell, BitPos::new(1));
+		assert_eq!(Cellular::get(&cell), 2);
+	}
+
+	#[test]
+	fn cell_u32() {
+		let cell = Cell::<u32>::new(0);
+
+		Cellular::set(&cell, BitPos::new(0));
+		assert_eq!(Cellular::get(&cell), 1);
+
+		Cellular::clear(&cell, BitPos::new(0));
+		assert_eq!(Cellular::get(&cell), 0);
+
+		Cellular::invert(&cell, BitPos::new(1));
+		assert_eq!(Cellular::get(&cell), 2);
+	}
+
+	#[cfg(target_pointer_width = "64")]
+	#[test]
+	fn cell_u64() {
+		let cell = Cell::<u64>::new(0);
+
+		Cellular::set(&cell, BitPos::new(0));
+		assert_eq!(Cellular::get(&cell), 1);
+
+		Cellular::clear(&cell, BitPos::new(0));
+		assert_eq!(Cellular::get(&cell), 0);
+
+		Cellular::invert(&cell, BitPos::new(1));
+		assert_eq!(Cellular::get(&cell), 2);
+	}
+}
