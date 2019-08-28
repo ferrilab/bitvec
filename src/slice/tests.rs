@@ -181,7 +181,7 @@ fn split_first() {
 	assert!(BitSlice::<BigEndian, u8>::empty().split_first().is_none());
 
 	let elt = 129u8;
-	let bs = BitSlice::<BigEndian, u8>::from_element(&elt);
+	let bs = BitSlice::<BigEndian, _>::from_element(&elt);
 	let (head, rest) = bs.split_first().unwrap();
 	assert!(head);
 	assert!(rest[6]);

@@ -57,15 +57,16 @@ where T: BitStore {
 	}
 }
 
-/// Representations of the state of the bit domain in its containing elements.
-///
-/// # Lifetimes
-///
-/// - `'a`: Lifetime of the containing storage
-///
-/// # Type Parameters
-///
-/// - `T: BitStore` The type of the elements the domain inhabits.
+/** Representations of the state of the bit domain in its containing elements.
+
+# Lifetimes
+
+- `'a`: Lifetime of the containing storage
+
+# Type Parameters
+
+- `T` The type of the elements the domain inhabits.
+**/
 #[derive(Clone, Debug)]
 pub enum BitDomain<'a, T>
 where T: 'a + BitStore {
@@ -182,15 +183,16 @@ where T: 'a + BitStore {
 	}
 }
 
-/// Representations of the state of the bit domain in its containing elements.
-///
-/// # Lifetimes
-///
-/// - `'a`: Lifetime of the containing storage
-///
-/// # Type Parameters
-///
-/// - `T: BitStore` The type of the elements the domain inhabits.
+/** Representations of the state of the bit domain in its containing elements.
+
+# Lifetimes
+
+- `'a`: Lifetime of the containing storage
+
+# Type Parameters
+
+- `T` The type of the elements the domain inhabits.
+**/
 #[derive(Debug)]
 pub enum BitDomainMut<'a, T>
 where T: 'a + BitStore {

@@ -5,9 +5,12 @@ called during `BitVec::reserve` using the *tail* of the vector, which at the
 boundary, is a valid tail but not a valid head.
 
 This is a regression.
+
+NOTE: Reorganization of the `store` module renders this test obsolete. It may be
+safely removed.
 !*/
 
-#![cfg(any(feature = "alloc", feature = "std"))]
+#![cfg(feature = "alloc")]
 
 use bitvec::prelude::*;
 

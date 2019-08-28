@@ -51,7 +51,7 @@ pub trait Bits {
 	///
 	/// # Type Parameters
 	///
-	/// - `C: Cursor`: The `Cursor` type used to index within the slice.
+	/// - `C`: The `Cursor` type used to index within the slice.
 	///
 	/// # Parameters
 	///
@@ -87,7 +87,7 @@ pub trait BitsMut: Bits {
 	///
 	/// # Type Parameters
 	///
-	/// - `C: Cursor`: The `Cursor` type used to index within the slice.
+	/// - `C`: The `Cursor` type used to index within the slice.
 	///
 	/// # Parameters
 	///

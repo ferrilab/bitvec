@@ -22,25 +22,10 @@ use crate::{
 };
 
 #[cfg(feature = "alloc")]
-use {
-	crate::vec::BitVec,
-	alloc::borrow::ToOwned,
-};
+use crate::vec::BitVec;
 
 use core::{
-	cmp::{
-		Eq,
-		Ord,
-		Ordering,
-		PartialEq,
-		PartialOrd,
-	},
-	convert::{
-		AsMut,
-		AsRef,
-		From,
-	},
-	default::Default,
+	cmp,
 	fmt::{
 		self,
 		Debug,
@@ -52,17 +37,8 @@ use core::{
 		Hash,
 		Hasher,
 	},
-	iter::{
-		DoubleEndedIterator,
-		ExactSizeIterator,
-		FusedIterator,
-		Iterator,
-		IntoIterator,
-	},
-	marker::{
-		PhantomData,
-		Sync,
-	},
+	iter::FusedIterator,
+	marker::PhantomData,
 	mem,
 	ops::{
 		AddAssign,
@@ -71,7 +47,6 @@ use core::{
 		BitXorAssign,
 		Deref,
 		DerefMut,
-		Drop,
 		Index,
 		IndexMut,
 		Neg,
@@ -88,9 +63,6 @@ use core::{
 	ptr,
 	str,
 };
-
-#[cfg(feature = "atomic")]
-use core::marker::Send;
 
 /** A compact slice of bits, whose cursor and storage types can be customized.
 
@@ -141,12 +113,12 @@ assert_eq!(base[1], 4);
 
 # Type Parameters
 
-- `C: Cursor`: An implementor of the `Cursor` trait. This type is used to
-  convert semantic indices into concrete bit positions in elements, and store or
+- `C`: An implementor of the `Cursor` trait. This type is used to convert
+  semantic indices into concrete bit positions in elements, and store or
   retrieve bit values from the storage type.
-- `T: BitStore`: An implementor of the `BitStore` trait: `u8`, `u16`, `u32`, or
-  `u64` (64-bit systems only). This is the actual type in memory that the slice
-  will use to store data.
+- `T`: An implementor of the `BitStore` trait: `u8`, `u16`, `u32`, or `u64`
+  (64-bit systems only). This is the actual type in memory that the slice will
+  use to store data.
 
 # Safety
 
@@ -183,6 +155,12 @@ where C: Cursor, T: BitStore {
 	///
 	/// An empty `&BitSlice` handle.
 	///
+	/// # Lifetimes
+	///
+	/// The lifetime is dictated by the bind site into which the slice is
+	/// returned. As empty slices are essentially statics, and can never refer
+	/// to data, this is not a soundness hole.
+	///
 	/// # Examples
 	///
 	/// ```rust
@@ -201,6 +179,12 @@ where C: Cursor, T: BitStore {
 	///
 	/// An empty `&mut BitSlice` handle.
 	///
+	/// # Lifetimes
+	///
+	/// The lifetime is dictated by the bind site into which the slice is
+	/// returned. As empty slices are essentially statics, and can never refer
+	/// to data, this is not a soundness hole.
+	///
 	/// # Examples
 	///
 	/// ```rust
@@ -212,10 +196,14 @@ where C: Cursor, T: BitStore {
 		BitPtr::empty().into_bitslice_mut()
 	}
 
-	/// Produces an immutable `BitSlice` over a single element.
+	/// Produces an immutable `BitSlice` reference over a single element.
 	///
 	/// This is a reference transformation: the `&BitSlice` constructed by this
 	/// method will govern the element referred to by the reference parameter.
+	///
+	/// The cursor must be specified at the call site. The element type cannot
+	/// be changed. The [`Bits::as_bitslice`] method performs the same operation
+	/// and may be easier to call.
 	///
 	/// # Parameters
 	///
@@ -235,13 +223,19 @@ where C: Cursor, T: BitStore {
 	/// let bs: &BitSlice = BitSlice::from_element(&elt);
 	/// assert_eq!(bs.as_ptr(), &elt);
 	/// ```
+	///
+	/// [`Bits::as_bitslice`]: ../bits/trait.Bits.html#tymethod.as_bitslice
 	pub fn from_element(elt: &T) -> &Self {
 		unsafe {
 			BitPtr::new_unchecked(elt, 0, T::BITS as usize)
 		}.into_bitslice()
 	}
 
-	/// Produces a mutable `BitSlice` over a single element.
+	/// Produces a mutable `BitSlice` reference over a single element.
+	///
+	/// The cursor must be specified at the call site. The element type cannot
+	/// be changed. The [`BitsMut::as_mut_bitslice`] method performs the same
+	/// operation and may be easier to call.
 	///
 	/// # Parameters
 	///
@@ -266,13 +260,15 @@ where C: Cursor, T: BitStore {
 	/// assert!(bs.any());
 	/// assert_eq!(elt, 128);
 	/// ```
+	///
+	/// [`BitsMut::as_mut_bitslice`]: ../bits/trait.BitsMut.html#tymethod.as_mut_bitslice
 	pub fn from_element_mut(elt: &mut T) -> &mut Self {
 		unsafe {
 			BitPtr::new_unchecked(elt, 0, T::BITS as usize)
 		}.into_bitslice_mut()
 	}
 
-	/// Wraps a `&[T: BitStore]` slice reference in a `&BitSlice<C: Cursor, T>`.
+	/// Wraps a `&[T]` slice reference in a `&BitSlice<C, T>`.
 	///
 	/// The cursor must be specified at the call site. The element type cannot
 	/// be changed. The [`Bits::as_bitslice`] method performs the same operation
@@ -284,7 +280,13 @@ where C: Cursor, T: BitStore {
 	///
 	/// # Returns
 	///
-	/// A `BitSlice` representing the original element slice.
+	/// A `&BitSlice` reference spanning the provided slice.
+	///
+	/// # Edge Cases
+	///
+	/// If `src` is exactly the maximum number of elements that a bit slice can
+	/// possibly represent, then the slice will be constructed, but it will not
+	/// be able to address the final bit.
 	///
 	/// # Panics
 	///
@@ -312,18 +314,23 @@ where C: Cursor, T: BitStore {
 		let len = slice.len();
 		assert!(
 			len <= BitPtr::<T>::MAX_ELTS,
-			"BitSlice cannot address {} elements",
+			"BitSlice cannot address {} full elements",
 			len,
 		);
-		let bits = len.checked_mul(T::BITS as usize)
-			.expect("Bit length out of range");
-		BitPtr::new(slice.as_ptr(), 0, bits).into_bitslice()
+		//  This shift will never overflow, because `BitPtr::MAX_ELTS`
+		//  constrains `len` to be `(!0 >> (3 + T::INDX)) + 1`, so upshifting
+		//  back up by `T::INDX` is infallible.
+		let bits = len << (T::INDX as usize);
+		//  However, at `MAX_ELTS`, `bits` overflows `MAX_INDX`, and must be
+		//  clamped.
+		BitPtr::new(slice.as_ptr(), 0, cmp::min(bits, BitPtr::<T>::MAX_INDX))
+			.into_bitslice()
 	}
 
-	/// Wraps a `&mut [T: BitStore]` in a `&mut BitSlice<C: Cursor, T>`.
+	/// Wraps a `&mut [T]` in a `&mut BitSlice<C, T>`.
 	///
 	/// The cursor must be specified at the call site. The element type cannot
-	/// be changed. The [`Bits::as_mut_bitslice`] method performs the same
+	/// be changed. The [`BitsMut::as_mut_bitslice`] method performs the same
 	/// operation and may be easier to call.
 	///
 	/// # Parameters
@@ -332,7 +339,13 @@ where C: Cursor, T: BitStore {
 	///
 	/// # Returns
 	///
-	/// A `BitSlice` representing the original element slice.
+	/// A `&mut BitSlice` reference spanning the provided slice.
+	///
+	/// # Edge Cases
+	///
+	/// If `src` is exactly the maximum number of elements that a bit slice can
+	/// possibly represent, then the slice will be constructed, but it will not
+	/// be able to address the final bit.
 	///
 	/// # Panics
 	///
@@ -354,7 +367,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	///
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
-	/// [`Bits::as_mut_bitslice`]: ../bits/trait.Bits.html#tymethod.as_mut_bitslice
+	/// [`BitsMut::as_mut_bitslice`]: ../bits/trait.BitsMut.html#tymethod.as_mut_bitslice
 	pub fn from_slice_mut(slice: &mut [T]) -> &mut Self {
 		Self::from_slice(slice).bitptr().into_bitslice_mut()
 	}
@@ -464,6 +477,9 @@ where C: Cursor, T: BitStore {
 		if self.is_empty() {
 			return None;
 		}
+		//  Implementation note: `incr_head` is faster than going through the
+		//  `Index<Range<_>>` implementations, which are required to perform
+		//  bounds checks.
 		Some((self[0], unsafe { self.bitptr().incr_head() }.into_bitslice()))
 	}
 
@@ -986,12 +1002,18 @@ where C: Cursor, T: BitStore {
 			if len < 2 {
 				return;
 			}
-			//  swap() has two assertions on each call, that reverse() knows it
-			//  can bypass
-			let (h, t) = (cur[0], cur[len - 1]);
-			cur.set(0, t);
-			cur.set(len - 1, h);
-			cur = &mut cur[1 .. len - 1];
+			//  At this point in the loop body, the indices are known to be good
+			//  and can have their bounds checks completely elided.
+			let end = len - 1;
+			unsafe {
+				//  Access the bits
+				let (h, t) = (cur.get_unchecked(0), cur.get_unchecked(end));
+				//  Set the bits
+				cur.set_unchecked(0, t);
+				cur.set_unchecked(end, h);
+				//  Shrink the slice.
+				cur = cur.bitptr().incr_head().decr_tail().into_bitslice_mut();
+			}
 		}
 	}
 
@@ -1111,7 +1133,8 @@ where C: Cursor, T: BitStore {
 	///
 	/// # Parameters
 	///
-	/// - `&mut self`
+	/// - `&mut self`: The produced iterator locks this bitslice until the
+	///   iterator is destroyed, as each chunk has write access to it.
 	/// - `size`: The width of each chunk.
 	///
 	/// # Returns
@@ -1153,7 +1176,8 @@ where C: Cursor, T: BitStore {
 	/// # Parameters
 	///
 	/// - `&self`
-	/// - `size`: The width of each chunk.
+	/// - `size`: The width of each chunk. The iterator will never produce
+	///   subslices narrower than this width.
 	///
 	/// # Returns
 	///
@@ -1195,8 +1219,10 @@ where C: Cursor, T: BitStore {
 	///
 	/// # Parameters
 	///
-	/// - `&mut self`
-	/// - `size`: The width of each chunk.
+	/// - `&mut self`: The produced iterator locks this bitslice until the
+	///   iterator is destroyed, as each chunk has write access to it.
+	/// - `size`: The width of each chunk. The iterator will never produce
+	///   subslices narrower than this width.
 	///
 	/// # Returns
 	///
@@ -1280,7 +1306,8 @@ where C: Cursor, T: BitStore {
 	///
 	/// # Parameters
 	///
-	/// - `&mut self`
+	/// - `&mut self`: The produced iterator locks this bitslice until the
+	///   iterator is destroyed, as each chunk has write access to it.
 	/// - `size`: The width of each chunk.
 	///
 	/// # Returns
@@ -1325,7 +1352,8 @@ where C: Cursor, T: BitStore {
 	/// # Parameters
 	///
 	/// - `&self`
-	/// - `size`: The width of each chunk.
+	/// - `size`: The width of each chunk. The iterator will never produce
+	///   subslices narrower than this width.
 	///
 	/// # Returns
 	///
@@ -1367,8 +1395,10 @@ where C: Cursor, T: BitStore {
 	///
 	/// # Parameters
 	///
-	/// - `&mut self`
-	/// - `size`: The width of each chunk.
+	/// - `&mut self`: The produced iterator locks this bitslice until the
+	///   iterator is destroyed, as each chunk has write access to it.
+	/// - `size`: The width of each chunk. The iterator will never produce
+	///   subslices narrower than this width.
 	///
 	/// # Returns
 	///
@@ -2117,12 +2147,12 @@ where C: Cursor, T: BitStore {
 	///
 	/// - `&mut self`: The addition uses `self` as one addend, and writes the
 	///   sum back into `self`.
-	/// - `addend: impl IntoIterator<Item=bool>`: A stream of bits. When this is
-	///   another `BitSlice`, iteration proceeds from left to right.
+	/// - `addend`: A stream of bits. When this is another `BitSlice`, iteration
+	///   proceeds from left to right.
 	///
 	/// # Return
 	///
-	/// The final carry bit is returned
+	/// The final carry bit is returned as the carry-out signal.
 	///
 	/// # Effects
 	///
@@ -2161,15 +2191,17 @@ where C: Cursor, T: BitStore {
 	/// element-wise or vectorized addition operations.
 	///
 	/// If your use case sincerely needs binary-integer arithmetic operations on
-	/// bit sets
+	/// bit sets, you should probably use a crate that directly targets that
+	/// behavior.
 	///
 	/// [ripple-carry adder]: https://en.wikipedia.org/wiki/Ripple-carry_adder
 	pub fn add_assign_reverse<I>(&mut self, addend: I) -> bool
 	where I: IntoIterator<Item=bool> {
+		use core::iter;
 		//  See AddAssign::add_assign for algorithm details
 		let mut c = false;
 		let len = self.len();
-		let zero = core::iter::repeat(false);
+		let zero = iter::repeat(false);
 		for (i, b) in addend.into_iter().chain(zero).enumerate().take(len) {
 			//  The iterator is clamped to the upper bound of `self`.
 			let a = unsafe { self.get_unchecked(i) };
@@ -2224,9 +2256,9 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let src = [0u8; 3];
+	/// let src = [0u8, 1, 2];
 	/// let bits = &src.as_bitslice::<BigEndian>()[4 .. 20];
-	/// assert_eq!(bits.as_slice().len(), 1);
+	/// assert_eq!(bits.as_slice(), &[1]);
 	/// ```
 	pub fn as_slice(&self) -> &[T] {
 		match self.bitptr().domain() {
@@ -2345,7 +2377,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// # Type Parameters
 	///
-	/// - `D: Cursor` The new cursor type to use for the handle.
+	/// - `D`: The new cursor type to use for the handle.
 	///
 	/// # Examples
 	///
@@ -2375,7 +2407,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// # Type Parameters
 	///
-	/// - `D: Cursor` The new cursor type to use for the handle.
+	/// - `D` The new cursor type to use for the handle.
 	///
 	/// # Examples
 	///
@@ -2441,18 +2473,19 @@ where C: Cursor, T: BitStore {}
 
 impl<C, T> Ord for BitSlice<C, T>
 where C: Cursor, T: BitStore {
-	fn cmp(&self, rhs: &Self) -> Ordering {
+	fn cmp(&self, rhs: &Self) -> cmp::Ordering {
 		self.partial_cmp(rhs)
 			.unwrap_or_else(|| unreachable!("`BitSlice` has a total ordering"))
 	}
 }
 
-/// Tests if two `BitSlice`s are semantically — not bitwise — equal.
-///
-/// It is valid to compare two slices of different cursor or element types.
-///
-/// The equality condition requires that they have the same number of total bits
-/// and that each pair of bits in semantic order are identical.
+/** Tests if two `BitSlice`s are semantically — not bitwise — equal.
+
+It is valid to compare two slices of different cursor or element types.
+
+The equality condition requires that they have the same number of total bits and
+that each pair of bits in semantic order are identical.
+**/
 impl<A, B, C, D> PartialEq<BitSlice<C, D>> for BitSlice<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	/// Performas a comparison by `==`.
@@ -2512,14 +2545,15 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	}
 }
 
-/// Compares two `BitSlice`s by semantic — not bitwise — ordering.
-///
-/// The comparison sorts by testing each index for one slice to have a set bit
-/// where the other has a clear bit. If the slices are different, the slice
-/// with the set bit sorts greater than the slice with the clear bit.
-///
-/// If one of the slices is exhausted before they differ, the longer slice is
-/// greater.
+/** Compares two `BitSlice`s by semantic — not bitwise — ordering.
+
+The comparison sorts by testing each index for one slice to have a set bit where
+the other has a clear bit. If the slices are different, the slice with the set
+bit sorts greater than the slice with the clear bit.
+
+If one of the slices is exhausted before they differ, the longer slice is
+greater.
+**/
 impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for BitSlice<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	/// Performs a comparison by `<` or `>`.
@@ -2553,11 +2587,11 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	/// assert!(b < c);
 	/// assert!(c < d);
 	/// ```
-	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<Ordering> {
+	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<cmp::Ordering> {
 		for (l, r) in self.iter().zip(rhs.iter()) {
 			match (l, r) {
-				(true, false) => return Some(Ordering::Greater),
-				(false, true) => return Some(Ordering::Less),
+				(true, false) => return Some(cmp::Ordering::Greater),
+				(false, true) => return Some(cmp::Ordering::Less),
 				_ => continue,
 			}
 		}
@@ -2567,7 +2601,7 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 
 impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for &BitSlice<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
-	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<Ordering> {
+	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<cmp::Ordering> {
 		(*self).partial_cmp(rhs)
 	}
 }
@@ -2575,7 +2609,7 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 #[cfg(feature = "alloc")]
 impl<A, B, C, D> PartialOrd<BitVec<C, D>> for BitSlice<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
-	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<Ordering> {
+	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<cmp::Ordering> {
 		self.partial_cmp(rhs.as_bitslice())
 	}
 }
@@ -2583,13 +2617,14 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 #[cfg(feature = "alloc")]
 impl<A, B, C, D> PartialOrd<BitVec<C, D>> for &BitSlice<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
-	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<Ordering> {
+	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<cmp::Ordering> {
 		(*self).partial_cmp(rhs.as_bitslice())
 	}
 }
 
-/// Provides write access to all elements in the underlying storage, including
-/// the partial head and tail elements if present.
+/** Provides write access to all elements in the underlying storage, including
+the partial head and tail elements if present.
+**/
 impl<C, T> AsMut<[T]> for BitSlice<C, T>
 where C: Cursor, T: BitStore {
 	/// Accesses the underlying store.
@@ -2621,8 +2656,9 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Provides read access to all elements in the underlying storage, including
-/// the partial head and tail elements if present.
+/** Provides read access to all elements in the underlying storage, including
+the partial head and tail elements if present.
+**/
 impl<C, T> AsRef<[T]> for BitSlice<C, T>
 where C: Cursor, T: BitStore {
 	/// Accesses the underlying store.
@@ -2691,16 +2727,17 @@ where C: Cursor, T: 'a + BitStore {
 	}
 }
 
-/// Prints the `BitSlice` for debugging.
-///
-/// The output is of the form `BitSlice<C, T> [ELT, *]` where `<C, T>` is the
-/// cursor and element type, with square brackets on each end of the bits and
-/// all the elements of the array printed in binary. The printout is always in
-/// semantic order, and may not reflect the underlying buffer. To see the
-/// underlying buffer, use `.as_ref()`.
-///
-/// The alternate character `{:#?}` prints each element on its own line, rather
-/// than having all elements on the same line.
+/** Prints the `BitSlice` for debugging.
+
+The output is of the form `BitSlice<C, T> [ELT, *]` where `<C, T>` is the cursor
+and element type, with square brackets on each end of the bits and all the
+elements of the array printed in binary. The printout is always in semantic
+order, and may not reflect the underlying buffer. To see the underlying buffer,
+use `.as_ref()`.
+
+The alternate character `{:#?}` prints each element on its own line, rather than
+having all elements on the same line.
+**/
 impl<C, T> Debug for BitSlice<C, T>
 where C: Cursor, T: BitStore {
 	/// Renders the `BitSlice` type header and contents for debug.
@@ -2729,16 +2766,17 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Prints the `BitSlice` for displaying.
-///
-/// This prints each element in turn, formatted in binary in semantic order (so
-/// the first bit seen is printed first and the last bit seen is printed last).
-/// Each element of storage is separated by a space for ease of reading.
-///
-/// The alternate character `{:#}` prints each element on its own line.
-///
-/// To see the in-memory representation, use `.as_ref()` to get access to the
-/// raw elements and print that slice instead.
+/** Prints the `BitSlice` for displaying.
+
+This prints each element in turn, formatted in binary in semantic order (so the
+first bit seen is printed first and the last bit seen is printed last). Each
+element of storage is separated by a space for ease of reading.
+
+The alternate character `{:#}` prints each element on its own line.
+
+To see the in-memory representation, use `.as_ref()` to get access to the raw
+elements and print that slice instead.
+**/
 impl<C, T> Display for BitSlice<C, T>
 where C: Cursor, T: BitStore {
 	/// Renders the `BitSlice` contents for display.
@@ -2844,8 +2882,8 @@ where C: Cursor, T: BitStore {
 	///
 	/// # Type Parameters
 	///
-	/// - `H: Hasher`: The type of the hashing algorithm which receives the bits
-	///   of `self`.
+	/// - `H`: The type of the hashing algorithm which receives the bits of
+	///   `self`.
 	fn hash<H>(&self, hasher: &mut H)
 	where H: Hasher {
 		for bit in self {
@@ -2854,11 +2892,12 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Produces a read-only iterator over all the bits in the `BitSlice`.
-///
-/// This iterator follows the ordering in the `BitSlice` type, and implements
-/// `ExactSizeIterator` as `BitSlice` has a known, fixed, length, and
-/// `DoubleEndedIterator` as it has known ends.
+/** Produces a read-only iterator over all the bits in the `BitSlice`.
+
+This iterator follows the ordering in the `BitSlice` type, and implements
+`ExactSizeIterator` as `BitSlice` has a known, fixed, length, and
+`DoubleEndedIterator` as it has known ends.
+**/
 impl<'a, C, T> IntoIterator for &'a BitSlice<C, T>
 where C: Cursor, T: 'a + BitStore {
 	type Item = bool;
@@ -2893,35 +2932,36 @@ where C: Cursor, T: 'a + BitStore {
 	}
 }
 
-/// `BitSlice` is safe to move across thread boundaries, when atomic operations
-/// are enabled.
-///
-/// Consider this (contrived) example:
-///
-/// ```rust
-/// # #[cfg(feature = "std")] {
-/// use bitvec::prelude::*;
-/// use std::thread;
-///
-/// static mut SRC: u8 = 0;
-/// # {
-/// let bits = unsafe { SRC.as_mut_bitslice::<BigEndian>() };
-/// let (l, r) = bits.split_at_mut(4);
-///
-/// let a = thread::spawn(move || l.set(2, true));
-/// let b = thread::spawn(move || r.set(2, true));
-/// a.join();
-/// b.join();
-/// # }
-///
-/// println!("{:02X}", unsafe { SRC });
-/// # }
-/// ```
-///
-/// Without atomic operations, this is logically a data race. It *so happens*
-/// that, on x86, the read/modify/write cycles used in the crate are *basically*
-/// atomic by default, even when not specified as such. This is not necessarily
-/// true on other architectures, however
+/** `BitSlice` is safe to move across thread boundaries, when atomic operations
+ are enabled.
+
+Consider this (contrived) example:
+
+```rust
+# #[cfg(feature = "std")] {
+use bitvec::prelude::*;
+use std::thread;
+
+static mut SRC: u8 = 0;
+# {
+let bits = unsafe { SRC.as_mut_bitslice::<BigEndian>() };
+let (l, r) = bits.split_at_mut(4);
+
+let a = thread::spawn(move || l.set(2, true));
+let b = thread::spawn(move || r.set(2, true));
+a.join();
+b.join();
+# }
+
+println!("{:02X}", unsafe { SRC });
+# }
+```
+
+Without atomic operations, this is logically a data race. It *so happens*
+that, on x86, the read/modify/write cycles used in the crate are *basically*
+atomic by default, even when not specified as such. This is not necessarily
+true on other architectures, however
+**/
 #[cfg(feature = "atomic")]
 unsafe impl<C, T> Send for BitSlice<C, T>
 where C: Cursor, T: BitStore {}
@@ -2930,27 +2970,27 @@ where C: Cursor, T: BitStore {}
 unsafe impl<C, T> Sync for BitSlice<C, T>
 where C: Cursor, T: BitStore {}
 
-/// Performs unsigned addition in place on a `BitSlice`.
-///
-/// If the addend bitstream is shorter than `self`, the addend is zero-extended
-/// at the left (so that its final bit matches with `self`’s final bit). If the
-/// addend is longer, the excess front length is unused.
-///
-/// Addition proceeds from the right ends of each slice towards the left.
-/// Because this trait is forbidden from returning anything, the final carry-out
-/// bit is discarded.
-///
-/// Note that, unlike `BitVec`, there is no subtraction implementation until I
-/// find a subtraction algorithm that does not require modifying the subtrahend.
-///
-/// Subtraction can be implemented by negating the intended subtrahend yourself
-/// and then using addition, or by using `BitVec`s instead of `BitSlice`s.
-///
-/// # Type Parameters
-///
-/// - `I: IntoIterator<Item=bool, IntoIter: DoubleEndedIterator>`: The bitstream
-///   to add into `self`. It must be finite and double-ended, since addition
-///   operates in reverse.
+/** Performs unsigned addition in place on a `BitSlice`.
+
+If the addend bitstream is shorter than `self`, the addend is zero-extended at
+the left (so that its final bit matches with `self`’s final bit). If the addend
+is longer, the excess front length is unused.
+
+Addition proceeds from the right ends of each slice towards the left. Because
+this trait is forbidden from returning anything, the final carry-out bit is
+discarded.
+
+Note that, unlike `BitVec`, there is no subtraction implementation until I find
+a subtraction algorithm that does not require modifying the subtrahend.
+
+Subtraction can be implemented by negating the intended subtrahend yourself and
+then using addition, or by using `BitVec`s instead of `BitSlice`s.
+
+# Type Parameters
+
+- `I`: The bitstream to add into `self`. It must be finite and double-ended,
+  since addition operates in reverse.
+**/
 impl<C, T, I> AddAssign<I> for BitSlice<C, T>
 where C: Cursor, T: BitStore,
 	I: IntoIterator<Item=bool>, I::IntoIter: DoubleEndedIterator {
@@ -2976,12 +3016,11 @@ where C: Cursor, T: BitStore,
 	//  pretty standard mathematical notation in EE.
 	#[allow(clippy::many_single_char_names)]
 	fn add_assign(&mut self, addend: I) {
-		use core::iter::repeat;
+		use core::iter;
 
 		//  I don't, at this time, want to implement a carry-lookahead adder in
 		//  software, so this is going to be a plain ripple-carry adder with
-		//  O(n) runtime. Furthermore, until I think of an optimization
-		//  strategy, it is going to build up another bitvec to use as a stack.
+		//  O(n) runtime.
 		//
 		//  Computers are fast. Whatever.
 		let mut c = false;
@@ -2992,7 +3031,7 @@ where C: Cursor, T: BitStore,
 		//  100111
 		// +  0010
 		//  ^^---- semantically zero
-		let addend_iter = addend.into_iter().rev().chain(repeat(false));
+		let addend_iter = addend.into_iter().rev().chain(iter::repeat(false));
 		for (i, b) in (0 .. self.len()).rev().zip(addend_iter) {
 			//  Bounds checks are performed in the loop header.
 			let a = unsafe { self.get_unchecked(i) };
@@ -3003,14 +3042,15 @@ where C: Cursor, T: BitStore,
 	}
 }
 
-/// Performs the Boolean `AND` operation against another bitstream and writes
-/// the result into `self`. If the other bitstream ends before `self,`, the
-/// remaining bits of `self` are cleared.
-///
-/// # Type Parameters
-///
-/// - `I: IntoIterator<Item=bool>`: A stream of bits, which may be a `BitSlice`
-///   or some other bit producer as desired.
+/** Performs the Boolean `AND` operation against another bitstream and writes
+the result into `self`. If the other bitstream ends before `self,`, the
+remaining bits of `self` are cleared.
+
+# Type Parameters
+
+- `I`: A stream of bits, which may be a `BitSlice` or some other bit producer as
+  desired.
+**/
 impl<C, T, I> BitAndAssign<I> for BitSlice<C, T>
 where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `AND`s a bitstream into a slice.
@@ -3045,14 +3085,15 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	}
 }
 
-/// Performs the Boolean `OR` operation against another bitstream and writes the
-/// result into `self`. If the other bitstream ends before `self`, the remaining
-/// bits of `self` are not affected.
-///
-/// # Type Parameters
-///
-/// - `I: IntoIterator<Item=bool>`: A stream of bits, which may be a `BitSlice`
-///   or some other bit producer as desired.
+/** Performs the Boolean `OR` operation against another bitstream and writes the
+result into `self`. If the other bitstream ends before `self`, the remaining
+bits of `self` are not affected.
+
+# Type Parameters
+
+- `I`: A stream of bits, which may be a `BitSlice` or some other bit producer as
+  desired.
+**/
 impl<C, T, I> BitOrAssign<I> for BitSlice<C, T>
 where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `OR`s a bitstream into a slice.
@@ -3085,14 +3126,15 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	}
 }
 
-/// Performs the Boolean `XOR` operation against another bitstream and writes
-/// the result into `self`. If the other bitstream ends before `self`, the
-/// remaining bits of `self` are not affected.
-///
-/// # Type Parameters
-///
-/// - `I: IntoIterator<Item=bool>`: A stream of bits, which may be a `BitSlice`
-///   or some other bit producer as desired.
+/** Performs the Boolean `XOR` operation against another bitstream and writes
+the result into `self`. If the other bitstream ends before `self`, the remaining
+bits of `self` are not affected.
+
+# Type Parameters
+
+- `I`: A stream of bits, which may be a `BitSlice` or some other bit producer as
+  desired.
+**/
 impl<C, T, I> BitXorAssign<I> for BitSlice<C, T>
 where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `XOR`s a bitstream into a slice.
@@ -3125,8 +3167,9 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	}
 }
 
-/// Indexes a single bit by semantic count. The index must be less than the
-/// length of the `BitSlice`.
+/** Indexes a single bit by semantic count. The index must be less than the
+length of the `BitSlice`.
+**/
 impl<C, T> Index<usize> for BitSlice<C, T>
 where C: Cursor, T: BitStore {
 	type Output = bool;
@@ -3200,11 +3243,11 @@ impl<C, T> Index<RangeInclusive<usize>> for BitSlice<C, T>
 where C: Cursor, T: BitStore {
 	type Output = Self;
 
-	fn index(&self, index: RangeInclusive<usize>) -> &Self::Output {
-		let start = *index.start();
+	fn index(&self, range: RangeInclusive<usize>) -> &Self::Output {
+		let start = *range.start();
 		//  This check can never fail, due to implementation details of
 		//  `BitPtr<T>`.
-		if let Some(end) = index.end().checked_add(1) {
+		if let Some(end) = range.end().checked_add(1) {
 			&self[start .. end]
 		}
 		else {
@@ -3215,18 +3258,10 @@ where C: Cursor, T: BitStore {
 
 impl<C, T> IndexMut<RangeInclusive<usize>> for BitSlice<C, T>
 where C: Cursor, T: BitStore {
-	fn index_mut(&mut self, index: RangeInclusive<usize>) -> &mut Self::Output {
-		let start = *index.start();
-		//  This check can never fail, due to implementation details of
-		//  `BitPtr<T>`.
-		if let Some(end) = index.end().checked_add(1) {
-			&mut self[start .. end]
+	fn index_mut(&mut self, range: RangeInclusive<usize>) -> &mut Self::Output {
+		(&self[range]).bitptr().into_bitslice_mut()
 		}
-		else {
-			&mut self[start ..]
 		}
-	}
-}
 
 impl<C, T> Index<RangeFrom<usize>> for BitSlice<C, T>
 where C: Cursor, T: BitStore {
@@ -3239,12 +3274,8 @@ where C: Cursor, T: BitStore {
 
 impl<C, T> IndexMut<RangeFrom<usize>> for BitSlice<C, T>
 where C: Cursor, T: BitStore {
-	fn index_mut(
-		&mut self,
-		RangeFrom { start }: RangeFrom<usize>,
-	) -> &mut Self::Output {
-		let len = self.len();
-		&mut self[start .. len]
+	fn index_mut(&mut self, range: RangeFrom<usize>) -> &mut Self::Output {
+		(&self[range]).bitptr().into_bitslice_mut()
 	}
 }
 
@@ -3275,11 +3306,8 @@ where C: Cursor, T: BitStore {
 
 impl<C, T> IndexMut<RangeTo<usize>> for BitSlice<C, T>
 where C: Cursor, T: BitStore {
-	fn index_mut(
-		&mut self,
-		RangeTo { end }: RangeTo<usize>,
-	) -> &mut Self::Output {
-		&mut self[0 .. end]
+	fn index_mut(&mut self, range: RangeTo<usize>) -> &mut Self::Output {
+		(&self[range]).bitptr().into_bitslice_mut()
 	}
 }
 
@@ -3299,32 +3327,31 @@ impl<C, T> IndexMut<RangeToInclusive<usize>> for BitSlice<C, T>
 where C: Cursor, T: BitStore {
 	fn index_mut(
 		&mut self,
-		RangeToInclusive { end }: RangeToInclusive<usize>,
+		range: RangeToInclusive<usize>,
 	) -> &mut Self::Output {
-		&mut self[0 ..= end]
+		(&self[range]).bitptr().into_bitslice_mut()
 	}
 }
 
-/// Performs fixed-width 2’s-complement negation of a `BitSlice`.
-///
-/// Unlike the `!` operator (`Not` trait), the unary `-` operator treats the
-/// `BitSlice` as if it represents a signed 2’s-complement integer of fixed
-/// width. The negation of a number in 2’s complement is defined as its
-/// inversion (using `!`) plus one, and on fixed-width numbers has the following
-/// discontinuities:
-///
-/// - A slice whose bits are all zero is considered to represent the number zero
-///   which negates as itself.
-/// - A slice whose bits are all one is considered to represent the most
-///   negative number, which has no correpsonding positive number, and thus
-///   negates as zero.
-///
-/// This behavior was chosen so that all possible values would have *some*
-/// output, and so that repeated application converges at idempotence. The most
-/// negative input can never be reached by negation, but `--MOST_NEG` converges
-/// at the least unreasonable fallback value, 0.
-///
-/// Because `BitSlice` cannot move, the negation is performed in place.
+/** Performs fixed-width 2’s-complement negation of a `BitSlice`.
+
+Unlike the `!` operator (`Not` trait), the unary `-` operator treats the
+`BitSlice` as if it represents a signed 2’s-complement integer of fixed width.
+The negation of a number in 2’s complement is defined as its inversion (using
+`!`) plus one, and on fixed-width numbers has the following discontinuities:
+
+- A slice whose bits are all zero is considered to represent the number zero
+  which negates as itself.
+- A slice whose bits are all one is considered to represent the most negative
+  number, which has no correpsonding positive number, and thus negates as zero.
+
+This behavior was chosen so that all possible values would have *some* output,
+and so that repeated application converges at idempotence. The most negative
+input can never be reached by negation, but `--MOST_NEG` converges at the least
+unreasonable fallback value, 0.
+
+Because `BitSlice` cannot move, the negation is performed in place.
+**/
 impl<'a, C, T> Neg for &'a mut BitSlice<C, T>
 where C: Cursor, T: 'a + BitStore {
 	type Output = Self;
@@ -3390,6 +3417,7 @@ where C: Cursor, T: 'a + BitStore {
 	/// assert!(bits.not_any());
 	/// ```
 	fn neg(self) -> Self::Output {
+		use core::iter;
 		//  negative zero is zero. The invert-and-add will result in zero, but
 		//  this case can be detected quickly.
 		if self.is_empty() || self.not_any() {
@@ -3407,9 +3435,7 @@ where C: Cursor, T: 'a + BitStore {
 			self.set(0, true);
 		}
 		let _ = Not::not(&mut *self);
-		let one: &[T] = &[T::bits(true)];
-		let one_bs: &BitSlice<C, T> = one.into();
-		AddAssign::add_assign(&mut *self, &one_bs[.. 1]);
+		AddAssign::add_assign(&mut *self, iter::once(true));
 		self
 	}
 }
@@ -3486,35 +3512,35 @@ where C: Cursor, T: 'a + BitStore {
 
 __bitslice_shift!(u8, u16, u32, u64, i8, i16, i32, i64);
 
-/// Shifts all bits in the array to the left — **DOWN AND TOWARDS THE FRONT**.
-///
-/// On primitives, the left-shift operator `<<` moves bits away from the origin
-/// and towards the ceiling. This is because we label the bits in a primitive
-/// with the minimum on the right and the maximum on the left, which is
-/// big-endian bit order. This increases the value of the primitive being
-/// shifted.
-///
-/// **THAT IS NOT HOW `BitSlice` WORKS!**
-///
-/// `BitSlice` defines its layout with the minimum on the left and the maximum
-/// on the right! Thus, left-shifting moves bits towards the **minimum**.
-///
-/// In BigEndian order, the effect in memory will be what you expect the `<<`
-/// operator to do.
-///
-/// **In LittleEndian order, the effect will be equivalent to using `>>` on**
-/// **the primitives in memory!**
-///
-/// # Notes
-///
-/// In order to preserve the effecs in memory that this operator traditionally
-/// expects, the bits that are emptied by this operation are zeroed rather than
-/// left to their old value.
-///
-/// The shift amount is modulated against the array length, so it is not an
-/// error to pass a shift amount greater than the array length.
-///
-/// A shift amount of zero is a no-op, and returns immediately.
+/** Shifts all bits in the array to the left — **DOWN AND TOWARDS THE FRONT**.
+
+On primitives, the left-shift operator `<<` moves bits away from the origin and
+towards the ceiling. This is because we label the bits in a primitive with the
+minimum on the right and the maximum on the left, which is big-endian bit order.
+This increases the value of the primitive being shifted.
+
+**THAT IS NOT HOW `BitSlice` WORKS!**
+
+`BitSlice` defines its layout with the minimum on the left and the maximum on
+the right! Thus, left-shifting moves bits towards the **minimum**.
+
+In BigEndian order, the effect in memory will be what you expect the `<<`
+operator to do.
+
+**In LittleEndian order, the effect will be equivalent to using `>>` on**
+**the primitives in memory!**
+
+# Notes
+
+In order to preserve the effecs in memory that this operator traditionally
+expects, the bits that are emptied by this operation are zeroed rather than left
+to their old value.
+
+The shift amount is modulated against the array length, so it is not an error to
+pass a shift amount greater than the array length.
+
+A shift amount of zero is a no-op, and returns immediately.
+**/
 impl<C, T> ShlAssign<usize> for BitSlice<C, T>
 where C: Cursor, T: BitStore {
 	/// Shifts a slice left, in place.
@@ -3591,35 +3617,35 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Shifts all bits in the array to the right — **UP AND TOWARDS THE BACK**.
-///
-/// On primitives, the right-shift operator `>>` moves bits towards the origin
-/// and away from the ceiling. This is because we label the bits in a primitive
-/// with the minimum on the right and the maximum on the left, which is
-/// big-endian bit order. This decreases the value of the primitive being
-/// shifted.
-///
-/// **THAT IS NOT HOW `BitSlice` WORKS!**
-///
-/// `BitSlice` defines its layout with the minimum on the left and the maximum
-/// on the right! Thus, right-shifting moves bits towards the **maximum**.
-///
-/// In Big-Endian order, the effect in memory will be what you expect the `>>`
-/// operator to do.
-///
-/// **In LittleEndian order, the effect will be equivalent to using `<<` on**
-/// **the primitives in memory!**
-///
-/// # Notes
-///
-/// In order to preserve the effects in memory that this operator traditionally
-/// expects, the bits that are emptied by this operation are zeroed rather than
-/// left to their old value.
-///
-/// The shift amount is modulated against the array length, so it is not an
-/// error to pass a shift amount greater than the array length.
-///
-/// A shift amount of zero is a no-op, and returns immediately.
+/** Shifts all bits in the array to the right — **UP AND TOWARDS THE BACK**.
+
+On primitives, the right-shift operator `>>` moves bits towards the origin and
+away from the ceiling. This is because we label the bits in a primitive with the
+minimum on the right and the maximum on the left, which is big-endian bit order.
+This decreases the value of the primitive being shifted.
+
+**THAT IS NOT HOW `BitSlice` WORKS!**
+
+`BitSlice` defines its layout with the minimum on the left and the maximum on
+the right! Thus, right-shifting moves bits towards the **maximum**.
+
+In Big-Endian order, the effect in memory will be what you expect the `>>`
+operator to do.
+
+**In LittleEndian order, the effect will be equivalent to using `<<` on**
+**the primitives in memory!**
+
+# Notes
+
+In order to preserve the effects in memory that this operator traditionally
+expects, the bits that are emptied by this operation are zeroed rather than left
+to their old value.
+
+The shift amount is modulated against the array length, so it is not an error to
+pass a shift amount greater than the array length.
+
+A shift amount of zero is a no-op, and returns immediately.
+**/
 impl<C, T> ShrAssign<usize> for BitSlice<C, T>
 where C: Cursor, T: BitStore {
 	/// Shifts a slice right, in place.
@@ -3649,7 +3675,7 @@ where C: Cursor, T: BitStore {
 			self.set_all(false);
 			return;
 		}
-		//  IF the shift amount is an even multiple of the element width, use
+		//  If the shift amount is an even multiple of the element width, use
 		//  `ptr::copy` instead of a bitwise crawl.
 		if shamt & T::MASK as usize == 0 {
 			//  Compute the shift amount measured in elements.

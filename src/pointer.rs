@@ -39,22 +39,21 @@ use core::{
 /// Width in bits of a pointer on the target machine.
 const PTR_BITS: usize = size_of::<*const u8>() * 8;
 
-/// Union to permit reinterpreting a pointer-shaped value as a read pointer,
-/// write pointer, or bare numeric address value.
-///
-/// # Safety
-///
-/// Absolutely none whatsoever. This is probably flirting with undefined
-/// behavior, and should be presumed to be the origin site of failure if the
-/// crate ever breaks in the future.
-///
-/// # Type Parameters
-///
-/// - `T`: The referent data type.
-///
-/// # Usage
-///
-/// Don’t.
+/** Union to permit reinterpreting a pointer-shaped value as a read pointer,
+write pointer, or bare numeric address value.
+
+# Safety
+
+Miri says it’s fine as long as it’s used with strict care. Summer 2019.
+
+# Type Parameters
+
+- `T`: The referent data type.
+
+# Usage
+
+Read-only outside this module.
+**/
 #[doc(hidden)]
 pub(crate) union Pointer<T> {
 	/// A read pointer to some data.
@@ -297,10 +296,10 @@ where T: BitStore {
 
 	/// The inclusive maximum number of elements that can be stored in a
 	/// `BitPtr` domain.
-	pub(crate) const MAX_ELTS: usize = (Self::MAX_BITS >> 3) + 1;
+	pub(crate) const MAX_ELTS: usize = (Self::MAX_INDX >> T::INDX) + 1;
 
 	/// The inclusive maximum bit index.
-	pub(crate) const MAX_BITS: usize = !0 >> Self::LEN_HEAD_BITS;
+	pub(crate) const MAX_INDX: usize = !0 >> Self::LEN_HEAD_BITS;
 
 	/// Produces an empty-slice representation.
 	///
@@ -385,7 +384,7 @@ where T: BitStore {
 	///
 	/// - `data` is not well aligned to `T`’s requirements.
 	/// - `head` is not a valid index within `T`.
-	/// - `bits` is larger than `Self::MAX_BITS`.
+	/// - `bits` is larger than `Self::MAX_INDX`.
 	/// - `data` and `bits` describe a `[T]` slice which wraps around the edge
 	///   of the memory space.
 	///
@@ -417,10 +416,10 @@ where T: BitStore {
 		);
 
 		assert!(
-			bits <= Self::MAX_BITS,
+			bits <= Self::MAX_INDX,
 			"BitPtr cannot address {} bits; the maximum is {}",
 			bits,
-			Self::MAX_BITS,
+			Self::MAX_INDX,
 		);
 
 		let elts = BitIdx::<T>::new(head).span(bits).0;
@@ -799,7 +798,7 @@ where T: BitStore {
 	#[cfg(feature = "alloc")]
 	pub(crate) unsafe fn incr_tail(mut self) -> Self {
 		match self.len() {
-			Self::MAX_BITS => {},
+			Self::MAX_INDX => {},
 			len => self.set_len(len + 1),
 		}
 		self
@@ -893,14 +892,19 @@ where T: BitStore {
 	}
 }
 
-/// Gets write access to all elements in the underlying storage, including the
-/// partial head and tail elements.
-///
-/// # Safety
-///
-/// This is *unsafe* to use except from known mutable `BitSlice` structures.
-/// Mutability is not encoded in the `BitPtr` type system at this time, and thus
-/// is not enforced by the compiler yet.
+/** Gets write access to all elements in the underlying storage, including the
+partial head and tail elements.
+
+# Safety
+
+This is *unsafe* to use except from known mutable `BitSlice` structures.
+Mutability is not encoded in the `BitPtr` type system at this time, and thus is
+not enforced by the compiler yet.
+
+Also, note that partial-element `BitPtr` spans may cause this to produce aliased
+mutable references, which is UB. This must only be used in contexts where it is
+known to produce non-aliasing references.
+**/
 impl<T> AsMut<[T]> for BitPtr<T>
 where T: BitStore {
 	fn as_mut(&mut self) -> &mut [T] {
@@ -908,8 +912,16 @@ where T: BitStore {
 	}
 }
 
-/// Gets read access to all elements in the underlying storage, including the
-/// partial head and tail elements.
+/** Gets read access to all elements in the underlying storage, including the
+partial head and tail elements.
+
+# Safety
+
+Note that it is undefined behavior to produce any reference, including
+immutable, that aliases a mutable reference. `AsMut` can produce a slice
+reference that aliases with the references produced by this trait, which is UB,
+even though aliasing immutable references are perfectly fine.
+**/
 impl<T> AsRef<[T]> for BitPtr<T>
 where T: BitStore {
 	fn as_ref(&self) -> &[T] {
@@ -1051,6 +1063,6 @@ mod tests {
 	#[test]
 	#[should_panic]
 	fn overfull() {
-		BitPtr::<u32>::new(8 as *const u32, 1, BitPtr::<u32>::MAX_BITS + 1);
+		BitPtr::<u32>::new(8 as *const u32, 1, BitPtr::<u32>::MAX_INDX + 1);
 	}
 }

@@ -4,7 +4,7 @@ This module holds the type for an owned but ungrowable bit sequence. `BitVec` is
 the more appropriate and useful type for most collections.
 !*/
 
-#![cfg(any(feature = "alloc", feature = "std"))]
+#![cfg(feature = "alloc")]
 
 use crate::{
 	cursor::{
@@ -18,31 +18,13 @@ use crate::{
 };
 
 #[cfg(feature = "alloc")]
-use alloc::{
-	borrow::{
-		Borrow,
-		BorrowMut,
-	},
-	boxed::Box,
-	vec::Vec,
+use alloc::borrow::{
+	Borrow,
+	BorrowMut,
 };
 
 use core::{
-	clone::Clone,
-	cmp::{
-		Eq,
-		PartialEq,
-		PartialOrd,
-		Ord,
-		Ordering,
-	},
-	convert::{
-		AsMut,
-		AsRef,
-		From,
-		Into,
-	},
-	default::Default,
+	cmp,
 	fmt::{
 		self,
 		Debug,
@@ -54,17 +36,9 @@ use core::{
 		Hasher,
 	},
 	iter::{
-		DoubleEndedIterator,
-		ExactSizeIterator,
 		FusedIterator,
-		Iterator,
-		IntoIterator,
 	},
-	marker::{
-		PhantomData,
-		Send,
-		Sync,
-	},
+	marker::PhantomData,
 	mem,
 	ops::{
 		Add,
@@ -77,7 +51,6 @@ use core::{
 		BitXorAssign,
 		Deref,
 		DerefMut,
-		Drop,
 		Index,
 		IndexMut,
 		Range,
@@ -103,12 +76,12 @@ can. It is useful for fixed-size collections without lifetime tracking.
 
 # Type Parameters
 
-- `C: Cursor`: An implementor of the [`Cursor`] trait. This type is used to
-  convert semantic indices into concrete bit positions in elements, and store or
+- `C`: An implementor of the `Cursor` trait. This type is used to convert
+  semantic indices into concrete bit positions in elements, and store or
   retrieve bit values from the storage type.
-- `T: BitStore`: An implementor of the [`BitStore`] trait: `u8`, `u16`, `u32`,
-  or `u64` (64-bit systems only). This is the actual type in memory that the box
-  will use to store data.
+- `T`: An implementor of the `BitStore` trait: `u8`, `u16`, `u32`, or `u64`
+  (64-bit systems only). This is the actual type in memory that the box will use
+  to store data.
 
 # Safety
 
@@ -120,8 +93,10 @@ it is ***extremely binary incompatible*** with them. Attempting to treat
 # Trait Implementations
 
 `BitBox<C, T>` implements all the traits that `BitSlice<C, T>` does, by
-deferring to the `BitSlice` implementation. It also implements conversion traits
-to and from `BitSlice`, and to/from `BitVec`.
+deferring to the [`BitSlice`] implementation. It also implements conversion
+traits to and from `BitSlice`, and to/from `BitVec`.
+
+[`BitSlice`]: ../struct.BitSlice.html
 **/
 #[repr(C)]
 pub struct BitBox<C = BigEndian, T = u8>
@@ -516,7 +491,7 @@ where C: Cursor, T: BitStore {}
 
 impl<C, T> Ord for BitBox<C, T>
 where C: Cursor, T: BitStore {
-	fn cmp(&self, rhs: &Self) -> Ordering {
+	fn cmp(&self, rhs: &Self) -> cmp::Ordering {
 		self.as_bitslice().cmp(rhs.as_bitslice())
 	}
 }
@@ -544,21 +519,21 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 
 impl<A, B, C, D> PartialOrd<BitBox<C, D>> for BitBox<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
-	fn partial_cmp(&self, rhs: &BitBox<C, D>) -> Option<Ordering> {
+	fn partial_cmp(&self, rhs: &BitBox<C, D>) -> Option<cmp::Ordering> {
 		self.as_bitslice().partial_cmp(rhs.as_bitslice())
 	}
 }
 
 impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for BitBox<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
-	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<Ordering> {
+	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<cmp::Ordering> {
 		self.as_bitslice().partial_cmp(rhs)
 	}
 }
 
 impl<A, B, C, D> PartialOrd<BitBox<C, D>> for BitSlice<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
-	fn partial_cmp(&self, rhs: &BitBox<C, D>) -> Option<Ordering> {
+	fn partial_cmp(&self, rhs: &BitBox<C, D>) -> Option<cmp::Ordering> {
 		self.partial_cmp(rhs.as_bitslice())
 	}
 }
