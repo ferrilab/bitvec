@@ -214,23 +214,26 @@ where C: Cursor, T: BitStore {
 
 	/// Produces an immutable `BitSlice` over a single element.
 	///
+	/// This is a reference transformation: the `&BitSlice` constructed by this
+	/// method will govern the element referred to by the reference parameter.
+	///
 	/// # Parameters
 	///
-	/// - `elt`: A reference to an element over which the `BitSlice` will be
+	/// - `elt`: A reference to an element over which the `&BitSlice` will be
 	///   created.
 	///
 	/// # Returns
 	///
-	/// A `BitSlice` over the provided element.
+	/// A `&BitSlice` reference spanning the provided element.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let elt: u8 = !0;
+	/// let elt: u8 = 0;
 	/// let bs: &BitSlice = BitSlice::from_element(&elt);
-	/// assert!(bs.all());
+	/// assert_eq!(bs.as_ptr(), &elt);
 	/// ```
 	pub fn from_element(elt: &T) -> &Self {
 		unsafe {
@@ -242,22 +245,26 @@ where C: Cursor, T: BitStore {
 	///
 	/// # Parameters
 	///
-	/// - `elt`: A reference to an element over which the `BitSlice` will be
-	///   created.
+	/// - `elt`: A mutable reference to an element over which the
+	///   `&mut BitSlice` will be created.
 	///
 	/// # Returns
 	///
-	/// A `BitSlice` over the provided element.
+	/// A `&mut BitSlice` reference spanning the provided element.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut elt: u8 = !0;
+	/// let mut elt: u8 = 0;
+	/// let eltptr = &elt as *const u8;
 	/// let bs: &mut BitSlice = BitSlice::from_element_mut(&mut elt);
-	/// bs.set(0, false);
-	/// assert!(!bs.all());
+	/// assert_eq!(bs.as_ptr(), eltptr);
+	/// assert!(bs.not_any());
+	/// bs.set(0, true);
+	/// assert!(bs.any());
+	/// assert_eq!(elt, 128);
 	/// ```
 	pub fn from_element_mut(elt: &mut T) -> &mut Self {
 		unsafe {
@@ -265,8 +272,11 @@ where C: Cursor, T: BitStore {
 		}.into_bitslice_mut()
 	}
 
-	/// Wraps a `&[T: BitStore]` in a `&BitSlice<C: Cursor, T>`. The cursor must
-	/// be specified at the call site. The element type cannot be changed.
+	/// Wraps a `&[T: BitStore]` slice reference in a `&BitSlice<C: Cursor, T>`.
+	///
+	/// The cursor must be specified at the call site. The element type cannot
+	/// be changed. The [`Bits::as_bitslice`] method performs the same operation
+	/// and may be easier to call.
 	///
 	/// # Parameters
 	///
@@ -297,6 +307,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	///
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
+	/// [`Bits::as_bitslice`]: ../bits/trait.Bits.html#tymethod.as_bitslice
 	pub fn from_slice(slice: &[T]) -> &Self {
 		let len = slice.len();
 		assert!(
@@ -309,9 +320,11 @@ where C: Cursor, T: BitStore {
 		BitPtr::new(slice.as_ptr(), 0, bits).into_bitslice()
 	}
 
-	/// Wraps a `&mut [T: BitStore]` in a `&mut BitSlice<C: Cursor, T>`. The
-	/// cursor must be specified by the call site. The element type cannot
-	/// be changed.
+	/// Wraps a `&mut [T: BitStore]` in a `&mut BitSlice<C: Cursor, T>`.
+	///
+	/// The cursor must be specified at the call site. The element type cannot
+	/// be changed. The [`Bits::as_mut_bitslice`] method performs the same
+	/// operation and may be easier to call.
 	///
 	/// # Parameters
 	///
@@ -341,6 +354,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	///
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
+	/// [`Bits::as_mut_bitslice`]: ../bits/trait.Bits.html#tymethod.as_mut_bitslice
 	pub fn from_slice_mut(slice: &mut [T]) -> &mut Self {
 		Self::from_slice(slice).bitptr().into_bitslice_mut()
 	}
@@ -448,11 +462,9 @@ where C: Cursor, T: BitStore {
 	/// ```
 	pub fn split_first(&self) -> Option<(bool, &Self)> {
 		if self.is_empty() {
-			None
+			return None;
 		}
-		else {
-			Some((self[0], &self[1 ..]))
-		}
+		Some((self[0], unsafe { self.bitptr().incr_head() }.into_bitslice()))
 	}
 
 	/// Returns the first and all the rest of the bits of the slice, or `None`
@@ -485,11 +497,10 @@ where C: Cursor, T: BitStore {
 	/// ```
 	pub fn split_first_mut(&mut self) -> Option<(bool, &mut Self)> {
 		if self.is_empty() {
-			None
+			return None;
 		}
-		else {
-			Some((self[0], &mut self[1 ..]))
-		}
+		let rest = unsafe { self.bitptr().incr_head() };
+		Some((self[0], rest.into_bitslice_mut()))
 	}
 
 	/// Returns the last and all the rest of the bits in the slice, or `None`
@@ -525,12 +536,12 @@ where C: Cursor, T: BitStore {
 	/// assert!(h.is_empty());
 	/// ```
 	pub fn split_last(&self) -> Option<(bool, &Self)> {
-		if self.is_empty() {
-			None
-		}
-		else {
-			let len = self.len();
-			Some((self[len - 1], &self[.. len - 1]))
+		match self.len() {
+			0 => None,
+			len => {
+				let rest = unsafe { self.bitptr().decr_tail() };
+				Some((self[len - 1], rest.into_bitslice()))
+			},
 		}
 	}
 
@@ -563,12 +574,12 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(t.len(), 7);
 	/// ```
 	pub fn split_last_mut(&mut self) -> Option<(bool, &mut Self)> {
-		if self.is_empty() {
-			None
-		}
-		else {
-			let len = self.len();
-			Some((self[len - 1], &mut self[.. len - 1]))
+		match self.len() {
+			0 => None,
+			len => {
+				let rest = unsafe { self.bitptr().decr_tail() };
+				Some((self[len - 1], rest.into_bitslice_mut()))
+			},
 		}
 	}
 
@@ -3726,7 +3737,7 @@ where C: Cursor, T: 'a + BitStore {
 impl<'a, C, T> Drop for BitGuard<'a, C, T>
 where C: Cursor, T: 'a + BitStore {
 	fn drop(&mut self) {
-		self.slot.set(0, self.bit);
+		unsafe { self.slot.set_unchecked(0, self.bit) };
 	}
 }
 

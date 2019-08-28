@@ -550,7 +550,7 @@ where T: BitStore {
 	/// # Returns
 	///
 	/// A count of the live bits in the slice.
-	#[inline]
+	#[inline(always)]
 	pub fn len(&self) -> usize {
 		self.len >> Self::LEN_HEAD_BITS
 	}
@@ -566,8 +566,6 @@ where T: BitStore {
 	/// # Safety
 	///
 	/// None. The caller must ensure that the invariants of `::new` are upheld.
-	//  This method is only ever used by `BitVec`.
-	#[cfg(feature = "alloc")]
 	#[inline]
 	pub unsafe fn set_len(&mut self, len: usize) {
 		let n = (len << Self::LEN_HEAD_BITS) | (self.len & Self::LEN_HEAD_MASK);
@@ -669,24 +667,6 @@ where T: BitStore {
 		self.len & !Self::LEN_HEAD_MASK == 0
 	}
 
-	/// Checks if the pointer represents the full slice.
-	///
-	/// The full slice has `!0` `bits` counters.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// Whether the slice is full or has room for more growth.
-	//  This method is only ever used by `BitVec`.
-	#[cfg(feature = "alloc")]
-	#[inline]
-	pub fn is_full(&self) -> bool {
-		self.len | Self::LEN_HEAD_MASK == !0
-	}
-
 	/// Accesses the element slice behind the pointer as a Rust slice.
 	///
 	/// # Parameters
@@ -764,40 +744,50 @@ where T: BitStore {
 		self.into()
 	}
 
-	/// Moves the `tail` cursor upwards by one.
+	/// Moves the `head` cursor upwards by one.
 	///
-	/// If `tail` is at the back edge of the last element, then it will be set
-	/// to the front edge of the next element beyond, and the element count will
-	/// be increased.
+	/// If `head` is at the back edge of the first element, then it will be set
+	/// to the front edge of the second element, and the pointer will be moved
+	/// upwards.
 	///
 	/// # Parameters
 	///
-	/// - `&mut self`
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// A bit pointer to the same region, but with its head bit cursor moved up
+	/// by one.
 	///
 	/// # Safety
 	///
-	/// This function is unsafe when `self` is directly, solely, managing owned
-	/// memory. It mutates the element count, so if this pointer is solely
-	/// responsible for owned memory, its conception of the allocation will
-	/// differ from the allocator’s.
-	//  This method is only ever used by `BitVec`.
-	#[cfg(feature = "alloc")]
-	pub unsafe fn incr_tail(&mut self) {
-		match self.len() {
-			Self::MAX_BITS => return,
-			len => self.set_len(len + 1),
-		}
+	/// This method is unsafe when `self` is directly, solely, managing owned
+	/// memory. It mutates the pointer and element count, so if this pointer is
+	/// solely responsible for owned memory, its conception of the allocation
+	/// will differ from the allocator’s.
+	pub(crate) unsafe fn incr_head(self) -> Self {
+		let (data, head, bits) = self.raw_parts();
+		let (head, wrap) = head.incr();
+		Self::new_unchecked(
+			data.r().offset(wrap as isize),
+			head,
+			bits - 1,
+		)
 	}
 
-	/// Moves the `tail` cursor downwards by one.
-	///
-	/// If `tail` is at the front edge of the back element, then it will be set
-	/// to the back edge of the next element forward, and the element count will
-	/// be decreased.
+	/// Increments the length counter.
 	///
 	/// # Parameters
 	///
-	/// - `&mut self`
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// A bit pointer to the same region, but with its length increased by one.
+	///
+	/// # Edge Cases
+	///
+	/// A full bit pointer is returned unaltered.
 	///
 	/// # Safety
 	///
@@ -807,11 +797,40 @@ where T: BitStore {
 	/// differ from the allocator’s.
 	//  This method is only ever used by `BitVec`.
 	#[cfg(feature = "alloc")]
-	pub unsafe fn decr_tail(&mut self) {
+	pub(crate) unsafe fn incr_tail(mut self) -> Self {
 		match self.len() {
-			0 => return,
+			Self::MAX_BITS => {},
+			len => self.set_len(len + 1),
+		}
+		self
+	}
+
+	/// Decrements the length counter.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// A bit pointer to the same region, but with its length decreased by one.
+	///
+	/// # Edge Cases
+	///
+	/// An empty bit pointer is returned unaltered.
+	///
+	/// # Safety
+	///
+	/// This function is unsafe when `self` is directly, solely, managing owned
+	/// memory. It mutates the element count, so if this pointer is solely
+	/// responsible for owned memory, its conception of the allocation will
+	/// differ from the allocator’s.
+	pub(crate) unsafe fn decr_tail(mut self) -> Self {
+		match self.len() {
+			0 => {},
 			len => self.set_len(len - 1),
 		}
+		self
 	}
 
 	/// Converts a `BitSlice` handle into its `BitPtr` representation.

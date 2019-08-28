@@ -571,6 +571,53 @@ where T: BitStore {
 		C::at::<T>(self)
 	}
 
+	/// Increments a cursor to the next value, wrapping if needed.
+	///
+	/// # Parameters
+	///
+	/// - `self`: The original cursor.
+	///
+	/// # Returns
+	///
+	/// - `Self`: An incremented cursor.
+	/// - `bool`: Marks whether the increment crossed an element boundary.
+	///
+	/// # Type Parameters
+	///
+	/// - `T: BitStore`: The storage type for which the increment will be
+	///   calculated.
+	///
+	/// # Panics
+	///
+	/// This method panics if `self` is not less than `T::BITS`, in order to
+	/// avoid index out of range errors.
+	///
+	/// # Examples
+	///
+	/// This example increments inside an element.
+	///
+	/// ```rust
+	/// # #[cfg(feature = "testing")] {
+	/// use bitvec::testing::BitIdx;
+	/// # use bitvec::store::IntoBitIdx;
+	/// assert_eq!(BitIdx::from(6).incr::<u8>(), (7.idx(), false));
+	/// # }
+	/// ```
+	///
+	/// This example increments at the high edge, and wraps to the next element.
+	///
+	/// ```rust
+	/// # #[cfg(feature = "testing")] {
+	/// use bitvec::testing::BitIdx;
+	/// # use bitvec::store::IntoBitIdx;
+	/// assert_eq!(BitIdx::from(7).incr::<u8>(), (0.idx(), true));
+	/// # }
+	/// ```
+	pub(crate) fn incr(self) -> (Self, bool) {
+		let next = (*self).wrapping_add(1) & T::MASK;
+		(next.idx(), next == 0)
+	}
+
 	/// Finds the destination bit a certain distance away from a starting bit.
 	///
 	/// This produces the number of elements to move, and then the bit index of
