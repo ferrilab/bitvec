@@ -18,9 +18,13 @@ use crate::{
 };
 
 #[cfg(feature = "alloc")]
-use alloc::borrow::{
+use alloc::{
+	borrow::{
 	Borrow,
 	BorrowMut,
+	},
+	boxed::Box,
+	vec::Vec,
 };
 
 use core::{

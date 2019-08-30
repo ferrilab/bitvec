@@ -27,7 +27,10 @@ use alloc::{
 	borrow::{
 		Borrow,
 		BorrowMut,
+		ToOwned,
 	},
+	boxed::Box,
+	vec::Vec,
 };
 
 use core::{
@@ -228,7 +231,7 @@ but uninhabited, vector, with space for ten more bits. Pushing ten or fewer bits
 onto the vector will not change its capacity or cause reallocation to occur.
 However, if the vector’s length is increased to eleven, it will have to
 reallocate, which can be slow. For this reason, it is recommended to use
-[`::with_capacity`] whenever possible to specify how big the bit vector is
+[`with_capacity`] whenever possible to specify how big the bit vector is
 expected to get.
 
 # Guarantees
@@ -303,6 +306,7 @@ is ***extremely binary incompatible*** with them. Attempting to treat
 [`clear_on_drop`]: https://docs.rs/clear_on_drop
 [`len`]: #method.len
 [`shrink_to_fit`]: #method.shrink_to_fit
+[`with_capacity`]: #method.with_capacity
 [`&str`]: https://doc.rust-lang.org/stable/std/primitive.str.html
 [`&[]`]: https://doc.rust-lang.org/stable/std/primitive.slice.html
 **/
@@ -3508,7 +3512,10 @@ where C: Cursor, T: 'a + BitStore, I: Iterator<Item=bool> {
 			}
 		}
 
-		let mut remnant = self.splice.by_ref().collect::<Vec<_>>().into_iter();
+		let mut remnant = self.splice
+			.by_ref()
+			.collect::<BitVec<C, T>>()
+			.into_iter();
 		if remnant.len() > 0 {
 			self.drain.move_tail(remnant.len());
 			self.drain.fill(&mut remnant);
