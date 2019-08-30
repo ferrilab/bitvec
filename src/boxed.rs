@@ -17,14 +17,9 @@ use crate::{
 	vec::BitVec,
 };
 
-#[cfg(feature = "alloc")]
-use alloc::{
-	borrow::{
+use alloc::borrow::{
 	Borrow,
 	BorrowMut,
-	},
-	boxed::Box,
-	vec::Vec,
 };
 
 use core::{
@@ -70,6 +65,13 @@ use core::{
 		Shr,
 		ShrAssign,
 	},
+};
+
+#[cfg(not(feature = "std"))]
+use alloc::{
+	borrow::ToOwned,
+	boxed::Box,
+	vec::Vec,
 };
 
 /** A pointer type for owned bit sequences.

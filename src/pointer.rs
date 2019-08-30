@@ -1030,7 +1030,7 @@ mod tests {
 		assert_eq!(*bp.tail(), 2);
 	}
 
-	#[cfg(feature = "alloc")]
+	#[cfg(feature = "std")]
 	#[test]
 	fn uninhabited() {
 		let v = Vec::<u16>::new();

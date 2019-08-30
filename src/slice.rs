@@ -22,10 +22,10 @@ use crate::{
 };
 
 #[cfg(feature = "alloc")]
-use crate::vec::BitVec;
-
-#[cfg(feature = "alloc")]
-use alloc::borrow::ToOwned;
+use {
+	crate::vec::BitVec,
+	alloc::borrow::ToOwned,
+};
 
 use core::{
 	cmp,

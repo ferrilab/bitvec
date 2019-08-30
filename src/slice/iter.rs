@@ -10,7 +10,6 @@ use super::{
 use crate::{
 	cursor::Cursor,
 	store::BitStore,
-	pointer::BitPtr,
 };
 
 use core::{
@@ -18,6 +17,9 @@ use core::{
 	iter::FusedIterator,
 	mem,
 };
+
+#[cfg(feature = "alloc")]
+use crate::pointer::BitPtr;
 
 impl<C, T> BitSlice<C, T>
 where C: Cursor, T: BitStore {

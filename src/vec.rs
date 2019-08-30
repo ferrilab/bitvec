@@ -27,10 +27,7 @@ use alloc::{
 	borrow::{
 		Borrow,
 		BorrowMut,
-		ToOwned,
 	},
-	boxed::Box,
-	vec::Vec,
 };
 
 use core::{
@@ -88,6 +85,13 @@ use core::{
 		NonNull,
 	},
 	slice,
+};
+
+#[cfg(not(feature = "std"))]
+use alloc::{
+	borrow::ToOwned,
+	boxed::Box,
+	vec::Vec,
 };
 
 #[cfg(feature = "std")]
