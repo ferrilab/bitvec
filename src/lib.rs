@@ -79,7 +79,6 @@ mod cellular;
 #[cfg(feature = "testing")]
 pub mod testing {
 	pub use crate::{
-		atomic::*,
 		bits::*,
 		boxed::*,
 		cursor::*,
@@ -90,6 +89,12 @@ pub mod testing {
 		store::*,
 		vec::*,
 	};
+
+	#[cfg(feature = "atomic")]
+	pub use crate::atomic::*;
+
+	#[cfg(not(feature = "atomic"))]
+	pub use crate::cellular::*;
 }
 
 /** Perform single-bit ripple-carry addition.

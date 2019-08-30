@@ -4,6 +4,52 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+## 0.16.0
+
+### Added
+
+- Per discussions with [@mystor] and [@oli-obk] at RustConf 2019, I have been
+  convinced that the production of any mutable reference to actual memory
+  elements during `BitSlice::set` is a potential site of undefined behavior.
+  Adjacent `&mut BitSlice` slices that share an edge element (which are sound to
+  produce because `&mut [()]` is considered in the compiler to never alias) may
+  produce aliasing `&mut T: BitStore` references during mutation, which *is*
+  undefined behavior in the compiler.
+
+  As such, the new module `cellular` defines a sibling API to `atomic` using
+  `Cell` instead of atomic wrappers. This module produces `&Cell` shared
+  references to the underlying memory, instead of `&mut` unique references, and
+  uses `Cell`’s interior mutability behavior to commit writes. The only
+  remaining sites of `&mut` references to memory are the `as_mut_slice`
+  functions.
+
+- The `Cursor` trait has a new function, `mask`, which converts a `BitIdx` into
+  a mask using `Cursor::at`. The default implementation uses `Cursor::at` to
+  create a `BitPos`, then shifts `1` upwards by the position amount.
+  Implementors of `Cursor` may override the default with a faster function, as
+  long as it is externally indistinguishable from `1 << (C::at::<T>(idx))`.
+
+### Changed
+
+- When the `atomic` feature is disabled, `BitStore` falls back to the `cellular`
+  module described above. In `0.15.1`, the `Send` marker on `BitSlice` was made
+  to exist only when `atomic` is present. This means that the unsynchronized
+  load/store behavior of `cellular` is statically prevented from occurring
+  across multiple threads, so writes to the same element through two different
+  slice handles still cannot race.
+
+- The `Atomic` and `Cellular` traits now take a `Cursor` type parameter on their
+  mutator functions, and take a `BitIdx` instead of a `BitPos`. Their
+  implementations now call `Cursor::mask(idx)` to produce the mask directly,
+  rather than being given a `BitPos` and calling back into `BitStore` to turn it
+  into a mask.
+
+### Removed
+
+- The `{set,get,invert}_at` functions in `BitStore` have been removed. All
+  access is now forced to enter the `BitStore` trait by `BitIdx`, and the
+  translation to mask positions occurs in the `atomic` or `cellular` accessor
+  modules.
 ## 0.15.1
 
 ### Removed

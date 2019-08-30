@@ -44,18 +44,17 @@ pub trait Cursor {
 	///
 	/// # Parameters
 	///
-	/// - `cursor`: The semantic bit value.
+	/// - `cursor`: The semantic bit index.
 	///
 	/// # Returns
 	///
-	/// - A concrete position. This value can be used for shifting and masking
-	///   to extract a bit from an element. This must be in the domain
-	///   `0 .. T::BITS`.
+	/// A concrete position. This value can be used for shifting and masking to
+	/// extract a bit from an element. This must be in the domain
+	/// `0 .. T::BITS`.
 	///
 	/// # Type Parameters
 	///
-	/// - `T: BitStore`: The storage type for which the position will be
-	///   calculated.
+	/// - `T`: The storage type for which the position will be calculated.
 	///
 	/// # Invariants
 	///
@@ -94,6 +93,57 @@ pub trait Cursor {
 	/// `T::BITS ..` will induce panics elsewhere in the library.
 	fn at<T>(cursor: BitIdx<T>) -> BitPos<T>
 	where T: BitStore;
+
+	/// Translate a semantic bit index into an electrical bit mask.
+	///
+	/// This is an optional function; a default implementation is provided for
+	/// you.
+	///
+	/// The default implementation of this function calls `C::at` to produce an
+	/// electrical position, then produces a mask by setting the nth bit more
+	/// significant than the least significant bit of the elemnet. `Cursor`
+	/// implementors may choose to provide a faster mask production here, but
+	/// they must satisfy the invariants listed below.
+	///
+	/// # Parameters
+	///
+	/// - `cursor`: The semantic bit index.
+	///
+	/// # Returns
+	///
+	/// A one-hot encoding of the provided `cursor`’s electrical position in the
+	/// `T` element`.
+	///
+	/// # Type Parameters
+	///
+	/// - `T`: the storage type for which the mask will be calculated. The mask
+	///   must also be this type, as it will be applied to an element of `T` in
+	///   order to set, clear, or test a single bit.
+	///
+	/// # Invariants
+	///
+	/// A one-hot encoding means that there is exactly one bit set in the
+	/// produced value. It must be equivalent to `1 << C::at::<T>(cursor)`.
+	///
+	/// As with `at`, this function must produce a unique mapping from each
+	/// legal index in the `T` domain to a one-hot value of `T`.
+	///
+	/// # Safety
+	///
+	/// This function requires that the output is always a one-hot value. It is
+	/// illegal to produce a value with more than one bit set, and doing so will
+	/// cause uncontrolled side effects.
+	fn mask<T>(cursor: BitIdx<T>) -> T
+	where T: BitStore {
+		let place = Self::at(cursor);
+		debug_assert!(
+			*place < T::BITS,
+			"Bit position {} must be less than the width {}",
+			*place,
+			T::BITS,
+		);
+		T::from(1) << *place
+	}
 }
 
 impl Cursor for BigEndian {
@@ -102,9 +152,20 @@ impl Cursor for BigEndian {
 	/// Maps a semantic count to a concrete position.
 	///
 	/// `BigEndian` order moves from `MSbit` first to `LSbit` last.
+	#[inline(always)]
 	fn at<T>(cursor: BitIdx<T>) -> BitPos<T>
 	where T: BitStore {
 		unsafe { BitPos::new_unchecked(T::MASK - *cursor) }
+	}
+
+	#[inline(always)]
+	fn mask<T>(cursor: BitIdx<T>) -> T
+	where T: BitStore {
+		//  Set the MSbit, then shift it down. The left expr is const-folded.
+		//  Note: this is not equivalent to `1 << (mask - cursor)`, because that
+		//  requires a subtraction every time, but the expression below is only
+		//  a single shift.
+		(T::from(1) << T::MASK) >> *cursor
 	}
 }
 
@@ -114,9 +175,17 @@ impl Cursor for LittleEndian {
 	/// Maps a semantic count to a concrete position.
 	///
 	/// `LittleEndian` order moves from `LSbit` first to `MSbit` last.
+	#[inline(always)]
 	fn at<T>(cursor: BitIdx<T>) -> BitPos<T>
 	where T: BitStore {
 		unsafe { BitPos::new_unchecked(*cursor) }
+	}
+
+	#[inline(always)]
+	fn mask<T>(cursor: BitIdx<T>) -> T
+	where T: BitStore {
+		//  Set the LSbit, then shift it up.
+		T::from(1) << *cursor
 	}
 }
 

@@ -23,9 +23,12 @@ longer than is required to modify it and write back.
 
 #![cfg(not(feature = "atomic"))]
 
-use crate::store::{
-	BitPos,
-	BitStore,
+use crate::{
+	cursor::Cursor,
+	store::{
+		BitIdx,
+		BitStore,
+	},
 };
 
 use core::cell::Cell;
@@ -59,7 +62,8 @@ pub trait Cellular: Sized {
 	/// - `&self`: This is able to be immutable, rather than mutable, because
 	///   the trait is implemented on a `Cell` wrapper.
 	/// - `bit`: The position in the element to set low.
-	fn clear(&self, bit: BitPos<Self::Fundamental>);
+	fn clear<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor;
 
 	/// Sets the bit at some position to `1`.
 	///
@@ -67,7 +71,8 @@ pub trait Cellular: Sized {
 	///
 	/// - `&self`
 	/// - `bit`: The position in the element to set high.
-	fn set(&self, bit: BitPos<Self::Fundamental>);
+	fn set<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor;
 
 	/// Inverts the bit at some position.
 	///
@@ -75,7 +80,8 @@ pub trait Cellular: Sized {
 	///
 	/// - `&self`
 	/// - `bit`: The position in the element to invert.
-	fn invert(&self, bit: BitPos<Self::Fundamental>);
+	fn invert<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor;
 
 	/// Gets the element underneath the cellular access.
 	///
@@ -93,18 +99,21 @@ impl Cellular for Cell<u8> {
 	type Fundamental = u8;
 
 	#[inline(always)]
-	fn clear(&self, bit: BitPos<Self::Fundamental>) {
-		self.set(self.get() & !<u8 as BitStore>::mask_at(bit));
+	fn clear<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.set(self.get() & !C::mask(bit));
 	}
 
 	#[inline(always)]
-	fn set(&self, bit: BitPos<Self::Fundamental>) {
-		self.set(self.get() | <u8 as BitStore>::mask_at(bit));
+	fn set<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.set(self.get() | C::mask(bit));
 	}
 
 	#[inline(always)]
-	fn invert(&self, bit: BitPos<Self::Fundamental>) {
-		self.set(self.get() ^ <u8 as BitStore>::mask_at(bit));
+	fn invert<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.set(self.get() ^ C::mask(bit));
 	}
 
 	#[inline(always)]
@@ -117,18 +126,21 @@ impl Cellular for Cell<u16> {
 	type Fundamental = u16;
 
 	#[inline(always)]
-	fn clear(&self, bit: BitPos<Self::Fundamental>) {
-		self.set(self.get() & !<u16 as BitStore>::mask_at(bit));
+	fn clear<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.set(self.get() & !C::mask(bit));
 	}
 
 	#[inline(always)]
-	fn set(&self, bit: BitPos<Self::Fundamental>) {
-		self.set(self.get() | <u16 as BitStore>::mask_at(bit));
+	fn set<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.set(self.get() | C::mask(bit));
 	}
 
 	#[inline(always)]
-	fn invert(&self, bit: BitPos<Self::Fundamental>) {
-		self.set(self.get() ^ <u16 as BitStore>::mask_at(bit));
+	fn invert<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.set(self.get() ^ C::mask(bit));
 	}
 
 	#[inline(always)]
@@ -141,18 +153,21 @@ impl Cellular for Cell<u32> {
 	type Fundamental = u32;
 
 	#[inline(always)]
-	fn clear(&self, bit: BitPos<Self::Fundamental>) {
-		self.set(self.get() & !<u32 as BitStore>::mask_at(bit));
+	fn clear<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.set(self.get() & !C::mask(bit));
 	}
 
 	#[inline(always)]
-	fn set(&self, bit: BitPos<Self::Fundamental>) {
-		self.set(self.get() | <u32 as BitStore>::mask_at(bit));
+	fn set<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.set(self.get() | C::mask(bit));
 	}
 
 	#[inline(always)]
-	fn invert(&self, bit: BitPos<Self::Fundamental>) {
-		self.set(self.get() ^ <u32 as BitStore>::mask_at(bit));
+	fn invert<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.set(self.get() ^ C::mask(bit));
 	}
 
 	#[inline(always)]
@@ -166,18 +181,21 @@ impl Cellular for Cell<u64> {
 	type Fundamental = u64;
 
 	#[inline(always)]
-	fn clear(&self, bit: BitPos<Self::Fundamental>) {
-		self.set(self.get() & !<u64 as BitStore>::mask_at(bit));
+	fn clear<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.set(self.get() & !C::mask(bit));
 	}
 
 	#[inline(always)]
-	fn set(&self, bit: BitPos<Self::Fundamental>) {
-		self.set(self.get() | <u64 as BitStore>::mask_at(bit));
+	fn set<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.set(self.get() | C::mask(bit));
 	}
 
 	#[inline(always)]
-	fn invert(&self, bit: BitPos<Self::Fundamental>) {
-		self.set(self.get() ^ <u64 as BitStore>::mask_at(bit));
+	fn invert<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.set(self.get() ^ C::mask(bit));
 	}
 
 	#[inline(always)]
@@ -189,18 +207,19 @@ impl Cellular for Cell<u64> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::cursor::LittleEndian;
 
 	#[test]
 	fn cell_u8() {
 		let cell = Cell::<u8>::new(0);
 
-		Cellular::set(&cell, BitPos::new(0));
+		Cellular::set::<LittleEndian>(&cell, BitIdx::new(0));
 		assert_eq!(Cellular::get(&cell), 1);
 
-		Cellular::clear(&cell, BitPos::new(0));
+		Cellular::clear::<LittleEndian>(&cell, BitIdx::new(0));
 		assert_eq!(Cellular::get(&cell), 0);
 
-		Cellular::invert(&cell, BitPos::new(1));
+		Cellular::invert::<LittleEndian>(&cell, BitIdx::new(1));
 		assert_eq!(Cellular::get(&cell), 2);
 	}
 
@@ -208,13 +227,13 @@ mod tests {
 	fn cell_u16() {
 		let cell = Cell::<u16>::new(0);
 
-		Cellular::set(&cell, BitPos::new(0));
+		Cellular::set::<LittleEndian>(&cell, BitIdx::new(0));
 		assert_eq!(Cellular::get(&cell), 1);
 
-		Cellular::clear(&cell, BitPos::new(0));
+		Cellular::clear::<LittleEndian>(&cell, BitIdx::new(0));
 		assert_eq!(Cellular::get(&cell), 0);
 
-		Cellular::invert(&cell, BitPos::new(1));
+		Cellular::invert::<LittleEndian>(&cell, BitIdx::new(1));
 		assert_eq!(Cellular::get(&cell), 2);
 	}
 
@@ -222,13 +241,13 @@ mod tests {
 	fn cell_u32() {
 		let cell = Cell::<u32>::new(0);
 
-		Cellular::set(&cell, BitPos::new(0));
+		Cellular::set::<LittleEndian>(&cell, BitIdx::new(0));
 		assert_eq!(Cellular::get(&cell), 1);
 
-		Cellular::clear(&cell, BitPos::new(0));
+		Cellular::clear::<LittleEndian>(&cell, BitIdx::new(0));
 		assert_eq!(Cellular::get(&cell), 0);
 
-		Cellular::invert(&cell, BitPos::new(1));
+		Cellular::invert::<LittleEndian>(&cell, BitIdx::new(1));
 		assert_eq!(Cellular::get(&cell), 2);
 	}
 
@@ -237,13 +256,13 @@ mod tests {
 	fn cell_u64() {
 		let cell = Cell::<u64>::new(0);
 
-		Cellular::set(&cell, BitPos::new(0));
+		Cellular::set::<LittleEndian>(&cell, BitIdx::new(0));
 		assert_eq!(Cellular::get(&cell), 1);
 
-		Cellular::clear(&cell, BitPos::new(0));
+		Cellular::clear::<LittleEndian>(&cell, BitIdx::new(0));
 		assert_eq!(Cellular::get(&cell), 0);
 
-		Cellular::invert(&cell, BitPos::new(1));
+		Cellular::invert::<LittleEndian>(&cell, BitIdx::new(1));
 		assert_eq!(Cellular::get(&cell), 2);
 	}
 }

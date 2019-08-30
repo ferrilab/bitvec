@@ -81,7 +81,7 @@ with the stable compiler series.
 ```toml
 # Cargo.toml
 [dependencies]
-bitvec = "0.15"
+bitvec = "0.16"
 ```
 
 `bitvec` is highly modular, and requires several items to function correctly.

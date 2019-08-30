@@ -193,56 +193,11 @@ pub trait BitStore:
 	#[inline(always)]
 	fn set<C>(&self, place: BitIdx<Self>, value: bool)
 	where C: Cursor {
-		self.set_at(place.pos::<C>(), value);
-	}
-
-	/// Sets a specific bit in an element to a given value.
-	///
-	/// # Safety
-	///
-	/// This method may only be called within an `&mut BitSlice` context.
-	///
-	/// # Parameters
-	///
-	/// - `&self`: An immutable reference to self, which will use interior
-	///   mutation from either an atomic wrapper or a `Cell` wrapper to safely
-	///   mutate shared data.
-	/// - `place`: A bit *position* in the element, where `0` is the LSbit and
-	///   `Self::MASK` is the MSbit.
-	/// - `value`: A Boolean value, which sets the bit high on `true` and clears
-	///   it low on `false`.
-	///
-	/// # Panics
-	///
-	/// This function only panics in debug mode. In release mode, it is
-	/// impossible to construct a `BitPos` that exceeds `Self`’s width.
-	///
-	/// # Examples
-	///
-	/// This example sets and clears bits in a byte.
-	///
-	/// ```rust
-	/// use bitvec::prelude::{BitPos, BitStore};
-	/// let mut elt: u8 = 0;
-	/// elt.set_at(BitPos::new(0), true);
-	/// assert_eq!(elt, 0b0000_0001);
-	/// elt.set_at(BitPos::new(7), true);
-	/// assert_eq!(elt, 0b1000_0001);
-	/// ```
-	fn set_at(&self, place: BitPos<Self>, value: bool) {
-		//  Outside of testing builds, it is only possible to construct `BitPos`
-		//  by going through conformant `Cursor` implementations.
-		debug_assert!(
-			*place < Self::BITS,
-			"Bit index {} must be less than the width {}",
-			*place,
-			Self::BITS,
-		);
 		if value {
-			self.nuclear().set(place);
+			self.nuclear().set::<C>(place);
 		}
 		else {
-			self.nuclear().clear(place);
+			self.nuclear().clear::<C>(place);
 		}
 	}
 
@@ -266,35 +221,7 @@ pub trait BitStore:
 	#[inline(always)]
 	fn invert<C>(&self, place: BitIdx<Self>)
 	where C: Cursor {
-		self.invert_at(place.pos::<C>());
-	}
-
-	/// Inverts a specific bit in an element.
-	///
-	/// # Safety
-	///
-	/// This method may only be called within an `&mut BitSlice` context.
-	///
-	/// # Parameters
-	///
-	/// - `&self`: An immutable reference to self, which will use interior
-	///   mutation from either an atomic wrapper or a `Cell` wrapper to safely
-	///   mutate shared data.
-	/// - `place`: A bit *position* in the element, where `0` is the LSbit and
-	///   `Self::MASK` is the MSbit.
-	///
-	/// # Panics
-	///
-	/// This function only panics in debug mode. In release mode, it is
-	/// impossible to construct a `BitPos` that exceeds `Self`’s width.
-	fn invert_at(&self, place: BitPos<Self>) {
-		debug_assert!(
-			*place < Self::BITS,
-			"Bit index {} must be less than the width {}",
-			*place,
-			Self::BITS,
-		);
-		self.nuclear().invert(place);
+		self.nuclear().invert::<C>(place);
 	}
 
 	/// Gets a specific bit in an element.
@@ -325,110 +252,7 @@ pub trait BitStore:
 	/// ```
 	fn get<C>(&self, place: BitIdx<Self>) -> bool
 	where C: Cursor {
-		self.get_at(place.pos::<C>())
-	}
-
-	/// Gets a specific bit in an element.
-	///
-	/// # Parameters
-	///
-	/// - `place`: A bit *position* in the element, from `0` at LSbit to
-	///   `Self::MASK` at MSbit. The bit under this position will be retrieved
-	///   as a `bool`.
-	///
-	/// # Returns
-	///
-	/// The value of the bit under `place`, as a `bool`.
-	///
-	/// # Panics
-	///
-	/// This function only panics in debug mode. In release mode, it is
-	/// impossible to construct a `BitPos` that exceeds `Self`’s width.
-	///
-	/// # Examples
-	///
-	/// This example gets two bits from a byte.
-	///
-	/// ```rust
-	/// use bitvec::prelude::{BitPos, BitStore};
-	/// let elt: u8 = 0b0010_0000;
-	/// assert!(!elt.get_at(BitPos::new(4)));
-	/// assert!(elt.get_at(BitPos::new(5)));
-	/// assert!(!elt.get_at(BitPos::new(6)));
-	/// ```
-	fn get_at(&self, place: BitPos<Self>) -> bool {
-		debug_assert!(
-			*place < Self::BITS,
-			"Bit index {} must be less than the width {}",
-			*place,
-			Self::BITS,
-		);
-		self.load() & Self::mask_at(place) != Self::from(0u8)
-	}
-
-	/// Produces the bit mask which selects only the bit at the requested
-	/// position.
-	///
-	/// This mask must be inverted in order to clear the bit.
-	///
-	/// # Parameters
-	///
-	/// - `place`: The bit position for which to create a bitmask.
-	///
-	/// # Returns
-	///
-	/// The one-hot encoding of the bit position index.
-	///
-	/// # Panics
-	///
-	/// This function only panics in debug mode. In release mode, it is
-	/// impossible to construct a `BitPos` that exceeds `Self`’s width.
-	///
-	/// # Examples
-	///
-	/// This example produces the one-hot encodings for indices.
-	///
-	/// ```rust
-	/// use bitvec::prelude::{BitPos, BitStore};
-	///
-	/// assert_eq!(u8::mask_at(BitPos::new(0)), 0b0000_0001);
-	/// assert_eq!(u8::mask_at(BitPos::new(1)), 0b0000_0010);
-	/// assert_eq!(u8::mask_at(BitPos::new(2)), 0b0000_0100);
-	/// assert_eq!(u8::mask_at(BitPos::new(3)), 0b0000_1000);
-	/// assert_eq!(u8::mask_at(BitPos::new(4)), 0b0001_0000);
-	/// assert_eq!(u8::mask_at(BitPos::new(5)), 0b0010_0000);
-	/// assert_eq!(u8::mask_at(BitPos::new(6)), 0b0100_0000);
-	/// assert_eq!(u8::mask_at(BitPos::new(7)), 0b1000_0000);
-	///
-	/// assert_eq!(u16::mask_at(BitPos::new(8)),  0b0000_0001__0000_0000);
-	/// assert_eq!(u16::mask_at(BitPos::new(9)),  0b0000_0010__0000_0000);
-	/// assert_eq!(u16::mask_at(BitPos::new(10)), 0b0000_0100__0000_0000);
-	/// assert_eq!(u16::mask_at(BitPos::new(11)), 0b0000_1000__0000_0000);
-	/// assert_eq!(u16::mask_at(BitPos::new(12)), 0b0001_0000__0000_0000);
-	/// assert_eq!(u16::mask_at(BitPos::new(13)), 0b0010_0000__0000_0000);
-	/// assert_eq!(u16::mask_at(BitPos::new(14)), 0b0100_0000__0000_0000);
-	/// assert_eq!(u16::mask_at(BitPos::new(15)), 0b1000_0000__0000_0000);
-	///
-	/// assert_eq!(u32::mask_at(BitPos::new(16)), 1 << 16);
-	/// assert_eq!(u32::mask_at(BitPos::new(24)), 1 << 24);
-	/// assert_eq!(u32::mask_at(BitPos::new(31)), 1 << 31);
-	///
-	/// # #[cfg(target_pointer_width = "64")] {
-	/// assert_eq!(u64::mask_at(BitPos::new(32)), 1 << 32);
-	/// assert_eq!(u64::mask_at(BitPos::new(48)), 1 << 48);
-	/// assert_eq!(u64::mask_at(BitPos::new(63)), 1 << 63);
-	/// # }
-	/// ```
-	#[inline(always)]
-	fn mask_at(place: BitPos<Self>) -> Self {
-		debug_assert!(
-			*place < Self::BITS,
-			"Bit index {} must be less than the width {}",
-			*place,
-			Self::BITS,
-		);
-		//  Pad 1 to the correct width, then shift up to the correct bit place.
-		Self::from(1u8) << *place
+		self.load() & C::mask(place) != Self::from(0)
 	}
 
 	/// Counts how many bits in `self` are set to `1`.
@@ -563,12 +387,6 @@ where T: BitStore {
 	#[inline(always)]
 	pub unsafe fn new_unchecked(idx: u8) -> Self {
 		Self { idx, _ty: PhantomData }
-	}
-
-	#[inline(always)]
-	pub(crate) fn pos<C>(self) -> BitPos<T>
-	where C: Cursor {
-		C::at::<T>(self)
 	}
 
 	/// Increments a cursor to the next value, wrapping if needed.

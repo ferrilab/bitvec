@@ -58,9 +58,12 @@ concurrency mechanisms needed to induce a race condition.
 
 #![cfg(feature = "atomic")]
 
-use crate::store::{
-	BitPos,
-	BitStore,
+use crate::{
+	cursor::Cursor,
+	store::{
+		BitIdx,
+		BitStore,
+	},
 };
 
 use core::sync::atomic::{
@@ -93,30 +96,45 @@ pub trait Atomic: Sized {
 	/// Defines the underlying fundamental type that this trait is wrapping.
 	type Fundamental: BitStore;
 
-	/// Sets the bit at some position to `0`.
+	/// Sets the bit at some index to `0`.
 	///
 	/// # Parameters
 	///
 	/// - `&self`: This is able to be immutable, rather than mutable, because
 	///   the atomic type is a `Cell`-type wrapper.
-	/// - `bit`: The position in the element to set low.
-	fn clear(&self, bit: BitPos<Self::Fundamental>);
+	/// - `bit`: The index in the element to set low.
+	///
+	/// # Type Parameters
+	///
+	/// - `C`: The `Cursor` implementation which translates `bit` into a mask.
+	fn clear<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor;
 
-	/// Sets the bit at some position to `1`.
+	/// Sets the bit at some index to `1`.
 	///
 	/// # Parameters
 	///
 	/// - `&self`
-	/// - `bit`: The position in the element to set high.
-	fn set(&self, bit: BitPos<Self::Fundamental>);
+	/// - `bit`: The index in the element to set high.
+	///
+	/// # Type Parameters
+	///
+	/// - `C`: The `Cursor` implementation which translates `bit` into a mask.
+	fn set<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor;
 
-	/// Inverts the bit at some position.
+	/// Inverts the bit at some index.
 	///
 	/// # Parameters
 	///
 	/// - `&self`
-	/// - `bit`: The position in the element to invert.
-	fn invert(&self, bit: BitPos<Self::Fundamental>);
+	/// - `bit`: The index in the element to invert.
+	///
+	/// # Type Parameters
+	///
+	/// - `C`: The `Cursor` implementation which translates `bit` into a mask.
+	fn invert<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor;
 
 	/// Gets the element underneath the atomic access.
 	///
@@ -134,18 +152,21 @@ impl Atomic for AtomicU8 {
 	type Fundamental = u8;
 
 	#[inline(always)]
-	fn clear(&self, bit: BitPos<Self::Fundamental>) {
-		self.fetch_and(!<u8 as BitStore>::mask_at(bit), Ordering::Relaxed);
+	fn clear<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.fetch_and(!C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
-	fn set(&self, bit: BitPos<Self::Fundamental>) {
-		self.fetch_or(<u8 as BitStore>::mask_at(bit), Ordering::Relaxed);
+	fn set<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.fetch_or(C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
-	fn invert(&self, bit: BitPos<Self::Fundamental>) {
-		self.fetch_xor(<u8 as BitStore>::mask_at(bit), Ordering::Relaxed);
+	fn invert<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.fetch_xor(C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
@@ -158,18 +179,21 @@ impl Atomic for AtomicU16 {
 	type Fundamental = u16;
 
 	#[inline(always)]
-	fn clear(&self, bit: BitPos<Self::Fundamental>) {
-		self.fetch_and(!<u16 as BitStore>::mask_at(bit), Ordering::Relaxed);
+	fn clear<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.fetch_and(!C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
-	fn set(&self, bit: BitPos<Self::Fundamental>) {
-		self.fetch_or(<u16 as BitStore>::mask_at(bit), Ordering::Relaxed);
+	fn set<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.fetch_or(C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
-	fn invert(&self, bit: BitPos<Self::Fundamental>) {
-		self.fetch_xor(<u16 as BitStore>::mask_at(bit), Ordering::Relaxed);
+	fn invert<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.fetch_xor(C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
@@ -182,18 +206,21 @@ impl Atomic for AtomicU32 {
 	type Fundamental = u32;
 
 	#[inline(always)]
-	fn clear(&self, bit: BitPos<Self::Fundamental>) {
-		self.fetch_and(!<u32 as BitStore>::mask_at(bit), Ordering::Relaxed);
+	fn clear<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.fetch_and(!C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
-	fn set(&self, bit: BitPos<Self::Fundamental>) {
-		self.fetch_or(<u32 as BitStore>::mask_at(bit), Ordering::Relaxed);
+	fn set<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.fetch_or(C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
-	fn invert(&self, bit: BitPos<Self::Fundamental>) {
-		self.fetch_xor(<u32 as BitStore>::mask_at(bit), Ordering::Relaxed);
+	fn invert<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.fetch_xor(C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
@@ -207,18 +234,21 @@ impl Atomic for AtomicU64 {
 	type Fundamental = u64;
 
 	#[inline(always)]
-	fn clear(&self, bit: BitPos<Self::Fundamental>) {
-		self.fetch_and(!<u64 as BitStore>::mask_at(bit), Ordering::Relaxed);
+	fn clear<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.fetch_and(!C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
-	fn set(&self, bit: BitPos<Self::Fundamental>) {
-		self.fetch_or(<u64 as BitStore>::mask_at(bit), Ordering::Relaxed);
+	fn set<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.fetch_or(C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
-	fn invert(&self, bit: BitPos<Self::Fundamental>) {
-		self.fetch_xor(<u64 as BitStore>::mask_at(bit), Ordering::Relaxed);
+	fn invert<C>(&self, bit: BitIdx<Self::Fundamental>)
+	where C: Cursor {
+		self.fetch_xor(C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
@@ -230,6 +260,7 @@ impl Atomic for AtomicU64 {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::cursor::LittleEndian;
 	use core::sync::atomic::{
 		AtomicU8,
 		AtomicU16,
@@ -243,13 +274,13 @@ mod tests {
 	fn atomic_u8() {
 		let atom = AtomicU8::new(0);
 
-		Atomic::set(&atom, BitPos::new(0));
+		Atomic::set::<LittleEndian>(&atom, BitIdx::new(0));
 		assert_eq!(Atomic::get(&atom), 1);
 
-		Atomic::clear(&atom, BitPos::new(0));
+		Atomic::clear::<LittleEndian>(&atom, BitIdx::new(0));
 		assert_eq!(Atomic::get(&atom), 0);
 
-		Atomic::invert(&atom, BitPos::new(1));
+		Atomic::invert::<LittleEndian>(&atom, BitIdx::new(1));
 		assert_eq!(Atomic::get(&atom), 2);
 	}
 
@@ -257,13 +288,13 @@ mod tests {
 	fn atomic_u16() {
 		let atom = AtomicU16::new(0);
 
-		Atomic::set(&atom, BitPos::new(0));
+		Atomic::set::<LittleEndian>(&atom, BitIdx::new(0));
 		assert_eq!(Atomic::get(&atom), 1);
 
-		Atomic::clear(&atom, BitPos::new(0));
+		Atomic::clear::<LittleEndian>(&atom, BitIdx::new(0));
 		assert_eq!(Atomic::get(&atom), 0);
 
-		Atomic::invert(&atom, BitPos::new(1));
+		Atomic::invert::<LittleEndian>(&atom, BitIdx::new(1));
 		assert_eq!(Atomic::get(&atom), 2);
 	}
 
@@ -271,13 +302,13 @@ mod tests {
 	fn atomic_u32() {
 		let atom = AtomicU32::new(0);
 
-		Atomic::set(&atom, BitPos::new(0));
+		Atomic::set::<LittleEndian>(&atom, BitIdx::new(0));
 		assert_eq!(Atomic::get(&atom), 1);
 
-		Atomic::clear(&atom, BitPos::new(0));
+		Atomic::clear::<LittleEndian>(&atom, BitIdx::new(0));
 		assert_eq!(Atomic::get(&atom), 0);
 
-		Atomic::invert(&atom, BitPos::new(1));
+		Atomic::invert::<LittleEndian>(&atom, BitIdx::new(1));
 		assert_eq!(Atomic::get(&atom), 2);
 	}
 
@@ -286,13 +317,13 @@ mod tests {
 	fn atomic_u64() {
 		let atom = AtomicU64::new(0);
 
-		Atomic::set(&atom, BitPos::new(0));
+		Atomic::set::<LittleEndian>(&atom, BitIdx::new(0));
 		assert_eq!(Atomic::get(&atom), 1);
 
-		Atomic::clear(&atom, BitPos::new(0));
+		Atomic::clear::<LittleEndian>(&atom, BitIdx::new(0));
 		assert_eq!(Atomic::get(&atom), 0);
 
-		Atomic::invert(&atom, BitPos::new(1));
+		Atomic::invert::<LittleEndian>(&atom, BitIdx::new(1));
 		assert_eq!(Atomic::get(&atom), 2);
 	}
 }
