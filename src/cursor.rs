@@ -20,11 +20,40 @@ use crate::store::{
 	BitStore,
 };
 
-/// Traverses an element from `MSbit` to `LSbit`.
+/** Traverses an element from `MSbit` to `LSbit`.
+
+This is currently the default ordering used by the `BitSlice`, `BitBox` and
+`BitVec` data structures the crate exports. It counts from “left” to “right” as
+a single byte would be written in English text.
+
+The custom in almost all CS literature and actual hardware is to number bit
+indices in an element from `0` at the `LSbit` to the maximal at the `MSbit`,
+which is little-endian ordering. If you require that behavior, use the
+`LittleEndian` ordering also exported by this module.
+
+This ordering is useful for interfacing with I²C and some serial controllers.
+
+The crate selects it as the default solely based on the author’s observation
+that it was the more common ordering in the network serialization protocols used
+at his work.
+**/
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct BigEndian;
 
-/// Traverses an element from `LSbit` to `MSbit`.
+/** Traverses an element from `LSbit` to `MSbit`.
+
+Almost all CS literature and processors use little-endian numbering to index
+bits within an element. This ordering is suitable for building up numbers in
+memory, or for interfacing with some networking bit-serial protocols.
+
+If your application is compute-bound and is agnostic to buffer layout, then this
+is a better cursor than `BigEndian` because its implementation is a noöp, while
+the `BigEndian` implementation performs one subtraction each call. Production of
+a bit-mask from a position always requires a left-shift, but in a heavily-used
+loop, the difference between two instructions and one may be meaningful.
+
+The RS-232, Ethernet, and USB protocols use this ordering.
+**/
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct LittleEndian;
 
