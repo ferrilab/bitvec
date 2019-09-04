@@ -31,6 +31,17 @@ This document is written according to the [Keep a Changelog][kac] style.
 
 ### Changed
 
+- `BitSlice` shift operations have had a long-standing bug where a shift amount
+  that is an even multiple of the element width would unconditionally shift the
+  underlying memory elements, even when that memory domain could be observed by
+  other slices. This is a serious error that affected all releases in 2019. As
+  `bitvec` is still in the development `0.x` series, and these partial slices
+  are expected to be rare, the releases will not be yanked until after `1.0`.
+
+  `BitSlice` shift operations now use the fast path only when the shift amount
+  permits it **and** the slice fully spans its underlying memory; otherwise, it
+  uses the slower path.
+
 - When the `atomic` feature is disabled, `BitStore` falls back to the `cellular`
   module described above. In `0.15.1`, the `Send` marker on `BitSlice` was made
   to exist only when `atomic` is present. This means that the unsynchronized

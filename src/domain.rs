@@ -160,6 +160,29 @@ where T: 'a + BitStore {
 	Spanning(&'a [T]),
 }
 
+impl<'a, T> BitDomain<'a, T>
+where T: 'a + BitStore {
+	/// Tests if a domain fully spans its underlying memory slab.
+	///
+	/// Certain slice operations can be optimized to use element operations, but
+	/// this requires that there are no partial edges. As such, detection of a
+	/// `Spanning` domain is needed to take the fast path.
+	///
+	/// # Parameters
+	///
+	/// - `&self`: Some domain descriptor produced from a `BitPtr`.
+	///
+	/// # Returns
+	///
+	/// `true` if `self` is the `Spanning` variant; `false` otherwise.
+	pub fn is_spanning(&self) -> bool {
+		match self {
+			BitDomain::Spanning(_) => true,
+			_ => false,
+		}
+	}
+}
+
 impl<'a, T> From<BitDomainMut<'a, T>> for BitDomain<'a, T>
 where T: 'a + BitStore {
 	fn from(source: BitDomainMut<'a, T>) -> Self {

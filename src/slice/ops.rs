@@ -7,6 +7,7 @@ of the `src/slice.rs` file
 use super::BitSlice;
 
 use crate::{
+	bits::BitsMut,
 	cursor::Cursor,
 	domain::BitDomainMut,
 	pointer::BitPtr,
@@ -640,16 +641,20 @@ where C: Cursor, T: BitStore {
 			self.set_all(false);
 			return;
 		}
-		//  If the shift amount is an even multiple of the element width, use
-		//  `ptr::copy` instead of a bitwise crawl.
-		if shamt & T::MASK as usize == 0 {
+		//  If the shift amount is an even multiple of the element width AND the
+		//  slice fully owns its memory, use `ptr::copy` instead of a bitwise
+		//  crawl.
+		if shamt & T::MASK as usize == 0 && self.bitptr().domain().is_spanning() {
 			//  Compute the shift distance measured in elements.
 			let offset = shamt.shr(T::INDX);
 			//  Compute the number of elements that will remain.
-			let rem = self.as_ref().len().saturating_sub(offset);
+			let elts = self.as_slice().len();
+			let rem = elts.saturating_sub(offset);
 			//  Clear the bits after the tail cursor before the move.
-			for n in *self.bitptr().tail() .. T::BITS {
-				self.as_mut()[len.saturating_sub(1)].set::<C>(n.idx(), false);
+			let tail = self.bitptr().tail();
+			let last_elt = self.as_mut_slice()[elts - 1].as_mut_bitslice::<C>();
+			for n in *tail .. T::BITS {
+				unsafe { last_elt.set_unchecked(n as usize, false); }
 			}
 			//  Memory model: suppose we have this slice of sixteen elements,
 			//  that is shifted five elements to the left. We have three
@@ -666,9 +671,9 @@ where C: Cursor, T: BitStore {
 			let head: *mut T = self.as_mut_ptr();
 			//  Pointer to the front of the section that will move and be
 			//  retained
-			let body: *const T = &self.as_ref()[offset];
+			let body: *const T = &self.as_slice()[offset];
 			//  Pointer to the back of the slice that will be zero-filled.
-			let tail: *mut T = &mut self.as_mut()[rem];
+			let tail: *mut T = &mut self.as_mut_slice()[rem];
 			unsafe {
 				ptr::copy(body, head, rem);
 				ptr::write_bytes(tail, 0, offset);
@@ -677,11 +682,13 @@ where C: Cursor, T: BitStore {
 		}
 		//  Otherwise, crawl.
 		for (to, from) in (shamt .. len).enumerate() {
-			let val = self[from];
-			self.set(to, val);
+			unsafe {
+				let val = self.get_unchecked(from);
+				self.set_unchecked(to, val);
+			}
 		}
 		for bit in (len.saturating_sub(shamt)) .. len {
-			self.set(bit, false);
+			unsafe { self.set_unchecked(bit, false); }
 		}
 	}
 }
@@ -744,16 +751,19 @@ where C: Cursor, T: BitStore {
 			self.set_all(false);
 			return;
 		}
-		//  If the shift amount is an even multiple of the element width, use
-		//  `ptr::copy` instead of a bitwise crawl.
-		if shamt & T::MASK as usize == 0 {
+		//  If the shift amount is an even multiple of the element width AND the
+		//  slice fully owns its memory, use `ptr::copy` instead of a bitwise
+		//  crawl.
+		if shamt & T::MASK as usize == 0 && self.bitptr().domain().is_spanning() {
 			//  Compute the shift amount measured in elements.
 			let offset = shamt >> T::INDX;
 			// Compute the number of elements that will remain.
-			let rem = self.as_ref().len().saturating_sub(offset);
+			let rem = self.as_slice().len().saturating_sub(offset);
 			//  Clear the bits ahead of the head cursor before the move.
-			for n in 0 .. *self.bitptr().head() {
-				self.as_mut()[0].set::<C>(n.idx(), false);
+			let head = self.bitptr().head();
+			let first_elt = self.as_mut_slice()[0].as_mut_bitslice::<C>();
+			for n in 0 .. *head {
+				unsafe { first_elt.set_unchecked(n as usize, false); }
 			}
 			//  Memory model: suppose we have this slice of sixteen elements,
 			//  that is shifted five elements to the right. We have two pointers
@@ -766,7 +776,7 @@ where C: Cursor, T: BitStore {
 			//    ^-------before------^
 			//    0 0 0 0 0 ^-------after-------^
 			let head: *mut T = self.as_mut_ptr();
-			let body: *mut T = &mut self.as_mut()[offset];
+			let body: *mut T = &mut self.as_mut_slice()[offset];
 			unsafe {
 				ptr::copy(head, body, rem);
 				ptr::write_bytes(head, 0, offset);
@@ -775,11 +785,49 @@ where C: Cursor, T: BitStore {
 		}
 		//  Otherwise, crawl.
 		for (from, to) in (shamt .. len).enumerate().rev() {
-			let val = self[from];
-			self.set(to, val);
+			unsafe {
+				let val = self.get_unchecked(from);
+				self.set_unchecked(to, val);
+			}
 		}
 		for bit in 0 .. shamt {
-			self.set(bit, false);
+			unsafe { self.set_unchecked(bit, false); }
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::cursor::BigEndian;
+
+	#[test]
+	fn shl_assign() {
+		let mut bytes = [0u8, 0, 0x5A, !0, !0];
+		let bits = bytes.as_mut_bitslice::<BigEndian>();
+
+		*bits <<= 16;
+		assert_eq!(bits.as_slice(), &[0x5Au8, !0, !0, 0, 0]);
+
+		let mut bytes = [!0u8, 0, 0, !0, !0, !0];
+		let bits = &mut bytes.as_mut_bitslice::<BigEndian>()[2 .. 46];
+
+		*bits <<= 16;
+		assert_eq!(bits.bitptr().as_slice(), &[0xC0u8, !0, !0, 0xFC, 0, 3]);
+	}
+
+	#[test]
+	fn shr_assign() {
+		let mut bytes = [!0u8, !0, 0xA5, 0, 0];
+		let bits = bytes.as_mut_bitslice::<BigEndian>();
+
+		*bits >>= 16;
+		assert_eq!(bits.as_slice(), &[0u8, 0, !0, !0, 0xA5]);
+
+		let mut bytes = [0xF0u8, !0, !0, 0, 0, !0];
+		let bits = &mut bytes.as_mut_bitslice::<BigEndian>()[2 .. 46];
+
+		*bits >>= 16;
+		assert_eq!(bits.bitptr().as_slice(), &[0xC0u8, 0, 0x30, !0, !0, 3]);
 	}
 }
