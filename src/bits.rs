@@ -113,7 +113,98 @@ pub trait BitsMut: Bits {
 	where C: Cursor;
 }
 
+impl<T> Bits for T
+where T: BitStore {
+	type Store = T;
+
+	#[inline]
+	fn as_bitslice<C>(&self) -> &BitSlice<C, Self::Store>
+	where C: Cursor {
+		BitSlice::from_element(self)
+	}
+}
+
+impl<T> BitsMut for T
+where T: BitStore {
+	#[inline]
+	fn as_mut_bitslice<C>(&mut self) -> &mut BitSlice<C, Self::Store>
+	where C: Cursor {
+		BitSlice::from_element_mut(self)
+	}
+}
+
+impl<T> Bits for [T]
+where T: BitStore {
+	type Store = T;
+
+	#[inline]
+	fn as_bitslice<C>(&self) -> &BitSlice<C, Self::Store>
+	where C: Cursor {
+		BitSlice::from_slice(self)
+	}
+}
+
+impl<T> BitsMut for [T]
+where T: BitStore {
+	#[inline]
+	fn as_mut_bitslice<C>(&mut self) -> &mut BitSlice<C, Self::Store>
+	where C: Cursor {
+		BitSlice::from_slice_mut(self)
+	}
+}
+
+impl<T> Bits for [T; 0]
+where T: BitStore {
+	type Store = T;
+
+	#[inline]
+	fn as_bitslice<C>(&self) -> &BitSlice<C, Self::Store>
+	where C: Cursor {
+		BitSlice::empty()
+	}
+}
+
+impl<T> BitsMut for [T; 0]
+where T: BitStore {
+	#[inline]
+	fn as_mut_bitslice<C>(&mut self) -> &mut BitSlice<C, Self::Store>
+	where C: Cursor {
+		BitSlice::empty_mut()
+	}
+}
+
 macro_rules! impl_bits_for {
+	( $( $n:expr )* ) => { $(
+impl<T> Bits for [T; $n]
+where T: BitStore {
+	type Store = T;
+
+	#[inline]
+	fn as_bitslice<C>(&self) -> &BitSlice<C, Self::Store>
+	where C: Cursor {
+		BitSlice::from_slice(&self[..])
+	}
+}
+
+impl<T> BitsMut for [T; $n]
+where T: BitStore {
+	#[inline]
+	fn as_mut_bitslice<C>(&mut self) -> &mut BitSlice<C, Self::Store>
+	where C: Cursor {
+		BitSlice::from_slice_mut(&mut self[..])
+	}
+}
+	)* };
+}
+
+impl_bits_for! {
+	    1  2  3  4  5  6  7  8  9
+	10 11 12 13 14 15 16 17 18 19
+	20 21 22 23 24 25 26 27 28 29
+	30 31 32 // going above 32 is a DoS attack on the compiler
+}
+
+macro_rules! impl_ref_for {
 	( $( $t:ty ),* ) => { $(
 impl<C> AsMut<BitSlice<C, $t>> for $t
 where C: Cursor {
@@ -128,24 +219,6 @@ where C: Cursor {
 	#[inline]
 	fn as_ref(&self) -> &BitSlice<C, $t> {
 		Bits::as_bitslice(self)
-	}
-}
-
-impl Bits for $t {
-	type Store = $t;
-
-	#[inline]
-	fn as_bitslice<C>(&self) -> &BitSlice<C, Self::Store>
-	where C: Cursor {
-		BitSlice::from_element(self)
-	}
-}
-
-impl BitsMut for $t {
-	#[inline]
-	fn as_mut_bitslice<C>(&mut self) -> &mut BitSlice<C, Self::Store>
-	where C: Cursor {
-		BitSlice::from_element_mut(self)
 	}
 }
 
@@ -165,24 +238,6 @@ where C: Cursor {
 	}
 }
 
-impl Bits for [$t] {
-	type Store = $t;
-
-	#[inline]
-	fn as_bitslice<C>(&self) -> &BitSlice<C, Self::Store>
-	where C: Cursor {
-		BitSlice::from_slice(self)
-	}
-}
-
-impl BitsMut for [$t] {
-	#[inline]
-	fn as_mut_bitslice<C>(&mut self) -> &mut BitSlice<C, Self::Store>
-	where C: Cursor {
-		BitSlice::from_slice_mut(self)
-	}
-}
-
 impl<C> AsMut<BitSlice<C, $t>> for [$t; 0]
 where C: Cursor {
 	#[inline]
@@ -199,29 +254,11 @@ where C: Cursor {
 	}
 }
 
-impl Bits for [$t; 0] {
-	type Store = $t;
-
-	#[inline]
-	fn as_bitslice<C>(&self) -> &BitSlice<C, Self::Store>
-	where C: Cursor {
-		BitSlice::empty()
-	}
-}
-
-impl BitsMut for [$t; 0] {
-	#[inline]
-	fn as_mut_bitslice<C>(&mut self) -> &mut BitSlice<C, Self::Store>
-	where C: Cursor {
-		BitSlice::empty_mut()
-	}
-}
-
-impl_bits_for! { array $t ;
+impl_ref_for! { array $t ;
 	    1  2  3  4  5  6  7  8  9
 	10 11 12 13 14 15 16 17 18 19
 	20 21 22 23 24 25 26 27 28 29
-	30 31 32 // going above 32 is a DoS attack on the compiler
+	30 31 32
 }
 	)* };
 
@@ -241,28 +278,10 @@ where C: Cursor {
 		Bits::as_bitslice(self)
 	}
 }
-
-impl Bits for [$t; $n] {
-	type Store = $t;
-
-	#[inline]
-	fn as_bitslice<C>(&self) -> &BitSlice<C, Self::Store>
-	where C: Cursor {
-		BitSlice::from_slice(&self[..])
-	}
-}
-
-impl BitsMut for [$t; $n] {
-	#[inline]
-	fn as_mut_bitslice<C>(&mut self) -> &mut BitSlice<C, Self::Store>
-	where C: Cursor {
-		BitSlice::from_slice_mut(&mut self[..])
-	}
-}
 	)* };
 }
 
-impl_bits_for! { u8, u16, u32 }
+impl_ref_for! { u8, u16, u32 }
 
 #[cfg(target_pointer_width = "64")]
-impl_bits_for! { u64 }
+impl_ref_for! { u64 }
