@@ -80,10 +80,7 @@ use core::{
 		Sub,
 		SubAssign,
 	},
-	ptr::{
-		self,
-		NonNull,
-	},
+	ptr::NonNull,
 	slice,
 };
 
@@ -776,7 +773,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	pub fn truncate(&mut self, len: usize) {
 		if len < self.len() {
-			unsafe { self.bitptr_mut().set_len(len); }
+			unsafe { self.pointer.set_len(len); }
 		}
 	}
 
@@ -914,7 +911,7 @@ where C: Cursor, T: BitStore {
 			len,
 			self.capacity(),
 		);
-		self.bitptr_mut().set_len(len);
+		self.pointer.set_len(len);
 	}
 
 	/// Removes a bit from the vector and returns it.
@@ -950,7 +947,9 @@ where C: Cursor, T: BitStore {
 	pub fn swap_remove(&mut self, index: usize) -> bool {
 		let len = self.len();
 		assert!(index < len, "Index {} out of bounds: {}", index, len);
-		self.swap(index, len - 1);
+		if index < len - 1 {
+			self.swap(index, len - 1);
+		}
 		self.pop()
 			.expect("BitVec::swap_remove cannot fail after index validation")
 	}
@@ -1036,10 +1035,10 @@ where C: Cursor, T: BitStore {
 	///
 	/// # Type Parameters
 	///
-	/// - `F: FnMut(usize, bool) -> bool`: A function that can be invoked on
-	///   each bit, returning whether the bit should be kept or not. Receives
-	///   the index (following [`BitSlice::for_each`]) to provide additional
-	///   context to determine whether the entry satisfies the condition.
+	/// - `F`: A function that can be invoked on each bit, returning whether the
+	///   bit should be kept or not. Receives the index (following
+	///   [`BitSlice::for_each`]) to provide additional context to determine
+	///   whether the entry satisfies the condition.
 	///
 	/// # Examples
 	///
@@ -1055,7 +1054,7 @@ where C: Cursor, T: BitStore {
 	pub fn retain<F>(&mut self, mut pred: F)
 	where F: FnMut(usize, bool) -> bool {
 		for n in (0 .. self.len()).rev() {
-			if !pred(n, self[n]) {
+			if !pred(n, unsafe { self.get_unchecked(n) }) {
 				self.remove(n);
 			}
 		}
@@ -1101,8 +1100,10 @@ where C: Cursor, T: BitStore {
 		}
 		//  At this point, it is always safe to increment the tail, and then
 		//  write to the newly live bit.
-		self.pointer = unsafe { self.pointer.incr_tail() };
-		self.set(len, value);
+		unsafe {
+			self.pointer = self.pointer.incr_tail();
+			self.set_unchecked(len, value);
+		}
 	}
 
 	/// Removes the last bit from the collection, if present.
@@ -1132,12 +1133,15 @@ where C: Cursor, T: BitStore {
 	/// assert!(bv.pop().is_none());
 	/// ```
 	pub fn pop(&mut self) -> Option<bool> {
-		if self.is_empty() {
-			return None;
+		match self.len() {
+			0 => None,
+			len => unsafe {
+				let new_len = len - 1;
+				let out = self.get_unchecked(new_len);
+				self.pointer.set_len(new_len);
+				Some(out)
+			},
 		}
-		let out = self[self.len() - 1];
-		self.pointer = unsafe { self.pointer.decr_tail() };
-		Some(out)
 	}
 
 	/// Moves all the elements of `other` into `self`, leaving `other` empty.
@@ -1310,14 +1314,10 @@ where C: Cursor, T: BitStore {
 		let len = self.len();
 		assert!(at <= len, "Index out of bounds: {} is beyond {}", at, len);
 		match at {
-			0 => unsafe {
-				let out = Self::from_raw_parts(self.pointer, self.capacity);
-				ptr::write(self, Self::new());
-				out
-			},
+			0 => mem::replace(self, Self::new()),
 			n if n == len => Self::new(),
 			_ => {
-				let out = self.as_bitslice().iter().skip(at).collect();
+				let out = self.as_bitslice()[at ..].to_owned();
 				self.truncate(at);
 				out
 			},
@@ -1654,19 +1654,6 @@ where C: Cursor, T: BitStore {
 		out
 	}
 
-	/// Gives write access to the `BitPtr` structure powering the vector.
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`
-	///
-	/// # Returns
-	///
-	/// A mutable reference to the interior `BitPtr`.
-	pub(crate) fn bitptr_mut(&mut self) -> &mut BitPtr<T> {
-		&mut self.pointer
-	}
-
 	/// Permits a function to modify the `Vec<T>` underneath a `BitVec<_, T>`.
 	///
 	/// This produces a `Vec<T>` structure referring to the same data region as
@@ -1695,7 +1682,7 @@ where C: Cursor, T: BitStore {
 		//  The only change is that the pointer might relocate. The region data
 		//  will remain untouched. Vec guarantees it will never produce an
 		//  invalid pointer.
-		unsafe { self.bitptr_mut().set_pointer(v.as_ptr()); }
+		unsafe { self.pointer.set_pointer(v.as_ptr()); }
 		// self.pointer = unsafe { BitPtr::new_unchecked(v.as_ptr(), e, h, t) };
 		self.capacity = v.capacity();
 		mem::forget(v);

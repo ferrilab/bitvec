@@ -465,7 +465,12 @@ where C: Cursor, T: BitStore {
 		//  Implementation note: `incr_head` is faster than going through the
 		//  `Index<Range<_>>` implementations, which are required to perform
 		//  bounds checks.
-		Some((self[0], unsafe { self.bitptr().incr_head() }.into_bitslice()))
+		unsafe {
+			Some((
+				self.get_unchecked(0),
+				self.bitptr().incr_head().into_bitslice(),
+			))
+		}
 	}
 
 	/// Returns the first and all the rest of the bits of the slice, or `None`
@@ -500,8 +505,12 @@ where C: Cursor, T: BitStore {
 		if self.is_empty() {
 			return None;
 		}
-		let rest = unsafe { self.bitptr().incr_head() };
-		Some((self[0], rest.into_bitslice_mut()))
+		unsafe {
+			Some((
+				self.get_unchecked(0),
+				self.bitptr().incr_head().into_bitslice_mut(),
+			))
+		}
 	}
 
 	/// Returns the last and all the rest of the bits in the slice, or `None`
@@ -539,9 +548,11 @@ where C: Cursor, T: BitStore {
 	pub fn split_last(&self) -> Option<(bool, &Self)> {
 		match self.len() {
 			0 => None,
-			len => {
-				let rest = unsafe { self.bitptr().decr_tail() };
-				Some((self[len - 1], rest.into_bitslice()))
+			len => unsafe {
+				Some((
+					self.get_unchecked(len - 1),
+					self.bitptr().decr_tail().into_bitslice(),
+				))
 			},
 		}
 	}
@@ -577,9 +588,11 @@ where C: Cursor, T: BitStore {
 	pub fn split_last_mut(&mut self) -> Option<(bool, &mut Self)> {
 		match self.len() {
 			0 => None,
-			len => {
-				let rest = unsafe { self.bitptr().decr_tail() };
-				Some((self[len - 1], rest.into_bitslice_mut()))
+			len => unsafe {
+				Some((
+					self.get_unchecked(len - 1),
+					self.bitptr().decr_tail().into_bitslice_mut(),
+				))
 			},
 		}
 	}
@@ -603,11 +616,9 @@ where C: Cursor, T: BitStore {
 	/// assert!(1u8.as_bitslice::<BigEndian>().last().unwrap());
 	/// ```
 	pub fn last(&self) -> Option<bool> {
-		if self.is_empty() {
-			None
-		}
-		else {
-			Some(self[self.len() - 1])
+		match self.len() {
+			0 => None,
+			len => self.get(len - 1),
 		}
 	}
 
@@ -957,10 +968,11 @@ where C: Cursor, T: BitStore {
 	pub fn swap(&mut self, a: usize, b: usize) {
 		assert!(a < self.len(), "Index {} out of bounds: {}", a, self.len());
 		assert!(b < self.len(), "Index {} out of bounds: {}", b, self.len());
-		let bit_a = self[a];
-		let bit_b = self[b];
-		self.set(a, bit_b);
-		self.set(b, bit_a);
+		unsafe {
+			let (bit_a, bit_b) = (self.get_unchecked(a), self.get_unchecked(b));
+			self.set_unchecked(a, bit_b);
+			self.set_unchecked(b, bit_a);
+		}
 	}
 
 	/// Reverses the order of bits in the slice, in place.
@@ -1173,12 +1185,14 @@ where C: Cursor, T: BitStore {
 		}
 
 		for _ in 0 .. by {
-			let tmp = self[0];
+			let tmp = unsafe { self.get_unchecked(0) };
 			for n in 1 .. len {
-				let bit = self[n];
-				self.set(n - 1, bit);
+				unsafe {
+					let bit = self.get_unchecked(n);
+					self.set_unchecked(n - 1, bit);
+				}
 			}
-			self.set(len - 1, tmp);
+			unsafe { self.set_unchecked(len - 1, tmp); }
 		}
 	}
 
@@ -1218,13 +1232,15 @@ where C: Cursor, T: BitStore {
 
 		//  Perform `by` repetitions,
 		for _ in 0 .. by {
-			let tmp = self[len - 1];
+			let tmp = unsafe { self.get_unchecked(len - 1) };
 			//  of `len` steps
 			for n in (0 .. len - 1).rev() {
-				let bit = self[n];
-				self.set(n + 1, bit);
+				unsafe {
+					let bit = self.get_unchecked(n);
+					self.set_unchecked(n + 1, bit);
+				}
 			}
-			self.set(0, tmp);
+			unsafe { self.set_unchecked(0, tmp); }
 		}
 	}
 
@@ -1704,8 +1720,10 @@ where C: Cursor, T: BitStore {
 	pub fn for_each<F>(&mut self, func: F)
 	where F: Fn(usize, bool) -> bool {
 		for idx in 0 .. self.len() {
-			let tmp = self[idx];
-			self.set(idx, func(idx, tmp));
+			unsafe {
+				let tmp = self.get_unchecked(idx);
+				self.set_unchecked(idx, func(idx, tmp));
+			}
 		}
 	}
 
