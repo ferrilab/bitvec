@@ -1,7 +1,7 @@
 /*! Operator implementations for `BitSlice`.
 
 Operator trait implementations are moved here, in order to reduce the total size
-of the `src/slice.rs` file
+of the `src/slice.rs` file.
 !*/
 
 use super::BitSlice;

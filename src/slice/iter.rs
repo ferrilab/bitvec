@@ -1,5 +1,7 @@
 /*! Iterator implementations for `BitSlice`.
 
+This module defines the various iteration behaviors for `BitSlice`, mirroring
+the slice iterators of the standard library.
 !*/
 
 use super::{
