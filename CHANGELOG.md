@@ -524,6 +524,8 @@ Initial implementation and release.
 [@GeorgeGkas]: https://github.com/GeorgeGkas
 [@geq1t]: https://github.com/geq1t
 [@koushiro]: https://github.com/koushiro
+[@mystor]: https://github.com/mystor
+[@oli-obk]: https://github.com/oli-obk
 [@overminder]: https://github.com/overminder
 [@ratorx]: https://github.com/ratorx
 [@schomatis]: https://github.com/schomatis
