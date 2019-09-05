@@ -397,10 +397,10 @@ where T: BitStore {
 	/// governable in the caller’s context.
 	pub(crate) fn new(
 		data: impl Into<Pointer<T>>,
-		head: impl Into<u8>,
+		head: BitIdx<T>,
 		bits: usize,
 	) -> Self {
-		let (data, head) = (data.into(), head.into());
+		let data = data.into();
 
 		//  Null pointers become the empty slice.
 		if data.r().is_null() {
@@ -422,7 +422,7 @@ where T: BitStore {
 			Self::MAX_INDX,
 		);
 
-		let elts = BitIdx::<T>::new(head).span(bits).0;
+		let elts = head.span(bits).0;
 		let tail = data.r().wrapping_add(elts);
 		assert!(
 			tail >= data.r(),
@@ -457,10 +457,10 @@ where T: BitStore {
 	/// [`::new`]: #method.new
 	pub(crate) unsafe fn new_unchecked(
 		data: impl Into<Pointer<T>>,
-		head: impl Into<u8>,
+		head: BitIdx<T>,
 		bits: usize,
 	) -> Self {
-		let (data, head) = (data.into(), head.into() as usize);
+		let (data, head) = (data.into(), *head as usize);
 
 		let ptr_data = data.u() & Self::PTR_DATA_MASK;
 		let ptr_head = head >> Self::LEN_HEAD_BITS;
@@ -986,6 +986,7 @@ where T: BitStore {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::store::IntoBitIdx;
 
 	#[test]
 	fn associated_consts() {
@@ -1023,7 +1024,7 @@ mod tests {
 
 		let data = [0u8; 4];
 		//  anything with 0 bits is unconditionally empty
-		let bp = BitPtr::<u8>::new(&data as *const u8, 2, 0);
+		let bp = BitPtr::<u8>::new(&data as *const u8, 2.idx(), 0);
 		assert!(bp.is_empty());
 		//  empty pointers may still have valid data and head counters
 		assert_eq!(*bp.head(), 2);
@@ -1043,7 +1044,7 @@ mod tests {
 	#[test]
 	fn ctors() {
 		let data: [u32; 4] = [0x756c6153, 0x2c6e6f74, 0x6e6f6d20, 0x00216f64];
-		let bp = BitPtr::<u32>::new(&data as *const u32, 0, 32 * 4);
+		let bp = BitPtr::<u32>::new(&data as *const u32, 0.idx(), 32 * 4);
 		assert_eq!(bp.pointer().r(), &data as *const u32);
 		assert_eq!(bp.elements(), 4);
 		assert_eq!(*bp.head(), 0);
@@ -1054,7 +1055,7 @@ mod tests {
 	#[test]
 	fn set_pointer() {
 		let data: [u32; 2] = [0, 1];
-		let mut bp = BitPtr::new(data.as_ptr(), 2, 28);
+		let mut bp = BitPtr::new(data.as_ptr(), 2.idx(), 28);
 		assert_eq!(bp.pointer().r(), data.as_ptr());
 		unsafe { bp.set_pointer(data[1 ..].as_ptr()) };
 		assert_eq!(bp.pointer().r(), unsafe { data.as_ptr().offset(1) });
@@ -1063,6 +1064,10 @@ mod tests {
 	#[test]
 	#[should_panic]
 	fn overfull() {
-		BitPtr::<u32>::new(8 as *const u32, 1, BitPtr::<u32>::MAX_INDX + 1);
+		BitPtr::<u32>::new(
+			8 as *const u32,
+			1.idx(),
+			BitPtr::<u32>::MAX_INDX + 1,
+		);
 	}
 }

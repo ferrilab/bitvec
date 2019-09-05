@@ -20,6 +20,7 @@ use crate::{
 	store::{
 		BitIdx,
 		BitStore,
+		IntoBitIdx,
 	},
 };
 
@@ -1567,7 +1568,7 @@ where C: Cursor, T: BitStore {
 		}
 		//  Extend the span to include the front of the head element
 		let full = bits + head;
-		self.pointer = unsafe { BitPtr::new_unchecked(data, 0, full) };
+		self.pointer = unsafe { BitPtr::new_unchecked(data, 0.idx(), full) };
 		//  Rotate everything down
 		self.rotate_left(head);
 		//  And discard the garbage now at the back.

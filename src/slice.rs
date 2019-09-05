@@ -212,7 +212,7 @@ where C: Cursor, T: BitStore {
 	/// [`Bits::as_bitslice`]: ../bits/trait.Bits.html#tymethod.as_bitslice
 	pub fn from_element(elt: &T) -> &Self {
 		unsafe {
-			BitPtr::new_unchecked(elt, 0, T::BITS as usize)
+			BitPtr::new_unchecked(elt, 0.idx(), T::BITS as usize)
 		}.into_bitslice()
 	}
 
@@ -249,7 +249,7 @@ where C: Cursor, T: BitStore {
 	/// [`BitsMut::as_mut_bitslice`]: ../bits/trait.BitsMut.html#tymethod.as_mut_bitslice
 	pub fn from_element_mut(elt: &mut T) -> &mut Self {
 		unsafe {
-			BitPtr::new_unchecked(elt, 0, T::BITS as usize)
+			BitPtr::new_unchecked(elt, 0.idx(), T::BITS as usize)
 		}.into_bitslice_mut()
 	}
 
@@ -308,8 +308,11 @@ where C: Cursor, T: BitStore {
 		let bits = len << (T::INDX as usize);
 		//  However, at `MAX_ELTS`, `bits` overflows `MAX_INDX`, and must be
 		//  clamped.
-		BitPtr::new(slice.as_ptr(), 0, cmp::min(bits, BitPtr::<T>::MAX_INDX))
-			.into_bitslice()
+		BitPtr::new(
+			slice.as_ptr(),
+			0.idx(),
+			cmp::min(bits, BitPtr::<T>::MAX_INDX),
+		).into_bitslice()
 	}
 
 	/// Wraps a `&mut [T]` in a `&mut BitSlice<C, T>`.
