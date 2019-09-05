@@ -540,6 +540,17 @@ where T: BitStore {
 		((ptr_head | len_head) as u8).idx()
 	}
 
+	pub(crate) unsafe fn set_head(&mut self, head: BitIdx<T>) {
+		let ptr_usz = &mut *(&mut self.ptr as *mut NonNull<u8> as *mut usize);
+		let head = *head as usize;
+
+		*ptr_usz &= !Self::PTR_HEAD_MASK;
+		*ptr_usz |= (head >> Self::LEN_HEAD_BITS) & Self::PTR_HEAD_MASK;
+
+		self.len &= !Self::LEN_HEAD_MASK;
+		self.len |= head & Self::LEN_HEAD_MASK;
+	}
+
 	/// Counts how many bits are in the domain of a `BitPtr` slice.
 	///
 	/// # Parameters

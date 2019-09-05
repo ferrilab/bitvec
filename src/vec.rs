@@ -793,48 +793,6 @@ where C: Cursor, T: BitStore {
 		self.pointer.into_bitslice_mut()
 	}
 
-	/// Accesses the underlying store as elements.
-	///
-	/// Unlike the `BitSlice` implementation, this does produce the tail element
-	/// even if it is partial. `BitVec` unconditionally owns its memory, so
-	/// there can never be an aliasing condition.
-	///
-	/// Since the elements are all guaranteed to be fully initialized, this does
-	/// not produce any views to uninitialized memory.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// A slice over the raw elements underlying the vector.
-	pub fn as_slice(&self) -> &[T] {
-		self.pointer.as_slice()
-	}
-
-	/// Accesses the underlying store as elements.
-	///
-	/// Unlike the `BitSlice` implementation, this does produce the tail element
-	/// even if it is partial. `BitVec` unconditionally owns its memory, so
-	/// there can never be an aliasing condition. Any operation which would
-	/// cause a `BitSlice` alias would require the code to have borrowed the
-	/// `BitVec`, forbidding access to this method.
-	///
-	/// Since the elements are all guaranteed to be fully initialized, this does
-	/// not produce any views to uninitialized memory.
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`
-	///
-	/// # Returns
-	///
-	/// A mutable slice over the raw elements underlying the vector.
-	pub fn as_mut_slice(&mut self) -> &mut [T] {
-		self.pointer.as_mut_slice()
-	}
-
 	/// Sets the length of the vector.
 	///
 	/// This unconditionally sets the size of the vector, without modifying its
@@ -2124,5 +2082,6 @@ where C: Cursor, T: BitStore {}
 unsafe impl<C, T> Sync for BitVec<C, T>
 where C: Cursor, T: BitStore {}
 
+mod r#override;
 mod iter;
 mod ops;
