@@ -25,6 +25,7 @@ use crate::{
 #[cfg(feature = "alloc")]
 use core::{
 	cmp,
+	convert::TryInto,
 	fmt::{
 		self,
 		Formatter,
@@ -49,6 +50,7 @@ use serde::{
 		Deserializer,
 		MapAccess,
 		SeqAccess,
+		Unexpected,
 		Visitor,
 	},
 };
@@ -90,7 +92,15 @@ where C: Cursor, T: BitStore + Deserialize<'de> {
 		let data: Box<[T]> = seq.next_element()?
 			.ok_or_else(|| de::Error::invalid_length(2, &self))?;
 
-		let bitptr = BitPtr::new(data.as_ptr(), head, bits);
+		let bitptr = BitPtr::new(
+			data.as_ptr(),
+			head.try_into()
+				.map_err(|_| de::Error::invalid_value(
+					Unexpected::Unsigned(head as u64),
+					&"a head index that is less than the bit width of the slice element type",
+				))?,
+			bits,
+		);
 		mem::forget(data);
 		Ok(unsafe { BitBox::from_raw(bitptr) })
 	}
@@ -125,7 +135,11 @@ where C: Cursor, T: BitStore + Deserialize<'de> {
 
 		let bitptr = BitPtr::new(
 			data.as_ptr(),
-			head,
+			head.try_into()
+				.map_err(|_| de::Error::invalid_value(
+					Unexpected::Unsigned(head as u64),
+					&"a head index that is less than the bit width of the slice element type",
+				))?,
 			cmp::min(bits, data.len() * T::BITS as usize),
 		);
 		mem::forget(data);

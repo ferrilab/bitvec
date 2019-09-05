@@ -13,7 +13,7 @@ use crate::cursor::Cursor;
 
 use core::{
 	cmp::Eq,
-	convert::From,
+	convert::TryFrom,
 	fmt::{
 		self,
 		Binary,
@@ -531,6 +531,20 @@ impl<T> Into<u8> for BitIdx<T>
 where T: BitStore {
 	fn into(self) -> u8 {
 		self.idx
+	}
+}
+
+impl<T> TryFrom<u8> for BitIdx<T>
+where T: BitStore {
+	type Error = &'static str;
+
+	fn try_from(idx: u8) -> Result<Self, Self::Error> {
+		if idx < T::BITS {
+			Ok(unsafe { Self::new_unchecked(idx) })
+		}
+		else {
+			Err("Attempted to construct a `BitIdx` with an index out of range")
+		}
 	}
 }
 
