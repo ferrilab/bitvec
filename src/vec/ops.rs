@@ -13,6 +13,9 @@ use crate::{
 	store::BitStore,
 };
 
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
+
 use core::{
 	iter::FromIterator,
 	mem,

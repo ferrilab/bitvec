@@ -23,6 +23,10 @@ impl<C: Cursor, T: BitsMut> AsMut<BitSlice<C, T::Store>> for T {
 but it is correct in theory, and so all types which implement `Bits` should
 implement `AsRef<BitSlice>` and all types which implement `BitsMut` should
 implement `AsMut<BitSlice>`.
+
+Until type-level integers stabilize, this module only implements `Bits` and
+`BitsMut` on arrays up to length 32; arrays larger than 32 must use the slice
+implementation.
 !*/
 
 use crate::{

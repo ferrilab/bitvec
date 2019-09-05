@@ -69,7 +69,6 @@ use core::{
 
 #[cfg(not(feature = "std"))]
 use alloc::{
-	borrow::ToOwned,
 	boxed::Box,
 	vec::Vec,
 };
