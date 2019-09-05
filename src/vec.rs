@@ -1519,16 +1519,20 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(bv.as_slice(), &[0xFC]);
 	/// ```
 	pub fn force_align(&mut self) {
-		let (data, head, bits) = self.pointer.raw_parts();
+		let (_, head, bits) = self.pointer.raw_parts();
 		let head = *head as usize;
 		if head == 0 {
 			return;
 		}
 		//  Extend the span to include the front of the head element
 		let full = bits + head;
-		self.pointer = unsafe { BitPtr::new_unchecked(data, 0.idx(), full) };
-		//  Rotate everything down
-		self.rotate_left(head);
+		unsafe {
+			self.pointer.set_head(0.idx());
+			self.pointer.set_len(full);
+		}
+		//  Rotate everything down, using the `BitSlice` rotator since the
+		//  `BitVec` rotator is lazy and not required to perform this work.
+		self.as_mut_bitslice().rotate_left(head);
 		//  And discard the garbage now at the back.
 		unsafe { self.pointer.set_len(bits); }
 	}

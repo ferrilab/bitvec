@@ -540,6 +540,33 @@ where T: BitStore {
 		((ptr_head | len_head) as u8).idx()
 	}
 
+	/// Overwrites the head index with a new counter.
+	///
+	/// This does not perform any safety checks on the value of the `head`
+	/// parameter. The parameter will be masked to the appropriate constraints
+	/// needed to fit it into the pointer, which may cause data loss, but it
+	/// should be impossible to construct a `BitIdx<T>` which is invalid for `T`
+	/// anyway without breaking invariants.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `head`: The new head cursor to which this pointer will be set. It must
+	///   be in the range `0 .. T::BITS`, and this invariant is expected to be
+	///   upheld by the `BitIdx` type rather than by this function.
+	///
+	/// # Notes
+	///
+	/// This does *not* change the length field, so the span this pointer
+	/// describes will move its tail as well as its head as a result.
+	///
+	/// # Safety
+	///
+	/// `head` will be masked to the appropriate constraints. This function does
+	/// not break any memory invariants; it is marked `unsafe` because it can
+	/// cause caller-observed inconsistencies, but will never cause memory
+	/// inconsistencies.
+	#[cfg(feature = "alloc")]
 	pub(crate) unsafe fn set_head(&mut self, head: BitIdx<T>) {
 		let ptr_usz = &mut *(&mut self.ptr as *mut NonNull<u8> as *mut usize);
 		let head = *head as usize;

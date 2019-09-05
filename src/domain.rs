@@ -350,11 +350,12 @@ where T: 'a + BitStore {
 #[cfg(all(test, feature = "testing"))]
 mod tests {
 	use super::*;
+	use crate::store::IntoBitIdx;
 
 	#[test]
 	fn minor() {
 		let data: u8 = 0u8;
-		let bp = BitPtr::new(&data, 1, 6);
+		let bp = BitPtr::new(&data, 1.idx(), 6);
 
 		assert_eq!(bp.domain_kind(), BitDomainKind::Minor);
 	}
@@ -362,7 +363,7 @@ mod tests {
 	#[test]
 	fn major() {
 		let data: &[u16] = &[0u16, !0u16];
-		let bp = BitPtr::new(&data[0], 1, 28);
+		let bp = BitPtr::new(&data[0], 1.idx(), 28);
 
 		assert_eq!(bp.domain_kind(), BitDomainKind::Major);
 	}
@@ -370,12 +371,12 @@ mod tests {
 	#[test]
 	fn partial_head() {
 		let data: u32 = 0u32;
-		let bp = BitPtr::new(&data, 4, 28);
+		let bp = BitPtr::new(&data, 4.idx(), 28);
 
 		assert_eq!(bp.domain_kind(), BitDomainKind::PartialHead);
 
 		let data: &[u32] = &[0u32, !0u32];
-		let bp = BitPtr::new(&data[0], 4, 60);
+		let bp = BitPtr::new(&data[0], 4.idx(), 60);
 
 		assert_eq!(bp.domain_kind(), BitDomainKind::PartialHead);
 	}
@@ -383,12 +384,12 @@ mod tests {
 	#[test]
 	fn partial_tail() {
 		let data: u64 = 0u64;
-		let bp = BitPtr::new(&data, 0, 60);
+		let bp = BitPtr::new(&data, 0.idx(), 60);
 
 		assert_eq!(bp.domain_kind(), BitDomainKind::PartialTail);
 
 		let data: &[u64] = &[0u64, !0u64];
-		let bp = BitPtr::new(&data[0], 0, 124);
+		let bp = BitPtr::new(&data[0], 0.idx(), 124);
 
 		assert_eq!(bp.domain_kind(), BitDomainKind::PartialTail);
 	}
@@ -396,12 +397,12 @@ mod tests {
 	#[test]
 	fn spanning() {
 		let data: u8 = 0u8;
-		let bp = BitPtr::new(&data, 0, 8);
+		let bp = BitPtr::new(&data, 0.idx(), 8);
 
 		assert_eq!(bp.domain_kind(), BitDomainKind::Spanning);
 
 		let data: &[u16] = &[0u16, !0u16];
-		let bp = BitPtr::new(&data[0], 0, 32);
+		let bp = BitPtr::new(&data[0], 0.idx(), 32);
 
 		assert_eq!(bp.domain_kind(), BitDomainKind::Spanning);
 	}
