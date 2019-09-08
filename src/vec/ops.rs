@@ -355,7 +355,7 @@ where C: Cursor, T: BitStore {
 	/// assert!(bref[2]);
 	/// ```
 	fn deref(&self) -> &Self::Target {
-		self.as_bitslice()
+		self.as_bits()
 	}
 }
 
@@ -379,7 +379,7 @@ where C: Cursor, T: BitStore {
 	/// assert!(bref[5]);
 	/// ```
 	fn deref_mut(&mut self) -> &mut Self::Target {
-		self.as_mut_bitslice()
+		self.as_bits_mut()
 	}
 }
 
@@ -436,7 +436,7 @@ where C: Cursor, T: BitStore {
 	/// bv[1];
 	/// ```
 	fn index(&self, cursor: usize) -> &Self::Output {
-		&self.as_bitslice()[cursor]
+		&self.as_bits()[cursor]
 	}
 }
 
@@ -445,14 +445,14 @@ where C: Cursor, T: BitStore {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, range: Range<usize>) -> &Self::Output {
-		&self.as_bitslice()[range]
+		&self.as_bits()[range]
 	}
 }
 
 impl<C, T> IndexMut<Range<usize>> for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	fn index_mut(&mut self, range: Range<usize>) -> &mut Self::Output {
-		&mut self.as_mut_bitslice()[range]
+		&mut self.as_bits_mut()[range]
 	}
 }
 
@@ -461,14 +461,14 @@ where C: Cursor, T: BitStore {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, range: RangeFrom<usize>) -> &Self::Output {
-		&self.as_bitslice()[range]
+		&self.as_bits()[range]
 	}
 }
 
 impl<C, T> IndexMut<RangeFrom<usize>> for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	fn index_mut(&mut self, range: RangeFrom<usize>) -> &mut Self::Output {
-		&mut self.as_mut_bitslice()[range]
+		&mut self.as_bits_mut()[range]
 	}
 }
 
@@ -477,14 +477,14 @@ where C: Cursor, T: BitStore {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, _: RangeFull) -> &Self::Output {
-		self.as_bitslice()
+		self.as_bits()
 	}
 }
 
 impl<C, T> IndexMut<RangeFull> for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	fn index_mut(&mut self, _: RangeFull) -> &mut Self::Output {
-		self.as_mut_bitslice()
+		self.as_bits_mut()
 	}
 }
 
@@ -493,14 +493,14 @@ where C: Cursor, T: BitStore {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, range: RangeInclusive<usize>) -> &Self::Output {
-		&self.as_bitslice()[range]
+		&self.as_bits()[range]
 	}
 }
 
 impl<C, T> IndexMut<RangeInclusive<usize>> for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	fn index_mut(&mut self, range: RangeInclusive<usize>) -> &mut Self::Output {
-		&mut self.as_mut_bitslice()[range]
+		&mut self.as_bits_mut()[range]
 	}
 }
 
@@ -509,14 +509,14 @@ where C: Cursor, T: BitStore {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, range: RangeTo<usize>) -> &Self::Output {
-		&self.as_bitslice()[range]
+		&self.as_bits()[range]
 	}
 }
 
 impl<C, T> IndexMut<RangeTo<usize>> for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	fn index_mut(&mut self, range: RangeTo<usize>) -> &mut Self::Output {
-		&mut self.as_mut_bitslice()[range]
+		&mut self.as_bits_mut()[range]
 	}
 }
 
@@ -525,14 +525,14 @@ where C: Cursor, T: BitStore {
 	type Output = BitSlice<C, T>;
 
 	fn index(&self, range: RangeToInclusive<usize>) -> &Self::Output {
-		&self.as_bitslice()[range]
+		&self.as_bits()[range]
 	}
 }
 
 impl<C, T> IndexMut<RangeToInclusive<usize>> for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	fn index_mut(&mut self, range: RangeToInclusive<usize>) -> &mut Self::Output {
-		&mut self.as_mut_bitslice()[range]
+		&mut self.as_bits_mut()[range]
 	}
 }
 

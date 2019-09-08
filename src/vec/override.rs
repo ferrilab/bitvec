@@ -138,7 +138,7 @@ where C: Cursor, T: BitStore {
 		let dead_head = T::BITS - live_head;
 		let last_head = *head as usize + shamt;
 		self.as_mut_slice()
-			.as_mut_bitslice::<C>()[.. last_head] <<= dead_head;
+			.bits_mut::<C>()[.. last_head] <<= dead_head;
 
 		/* Now, we must break the shift distance into an element count and a new
 		head index.

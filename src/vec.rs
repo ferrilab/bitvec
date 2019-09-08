@@ -487,7 +487,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bs = [0u8, !0].as_bitslice::<BigEndian>();
+	/// let bs = [0u8, !0].bits::<BigEndian>();
 	/// let bv = BitVec::from_bitslice(bs);
 	/// assert_eq!(bv.len(), 16);
 	/// assert!(bv.some());
@@ -763,9 +763,9 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let bv = bitvec![0, 1, 1, 0];
-	/// let bs = bv.as_bitslice();
+	/// let bs = bv.as_bits();
 	/// ```
-	pub fn as_bitslice(&self) -> &BitSlice<C, T> {
+	pub fn as_bits(&self) -> &BitSlice<C, T> {
 		self.pointer.into_bitslice()
 	}
 
@@ -787,9 +787,9 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![0, 1, 1, 0];
-	/// let bs = bv.as_mut_bitslice();
+	/// let bs = bv.as_bits_mut();
 	/// ```
-	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<C, T> {
+	pub fn as_bits_mut(&mut self) -> &mut BitSlice<C, T> {
 		self.pointer.into_bitslice_mut()
 	}
 
@@ -1157,7 +1157,7 @@ where C: Cursor, T: BitStore {
 
 		unsafe {
 			let ranging: &BitSlice<C, T> = self
-				.as_bitslice()[from .. upto]
+				.as_bits()[from .. upto]
 				//  remove the lifetime and borrow awareness
 				.bitptr()
 				.into_bitslice();
@@ -1243,7 +1243,7 @@ where C: Cursor, T: BitStore {
 			0 => mem::replace(self, Self::new()),
 			n if n == len => Self::new(),
 			_ => {
-				let out = self.as_bitslice()[at ..].to_owned();
+				let out = self.as_bits()[at ..].to_owned();
 				self.truncate(at);
 				out
 			},
@@ -1464,7 +1464,7 @@ where C: Cursor, T: BitStore {
 		//  Delegate to the `BitSlice` implementation for the initial addition.
 		//  If `addend` expires first, it zero-extends; if `self` expires first,
 		//  `addend` will still have its remnant for the next stage.
-		let mut c = self.as_mut_bitslice().add_assign_reverse(addend.by_ref());
+		let mut c = self.as_bits_mut().add_assign_reverse(addend.by_ref());
 		//  If `addend` still has bits to provide, zero-extend `self` and add
 		//  them in.
 		for b in addend {
@@ -1509,12 +1509,12 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let src = &0x7Eu8.as_bitslice::<BigEndian>()[1 .. 7];
+	/// let src = &0x7Eu8.bits::<BigEndian>()[1 .. 7];
 	/// assert_eq!(src.len(), 6);
 	/// let mut bv = src.to_owned();
 	/// assert_eq!(bv.len(), 6);
 	/// assert_eq!(bv.as_slice(), &[0x7E]);
-	/// assert_eq!(&bv, &0xFCu8.as_bitslice::<BigEndian>()[.. 6]);
+	/// assert_eq!(&bv, &0xFCu8.bits::<BigEndian>()[.. 6]);
 	/// bv.force_align();
 	/// assert_eq!(bv.as_slice(), &[0xFC]);
 	/// ```
@@ -1532,7 +1532,7 @@ where C: Cursor, T: BitStore {
 		}
 		//  Rotate everything down, using the `BitSlice` rotator since the
 		//  `BitVec` rotator is lazy and not required to perform this work.
-		self.as_mut_bitslice().rotate_left(head);
+		self.as_bits_mut().rotate_left(head);
 		//  And discard the garbage now at the back.
 		unsafe { self.pointer.set_len(bits); }
 	}
@@ -1679,7 +1679,7 @@ where C: Cursor, T: BitStore {
 	/// assert!(!bs[10]);
 	/// ```
 	fn borrow(&self) -> &BitSlice<C, T> {
-		self.as_bitslice()
+		self.as_bits()
 	}
 }
 
@@ -1709,7 +1709,7 @@ where C: Cursor, T: BitStore {
 	/// assert!(bs[10]);
 	/// ```
 	fn borrow_mut(&mut self) -> &mut BitSlice<C, T> {
-		self.as_mut_bitslice()
+		self.as_bits_mut()
 	}
 }
 
@@ -1753,7 +1753,7 @@ where C: Cursor, T: BitStore {}
 impl<C, T> Ord for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	fn cmp(&self, rhs: &Self) -> cmp::Ordering {
-		self.as_bitslice().cmp(rhs.as_bitslice())
+		self.as_bits().cmp(rhs.as_bits())
 	}
 }
 
@@ -1800,21 +1800,21 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	/// assert_ne!(l.as_slice(), r.as_slice());
 	/// ```
 	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
-		self.as_bitslice().eq(rhs.as_bitslice())
+		self.as_bits().eq(rhs.as_bits())
 	}
 }
 
 impl<A, B, C, D> PartialEq<BitSlice<C, D>> for BitVec<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn eq(&self, rhs: &BitSlice<C, D>) -> bool {
-		self.as_bitslice().eq(rhs)
+		self.as_bits().eq(rhs)
 	}
 }
 
 impl<A, B, C, D> PartialEq<&BitSlice<C, D>> for BitVec<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn eq(&self, rhs: &&BitSlice<C, D>) -> bool {
-		self.as_bitslice().eq(*rhs)
+		self.as_bits().eq(*rhs)
 	}
 }
 
@@ -1852,28 +1852,28 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	/// assert!(b < c);
 	/// ```
 	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<cmp::Ordering> {
-		self.as_bitslice().partial_cmp(rhs.as_bitslice())
+		self.as_bits().partial_cmp(rhs.as_bits())
 	}
 }
 
 impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for BitVec<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<cmp::Ordering> {
-		self.as_bitslice().partial_cmp(rhs)
+		self.as_bits().partial_cmp(rhs)
 	}
 }
 
 impl<A, B, C, D> PartialOrd<&BitSlice<C, D>> for BitVec<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn partial_cmp(&self, rhs: &&BitSlice<C, D>) -> Option<cmp::Ordering> {
-		self.as_bitslice().partial_cmp(*rhs)
+		self.as_bits().partial_cmp(*rhs)
 	}
 }
 
 impl<C, T> AsMut<BitSlice<C, T>> for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	fn as_mut(&mut self) -> &mut BitSlice<C, T> {
-		self.as_mut_bitslice()
+		self.as_bits_mut()
 	}
 }
 
@@ -1889,7 +1889,7 @@ where C: Cursor, T: BitStore {
 impl<C, T> AsRef<BitSlice<C, T>> for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	fn as_ref(&self) -> &BitSlice<C, T> {
-		self.as_bitslice()
+		self.as_bits()
 	}
 }
 

@@ -77,7 +77,7 @@ let bv = bitvec![0, 1, 0, 1];
 let bslice: &BitSlice = &bv[..];
 # }
 //  coercing an array to a bitslice
-let bslice: &BitSlice = [1u8, 254u8].as_bitslice::<BigEndian>();
+let bslice: &BitSlice = [1u8, 254u8].bits::<BigEndian>();
 ```
 
 Bit slices are either mutable or shared. The shared slice type is
@@ -89,7 +89,7 @@ use bitvec::prelude::*;
 
 let mut base = [0u8, 0, 0, 0];
 {
- let bs: &mut BitSlice = base.as_mut_bitslice::<BigEndian>();
+ let bs: &mut BitSlice = base.bits_mut::<BigEndian>();
  bs.set(13, true);
  eprintln!("{:?}", bs.as_ref());
  assert!(bs[13]);
@@ -188,8 +188,8 @@ where C: Cursor, T: BitStore {
 	/// method will govern the element referred to by the reference parameter.
 	///
 	/// The cursor must be specified at the call site. The element type cannot
-	/// be changed. The [`Bits::as_bitslice`] method performs the same operation
-	/// and may be easier to call.
+	/// be changed. The [`Bits::bits`] method performs the same operation and
+	/// may be easier to call.
 	///
 	/// # Parameters
 	///
@@ -210,7 +210,7 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(bs.as_ptr(), &elt);
 	/// ```
 	///
-	/// [`Bits::as_bitslice`]: ../bits/trait.Bits.html#tymethod.as_bitslice
+	/// [`Bits::bits`]: ../bits/trait.Bits.html#tymethod.bits
 	pub fn from_element(elt: &T) -> &Self {
 		unsafe {
 			BitPtr::new_unchecked(elt, 0.idx(), T::BITS as usize)
@@ -220,7 +220,7 @@ where C: Cursor, T: BitStore {
 	/// Produces a mutable `BitSlice` reference over a single element.
 	///
 	/// The cursor must be specified at the call site. The element type cannot
-	/// be changed. The [`BitsMut::as_mut_bitslice`] method performs the same
+	/// be changed. The [`BitsMut::bits_mut`] method performs the same
 	/// operation and may be easier to call.
 	///
 	/// # Parameters
@@ -247,7 +247,7 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(elt, 128);
 	/// ```
 	///
-	/// [`BitsMut::as_mut_bitslice`]: ../bits/trait.BitsMut.html#tymethod.as_mut_bitslice
+	/// [`BitsMut::bits_mut`]: ../bits/trait.BitsMut.html#tymethod.bits_mut
 	pub fn from_element_mut(elt: &mut T) -> &mut Self {
 		unsafe {
 			BitPtr::new_unchecked(elt, 0.idx(), T::BITS as usize)
@@ -257,7 +257,7 @@ where C: Cursor, T: BitStore {
 	/// Wraps a `&[T]` slice reference in a `&BitSlice<C, T>`.
 	///
 	/// The cursor must be specified at the call site. The element type cannot
-	/// be changed. The [`Bits::as_bitslice`] method performs the same operation
+	/// be changed. The [`Bits::as_bits`] method performs the same operation
 	/// and may be easier to call.
 	///
 	/// # Parameters
@@ -295,7 +295,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	///
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
-	/// [`Bits::as_bitslice`]: ../bits/trait.Bits.html#tymethod.as_bitslice
+	/// [`Bits::bits`]: ../bits/trait.Bits.html#tymethod.bits
 	pub fn from_slice(slice: &[T]) -> &Self {
 		let len = slice.len();
 		assert!(
@@ -319,7 +319,7 @@ where C: Cursor, T: BitStore {
 	/// Wraps a `&mut [T]` in a `&mut BitSlice<C, T>`.
 	///
 	/// The cursor must be specified at the call site. The element type cannot
-	/// be changed. The [`BitsMut::as_mut_bitslice`] method performs the same
+	/// be changed. The [`BitsMut::as_bits_mut`] method performs the same
 	/// operation and may be easier to call.
 	///
 	/// # Parameters
@@ -356,7 +356,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	///
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
-	/// [`BitsMut::as_mut_bitslice`]: ../bits/trait.BitsMut.html#tymethod.as_mut_bitslice
+	/// [`BitsMut::bits_mut`]: ../bits/trait.BitsMut.html#tymethod.bits_mut
 	pub fn from_slice_mut(slice: &mut [T]) -> &mut Self {
 		Self::from_slice(slice).bitptr().into_bitslice_mut()
 	}
@@ -377,7 +377,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let store = 0u8;
-	/// let bs = store.as_bitslice::<BigEndian>();
+	/// let bs = store.bits::<BigEndian>();
 	/// assert_eq!(bs.len(), 8);
 	/// ```
 	pub fn len(&self) -> usize {
@@ -401,7 +401,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// let bs = BitSlice::<BigEndian, u8>::empty();
 	/// assert!(bs.is_empty());
-	/// let bs = 0u8.as_bitslice::<BigEndian>();
+	/// let bs = 0u8.bits::<BigEndian>();
 	/// assert!(!bs.is_empty());
 	/// ```
 	pub fn is_empty(&self) -> bool {
@@ -424,7 +424,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// assert!(BitSlice::<BigEndian, u8>::empty().first().is_none());
-	/// assert!(128u8.as_bitslice::<BigEndian>().first().unwrap());
+	/// assert!(128u8.bits::<BigEndian>().first().unwrap());
 	/// ```
 	pub fn first(&self) -> Option<bool> {
 		self.get(0)
@@ -453,7 +453,7 @@ where C: Cursor, T: BitStore {
 	/// assert!(BitSlice::<BigEndian, u8>::empty().split_first().is_none());
 	///
 	/// let store = 128u8;
-	/// let bits = store.as_bitslice::<BigEndian>();
+	/// let bits = store.bits::<BigEndian>();
 	/// let (h, t) = bits.split_first().unwrap();
 	/// assert!(h);
 	/// assert!(t.not_any());
@@ -498,7 +498,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut store = 0u8;
-	/// let bits = store.as_mut_bitslice::<LittleEndian>();
+	/// let bits = store.bits_mut::<LittleEndian>();
 	/// assert!(!bits[0]);
 	/// *bits.at(0) = true;
 	/// let (h, t) = bits.split_first_mut().unwrap();
@@ -539,7 +539,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// assert!(BitSlice::<BigEndian, u8>::empty().split_last().is_none());
 	///
-	/// let bits = 1u8.as_bitslice::<BigEndian>();
+	/// let bits = 1u8.bits::<BigEndian>();
 	/// let (t, h) = bits.split_last().unwrap();
 	/// assert!(t);
 	/// assert!(h.not_any());
@@ -582,7 +582,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut store = 0u8;
-	/// let bits = store.as_mut_bitslice::<LittleEndian>();
+	/// let bits = store.bits_mut::<LittleEndian>();
 	/// assert!(!bits[7]);
 	/// *bits.at(7) = true;
 	/// let (h, t) = bits.split_last_mut().unwrap();
@@ -617,7 +617,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// assert!(BitSlice::<BigEndian, u8>::empty().last().is_none());
-	/// assert!(1u8.as_bitslice::<BigEndian>().last().unwrap());
+	/// assert!(1u8.bits::<BigEndian>().last().unwrap());
 	/// ```
 	pub fn last(&self) -> Option<bool> {
 		match self.len() {
@@ -643,7 +643,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = 8u8.as_bitslice::<BigEndian>();
+	/// let bits = 8u8.bits::<BigEndian>();
 	/// assert!(bits.get(4).unwrap());
 	/// assert!(!bits.get(3).unwrap());
 	/// assert!(bits.get(10).is_none());
@@ -692,7 +692,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = 1u8;
-	/// let bits = &src.as_bitslice::<BigEndian>()[2 .. 4];
+	/// let bits = &src.bits::<BigEndian>()[2 .. 4];
 	/// assert_eq!(bits.len(), 2);
 	/// assert!(unsafe { bits.get_unchecked(5) });
 	/// ```
@@ -722,7 +722,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut store = 8u8;
-	/// let bits = store.as_mut_bitslice::<BigEndian>();
+	/// let bits = store.bits_mut::<BigEndian>();
 	/// assert!(!bits[3]);
 	/// bits.set(3, true);
 	/// assert!(bits[3]);
@@ -769,7 +769,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// let mut src = 0u8;
 	/// {
-	///  let bits = &mut src.as_mut_bitslice::<BigEndian>()[2 .. 4];
+	///  let bits = &mut src.bits_mut::<BigEndian>()[2 .. 4];
 	///  assert_eq!(bits.len(), 2);
 	///  unsafe { bits.set_unchecked(5, true); }
 	/// }
@@ -824,7 +824,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = 0u8;
-	/// let bits = src.as_mut_bitslice::<BigEndian>();
+	/// let bits = src.bits_mut::<BigEndian>();
 	///
 	/// assert!(!bits[0]);
 	/// *bits.at(0) = true;
@@ -838,7 +838,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = 0u8;
-	/// let bits = src.as_mut_bitslice::<BigEndian>();
+	/// let bits = src.bits_mut::<BigEndian>();
 	///
 	/// {
 	///  let (mut a, rest) = bits.split_at_mut(2);
@@ -889,7 +889,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = [0u8; 4];
-	/// let bits = src.as_bitslice::<BigEndian>();
+	/// let bits = src.bits::<BigEndian>();
 	/// assert_eq!(src.as_ptr(), bits.as_ptr());
 	/// ```
 	pub fn as_ptr(&self) -> *const T {
@@ -932,7 +932,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// let mut src = [0u8; 4];
 	/// let src_ptr = src.as_mut_ptr();
-	/// let bits = src.as_mut_bitslice::<BigEndian>();
+	/// let bits = src.bits_mut::<BigEndian>();
 	/// assert_eq!(src_ptr, bits.as_mut_ptr());
 	/// ```
 	pub fn as_mut_ptr(&mut self) -> *mut T {
@@ -962,7 +962,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut store = 32u8;
-	/// let bits = store.as_mut_bitslice::<BigEndian>();
+	/// let bits = store.bits_mut::<BigEndian>();
 	/// assert!(!bits[0]);
 	/// assert!(bits[2]);
 	/// bits.swap(0, 2);
@@ -992,7 +992,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// let mut src = 0b1010_1010u8;
 	/// {
-	///   let bits = src.as_mut_bitslice::<BigEndian>();
+	///   let bits = src.bits_mut::<BigEndian>();
 	///   bits[1 .. 7].reverse();
 	/// }
 	/// eprintln!("{:b}", src);
@@ -1048,7 +1048,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = 15u8.as_bitslice::<BigEndian>();
+	/// let bits = 15u8.bits::<BigEndian>();
 	///
 	/// let (l, r) = bits.split_at(0);
 	/// assert!(l.is_empty());
@@ -1115,7 +1115,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = 0xA6u8.as_bitslice::<BigEndian>();
+	/// let bits = 0xA6u8.bits::<BigEndian>();
 	/// assert!(bits.starts_with(&bits[.. 3]));
 	/// assert!(!bits.starts_with(&bits[3 ..]));
 	/// ```
@@ -1143,7 +1143,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = 0xA6u8.as_bitslice::<BigEndian>();
+	/// let bits = 0xA6u8.bits::<BigEndian>();
 	/// assert!(bits.ends_with(&bits[5 ..]));
 	/// assert!(!bits.ends_with(&bits[.. 5]));
 	/// ```
@@ -1177,7 +1177,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = 0xF0u8;
-	/// let bits = src.as_mut_bitslice::<BigEndian>();
+	/// let bits = src.bits_mut::<BigEndian>();
 	/// bits.rotate_left(2);
 	/// assert_eq!(bits.as_ref()[0], 0xC3);
 	/// ```
@@ -1223,7 +1223,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = 0xF0u8;
-	/// let bits = src.as_mut_bitslice::<BigEndian>();
+	/// let bits = src.bits_mut::<BigEndian>();
 	/// bits.rotate_right(2);
 	/// assert_eq!(bits.as_ref()[0], 0x3C);
 	/// ```
@@ -1273,7 +1273,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = 0xFDu8.as_bitslice::<BigEndian>();
+	/// let bits = 0xFDu8.bits::<BigEndian>();
 	/// assert!(bits[.. 4].all());
 	/// assert!(!bits[4 ..].all());
 	/// ```
@@ -1348,7 +1348,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = 0x40u8.as_bitslice::<BigEndian>();
+	/// let bits = 0x40u8.bits::<BigEndian>();
 	/// assert!(bits[.. 4].any());
 	/// assert!(!bits[4 ..].any());
 	/// ```
@@ -1422,7 +1422,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = 0xFDu8.as_bitslice::<BigEndian>();
+	/// let bits = 0xFDu8.bits::<BigEndian>();
 	/// assert!(!bits[.. 4].not_all());
 	/// assert!(bits[4 ..].not_all());
 	/// ```
@@ -1454,7 +1454,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = 0x40u8.as_bitslice::<BigEndian>();
+	/// let bits = 0x40u8.bits::<BigEndian>();
 	/// assert!(!bits[.. 4].not_any());
 	/// assert!(bits[4 ..].not_any());
 	/// ```
@@ -1490,7 +1490,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = 0b111_000_10u8.as_bitslice::<BigEndian>();
+	/// let bits = 0b111_000_10u8.bits::<BigEndian>();
 	/// assert!(!bits[0 .. 3].some());
 	/// assert!(!bits[3 .. 6].some());
 	/// assert!(bits[6 ..].some());
@@ -1514,7 +1514,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = [0xFDu8, 0x25].as_bitslice::<BigEndian>();
+	/// let bits = [0xFDu8, 0x25].bits::<BigEndian>();
 	/// assert_eq!(bits.count_ones(), 10);
 	/// ```
 	pub fn count_ones(&self) -> usize {
@@ -1580,7 +1580,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = [0xFDu8, 0x25].as_bitslice::<BigEndian>();
+	/// let bits = [0xFDu8, 0x25].bits::<BigEndian>();
 	/// assert_eq!(bits.count_zeros(), 6);
 	/// ```
 	pub fn count_zeros(&self) -> usize {
@@ -1644,7 +1644,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = 0u8;
-	/// let bits = src.as_mut_bitslice::<BigEndian>();
+	/// let bits = src.bits_mut::<BigEndian>();
 	/// bits[2 .. 6].set_all(true);
 	/// assert_eq!(bits.as_ref(), &[0b0011_1100]);
 	/// bits[3 .. 5].set_all(false);
@@ -1716,7 +1716,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// let mut src = 0u8;
 	/// {
-	///  let bits = src.as_mut_bitslice::<BigEndian>();
+	///  let bits = src.bits_mut::<BigEndian>();
 	///  bits.for_each(|idx, _bit| idx % 3 == 0);
 	/// }
 	/// assert_eq!(src, 0b1001_0010);
@@ -1770,8 +1770,8 @@ where C: Cursor, T: BitStore {
 	/// let mut a = 0b0000_1010u8;
 	/// let     b = 0b0000_1100u8;
 	/// //      s =      1 0110
-	/// let ab = &mut a.as_mut_bitslice::<LittleEndian>()[.. 4];
-	/// let bb = &    b.as_bitslice::<LittleEndian>()[.. 4];
+	/// let ab = &mut a.bits_mut::<LittleEndian>()[.. 4];
+	/// let bb = &    b.bits::<LittleEndian>()[.. 4];
 	/// let c = ab.add_assign_reverse(bb);
 	/// assert!(c);
 	/// assert_eq!(a, 0b0000_0110u8);
@@ -1859,10 +1859,10 @@ where C: Cursor, T: BitStore {
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
-	/// let bits = &(!0u8).as_bitslice::<BigEndian>()[2 ..];
+	/// let bits = &(!0u8).bits::<BigEndian>()[2 ..];
 	/// assert_eq!(bits.as_native::<[u8; 1]>(), [0xFC]);
 	///
-	/// let bits = &(!0u8).as_bitslice::<LittleEndian>()[2 ..];
+	/// let bits = &(!0u8).bits::<LittleEndian>()[2 ..];
 	/// assert_eq!(bits.as_native::<[u8; 2]>(), [0x3F, 0]);
 	/// ```
 	pub fn as_native<B>(&self) -> B
@@ -1897,7 +1897,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = 0x2358u16.as_bitslice::<BigEndian>();
+	/// let bits = 0x2358u16.bits::<BigEndian>();
 	/// let native = bits.as_native_with_cursor::<u16, LittleEndian>();
 	/// assert_eq!(native, 0x1AC4);
 	/// ```
@@ -1908,7 +1908,7 @@ where C: Cursor, T: BitStore {
 	pub fn as_native_with_cursor<B, D>(&self) -> B
 	where B: BitsMut<Store = T> + Default, D: Cursor {
 		let mut out = B::default();
-		let bits = out.as_mut_bitslice::<D>();
+		let bits = out.bits_mut::<D>();
 		for (idx, bit) in self.into_iter().enumerate().take(bits.len()) {
 			unsafe { bits.set_unchecked(idx, bit); }
 		}
@@ -1943,7 +1943,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = [1u8, 66];
-	/// let bits = src.as_bitslice::<BigEndian>();
+	/// let bits = src.bits::<BigEndian>();
 	///
 	/// let accum = bits.as_slice()
 	///   .iter()
@@ -1958,7 +1958,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = [0u8, 1, 2];
-	/// let bits = &src.as_bitslice::<BigEndian>()[4 .. 20];
+	/// let bits = &src.bits::<BigEndian>()[4 .. 20];
 	/// assert_eq!(bits.as_slice(), &[1]);
 	/// ```
 	pub fn as_slice(&self) -> &[T] {
@@ -2020,7 +2020,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = [1u8, 64];
-	/// let bits = src.as_mut_bitslice::<BigEndian>();
+	/// let bits = src.bits_mut::<BigEndian>();
 	/// for elt in bits.as_mut_slice() {
 	///   *elt |= 2;
 	/// }
@@ -2086,7 +2086,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = 2u8;
-	/// let bits = src.as_bitslice::<BigEndian>();
+	/// let bits = src.bits::<BigEndian>();
 	/// assert!(bits[6]);
 	/// let bits = bits.change_cursor::<LittleEndian>();
 	/// assert!(bits[1]);
@@ -2116,9 +2116,9 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = 0u8;
-	/// *src.as_mut_bitslice::<BigEndian>().at(1) = true;
+	/// *src.bits_mut::<BigEndian>().at(1) = true;
 	/// assert_eq!(src, 64);
-	/// src.as_mut_bitslice::<BigEndian>()
+	/// src.bits_mut::<BigEndian>()
 	///    .change_cursor_mut::<LittleEndian>()
 	///    .set(1, true);
 	/// assert_eq!(src, 66);
@@ -2159,7 +2159,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let store = [0u8, 2];
-	/// let src = store.as_bitslice::<LittleEndian>();
+	/// let src = store.bits::<LittleEndian>();
 	/// let dst = src.to_owned();
 	/// assert_eq!(src, dst);
 	/// # }
@@ -2209,8 +2209,8 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	///
 	/// let lsrc = [8u8, 16, 32, 0];
 	/// let rsrc = [0x10_08_04_00u32];
-	/// let lbits = lsrc.as_bitslice::<LittleEndian>();
-	/// let rbits = rsrc.as_bitslice::<BigEndian>();
+	/// let lbits = lsrc.bits::<LittleEndian>();
+	/// let rbits = rsrc.bits::<BigEndian>();
 	///
 	/// assert_eq!(lbits, rbits);
 	/// ```
@@ -2234,7 +2234,7 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 impl<A, B, C, D> PartialEq<BitVec<C, D>> for BitSlice<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
-		self.eq(rhs.as_bitslice())
+		self.eq(rhs.as_bits())
 	}
 }
 
@@ -2242,7 +2242,7 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 impl<A, B, C, D> PartialEq<BitVec<C, D>> for &BitSlice<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
-		self.eq(rhs.as_bitslice())
+		self.eq(rhs.as_bits())
 	}
 }
 
@@ -2278,7 +2278,7 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = 0x45u8;
-	/// let bits = src.as_bitslice::<BigEndian>();
+	/// let bits = src.bits::<BigEndian>();
 	/// let a = &bits[0 .. 3]; // 010
 	/// let b = &bits[0 .. 4]; // 0100
 	/// let c = &bits[0 .. 5]; // 01000
@@ -2311,7 +2311,7 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 impl<A, B, C, D> PartialOrd<BitVec<C, D>> for BitSlice<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<cmp::Ordering> {
-		self.partial_cmp(rhs.as_bitslice())
+		self.partial_cmp(rhs.as_bits())
 	}
 }
 
@@ -2319,7 +2319,7 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 impl<A, B, C, D> PartialOrd<BitVec<C, D>> for &BitSlice<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<cmp::Ordering> {
-		(*self).partial_cmp(rhs.as_bitslice())
+		self.partial_cmp(rhs.as_bits())
 	}
 }
 
@@ -2344,7 +2344,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = [0u8, 128];
-	/// let bits = src.as_mut_bitslice::<BigEndian>();
+	/// let bits = src.bits_mut::<BigEndian>();
 	///
 	/// for elt in bits.as_mut() {
 	///   *elt += 2;
@@ -2378,7 +2378,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = [0u8, 128];
-	/// let bits = src.as_bitslice::<BigEndian>();
+	/// let bits = src.bits::<BigEndian>();
 	/// assert_eq!(&[0, 128], bits.as_ref());
 	/// ```
 	fn as_ref(&self) -> &[T] {
@@ -2450,7 +2450,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = [0b0101_0000_1111_0101u16, 0b00000000_0000_0010];
-	/// let bits = &src.as_bitslice::<LittleEndian>()[.. 18];
+	/// let bits = &src.bits::<LittleEndian>()[.. 18];
 	/// assert_eq!(
     ///     "BitSlice<LittleEndian, u16> [1010111100001010, 01]",
 	///     &format!("{:?}", bits),
@@ -2498,7 +2498,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = [0b01001011u8, 0b0100_0000];
-	/// let bits = &src.as_bitslice::<BigEndian>()[.. 10];
+	/// let bits = &src.bits::<BigEndian>()[.. 10];
 	/// assert_eq!("[01001011, 01]", &format!("{}", bits));
 	/// # }
 	/// ```
@@ -2605,7 +2605,7 @@ use std::thread;
 
 static mut SRC: u8 = 0;
 # {
-let bits = unsafe { SRC.as_mut_bitslice::<BigEndian>() };
+let bits = unsafe { SRC.bits_mut::<BigEndian>() };
 let (l, r) = bits.split_at_mut(4);
 
 let a = thread::spawn(move || l.set(2, true));

@@ -25,7 +25,7 @@ fn readme() {
     assert_eq!(bv.as_slice(), &[0b0101_0000, 0b1111_0000]);
     //                   index 0 -^               ^- index 11
     //  Memory access on borrowed slices *excludes* partials
-    assert_eq!(bv.as_bitslice().as_slice(), &[0b0101_0000]);
+    assert_eq!(bv.as_bits().as_slice(), &[0b0101_0000]);
 
     assert_eq!(bv.len(), 12);
     assert!(bv.capacity() >= 16);

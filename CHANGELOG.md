@@ -30,7 +30,7 @@ This document is written according to the [Keep a Changelog][kac] style.
   long as it is externally indistinguishable from `1 << (C::at::<T>(idx))`.
 
 - `BitSlice::as_native` and `as_native_with_cursor` functions allow collecting
-  any `BitSlice` into any matching native-memory type. These functios act as
+  any `BitSlice` into any matching native-memory type. These functions act as
   no-allocation `Iterator::collect` analogues, and allow a user to copy a
   `BitSlice` into an element or array of elements of that bit slice’s underlying
   type.
@@ -60,6 +60,18 @@ This document is written according to the [Keep a Changelog][kac] style.
   implementations now call `Cursor::mask(idx)` to produce the mask directly,
   rather than being given a `BitPos` and calling back into `BitStore` to turn it
   into a mask.
+
+- The `Bits::as_bitslice` and `BitsMut::as_mut_bitslice` functions are renamed
+  to `bits` and `bits_mut`, respectively. This change was done for two reasons:
+  they are the canonical entry point to the crate for immediate values, and
+  should have short names to reflect their status as being often called; and
+  traits with only one function should have that function be named after the
+  trait.
+
+  In addition, the `BitVec::as_bitslice` and `as_mut_bitslice` inherent
+  methods are renamed to `as_bits` and `as_bits_mut`, to match the naming scheme
+  above, but retain the distinction of being an upcast rather than a
+  construction.
 
 ### Removed
 

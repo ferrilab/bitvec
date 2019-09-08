@@ -45,7 +45,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = 64u8;
-	/// let bits = src.as_bitslice::<BigEndian>();
+	/// let bits = src.bits::<BigEndian>();
 	/// let mut iter = bits[.. 2].iter();
 	/// assert!(!iter.next().unwrap());
 	/// assert!(iter.next().unwrap());
@@ -84,7 +84,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = 0b0100_1011u8;
-	/// let bits = src.as_bitslice::<BigEndian>();
+	/// let bits = src.bits::<BigEndian>();
 	/// let mut windows = bits.windows(4);
 	/// assert_eq!(windows.next(), Some(&bits[0 .. 4]));
 	/// assert_eq!(windows.next(), Some(&bits[1 .. 5]));
@@ -125,7 +125,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = 0b0100_1011u8;
-	/// let bits = src.as_bitslice::<BigEndian>();
+	/// let bits = src.bits::<BigEndian>();
 	/// let mut chunks = bits.chunks(3);
 	/// assert_eq!(chunks.next(), Some(&bits[0 .. 3]));
 	/// assert_eq!(chunks.next(), Some(&bits[3 .. 6]));
@@ -166,7 +166,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// let mut src = 0b0100_1011u8;
 	/// {
-	///  let bits = src.as_mut_bitslice::<BigEndian>();
+	///  let bits = src.bits_mut::<BigEndian>();
 	///  let mut chunks = bits.chunks_mut(3);
 	///  chunks.next().unwrap().set(2, true);
 	///  chunks.next().unwrap().set(2, true);
@@ -207,7 +207,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = 0b0100_1011u8;
-	/// let bits = src.as_bitslice::<BigEndian>();
+	/// let bits = src.bits::<BigEndian>();
 	/// let mut chunks_exact = bits.chunks_exact(3);
 	/// assert_eq!(chunks_exact.next(), Some(&bits[0 .. 3]));
 	/// assert_eq!(chunks_exact.next(), Some(&bits[3 .. 6]));
@@ -253,7 +253,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// let mut src = 0b0100_1011u8;
 	/// {
-	///  let bits = src.as_mut_bitslice::<BigEndian>();
+	///  let bits = src.bits_mut::<BigEndian>();
 	///  let mut chunks_exact = bits.chunks_exact_mut(3);
 	///  chunks_exact.next().unwrap().set(2, true);
 	///  chunks_exact.next().unwrap().set(2, true);
@@ -298,7 +298,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = 0b0100_1011u8;
-	/// let bits = src.as_bitslice::<BigEndian>();
+	/// let bits = src.bits::<BigEndian>();
 	/// let mut rchunks = bits.rchunks(3);
 	/// assert_eq!(rchunks.next(), Some(&bits[5 .. 8]));
 	/// assert_eq!(rchunks.next(), Some(&bits[2 .. 5]));
@@ -340,7 +340,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// let mut src = 0b0100_1011u8;
 	/// {
-	///  let bits = src.as_mut_bitslice::<BigEndian>();
+	///  let bits = src.bits_mut::<BigEndian>();
 	///  let mut rchunks = bits.rchunks_mut(3);
 	///  rchunks.next().unwrap().set(0, true);
 	///  rchunks.next().unwrap().set(2, false);
@@ -430,7 +430,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// let mut src = 0b0100_1011u8;
 	/// {
-	///  let bits = src.as_mut_bitslice::<BigEndian>();
+	///  let bits = src.bits_mut::<BigEndian>();
 	///  let mut rchunks_exact = bits.rchunks_exact_mut(3);
 	///  rchunks_exact.next().unwrap().set(0, true);
 	///  rchunks_exact.next().unwrap().set(2, false);
@@ -475,7 +475,7 @@ where C: Cursor, T: 'a + BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = 0b1010_1100u8.as_bitslice::<BigEndian>();
+	/// let bits = 0b1010_1100u8.bits::<BigEndian>();
 	/// let mut count = 0;
 	/// for bit in bits {
 	///   if bit { count += 1; }
@@ -713,7 +713,7 @@ where C: Cursor, T: 'a + BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = 0x4Bu8.as_bitslice::<BigEndian>();
+	/// let bits = 0x4Bu8.bits::<BigEndian>();
 	/// let chunks_exact = bits.chunks_exact(3);
 	/// assert_eq!(chunks_exact.remainder(), &bits[6 ..]);
 	/// ```
@@ -1253,7 +1253,7 @@ where C: Cursor, T: 'a + BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = 0x4Bu8.as_bitslice::<BigEndian>();
+	/// let bits = 0x4Bu8.bits::<BigEndian>();
 	/// let rchunks_exact = bits.rchunks_exact(3);
 	/// assert_eq!(rchunks_exact.remainder(), &bits[.. 2]);
 	/// ```

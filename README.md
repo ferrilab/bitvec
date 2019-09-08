@@ -298,19 +298,19 @@ denial-of-service attack on each rebuild.
 These traits are left open so that if you need to implement them on wider
 arrays, you are able to do so.
 
-You can use these traits to attach `.as_bitslice::<C: Cursor>()` and
-`.as_mut_bitslice::<C: Cursor>()` conversion methods to any implementor, and
+You can use these traits to attach `.bits::<C: Cursor>()` and
+`.bits_mut::<C: Cursor>()` conversion methods to any implementor, and
 gain access to a `BitSlice` over that type, or to bound a generic function
 similar to how the standard library uses `AsRef<Path>`:
 
 ```rust
 let mut base = [0u8; 8];
-let bits = base.as_mut_bitslice::<LittleEndian>();
+let bits = base.bits_mut::<LittleEndian>();
 //  bits is now an `&mut BitSlice<LittleEndian, u8>`
 println!("{}", bits.len()); // 64
 
 fn operate_on_bits(mut data: impl BitsMut) {
-  let bits = data.as_mut_bitslice::<BigEndian>();
+  let bits = data.bits_mut::<BigEndian>();
   //  `bits` is now an `&mut BitSlice<BigEndian, _>`
 }
 ```
@@ -350,7 +350,7 @@ fn main() {
     assert_eq!(bv.as_slice(), &[0b0101_0000, 0b1111_0000]);
     //                   index 0 -^               ^- index 11
     //  Memory access on borrowed slices *excludes* partials
-    assert_eq!(bv.as_bitslice().as_slice(), &[0b0101_0000]);
+    assert_eq!(bv.as_bits().as_slice(), &[0b0101_0000]);
 
     assert_eq!(bv.len(), 12);
     assert!(bv.capacity() >= 16);

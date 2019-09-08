@@ -23,7 +23,7 @@ use bitvec::prelude::*;
 use std::thread;
 
 static mut SRC: [u8; 1] = [0];
-let bs = unsafe { SRC.as_mut_bitslice::<BigEndian>() };
+let bs = unsafe { SRC.bits_mut::<BigEndian>() };
 let (left, right) = bs.split_at_mut(4);
 let l = thread::spawn(move || {
   left.set(1, true);
