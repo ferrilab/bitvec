@@ -29,6 +29,12 @@ This document is written according to the [Keep a Changelog][kac] style.
   Implementors of `Cursor` may override the default with a faster function, as
   long as it is externally indistinguishable from `1 << (C::at::<T>(idx))`.
 
+- `BitSlice::as_native` and `as_native_with_cursor` functions allow collecting
+  any `BitSlice` into any matching native-memory type. These functios act as
+  no-allocation `Iterator::collect` analogues, and allow a user to copy a
+  `BitSlice` into an element or array of elements of that bit slice’s underlying
+  type.
+
 ### Changed
 
 - `BitSlice` shift operations have had a long-standing bug where a shift amount

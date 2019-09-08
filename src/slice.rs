@@ -9,6 +9,7 @@ Rust slices, and must never be interchanged except through the provided APIs.
 !*/
 
 use crate::{
+	bits::BitsMut,
 	cursor::{
 		BigEndian,
 		Cursor,
@@ -1806,6 +1807,112 @@ where C: Cursor, T: BitStore {
 			c = z;
 		}
 		c
+	}
+
+	/// Collects a `BitSlice` into native memory elements.
+	///
+	/// This produces an immediate value of the underlying memory type, filled
+	/// with the contents of `self` according to the `Cursor` type of `self`.
+	///
+	/// Use [`as_native_with_cursor`] if you need to collect a bitslice with one
+	/// cursor into an immediate value using another cursor.
+	///
+	/// If `self` is shorter than `B`’s bit capacity, the remaining bits in the
+	/// return object `B` will be zero; if `self` is longer, then the remaining
+	/// bits in `self` are ignored.
+	///
+	/// # Parameters
+	///
+	/// - `&self`: A handle to any `BitSlice` which will be collected into an
+	///   immediate memory value. This handle is not required to describe a
+	///   bit-slice starting at the edge of a memory element; any span of bits
+	///   in memory is valid.
+	///
+	/// # Returns
+	///
+	/// An instance of `B` that has had `self` transcribed into it. This method
+	/// is semantically equivalent to `Iterator::collect`, but unlike most such
+	/// implementations, it works with an immediate value on the call stack
+	/// rather than a heap allocation.
+	///
+	/// # Type Parameters
+	///
+	/// - `B`: Some type which implements both `BitsMut` and `Default`. In
+	///   practice, this is any of the four `T: BitStore` fundamentals, and
+	///   arrays of them from length 0 up to and including 32. Note that this
+	///   type is constrained to use the same fundamental as the slice itself
+	///   does: A `BitSlice<_, u16>` cannot be collected into a `[u8; 2]`, for
+	///   instance.
+	///
+	/// When type-level integers stabilize, this method will be able to produce
+	/// any size array of `T: BitStore`. Until then, if you need to collect
+	/// bit-slices longer than `[T: BitStore; 32]`, you will have to enable the
+	/// `alloc` feature and use a `BitVec`.
+	///
+	/// [`as_native_with_cursor`]: #method.as_native_with_cursor
+	///
+	/// # Examples
+	///
+	/// These examples demonstrate that writing any `BitSlice` into native
+	/// memory always starts at the native memory’s origin, even if the slice
+	/// being copied does not.
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	/// let bits = &(!0u8).as_bitslice::<BigEndian>()[2 ..];
+	/// assert_eq!(bits.as_native::<[u8; 1]>(), [0xFC]);
+	///
+	/// let bits = &(!0u8).as_bitslice::<LittleEndian>()[2 ..];
+	/// assert_eq!(bits.as_native::<[u8; 2]>(), [0x3F, 0]);
+	/// ```
+	pub fn as_native<B>(&self) -> B
+	where B: BitsMut<Store = T> + Default {
+		self.as_native_with_cursor::<B, C>()
+	}
+
+	/// Collects a `BitSlice` into native memory elements with some `Cursor`.
+	///
+	/// This method is exactly equivalent to [`as_native`], except that you may
+	/// also specify the `Cursor` used to write bits from `self` into the
+	/// produced object. This behavior is useful if you need to collect into a
+	/// different `Cursor` ordering than the slice may be using, as
+	/// [`change_cursor`] will only affect the order in which a bit-slice is
+	/// iterated, but not the underlying memory representation.
+	///
+	/// See `as_native` for parameter and return documentation.
+	///
+	/// # Type Parameters
+	///
+	/// - `D`: The `Cursor` type to use when writing the bits of `self` into the
+	///   return value `B`.
+	///
+	/// [`as_native`]: #method.as_native
+	/// [`change_cursor`]: #method.change_cursor
+	///
+	/// # Examples
+	///
+	/// This example shows the result of using a different cursor than the
+	/// original slice when collecting a slice into native memory.
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bits = 0x2358u16.as_bitslice::<BigEndian>();
+	/// let native = bits.as_native_with_cursor::<u16, LittleEndian>();
+	/// assert_eq!(native, 0x1AC4);
+	/// ```
+	///
+	/// This example traversed the bit pattern of `bits` from MSbit to LSbit,
+	/// but collected that pattern into `native` from `LSbit` to `MSbit`,
+	/// inverting its order.
+	pub fn as_native_with_cursor<B, D>(&self) -> B
+	where B: BitsMut<Store = T> + Default, D: Cursor {
+		let mut out = B::default();
+		let bits = out.as_mut_bitslice::<D>();
+		for (idx, bit) in self.into_iter().enumerate().take(bits.len()) {
+			unsafe { bits.set_unchecked(idx, bit); }
+		}
+		out
 	}
 
 	/// Accesses the backing storage of the `BitSlice` as a slice of its
