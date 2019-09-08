@@ -5,36 +5,57 @@ structures are composed.
 
 ## Cursor Addressing
 
-This table displays the *bit index*, in [base64], of each position in a
-`BitSlice<Cursor, Fundamental>` on a little-endian machine.
+Before getting into the details of how this crate constructs pointers to
+describe a memory span, we must first cover how memory viewed at bit resolution
+works. This crate uses two traits, `Cursor` and `BitStore`, to select a specific
+bit ordering pattern for memory. You will need to select the combination of
+these two traits that best works for your target machine architecture and use
+case.
+
+These tables display the traversal path of each cursor and type pair on both
+big- and little- **byte** endian machines. Starting at index `[0]` of a
+`BitSlice` and moving up to index `[63]` moves from position `0` in the tables,
+following the arrows and jumping from odd numbers to the consecutive even
+numbers until reaching position `F`.
+
+The byte and bit ordering follows the common CS conventions that memory byte
+addresses increase to the right, but bit positions in a byte increase to the
+left.
+
+This table displays the traversal orders on a little-endian machine:
 
 ```text
 byte  | 00000000 11111111 22222222 33333333 44444444 55555555 66666666 77777777
 bit   | 76543210 76543210 76543210 76543210 76543210 76543210 76543210 76543210
 ------+------------------------------------------------------------------------
-LEu__ | HGFEDCBA PONMLKJI XWVUTSRQ fedcbaZY nmlkjihg vutsrqpo 3210zyxw /+987654
-BEu64 | 456789+/ wxyz0123 opqrstuv ghijklmn YZabcdef QRSTUVWX IJKLMNOP ABCDEFGH
-BEu32 | YZabcdef QRSTUVWX IJKLMNOP ABCDEFGH 456789+/ wxyz0123 opqrstuv ghijklmn
-BEu16 | IJKLMNOP ABCDEFGH YZabcdef QRSTUVWX opqrstuv ghijklmn 456789+/ wxyz0123
-BEu8  | ABCDEFGH IJKLMNOP QRSTUVWX YZabcdef ghijklmn opqrstuv wxyz0123 456789+/
+LEu__ | 1 <--- 0 3 <--- 2 5 <--- 4 7 <--- 6 9 <--- 8 B <--- A D <--- C F <--- E
+BEu64 | E ---> F C ---> D A ---> B 8 ---> 9 6 ---> 7 4 ---> 5 2 ---> 3 0 ---> 1
+BEu32 | 6 ---> 7 4 ---> 5 2 ---> 3 0 ---> 1 E ---> F C ---> D A ---> B 8 ---> 9
+BEu16 | 2 ---> 3 0 ---> 1 6 ---> 7 4 ---> 5 A ---> B 8 ---> 9 E ---> F C ---> D
+BEu8  | 0 ---> 1 2 ---> 3 4 ---> 5 6 ---> 7 8 ---> 9 A ---> B C ---> D E ---> F
 ```
 
-This table displays the bit index, in [base64], of each position in a
-`BitSlice<Cursor, Fundamental>` on a big-endian machine.
+And this table displays the traversal orders on a big-endian machine:
 
 ```text
 byte  | 00000000 11111111 22222222 33333333 44444444 55555555 66666666 77777777
 bit   | 76543210 76543210 76543210 76543210 76543210 76543210 76543210 76543210
 ------+------------------------------------------------------------------------
-BEu__ | ABCDEFGH IJKLMNOP QRSTUVWX YZabcdef ghijklmn opqrstuv wxyz0123 456789+/
-LEu64 | /+987654 3210zyxw vutsrqpo nmlkjihg fedcbaZY XWVUTSRQ PONMLKJI HGFEDCBA
-LEu32 | fedcbaZY XWVUTSRQ PONMLKJI HGFEDCBA /+987654 3210zyxw vutsrqpo nmlkjihg
-LEu16 | PONMLKJI HGFEDCBA fedcbaZY XWVUTSRQ vutsrqpo nmlkjihg /+987654 3210zyxw
-LEu8  | HGFEDCBA PONMLKJI XWVUTSRQ fedcbaZY nmlkjihg vutsrqpo 3210zyxw /+987654
+BEu__ | 0 ---> 1 2 ---> 3 4 ---> 5 6 ---> 7 8 ---> 9 A ---> B C ---> D E ---> F
+LEu64 | F <--- E D <--- C B <--- A 9 <--- 8 7 <--- 6 5 <--- 4 3 <--- 2 1 <--- 0
+LEu32 | 7 <--- 6 5 <--- 4 3 <--- 2 1 <--- 0 F <--- E D <--- C B <--- A 9 <--- 8
+LEu16 | 3 <--- 2 1 <--- 0 7 <--- 6 5 <--- 4 B <--- A 9 <--- 8 F <--- E D <--- C
+LEu8  | 1 <--- 0 3 <--- 2 5 <--- 4 7 <--- 6 9 <--- 8 B <--- A D <--- C F <--- E
 ```
 
-`<BigEndian, u8>` and `<LittleEndian, u8>` will always have the same
-representation in memory on all machines. The wider cursors will not.
+There are two behaviors of note here:
+
+1. On a machine of some endianness, the bit cursor of that same endianness will
+    always have exactly one behavior, regardless of the underlying fundamental
+    type chosen.
+
+1. Any cursor, when applied to `u8`, behaves identically across all machine
+    architectures.
 
 ## Pointer Representation
 
@@ -145,10 +166,7 @@ So, for any storage fundamental, its bitslice pointer representation has:
   the type remembers how to find the correctly aligned pointer.
 - the lowest 3 bits of the length counter for selecting the bit under the head
   pointer
-- the *next* log<sub>2</sub>(bit size) bits of the length counter index the
-  first *dead* bit *after* the slice ends.
-- the remaining high bits index the final *storage fundamental* of the slice,
-  counting from the correctly aligned address in the pointer.
+- the rest of the length field count how many live bits the span contains
 
 ## Value Patterns
 
@@ -175,12 +193,12 @@ address) of its parent slice.
 ### Inhabited Slices
 
 All structures with a non-zero `bits` field are inhabited. The `bits` field may
-range from zero (empty/uninhabited) to `!0` (fully extended).
+range from zero (empty/uninhabited) to `!0` (fully extended). Inhabited slices
+are required to have a valid pointer in the `data` field, and may have any value
+in the `head` field.
 
 ## Memory Regions
 
 A `BitPtr<T>` is translated to a `[T]` memory region using the `domain` module.
 This module contains all the logic for determining which memory elements under a
 `BitPtr<T>` are partially or fully inhabited by that bit slice.
-
-[base64]: https://en.wikipedia.org/wiki/Base64
