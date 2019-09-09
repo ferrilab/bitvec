@@ -1477,27 +1477,6 @@ where C: Cursor, T: BitStore {
 		}
 	}
 
-	/// Changes the cursor type on the vector handle, without changing its
-	/// contents.
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	///
-	/// # Returns
-	///
-	/// An equivalent vector handle with a new cursor type. The contents of the
-	/// backing storage are unchanged.
-	///
-	/// To reorder the bits in memory, drain this vector into a new handle with
-	/// the desired cursor type.
-	pub fn change_cursor<D>(self) -> BitVec<D, T>
-	where D: Cursor {
-		let (bp, cap) = (self.pointer, self.capacity);
-		mem::forget(self);
-		unsafe { BitVec::from_raw_parts(bp, cap) }
-	}
-
 	/// Force the live region of the underlying `BitSlice` to begin at `0`.
 	///
 	/// This method uses `BitSlice::rotate_left` to move all the live bits in
@@ -1535,6 +1514,27 @@ where C: Cursor, T: BitStore {
 		self.as_bits_mut().rotate_left(head);
 		//  And discard the garbage now at the back.
 		unsafe { self.pointer.set_len(bits); }
+	}
+
+	/// Changes the cursor type on the vector handle, without changing its
+	/// contents.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// An equivalent vector handle with a new cursor type. The contents of the
+	/// backing storage are unchanged.
+	///
+	/// To reorder the bits in memory, drain this vector into a new handle with
+	/// the desired cursor type.
+	pub fn change_cursor<D>(self) -> BitVec<D, T>
+	where D: Cursor {
+		let (bp, cap) = (self.pointer, self.capacity);
+		mem::forget(self);
+		unsafe { BitVec::from_raw_parts(bp, cap) }
 	}
 
 	/// Degrades a `BitVec` to a `BitBox`, freezing its size.
@@ -2089,3 +2089,6 @@ where C: Cursor, T: BitStore {}
 mod r#override;
 mod iter;
 mod ops;
+
+#[cfg(test)]
+mod tests;

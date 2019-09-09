@@ -1,4 +1,4 @@
-/*! `BitVec` methods which override `BitSlice` methods.
+/*! `BitVec` inherent functions that override `BitSlice` inherents.
 !*/
 
 use super::BitVec;
@@ -79,23 +79,31 @@ where C: Cursor, T: BitStore {
 		programming yet, so I will be using comments as needed to explain each
 		stage.
 
-		First, we compute how many dead bits are in the back element of the
-		memory store. These bits will be used to store bits moved from the front
-		of the slice, which moves the head cursor up and does not alter the
-		length. This trick enables a very cheap rotation effect.
+		First, we compute how many live bits are in the front element and how
+		many dead bits are in the back element of the memory store. Moving the
+		front-element bits into the dead bits of the back element may allow the
+		rotation to occur without any element moves.
 		*/
+		let head = self.pointer.head();
+		let mut live_head = T::BITS - *head;
 		let mut dead_tail = T::BITS - *self.pointer.tail();
 
 		/* Small shift optimization: if the shift can be accomplished by just
 		moving some bits from the front to the back, do that and exit.
+
+		This branch enters only if the shift amount does not surpass both the
+		dead bit count in the back and the live bit count in the front. The
+		shift is allowed to completely empty the front element, which will incur
+		a rotation of the underlying memory.
 		*/
-		if shamt <= dead_tail as usize {
-			for _ in 0 .. shamt {
-				unsafe {
-					let bit = self.get_unchecked(0);
-					self.set_unchecked(len, bit);
-					self.pointer = self.pointer.incr_head();
-				}
+		if shamt <= dead_tail as usize && shamt <= live_head as usize {
+			for _ in 1 ..= shamt as u8 {
+				bit_shunt(self, len, &mut live_head, &mut dead_tail);
+			}
+			//  If the head element has been completely drained, then it needs
+			//  to be rotated to the back.
+			if live_head == 0 || *self.pointer.head() == 0 {
+				self.as_mut_slice().rotate_left(1);
 			}
 			return;
 		}
@@ -109,16 +117,8 @@ where C: Cursor, T: BitStore {
 		use unchecked access to get [0], set [len], and increment the head until
 		one of the counters runs out.
 		*/
-		let head = self.pointer.head();
-		let mut live_head = T::BITS - *head;
 		while live_head > 0 && dead_tail > 0 {
-			unsafe {
-				let bit = self.get_unchecked(0);
-				self.set_unchecked(len, bit);
-				self.pointer = self.pointer.incr_head();
-			}
-			live_head -= 1;
-			dead_tail -= 1;
+			bit_shunt(self, len, &mut live_head, &mut dead_tail);
 		}
 
 		/* At this point, the front element of the memory store now has any
@@ -149,5 +149,39 @@ where C: Cursor, T: BitStore {
 		*/
 		self.as_mut_slice().rotate_left(last_head >> T::BITS);
 		unsafe { self.pointer.set_head((last_head as u8 & T::MASK).idx()); }
+
+		/// Moves the front bit to the back, and slides the slice one to the
+		/// right.
+		///
+		/// # Parameters
+		///
+		/// - `this`: Reference to the `BitVec` undergoing rotation. This does
+		///   need to be a `&mut BitVec` reference, because the vector’s pointer
+		///   member is modified by the function, as well as the referent
+		///   slice’s contents.
+		/// - `len`: The precomputed length of the referent `BitSlice`.
+		/// - `live_head`: Write reference to a loop control counter.
+		/// - `dead_tail`: Write reference to a loop control counter.
+		fn bit_shunt<C, T>(
+			this: &mut BitVec<C, T>,
+			len: usize,
+			live_head: &mut u8,
+			dead_tail: &mut u8,
+		)
+		where C: Cursor, T: BitStore {
+			//  This function does not need to care about wrap; the calling
+			//  loops manage that.
+			let (new_head, _) = this.pointer.head().incr();
+			//  Move the front bit to the back, and slide the span one to the
+			//  right.
+			unsafe {
+				let bit = this.get_unchecked(0);
+				this.set_unchecked(len, bit);
+				this.pointer.set_head(new_head);
+			}
+			//  Decrement the control counters.
+			*live_head -= 1;
+			*dead_tail -= 1;
+		}
 	}
 }
