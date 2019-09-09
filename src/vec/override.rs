@@ -67,6 +67,11 @@ where C: Cursor, T: BitStore {
 		let len = self.len();
 		let shamt = shamt % len;
 
+		//  Exit immediately for noöp rotations
+		if shamt == 0 {
+			return;
+		}
+
 		//  If the shift amount exceeds isz_max, shift twice.
 		let isz_max = isize::max_value() as usize;
 		if shamt > isz_max {
@@ -83,10 +88,15 @@ where C: Cursor, T: BitStore {
 		many dead bits are in the back element of the memory store. Moving the
 		front-element bits into the dead bits of the back element may allow the
 		rotation to occur without any element moves.
+
+		The original `BitPtr` must be preserved in order to describe the span of
+		memory the `BitVec` governs, even as its pointer is modified during this
+		process.
 		*/
-		let head = self.pointer.head();
+		let orig = self.pointer;
+		let head = orig.head();
 		let mut live_head = T::BITS - *head;
-		let mut dead_tail = T::BITS - *self.pointer.tail();
+		let mut dead_tail = T::BITS - *orig.tail();
 
 		/* Small shift optimization: if the shift can be accomplished by just
 		moving some bits from the front to the back, do that and exit.
@@ -97,13 +107,13 @@ where C: Cursor, T: BitStore {
 		a rotation of the underlying memory.
 		*/
 		if shamt <= dead_tail as usize && shamt <= live_head as usize {
-			for _ in 1 ..= shamt as u8 {
+			for _ in 0 .. shamt as u8 {
 				bit_shunt(self, len, &mut live_head, &mut dead_tail);
 			}
 			//  If the head element has been completely drained, then it needs
 			//  to be rotated to the back.
 			if live_head == 0 || *self.pointer.head() == 0 {
-				self.as_mut_slice().rotate_left(1);
+				orig.as_mut_slice().rotate_left(1);
 			}
 			return;
 		}
@@ -137,8 +147,8 @@ where C: Cursor, T: BitStore {
 		*/
 		let dead_head = T::BITS - live_head;
 		let last_head = *head as usize + shamt;
-		self.as_mut_slice()
-			.bits_mut::<C>()[.. last_head] <<= dead_head;
+		let span = orig.as_mut_slice();
+		span.bits_mut::<C>()[.. last_head] <<= dead_head;
 
 		/* Now, we must break the shift distance into an element count and a new
 		head index.
@@ -147,8 +157,9 @@ where C: Cursor, T: BitStore {
 		rotate function, and the vector head cursor is set to the `last_head`
 		modulus the element width, and rotation is complete.
 		*/
-		self.as_mut_slice().rotate_left(last_head >> T::BITS);
-		unsafe { self.pointer.set_head((last_head as u8 & T::MASK).idx()); }
+		let (elts, bits) = 0.idx().offset(last_head as isize);
+		span.rotate_left(elts as usize);
+		unsafe { self.pointer.set_head(bits); }
 
 		/// Moves the front bit to the back, and slides the slice one to the
 		/// right.

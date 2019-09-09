@@ -5,6 +5,10 @@
 # does not work on Windows.                                                    #
 ################################################################################
 
+# Runs the benchmarks.
+bench:
+	cargo +nightly bench
+
 # Builds the library.
 build:
 	cargo build --no-default-features

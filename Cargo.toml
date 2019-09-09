@@ -54,9 +54,14 @@ version = "1"
 
 # Crates required when running the test suite.
 [dev-dependencies]
+criterion = "0.3"
 serde = "1"
 serde_json = "1"
 serde_test = "1"
+
+[[bench]]
+name = "vec_rotate"
+harness = false
 
 # Indicates the features that docs.rs should enable when building documentation.
 [package.metadata.docs.rs]
