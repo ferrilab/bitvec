@@ -31,3 +31,18 @@ fn rotate_left_minor() {
 	bv.rotate_left(5);
 	assert_eq!(bv.as_slice(), &[0b0110000_0]);
 }
+
+#[test]
+fn rotate_left_major() {
+	let mut bv = bitvec![
+		1, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 1, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 1,
+	];
+	bv.rotate_left(10);
+	assert_eq!(bv, bitvec![
+		      1, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 1, 1, 0, 0,
+		0, 0, 0, 0, 0, 0, 0,
+	]);
+}

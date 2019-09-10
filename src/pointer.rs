@@ -54,6 +54,7 @@ Miri says it’s fine as long as it’s used with strict care. Summer 2019.
 
 Read-only outside this module.
 **/
+#[derive(Clone, Copy)]
 #[doc(hidden)]
 pub(crate) union Pointer<T> {
 	/// A read pointer to some data.
@@ -810,6 +811,23 @@ where T: BitStore {
 			head,
 			bits - 1,
 		)
+	}
+
+	/// Moves a span pointer in memory by some amount.
+	///
+	/// This does not affect the length; it slides the entire span forwards or
+	/// backwards in the memory space according to the `by` parameter.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`: The pointer whose domain is being slid.
+	/// - `by`: The slide distance. When this is negative, the span moves lower
+	///   in memory; when this is positive, the span moves higher in memory.
+	#[cfg(feature = "alloc")]
+	pub(crate) unsafe fn slide(&mut self, by: isize) {
+		let (data, head, bits) = self.raw_parts();
+		let (elts, head) = head.offset(by);
+		*self = Self::new_unchecked(data.r().offset(elts), head, bits);
 	}
 
 	/// Increments the length counter.

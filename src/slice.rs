@@ -2128,6 +2128,26 @@ where C: Cursor, T: BitStore {
 		self.bitptr().into_bitslice_mut()
 	}
 
+	/// Unconditionally copies a bit from one index to another.
+	///
+	/// This is equivalent to `self[to] = self[from]`.
+	///
+	/// # Safety
+	///
+	/// This function performs no bounds checks. It must only be called from
+	/// within a checked context.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `from`: The index at which a bit will be unconditionally fetched.
+	/// - `to`: The index at which the fetched bit will be unconditionally set.
+	#[inline]
+	pub(crate) unsafe fn copy(&mut self, from: usize, to: usize) {
+		let bit = self.get_unchecked(from);
+		self.set_unchecked(to, bit);
+	}
+
 	/// Accesses the underlying pointer structure.
 	///
 	/// # Parameters

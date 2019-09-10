@@ -75,6 +75,7 @@ pub trait BitStore:
 	//  Permit indexing into a generic array
 	+ Copy
 	+ Debug
+	+ Default
 	+ Display
 	//  Permit testing a value against 1 in `get()`.
 	+ Eq
