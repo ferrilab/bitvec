@@ -12,7 +12,6 @@ use bitvec::prelude::*;
 use criterion::{
 	BenchmarkId,
 	Criterion,
-	black_box,
 	criterion_group,
 	criterion_main,
 };

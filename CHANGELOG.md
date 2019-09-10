@@ -35,6 +35,17 @@ This document is written according to the [Keep a Changelog][kac] style.
   `BitSlice` into an element or array of elements of that bit slice’s underlying
   type.
 
+- `BitVec::rotate_{left,right}` specialize the `BitSlice::rotate_{left,right}`
+  functions to have lazier, faster behavior. The `BitSlice` rotator methods are
+  required to be conservative, and act by rotating the entire slice by one bit,
+  as many times as needed to acheive the requested rotation distance. The
+  `BitVec` rotators, by contrast, are free to pollute the vector memory buffer
+  as they see fit, which allows them to move fewer bits and to use `memmove`.
+
+  Benchmarks demonstrate that vector rotation is consistently faster than slice
+  rotation, and is able to approach nearly constant-time behavior in some
+  conditions.
+
 ### Changed
 
 - `BitSlice` shift operations have had a long-standing bug where a shift amount

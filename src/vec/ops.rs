@@ -709,15 +709,10 @@ where C: Cursor, T: BitStore {
 			self.clear();
 			return;
 		}
-		for idx in shamt .. len {
-			let val = self[idx];
-			self.set(idx.saturating_sub(shamt), val);
-		}
-		let trunc = len.saturating_sub(shamt);
-		for idx in trunc .. len {
-			self.set(idx, false);
-		}
-		self.truncate(trunc);
+		//  Move all bits left (this also erases the `shamt` rightmost bits)
+		*self.as_bits_mut() <<= shamt;
+		//  And shorten the vector.
+		self.truncate(len - shamt);
 	}
 }
 
@@ -826,17 +821,12 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(bv.len(), 8);
 	/// ```
 	fn shr_assign(&mut self, shamt: usize) {
-		let old_len = self.len();
-		for _ in 0 .. shamt {
-			self.push(false);
-		}
-		for idx in (0 .. old_len).rev() {
-			let val = self[idx];
-			self.set(idx.saturating_add(shamt), val);
-		}
-		for idx in 0 .. shamt {
-			self.set(idx, false);
-		}
+		//  Ensure the allocation buffer can hold `shamt` more bits
+		self.reserve(shamt);
+		//  Extend the live span by `shamt`
+		unsafe { self.set_len(self.len() + shamt); }
+		//  And move all bits right. This also clears the left-most bits.
+		*self.as_bits_mut() >>= shamt;
 	}
 }
 

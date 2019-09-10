@@ -682,14 +682,9 @@ where C: Cursor, T: BitStore {
 		}
 		//  Otherwise, crawl.
 		for (to, from) in (shamt .. len).enumerate() {
-			unsafe {
-				let val = self.get_unchecked(from);
-				self.set_unchecked(to, val);
-			}
+			unsafe { self.copy(from, to); }
 		}
-		for bit in (len.saturating_sub(shamt)) .. len {
-			unsafe { self.set_unchecked(bit, false); }
-		}
+		self[len - shamt ..].set_all(false);
 	}
 }
 
@@ -785,14 +780,9 @@ where C: Cursor, T: BitStore {
 		}
 		//  Otherwise, crawl.
 		for (from, to) in (shamt .. len).enumerate().rev() {
-			unsafe {
-				let val = self.get_unchecked(from);
-				self.set_unchecked(to, val);
-			}
+			unsafe { self.copy(from, to); }
 		}
-		for bit in 0 .. shamt {
-			unsafe { self.set_unchecked(bit, false); }
-		}
+		self[.. shamt].set_all(false);
 	}
 }
 

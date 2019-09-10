@@ -640,9 +640,14 @@ where C: Cursor, T: BitStore {
 			newlen,
 			BitPtr::<T>::MAX_INDX,
 		);
+		let tail = self.pointer.tail();
+		//  If the additional bits would not depart the last element, do nothing
+		if *tail as usize + additional <= T::BITS as usize {
+			return;
+		}
 		//  Compute the number of additional elements needed to store the
 		//  requested number of additional bits.
-		let (e, _) = self.pointer.tail().span(additional);
+		let (e, _) = tail.span(additional);
 		self.do_unto_vec(|v| v.reserve(e));
 	}
 
@@ -683,9 +688,11 @@ where C: Cursor, T: BitStore {
 			newlen,
 			BitPtr::<T>::MAX_INDX,
 		);
-		//  Compute the number of additional elements needed to store the
-		//  requested number of additional bits.
-		let (e, _) = self.pointer.tail().span(additional);
+		let tail = self.pointer.tail();
+		if *tail as usize + additional <= T::BITS as usize {
+			return;
+		}
+		let (e, _) = tail.span(additional);
 		self.do_unto_vec(|v| v.reserve_exact(e));
 	}
 
@@ -1483,6 +1490,8 @@ where C: Cursor, T: BitStore {
 	/// the slice down to the front edge of the allocation. It exits immediately
 	/// if the vector is already aligned.
 	///
+	/// It is not required to clear bits that have become garbage.
+	///
 	/// # Examples
 	///
 	/// ```rust
@@ -1495,7 +1504,7 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(bv.as_slice(), &[0x7E]);
 	/// assert_eq!(&bv, &0xFCu8.bits::<BigEndian>()[.. 6]);
 	/// bv.force_align();
-	/// assert_eq!(bv.as_slice(), &[0xFC]);
+	/// assert_eq!(bv.as_slice(), &[0xFE]);
 	/// ```
 	pub fn force_align(&mut self) {
 		let (_, head, bits) = self.pointer.raw_parts();
@@ -1509,9 +1518,10 @@ where C: Cursor, T: BitStore {
 			self.pointer.set_head(0.idx());
 			self.pointer.set_len(full);
 		}
-		//  Rotate everything down, using the `BitSlice` rotator since the
-		//  `BitVec` rotator is lazy and not required to perform this work.
-		self.as_bits_mut().rotate_left(head);
+		//  Shift everything down
+		for (to, from) in (head ..).take(bits).enumerate() {
+			unsafe { self.copy(from, to); }
+		}
 		//  And discard the garbage now at the back.
 		unsafe { self.pointer.set_len(bits); }
 	}

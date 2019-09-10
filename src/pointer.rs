@@ -139,6 +139,12 @@ impl<T> From<usize> for Pointer<T> {
 	}
 }
 
+impl<T> Debug for Pointer<T> {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		write!(f, "{:p}", self.r())
+	}
+}
+
 /** In-memory representation of `&BitSlice` handles.
 
 # Layout
