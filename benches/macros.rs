@@ -23,9 +23,11 @@ use bitvec::prelude::*;
 #[bench]
 fn bitvec_init(b: &mut Bencher) {
 	b.iter(|| bitvec![0; 16 * 16 * 9]);
+	b.iter(|| bitvec![1; 16 * 16 * 9]);
 }
 
 #[bench]
 fn vec_init(b: &mut Bencher) {
 	b.iter(|| vec![0u8; 16 * 16 * 9 / 8]);
+	b.iter(|| vec![-1i8; 16 * 16 * 9 / 8]);
 }

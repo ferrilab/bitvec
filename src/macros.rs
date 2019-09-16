@@ -20,6 +20,21 @@ macro system.
 Like `vec!`, `bitvec!` supports bit lists `[0, 1, …]` and repetition markers
 `[1; n]`.
 
+# Notes
+
+The bit list syntax `bitvec![expr, expr, expr...]` currently produces an
+`&[bool]` slice of the initial pattern, which is written into the final
+artifact’s static memory and may consume excessive space.
+
+The repetition syntax `bitec![expr; count]` currently zeros its allocated buffer
+before setting the first `count` bits to `expr`. This may result in a
+performance penalty when using `bitvec![1; N]`, as the allocation will be zeroed
+and then a subset will be set high.
+
+This behavior is currently required to maintain compatibility with `serde`
+expectations that dead bits are zero. As the `serdes` module removes those
+expectations, the repetition syntax implementation may speed up.
+
 # Examples
 
 ```rust
@@ -97,8 +112,12 @@ macro_rules! bitvec {
 
 	( __bv_impl__ $cursor:path , $bits:ty ; $val:expr ; $rep:expr ) => {{
 		let mut bv = $crate::vec::BitVec::<$cursor, $bits>::with_capacity($rep);
+		bv.set_elements(0);
 		unsafe { bv.set_len($rep); }
-		bv.set_all($val != 0);
+		let one = $val != 0;
+		if one {
+			bv.set_all(one);
+		}
 		bv
 	}};
 }
