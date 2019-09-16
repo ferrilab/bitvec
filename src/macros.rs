@@ -40,62 +40,66 @@ bitvec![1; 5];
 #[macro_export]
 macro_rules! bitvec {
 	//  bitvec![ endian , type ; 0 , 1 , … ]
-	( $cursor:path , $bits:ty ; $( $element:expr ),* ) => {
-		bitvec![ __bv_impl__ $cursor , $bits ; $( $element ),* ]
+	( $cursor:path , $bits:ty ; $( $val:expr ),* ) => {
+		bitvec![ __bv_impl__ $cursor , $bits ; $( $val ),* ]
 	};
 	//  bitvec![ endian , type ; 0 , 1 , … , ]
-	( $cursor:path , $bits:ty ; $( $element:expr , )* ) => {
-		bitvec![ __bv_impl__ $cursor , $bits ; $( $element ),* ]
+	( $cursor:path , $bits:ty ; $( $val:expr , )* ) => {
+		bitvec![ __bv_impl__ $cursor , $bits ; $( $val ),* ]
 	};
 
 	//  bitvec![ endian ; 0 , 1 , … ]
-	( $cursor:path ; $( $element:expr ),* ) => {
-		bitvec![ __bv_impl__ $cursor , u8 ; $( $element ),* ]
+	( $cursor:path ; $( $val:expr ),* ) => {
+		bitvec![ __bv_impl__ $cursor , u8 ; $( $val ),* ]
 	};
 	//  bitvec![ endian ; 0 , 1 , … , ]
-	( $cursor:path ; $( $element:expr , )* ) => {
-		bitvec![ __bv_impl__ $cursor , u8 ; $( $element ),* ]
+	( $cursor:path ; $( $val:expr , )* ) => {
+		bitvec![ __bv_impl__ $cursor , u8 ; $( $val ),* ]
 	};
 
 	//  bitvec![ 0 , 1 , … ]
-	( $( $element:expr ),* ) => {
-		bitvec![ __bv_impl__ $crate::prelude::BigEndian , u8 ; $( $element ),* ]
+	( $( $val:expr ),* ) => {
+		bitvec![ __bv_impl__ $crate::prelude::BigEndian , u8 ; $( $val ),* ]
 	};
 	//  bitvec![ 0 , 1 , … , ]
-	( $( $element:expr , )* ) => {
-		bitvec![ __bv_impl__ $crate::prelude::BigEndian , u8 ; $( $element ),* ]
+	( $( $val:expr , )* ) => {
+		bitvec![ __bv_impl__ $crate::prelude::BigEndian , u8 ; $( $val ),* ]
 	};
 
 	//  bitvec![ endian , type ; bit ; rep ]
-	( $cursor:path , $bits:ty ; $element:expr ; $rep:expr ) => {
-		bitvec![ __bv_impl__ $cursor , $bits ; $element; $rep ]
+	( $cursor:path , $bits:ty ; $val:expr ; $rep:expr ) => {
+		bitvec![ __bv_impl__ $cursor , $bits ; $val; $rep ]
 	};
 	//  bitvec![ endian ; bit ; rep ]
-	( $cursor:path ; $element:expr ; $rep:expr ) => {
-		bitvec![ __bv_impl__ $cursor , u8 ; $element ; $rep ]
+	( $cursor:path ; $val:expr ; $rep:expr ) => {
+		bitvec![ __bv_impl__ $cursor , u8 ; $val ; $rep ]
 	};
 	//  bitvec![ bit ; rep ]
-	( $element:expr ; $rep:expr ) => {
-		bitvec![ __bv_impl__ $crate::prelude::BigEndian , u8 ; $element ; $rep ]
+	( $val:expr ; $rep:expr ) => {
+		bitvec![ __bv_impl__ $crate::prelude::BigEndian , u8 ; $val ; $rep ]
 	};
 
-	//  Build an array of `bool` (one bit per byte) and then build a `BitVec`
-	//  from that (one bit per bit). I have yet to think of a way to make the
-	//  source array be binary-compatible with a `BitSlice` data representation,
-	//  so the static source is 8x larger than it needs to be.
-	//
-	//  I’m sure there is a way, but I don’t think I need to spend the effort
-	//  yet. Maybe a proc-macro.
+	//  GitHub issue #25 is to make this into a proc-macro that produces the
+	//  correct memory slab at compile time.
 
-	( __bv_impl__ $cursor:path , $bits:ty ; $( $element:expr ),* ) => {{
-		let init: &[bool] = &[ $( $element != 0 ),* ];
-		$crate::vec::BitVec::<$cursor, $bits>::from(init)
+	( __bv_impl__ $cursor:path , $bits:ty ; $( $val:expr ),* ) => {{
+		let init: &[bool] = &[ $( $val != 0 ),* ];
+		let mut bv = $crate::vec::BitVec::<$cursor, $bits>::with_capacity(
+			init.len(),
+		);
+		bv.extend(init.iter().copied());
+		bv
 	}};
 
-	( __bv_impl__ $cursor:path , $bits:ty ; $element:expr ; $rep:expr ) => {{
-		core::iter::repeat($element != 0)
-			.take($rep)
-			.collect::<$crate::vec::BitVec<$cursor, $bits>>()
+	//  `[$val; $rep]` can just allocate a slab of at least `$rep` bits and then
+	//  use `.set_all` to force them to `$val`. This is much faster than
+	//  collecting from a bitstream.
+
+	( __bv_impl__ $cursor:path , $bits:ty ; $val:expr ; $rep:expr ) => {{
+		let mut bv = $crate::vec::BitVec::<$cursor, $bits>::with_capacity($rep);
+		unsafe { bv.set_len($rep); }
+		bv.set_all($val != 0);
+		bv
 	}};
 }
 
@@ -111,43 +115,43 @@ freeze it.
 #[macro_export]
 macro_rules! bitbox {
 	//  bitbox![ endian , type ; 0 , 1 , … ]
-	( $cursor:path , $bits:ty ; $( $element:expr ),* ) => {
-		bitvec![ $cursor , $bits ; $( $element ),* ].into_boxed_bitslice()
+	( $cursor:path , $bits:ty ; $( $val:expr ),* ) => {
+		bitvec![ $cursor , $bits ; $( $val ),* ].into_boxed_bitslice()
 	};
 	//  bitbox![ endian , type ; 0 , 1 , … , ]
-	( $cursor:path , $bits:ty ; $( $element:expr , )* ) => {
-		bitvec![ $cursor , $bits ; $( $element ),* ].into_boxed_bitslice()
+	( $cursor:path , $bits:ty ; $( $val:expr , )* ) => {
+		bitvec![ $cursor , $bits ; $( $val ),* ].into_boxed_bitslice()
 	};
 
 	//  bitbox![ endian ; 0 , 1 , … ]
-	( $cursor:path ; $( $element:expr ),* ) => {
-		bitvec![ $cursor , u8 ; $( $element ),* ].into_boxed_bitslice()
+	( $cursor:path ; $( $val:expr ),* ) => {
+		bitvec![ $cursor , u8 ; $( $val ),* ].into_boxed_bitslice()
 	};
 	//  bitbox![ endian ; 0 , 1 , … , ]
-	( $cursor:path ; $( $element:expr , )* ) => {
-		bitvec![ $cursor , u8 ; $( $element ),* ].into_boxed_bitslice()
+	( $cursor:path ; $( $val:expr , )* ) => {
+		bitvec![ $cursor , u8 ; $( $val ),* ].into_boxed_bitslice()
 	};
 
 	//  bitbox![ 0 , 1 , … ]
-	( $( $element:expr ),* ) => {
-		bitvec![ $crate::prelude::BigEndian , u8 ; $( $element ),* ].into_boxed_bitslice()
+	( $( $val:expr ),* ) => {
+		bitvec![ $crate::prelude::BigEndian , u8 ; $( $val ),* ].into_boxed_bitslice()
 	};
 	//  bitbox![ 0 , 1 , … , ]
-	( $( $element:expr , )* ) => {
-		bitvec![ $crate::prelude::BigEndian , u8 ; $( $element ),* ].into_boxed_bitslice()
+	( $( $val:expr , )* ) => {
+		bitvec![ $crate::prelude::BigEndian , u8 ; $( $val ),* ].into_boxed_bitslice()
 	};
 
 	//  bitbox![ endian , type ; bit ; rep ]
-	( $cursor:path , $bits:ty ; $element:expr ; $rep:expr ) => {
-		bitvec![ $cursor , $bits ; $element; $rep ].into_boxed_bitslice()
+	( $cursor:path , $bits:ty ; $val:expr ; $rep:expr ) => {
+		bitvec![ $cursor , $bits ; $val; $rep ].into_boxed_bitslice()
 	};
 	//  bitbox![ endian ; bit ; rep ]
-	( $cursor:path ; $element:expr ; $rep:expr ) => {
-		bitvec![ $cursor , u8 ; $element ; $rep ].into_boxed_bitslice()
+	( $cursor:path ; $val:expr ; $rep:expr ) => {
+		bitvec![ $cursor , u8 ; $val ; $rep ].into_boxed_bitslice()
 	};
 	//  bitbox![ bit ; rep ]
-	( $element:expr ; $rep:expr ) => {
-		bitvec![ $crate::prelude::BigEndian , u8 ; $element ; $rep ].into_boxed_bitslice()
+	( $val:expr ; $rep:expr ) => {
+		bitvec![ $crate::prelude::BigEndian , u8 ; $val ; $rep ].into_boxed_bitslice()
 	};
 }
 
