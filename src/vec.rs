@@ -1383,12 +1383,11 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(bv.as_slice(), &[0xA5, 0xA5]);
 	/// ```
 	pub fn set_elements(&mut self, element: T) {
-		self.do_unto_vec(|v| {
-			let (ptr, cap) = (v.as_mut_ptr(), v.capacity());
-			for elt in unsafe { slice::from_raw_parts_mut(ptr, cap) } {
-				*elt = element;
-			}
-		})
+		let ptr = self.pointer.pointer().w();
+		let cap = self.capacity;
+		for elt in unsafe { slice::from_raw_parts_mut(ptr, cap) } {
+			*elt = element;
+		}
 	}
 
 	/// Performs “reverse” addition (left to right instead of right to left).
