@@ -11,14 +11,15 @@ Rust slices, and must never be interchanged except through the provided APIs.
 use crate::{
 	bits::BitsMut,
 	cursor::{
-		BigEndian,
 		Cursor,
+		Local,
 	},
 	domain::*,
 	pointer::BitPtr,
 	store::{
 		BitStore,
 		IntoBitIdx,
+		Word,
 	},
 };
 
@@ -77,7 +78,7 @@ let bv = bitvec![0, 1, 0, 1];
 let bslice: &BitSlice = &bv[..];
 # }
 //  coercing an array to a bitslice
-let bslice: &BitSlice = [1u8, 254u8].bits::<BigEndian>();
+let bslice: &BitSlice<Local, u8> = [1u8, 254].bits::<Local>();
 ```
 
 Bit slices are either mutable or shared. The shared slice type is
@@ -89,7 +90,7 @@ use bitvec::prelude::*;
 
 let mut base = [0u8, 0, 0, 0];
 {
- let bs: &mut BitSlice = base.bits_mut::<BigEndian>();
+ let bs = base.bits_mut::<BigEndian>();
  bs.set(13, true);
  eprintln!("{:?}", bs.as_ref());
  assert!(bs[13]);
@@ -120,7 +121,7 @@ is ***catastrophically*** unsafe and unsound.
 [`bitvec!`]: ../macro.bitvec.html
 **/
 #[repr(transparent)]
-pub struct BitSlice<C = BigEndian, T = u8>
+pub struct BitSlice<C = Local, T = Word>
 where C: Cursor, T: BitStore {
 	/// Cursor type for selecting bits inside an element.
 	_kind: PhantomData<C>,
@@ -205,7 +206,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let elt: u8 = 0;
+	/// let elt: Word = 0;
 	/// let bs: &BitSlice = BitSlice::from_element(&elt);
 	/// assert_eq!(bs.as_ptr(), &elt);
 	/// ```
@@ -237,14 +238,14 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut elt: u8 = 0;
-	/// let eltptr = &elt as *const u8;
-	/// let bs: &mut BitSlice = BitSlice::from_element_mut(&mut elt);
+	/// let mut elt: Word = 0;
+	/// let eltptr = &elt as *const Word;
+	/// let bs = BitSlice::<LittleEndian, _>::from_element_mut(&mut elt);
 	/// assert_eq!(bs.as_ptr(), eltptr);
 	/// assert!(bs.not_any());
 	/// bs.set(0, true);
 	/// assert!(bs.any());
-	/// assert_eq!(elt, 128);
+	/// assert_eq!(elt, 1);
 	/// ```
 	///
 	/// [`BitsMut::bits_mut`]: ../bits/trait.BitsMut.html#tymethod.bits_mut

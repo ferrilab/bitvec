@@ -13,12 +13,14 @@ pub use crate::{
 		Cursor,
 		BigEndian,
 		LittleEndian,
+		Local,
 	},
 	slice::BitSlice,
 	store::{
 		BitIdx,
 		BitPos,
 		BitStore,
+		Word,
 	},
 };
 

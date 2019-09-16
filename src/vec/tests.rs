@@ -3,10 +3,13 @@
 
 #![cfg(all(test, feature = "std"))]
 
+use crate::cursor::BigEndian;
+
 //  Tests that the `rotate_left` function behaves as expected in all edge cases
 #[test]
 fn rotate_left_minor() {
 	let mut bv = bitvec![
+		BigEndian, u8;
 		1, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 1, 0, 1,
 	];
@@ -20,6 +23,7 @@ fn rotate_left_minor() {
 	assert_eq!(*bv.pointer.head(), 3);
 	assert_eq!(*bv.pointer.tail(), 8);
 	assert_eq!(bv, bitvec![
+		BigEndian, u8;
 		         0, 0, 0, 0, 0,
 		0, 0, 1, 0, 1, 1, 0, 0,
 	]);
@@ -35,12 +39,14 @@ fn rotate_left_minor() {
 #[test]
 fn rotate_left_major() {
 	let mut bv = bitvec![
+		BigEndian, u8;
 		1, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 1, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 1,
 	];
 	bv.rotate_left(10);
 	assert_eq!(bv, bitvec![
+		BigEndian, u8;
 		      1, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 1, 1, 0, 0,
 		0, 0, 0, 0, 0, 0, 0,

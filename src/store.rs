@@ -918,6 +918,9 @@ impl BitStore for u16 {
 	type Nucleus = Cell<Self>;
 }
 
+#[cfg(target_pointer_width = "16")]
+pub type Word = u16;
+
 impl BitStore for u32 {
 	const TYPENAME: &'static str = "u32";
 
@@ -927,6 +930,9 @@ impl BitStore for u32 {
 	#[cfg(not(feature = "atomic"))]
 	type Nucleus = Cell<Self>;
 }
+
+#[cfg(target_pointer_width = "32")]
+pub type Word = u32;
 
 #[cfg(target_pointer_width = "64")]
 impl BitStore for u64 {
@@ -938,6 +944,9 @@ impl BitStore for u64 {
 	#[cfg(not(feature = "atomic"))]
 	type Nucleus = Cell<Self>;
 }
+
+#[cfg(target_pointer_width = "64")]
+pub type Word = u64;
 
 /** Marker trait to seal `BitStore` against downstream implementation.
 

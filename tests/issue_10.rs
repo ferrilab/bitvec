@@ -32,6 +32,7 @@ use bitvec::prelude::*;
 #[test]
 fn issue_10() {
 	let bv = bitvec![
+		BigEndian, u8;
 		0, 0, 0, 0,
 		0, 0, 0, 1,
 		1, 0, 0, 0,

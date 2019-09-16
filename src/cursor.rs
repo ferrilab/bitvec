@@ -57,6 +57,12 @@ The RS-232, Ethernet, and USB protocols use this ordering.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct LittleEndian;
 
+#[cfg(target_endian = "little")]
+pub type Local = LittleEndian;
+
+#[cfg(target_endian = "big")]
+pub type Local = BigEndian;
+
 /** A cursor over an element.
 
 # Usage

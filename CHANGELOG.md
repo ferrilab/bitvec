@@ -6,6 +6,10 @@ This document is written according to the [Keep a Changelog][kac] style.
 
 ## 0.16.0
 
+This is a **major** release, with a few API breaking changes and a lot of
+underlying work. **Fully** read the Changed section before you upgrade your
+manifest.
+
 ### Added
 
 - Per discussions with [@mystor] and [@oli-obk] at RustConf 2019, I have been
@@ -46,6 +50,15 @@ This document is written according to the [Keep a Changelog][kac] style.
   rotation, and is able to approach nearly constant-time behavior in some
   conditions.
 
+- Per [Issue #24], `bitvec` now provides the type aliases `Local`, which is set
+  to the exported endianness cursor corresponding to the target machine’s *byte*
+  endianness, and `Word`, which is set to the target machine’s `usize` concrete
+  type. Thanks to GitHub user [@glandium] for the suggestion.
+
+  `Word` is implemented as a type alias, rather than by implementing `BitStore`
+  on `usize`, in order to be clear that it is a shorthand to a specific concrete
+  type and not a type in its own merit.
+
 ### Changed
 
 - `BitSlice` shift operations have had a long-standing bug where a shift amount
@@ -84,12 +97,20 @@ This document is written according to the [Keep a Changelog][kac] style.
   above, but retain the distinction of being an upcast rather than a
   construction.
 
+- All default cursor and fundamental types are now `Local` and `Word` instead of
+  `BigEndian` and `u8`. This changes the default focus of the crate from I/O
+  buffer construction (which requires explicit choice of cursor and fundamental
+  anyway) to abstract `[u1]` set behavior.
+
+  This is a **severe** breaking change to all users of the construction macros
+  `bitvec!` and `bitbox!`, and
+
 ### Removed
 
 - The `{set,get,invert}_at` functions in `BitStore` have been removed. All
   access is now forced to enter the `BitStore` trait by `BitIdx`, and the
   translation to mask positions occurs in the `atomic` or `cellular` accessor
-  modules.
+  modules. This is not observable from the public API.
 
 ## 0.15.2
 

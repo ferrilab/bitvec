@@ -48,7 +48,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut bv = bitvec![0; 4];
+	/// let mut bv = bitvec![BigEndian, u8; 0; 4];
 	/// bv.extend(bitvec![1; 4]);
 	/// assert_eq!(0x0F, bv.as_slice()[0]);
 	/// ```
@@ -74,7 +74,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// use std::iter::repeat;
-	/// let bv: BitVec = repeat(true)
+	/// let bv: BitVec<BigEndian, u8> = repeat(true)
 	///   .take(4)
 	///   .chain(repeat(false).take(4))
 	///   .collect();

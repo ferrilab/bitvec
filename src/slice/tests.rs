@@ -7,23 +7,27 @@ submodule was less ungainly.
 #![cfg(test)]
 
 use super::*;
-use crate::cursor::LittleEndian;
+use crate::cursor::{
+	BigEndian,
+	LittleEndian,
+	Local,
+};
 
 #[test]
 fn empty() {
-	assert!(BitSlice::<BigEndian, u8>::empty().is_empty());
-	assert!(BitSlice::<BigEndian, u16>::empty().is_empty());
-	assert!(BitSlice::<BigEndian, u32>::empty().is_empty());
+	assert!(BitSlice::<Local, u8>::empty().is_empty());
+	assert!(BitSlice::<Local, u16>::empty().is_empty());
+	assert!(BitSlice::<Local, u32>::empty().is_empty());
 
 	#[cfg(target_pointer_width = "64")]
-	assert!(BitSlice::<BigEndian, u64>::empty().is_empty());
+	assert!(BitSlice::<Local, u64>::empty().is_empty());
 
-	assert!(BitSlice::<BigEndian, u8>::empty_mut().is_empty());
-	assert!(BitSlice::<BigEndian, u16>::empty_mut().is_empty());
-	assert!(BitSlice::<BigEndian, u32>::empty_mut().is_empty());
+	assert!(BitSlice::<Local, u8>::empty_mut().is_empty());
+	assert!(BitSlice::<Local, u16>::empty_mut().is_empty());
+	assert!(BitSlice::<Local, u32>::empty_mut().is_empty());
 
 	#[cfg(target_pointer_width = "64")]
-	assert!(BitSlice::<BigEndian, u64>::empty_mut().is_empty());
+	assert!(BitSlice::<Local, u64>::empty_mut().is_empty());
 }
 
 #[test]
@@ -87,21 +91,21 @@ fn from_element_mut() {
 #[test]
 fn from_slice() {
 	let elts = [0u8, !0];
-	let bs = BitSlice::<BigEndian, _>::from_slice(&elts[..]);
+	let bs = BitSlice::<Local, _>::from_slice(&elts[..]);
 	assert_eq!(bs.len(), 16);
 	assert!(bs.some());
 	assert_eq!(bs.count_ones(), 8);
 	assert_eq!(bs.count_zeros(), 8);
 
 	let elts = [0u16, !0];
-	let bs = BitSlice::<BigEndian, _>::from_slice(&elts[..]);
+	let bs = BitSlice::<Local, _>::from_slice(&elts[..]);
 	assert_eq!(bs.len(), 32);
 	assert!(bs.some());
 	assert_eq!(bs.count_ones(), 16);
 	assert_eq!(bs.count_zeros(), 16);
 
 	let elts = [0u32, !0];
-	let bs = BitSlice::<BigEndian, _>::from_slice(&elts[..]);
+	let bs = BitSlice::<Local, _>::from_slice(&elts[..]);
 	assert_eq!(bs.len(), 64);
 	assert!(bs.some());
 	assert_eq!(bs.count_ones(), 32);
@@ -110,7 +114,7 @@ fn from_slice() {
 	#[cfg(target_pointer_width = "64")] {
 
 	let elts = [0u64, !0];
-	let bs = BitSlice::<BigEndian, _>::from_slice(&elts[..]);
+	let bs = BitSlice::<Local, _>::from_slice(&elts[..]);
 	assert_eq!(bs.len(), 128);
 	assert!(bs.some());
 	assert_eq!(bs.count_ones(), 64);
@@ -124,7 +128,7 @@ fn from_slice() {
 			BitPtr::<u8>::MAX_ELTS,
 		)
 	};
-	let bs = BitSlice::<BigEndian, _>::from_slice(good_slice);
+	let bs = BitSlice::<Local, _>::from_slice(good_slice);
 	assert_eq!(bs.len(), BitPtr::<u8>::MAX_INDX);
 }
 
@@ -138,7 +142,7 @@ fn from_slice_assertions() {
 			BitPtr::<u8>::MAX_ELTS + 1,
 		)
 	};
-	let _ = BitSlice::<BigEndian, _>::from_slice(evil_slice);
+	let _ = BitSlice::<Local, _>::from_slice(evil_slice);
 }
 
 #[test]
@@ -183,7 +187,7 @@ fn from_slice_mut() {
 #[test]
 fn len() {
 	let elts = [0u32; 1024];
-	let bs = BitSlice::<BigEndian, _>::from_slice(&elts[..]);
+	let bs = BitSlice::<Local, _>::from_slice(&elts[..]);
 	for n in 1 .. (32 * 1024) {
 		assert!(!bs.is_empty());
 		assert_eq!(bs[.. n].len(), n);
@@ -196,17 +200,17 @@ fn first() {
 	let bs = BitSlice::<BigEndian, _>::from_element(&elt);
 	assert_eq!(bs.first(), Some(true));
 
-	assert!(BitSlice::<BigEndian, u8>::empty().first().is_none());
-	assert!(BitSlice::<BigEndian, u16>::empty().first().is_none());
-	assert!(BitSlice::<BigEndian, u32>::empty().first().is_none());
+	assert!(BitSlice::<Local, u8>::empty().first().is_none());
+	assert!(BitSlice::<Local, u16>::empty().first().is_none());
+	assert!(BitSlice::<Local, u32>::empty().first().is_none());
 
 	#[cfg(target_pointer_width = "64")]
-	assert!(BitSlice::<BigEndian, u64>::empty().first().is_none());
+	assert!(BitSlice::<Local, u64>::empty().first().is_none());
 }
 
 #[test]
 fn split_first() {
-	assert!(BitSlice::<BigEndian, u8>::empty().split_first().is_none());
+	assert!(BitSlice::<Local, u8>::empty().split_first().is_none());
 
 	let elt = 129u8;
 	let bs = BitSlice::<BigEndian, _>::from_element(&elt);
@@ -218,7 +222,7 @@ fn split_first() {
 
 #[test]
 fn split_first_mut() {
-	assert!(BitSlice::<BigEndian, u8>::empty_mut().split_first_mut().is_none());
+	assert!(BitSlice::<Local, u8>::empty_mut().split_first_mut().is_none());
 
 	let mut elt = 0x8001u16;
 	let bs = BitSlice::<BigEndian, _>::from_element_mut(&mut elt);
@@ -238,7 +242,7 @@ fn split_first_mut() {
 
 #[test]
 fn split_last() {
-	assert!(BitSlice::<BigEndian, u8>::empty().split_last().is_none());
+	assert!(BitSlice::<Local, u8>::empty().split_last().is_none());
 
 	let elt = 129u8;
 	let bs = BitSlice::<BigEndian, _>::from_element(&elt);
@@ -250,7 +254,7 @@ fn split_last() {
 
 #[test]
 fn split_last_mut() {
-	assert!(BitSlice::<BigEndian, u8>::empty_mut().split_first_mut().is_none());
+	assert!(BitSlice::<Local, u8>::empty_mut().split_first_mut().is_none());
 
 	let mut elt = 0x0001u16;
 	let bs = BitSlice::<BigEndian, _>::from_element_mut(&mut elt);
@@ -275,12 +279,12 @@ fn last() {
 	let bs = BitSlice::<BigEndian, _>::from_element(&elt);
 	assert_eq!(bs.last(), Some(true));
 
-	assert!(BitSlice::<BigEndian, u8>::empty().last().is_none());
-	assert!(BitSlice::<BigEndian, u16>::empty().last().is_none());
-	assert!(BitSlice::<BigEndian, u32>::empty().last().is_none());
+	assert!(BitSlice::<Local, u8>::empty().last().is_none());
+	assert!(BitSlice::<Local, u16>::empty().last().is_none());
+	assert!(BitSlice::<Local, u32>::empty().last().is_none());
 
 	#[cfg(target_pointer_width = "64")]
-	assert!(BitSlice::<BigEndian, u64>::empty().last().is_none());
+	assert!(BitSlice::<Local, u64>::empty().last().is_none());
 }
 
 #[test]

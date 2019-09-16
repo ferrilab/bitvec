@@ -383,8 +383,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let store: &[u8] = &[0b0100_1011];
-	/// let bits: &BitSlice = store.into();
+	/// let bits = 0b0100_1011u8.bits::<Local>();
 	/// let mut rchunks_exact = bits.rchunks_exact(3);
 	/// assert_eq!(rchunks_exact.next(), Some(&bits[5 .. 8]));
 	/// assert_eq!(rchunks_exact.next(), Some(&bits[2 .. 5]));
