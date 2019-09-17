@@ -16,6 +16,7 @@ Contiguity is not required.
 
 use crate::store::{
 	BitIdx,
+	BitMask,
 	BitPos,
 	BitStore,
 };
@@ -40,6 +41,9 @@ at his work.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct BigEndian;
 
+#[cfg(target_endian = "big")]
+pub type Local = BigEndian;
+
 /** Traverses an element from `LSbit` to `MSbit`.
 
 Almost all CS literature and processors use little-endian numbering to index
@@ -59,9 +63,6 @@ pub struct LittleEndian;
 
 #[cfg(target_endian = "little")]
 pub type Local = LittleEndian;
-
-#[cfg(target_endian = "big")]
-pub type Local = BigEndian;
 
 /** A cursor over an element.
 
@@ -168,7 +169,7 @@ pub trait Cursor {
 	/// This function requires that the output is always a one-hot value. It is
 	/// illegal to produce a value with more than one bit set, and doing so will
 	/// cause uncontrolled side effects.
-	fn mask<T>(cursor: BitIdx<T>) -> T
+	fn mask<T>(cursor: BitIdx<T>) -> BitMask<T>
 	where T: BitStore {
 		let place = Self::at(cursor);
 		debug_assert!(
@@ -177,7 +178,7 @@ pub trait Cursor {
 			*place,
 			T::BITS,
 		);
-		T::from(1) << *place
+		BitMask::new(T::from(1) << *place)
 	}
 }
 
@@ -194,13 +195,13 @@ impl Cursor for BigEndian {
 	}
 
 	#[inline(always)]
-	fn mask<T>(cursor: BitIdx<T>) -> T
+	fn mask<T>(cursor: BitIdx<T>) -> BitMask<T>
 	where T: BitStore {
 		//  Set the MSbit, then shift it down. The left expr is const-folded.
 		//  Note: this is not equivalent to `1 << (mask - cursor)`, because that
 		//  requires a subtraction every time, but the expression below is only
 		//  a single shift.
-		(T::from(1) << T::MASK) >> *cursor
+		unsafe { BitMask::new_unchecked((T::from(1) << T::MASK) >> *cursor) }
 	}
 }
 
@@ -217,10 +218,10 @@ impl Cursor for LittleEndian {
 	}
 
 	#[inline(always)]
-	fn mask<T>(cursor: BitIdx<T>) -> T
+	fn mask<T>(cursor: BitIdx<T>) -> BitMask<T>
 	where T: BitStore {
 		//  Set the LSbit, then shift it up.
-		T::from(1) << *cursor
+		unsafe { BitMask::new_unchecked(T::from(1) << *cursor) }
 	}
 }
 

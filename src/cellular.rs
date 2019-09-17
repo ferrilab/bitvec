@@ -101,19 +101,19 @@ impl Cellular for Cell<u8> {
 	#[inline(always)]
 	fn clear<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.set(self.get() & !C::mask(bit));
+		self.set(self.get() & !*C::mask(bit));
 	}
 
 	#[inline(always)]
 	fn set<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.set(self.get() | C::mask(bit));
+		self.set(self.get() | *C::mask(bit));
 	}
 
 	#[inline(always)]
 	fn invert<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.set(self.get() ^ C::mask(bit));
+		self.set(self.get() ^ *C::mask(bit));
 	}
 
 	#[inline(always)]
@@ -128,19 +128,19 @@ impl Cellular for Cell<u16> {
 	#[inline(always)]
 	fn clear<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.set(self.get() & !C::mask(bit));
+		self.set(self.get() & !*C::mask(bit));
 	}
 
 	#[inline(always)]
 	fn set<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.set(self.get() | C::mask(bit));
+		self.set(self.get() | *C::mask(bit));
 	}
 
 	#[inline(always)]
 	fn invert<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.set(self.get() ^ C::mask(bit));
+		self.set(self.get() ^ *C::mask(bit));
 	}
 
 	#[inline(always)]
@@ -155,19 +155,19 @@ impl Cellular for Cell<u32> {
 	#[inline(always)]
 	fn clear<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.set(self.get() & !C::mask(bit));
+		self.set(self.get() & !*C::mask(bit));
 	}
 
 	#[inline(always)]
 	fn set<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.set(self.get() | C::mask(bit));
+		self.set(self.get() | *C::mask(bit));
 	}
 
 	#[inline(always)]
 	fn invert<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.set(self.get() ^ C::mask(bit));
+		self.set(self.get() ^ *C::mask(bit));
 	}
 
 	#[inline(always)]
@@ -183,19 +183,19 @@ impl Cellular for Cell<u64> {
 	#[inline(always)]
 	fn clear<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.set(self.get() & !C::mask(bit));
+		self.set(self.get() & !*C::mask(bit));
 	}
 
 	#[inline(always)]
 	fn set<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.set(self.get() | C::mask(bit));
+		self.set(self.get() | *C::mask(bit));
 	}
 
 	#[inline(always)]
 	fn invert<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.set(self.get() ^ C::mask(bit));
+		self.set(self.get() ^ *C::mask(bit));
 	}
 
 	#[inline(always)]

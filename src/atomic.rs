@@ -154,19 +154,19 @@ impl Atomic for AtomicU8 {
 	#[inline(always)]
 	fn clear<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.fetch_and(!C::mask(bit), Ordering::Relaxed);
+		self.fetch_and(!*C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
 	fn set<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.fetch_or(C::mask(bit), Ordering::Relaxed);
+		self.fetch_or(*C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
 	fn invert<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.fetch_xor(C::mask(bit), Ordering::Relaxed);
+		self.fetch_xor(*C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
@@ -181,19 +181,19 @@ impl Atomic for AtomicU16 {
 	#[inline(always)]
 	fn clear<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.fetch_and(!C::mask(bit), Ordering::Relaxed);
+		self.fetch_and(!*C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
 	fn set<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.fetch_or(C::mask(bit), Ordering::Relaxed);
+		self.fetch_or(*C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
 	fn invert<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.fetch_xor(C::mask(bit), Ordering::Relaxed);
+		self.fetch_xor(*C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
@@ -208,19 +208,19 @@ impl Atomic for AtomicU32 {
 	#[inline(always)]
 	fn clear<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.fetch_and(!C::mask(bit), Ordering::Relaxed);
+		self.fetch_and(!*C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
 	fn set<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.fetch_or(C::mask(bit), Ordering::Relaxed);
+		self.fetch_or(*C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
 	fn invert<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.fetch_xor(C::mask(bit), Ordering::Relaxed);
+		self.fetch_xor(*C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
@@ -236,19 +236,19 @@ impl Atomic for AtomicU64 {
 	#[inline(always)]
 	fn clear<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.fetch_and(!C::mask(bit), Ordering::Relaxed);
+		self.fetch_and(!*C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
 	fn set<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.fetch_or(C::mask(bit), Ordering::Relaxed);
+		self.fetch_or(*C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]
 	fn invert<C>(&self, bit: BitIdx<Self::Fundamental>)
 	where C: Cursor {
-		self.fetch_xor(C::mask(bit), Ordering::Relaxed);
+		self.fetch_xor(*C::mask(bit), Ordering::Relaxed);
 	}
 
 	#[inline(always)]

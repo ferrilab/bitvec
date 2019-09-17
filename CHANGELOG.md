@@ -59,6 +59,8 @@ manifest.
   on `usize`, in order to be clear that it is a shorthand to a specific concrete
   type and not a type in its own merit.
 
+- A `BitMask` type that encodes one-hot requirements in the type system.
+
 ### Changed
 
 - `BitSlice` shift operations have had a long-standing bug where a shift amount
@@ -103,7 +105,11 @@ manifest.
   anyway) to abstract `[u1]` set behavior.
 
   This is a **severe** breaking change to all users of the construction macros
-  `bitvec!` and `bitbox!`, and
+  `bitvec!` and `bitbox!`, and will require re-specifying type parameters at
+  macro call sites.
+
+- `Cursor::mask` now produces a `BitMask<T>`, rather than a bare `T`, in order
+  to force implementors to respect the one-hot encoding requirement.
 
 ### Removed
 

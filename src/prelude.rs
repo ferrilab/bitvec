@@ -17,8 +17,6 @@ pub use crate::{
 	},
 	slice::BitSlice,
 	store::{
-		BitIdx,
-		BitPos,
 		BitStore,
 		Word,
 	},

@@ -13,13 +13,10 @@ use crate::cursor::Cursor;
 
 use core::{
 	cmp::Eq,
-	convert::TryFrom,
 	fmt::{
-		self,
 		Binary,
 		Debug,
 		Display,
-		Formatter,
 		LowerHex,
 		UpperHex,
 	},
@@ -253,7 +250,7 @@ pub trait BitStore:
 	/// ```
 	fn get<C>(&self, place: BitIdx<Self>) -> bool
 	where C: Cursor {
-		self.load() & C::mask(place) != Self::from(0)
+		self.load() & *C::mask(place) != Self::from(0)
 	}
 
 	/// Counts how many bits in `self` are set to `1`.
@@ -365,28 +362,34 @@ but is not required to be the electrical `LSb`, `MSb`, or any other.
 [`Cursor`]: ../cursor/trait.Cursor.html
 **/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[doc(hidden)]
 pub struct BitIdx<T>
 where T: BitStore {
+	/// The semantic bit index within a `T` element.
 	idx: u8,
 	_ty: PhantomData<T>,
 }
 
 impl<T> BitIdx<T>
 where T: BitStore {
-	#[inline]
-	pub fn new(idx: u8) -> Self {
+	#[inline(always)]
+	pub(crate) fn new(idx: u8) -> Self {
 		assert!(
 			idx < T::BITS,
 			"Bit index {} cannot exceed type width {}",
 			idx,
 			T::BITS,
 		);
-		unsafe { Self::new_unchecked(idx) }
+		Self { idx, _ty: PhantomData }
 	}
 
 	#[inline(always)]
-	pub unsafe fn new_unchecked(idx: u8) -> Self {
+	pub(crate) unsafe fn new_unchecked(idx: u8) -> Self {
+		debug_assert!(
+			idx < T::BITS,
+			"Bit index {} cannot exceed type width {}",
+			idx,
+			T::BITS,
+		);
 		Self { idx, _ty: PhantomData }
 	}
 
@@ -527,35 +530,6 @@ where T: BitStore {
 	}
 }
 
-/// Unwraps a `BitIdx` to a `u8`.
-impl<T> Into<u8> for BitIdx<T>
-where T: BitStore {
-	fn into(self) -> u8 {
-		self.idx
-	}
-}
-
-impl<T> TryFrom<u8> for BitIdx<T>
-where T: BitStore {
-	type Error = &'static str;
-
-	fn try_from(idx: u8) -> Result<Self, Self::Error> {
-		if idx < T::BITS {
-			Ok(unsafe { Self::new_unchecked(idx) })
-		}
-		else {
-			Err("Attempted to construct a `BitIdx` with an index out of range")
-		}
-	}
-}
-
-impl<T> Display for BitIdx<T>
-where T: BitStore {
-	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		Display::fmt(&self.idx, f)
-	}
-}
-
 impl<T> Deref for BitIdx<T>
 where T: BitStore {
 	type Target = u8;
@@ -626,9 +600,11 @@ Users cannot do anything with this type except view its index as a `u8`.
   instances are always valid to use to describe the first dead bit of `T`
   elements.
 **/
+#[doc(hidden)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub struct TailIdx<T>
 where T: BitStore {
+	/// The dead-bit semantic index within a `T` element.
 	tail: u8,
 	_ty: PhantomData<T>,
 }
@@ -803,12 +779,10 @@ an element rather than a semantic bit.
 [`Cursor`]: ../cursor/trait.Cursor.html
 **/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[doc(hidden)]
 pub struct BitPos<T>
 where T: BitStore {
 	/// The encoded position value.
 	pos: u8,
-	/// Type marker to allow access to `T::BITS` for range checking.
 	_ty: PhantomData<T>,
 }
 
@@ -841,14 +815,14 @@ where T: BitStore {
 			pos,
 			T::BITS,
 		);
-		unsafe { Self::new_unchecked(pos) }
+		Self { pos, _ty: PhantomData }
 	}
 
 	/// Produces a new bit position marker at any position value.
 	///
 	/// # Safety
 	///
-	/// The caller *must* ensure that `pos` be less than `T::BITS`. `Cursor`
+	/// The caller *must* ensure that `pos` is less than `T::BITS`. `Cursor`
 	/// implementations should prefer [`::new`], which panics on range failure.
 	///
 	/// # Parameters
@@ -860,25 +834,21 @@ where T: BitStore {
 	///
 	/// `pos` wrapped in the `BitPos` marker type.
 	///
+	/// # Panics
+	///
+	/// This function panics if `pos` is invalid only in debug builds, and does
+	/// not inspect `pos` in release builds.
+	///
 	/// [`::new`]: #method.new
 	#[inline(always)]
 	pub unsafe fn new_unchecked(pos: u8) -> Self {
+		debug_assert!(
+			pos < T::BITS,
+			"Bit position {} cannot exceed type width {}",
+			pos,
+			T::BITS,
+		);
 		Self { pos, _ty: PhantomData }
-	}
-}
-
-/// Unwraps a `BitPos` to a `u8`.
-impl<T> Into<u8> for BitPos<T>
-where T: BitStore {
-	fn into(self) -> u8 {
-		self.pos
-	}
-}
-
-impl<T> Display for BitPos<T>
-where T: BitStore {
-	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		Display::fmt(&self.pos, f)
 	}
 }
 
@@ -895,6 +865,98 @@ impl<T> DerefMut for BitPos<T>
 where T: BitStore {
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		&mut self.pos
+	}
+}
+
+
+/** Newtype indicating a one-hot encoding bit-mask over an element.
+
+This type is produced by [`Cursor`] implementations and then consumed by the
+setter and getter functions of [`BitStore::Nucleus`]. It ensures that the
+wrapped `T` value has only one bit set, and may be safely used as a mask for the
+setter and getter operations.
+
+# Type Parameters
+
+- `T`: The storage type being masked.
+
+[`BitStore::Nucleus`]: trait.BitStore.html#associatedtype.Nucleus
+[`Cursor`]: ../cursor/trait.Cursor.html
+**/
+pub struct BitMask<T>
+where T: BitStore {
+	/// A one-hot masking value used in single-bit access.
+	mask: T,
+}
+
+impl<T> BitMask<T>
+where T: BitStore {
+	/// Produces a new bit mask wrapper around a mask value.
+	///
+	/// `Cursor` implementations should prefer this method, but *may* use
+	/// [`::new_unchecked`] if they can guarantee that the one-hot invariant is
+	/// upheld.
+	///
+	/// # Parameters
+	///
+	/// - `val`: The mask value to wrap. This **must** have exactly one bit set
+	///   to high, and all others set to low.
+	///
+	/// # Returns
+	///
+	/// `val` wrapped in the `BitMask` marker type.
+	///
+	/// # Panics
+	///
+	/// This function always panics if `val` has 0, or multiple, bits set high.
+	///
+	/// [`::new_unchecked`]: #method.new_unchecked
+	#[inline(always)]
+	pub fn new(val: T) -> Self {
+		assert!(
+			val.count_ones() == 1,
+			"A mask must be a one-hot encoding of a position index!",
+		);
+		Self { mask: val }
+	}
+
+	/// Produces a new bit mask wrapper around any value.
+	///
+	/// # Safety
+	///
+	/// The caller *must* ensure that `val` has exactly one bit set. `Cursor`
+	/// implementations should prefer [`::new`], which always panics on failure.
+	///
+	/// # Parameters
+	///
+	/// - `val`: The mask value to wrap. This must have exactly one bit set.
+	///
+	/// # Returns
+	///
+	/// `val` wrapped in the `BitMask` marker type.
+	///
+	/// # Panics
+	///
+	/// This function panics if `val` is invalid only in debug builds, and does
+	/// not inspect `val` in release builds.
+	///
+	/// [`::new`]: #method.new
+	#[inline(always)]
+	pub unsafe fn new_unchecked(val: T) -> Self {
+		debug_assert!(
+			val.count_ones() == 1,
+			"A mask must be a one-hot encoding of a position index!",
+		);
+		Self { mask: val }
+	}
+}
+
+impl<T> Deref for BitMask<T>
+where T: BitStore {
+	type Target = T;
+
+	fn deref(&self) -> &Self::Target {
+		&self.mask
 	}
 }
 
@@ -918,9 +980,6 @@ impl BitStore for u16 {
 	type Nucleus = Cell<Self>;
 }
 
-#[cfg(target_pointer_width = "16")]
-pub type Word = u16;
-
 impl BitStore for u32 {
 	const TYPENAME: &'static str = "u32";
 
@@ -931,6 +990,7 @@ impl BitStore for u32 {
 	type Nucleus = Cell<Self>;
 }
 
+/// Type alias to the CPU word element, `u32`.
 #[cfg(target_pointer_width = "32")]
 pub type Word = u32;
 
@@ -945,6 +1005,7 @@ impl BitStore for u64 {
 	type Nucleus = Cell<Self>;
 }
 
+/// Type alias to the CPU word element, `u64`.
 #[cfg(target_pointer_width = "64")]
 pub type Word = u64;
 
