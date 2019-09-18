@@ -65,15 +65,8 @@ pub mod boxed;
 #[cfg_attr(all(not(feature = "alloc"), tarpaulin), skip)]
 pub mod vec;
 
-#[cfg(feature = "atomic")]
-mod atomic;
-
 #[cfg(feature = "serde")]
 mod serdes;
-
-#[cfg(not(feature = "atomic"))]
-#[cfg_attr(all(feature = "atomic", tarpaulin), skip)]
-mod cellular;
 
 /// Expose crate internals for use in doctests and external tests.
 #[cfg(feature = "testing")]
@@ -89,12 +82,6 @@ pub mod testing {
 		store::*,
 		vec::*,
 	};
-
-	#[cfg(feature = "atomic")]
-	pub use crate::atomic::*;
-
-	#[cfg(not(feature = "atomic"))]
-	pub use crate::cellular::*;
 }
 
 /** Perform single-bit ripple-carry addition.

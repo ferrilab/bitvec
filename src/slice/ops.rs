@@ -12,6 +12,7 @@ use crate::{
 	domain::BitDomainMut,
 	pointer::BitPtr,
 	store::{
+		BitAccess,
 		BitStore,
 		IntoBitIdx,
 	},
@@ -540,23 +541,23 @@ where C: Cursor, T: 'a + BitStore {
 			BitDomainMut::Empty => {},
 			BitDomainMut::Minor(head, elt, tail) => {
 				for n in *head .. *tail {
-					elt.invert::<C>(n.idx());
+					elt.invert_bit::<C>(n.idx());
 				}
 			},
 			BitDomainMut::Major(h, head, body, tail, t) => {
 				for n in *h .. T::BITS {
-					head.invert::<C>(n.idx());
+					head.invert_bit::<C>(n.idx());
 				}
 				for elt in body {
 					*elt = !*elt;
 				}
 				for n in 0 .. *t {
-					tail.invert::<C>(n.idx());
+					tail.invert_bit::<C>(n.idx());
 				}
 			},
 			BitDomainMut::PartialHead(h, head, body) => {
 				for n in *h .. T::BITS {
-					head.invert::<C>(n.idx());
+					head.invert_bit::<C>(n.idx());
 				}
 				for elt in body {
 					*elt = !*elt;
@@ -567,7 +568,7 @@ where C: Cursor, T: 'a + BitStore {
 					*elt = !*elt;
 				}
 				for n in 0 .. *t {
-					tail.invert::<C>(n.idx());
+					tail.invert_bit::<C>(n.idx());
 				}
 			},
 			BitDomainMut::Spanning(body) => {

@@ -41,13 +41,7 @@ use core::{
 };
 
 #[cfg(feature = "atomic")]
-use crate::atomic::Atomic;
-
-#[cfg(feature = "atomic")]
 use core::sync::atomic;
-
-#[cfg(not(feature = "atomic"))]
-use crate::cellular::Cellular;
 
 #[cfg(not(feature = "atomic"))]
 use core::cell::Cell;
@@ -112,39 +106,17 @@ pub trait BitStore:
 	/// stabilizes `type_name()`.
 	const TYPENAME: &'static str;
 
-	/// Atomic version of the storage type, to have properly fenced access.
-	#[cfg(feature = "atomic")]
-	#[doc(hidden)]
-	type Nucleus: Atomic<Fundamental = Self>;
-
-	/// Cellular version of the storage type, to have properly bound access.
-	#[cfg(not(feature = "atomic"))]
-	#[doc(hidden)]
-	type Nucleus: Cellular<Fundamental = Self>;
+	/// Shared-mutability wrapper type used to safely mutate aliased data.
+	type Nucleus: BitAccess<Self>;
 
 	/// Reference conversion from `&Self` to `&Self::Nucleus`.
 	#[doc(hidden)]
-	fn nuclear(&self) -> &Self::Nucleus {
-		unsafe { &*(self as *const Self as *const Self::Nucleus) }
-	}
-
-	/// Performs a load on the underlying element.
-	///
-	/// Under the `atomic` feature, this is a synchronized load that is
-	/// guaranteed to occur only after pending read/modify/write cycles have
-	/// finished. Without the `atomic` feature, this is a normal dereference.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// The element referred to by the `self` reference, loaded according to the
-	/// presence or absence of the `atomic` feature.
-	#[inline(always)]
-	fn load(&self) -> Self {
-		self.nuclear().get()
+	fn nuclear(&mut self) -> &Self::Nucleus {
+		//  Until the language provides a convenient atom producer like
+		//  `Cell::from_mut`, this is the only generic way to make atom
+		//  reference production work. I refuse to specialize this function in
+		//  each implementor on sheer principle.
+		unsafe { &*(self as *mut Self as *const Self::Nucleus) }
 	}
 
 	/// Sets a specific bit in an element to a given value.
@@ -167,14 +139,9 @@ pub trait BitStore:
 	///
 	/// - `C`: A `Cursor` implementation to translate the index into a position.
 	#[inline(always)]
-	fn set<C>(&self, place: BitIdx<Self>, value: bool)
+	fn set<C>(&mut self, place: BitIdx<Self>, value: bool)
 	where C: Cursor {
-		if value {
-			self.nuclear().set::<C>(place);
-		}
-		else {
-			self.nuclear().clear::<C>(place);
-		}
+		self.nuclear().set::<C>(place, value);
 	}
 
 	/// Inverts a specific bit in an element.
@@ -195,9 +162,9 @@ pub trait BitStore:
 	///
 	/// - `C`: A `Cursor` implementation to translate the index into a position.
 	#[inline(always)]
-	fn invert<C>(&self, place: BitIdx<Self>)
+	fn invert_bit<C>(&mut self, place: BitIdx<Self>)
 	where C: Cursor {
-		self.nuclear().invert::<C>(place);
+		self.nuclear().invert_bit::<C>(place);
 	}
 
 	/// Gets a specific bit in an element.
@@ -216,7 +183,7 @@ pub trait BitStore:
 	/// - `C`: A `Cursor` implementation to translate the index into a position.
 	fn get<C>(&self, place: BitIdx<Self>) -> bool
 	where C: Cursor {
-		self.load() & *C::mask(place) != Self::from(0)
+		*self & *C::mask(place) != Self::from(0)
 	}
 
 	/// Counts how many bits in `self` are set to `1`.
@@ -251,7 +218,7 @@ pub trait BitStore:
 	/// [`u64::count_ones`]: https://doc.rust-lang.org/stable/std/primitive.u64.html#method.count_ones
 	#[inline(always)]
 	fn count_ones(&self) -> usize {
-		u64::count_ones(self.load().into()) as usize
+		u64::count_ones((*self).into()) as usize
 	}
 
 	/// Counts how many bits in `self` are set to `0`.
@@ -288,7 +255,7 @@ pub trait BitStore:
 	#[inline(always)]
 	fn count_zeros(&self) -> usize {
 		//  invert (0 becomes 1, 1 becomes 0), zero-extend, count ones
-		u64::count_ones((!self.load()).into()) as usize
+		u64::count_ones((!*self).into()) as usize
 	}
 
 	/// Extends a single bit to fill the entire element.
@@ -995,6 +962,289 @@ impl Sealed for u32 {}
 
 #[cfg(target_pointer_width = "64")]
 impl Sealed for u64 {}
+
+/** Common interface for atomic and cellular shared-mutability wrappers.
+**/
+pub trait BitAccess<T>
+where T: BitStore {
+	fn clear_bit<C>(&self, bit: BitIdx<T>)
+	where C: Cursor;
+
+	fn set_bit<C>(&self, bit: BitIdx<T>)
+	where C: Cursor;
+
+	fn invert_bit<C>(&self, bit: BitIdx<T>)
+	where C: Cursor;
+
+	fn get<C>(&self, bit: BitIdx<T>) -> bool
+	where C: Cursor;
+
+	#[inline(always)]
+	fn set<C>(&self, bit: BitIdx<T>, value: bool)
+	where C: Cursor {
+		if value {
+			self.set_bit::<C>(bit);
+		}
+		else {
+			self.clear_bit::<C>(bit);
+		}
+	}
+
+	#[inline(always)]
+	fn base(&self) -> &T {
+		unsafe { &*(self as *const Self as *const T) }
+	}
+}
+
+/* FIXME(myrrlyn): When the `radium` crate publishes generic traits, erase the
+implementations currently in use and enable the generic implementation below:
+
+use core::sync::atomic::Ordering::Relaxed;
+impl<T, R> BitAccess<T> for R
+where T: BitStore, R: RadiumBits<T> {
+	#[inline(always)]
+	fn clear_bit<C>(&self, bit: BitIdx<T>)
+	where C: Cursor {
+		self.fetch_and(!*C::mask(bit), Relaxed);
+	}
+
+	#[inline(always)]
+	fn set_bit<C>(&self, bit: BitIdx<T>)
+	where C: Cursor {
+		self.fetch_or(*C::mask(bit), Relaxed);
+	}
+
+	#[inline(always)]
+	fn invert_bit<C>(&self, bit: BitIdx<T>)
+	where C: Cursor {
+		self.fetch_xor(*C::mask(bit), Relaxed);
+	}
+
+	#[inline(always)]
+	fn get<C>(&self, bit: BitIdx<T>) -> bool
+	where C: Cursor{
+		self.load(Relaxed) & *C::mask(bit) != 0
+	}
+}
+*/
+
+#[cfg(feature = "atomic")] fn _atom() {
+
+impl BitAccess<u8> for atomic::AtomicU8 {
+	#[inline(always)]
+	fn clear_bit<C>(&self, bit: BitIdx<u8>)
+	where C: Cursor {
+		self.fetch_and(!*C::mask(bit), atomic::Ordering::Relaxed);
+	}
+
+	#[inline(always)]
+	fn set_bit<C>(&self, bit: BitIdx<u8>)
+	where C: Cursor {
+		self.fetch_or(*C::mask(bit), atomic::Ordering::Relaxed);
+	}
+
+	#[inline(always)]
+	fn invert_bit<C>(&self, bit: BitIdx<u8>)
+	where C: Cursor {
+		self.fetch_xor(*C::mask(bit), atomic::Ordering::Relaxed);
+	}
+
+	#[inline(always)]
+	fn get<C>(&self, bit: BitIdx<u8>) -> bool
+	where C: Cursor{
+		self.load(atomic::Ordering::Relaxed) & *C::mask(bit) != 0
+	}
+}
+
+impl BitAccess<u16> for atomic::AtomicU16 {
+	#[inline(always)]
+	fn clear_bit<C>(&self, bit: BitIdx<u16>)
+	where C: Cursor {
+		self.fetch_and(!*C::mask(bit), atomic::Ordering::Relaxed);
+	}
+
+	#[inline(always)]
+	fn set_bit<C>(&self, bit: BitIdx<u16>)
+	where C: Cursor {
+		self.fetch_or(*C::mask(bit), atomic::Ordering::Relaxed);
+	}
+
+	#[inline(always)]
+	fn invert_bit<C>(&self, bit: BitIdx<u16>)
+	where C: Cursor {
+		self.fetch_xor(*C::mask(bit), atomic::Ordering::Relaxed);
+	}
+
+	#[inline(always)]
+	fn get<C>(&self, bit: BitIdx<u16>) -> bool
+	where C: Cursor{
+		self.load(atomic::Ordering::Relaxed) & *C::mask(bit) != 0
+	}
+}
+
+impl BitAccess<u32> for atomic::AtomicU32 {
+	#[inline(always)]
+	fn clear_bit<C>(&self, bit: BitIdx<u32>)
+	where C: Cursor {
+		self.fetch_and(!*C::mask(bit), atomic::Ordering::Relaxed);
+	}
+
+	#[inline(always)]
+	fn set_bit<C>(&self, bit: BitIdx<u32>)
+	where C: Cursor {
+		self.fetch_or(*C::mask(bit), atomic::Ordering::Relaxed);
+	}
+
+	#[inline(always)]
+	fn invert_bit<C>(&self, bit: BitIdx<u32>)
+	where C: Cursor {
+		self.fetch_xor(*C::mask(bit), atomic::Ordering::Relaxed);
+	}
+
+	#[inline(always)]
+	fn get<C>(&self, bit: BitIdx<u32>) -> bool
+	where C: Cursor{
+		self.load(atomic::Ordering::Relaxed) & *C::mask(bit) != 0
+	}
+}
+
+#[cfg(target_pointer_width = "64")]
+impl BitAccess<u64> for atomic::AtomicU64 {
+	#[inline(always)]
+	fn clear_bit<C>(&self, bit: BitIdx<u64>)
+	where C: Cursor {
+		self.fetch_and(!*C::mask(bit), atomic::Ordering::Relaxed);
+	}
+
+	#[inline(always)]
+	fn set_bit<C>(&self, bit: BitIdx<u64>)
+	where C: Cursor {
+		self.fetch_or(*C::mask(bit), atomic::Ordering::Relaxed);
+	}
+
+	#[inline(always)]
+	fn invert_bit<C>(&self, bit: BitIdx<u64>)
+	where C: Cursor {
+		self.fetch_xor(*C::mask(bit), atomic::Ordering::Relaxed);
+	}
+
+	#[inline(always)]
+	fn get<C>(&self, bit: BitIdx<u64>) -> bool
+	where C: Cursor{
+		self.load(atomic::Ordering::Relaxed) & *C::mask(bit) != 0
+	}
+}
+
+}
+
+#[cfg(not(feature = "atomic"))] fn _cell() {
+
+impl BitAccess<u8> for Cell<u8> {
+	#[inline(always)]
+	fn clear_bit<C>(&self, bit: BitIdx<u8>)
+	where C: Cursor {
+		self.set(self.get() & !*C::mask(bit));
+	}
+
+	#[inline(always)]
+	fn set_bit<C>(&self, bit: BitIdx<u8>)
+	where C: Cursor {
+		self.set(self.get() | *C::mask(bit));
+	}
+
+	#[inline(always)]
+	fn invert_bit<C>(&self, bit: BitIdx<u8>)
+	where C: Cursor {
+		self.set(self.get() ^ *C::mask(bit));
+	}
+
+	#[inline(always)]
+	fn get<C>(&self, bit: BitIdx<u8>) -> bool
+	where C: Cursor{
+		self.get() & *C::mask(bit) != 0
+	}
+}
+
+impl BitAccess<u16> for Cell<u16> {
+	#[inline(always)]
+	fn clear_bit<C>(&self, bit: BitIdx<u16>)
+	where C: Cursor {
+		self.set(self.get() & !*C::mask(bit));
+	}
+
+	#[inline(always)]
+	fn set_bit<C>(&self, bit: BitIdx<u16>)
+	where C: Cursor {
+		self.set(self.get() | *C::mask(bit));
+	}
+
+	#[inline(always)]
+	fn invert_bit<C>(&self, bit: BitIdx<u16>)
+	where C: Cursor {
+		self.set(self.get() ^ *C::mask(bit));
+	}
+
+	#[inline(always)]
+	fn get<C>(&self, bit: BitIdx<u16>) -> bool
+	where C: Cursor{
+		self.get() & *C::mask(bit) != 0
+	}
+}
+
+impl BitAccess<u32> for Cell<u32> {
+	#[inline(always)]
+	fn clear_bit<C>(&self, bit: BitIdx<u32>)
+	where C: Cursor {
+		self.set(self.get() & !*C::mask(bit));
+	}
+
+	#[inline(always)]
+	fn set_bit<C>(&self, bit: BitIdx<u32>)
+	where C: Cursor {
+		self.set(self.get() | *C::mask(bit));
+	}
+
+	#[inline(always)]
+	fn invert_bit<C>(&self, bit: BitIdx<u32>)
+	where C: Cursor {
+		self.set(self.get() ^ *C::mask(bit));
+	}
+
+	#[inline(always)]
+	fn get<C>(&self, bit: BitIdx<u32>) -> bool
+	where C: Cursor{
+		self.get() & *C::mask(bit) != 0
+	}
+}
+
+#[cfg(target_pointer_width = "64")]
+impl BitAccess<u64> for Cell<u64> {
+	#[inline(always)]
+	fn clear_bit<C>(&self, bit: BitIdx<u64>)
+	where C: Cursor {
+		self.set(self.get() & !*C::mask(bit));
+	}
+
+	#[inline(always)]
+	fn set_bit<C>(&self, bit: BitIdx<u64>)
+	where C: Cursor {
+		self.set(self.get() | *C::mask(bit));
+	}
+
+	#[inline(always)]
+	fn invert_bit<C>(&self, bit: BitIdx<u64>)
+	where C: Cursor {
+		self.set(self.get() ^ *C::mask(bit));
+	}
+
+	#[inline(always)]
+	fn get<C>(&self, bit: BitIdx<u64>) -> bool
+	where C: Cursor{
+		self.get() & *C::mask(bit) != 0
+	}
+}
+
+}
 
 #[cfg(test)]
 mod tests {

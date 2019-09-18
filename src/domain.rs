@@ -10,6 +10,7 @@ handle operations.
 use crate::{
 	pointer::BitPtr,
 	store::{
+		BitAccess,
 		BitIdx,
 		BitStore,
 		TailIdx,
@@ -190,10 +191,16 @@ where T: 'a + BitStore {
 		use BitDomain as Bd;
 		match source {
 			Bdm::Empty => Bd::Empty,
-			Bdm::Minor(hc, e, tc) => Bd::Minor(hc, &*e, tc),
-			Bdm::Major(hc, h, b, t, tc) => Bd::Major(hc, &*h, &b[..], &*t, tc),
-			Bdm::PartialHead(hc, h, t) => Bd::PartialHead(hc, &*h, &t[..]),
-			Bdm::PartialTail(h, t, tc) => Bd::PartialTail(&h[..], &*t, tc),
+			Bdm::Minor(hc, e, tc) => Bd::Minor(hc, e.base(), tc),
+			Bdm::Major(hc, h, b, t, tc) => Bd::Major(
+				hc,
+				h.base(),
+				&b[..],
+				t.base(),
+				tc,
+			),
+			Bdm::PartialHead(hc, h, t) => Bd::PartialHead(hc, h.base(), &t[..]),
+			Bdm::PartialTail(h, t, tc) => Bd::PartialTail(&h[..], t.base(), tc),
 			Bdm::Spanning(b) => Bd::Spanning(&b[..]),
 		}
 	}
@@ -238,7 +245,7 @@ where T: 'a + BitStore {
 	///
 	/// This variant is produced when the domain is contained entirely inside
 	/// one element, and does not reach to either edge.
-	Minor(BitIdx<T>, &'a T, TailIdx<T>),
+	Minor(BitIdx<T>, &'a T::Nucleus, TailIdx<T>),
 	/// Multpile element domain which does not reach the edge of its edge
 	/// elements.
 	///
@@ -261,7 +268,7 @@ where T: 'a + BitStore {
 	/// This variant is produced when the domain uses at least two elements, and
 	/// reaches neither the head edge of the head element nor the tail edge of
 	/// the tail element.
-	Major(BitIdx<T>, &'a T, &'a mut [T], &'a T, TailIdx<T>),
+	Major(BitIdx<T>, &'a T::Nucleus, &'a mut [T], &'a T::Nucleus, TailIdx<T>),
 	/// Domain with a partial head cursor and fully extended tail cursor.
 	///
 	/// # Members
@@ -279,7 +286,7 @@ where T: 'a + BitStore {
 	///
 	/// This variant is produced when the domain’s head cursor is past `0`, and
 	/// its tail cursor is exactly `T::BITS`.
-	PartialHead(BitIdx<T>, &'a T, &'a mut [T]),
+	PartialHead(BitIdx<T>, &'a T::Nucleus, &'a mut [T]),
 	/// Domain with a fully extended head cursor and partial tail cursor.
 	///
 	/// # Members
@@ -297,7 +304,7 @@ where T: 'a + BitStore {
 	///
 	/// This variant is produced when the domain’s head cursor is exactly `0`,
 	/// and its tail cursor is less than `T::BITS`.
-	PartialTail(&'a mut [T], &'a T, TailIdx<T>),
+	PartialTail(&'a mut [T], &'a T::Nucleus, TailIdx<T>),
 	/// Domain which fully spans its containing elements.
 	///
 	/// # Members
@@ -320,7 +327,7 @@ where T: 'a + BitStore {
 
 		match bitptr.domain_kind() {
 			Bdk::Empty => BitDomainMut::Empty,
-			Bdk::Minor => BitDomainMut::Minor(h, &data[0], t),
+			Bdk::Minor => BitDomainMut::Minor(h, (&mut data[0]).nuclear(), t),
 			Bdk::Major => {
 				let (head, body) = data
 					.split_first_mut()
@@ -328,19 +335,19 @@ where T: 'a + BitStore {
 				let (tail, body) = body
 					.split_last_mut()
 					.expect("Major cannot fail to split tail");
-				BitDomainMut::Major(h, head, body, tail, t)
+				BitDomainMut::Major(h, head.nuclear(), body, tail.nuclear(), t)
 			},
 			Bdk::PartialHead => {
 				let (head, tail) = data
 					.split_first_mut()
 					.expect("PartialHead cannot fail to split");
-				BitDomainMut::PartialHead(h, head, tail)
+				BitDomainMut::PartialHead(h, head.nuclear(), tail)
 			},
 			Bdk::PartialTail => {
 				let (tail, head) = data
 					.split_last_mut()
 					.expect("PartialTail cannot fail to split");
-				BitDomainMut::PartialTail(head, tail, t)
+				BitDomainMut::PartialTail(head, tail.nuclear(), t)
 			},
 			Bdk::Spanning => BitDomainMut::Spanning(data),
 		}

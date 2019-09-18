@@ -17,6 +17,7 @@ use crate::{
 	domain::*,
 	pointer::BitPtr,
 	store::{
+		BitAccess,
 		BitStore,
 		IntoBitIdx,
 		Word,
@@ -780,7 +781,7 @@ where C: Cursor, T: BitStore {
 	/// [`set`]: #method.set
 	pub unsafe fn set_unchecked(&mut self, index: usize, value: bool) {
 		let (elt, bit) = self.bitptr().head().offset(index as isize);
-		(&*self.as_ptr().offset(elt)).set::<C>(bit, value);
+		(&mut *self.as_mut_ptr().offset(elt)).set::<C>(bit, value);
 	}
 
 	/// Produces a write reference to a single bit in the slice.
