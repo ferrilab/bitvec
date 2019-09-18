@@ -78,7 +78,7 @@ pub trait Bits {
 	fn bits<C>(&self) -> &BitSlice<C, Self::Store>
 	where C: Cursor;
 
-	#[deprecated(since = "0.16.0")]
+	#[deprecated(since = "0.16.0", note = "Use `.bits` instead")]
 	fn as_bitslice<C>(&self) -> &BitSlice<C, Self::Store>
 	where C: Cursor {
 		self.bits::<C>()
@@ -122,7 +122,7 @@ pub trait BitsMut: Bits {
 	fn bits_mut<C>(&mut self) -> &mut BitSlice<C, Self::Store>
 	where C: Cursor;
 
-	#[deprecated(since = "0.16.0")]
+	#[deprecated(since = "0.16.0", note = "Use `.bits_mut` instead")]
 	fn as_mut_bitslice<C>(&mut self) -> &mut BitSlice<C, Self::Store>
 	where C: Cursor {
 		self.bits_mut::<C>()

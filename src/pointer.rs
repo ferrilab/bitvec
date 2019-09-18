@@ -1029,8 +1029,8 @@ where T: BitStore {
 			}
 		}
 
-		struct BinAddr<T: BitStore>(BitIdx<T>, PhantomData<T>);
-		impl<T: BitStore>  Debug for BinAddr<T> {
+		struct BinAddr<T: BitStore>(BitIdx<T>);
+		impl<T: BitStore> Debug for BinAddr<T> {
 			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 				write!(f, "0b{:0>1$b}", *self.0, T::INDX as usize)
 			}
@@ -1039,7 +1039,7 @@ where T: BitStore {
 		write!(f, "BitPtr<{}>", T::TYPENAME)?;
 		f.debug_struct("")
 			.field("data", &HexPtr::<T>(self.pointer().r()))
-			.field("head", &BinAddr::<T>(self.head(), PhantomData))
+			.field("head", &BinAddr::<T>(self.head()))
 			.field("bits", &self.len())
 			.finish()
 	}

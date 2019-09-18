@@ -607,6 +607,21 @@ where C: Cursor, T: BitStore {
 			.expect("Vector capacity overflow")
 	}
 
+	/// Returns the number of elements the vector can hold without reallocating.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bv: BitVec<BigEndian, u16> = BitVec::with_capacity(40);
+	/// assert!(bv.is_empty());
+	/// assert!(bv.element_capacity() >= 3);
+	/// ```
+	pub fn element_capacity(&self) -> usize {
+		self.capacity
+	}
+
 	/// Reserves capacity for at least `additional` more bits to be inserted.
 	///
 	/// The collection may reserve more space to avoid frequent reallocations.
@@ -1585,8 +1600,9 @@ where C: Cursor, T: BitStore {
 	/// # Returns
 	///
 	/// The plain vector underlying the `BitVec`.
-	pub fn into_vec(self) -> Vec<T> {
-		let slice = self.pointer.as_mut_slice();
+	pub fn into_vec(mut self) -> Vec<T> {
+		self.force_align();
+		let slice = self.as_mut_slice();
 		let out = unsafe {
 			Vec::from_raw_parts(slice.as_mut_ptr(), slice.len(), self.capacity)
 		};
@@ -2030,7 +2046,7 @@ where C: Cursor, T: BitStore {
 		f.write_str(", ")?;
 		f.write_str(T::TYPENAME)?;
 		f.write_str("> ")?;
-		Display::fmt(&**self, f)
+		Display::fmt(self.as_bits(), f)
 	}
 }
 
@@ -2058,7 +2074,7 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!("[01001011, 01]", &format!("{}", bv));
 	/// ```
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		Display::fmt(&**self, f)
+		Display::fmt(self.as_bits(), f)
 	}
 }
 
@@ -2080,8 +2096,13 @@ where C: Cursor, T: BitStore {
 impl<C, T> Write for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-		let amt = cmp::min(buf.len(), BitPtr::<T>::MAX_INDX - self.len());
-		self.extend(<&BitSlice<C, u8>>::from(buf));
+		let amt = cmp::min(
+			buf.len(),
+			BitPtr::<T>::MAX_INDX - self.as_slice().len(),
+		);
+		let bits = BitSlice::<C, u8>::from_slice(buf);
+		self.reserve(bits.len());
+		self.extend(bits);
 		Ok(amt)
 	}
 

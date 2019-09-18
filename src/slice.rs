@@ -1822,6 +1822,11 @@ where C: Cursor, T: BitStore {
 	/// return object `B` will be zero; if `self` is longer, then the remaining
 	/// bits in `self` are ignored.
 	///
+	/// Note that this method always begins at the `Cursor` 0-index of the
+	/// returned data; for example, the `BigEndian` cursor writes from the MSbit
+	/// down to the LSbit, so you would have to downshift the returned value in
+	/// order for it to have the numeric value you might expect.
+	///
 	/// # Parameters
 	///
 	/// - `&self`: A handle to any `BitSlice` which will be collected into an
