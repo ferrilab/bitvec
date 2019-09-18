@@ -18,7 +18,6 @@ use crate::{
 	pointer::BitPtr,
 	slice::BitSlice,
 	store::{
-		BitIdx,
 		BitStore,
 		IntoBitIdx,
 		Word,
@@ -344,7 +343,7 @@ where C: Cursor, T: BitStore {
 	pub fn with_capacity(capacity: usize) -> Self {
 		//  Find the number of elements needed to store the requested capacity
 		//  of bits.
-		let (cap, _) = BitIdx::<T>::new(0).span(capacity);
+		let (cap, _) = 0.idx::<T>().span(capacity);
 		//  Acquire a region of memory large enough for that element number.
 		let (ptr, cap) = {
 			let v = Vec::with_capacity(cap);

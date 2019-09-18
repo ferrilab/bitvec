@@ -260,7 +260,10 @@ impl Atomic for AtomicU64 {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::cursor::LittleEndian;
+	use crate::{
+		cursor::LittleEndian,
+		store::IntoBitIdx,
+	};
 	use core::sync::atomic::{
 		AtomicU8,
 		AtomicU16,
@@ -274,13 +277,13 @@ mod tests {
 	fn atomic_u8() {
 		let atom = AtomicU8::new(0);
 
-		Atomic::set::<LittleEndian>(&atom, BitIdx::new(0));
+		Atomic::set::<LittleEndian>(&atom, 0.idx());
 		assert_eq!(Atomic::get(&atom), 1);
 
-		Atomic::clear::<LittleEndian>(&atom, BitIdx::new(0));
+		Atomic::clear::<LittleEndian>(&atom, 0.idx());
 		assert_eq!(Atomic::get(&atom), 0);
 
-		Atomic::invert::<LittleEndian>(&atom, BitIdx::new(1));
+		Atomic::invert::<LittleEndian>(&atom, 1.idx());
 		assert_eq!(Atomic::get(&atom), 2);
 	}
 
@@ -288,13 +291,13 @@ mod tests {
 	fn atomic_u16() {
 		let atom = AtomicU16::new(0);
 
-		Atomic::set::<LittleEndian>(&atom, BitIdx::new(0));
+		Atomic::set::<LittleEndian>(&atom, 0.idx());
 		assert_eq!(Atomic::get(&atom), 1);
 
-		Atomic::clear::<LittleEndian>(&atom, BitIdx::new(0));
+		Atomic::clear::<LittleEndian>(&atom, 0.idx());
 		assert_eq!(Atomic::get(&atom), 0);
 
-		Atomic::invert::<LittleEndian>(&atom, BitIdx::new(1));
+		Atomic::invert::<LittleEndian>(&atom, 1.idx());
 		assert_eq!(Atomic::get(&atom), 2);
 	}
 
@@ -302,13 +305,13 @@ mod tests {
 	fn atomic_u32() {
 		let atom = AtomicU32::new(0);
 
-		Atomic::set::<LittleEndian>(&atom, BitIdx::new(0));
+		Atomic::set::<LittleEndian>(&atom, 0.idx());
 		assert_eq!(Atomic::get(&atom), 1);
 
-		Atomic::clear::<LittleEndian>(&atom, BitIdx::new(0));
+		Atomic::clear::<LittleEndian>(&atom, 0.idx());
 		assert_eq!(Atomic::get(&atom), 0);
 
-		Atomic::invert::<LittleEndian>(&atom, BitIdx::new(1));
+		Atomic::invert::<LittleEndian>(&atom, 1.idx());
 		assert_eq!(Atomic::get(&atom), 2);
 	}
 
@@ -317,13 +320,13 @@ mod tests {
 	fn atomic_u64() {
 		let atom = AtomicU64::new(0);
 
-		Atomic::set::<LittleEndian>(&atom, BitIdx::new(0));
+		Atomic::set::<LittleEndian>(&atom, 0.idx());
 		assert_eq!(Atomic::get(&atom), 1);
 
-		Atomic::clear::<LittleEndian>(&atom, BitIdx::new(0));
+		Atomic::clear::<LittleEndian>(&atom, 0.idx());
 		assert_eq!(Atomic::get(&atom), 0);
 
-		Atomic::invert::<LittleEndian>(&atom, BitIdx::new(1));
+		Atomic::invert::<LittleEndian>(&atom, 1.idx());
 		assert_eq!(Atomic::get(&atom), 2);
 	}
 }

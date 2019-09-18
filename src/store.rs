@@ -52,6 +52,9 @@ use crate::cellular::Cellular;
 #[cfg(not(feature = "atomic"))]
 use core::cell::Cell;
 
+#[cfg(feature = "serde")]
+use core::convert::TryFrom;
+
 /** Generalizes over the fundamental types for use in `bitvec` data structures.
 
 This trait must only be implemented on unsigned integer primitives with full
@@ -163,31 +166,6 @@ pub trait BitStore:
 	/// # Type Parameters
 	///
 	/// - `C`: A `Cursor` implementation to translate the index into a position.
-	///
-	/// # Examples
-	///
-	/// This example sets and clears bits in a byte.
-	///
-	/// ```rust
-	/// use bitvec::prelude::{
-	///   BitIdx,
-	///   BitStore,
-	///   BigEndian,
-	///   LittleEndian,
-	/// };
-	///
-	/// let mut elt: u16 = 0;
-	///
-	/// elt.set::<BigEndian>(BitIdx::new(1), true);
-	/// assert_eq!(elt, 0b0100_0000__0000_0000);
-	/// elt.set::<LittleEndian>(BitIdx::new(1), true);
-	/// assert_eq!(elt, 0b0100_0000__0000_0010);
-	///
-	/// elt.set::<BigEndian>(BitIdx::new(1), false);
-	/// assert_eq!(elt, 0b0000_0000__0000_0010);
-	/// elt.set::<LittleEndian>(BitIdx::new(1), false);
-	/// assert_eq!(elt, 0);
-	/// ```
 	#[inline(always)]
 	fn set<C>(&self, place: BitIdx<Self>, value: bool)
 	where C: Cursor {
@@ -236,18 +214,6 @@ pub trait BitStore:
 	/// # Type Parameters
 	///
 	/// - `C`: A `Cursor` implementation to translate the index into a position.
-	///
-	/// # Examples
-	///
-	/// This example gets two bits from a byte.
-	///
-	/// ```rust
-	/// use bitvec::prelude::{BitIdx, BitStore, BigEndian};
-	/// let elt: u8 = 0b0010_0000;
-	/// assert!(!elt.get::<BigEndian>(BitIdx::new(1)));
-	/// assert!(elt.get::<BigEndian>(BitIdx::new(2)));
-	/// assert!(!elt.get::<BigEndian>(BitIdx::new(3)));
-	/// ```
 	fn get<C>(&self, place: BitIdx<Self>) -> bool
 	where C: Cursor {
 		self.load() & *C::mask(place) != Self::from(0)
@@ -371,17 +337,6 @@ where T: BitStore {
 
 impl<T> BitIdx<T>
 where T: BitStore {
-	#[inline(always)]
-	pub(crate) fn new(idx: u8) -> Self {
-		assert!(
-			idx < T::BITS,
-			"Bit index {} cannot exceed type width {}",
-			idx,
-			T::BITS,
-		);
-		Self { idx, _ty: PhantomData }
-	}
-
 	#[inline(always)]
 	pub(crate) unsafe fn new_unchecked(idx: u8) -> Self {
 		debug_assert!(
@@ -527,6 +482,21 @@ where T: BitStore {
 	#[inline(always)]
 	pub(crate) fn to_tail(self) -> TailIdx<T> {
 		unsafe { TailIdx::new_unchecked(*self) }
+	}
+}
+
+#[cfg(feature = "serde")]
+impl<T> TryFrom<u8> for BitIdx<T>
+where T: BitStore {
+	type Error = &'static str;
+
+	fn try_from(idx: u8) -> Result<Self, Self::Error> {
+		if idx < T::BITS {
+			Ok(unsafe { Self::new_unchecked(idx) })
+		}
+		else {
+			Err("Attempted to construct a `BitIdx` with an index out of range")
+		}
 	}
 }
 
@@ -1039,7 +1009,7 @@ mod tests {
 			assert_eq!(elt, (isize::max_value() >> u8::INDX) + 1);
 			assert_eq!(*bit, n - 1);
 		}
-		let (elt, bit) = BitIdx::<u8>::new(0).offset(isize::max_value());
+		let (elt, bit) = 0.idx::<u8>().offset(isize::max_value());
 		assert_eq!(elt, isize::max_value() >> u8::INDX);
 		assert_eq!(*bit, 7);
 	}

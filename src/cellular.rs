@@ -207,19 +207,22 @@ impl Cellular for Cell<u64> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::cursor::LittleEndian;
+	use crate::{
+		cursor::LittleEndian,
+		store::IntoBitIdx,
+	};
 
 	#[test]
 	fn cell_u8() {
 		let cell = Cell::<u8>::new(0);
 
-		Cellular::set::<LittleEndian>(&cell, BitIdx::new(0));
+		Cellular::set::<LittleEndian>(&cell, 0.idx());
 		assert_eq!(Cellular::get(&cell), 1);
 
-		Cellular::clear::<LittleEndian>(&cell, BitIdx::new(0));
+		Cellular::clear::<LittleEndian>(&cell, 0.idx());
 		assert_eq!(Cellular::get(&cell), 0);
 
-		Cellular::invert::<LittleEndian>(&cell, BitIdx::new(1));
+		Cellular::invert::<LittleEndian>(&cell, 1.idx());
 		assert_eq!(Cellular::get(&cell), 2);
 	}
 
@@ -227,13 +230,13 @@ mod tests {
 	fn cell_u16() {
 		let cell = Cell::<u16>::new(0);
 
-		Cellular::set::<LittleEndian>(&cell, BitIdx::new(0));
+		Cellular::set::<LittleEndian>(&cell, 0.idx());
 		assert_eq!(Cellular::get(&cell), 1);
 
-		Cellular::clear::<LittleEndian>(&cell, BitIdx::new(0));
+		Cellular::clear::<LittleEndian>(&cell, 0.idx());
 		assert_eq!(Cellular::get(&cell), 0);
 
-		Cellular::invert::<LittleEndian>(&cell, BitIdx::new(1));
+		Cellular::invert::<LittleEndian>(&cell, 1.idx());
 		assert_eq!(Cellular::get(&cell), 2);
 	}
 
@@ -241,13 +244,13 @@ mod tests {
 	fn cell_u32() {
 		let cell = Cell::<u32>::new(0);
 
-		Cellular::set::<LittleEndian>(&cell, BitIdx::new(0));
+		Cellular::set::<LittleEndian>(&cell, 0.idx());
 		assert_eq!(Cellular::get(&cell), 1);
 
-		Cellular::clear::<LittleEndian>(&cell, BitIdx::new(0));
+		Cellular::clear::<LittleEndian>(&cell, 0.idx());
 		assert_eq!(Cellular::get(&cell), 0);
 
-		Cellular::invert::<LittleEndian>(&cell, BitIdx::new(1));
+		Cellular::invert::<LittleEndian>(&cell, 1.idx());
 		assert_eq!(Cellular::get(&cell), 2);
 	}
 
@@ -256,13 +259,13 @@ mod tests {
 	fn cell_u64() {
 		let cell = Cell::<u64>::new(0);
 
-		Cellular::set::<LittleEndian>(&cell, BitIdx::new(0));
+		Cellular::set::<LittleEndian>(&cell, 0.idx());
 		assert_eq!(Cellular::get(&cell), 1);
 
-		Cellular::clear::<LittleEndian>(&cell, BitIdx::new(0));
+		Cellular::clear::<LittleEndian>(&cell, 0.idx());
 		assert_eq!(Cellular::get(&cell), 0);
 
-		Cellular::invert::<LittleEndian>(&cell, BitIdx::new(1));
+		Cellular::invert::<LittleEndian>(&cell, 1.idx());
 		assert_eq!(Cellular::get(&cell), 2);
 	}
 }
