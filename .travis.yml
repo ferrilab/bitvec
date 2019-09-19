@@ -1,7 +1,14 @@
+################################################################################
+#                 Continuous Integration Control for Travis CI                 #
+#                                                                              #
+# This file controls the build and test process run on Travis CI on every push #
+# to the master branch. It runs the test suite and then produces a tarpaulin   #
+# coverage report.                                                             #
+################################################################################
+
 language: rust
-
 sudo: required
-
+cache: cargo
 rust:
   - stable
   - beta
@@ -11,30 +18,29 @@ matrix:
   allow_failures:
     - rust: nightly
 
-# codecov
+dist: trusty
 addons:
   apt:
     packages:
-      - libcurl4-openssl-dev
-      - libelf-dev
-      - libdw-dev
-      - cmake
-      - gcc
-      - binutils-dev
-      - libiberty-dev
+      - libssl-dev
 
-# codecov
+before_cache: |
+  if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
+    cargo install cargo-tarpaulin -f
+  fi
+
+script:
+- cargo clean
+- cargo build --all-features
+- cargo test --all-features
+
 after_success: |
-  wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
-  tar xzf master.tar.gz &&
-  cd kcov-master &&
-  mkdir build &&
-  cd build &&
-  cmake .. &&
-  make &&
-  make install DESTDIR=../../kcov-build &&
-  cd ../.. &&
-  rm -rf kcov-master &&
-  for file in target/debug/bitvec-*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
-  bash <(curl -s https://codecov.io/bash) &&
-  echo "Uploaded code coverage"
+  if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
+    # Uncomment the following line for coveralls.io
+    # cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
+
+    # Uncomment the following two lines create and upload a report for codecov.io
+    cargo tarpaulin --out Xml
+    bash <(curl -s https://codecov.io/bash)
+    echo "Uploaded code coverage"
+  fi

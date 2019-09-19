@@ -51,6 +51,9 @@ doc:
 loop action:
 	cargo watch -s "just {{action}}"
 
+miri:
+	cargo +nightly miri test
+
 # Packages the crate in preparation for publishing on crates.io
 package:
 	cargo package --allow-dirty
@@ -62,7 +65,6 @@ publish: checkout
 # Runs the test suites.
 test: check clippy
 	cargo test --no-default-features
-	cargo test --no-default-features --features alloc
 	cargo test --all-features
 	cargo run --all-features --example sieve
 	cargo run --all-features --example tour
