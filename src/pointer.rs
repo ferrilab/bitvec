@@ -56,7 +56,10 @@ Read-only outside this module.
 **/
 #[derive(Clone, Copy)]
 #[doc(hidden)]
-pub(crate) union Pointer<T> {
+pub(crate) union Pointer<T>
+where T: BitStore {
+	/// A shareable pointer to some mutable data.
+	n: *const <T as BitStore>::Nucleus,
 	/// A read pointer to some data.
 	r: *const T,
 	/// A write pointer to some data.
@@ -65,7 +68,22 @@ pub(crate) union Pointer<T> {
 	u: usize,
 }
 
-impl<T> Pointer<T> {
+impl<T> Pointer<T>
+where T: BitStore {
+	/// Accesses the address as a shared mutable pointer.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// The stored address, interpreted as a shared pointer to mutable data.
+	#[inline]
+	pub(crate) fn n(&self) -> *const <T as BitStore>::Nucleus {
+		unsafe { self.n }
+	}
+
 	/// Accesses the address as a read pointer.
 	///
 	/// # Parameters
@@ -109,37 +127,43 @@ impl<T> Pointer<T> {
 	}
 }
 
-impl<T> From<&T> for Pointer<T> {
+impl<T> From<&T> for Pointer<T>
+where T: BitStore {
 	fn from(r: &T) -> Self {
 		Self { r }
 	}
 }
 
-impl<T> From<*const T> for Pointer<T> {
+impl<T> From<*const T> for Pointer<T>
+where T: BitStore {
 	fn from(r: *const T) -> Self {
 		Self { r }
 	}
 }
 
-impl<T> From<&mut T> for Pointer<T> {
+impl<T> From<&mut T> for Pointer<T>
+where T: BitStore {
 	fn from(w: &mut T) -> Self {
 		Self { w }
 	}
 }
 
-impl<T> From<*mut T> for Pointer<T> {
+impl<T> From<*mut T> for Pointer<T>
+where T: BitStore {
 	fn from(w: *mut T) -> Self {
 		Self { w }
 	}
 }
 
-impl<T> From<usize> for Pointer<T> {
+impl<T> From<usize> for Pointer<T>
+where T: BitStore {
 	fn from(u: usize) -> Self {
 		Self { u }
 	}
 }
 
-impl<T> Debug for Pointer<T> {
+impl<T> Debug for Pointer<T>
+where T: BitStore {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		write!(f, "{:p}", self.r())
 	}
@@ -745,6 +769,28 @@ where T: BitStore {
 		unsafe {
 			slice::from_raw_parts_mut(self.pointer().w(), self.elements())
 		}
+	}
+
+	/// Accesses the memory behind the pointer as a slice of shared-mutable
+	/// elements.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// A standard Rust slice handle over the memory region this pointer
+	/// governs, interpreted as the configured [`BitStore::Nucleus`]
+	/// shared-mutable wrapper for the build.
+	///
+	/// This is necessary in order to create a mutating slice handle over the
+	/// governed memory, without producing a potentially-aliased `&mut [T]`
+	/// reference.
+	///
+	/// [`BitStore::Nucleus`]: ../store/trait.BitStore.html#associatedtype.Nucleus
+	pub(crate) fn as_cell_slice<'a>(&self) -> &'a [<T as BitStore>::Nucleus] {
+		unsafe { slice::from_raw_parts(self.pointer().n(), self.elements()) }
 	}
 
 	/// Gets the domain kind for the region the pointer describes.

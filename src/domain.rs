@@ -268,7 +268,13 @@ where T: 'a + BitStore {
 	/// This variant is produced when the domain uses at least two elements, and
 	/// reaches neither the head edge of the head element nor the tail edge of
 	/// the tail element.
-	Major(BitIdx<T>, &'a T::Nucleus, &'a mut [T], &'a T::Nucleus, TailIdx<T>),
+	Major(
+		BitIdx<T>,
+		&'a T::Nucleus,
+		&'a mut [T],
+		&'a T::Nucleus,
+		TailIdx<T>,
+	),
 	/// Domain with a partial head cursor and fully extended tail cursor.
 	///
 	/// # Members
@@ -323,33 +329,36 @@ where T: 'a + BitStore {
 	fn from(bitptr: BitPtr<T>) -> Self {
 		use BitDomainKind as Bdk;
 		let (h, t) = (bitptr.head(), bitptr.tail());
-		let data = bitptr.as_mut_slice();
+		let data = bitptr.as_cell_slice();
 
 		match bitptr.domain_kind() {
 			Bdk::Empty => BitDomainMut::Empty,
-			Bdk::Minor => BitDomainMut::Minor(h, (&mut data[0]).nuclear(), t),
+			Bdk::Minor => BitDomainMut::Minor(h, &data[0], t),
 			Bdk::Major => {
 				let (head, body) = data
-					.split_first_mut()
+					.split_first()
 					.expect("Major cannot fail to split head");
 				let (tail, body) = body
-					.split_last_mut()
+					.split_last()
 					.expect("Major cannot fail to split tail");
-				BitDomainMut::Major(h, head.nuclear(), body, tail.nuclear(), t)
+				let body = unsafe { BitAccess::base_slice_mut(body) };
+				BitDomainMut::Major(h, head, body, tail, t)
 			},
 			Bdk::PartialHead => {
 				let (head, tail) = data
-					.split_first_mut()
+					.split_first()
 					.expect("PartialHead cannot fail to split");
-				BitDomainMut::PartialHead(h, head.nuclear(), tail)
+				let tail = unsafe { BitAccess::base_slice_mut(tail) };
+				BitDomainMut::PartialHead(h, head, tail)
 			},
 			Bdk::PartialTail => {
 				let (tail, head) = data
-					.split_last_mut()
+					.split_last()
 					.expect("PartialTail cannot fail to split");
-				BitDomainMut::PartialTail(head, tail.nuclear(), t)
+				let head = unsafe { BitAccess::base_slice_mut(head) };
+				BitDomainMut::PartialTail(head, tail, t)
 			},
-			Bdk::Spanning => BitDomainMut::Spanning(data),
+			Bdk::Spanning => BitDomainMut::Spanning(bitptr.as_mut_slice()),
 		}
 	}
 }
