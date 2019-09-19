@@ -55,6 +55,11 @@ where C: Cursor, T: BitStore {
 		self.into_iter()
 	}
 
+	/// Provides writable iteration across the slice domain.
+	///
+	/// The iterator returned from this method has the same behavior as the
+	/// read-only iterator produced by `.iter()`. However, it yields `BitGuard`
+	/// writeable references, rather than plain `bool`s.
 	pub fn iter_mut(&mut self) -> IterMut<C, T> {
 		IterMut {
 			inner: self
@@ -805,10 +810,28 @@ where C: Cursor, T: 'a + BitStore {
 
 impl<'a, C, T> ChunksExactMut<'a, C, T>
 where C: Cursor, T: 'a + BitStore {
+	/// Produces the remaining bits not included in chunked iteration.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// A writable bitslice over the remaining bits iteration will not reach.
 	pub fn into_remainder(self) -> &'a mut BitSlice<C, T> {
 		self.extra
 	}
 
+	/// Produces the remaining bits not included in chunked iteration.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// A writable bitslice over the remaining bits iteration will not reach.
 	pub fn remainder(&mut self) -> &'a mut BitSlice<C, T> {
 		mem::replace(&mut self.extra, BitSlice::empty_mut())
 	}

@@ -32,6 +32,8 @@ read-only indexing, bit shifts, and access to the underlying storage fundamental
 elements as a slice.
 !*/
 
+#![deny(missing_docs)]
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "alloc")]

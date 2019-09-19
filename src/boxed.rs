@@ -949,6 +949,7 @@ where C: Cursor, T: BitStore {
 	}
 }
 
+/// State keeper for consuming iteration over a `BitBox`.
 #[repr(C)]
 pub struct IntoIter<C, T>
 where C: Cursor, T: BitStore {

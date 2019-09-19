@@ -41,6 +41,8 @@ at his work.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct BigEndian;
 
+/// On a big-endian machine, the `Local` cursor uses big-endian bit ordering,
+/// from the `MSbit` to the `LSbit`.
 #[cfg(target_endian = "big")]
 pub type Local = BigEndian;
 
@@ -61,6 +63,8 @@ The RS-232, Ethernet, and USB protocols use this ordering.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct LittleEndian;
 
+/// On little-endian machines, the `Local` cursor uses little-endian bit
+/// ordering, from the `LSbit` to the `MSbit`.
 #[cfg(target_endian = "little")]
 pub type Local = LittleEndian;
 
