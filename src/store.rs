@@ -260,55 +260,6 @@ pub trait BitStore:
 	}
 }
 
-impl BitStore for u8 {
-	const TYPENAME: &'static str = "u8";
-
-	#[cfg(feature = "atomic")]
-	type Nucleus = atomic::AtomicU8;
-
-	#[cfg(not(feature = "atomic"))]
-	type Nucleus = Cell<Self>;
-}
-
-impl BitStore for u16 {
-	const TYPENAME: &'static str = "u16";
-
-	#[cfg(feature = "atomic")]
-	type Nucleus = atomic::AtomicU16;
-
-	#[cfg(not(feature = "atomic"))]
-	type Nucleus = Cell<Self>;
-}
-
-impl BitStore for u32 {
-	const TYPENAME: &'static str = "u32";
-
-	#[cfg(feature = "atomic")]
-	type Nucleus = atomic::AtomicU32;
-
-	#[cfg(not(feature = "atomic"))]
-	type Nucleus = Cell<Self>;
-}
-
-/// Type alias to the CPU word element, `u32`.
-#[cfg(target_pointer_width = "32")]
-pub type Word = u32;
-
-#[cfg(target_pointer_width = "64")]
-impl BitStore for u64 {
-	const TYPENAME: &'static str = "u64";
-
-	#[cfg(feature = "atomic")]
-	type Nucleus = atomic::AtomicU64;
-
-	#[cfg(not(feature = "atomic"))]
-	type Nucleus = Cell<Self>;
-}
-
-/// Type alias to the CPU word element, `u64`.
-#[cfg(target_pointer_width = "64")]
-pub type Word = u64;
-
 /** Marker trait to seal `BitStore` against downstream implementation.
 
 This trait is public in the module, so that other modules in the crate can use
@@ -319,12 +270,35 @@ private, this trait effectively forbids downstream implementation of the
 #[doc(hidden)]
 pub trait Sealed {}
 
-impl Sealed for u8 {}
-impl Sealed for u16 {}
-impl Sealed for u32 {}
+macro_rules! store {
+	( $( $t:ty , $a:ty $( ; )? );* ) => { $(
+		impl Sealed for $t {}
+		impl BitStore for $t {
+			const TYPENAME: &'static str = stringify!($t);
+			#[cfg(feature = "atomic")]
+			type Nucleus = $a;
+			#[cfg(not(feature = "atomic"))]
+			type Nucleus = Cell<Self>;
+		}
+	)* };
+}
+
+store![
+	u8, atomic::AtomicU8;
+	u16, atomic::AtomicU16;
+	u32, atomic::AtomicU32;
+];
 
 #[cfg(target_pointer_width = "64")]
-impl Sealed for u64 {}
+store![u64, atomic::AtomicU64];
+
+/// Type alias to the CPU word element, `u32`.
+#[cfg(target_pointer_width = "32")]
+pub type Word = u32;
+
+/// Type alias to the CPU word element, `u64`.
+#[cfg(target_pointer_width = "64")]
+pub type Word = u64;
 
 /** Common interface for atomic and cellular shared-mutability wrappers.
 
