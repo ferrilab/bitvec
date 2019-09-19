@@ -20,12 +20,10 @@ manifest.
   produce aliasing `&mut T: BitStore` references during mutation, which *is*
   undefined behavior in the compiler.
 
-  As such, the new module `cellular` defines a sibling API to `atomic` using
-  `Cell` instead of atomic wrappers. This module produces `&Cell` shared
-  references to the underlying memory, instead of `&mut` unique references, and
-  uses `Cell`’s interior mutability behavior to commit writes. The only
-  remaining sites of `&mut` references to memory are the `as_mut_slice`
-  functions.
+  As such, `BitStore` now defines an associated trait (`BitAccess`) which is
+  implemented on the atomic wrappers and `Cell`, and all `BitSlice` access to
+  memory routes through that trait which synchronizes (under the `atomic`
+  feature) or permits shared mutation ordered by the call stack (non-`atomic`).
 
 - The `Cursor` trait has a new function, `mask`, which converts a `BitIdx` into
   a mask using `Cursor::at`. The default implementation uses `Cursor::at` to
@@ -73,19 +71,6 @@ manifest.
   `BitSlice` shift operations now use the fast path only when the shift amount
   permits it **and** the slice fully spans its underlying memory; otherwise, it
   uses the slower path.
-
-- When the `atomic` feature is disabled, `BitStore` falls back to the `cellular`
-  module described above. In `0.15.1`, the `Send` marker on `BitSlice` was made
-  to exist only when `atomic` is present. This means that the unsynchronized
-  load/store behavior of `cellular` is statically prevented from occurring
-  across multiple threads, so writes to the same element through two different
-  slice handles still cannot race.
-
-- The `Atomic` and `Cellular` traits now take a `Cursor` type parameter on their
-  mutator functions, and take a `BitIdx` instead of a `BitPos`. Their
-  implementations now call `Cursor::mask(idx)` to produce the mask directly,
-  rather than being given a `BitPos` and calling back into `BitStore` to turn it
-  into a mask.
 
 - The `Bits::as_bitslice` and `BitsMut::as_mut_bitslice` functions are renamed
   to `bits` and `bits_mut`, respectively. This change was done for two reasons:

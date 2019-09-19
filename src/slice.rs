@@ -701,8 +701,10 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`get`]: #method.get
 	pub unsafe fn get_unchecked(&self, index: usize) -> bool {
-		let (elt, bit) = self.bitptr().head().offset(index as isize);
-		(&*self.as_ptr().offset(elt)).get::<C>(bit)
+		let bitptr = self.bitptr();
+		let (elt, bit) = bitptr.head().offset(index as isize);
+		let data_ptr = bitptr.pointer().n();
+		(&*data_ptr.offset(elt)).get::<C>(bit)
 	}
 
 	/// Sets the bit value at the given position.
@@ -780,8 +782,10 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`set`]: #method.set
 	pub unsafe fn set_unchecked(&mut self, index: usize, value: bool) {
-		let (elt, bit) = self.bitptr().head().offset(index as isize);
-		(&mut *self.as_mut_ptr().offset(elt)).set::<C>(bit, value);
+		let bitptr = self.bitptr();
+		let (elt, bit) = bitptr.head().offset(index as isize);
+		let data_ptr = bitptr.pointer().n();
+		(&*(data_ptr.offset(elt))).set::<C>(bit, value);
 	}
 
 	/// Produces a write reference to a single bit in the slice.
@@ -2654,7 +2658,20 @@ true on other architectures, however
 unsafe impl<C, T> Send for BitSlice<C, T>
 where C: Cursor, T: BitStore {}
 
-/// `BitSlice` is safe to share between multiple threads.
+/** Unsynchronized racing reads are undefined behavior.
+
+Because `BitSlice` can create aliasing pointers to the same underlying memory
+element, sending a *read* reference to another thread is still a data race in
+the event that a `&mut BitSlice` was fractured in a manner that created an
+alias condition, one alias was frozen and sent to another thread, and then the
+**non**-frozen alias, which remained on the origin thread, was used to write to
+the aliased element.
+
+Without enabling bit-granular access analysis in the compiler, this restriction
+must remain in place even though *this library* knows that read operations will
+never observe racing writes that *change memory*.
+**/
+#[cfg(feature = "atomic")]
 unsafe impl<C, T> Sync for BitSlice<C, T>
 where C: Cursor, T: BitStore {}
 

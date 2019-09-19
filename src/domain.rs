@@ -329,7 +329,7 @@ where T: 'a + BitStore {
 	fn from(bitptr: BitPtr<T>) -> Self {
 		use BitDomainKind as Bdk;
 		let (h, t) = (bitptr.head(), bitptr.tail());
-		let data = bitptr.as_cell_slice();
+		let data = bitptr.as_nuclear_slice();
 
 		match bitptr.domain_kind() {
 			Bdk::Empty => BitDomainMut::Empty,

@@ -41,7 +41,10 @@ use core::{
 };
 
 #[cfg(feature = "atomic")]
-use core::sync::atomic;
+use core::sync::atomic::{
+	self,
+	Ordering::Relaxed,
+};
 
 #[cfg(not(feature = "atomic"))]
 use core::cell::Cell;
@@ -107,23 +110,22 @@ pub trait BitStore:
 	const TYPENAME: &'static str;
 
 	/// Shared-mutability wrapper type used to safely mutate aliased data.
+	///
+	/// Within `&/mut BitSlice` contexts, the `Nucleus` type **must** be used to
+	/// ensure correctly-synchronized access to memory elements that may have
+	/// aliased mutable access. When a codepath knows that it has full ownership
+	/// of a memory element of `Self`, and no other codepath may observe, much
+	/// less modify, it, then that codepath may skip the `Nucleus` type and use
+	/// plain accessors.
 	type Nucleus: BitAccess<Self>;
-
-	/// Reference conversion from `&Self` to `&Self::Nucleus`.
-	#[doc(hidden)]
-	fn nuclear(&mut self) -> &Self::Nucleus {
-		//  Until the language provides a convenient atom producer like
-		//  `Cell::from_mut`, this is the only generic way to make atom
-		//  reference production work. I refuse to specialize this function in
-		//  each implementor on sheer principle.
-		unsafe { &*(self as *mut Self as *const Self::Nucleus) }
-	}
 
 	/// Sets a specific bit in an element to a given value.
 	///
 	/// # Safety
 	///
-	/// This method may only be called from within `&mut BitSlice` contexts.
+	/// This method cannot be called from within a `&mut BitSlice` context; it
+	/// may only be called by construction of an `&mut Self` reference from a
+	/// `Self` element directly.
 	///
 	/// # Parameters
 	///
@@ -139,33 +141,22 @@ pub trait BitStore:
 	#[inline(always)]
 	fn set<C>(&mut self, place: BitIdx<Self>, value: bool)
 	where C: Cursor {
-		self.nuclear().set::<C>(place, value);
-	}
-
-	/// Inverts a specific bit in an element.
-	///
-	/// # Safety
-	///
-	/// This method may only be called from within `&mut BitSlice` contexts.
-	///
-	/// # Parameters
-	///
-	/// - `&self`: An immutable reference to self, which will use interior
-	///   mutation from either an atomic wrapper or a `Cell` wrapper to safely
-	///   mutate shared data.
-	/// - `place`: A bit index in the element, from `0` to `Self::MASK`. The bit
-	///   under this index will be inverted.
-	///
-	/// # Type Parameters
-	///
-	/// - `C`: A `Cursor` implementation to translate the index into a position.
-	#[inline(always)]
-	fn invert_bit<C>(&mut self, place: BitIdx<Self>)
-	where C: Cursor {
-		self.nuclear().invert_bit::<C>(place);
+		let mask = *C::mask(place);
+		if value {
+			*self |= mask;
+		}
+		else {
+			*self &= !mask;
+		}
 	}
 
 	/// Gets a specific bit in an element.
+	///
+	/// # Safety
+	///
+	/// This method cannot be called from within a `&BitSlice` context; it may
+	/// only be called by construction of an `&Self` reference from a `Self`
+	/// element directly.
 	///
 	/// # Parameters
 	///
@@ -1010,11 +1001,23 @@ where T: BitStore {
 
 	/// Gets a specific bit in an element.
 	///
-	/// This calls `BitStore::get`, and has the same API and documented
-	/// behavior.
+	/// # Parameters
+	///
+	/// - `&self`: A shared reference to a maybe-mutable element. This uses the
+	///   trait `load` function to ensure correct reads from memory.
+	/// - `place`: A bit index in the element, from `0` to `Self::MASK`. The bit
+	///   under this index will be retrieved as a `bool`.
+	///
+	/// # Returns
+	///
+	/// The value of the bit under `place`, as a `bool`.
+	///
+	/// # Type Parameters
+	///
+	/// - `C`: A `Cursor` implementation to translate the index into a position.
 	fn get<C>(&self, place: BitIdx<T>) -> bool
 	where C: Cursor {
-		self.base().get::<C>(place)
+		self.load() & *C::mask(place) != T::from(0)
 	}
 
 	/// Sets a specific bit in an element to a given value.
@@ -1071,12 +1074,18 @@ where T: BitStore {
 	unsafe fn base_slice_mut(this: &[Self]) -> &mut [T] {
 		&mut *(this as *const [Self] as *const [T] as *mut [T])
 	}
+
+	/// Performs a synchronized load on an unsynchronized reference.
+	///
+	/// Atomic implementors must ensure that the load is well synchronized, and
+	/// cell implementors can just read. Each implementor must be strictly gated
+	/// on the `atomic` feature flag.
+	fn load(&self) -> T;
 }
 
 /* FIXME(myrrlyn): When the `radium` crate publishes generic traits, erase the
 implementations currently in use and enable the generic implementation below:
 
-use core::sync::atomic::Ordering::Relaxed;
 impl<T, R> BitAccess<T> for R
 where T: BitStore, R: RadiumBits<T> {
 	#[inline(always)]
@@ -1105,19 +1114,24 @@ impl BitAccess<u8> for atomic::AtomicU8 {
 	#[inline(always)]
 	fn clear_bit<C>(&self, bit: BitIdx<u8>)
 	where C: Cursor {
-		self.fetch_and(!*C::mask(bit), atomic::Ordering::Relaxed);
+		self.fetch_and(!*C::mask(bit), Relaxed);
 	}
 
 	#[inline(always)]
 	fn set_bit<C>(&self, bit: BitIdx<u8>)
 	where C: Cursor {
-		self.fetch_or(*C::mask(bit), atomic::Ordering::Relaxed);
+		self.fetch_or(*C::mask(bit), Relaxed);
 	}
 
 	#[inline(always)]
 	fn invert_bit<C>(&self, bit: BitIdx<u8>)
 	where C: Cursor {
-		self.fetch_xor(*C::mask(bit), atomic::Ordering::Relaxed);
+		self.fetch_xor(*C::mask(bit), Relaxed);
+	}
+
+	#[inline(always)]
+	fn load(&self) -> u8 {
+		self.load(Relaxed)
 	}
 }
 
@@ -1125,19 +1139,24 @@ impl BitAccess<u16> for atomic::AtomicU16 {
 	#[inline(always)]
 	fn clear_bit<C>(&self, bit: BitIdx<u16>)
 	where C: Cursor {
-		self.fetch_and(!*C::mask(bit), atomic::Ordering::Relaxed);
+		self.fetch_and(!*C::mask(bit), Relaxed);
 	}
 
 	#[inline(always)]
 	fn set_bit<C>(&self, bit: BitIdx<u16>)
 	where C: Cursor {
-		self.fetch_or(*C::mask(bit), atomic::Ordering::Relaxed);
+		self.fetch_or(*C::mask(bit), Relaxed);
 	}
 
 	#[inline(always)]
 	fn invert_bit<C>(&self, bit: BitIdx<u16>)
 	where C: Cursor {
-		self.fetch_xor(*C::mask(bit), atomic::Ordering::Relaxed);
+		self.fetch_xor(*C::mask(bit), Relaxed);
+	}
+
+	#[inline(always)]
+	fn load(&self) -> u16 {
+		self.load(Relaxed)
 	}
 }
 
@@ -1145,19 +1164,24 @@ impl BitAccess<u32> for atomic::AtomicU32 {
 	#[inline(always)]
 	fn clear_bit<C>(&self, bit: BitIdx<u32>)
 	where C: Cursor {
-		self.fetch_and(!*C::mask(bit), atomic::Ordering::Relaxed);
+		self.fetch_and(!*C::mask(bit), Relaxed);
 	}
 
 	#[inline(always)]
 	fn set_bit<C>(&self, bit: BitIdx<u32>)
 	where C: Cursor {
-		self.fetch_or(*C::mask(bit), atomic::Ordering::Relaxed);
+		self.fetch_or(*C::mask(bit), Relaxed);
 	}
 
 	#[inline(always)]
 	fn invert_bit<C>(&self, bit: BitIdx<u32>)
 	where C: Cursor {
-		self.fetch_xor(*C::mask(bit), atomic::Ordering::Relaxed);
+		self.fetch_xor(*C::mask(bit), Relaxed);
+	}
+
+	#[inline(always)]
+	fn load(&self) -> u32 {
+		self.load(Relaxed)
 	}
 }
 
@@ -1166,19 +1190,24 @@ impl BitAccess<u64> for atomic::AtomicU64 {
 	#[inline(always)]
 	fn clear_bit<C>(&self, bit: BitIdx<u64>)
 	where C: Cursor {
-		self.fetch_and(!*C::mask(bit), atomic::Ordering::Relaxed);
+		self.fetch_and(!*C::mask(bit), Relaxed);
 	}
 
 	#[inline(always)]
 	fn set_bit<C>(&self, bit: BitIdx<u64>)
 	where C: Cursor {
-		self.fetch_or(*C::mask(bit), atomic::Ordering::Relaxed);
+		self.fetch_or(*C::mask(bit), Relaxed);
 	}
 
 	#[inline(always)]
 	fn invert_bit<C>(&self, bit: BitIdx<u64>)
 	where C: Cursor {
-		self.fetch_xor(*C::mask(bit), atomic::Ordering::Relaxed);
+		self.fetch_xor(*C::mask(bit), Relaxed);
+	}
+
+	#[inline(always)]
+	fn load(&self) -> u64 {
+		self.load(Relaxed)
 	}
 }
 
@@ -1204,6 +1233,11 @@ impl BitAccess<u8> for Cell<u8> {
 	where C: Cursor {
 		self.set(self.get() ^ *C::mask(bit));
 	}
+
+	#[inline(always)]
+	fn load(&self) -> u8 {
+		self.get()
+	}
 }
 
 impl BitAccess<u16> for Cell<u16> {
@@ -1223,6 +1257,11 @@ impl BitAccess<u16> for Cell<u16> {
 	fn invert_bit<C>(&self, bit: BitIdx<u16>)
 	where C: Cursor {
 		self.set(self.get() ^ *C::mask(bit));
+	}
+
+	#[inline(always)]
+	fn load(&self) -> u16 {
+		self.get()
 	}
 }
 
@@ -1244,6 +1283,11 @@ impl BitAccess<u32> for Cell<u32> {
 	where C: Cursor {
 		self.set(self.get() ^ *C::mask(bit));
 	}
+
+	#[inline(always)]
+	fn load(&self) -> u32 {
+		self.get()
+	}
 }
 
 #[cfg(target_pointer_width = "64")]
@@ -1264,6 +1308,11 @@ impl BitAccess<u64> for Cell<u64> {
 	fn invert_bit<C>(&self, bit: BitIdx<u64>)
 	where C: Cursor {
 		self.set(self.get() ^ *C::mask(bit));
+	}
+
+	#[inline(always)]
+	fn load(&self) -> u64 {
+		self.get()
 	}
 }
 

@@ -776,7 +776,7 @@ where T: BitStore {
 	///
 	/// # Parameters
 	///
-	/// - `&self`
+	/// - `self`
 	///
 	/// # Returns
 	///
@@ -789,7 +789,7 @@ where T: BitStore {
 	/// reference.
 	///
 	/// [`BitStore::Nucleus`]: ../store/trait.BitStore.html#associatedtype.Nucleus
-	pub(crate) fn as_cell_slice<'a>(&self) -> &'a [<T as BitStore>::Nucleus] {
+	pub(crate) fn as_nuclear_slice<'a>(self) -> &'a [<T as BitStore>::Nucleus] {
 		unsafe { slice::from_raw_parts(self.pointer().n(), self.elements()) }
 	}
 
