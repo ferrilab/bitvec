@@ -15,11 +15,11 @@ use crate::{
 		Local,
 	},
 	domain::*,
+	indices::IntoBitIdx,
 	pointer::BitPtr,
 	store::{
 		BitAccess,
 		BitStore,
-		IntoBitIdx,
 		Word,
 	},
 };

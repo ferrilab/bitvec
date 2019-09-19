@@ -8,12 +8,14 @@ handle operations.
 !*/
 
 use crate::{
+	indices::{
+		BitIdx,
+		TailIdx,
+	},
 	pointer::BitPtr,
 	store::{
 		BitAccess,
-		BitIdx,
 		BitStore,
-		TailIdx,
 	},
 };
 
@@ -363,10 +365,10 @@ where T: 'a + BitStore {
 	}
 }
 
-#[cfg(all(test, feature = "testing"))]
+#[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::store::IntoBitIdx;
+	use crate::indices::IntoBitIdx;
 
 	#[test]
 	fn minor() {

@@ -15,11 +15,11 @@ use crate::{
 		Cursor,
 		Local,
 	},
+	indices::IntoBitIdx,
 	pointer::BitPtr,
 	slice::BitSlice,
 	store::{
 		BitStore,
-		IntoBitIdx,
 		Word,
 	},
 };

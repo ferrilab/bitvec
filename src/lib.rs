@@ -54,6 +54,7 @@ mod macros;
 pub mod bits;
 pub mod cursor;
 mod domain;
+pub mod indices;
 mod pointer;
 pub mod prelude;
 pub mod slice;
@@ -78,6 +79,7 @@ pub mod testing {
 		boxed::*,
 		cursor::*,
 		domain::*,
+		indices::*,
 		macros::*,
 		pointer::*,
 		slice::*,

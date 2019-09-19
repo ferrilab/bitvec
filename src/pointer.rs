@@ -9,13 +9,13 @@ work.
 use crate::{
 	cursor::Cursor,
 	domain::*,
-	slice::BitSlice,
-	store::{
+	indices::{
 		BitIdx,
-		BitStore,
 		IntoBitIdx,
 		TailIdx,
 	},
+	slice::BitSlice,
+	store::BitStore,
 };
 
 use core::{
@@ -1094,7 +1094,7 @@ where T: BitStore {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::store::IntoBitIdx;
+	use crate::indices::IntoBitIdx;
 
 	#[test]
 	fn associated_consts() {

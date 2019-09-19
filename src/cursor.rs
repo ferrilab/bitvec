@@ -14,11 +14,13 @@ Contiguity is not required.
 `Cursor` is a stateless trait, and implementors should be zero-sized types.
 !*/
 
-use crate::store::{
-	BitIdx,
-	BitMask,
-	BitPos,
-	BitStore,
+use crate::{
+	indices::{
+		BitIdx,
+		BitMask,
+		BitPos,
+	},
+	store::BitStore,
 };
 
 /** Traverses an element from `MSbit` to `LSbit`.
@@ -232,7 +234,7 @@ impl Cursor for LittleEndian {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::store::IntoBitIdx;
+	use crate::indices::IntoBitIdx;
 
 	#[test]
 	fn be_u8_range() {

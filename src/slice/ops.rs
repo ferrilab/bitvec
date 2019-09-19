@@ -10,11 +10,11 @@ use crate::{
 	bits::BitsMut,
 	cursor::Cursor,
 	domain::BitDomainMut,
+	indices::IntoBitIdx,
 	pointer::BitPtr,
 	store::{
 		BitAccess,
 		BitStore,
-		IntoBitIdx,
 	},
 };
 
