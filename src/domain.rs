@@ -92,7 +92,7 @@ where T: 'a + BitStore {
 	///
 	/// This variant is produced when the domain is contained entirely inside
 	/// one element, and does not reach to either edge.
-	Minor(BitIdx<T>, &'a T, TailIdx<T>),
+	Minor(BitIdx<T>, &'a T::Nucleus, TailIdx<T>),
 	/// Multpile element domain which does not reach the edge of its edge
 	/// elements.
 	///
@@ -115,7 +115,7 @@ where T: 'a + BitStore {
 	/// This variant is produced when the domain uses at least two elements, and
 	/// reaches neither the head edge of the head element nor the tail edge of
 	/// the tail element.
-	Major(BitIdx<T>, &'a T, &'a [T], &'a T, TailIdx<T>),
+	Major(BitIdx<T>, &'a T::Nucleus, &'a [T], &'a T::Nucleus, TailIdx<T>),
 	/// Domain with a partial head cursor and fully extended tail cursor.
 	///
 	/// # Members
@@ -132,7 +132,7 @@ where T: 'a + BitStore {
 	///
 	/// This variant is produced when the domain’s head cursor is past `0`, and
 	/// its tail cursor is exactly `T::BITS`.
-	PartialHead(BitIdx<T>, &'a T, &'a [T]),
+	PartialHead(BitIdx<T>, &'a T::Nucleus, &'a [T]),
 	/// Domain with a fully extended head cursor and partial tail cursor.
 	///
 	/// # Members
@@ -149,7 +149,7 @@ where T: 'a + BitStore {
 	///
 	/// This variant is produced when the domain’s head cursor is exactly `0`,
 	/// and its tail cursor is less than `T::BITS`.
-	PartialTail(&'a [T], &'a T, TailIdx<T>),
+	PartialTail(&'a [T], &'a T::Nucleus, TailIdx<T>),
 	/// Domain which fully spans its containing elements.
 	///
 	/// # Members
@@ -193,16 +193,10 @@ where T: 'a + BitStore {
 		use BitDomain as Bd;
 		match source {
 			Bdm::Empty => Bd::Empty,
-			Bdm::Minor(hc, e, tc) => Bd::Minor(hc, e.base(), tc),
-			Bdm::Major(hc, h, b, t, tc) => Bd::Major(
-				hc,
-				h.base(),
-				&b[..],
-				t.base(),
-				tc,
-			),
-			Bdm::PartialHead(hc, h, t) => Bd::PartialHead(hc, h.base(), &t[..]),
-			Bdm::PartialTail(h, t, tc) => Bd::PartialTail(&h[..], t.base(), tc),
+			Bdm::Minor(hc, e, tc) => Bd::Minor(hc, e, tc),
+			Bdm::Major(hc, h, b, t, tc) => Bd::Major(hc, h, &b[..], t, tc),
+			Bdm::PartialHead(hc, h, t) => Bd::PartialHead(hc, h, &t[..]),
+			Bdm::PartialTail(h, t, tc) => Bd::PartialTail(&h[..], t, tc),
 			Bdm::Spanning(b) => Bd::Spanning(&b[..]),
 		}
 	}

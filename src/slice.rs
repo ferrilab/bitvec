@@ -2570,17 +2570,17 @@ where C: Cursor, T: BitStore {
 			match self.bitptr().domain() {
 				BitDomain::Empty => {},
 				BitDomain::Minor(head, elt, tail) => {
-					writer::<C, T>(&mut dbg, &mut w, elt, *head, *tail)
+					writer::<C, T>(&mut dbg, &mut w, &elt.load(), *head, *tail)
 				},
 				BitDomain::Major(h, head, body, tail, t) => {
-					writer::<C, T>(&mut dbg, &mut w, head, *h, T::BITS);
+					writer::<C, T>(&mut dbg, &mut w, &head.load(), *h, T::BITS);
 					for elt in body {
 						writer::<C, T>(&mut dbg, &mut w, elt, 0, T::BITS);
 					}
-					writer::<C, T>(&mut dbg, &mut w, tail, 0, *t);
+					writer::<C, T>(&mut dbg, &mut w, &tail.load(), 0, *t);
 				},
 				BitDomain::PartialHead(h, head, body) => {
-					writer::<C, T>(&mut dbg, &mut w, head, *h, T::BITS);
+					writer::<C, T>(&mut dbg, &mut w, &head.load(), *h, T::BITS);
 					for elt in body {
 						writer::<C, T>(&mut dbg, &mut w, elt, 0, T::BITS);
 					}
@@ -2589,7 +2589,7 @@ where C: Cursor, T: BitStore {
 					for elt in body {
 						writer::<C, T>(&mut dbg, &mut w, elt, 0, T::BITS);
 					}
-					writer::<C, T>(&mut dbg, &mut w, tail, 0, *t);
+					writer::<C, T>(&mut dbg, &mut w, &tail.load(), 0, *t);
 				},
 				BitDomain::Spanning(body) => {
 					for elt in body {
