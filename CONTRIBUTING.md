@@ -7,11 +7,11 @@ Contributions are absolutely welcome!
 In order of likelihood that I will actionably receive your contact, my
 information is:
 
-- [self@myrrlyn.dev](mailto:self@myrrlyn.dev)
-- [@myrrlyn](//github.com/myrrlyn)
-- [@myrrlyn](//twitter.com/myrrlyn)
-- [@myrrlyn@cybre.space](//cybre.space/myrrlyn)
-- [/u/myrrlyn](//reddit.com/u/myrrlyn)
+- Email: [self@myrrlyn.dev](mailto:self@myrrlyn.dev)
+- GitHub: [@myrrlyn](//github.com/myrrlyn)
+- Twitter: [@myrrlyn](//twitter.com/myrrlyn)
+- Mastodon: [@myrrlyn@cybre.space](//cybre.space/myrrlyn)
+- Reddit: [/u/myrrlyn](//reddit.com/u/myrrlyn)
 
 I am not active on any IRC channels at this time. I am on Discord in the Rust
 channel, so you may be able to reach me there, but I don’t know offhand how to

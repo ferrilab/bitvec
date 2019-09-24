@@ -1,12 +1,21 @@
-# `bitvec` – Managing Memory Bit by Bit
+<div align="center">
+
+# `bitvec` <!-- omit in toc -->
+
+## Managing Memory Bit by Bit <!-- omit in toc -->
 
 [![Crate][crate_img]][crate]
 [![Documentation][docs_img]][docs]
 [![License][license_img]][license_file]
+
 [![Continuous Integration][travis_img]][travis]
 [![Code Coverage][codecov_img]][codecov]
 [![Crate Downloads][downloads_img]][crate]
 [![Crate Size][loc_img]][loc]
+
+</div>
+
+## Table of Contents <!-- omit in toc -->
 
 ## Summary
 
@@ -440,7 +449,7 @@ other features are also welcome, but I’ll have to be sold on them.
 [license_file]: https://github.com/myrrlyn/bitvec/blob/master/LICENSE.txt "License File"
 [license_img]: https://img.shields.io/crates/l/bitvec.svg "License Display"
 [loc]: https://github.com/myrrlyn/bitvec "Repository"
-[loc_img]: https://tokei.rs/b1/github/myrrlyn/bitvec "Repository Size"
+[loc_img]: https://tokei.rs/b1/github/myrrlyn/bitvec?category=code "Repository Size"
 [travis]: https://travis-ci.org/myrrlyn/bitvec "Travis CI"
 [travis_img]: https://img.shields.io/travis/myrrlyn/bitvec.svg?logo=travis "Travis CI Display"
 [`compacts`]: https://crates.io/crates/compacts

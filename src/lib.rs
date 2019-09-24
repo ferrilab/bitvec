@@ -45,6 +45,9 @@ extern crate core;
 #[cfg(feature = "serde")]
 extern crate serde;
 
+#[cfg(feature = "std")]
+extern crate std;
+
 #[cfg(all(test, feature = "serde"))]
 extern crate serde_test;
 
