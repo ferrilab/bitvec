@@ -2,6 +2,8 @@
 
 extern crate test;
 
+use core::ops::AddAssign;
+
 use bitvec::prelude::*;
 use test::Bencher;
 
@@ -135,6 +137,49 @@ fn at(b: &mut Bencher) {
 	let mut src = [0u64; 2];
 	let bsl64 = src.as_mut_bitslice::<LittleEndian>();
 	b.iter(|| *bsl64.at(69) = true);
+
+	}
+}
+
+#[bench]
+fn add_assign(b: &mut Bencher) {
+	let mut src = [0u8; 16];
+	let bsb08a = src.as_mut_bitslice::<BigEndian>();
+	let bsb08b = [0u8; 16].as_bitslice::<BigEndian>();
+	let mut src = [0u8; 16];
+	let bsl08a = src.as_mut_bitslice::<LittleEndian>();
+	let bsl08b = [0u8; 16].as_bitslice::<LittleEndian>();
+	b.iter(|| bsb08a.add_assign(bsb08b));
+	b.iter(|| bsl08a.add_assign(bsl08b));
+
+	let mut src = [0u16; 8];
+	let bsb16a = src.as_mut_bitslice::<BigEndian>();
+	let bsb16b = [0u16; 8].as_bitslice::<BigEndian>();
+	let mut src = [0u16; 8];
+	let bsl16a = src.as_mut_bitslice::<LittleEndian>();
+	let bsl16b = [0u16; 8].as_bitslice::<LittleEndian>();
+	b.iter(|| bsb16a.add_assign(bsb16b));
+	b.iter(|| bsl16a.add_assign(bsl16b));
+
+	let mut src = [0u32; 4];
+	let bsb32a = src.as_mut_bitslice::<BigEndian>();
+	let bsb32b = [0u32; 4].as_bitslice::<BigEndian>();
+	let mut src = [0u32; 4];
+	let bsl32a = src.as_mut_bitslice::<LittleEndian>();
+	let bsl32b = [0u32; 4].as_bitslice::<LittleEndian>();
+	b.iter(|| bsb32a.add_assign(bsb32b));
+	b.iter(|| bsl32a.add_assign(bsl32b));
+
+	#[cfg(target_pointer_width = "64")] {
+
+	let mut src = [0u64; 2];
+	let bsb64a = src.as_mut_bitslice::<BigEndian>();
+	let bsb64b = [0u64; 2].as_bitslice::<BigEndian>();
+	let mut src = [0u64; 2];
+	let bsl64a = src.as_mut_bitslice::<LittleEndian>();
+	let bsl64b = [0u64; 2].as_bitslice::<LittleEndian>();
+	b.iter(|| bsb64a.add_assign(bsb64b));
+	b.iter(|| bsl64a.add_assign(bsl64b));
 
 	}
 }

@@ -107,28 +107,10 @@ here for deduplication.
 **/
 #[inline]
 fn rca1(a: bool, b: bool, c: bool) -> (bool, bool) {
-	/// Ripple-carry addition is a reduction operation from three bits of input
-	/// (a, b, carry-in) to two outputs (sum, carry-out). This table contains
-	/// the map of all possible inputs to their output.
-	//  Note: I checked in Godbolt, and the jump table lookup comes out to ~ten
-	//  simple instructions with the table baked in as immediate values. The
-	//  more semantically clear match statement does not optimize nearly as
-	//  well.
-	const RCA: [u8; 8] = [
-		//      a + b + c => (y, z)
-		0,  //  0 + 0 + 0 => (0, 0)
-		2,  //  0 + 1 + 0 => (1, 0)
-		2,  //  1 + 0 + 0 => (1, 0)
-		1,  //  1 + 1 + 0 => (0, 1)
-		2,  //  0 + 0 + 1 => (1, 0)
-		1,  //  0 + 1 + 1 => (0, 1)
-		1,  //  1 + 0 + 1 => (0, 1)
-		3,  //  1 + 1 + 1 => (1, 1)
-	];
-	//  Compute the lookup index from carry-in, left, and right
-	let jmp = ((c as u8) << 2) | ((a as u8) << 1) | (b as u8);
-	//  Look up the output bits
-	let yz = RCA[jmp as usize];
+	// Ripple-carry addition is a reduction operation from three bits of input
+	// (a, b, carry-in) to two outputs (sum, carry-out).
+	//  Compute the sum from left, right and carry-in
+	let yz = a as u8 + b as u8 + c as u8;
 	//  Split them
-	(yz & 2 != 0, yz & 1 != 0)
+	(yz & 0b01 != 0, yz & 0b10 != 0)
 }
