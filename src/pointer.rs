@@ -1064,6 +1064,7 @@ mod tests {
 		assert_eq!(*bp.tail(), 2);
 	}
 
+	#[cfg(not(miri))]
 	#[test]
 	#[should_panic]
 	fn overfull() {

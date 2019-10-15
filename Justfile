@@ -48,6 +48,9 @@ doc:
 loop action:
 	cargo watch -s "just {{action}}"
 
+miri:
+	cargo +nightly miri test
+
 # Packages the crate in preparation for publishing on crates.io
 package:
 	cargo package --allow-dirty

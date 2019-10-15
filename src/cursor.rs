@@ -150,6 +150,7 @@ mod tests {
 		assert_eq!(BigEndian::at::<u8>(BitIdx(7)), BitPos(0));
 	}
 
+	#[cfg(not(miri))]
 	#[test]
 	#[should_panic]
 	fn be_u8_ovf() {
@@ -176,6 +177,7 @@ mod tests {
 		assert_eq!(BigEndian::at::<u16>(BitIdx(15)), BitPos(0));
 	}
 
+	#[cfg(not(miri))]
 	#[test]
 	#[should_panic]
 	fn be_u16_ovf() {
@@ -218,6 +220,7 @@ mod tests {
 		assert_eq!(BigEndian::at::<u32>(BitIdx(31)), BitPos(0));
 	}
 
+	#[cfg(not(miri))]
 	#[test]
 	#[should_panic]
 	fn be_u32_ovf() {
@@ -293,7 +296,7 @@ mod tests {
 		assert_eq!(BigEndian::at::<u64>(BitIdx(63)), BitPos(0));
 	}
 
-	#[cfg(target_pointer_width = "64")]
+	#[cfg(all(target_pointer_width = "64", not(miri)))]
 	#[test]
 	#[should_panic]
 	fn be_u64_ovf() {
@@ -312,6 +315,7 @@ mod tests {
 		assert_eq!(LittleEndian::at::<u8>(BitIdx(7)), BitPos(7));
 	}
 
+	#[cfg(not(miri))]
 	#[test]
 	#[should_panic]
 	fn le_u8_ovf() {
@@ -338,6 +342,7 @@ mod tests {
 		assert_eq!(LittleEndian::at::<u16>(BitIdx(15)), BitPos(15));
 	}
 
+	#[cfg(not(miri))]
 	#[test]
 	#[should_panic]
 	fn le_u16_ovf() {
@@ -380,6 +385,7 @@ mod tests {
 		assert_eq!(LittleEndian::at::<u32>(BitIdx(31)), BitPos(31));
 	}
 
+	#[cfg(not(miri))]
 	#[test]
 	#[should_panic]
 	fn le_u32_ovf() {
@@ -455,7 +461,7 @@ mod tests {
 		assert_eq!(LittleEndian::at::<u64>(BitIdx(63)), BitPos(63));
 	}
 
-	#[cfg(target_pointer_width = "64")]
+	#[cfg(all(target_pointer_width = "64", not(miri)))]
 	#[test]
 	#[should_panic]
 	fn le_u64_ovf() {
