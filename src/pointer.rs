@@ -9,11 +9,13 @@ work.
 use crate::{
 	cursor::Cursor,
 	domain::*,
-	slice::BitSlice,
-	store::{
+	indices::{
 		BitIdx,
-		BitStore,
+		BitTail,
+		Indexable,
 	},
+	slice::BitSlice,
+	store::BitStore,
 };
 
 use core::{
@@ -37,24 +39,25 @@ use core::{
 /// Width in bits of a pointer on the target machine.
 const PTR_BITS: usize = size_of::<*const u8>() * 8;
 
-/// Union to permit reinterpreting a pointer-shaped value as a read pointer,
-/// write pointer, or bare numeric address.
-///
-/// # Safety
-///
-/// Absolutely none whatsoever. This is probably flirting with undefined
-/// behavior, and should be presumed to be the origin site of failure if the
-/// crate ever breaks in the future.
-///
-/// # Type Parameters
-///
-/// - `T`: The referent data type.
-///
-/// # Usage
-///
-/// Don’t.
+/** Union to permit reinterpreting a pointer-shaped value as a read pointer,
+write pointer, or bare numeric address.
+
+# Safety
+
+Absolutely none whatsoever. This is probably flirting with undefined
+behavior, and should be presumed to be the origin site of failure if the
+crate ever breaks in the future.
+
+# Type Parameters
+
+- `T`: The referent data type.
+**/
+#[derive(Clone, Copy)]
 #[doc(hidden)]
-pub(crate) union Pointer<T> {
+pub(crate) union Pointer<T>
+where T: BitStore {
+	/// A shareable pointer to some contended mutable data.
+	a: *const <T as BitStore>::Access,
 	/// A read pointer to some data.
 	r: *const T,
 	/// A write pointer to some data.
@@ -63,7 +66,23 @@ pub(crate) union Pointer<T> {
 	u: usize,
 }
 
-impl<T> Pointer<T> {
+impl<T> Pointer<T>
+where T: BitStore {
+	/// Accesses the address as a shared mutable pointer.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// The stored address, interpreted as a shared pointer to a mutable memory
+	/// location.
+	#[inline]
+	pub(crate) fn a(&self) -> *const <T as BitStore>::Access {
+		unsafe { self.a }
+	}
+
 	/// Accesses the address as a read pointer.
 	///
 	/// # Parameters
@@ -107,31 +126,36 @@ impl<T> Pointer<T> {
 	}
 }
 
-impl<T> From<&T> for Pointer<T> {
+impl<T> From<&T> for Pointer<T>
+where T: BitStore {
 	fn from(r: &T) -> Self {
 		Self { r }
 	}
 }
 
-impl<T> From<*const T> for Pointer<T> {
+impl<T> From<*const T> for Pointer<T>
+where T: BitStore {
 	fn from(r: *const T) -> Self {
 		Self { r }
 	}
 }
 
-impl<T> From<&mut T> for Pointer<T> {
+impl<T> From<&mut T> for Pointer<T>
+where T: BitStore {
 	fn from(w: &mut T) -> Self {
 		Self { w }
 	}
 }
 
-impl<T> From<*mut T> for Pointer<T> {
+impl<T> From<*mut T> for Pointer<T>
+where T: BitStore {
 	fn from(w: *mut T) -> Self {
 		Self { w }
 	}
 }
 
-impl<T> From<usize> for Pointer<T> {
+impl<T> From<usize> for Pointer<T>
+where T: BitStore {
 	fn from(u: usize) -> Self {
 		Self { u }
 	}
@@ -368,12 +392,11 @@ where T: BitStore {
 	///
 	/// # Parameters
 	///
-	/// - `data: impl Into<Pointer<T>>`: A well-aligned pointer to a storage
-	///   element.
-	/// - `head: impl Into<BitIdx>`: The bit index of the first live bit in the
-	///   element under `*data`.
-	/// - `bits: usize`: The number of live bits in the region the produced
-	///   `BitPtr<T>` describes.
+	/// - `data`: A well-aligned pointer to a storage element.
+	/// - `head`: The bit index of the first live bit in the element under
+	///   `*data`.
+	/// - `bits`: The number of live bits in the region the produced `BitPtr<T>`
+	///   describes.
 	///
 	/// # Returns
 	///
@@ -387,8 +410,6 @@ where T: BitStore {
 	/// This function panics in the following events:
 	///
 	/// - `data` is not well aligned to `T`’s requirements.
-	/// - `head` is not a valid index within `T`, according to
-	/// `BitIdx::is_valid::<T>`.
 	/// - `bits` is larger than `Self::MAX_BITS`.
 	/// - `data` and `bits` describe a `[T]` slice which wraps around the edge
 	///   of the memory space.
@@ -402,10 +423,10 @@ where T: BitStore {
 	/// governable in the caller’s context.
 	pub(crate) fn new(
 		data: impl Into<Pointer<T>>,
-		head: impl Into<BitIdx>,
+		head: BitIdx<T>,
 		bits: usize,
 	) -> Self {
-		let (data, head) = (data.into(), head.into());
+		let data = data.into();
 
 		//  Null pointers become the empty slice.
 		if data.r().is_null() {
@@ -427,14 +448,7 @@ where T: BitStore {
 			Self::MAX_BITS,
 		);
 
-		assert!(
-			head.is_valid::<T>(),
-			"BitPtr head index cannot be {}; the valid domain is 0 .. {}",
-			head,
-			T::BITS,
-		);
-
-		let elts = head.span::<T>(bits).0;
+		let elts = head.span(bits).0;
 		let tail = data.r().wrapping_add(elts);
 		assert!(
 			tail >= data.r(),
@@ -469,10 +483,10 @@ where T: BitStore {
 	/// [`::new`]: #method.new
 	pub(crate) unsafe fn new_unchecked(
 		data: impl Into<Pointer<T>>,
-		head: impl Into<BitIdx>,
+		head: BitIdx<T>,
 		bits: usize,
 	) -> Self {
-		let (data, head) = (data.into(), *head.into() as usize);
+		let (data, head) = (data.into(), *head as usize);
 
 		let ptr_data = data.u() & Self::PTR_DATA_MASK;
 		let ptr_head = head >> Self::LEN_HEAD_BITS;
@@ -545,11 +559,11 @@ where T: BitStore {
 	/// A `BitIdx` that is the index of the first live bit in the first element.
 	/// This will be in the domain `0 .. T::BITS`.
 	#[inline]
-	pub fn head(&self) -> BitIdx {
+	pub fn head(&self) -> BitIdx<T> {
 		let ptr = self.ptr.as_ptr() as usize;
 		let ptr_head = (ptr & Self::PTR_HEAD_MASK) << Self::LEN_HEAD_BITS;
 		let len_head = self.len & Self::LEN_HEAD_MASK;
-		((ptr_head | len_head) as u8).into()
+		((ptr_head | len_head) as u8).idx()
 	}
 
 	/// Counts how many bits are in the domain of a `BitPtr` slice.
@@ -596,7 +610,7 @@ where T: BitStore {
 	/// - `.1: BitIdx`: The index of the first live bit in the bit region.
 	/// - `.2: usize`: The number of live bits in the bit region.
 	#[inline]
-	pub(crate) fn raw_parts(&self) -> (Pointer<T>, BitIdx, usize) {
+	pub(crate) fn raw_parts(&self) -> (Pointer<T>, BitIdx<T>, usize) {
 		(self.pointer(), self.head(), self.len())
 	}
 
@@ -615,7 +629,7 @@ where T: BitStore {
 	/// This size must be valid in the user’s memory model and allocation
 	/// regime.
 	pub fn elements(&self) -> usize {
-		self.head().span::<T>(self.len()).0
+		self.head().span(self.len()).0
 	}
 
 	/// Extracts the element cursor of the first dead bit *after* the tail bit.
@@ -626,30 +640,25 @@ where T: BitStore {
 	///
 	/// # Returns
 	///
-	/// A `BitIdx` that is the index of the first dead bit after the last live
-	/// bit in the last element. This will be in the domain `1 ..= T::BITS`.
+	/// A `BitTail` that is the index of the first dead bit after the last live
+	/// bit in the last element. This will almost always be in the domain
+	/// `1 ..= T::BITS`.
 	#[inline]
-	pub fn tail(&self) -> BitIdx {
-		/*
-		 * This function is one of the most-used in the library. As such, its
-		 * implementation is written in a straight linear style. The compiler is
-		 * free to rearrange the code as it sees fit, and may not reflect the
-		 * code below. The equivalent, user-friendly function body is:
-		 *
-		 * if self.is_empty() {
-		 * 	return 0.into();
-		 * }
-		 * let bits = (self.len & Self::LEN_TAIL_MASK) >> Self::LEN_HEAD_BITS;
-		 * if bits == 0 { T::BITS } else { bits as u8 }.into()
-		 */
+	pub(crate) fn tail(&self) -> BitTail<T> {
+		let (head, len) = (self.head(), self.len());
 
-		//  Compute the in-element tail index as the head plus the length, with
-		//  the modulus of the element width.
-		let tail = (*self.head() as usize + self.len()) & T::MASK as usize;
-		//  If the tail’s bit pattern is zero, wrap it to the maximal. This
-		//  upshifts `1` (pattern is zero) or `0` (pattern is not), then
-		//  sets the upshift bit on the pattern.
-		((((tail == 0) as u8) << T::INDX) | tail as u8).into()
+		if *head == 0 && len == 0 {
+			return 0u8.tail();
+		}
+
+		//  Compute the in-element tail index as the head plus the length,
+		//  modulated to the element width.
+		let tail = (*self.head() as usize + len) & T::MASK as usize;
+		//  If the tail is zero, wrap it to `T::BITS` as the maximal. This
+		//  upshifts `1` (tail is zero) or `0` (tail is not), then sets the
+		//  upshift on the rest of the tail, producing something in the range
+		//  `1 ..= T::BITS`.
+		((((tail == 0) as u8) << T::INDX) | tail as u8).tail()
 	}
 
 	/// Checks if the pointer represents the empty slice.
@@ -718,6 +727,23 @@ where T: BitStore {
 		unsafe { slice::from_raw_parts_mut(self.pointer().w, self.elements()) }
 	}
 
+	/// Accesses the element slice behind the pointer as a shared-mutable slice.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// Standard Rust slice handle over the data governed by this pointer.
+	///
+	/// # Lifetimes
+	///
+	/// - `'a`: Lifetime for which the data behind the pointer is live.
+	pub fn as_access_slice<'a>(&self) -> &'a [T::Access] {
+		unsafe { slice::from_raw_parts(self.pointer().a, self.elements()) }
+	}
+
 	/// Gets the domain kind for the region the pointer describes.
 	///
 	/// # Parameters
@@ -741,7 +767,7 @@ where T: BitStore {
 	///
 	/// An enum containing the logical components of the domain governed by
 	/// `self`.
-	pub fn domain(&self) -> BitDomain<T> {
+	pub(crate) fn domain(&self) -> BitDomain<T> {
 		(*self).into()
 	}
 
@@ -755,7 +781,7 @@ where T: BitStore {
 	///
 	/// An enum containing the logical components of the domain governed by
 	/// `self`.
-	pub fn domain_mut(&self) -> BitDomainMut<T> {
+	pub(crate) fn domain_mut(&self) -> BitDomainMut<T> {
 		(*self).into()
 	}
 
@@ -780,7 +806,7 @@ where T: BitStore {
 		if bits == 0 {
 			return;
 		}
-		let (head, wrap) = head.incr::<T>();
+		let (head, wrap) = head.incr();
 		*self = Self::new_unchecked(
 			data.r().offset(wrap as isize),
 			head,
@@ -809,7 +835,7 @@ where T: BitStore {
 		if bits == 0 {
 			return;
 		}
-		let (head, wrap) = head.decr::<T>();
+		let (head, wrap) = head.decr();
 		*self = Self::new_unchecked(
 			data.r().offset(-(wrap as isize)),
 			head,
@@ -987,8 +1013,8 @@ where T: BitStore {
 			}
 		}
 
-		struct BinAddr<T: BitStore>(BitIdx, PhantomData<T>);
-		impl<T: BitStore>  Debug for BinAddr<T> {
+		struct BinAddr<T: BitStore>(BitIdx<T>);
+		impl<T: BitStore> Debug for BinAddr<T> {
 			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 				write!(f, "0b{:0>1$b}", *self.0, T::INDX as usize)
 			}
@@ -997,7 +1023,7 @@ where T: BitStore {
 		write!(f, "BitPtr<{}>", T::TYPENAME)?;
 		f.debug_struct("")
 			.field("data", &HexPtr::<T>(self.pointer().r()))
-			.field("head", &BinAddr::<T>(self.head(), PhantomData))
+			.field("head", &BinAddr::<T>(self.head()))
 			.field("bits", &self.len())
 			.finish()
 	}
@@ -1046,7 +1072,7 @@ mod tests {
 	#[test]
 	fn ctors() {
 		let data: [u32; 4] = [0x756c6153, 0x2c6e6f74, 0x6e6f6d20, 0x00216f64];
-		let bp = BitPtr::<u32>::new(&data as *const u32, 0, 32 * 4);
+		let bp = BitPtr::<u32>::new(&data as *const u32, 0u8.idx(), 32 * 4);
 		assert_eq!(bp.pointer().r(), &data as *const u32);
 		assert_eq!(bp.elements(), 4);
 		assert_eq!(*bp.head(), 0);
@@ -1057,7 +1083,7 @@ mod tests {
 	fn empty() {
 		let data = [0u8; 4];
 		//  anything with 0 bits is unconditionally empty
-		let bp = BitPtr::<u8>::new(&data as *const u8, 2, 0);
+		let bp = BitPtr::<u8>::new(&data as *const u8, 2u8.idx(), 0);
 
 		assert!(bp.is_empty());
 		assert_eq!(*bp.head(), 2);
@@ -1068,6 +1094,6 @@ mod tests {
 	#[test]
 	#[should_panic]
 	fn overfull() {
-		BitPtr::<u32>::new(8 as *const u32, 1, BitPtr::<u32>::MAX_BITS + 1);
+		BitPtr::<u32>::new(8 as *const u32, 1u8.idx(), BitPtr::<u32>::MAX_BITS + 1);
 	}
 }

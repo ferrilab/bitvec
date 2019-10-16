@@ -6,7 +6,7 @@
 
 [package]
 name = "bitvec"
-version = "0.15.2"
+version = "0.16.0"
 authors = [
 	"myrrlyn <self@myrrlyn.dev>",
 ]
@@ -43,6 +43,9 @@ testing = [
 	"serde",
 	"std",
 ]
+
+[dependencies]
+radium = "0.2"
 
 [dependencies.serde]
 default-features = false

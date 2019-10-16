@@ -15,12 +15,10 @@ use crate::{
 		BigEndian,
 		Cursor,
 	},
+	indices::Indexable,
 	pointer::BitPtr,
 	slice::BitSlice,
-	store::{
-		BitIdx,
-		BitStore,
-	},
+	store::BitStore,
 };
 
 #[cfg(feature = "alloc")]
@@ -397,7 +395,7 @@ where C: Cursor, T: BitStore {
 	pub fn with_capacity(capacity: usize) -> Self {
 		//  Find the number of elements needed to store the requested capacity
 		//  of bits.
-		let (cap, _) = BitIdx::from(0).span::<T>(capacity);
+		let (cap, _) = 0u8.idx::<T>().span(capacity);
 		//  Acquire a region of memory large enough for that element number.
 		let (ptr, cap) = {
 			let v = Vec::with_capacity(cap);
@@ -669,7 +667,7 @@ where C: Cursor, T: BitStore {
 		);
 		//  Compute the number of additional elements needed to store the
 		//  requested number of additional bits.
-		let (e, _) = self.pointer.tail().span::<T>(additional);
+		let (e, _) = self.pointer.tail().span(additional);
 		self.do_unto_vec(|v| v.reserve(e));
 	}
 
@@ -712,7 +710,7 @@ where C: Cursor, T: BitStore {
 		);
 		//  Compute the number of additional elements needed to store the
 		//  requested number of additional bits.
-		let (e, _) = self.pointer.tail().span::<T>(additional);
+		let (e, _) = self.pointer.tail().span(additional);
 		self.do_unto_vec(|v| v.reserve_exact(e));
 	}
 

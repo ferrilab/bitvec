@@ -8,11 +8,12 @@ handle operations.
 !*/
 
 use crate::{
-	pointer::BitPtr,
-	store::{
+	indices::{
 		BitIdx,
-		BitStore,
+		BitTail,
 	},
+	pointer::BitPtr,
+	store::BitStore,
 };
 
 /// Variant markers for the kinds of domains.
@@ -51,7 +52,7 @@ impl<T> From<&BitPtr<T>> for BitDomainKind
 where T: BitStore {
 	fn from(bitptr: &BitPtr<T>) -> Self {
 		let h = bitptr.head();
-		let (e, t) = h.span::<T>(bitptr.len());
+		let (e, t) = h.span(bitptr.len());
 		let w = T::BITS;
 
 		match (*h, e, *t) {
@@ -81,7 +82,7 @@ where T: BitStore {
 ///
 /// - `T: BitStore` The type of the elements the domain inhabits.
 #[derive(Clone, Debug)]
-pub enum BitDomain<'a, T>
+pub(crate) enum BitDomain<'a, T>
 where T: 'a + BitStore {
 	/// Empty domain.
 	Empty,
@@ -93,16 +94,11 @@ where T: 'a + BitStore {
 	/// - `.1`: reference to the element contatining the domain
 	/// - `.2`: index of the first dead bit after the domain
 	///
-	/// # Invariants
-	///
-	/// - `.0` must satisfy `BitIdx::is_valid::<T>`
-	/// - `.2` must satisfy `BitIdx::is_valid_tail::<T>`
-	///
 	/// # Behavior
 	///
 	/// This variant is produced when the domain is contained entirely inside
 	/// one element, and does not reach to either edge.
-	Minor(BitIdx, &'a T, BitIdx),
+	Minor(BitIdx<T>, &'a T::Access, BitTail<T>),
 	/// Multpile element domain which does not reach the edge of its edge
 	/// elements.
 	///
@@ -115,17 +111,12 @@ where T: 'a + BitStore {
 	/// - `.3`: reference to the partial tail edge element
 	/// - `.4`: index of the first dead bit after the domain
 	///
-	/// # Invariants
-	///
-	/// - `.0` must satisfy `BitIdx::is_valid::<T>`
-	/// - `.4` must satisfy `BitIdx::is_valid_tail::<T>`
-	///
 	/// # Behavior
 	///
 	/// This variant is produced when the domain uses at least two elements, and
 	/// reaches neither the head edge of the head element nor the tail edge of
 	/// the tail element.
-	Major(BitIdx, &'a T, &'a [T], &'a T, BitIdx),
+	Major(BitIdx<T>, &'a T::Access, &'a [T], &'a T::Access, BitTail<T>),
 	/// Domain with a partial head cursor and fully extended tail cursor.
 	///
 	/// # Members
@@ -134,15 +125,11 @@ where T: 'a + BitStore {
 	/// - `.1`: reference to the partial head element
 	/// - `.2`: reference to the full elements of the domain. This may be empty.
 	///
-	/// # Invariants
-	///
-	/// - `.0` must satisfy `BitIdx::is_valid::<T>`
-	///
 	/// # Behavior
 	///
 	/// This variant is produced when the domain’s head cursor is past `0`, and
 	/// its tail cursor is exactly `T::BITS`.
-	PartialHead(BitIdx, &'a T, &'a [T]),
+	PartialHead(BitIdx<T>, &'a T::Access, &'a [T]),
 	/// Domain with a fully extended head cursor and partial tail cursor.
 	///
 	/// # Members
@@ -151,15 +138,11 @@ where T: 'a + BitStore {
 	/// - `.1`: reference to the partial tail element
 	/// - `.2`: index of the first dead bit after the live bits in the tail
 	///
-	/// # Invariants
-	///
-	/// - `.2` must satisfy `BitIdx::is_valid_tail::<T>`
-	///
 	/// # Behavior
 	///
 	/// This variant is produced when the domain’s head cursor is exactly `0`,
 	/// and its tail cursor is less than `T::BITS`.
-	PartialTail(&'a [T], &'a T, BitIdx),
+	PartialTail(&'a [T], &'a T::Access, BitTail<T>),
 	/// Domain which fully spans its containing elements.
 	///
 	/// # Members
@@ -206,7 +189,7 @@ where T: 'a + BitStore {
 ///
 /// - `T: BitStore` The type of the elements the domain inhabits.
 #[derive(Debug)]
-pub enum BitDomainMut<'a, T>
+pub(crate) enum BitDomainMut<'a, T>
 where T: 'a + BitStore {
 	/// Empty domain.
 	Empty,
@@ -218,16 +201,11 @@ where T: 'a + BitStore {
 	/// - `.1`: mutable reference to the element contatining the domain
 	/// - `.2`: index of the first dead bit after the domain
 	///
-	/// # Invariants
-	///
-	/// - `.0` must satisfy `BitIdx::is_valid::<T>`
-	/// - `.2` must satisfy `BitIdx::is_valid_tail::<T>`
-	///
 	/// # Behavior
 	///
 	/// This variant is produced when the domain is contained entirely inside
 	/// one element, and does not reach to either edge.
-	Minor(BitIdx, &'a mut T, BitIdx),
+	Minor(BitIdx<T>, &'a T::Access, BitTail<T>),
 	/// Multpile element domain which does not reach the edge of its edge
 	/// elements.
 	///
@@ -240,17 +218,12 @@ where T: 'a + BitStore {
 	/// - `.3`: mutable reference to the partial tail edge element
 	/// - `.4`: index of the first dead bit after the domain
 	///
-	/// # Invariants
-	///
-	/// - `.0` must satisfy `BitIdx::is_valid::<T>`
-	/// - `.4` must satisfy `BitIdx::is_valid_tail::<T>`
-	///
 	/// # Behavior
 	///
 	/// This variant is produced when the domain uses at least two elements, and
 	/// reaches neither the head edge of the head element nor the tail edge of
 	/// the tail element.
-	Major(BitIdx, &'a mut T, &'a mut [T], &'a mut T, BitIdx),
+	Major(BitIdx<T>, &'a T::Access, &'a mut [T], &'a T::Access, BitTail<T>),
 	/// Domain with a partial head cursor and fully extended tail cursor.
 	///
 	/// # Members
@@ -260,15 +233,11 @@ where T: 'a + BitStore {
 	/// - `.2`: mutable reference to the full elements of the domain. This may
 	///   be empty.
 	///
-	/// # Invariants
-	///
-	/// - `.0` must satisfy `BitIdx::is_valid::<T>`
-	///
 	/// # Behavior
 	///
 	/// This variant is produced when the domain’s head cursor is past `0`, and
 	/// its tail cursor is exactly `T::BITS`.
-	PartialHead(BitIdx, &'a mut T, &'a mut [T]),
+	PartialHead(BitIdx<T>, &'a T::Access, &'a mut [T]),
 	/// Domain with a fully extended head cursor and partial tail cursor.
 	///
 	/// # Members
@@ -278,15 +247,11 @@ where T: 'a + BitStore {
 	/// - `.1`: mutable reference to the partial tail element
 	/// - `.2`: index of the first dead bit after the live bits in the tail
 	///
-	/// # Invariants
-	///
-	/// - `.2` must satisfy `BitIdx::is_valid_tail::<T>`
-	///
 	/// # Behavior
 	///
 	/// This variant is produced when the domain’s head cursor is exactly `0`,
 	/// and its tail cursor is less than `T::BITS`.
-	PartialTail(&'a mut [T], &'a mut T, BitIdx),
+	PartialTail(&'a mut [T], &'a T::Access, BitTail<T>),
 	/// Domain which fully spans its containing elements.
 	///
 	/// # Members
@@ -305,33 +270,48 @@ where T: 'a + BitStore {
 	fn from(bitptr: BitPtr<T>) -> Self {
 		use BitDomainKind as Bdk;
 		let (h, t) = (bitptr.head(), bitptr.tail());
-		let data = bitptr.as_mut_slice();
+		let data = bitptr.as_access_slice();
+
+		/// Converts a slice of `BitAccess` to a mutable slice of `BitStore`.
+		///
+		/// # Safety
+		///
+		/// This can only be called on wholly owned, uncontended, regions.
+		unsafe fn base_slice_mut<T>(this: &[T::Access]) -> &mut [T]
+		where T: BitStore {
+			&mut *(this as *const [T::Access] as *const [T] as *mut [T])
+		}
 
 		match bitptr.domain_kind() {
 			Bdk::Empty => BitDomainMut::Empty,
-			Bdk::Minor => BitDomainMut::Minor(h, &mut data[0], t),
+			Bdk::Minor => BitDomainMut::Minor(h, &data[0], t),
 			Bdk::Major => {
 				let (head, body) = data
-					.split_first_mut()
+					.split_first()
 					.expect("Major cannot fail to split head");
 				let (tail, body) = body
-					.split_last_mut()
+					.split_last()
 					.expect("Major cannot fail to split tail");
+				let body = unsafe { base_slice_mut(body) };
 				BitDomainMut::Major(h, head, body, tail, t)
 			},
 			Bdk::PartialHead => {
 				let (head, tail) = data
-					.split_first_mut()
+					.split_first()
 					.expect("PartialHead cannot fail to split");
+				let tail = unsafe { base_slice_mut(tail) };
 				BitDomainMut::PartialHead(h, head, tail)
 			},
 			Bdk::PartialTail => {
 				let (tail, head) = data
-					.split_last_mut()
+					.split_last()
 					.expect("PartialTail cannot fail to split");
+				let head = unsafe { base_slice_mut(head) };
 				BitDomainMut::PartialTail(head, tail, t)
 			},
-			Bdk::Spanning => BitDomainMut::Spanning(data),
+			Bdk::Spanning => {
+				BitDomainMut::Spanning(unsafe { base_slice_mut(data) })
+			},
 		}
 	}
 }

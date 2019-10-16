@@ -4,6 +4,22 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+## 0.16.0
+
+### Added
+
+- `Cursor` now provides a `mask` function, which produces a one-hot mask usable
+  for direct memory access. Implementors of `Cursor` may use the default, or
+  provide their own.
+
+### Changed
+
+- The internal process that translates `BitSlice` operations into access
+  operations on underlying memory has been rewritten. Production of contended
+  references to bare fundamentals is now forbidden, and all access is mediated
+  through either atomic (default) or `Cell` types.
+- Bit indexing is more firmly encoded in the type system
+
 ## 0.15.2
 
 ### Changed

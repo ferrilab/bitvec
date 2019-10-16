@@ -14,10 +14,14 @@ Contiguity is not required.
 `Cursor` is a stateless trait, and implementors should be zero-sized types.
 !*/
 
-use crate::store::{
-	BitIdx,
-	BitPos,
-	BitStore,
+use crate::{
+	indices::{
+		BitIdx,
+		BitMask,
+		BitPos,
+		Indexable,
+	},
+	store::BitStore,
 };
 
 /// Traverses an element from `MSbit` to `LSbit`.
@@ -92,8 +96,59 @@ pub trait Cursor {
 	/// This function requires that the output be in the domain `.. T::BITS`.
 	/// Implementors must uphold this themselves. Outputs in the domain
 	/// `T::BITS ..` will induce panics elsewhere in the library.
-	fn at<T>(cursor: BitIdx) -> BitPos
+	fn at<T>(cursor: BitIdx<T>) -> BitPos<T>
 	where T: BitStore;
+
+	/// Translate a semantic bit index into an electrical bit mask.
+	///
+	/// This is an optional function; a default implementation is provided for
+	/// you.
+	///
+	/// The default implementation of this function calls `Self::at` to produce
+	/// an electrical position, then turns that into a bitmask by setting the
+	/// `n`th bit more significant than the least significant bit of the
+	/// element. `Cursor` implementations may choose to provide a faster mask
+	/// production here, but they must satisfy the invariants listed below.
+	///
+	/// # Parameters
+	///
+	/// - `cursor`: A semantic bit index into a memory element.
+	///
+	/// # Returns
+	///
+	/// A one-hot encoding of the provided `Cursor`’s electrical position in the
+	/// `T` element.
+	///
+	/// # Type Parameters
+	///
+	/// - `T`: The storage type for which the mask will be calculated. The mask
+	///   must also be this type, as it will be applied to an element of `T` in
+	///   order to set, clear, or test a single bit.
+	///
+	/// # Invariants
+	///
+	/// A one-hot encoding means that there is exactly one bit set in the
+	/// produced value. It must be equivalent to `1 << *Self::at(cursor)`.
+	///
+	/// As with `at`, this function must produce a unique mapping from each
+	/// legal index in the `T` domain to a one-hot value of `T`.
+	///
+	/// # Safety
+	///
+	/// This function requires that the output is always a one-hot value. It is
+	/// illegal to produce a value with more than one bit set, and doing so will
+	/// cause uncontrolled side effects.
+	fn mask<T>(cursor: BitIdx<T>) -> BitMask<T>
+	where T: BitStore {
+		let place = Self::at::<T>(cursor);
+		debug_assert!(
+			*place < T::BITS,
+			"Bit position {} must not exceed the type width {}",
+			*place,
+			T::BITS,
+		);
+		unsafe { BitMask::new_unchecked(T::from(1) << *place) }
+	}
 }
 
 impl Cursor for BigEndian {
@@ -102,16 +157,18 @@ impl Cursor for BigEndian {
 	/// Maps a semantic count to a concrete position.
 	///
 	/// `BigEndian` order moves from `MSbit` first to `LSbit` last.
-	fn at<T>(cursor: BitIdx) -> BitPos
+	fn at<T>(cursor: BitIdx<T>) -> BitPos<T>
 	where T: BitStore {
-		assert!(
-			cursor.is_valid::<T>(),
-			"Index {} is invalid for cursor {} on type {}",
-			*cursor,
-			Self::TYPENAME,
-			T::TYPENAME,
-		);
-		(T::MASK - *cursor).into()
+		(T::MASK - *cursor).pos()
+	}
+
+	fn mask<T>(cursor: BitIdx<T>) -> BitMask<T>
+	where T: BitStore {
+		//  Set the MSbit, then shift it down. The left expr is const-folded.
+		//  Note: this is not equivalent to `1 << (mask - cursor)`, because
+		//  that requires a subtraction every time, but the expression below is
+		//  only a single right-shift.
+		unsafe { BitMask::new_unchecked((T::from(1) << T::MASK) >> *cursor) }
 	}
 }
 
@@ -121,16 +178,15 @@ impl Cursor for LittleEndian {
 	/// Maps a semantic count to a concrete position.
 	///
 	/// `LittleEndian` order moves from `LSbit` first to `MSbit` last.
-	fn at<T>(cursor: BitIdx) -> BitPos
+	fn at<T>(cursor: BitIdx<T>) -> BitPos<T>
 	where T: BitStore {
-		assert!(
-			cursor.is_valid::<T>(),
-			"Index {} is invalid for cursor {} on type {}",
-			*cursor,
-			Self::TYPENAME,
-			T::TYPENAME,
-		);
-		(*cursor).into()
+		(*cursor).pos()
+	}
+
+	fn mask<T>(cursor: BitIdx<T>) -> BitMask<T>
+	where T: BitStore {
+		//  Set the LSbit, then shift it up.
+		unsafe { BitMask::new_unchecked(T::from(1) << *cursor) }
 	}
 }
 
@@ -140,331 +196,275 @@ mod tests {
 
 	#[test]
 	fn be_u8_range() {
-		assert_eq!(BigEndian::at::<u8>(BitIdx(0)), BitPos(7));
-		assert_eq!(BigEndian::at::<u8>(BitIdx(1)), BitPos(6));
-		assert_eq!(BigEndian::at::<u8>(BitIdx(2)), BitPos(5));
-		assert_eq!(BigEndian::at::<u8>(BitIdx(3)), BitPos(4));
-		assert_eq!(BigEndian::at::<u8>(BitIdx(4)), BitPos(3));
-		assert_eq!(BigEndian::at::<u8>(BitIdx(5)), BitPos(2));
-		assert_eq!(BigEndian::at::<u8>(BitIdx(6)), BitPos(1));
-		assert_eq!(BigEndian::at::<u8>(BitIdx(7)), BitPos(0));
-	}
-
-	#[cfg(not(miri))]
-	#[test]
-	#[should_panic]
-	fn be_u8_ovf() {
-		BigEndian::at::<u8>(BitIdx(8));
+		assert_eq!(BigEndian::at::<u8>(0u8.idx()), 7u8.pos());
+		assert_eq!(BigEndian::at::<u8>(1u8.idx()), 6u8.pos());
+		assert_eq!(BigEndian::at::<u8>(2u8.idx()), 5u8.pos());
+		assert_eq!(BigEndian::at::<u8>(3u8.idx()), 4u8.pos());
+		assert_eq!(BigEndian::at::<u8>(4u8.idx()), 3u8.pos());
+		assert_eq!(BigEndian::at::<u8>(5u8.idx()), 2u8.pos());
+		assert_eq!(BigEndian::at::<u8>(6u8.idx()), 1u8.pos());
+		assert_eq!(BigEndian::at::<u8>(7u8.idx()), 0u8.pos());
 	}
 
 	#[test]
 	fn be_u16_range() {
-		assert_eq!(BigEndian::at::<u16>(BitIdx(0)), BitPos(15));
-		assert_eq!(BigEndian::at::<u16>(BitIdx(1)), BitPos(14));
-		assert_eq!(BigEndian::at::<u16>(BitIdx(2)), BitPos(13));
-		assert_eq!(BigEndian::at::<u16>(BitIdx(3)), BitPos(12));
-		assert_eq!(BigEndian::at::<u16>(BitIdx(4)), BitPos(11));
-		assert_eq!(BigEndian::at::<u16>(BitIdx(5)), BitPos(10));
-		assert_eq!(BigEndian::at::<u16>(BitIdx(6)), BitPos(9));
-		assert_eq!(BigEndian::at::<u16>(BitIdx(7)), BitPos(8));
-		assert_eq!(BigEndian::at::<u16>(BitIdx(8)), BitPos(7));
-		assert_eq!(BigEndian::at::<u16>(BitIdx(9)), BitPos(6));
-		assert_eq!(BigEndian::at::<u16>(BitIdx(10)), BitPos(5));
-		assert_eq!(BigEndian::at::<u16>(BitIdx(11)), BitPos(4));
-		assert_eq!(BigEndian::at::<u16>(BitIdx(12)), BitPos(3));
-		assert_eq!(BigEndian::at::<u16>(BitIdx(13)), BitPos(2));
-		assert_eq!(BigEndian::at::<u16>(BitIdx(14)), BitPos(1));
-		assert_eq!(BigEndian::at::<u16>(BitIdx(15)), BitPos(0));
-	}
-
-	#[cfg(not(miri))]
-	#[test]
-	#[should_panic]
-	fn be_u16_ovf() {
-		BigEndian::at::<u16>(BitIdx(16));
+		assert_eq!(BigEndian::at::<u16>(0u8.idx()), 15u8.pos());
+		assert_eq!(BigEndian::at::<u16>(1u8.idx()), 14u8.pos());
+		assert_eq!(BigEndian::at::<u16>(2u8.idx()), 13u8.pos());
+		assert_eq!(BigEndian::at::<u16>(3u8.idx()), 12u8.pos());
+		assert_eq!(BigEndian::at::<u16>(4u8.idx()), 11u8.pos());
+		assert_eq!(BigEndian::at::<u16>(5u8.idx()), 10u8.pos());
+		assert_eq!(BigEndian::at::<u16>(6u8.idx()), 9u8.pos());
+		assert_eq!(BigEndian::at::<u16>(7u8.idx()), 8u8.pos());
+		assert_eq!(BigEndian::at::<u16>(8u8.idx()), 7u8.pos());
+		assert_eq!(BigEndian::at::<u16>(9u8.idx()), 6u8.pos());
+		assert_eq!(BigEndian::at::<u16>(10u8.idx()), 5u8.pos());
+		assert_eq!(BigEndian::at::<u16>(11u8.idx()), 4u8.pos());
+		assert_eq!(BigEndian::at::<u16>(12u8.idx()), 3u8.pos());
+		assert_eq!(BigEndian::at::<u16>(13u8.idx()), 2u8.pos());
+		assert_eq!(BigEndian::at::<u16>(14u8.idx()), 1u8.pos());
+		assert_eq!(BigEndian::at::<u16>(15u8.idx()), 0u8.pos());
 	}
 
 	#[test]
 	fn be_u32_range() {
-		assert_eq!(BigEndian::at::<u32>(BitIdx(0)), BitPos(31));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(1)), BitPos(30));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(2)), BitPos(29));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(3)), BitPos(28));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(4)), BitPos(27));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(5)), BitPos(26));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(6)), BitPos(25));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(7)), BitPos(24));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(8)), BitPos(23));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(9)), BitPos(22));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(10)), BitPos(21));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(11)), BitPos(20));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(12)), BitPos(19));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(13)), BitPos(18));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(14)), BitPos(17));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(15)), BitPos(16));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(16)), BitPos(15));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(17)), BitPos(14));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(18)), BitPos(13));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(19)), BitPos(12));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(20)), BitPos(11));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(21)), BitPos(10));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(22)), BitPos(9));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(23)), BitPos(8));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(24)), BitPos(7));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(25)), BitPos(6));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(26)), BitPos(5));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(27)), BitPos(4));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(28)), BitPos(3));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(29)), BitPos(2));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(30)), BitPos(1));
-		assert_eq!(BigEndian::at::<u32>(BitIdx(31)), BitPos(0));
-	}
-
-	#[cfg(not(miri))]
-	#[test]
-	#[should_panic]
-	fn be_u32_ovf() {
-		BigEndian::at::<u32>(BitIdx(32));
+		assert_eq!(BigEndian::at::<u32>(0u8.idx()), 31u8.pos());
+		assert_eq!(BigEndian::at::<u32>(1u8.idx()), 30u8.pos());
+		assert_eq!(BigEndian::at::<u32>(2u8.idx()), 29u8.pos());
+		assert_eq!(BigEndian::at::<u32>(3u8.idx()), 28u8.pos());
+		assert_eq!(BigEndian::at::<u32>(4u8.idx()), 27u8.pos());
+		assert_eq!(BigEndian::at::<u32>(5u8.idx()), 26u8.pos());
+		assert_eq!(BigEndian::at::<u32>(6u8.idx()), 25u8.pos());
+		assert_eq!(BigEndian::at::<u32>(7u8.idx()), 24u8.pos());
+		assert_eq!(BigEndian::at::<u32>(8u8.idx()), 23u8.pos());
+		assert_eq!(BigEndian::at::<u32>(9u8.idx()), 22u8.pos());
+		assert_eq!(BigEndian::at::<u32>(10u8.idx()), 21u8.pos());
+		assert_eq!(BigEndian::at::<u32>(11u8.idx()), 20u8.pos());
+		assert_eq!(BigEndian::at::<u32>(12u8.idx()), 19u8.pos());
+		assert_eq!(BigEndian::at::<u32>(13u8.idx()), 18u8.pos());
+		assert_eq!(BigEndian::at::<u32>(14u8.idx()), 17u8.pos());
+		assert_eq!(BigEndian::at::<u32>(15u8.idx()), 16u8.pos());
+		assert_eq!(BigEndian::at::<u32>(16u8.idx()), 15u8.pos());
+		assert_eq!(BigEndian::at::<u32>(17u8.idx()), 14u8.pos());
+		assert_eq!(BigEndian::at::<u32>(18u8.idx()), 13u8.pos());
+		assert_eq!(BigEndian::at::<u32>(19u8.idx()), 12u8.pos());
+		assert_eq!(BigEndian::at::<u32>(20u8.idx()), 11u8.pos());
+		assert_eq!(BigEndian::at::<u32>(21u8.idx()), 10u8.pos());
+		assert_eq!(BigEndian::at::<u32>(22u8.idx()), 9u8.pos());
+		assert_eq!(BigEndian::at::<u32>(23u8.idx()), 8u8.pos());
+		assert_eq!(BigEndian::at::<u32>(24u8.idx()), 7u8.pos());
+		assert_eq!(BigEndian::at::<u32>(25u8.idx()), 6u8.pos());
+		assert_eq!(BigEndian::at::<u32>(26u8.idx()), 5u8.pos());
+		assert_eq!(BigEndian::at::<u32>(27u8.idx()), 4u8.pos());
+		assert_eq!(BigEndian::at::<u32>(28u8.idx()), 3u8.pos());
+		assert_eq!(BigEndian::at::<u32>(29u8.idx()), 2u8.pos());
+		assert_eq!(BigEndian::at::<u32>(30u8.idx()), 1u8.pos());
+		assert_eq!(BigEndian::at::<u32>(31u8.idx()), 0u8.pos());
 	}
 
 	#[cfg(target_pointer_width = "64")]
 	#[test]
 	fn be_u64_range() {
-		assert_eq!(BigEndian::at::<u64>(BitIdx(0)), BitPos(63));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(1)), BitPos(62));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(2)), BitPos(61));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(3)), BitPos(60));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(4)), BitPos(59));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(5)), BitPos(58));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(6)), BitPos(57));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(7)), BitPos(56));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(8)), BitPos(55));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(9)), BitPos(54));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(10)), BitPos(53));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(11)), BitPos(52));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(12)), BitPos(51));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(13)), BitPos(50));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(14)), BitPos(49));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(15)), BitPos(48));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(16)), BitPos(47));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(17)), BitPos(46));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(18)), BitPos(45));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(19)), BitPos(44));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(20)), BitPos(43));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(21)), BitPos(42));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(22)), BitPos(41));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(23)), BitPos(40));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(24)), BitPos(39));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(25)), BitPos(38));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(26)), BitPos(37));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(27)), BitPos(36));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(28)), BitPos(35));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(29)), BitPos(34));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(30)), BitPos(33));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(31)), BitPos(32));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(32)), BitPos(31));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(33)), BitPos(30));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(34)), BitPos(29));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(35)), BitPos(28));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(36)), BitPos(27));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(37)), BitPos(26));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(38)), BitPos(25));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(39)), BitPos(24));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(40)), BitPos(23));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(41)), BitPos(22));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(42)), BitPos(21));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(43)), BitPos(20));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(44)), BitPos(19));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(45)), BitPos(18));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(46)), BitPos(17));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(47)), BitPos(16));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(48)), BitPos(15));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(49)), BitPos(14));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(50)), BitPos(13));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(51)), BitPos(12));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(52)), BitPos(11));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(53)), BitPos(10));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(54)), BitPos(9));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(55)), BitPos(8));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(56)), BitPos(7));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(57)), BitPos(6));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(58)), BitPos(5));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(59)), BitPos(4));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(60)), BitPos(3));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(61)), BitPos(2));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(62)), BitPos(1));
-		assert_eq!(BigEndian::at::<u64>(BitIdx(63)), BitPos(0));
-	}
-
-	#[cfg(all(target_pointer_width = "64", not(miri)))]
-	#[test]
-	#[should_panic]
-	fn be_u64_ovf() {
-		BigEndian::at::<u64>(BitIdx(64));
+		assert_eq!(BigEndian::at::<u64>(0u8.idx()), 63u8.pos());
+		assert_eq!(BigEndian::at::<u64>(1u8.idx()), 62u8.pos());
+		assert_eq!(BigEndian::at::<u64>(2u8.idx()), 61u8.pos());
+		assert_eq!(BigEndian::at::<u64>(3u8.idx()), 60u8.pos());
+		assert_eq!(BigEndian::at::<u64>(4u8.idx()), 59u8.pos());
+		assert_eq!(BigEndian::at::<u64>(5u8.idx()), 58u8.pos());
+		assert_eq!(BigEndian::at::<u64>(6u8.idx()), 57u8.pos());
+		assert_eq!(BigEndian::at::<u64>(7u8.idx()), 56u8.pos());
+		assert_eq!(BigEndian::at::<u64>(8u8.idx()), 55u8.pos());
+		assert_eq!(BigEndian::at::<u64>(9u8.idx()), 54u8.pos());
+		assert_eq!(BigEndian::at::<u64>(10u8.idx()), 53u8.pos());
+		assert_eq!(BigEndian::at::<u64>(11u8.idx()), 52u8.pos());
+		assert_eq!(BigEndian::at::<u64>(12u8.idx()), 51u8.pos());
+		assert_eq!(BigEndian::at::<u64>(13u8.idx()), 50u8.pos());
+		assert_eq!(BigEndian::at::<u64>(14u8.idx()), 49u8.pos());
+		assert_eq!(BigEndian::at::<u64>(15u8.idx()), 48u8.pos());
+		assert_eq!(BigEndian::at::<u64>(16u8.idx()), 47u8.pos());
+		assert_eq!(BigEndian::at::<u64>(17u8.idx()), 46u8.pos());
+		assert_eq!(BigEndian::at::<u64>(18u8.idx()), 45u8.pos());
+		assert_eq!(BigEndian::at::<u64>(19u8.idx()), 44u8.pos());
+		assert_eq!(BigEndian::at::<u64>(20u8.idx()), 43u8.pos());
+		assert_eq!(BigEndian::at::<u64>(21u8.idx()), 42u8.pos());
+		assert_eq!(BigEndian::at::<u64>(22u8.idx()), 41u8.pos());
+		assert_eq!(BigEndian::at::<u64>(23u8.idx()), 40u8.pos());
+		assert_eq!(BigEndian::at::<u64>(24u8.idx()), 39u8.pos());
+		assert_eq!(BigEndian::at::<u64>(25u8.idx()), 38u8.pos());
+		assert_eq!(BigEndian::at::<u64>(26u8.idx()), 37u8.pos());
+		assert_eq!(BigEndian::at::<u64>(27u8.idx()), 36u8.pos());
+		assert_eq!(BigEndian::at::<u64>(28u8.idx()), 35u8.pos());
+		assert_eq!(BigEndian::at::<u64>(29u8.idx()), 34u8.pos());
+		assert_eq!(BigEndian::at::<u64>(30u8.idx()), 33u8.pos());
+		assert_eq!(BigEndian::at::<u64>(31u8.idx()), 32u8.pos());
+		assert_eq!(BigEndian::at::<u64>(32u8.idx()), 31u8.pos());
+		assert_eq!(BigEndian::at::<u64>(33u8.idx()), 30u8.pos());
+		assert_eq!(BigEndian::at::<u64>(34u8.idx()), 29u8.pos());
+		assert_eq!(BigEndian::at::<u64>(35u8.idx()), 28u8.pos());
+		assert_eq!(BigEndian::at::<u64>(36u8.idx()), 27u8.pos());
+		assert_eq!(BigEndian::at::<u64>(37u8.idx()), 26u8.pos());
+		assert_eq!(BigEndian::at::<u64>(38u8.idx()), 25u8.pos());
+		assert_eq!(BigEndian::at::<u64>(39u8.idx()), 24u8.pos());
+		assert_eq!(BigEndian::at::<u64>(40u8.idx()), 23u8.pos());
+		assert_eq!(BigEndian::at::<u64>(41u8.idx()), 22u8.pos());
+		assert_eq!(BigEndian::at::<u64>(42u8.idx()), 21u8.pos());
+		assert_eq!(BigEndian::at::<u64>(43u8.idx()), 20u8.pos());
+		assert_eq!(BigEndian::at::<u64>(44u8.idx()), 19u8.pos());
+		assert_eq!(BigEndian::at::<u64>(45u8.idx()), 18u8.pos());
+		assert_eq!(BigEndian::at::<u64>(46u8.idx()), 17u8.pos());
+		assert_eq!(BigEndian::at::<u64>(47u8.idx()), 16u8.pos());
+		assert_eq!(BigEndian::at::<u64>(48u8.idx()), 15u8.pos());
+		assert_eq!(BigEndian::at::<u64>(49u8.idx()), 14u8.pos());
+		assert_eq!(BigEndian::at::<u64>(50u8.idx()), 13u8.pos());
+		assert_eq!(BigEndian::at::<u64>(51u8.idx()), 12u8.pos());
+		assert_eq!(BigEndian::at::<u64>(52u8.idx()), 11u8.pos());
+		assert_eq!(BigEndian::at::<u64>(53u8.idx()), 10u8.pos());
+		assert_eq!(BigEndian::at::<u64>(54u8.idx()), 9u8.pos());
+		assert_eq!(BigEndian::at::<u64>(55u8.idx()), 8u8.pos());
+		assert_eq!(BigEndian::at::<u64>(56u8.idx()), 7u8.pos());
+		assert_eq!(BigEndian::at::<u64>(57u8.idx()), 6u8.pos());
+		assert_eq!(BigEndian::at::<u64>(58u8.idx()), 5u8.pos());
+		assert_eq!(BigEndian::at::<u64>(59u8.idx()), 4u8.pos());
+		assert_eq!(BigEndian::at::<u64>(60u8.idx()), 3u8.pos());
+		assert_eq!(BigEndian::at::<u64>(61u8.idx()), 2u8.pos());
+		assert_eq!(BigEndian::at::<u64>(62u8.idx()), 1u8.pos());
+		assert_eq!(BigEndian::at::<u64>(63u8.idx()), 0u8.pos());
 	}
 
 	#[test]
 	fn le_u8_range() {
-		assert_eq!(LittleEndian::at::<u8>(BitIdx(0)), BitPos(0));
-		assert_eq!(LittleEndian::at::<u8>(BitIdx(1)), BitPos(1));
-		assert_eq!(LittleEndian::at::<u8>(BitIdx(2)), BitPos(2));
-		assert_eq!(LittleEndian::at::<u8>(BitIdx(3)), BitPos(3));
-		assert_eq!(LittleEndian::at::<u8>(BitIdx(4)), BitPos(4));
-		assert_eq!(LittleEndian::at::<u8>(BitIdx(5)), BitPos(5));
-		assert_eq!(LittleEndian::at::<u8>(BitIdx(6)), BitPos(6));
-		assert_eq!(LittleEndian::at::<u8>(BitIdx(7)), BitPos(7));
-	}
-
-	#[cfg(not(miri))]
-	#[test]
-	#[should_panic]
-	fn le_u8_ovf() {
-		LittleEndian::at::<u8>(BitIdx(8));
+		assert_eq!(LittleEndian::at::<u8>(0u8.idx()), 0u8.pos());
+		assert_eq!(LittleEndian::at::<u8>(1u8.idx()), 1u8.pos());
+		assert_eq!(LittleEndian::at::<u8>(2u8.idx()), 2u8.pos());
+		assert_eq!(LittleEndian::at::<u8>(3u8.idx()), 3u8.pos());
+		assert_eq!(LittleEndian::at::<u8>(4u8.idx()), 4u8.pos());
+		assert_eq!(LittleEndian::at::<u8>(5u8.idx()), 5u8.pos());
+		assert_eq!(LittleEndian::at::<u8>(6u8.idx()), 6u8.pos());
+		assert_eq!(LittleEndian::at::<u8>(7u8.idx()), 7u8.pos());
 	}
 
 	#[test]
 	fn le_u16_range() {
-		assert_eq!(LittleEndian::at::<u16>(BitIdx(0)), BitPos(0));
-		assert_eq!(LittleEndian::at::<u16>(BitIdx(1)), BitPos(1));
-		assert_eq!(LittleEndian::at::<u16>(BitIdx(2)), BitPos(2));
-		assert_eq!(LittleEndian::at::<u16>(BitIdx(3)), BitPos(3));
-		assert_eq!(LittleEndian::at::<u16>(BitIdx(4)), BitPos(4));
-		assert_eq!(LittleEndian::at::<u16>(BitIdx(5)), BitPos(5));
-		assert_eq!(LittleEndian::at::<u16>(BitIdx(6)), BitPos(6));
-		assert_eq!(LittleEndian::at::<u16>(BitIdx(7)), BitPos(7));
-		assert_eq!(LittleEndian::at::<u16>(BitIdx(8)), BitPos(8));
-		assert_eq!(LittleEndian::at::<u16>(BitIdx(9)), BitPos(9));
-		assert_eq!(LittleEndian::at::<u16>(BitIdx(10)), BitPos(10));
-		assert_eq!(LittleEndian::at::<u16>(BitIdx(11)), BitPos(11));
-		assert_eq!(LittleEndian::at::<u16>(BitIdx(12)), BitPos(12));
-		assert_eq!(LittleEndian::at::<u16>(BitIdx(13)), BitPos(13));
-		assert_eq!(LittleEndian::at::<u16>(BitIdx(14)), BitPos(14));
-		assert_eq!(LittleEndian::at::<u16>(BitIdx(15)), BitPos(15));
-	}
-
-	#[cfg(not(miri))]
-	#[test]
-	#[should_panic]
-	fn le_u16_ovf() {
-		LittleEndian::at::<u16>(BitIdx(16));
+		assert_eq!(LittleEndian::at::<u16>(0u8.idx()), 0u8.pos());
+		assert_eq!(LittleEndian::at::<u16>(1u8.idx()), 1u8.pos());
+		assert_eq!(LittleEndian::at::<u16>(2u8.idx()), 2u8.pos());
+		assert_eq!(LittleEndian::at::<u16>(3u8.idx()), 3u8.pos());
+		assert_eq!(LittleEndian::at::<u16>(4u8.idx()), 4u8.pos());
+		assert_eq!(LittleEndian::at::<u16>(5u8.idx()), 5u8.pos());
+		assert_eq!(LittleEndian::at::<u16>(6u8.idx()), 6u8.pos());
+		assert_eq!(LittleEndian::at::<u16>(7u8.idx()), 7u8.pos());
+		assert_eq!(LittleEndian::at::<u16>(8u8.idx()), 8u8.pos());
+		assert_eq!(LittleEndian::at::<u16>(9u8.idx()), 9u8.pos());
+		assert_eq!(LittleEndian::at::<u16>(10u8.idx()), 10u8.pos());
+		assert_eq!(LittleEndian::at::<u16>(11u8.idx()), 11u8.pos());
+		assert_eq!(LittleEndian::at::<u16>(12u8.idx()), 12u8.pos());
+		assert_eq!(LittleEndian::at::<u16>(13u8.idx()), 13u8.pos());
+		assert_eq!(LittleEndian::at::<u16>(14u8.idx()), 14u8.pos());
+		assert_eq!(LittleEndian::at::<u16>(15u8.idx()), 15u8.pos());
 	}
 
 	#[test]
 	fn le_u32_range() {
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(0)), BitPos(0));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(1)), BitPos(1));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(2)), BitPos(2));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(3)), BitPos(3));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(4)), BitPos(4));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(5)), BitPos(5));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(6)), BitPos(6));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(7)), BitPos(7));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(8)), BitPos(8));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(9)), BitPos(9));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(10)), BitPos(10));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(11)), BitPos(11));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(12)), BitPos(12));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(13)), BitPos(13));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(14)), BitPos(14));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(15)), BitPos(15));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(16)), BitPos(16));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(17)), BitPos(17));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(18)), BitPos(18));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(19)), BitPos(19));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(20)), BitPos(20));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(21)), BitPos(21));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(22)), BitPos(22));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(23)), BitPos(23));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(24)), BitPos(24));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(25)), BitPos(25));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(26)), BitPos(26));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(27)), BitPos(27));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(28)), BitPos(28));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(29)), BitPos(29));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(30)), BitPos(30));
-		assert_eq!(LittleEndian::at::<u32>(BitIdx(31)), BitPos(31));
-	}
-
-	#[cfg(not(miri))]
-	#[test]
-	#[should_panic]
-	fn le_u32_ovf() {
-		LittleEndian::at::<u32>(BitIdx(32));
+		assert_eq!(LittleEndian::at::<u32>(0u8.idx()), 0u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(1u8.idx()), 1u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(2u8.idx()), 2u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(3u8.idx()), 3u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(4u8.idx()), 4u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(5u8.idx()), 5u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(6u8.idx()), 6u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(7u8.idx()), 7u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(8u8.idx()), 8u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(9u8.idx()), 9u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(10u8.idx()), 10u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(11u8.idx()), 11u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(12u8.idx()), 12u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(13u8.idx()), 13u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(14u8.idx()), 14u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(15u8.idx()), 15u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(16u8.idx()), 16u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(17u8.idx()), 17u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(18u8.idx()), 18u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(19u8.idx()), 19u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(20u8.idx()), 20u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(21u8.idx()), 21u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(22u8.idx()), 22u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(23u8.idx()), 23u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(24u8.idx()), 24u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(25u8.idx()), 25u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(26u8.idx()), 26u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(27u8.idx()), 27u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(28u8.idx()), 28u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(29u8.idx()), 29u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(30u8.idx()), 30u8.pos());
+		assert_eq!(LittleEndian::at::<u32>(31u8.idx()), 31u8.pos());
 	}
 
 	#[cfg(target_pointer_width = "64")]
 	#[test]
 	fn le_u64_range() {
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(0)), BitPos(0));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(1)), BitPos(1));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(2)), BitPos(2));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(3)), BitPos(3));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(4)), BitPos(4));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(5)), BitPos(5));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(6)), BitPos(6));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(7)), BitPos(7));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(8)), BitPos(8));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(9)), BitPos(9));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(10)), BitPos(10));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(11)), BitPos(11));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(12)), BitPos(12));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(13)), BitPos(13));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(14)), BitPos(14));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(15)), BitPos(15));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(16)), BitPos(16));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(17)), BitPos(17));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(18)), BitPos(18));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(19)), BitPos(19));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(20)), BitPos(20));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(21)), BitPos(21));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(22)), BitPos(22));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(23)), BitPos(23));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(24)), BitPos(24));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(25)), BitPos(25));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(26)), BitPos(26));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(27)), BitPos(27));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(28)), BitPos(28));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(29)), BitPos(29));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(30)), BitPos(30));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(31)), BitPos(31));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(32)), BitPos(32));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(33)), BitPos(33));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(34)), BitPos(34));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(35)), BitPos(35));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(36)), BitPos(36));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(37)), BitPos(37));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(38)), BitPos(38));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(39)), BitPos(39));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(40)), BitPos(40));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(41)), BitPos(41));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(42)), BitPos(42));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(43)), BitPos(43));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(44)), BitPos(44));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(45)), BitPos(45));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(46)), BitPos(46));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(47)), BitPos(47));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(48)), BitPos(48));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(49)), BitPos(49));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(50)), BitPos(50));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(51)), BitPos(51));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(52)), BitPos(52));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(53)), BitPos(53));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(54)), BitPos(54));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(55)), BitPos(55));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(56)), BitPos(56));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(57)), BitPos(57));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(58)), BitPos(58));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(59)), BitPos(59));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(60)), BitPos(60));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(61)), BitPos(61));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(62)), BitPos(62));
-		assert_eq!(LittleEndian::at::<u64>(BitIdx(63)), BitPos(63));
-	}
-
-	#[cfg(all(target_pointer_width = "64", not(miri)))]
-	#[test]
-	#[should_panic]
-	fn le_u64_ovf() {
-		LittleEndian::at::<u64>(BitIdx(64));
+		assert_eq!(LittleEndian::at::<u64>(0u8.idx()), 0u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(1u8.idx()), 1u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(2u8.idx()), 2u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(3u8.idx()), 3u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(4u8.idx()), 4u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(5u8.idx()), 5u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(6u8.idx()), 6u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(7u8.idx()), 7u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(8u8.idx()), 8u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(9u8.idx()), 9u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(10u8.idx()), 10u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(11u8.idx()), 11u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(12u8.idx()), 12u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(13u8.idx()), 13u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(14u8.idx()), 14u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(15u8.idx()), 15u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(16u8.idx()), 16u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(17u8.idx()), 17u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(18u8.idx()), 18u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(19u8.idx()), 19u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(20u8.idx()), 20u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(21u8.idx()), 21u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(22u8.idx()), 22u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(23u8.idx()), 23u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(24u8.idx()), 24u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(25u8.idx()), 25u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(26u8.idx()), 26u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(27u8.idx()), 27u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(28u8.idx()), 28u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(29u8.idx()), 29u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(30u8.idx()), 30u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(31u8.idx()), 31u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(32u8.idx()), 32u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(33u8.idx()), 33u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(34u8.idx()), 34u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(35u8.idx()), 35u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(36u8.idx()), 36u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(37u8.idx()), 37u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(38u8.idx()), 38u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(39u8.idx()), 39u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(40u8.idx()), 40u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(41u8.idx()), 41u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(42u8.idx()), 42u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(43u8.idx()), 43u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(44u8.idx()), 44u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(45u8.idx()), 45u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(46u8.idx()), 46u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(47u8.idx()), 47u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(48u8.idx()), 48u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(49u8.idx()), 49u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(50u8.idx()), 50u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(51u8.idx()), 51u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(52u8.idx()), 52u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(53u8.idx()), 53u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(54u8.idx()), 54u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(55u8.idx()), 55u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(56u8.idx()), 56u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(57u8.idx()), 57u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(58u8.idx()), 58u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(59u8.idx()), 59u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(60u8.idx()), 60u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(61u8.idx()), 61u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(62u8.idx()), 62u8.pos());
+		assert_eq!(LittleEndian::at::<u64>(63u8.idx()), 63u8.pos());
 	}
 }
