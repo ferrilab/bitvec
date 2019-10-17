@@ -440,6 +440,40 @@ where C: Cursor, T: BitStore {
 		self.pointer.into_bitslice_mut()
 	}
 
+	/// Accesses the vector’s backing store as an element slice.
+	///
+	/// Unlike `BitSlice`’s method of the same name, this includes the partial
+	/// edges, as `BitBox` forbids fragmentation that leads to contention.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// The slice of all live elements in the backing storage, including the
+	/// partial edges if present.
+	pub fn as_slice(&self) -> &[T] {
+		self.bitptr().as_slice()
+	}
+
+	/// Accesses the vector’s backing store as an element slice.
+	///
+	/// Unlike `BitSlice`’s method of the same name, this includes the partial
+	/// edges, as `BitBox` forbids fragmentation that leads to contention.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The slice of all live elements in the backing storage, including the
+	/// partial edges if present.
+	pub fn as_mut_slice(&mut self) -> &mut [T] {
+		self.bitptr().as_mut_slice()
+	}
+
 	/// Gives read access to the `BitPtr<T>` structure powering the box.
 	///
 	/// # Parameters

@@ -2140,7 +2140,7 @@ where C: Cursor, T: BitStore {
 	/// let bb = &    b.as_bitslice::<LittleEndian>()[.. 4];
 	/// let c = ab.add_assign_reverse(bb);
 	/// assert!(c);
-	/// assert_eq!(ab.as_slice()[0], 0b0000_0110u8);
+	/// assert_eq!(a, 0b0000_0110u8);
 	/// ```
 	///
 	/// # Performance Notes
@@ -2176,6 +2176,9 @@ where C: Cursor, T: BitStore {
 	/// Accesses the backing storage of the `BitSlice` as a slice of its
 	/// elements.
 	///
+	/// This will not include partially-owned edge elements, as they may be
+	/// contended by other slice handles.
+	///
 	/// # Parameters
 	///
 	/// - `&self`
@@ -2199,10 +2202,20 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(accum, 3);
 	/// ```
 	pub fn as_slice(&self) -> &[T] {
-		self.bitptr().as_slice()
+		match self.bitptr().domain() {
+			| BitDomain::Empty
+			| BitDomain::Minor(_, _, _) => &[],
+			| BitDomain::PartialHead(_, _, body)
+			| BitDomain::PartialTail(body, _, _)
+			| BitDomain::Major(_, _, body, _, _)
+			| BitDomain::Spanning(body) => body,
+		}
 	}
 
 	/// Accesses the underlying store.
+	///
+	/// This will not include partially-owned edge elements, as they may be
+	/// contended by other slice handles.
 	///
 	/// # Examples
 	///
@@ -2217,7 +2230,31 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(&[3, 66], bits.as_slice());
 	/// ```
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
-		self.bitptr().as_mut_slice()
+		match self.bitptr().domain_mut() {
+			| BitDomainMut::Empty
+			| BitDomainMut::Minor(_, _, _) => &mut [],
+			| BitDomainMut::PartialHead(_, _, body)
+			| BitDomainMut::PartialTail(body, _, _)
+			| BitDomainMut::Major(_, _, body, _, _)
+			| BitDomainMut::Spanning(body) => body,
+		}
+	}
+
+	/// Accesses the underlying store, including contended partial elements.
+	///
+	/// This produces a slice of element wrappers that permit shared mutation,
+	/// rather than a slice of the bare `T` fundamentals.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// A slice of all elements under the bit span, including any
+	/// partially-owned edge elements, wrapped in safe shared-mutation types.
+	pub fn as_total_slice(&self) -> &[T::Access] {
+		self.bitptr().as_access_slice()
 	}
 
 	/// Accesses the underlying pointer structure.
@@ -2231,7 +2268,7 @@ where C: Cursor, T: BitStore {
 	/// The [`BitPtr`] structure of the slice handle.
 	///
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
-	pub fn bitptr(&self) -> BitPtr<T> {
+	pub(crate) fn bitptr(&self) -> BitPtr<T> {
 		BitPtr::from_bitslice(self)
 	}
 }
@@ -2421,13 +2458,16 @@ impl<C, T> AsMut<[T]> for BitSlice<C, T>
 where C: Cursor, T: BitStore {
 	/// Accesses the underlying store.
 	///
+	/// This will not include partially-owned edge elements, as they may be
+	/// contended by other slice handles.
+	///
 	/// # Parameters
 	///
 	/// - `&mut self`
 	///
 	/// # Returns
 	///
-	/// A mutable slice of all storage elements.
+	/// A mutable slice of all uncontended storage elements.
 	///
 	/// # Examples
 	///
@@ -2435,7 +2475,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = [0u8, 128];
-	/// let bits = &mut src.as_mut_bitslice::<BigEndian>()[1 .. 9];
+	/// let bits = &mut src.as_mut_bitslice::<BigEndian>();
 	///
 	/// for elt in bits.as_mut() {
 	///   *elt += 2;
@@ -2454,6 +2494,9 @@ impl<C, T> AsRef<[T]> for BitSlice<C, T>
 where C: Cursor, T: BitStore {
 	/// Accesses the underlying store.
 	///
+	/// This will not include partially-owned edge elements, as they may be
+	/// contended by other slice handles.
+	///
 	/// # Parameters
 	///
 	/// - `&self`
@@ -2468,7 +2511,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = [0u8, 128];
-	/// let bits = &src.as_bitslice::<BigEndian>()[1 .. 9];
+	/// let bits = &src.as_bitslice::<BigEndian>();
 	/// assert_eq!(&[0, 128], bits.as_ref());
 	/// ```
 	fn as_ref(&self) -> &[T] {
@@ -3274,11 +3317,11 @@ where C: Cursor, T: 'a + BitStore {
 	///
 	/// let mut src = [0u8; 2];
 	/// let bits = &mut src.as_mut_bitslice::<BigEndian>()[2 .. 14];
-	/// let new_bits = !bits;
+	/// let _ = !bits;
 	/// //  The `bits` binding is consumed by the `!` operator, and a new
 	/// //  reference is returned.
 	/// // assert_eq!(bits.as_ref(), &[!0, !0]);
-	/// assert_eq!(new_bits.as_ref(), &[0x3F, 0xFC]);
+	/// assert_eq!(src, [0x3F, 0xFC]);
 	/// ```
 	fn not(self) -> Self::Output {
 		match self.bitptr().domain_mut() {
@@ -3374,7 +3417,7 @@ where C: Cursor, T: BitStore {
 	/// let mut src = [0x4Bu8, 0xA5];
 	/// let bits = &mut src.as_mut_bitslice::<BigEndian>()[2 .. 14];
 	/// *bits <<= 3;
-	/// assert_eq!(bits.as_ref(), &[0b01_011_101, 0b001_000_01]);
+	/// assert_eq!(src, [0b01_011_101, 0b001_000_01]);
 	/// ```
 	fn shl_assign(&mut self, shamt: usize) {
 		use core::ops::Shr;
@@ -3479,7 +3522,7 @@ where C: Cursor, T: BitStore {
 	/// let mut src = [0x4Bu8, 0xA5];
 	/// let bits = &mut src.as_mut_bitslice::<BigEndian>()[2 .. 14];
 	/// *bits >>= 3;
-	/// assert_eq!(bits.as_ref(), &[0b01_000_00_1, 0b011_101_01])
+	/// assert_eq!(src, [0b01_000_00_1, 0b011_101_01])
 	/// ```
 	fn shr_assign(&mut self, shamt: usize) {
 		if shamt == 0 {

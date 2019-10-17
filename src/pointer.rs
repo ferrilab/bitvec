@@ -761,28 +761,28 @@ where T: BitStore {
 	///
 	/// # Parameters
 	///
-	/// - `&self`
+	/// - `self`
 	///
 	/// # Returns
 	///
 	/// An enum containing the logical components of the domain governed by
 	/// `self`.
-	pub(crate) fn domain(&self) -> BitDomain<T> {
-		(*self).into()
+	pub(crate) fn domain<'a>(self) -> BitDomain<'a, T> {
+		self.into()
 	}
 
 	/// Gets the domain for the region the pointer describes.
 	///
 	/// # Parameters
 	///
-	/// - `&self`
+	/// - `self`
 	///
 	/// # Returns
 	///
 	/// An enum containing the logical components of the domain governed by
 	/// `self`.
-	pub(crate) fn domain_mut(&self) -> BitDomainMut<T> {
-		(*self).into()
+	pub(crate) fn domain_mut<'a>(self) -> BitDomainMut<'a, T> {
+		self.into()
 	}
 
 	/// Moves the `head` cursor upwards by one.

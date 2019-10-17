@@ -170,7 +170,7 @@ where C: Cursor, T: 'de + BitStore + Deserialize<'de> {
 }
 
 impl<C, T> Serialize for BitSlice<C, T>
-where C: Cursor, T: BitStore + Serialize {
+where C: Cursor, T: BitStore + Serialize, T::Access: Serialize {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		let head = self.bitptr().head();
@@ -178,7 +178,7 @@ where C: Cursor, T: BitStore + Serialize {
 
 		state.serialize_field("head", &*head)?;
 		state.serialize_field("bits", &(self.len() as u64))?;
-		state.serialize_field("data", self.as_slice())?;
+		state.serialize_field("data", self.as_total_slice())?;
 
 		state.end()
 	}
@@ -186,7 +186,7 @@ where C: Cursor, T: BitStore + Serialize {
 
 #[cfg(feature = "alloc")]
 impl<C, T> Serialize for BitBox<C, T>
-where C: Cursor, T: BitStore + Serialize {
+where C: Cursor, T: BitStore + Serialize, T::Access: Serialize {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		BitSlice::serialize(&*self, serializer)
@@ -195,7 +195,7 @@ where C: Cursor, T: BitStore + Serialize {
 
 #[cfg(feature = "alloc")]
 impl<C, T> Serialize for BitVec<C, T>
-where C: Cursor, T: BitStore + Serialize {
+where C: Cursor, T: BitStore + Serialize, T::Access: Serialize {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		BitSlice::serialize(&*self, serializer)

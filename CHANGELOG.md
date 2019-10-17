@@ -18,7 +18,10 @@ This document is written according to the [Keep a Changelog][kac] style.
   operations on underlying memory has been rewritten. Production of contended
   references to bare fundamentals is now forbidden, and all access is mediated
   through either atomic (default) or `Cell` types.
-- Bit indexing is more firmly encoded in the type system
+- Bit indexing is more firmly encoded in the type system, which reduces the load
+  of runtime assertions.
+- `BitSlice::as_slice` excludes partial edge elements. `BitBox` and `BitVec` do
+  not.
 
 ### Removed
 

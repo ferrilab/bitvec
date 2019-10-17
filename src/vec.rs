@@ -818,6 +818,40 @@ where C: Cursor, T: BitStore {
 		self.pointer.into_bitslice_mut()
 	}
 
+	/// Accesses the vector’s backing store as an element slice.
+	///
+	/// Unlike `BitSlice`’s method of the same name, this includes the partial
+	/// edges, as `BitVec` forbids fragmentation that leads to contention.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// The slice of all live elements in the backing storage, including the
+	/// partial edges if present.
+	pub fn as_slice(&self) -> &[T] {
+		self.bitptr().as_slice()
+	}
+
+	/// Accesses the vector’s backing store as an element slice.
+	///
+	/// Unlike `BitSlice`’s method of the same name, this includes the partial
+	/// edges, as `BitVec` forbids fragmentation that leads to contention.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// The slice of all live elements in the backing storage, including the
+	/// partial edges if present.
+	pub fn as_mut_slice(&mut self) -> &mut [T] {
+		self.bitptr().as_mut_slice()
+	}
+
 	/// Sets the length of the vector.
 	///
 	/// This unconditionally sets the size of the vector, without modifying its
@@ -1576,29 +1610,7 @@ where C: Cursor, T: BitStore {
 	/// # Returns
 	///
 	/// The underlying `BitPtr` for the vector.
-	///
-	/// # Notes
-	///
-	/// The `BitPtr<T>` return type is opaque, and not exported by the crate.
-	/// Users are not able to use it in any way except to construct another
-	/// `BitVec<_, T>` from it. It is not possible for user code to even express
-	/// the name of the type.
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	/// use std::mem;
-	///
-	/// let bv = bitvec![1; 10];
-	/// let bitptr = bv.bitptr();
-	/// let cap = bv.capacity();
-	/// mem::forget(bv);
-	/// let bv2 = unsafe {
-	///   BitVec::<BigEndian, _>::from_raw_parts(bitptr, cap)
-	/// };
-	/// assert_eq!(bv2.len(), 10);
-	/// assert!(bv2[9]);
-	/// ```
-	pub fn bitptr(&self) -> BitPtr<T> {
+	pub(crate) fn bitptr(&self) -> BitPtr<T> {
 		self.pointer
 	}
 
