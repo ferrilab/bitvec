@@ -62,7 +62,6 @@ publish: checkout
 # Runs the test suites.
 test: check clippy
 	cargo test --no-default-features
-	cargo test --no-default-features --features alloc
-	cargo test --features testing,{{features}}
-	cargo run --features {{features}} --example sieve
-	cargo run --features {{features}} --example tour
+	cargo test --all-features
+	cargo run --all-features --example sieve
+	cargo run --all-features --example tour
