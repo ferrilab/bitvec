@@ -951,14 +951,15 @@ where T: BitStore {
 	}
 }
 
-/// Gets write access to all elements in the underlying storage, including the
-/// partial head and tail elements.
-///
-/// # Safety
-///
-/// This is *unsafe* to use except from known mutable `BitSlice` structures.
-/// Mutability is not encoded in the `BitPtr` type system at this time, and thus
-/// is not enforced by the compiler yet.
+/** Gets write access to all elements in the underlying storage, including the
+partial head and tail elements.
+
+# Safety
+
+This is *unsafe* to use except from known mutable `BitSlice` structures.
+Mutability is not encoded in the `BitPtr` type system at this time, and thus is
+not enforced by the compiler yet.
+**/
 impl<T> AsMut<[T]> for BitPtr<T>
 where T: BitStore {
 	fn as_mut(&mut self) -> &mut [T] {

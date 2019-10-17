@@ -2334,12 +2334,13 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Tests if two `BitSlice`s are semantically — not bitwise — equal.
-///
-/// It is valid to compare two slices of different cursor or element types.
-///
-/// The equality condition requires that they have the same number of total bits
-/// and that each pair of bits in semantic order are identical.
+/** Tests if two `BitSlice`s are semantically — not bitwise — equal.
+
+It is valid to compare two slices of different cursor or element types.
+
+The equality condition requires that they have the same number of total bits and
+that each pair of bits in semantic order are identical.
+**/
 impl<A, B, C, D> PartialEq<BitSlice<C, D>> for BitSlice<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	/// Performas a comparison by `==`.
@@ -2399,14 +2400,15 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	}
 }
 
-/// Compares two `BitSlice`s by semantic — not bitwise — ordering.
-///
-/// The comparison sorts by testing each index for one slice to have a set bit
-/// where the other has an unset bit. If the slices are different, the slice
-/// with the set bit sorts greater than the slice with the unset bit.
-///
-/// If one of the slices is exhausted before they differ, the longer slice is
-/// greater.
+/** Compares two `BitSlice`s by semantic — not bitwise — ordering.
+
+The comparison sorts by testing each index for one slice to have a set bit where
+the other has an unset bit. If the slices are different, the slice with the set
+bit sorts greater than the slice with the unset bit.
+
+If one of the slices is exhausted before they differ, the longer slice is
+greater.
+**/
 impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for BitSlice<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	/// Performs a comparison by `<` or `>`.
@@ -2578,16 +2580,17 @@ where C: Cursor, T: 'a + BitStore {
 	}
 }
 
-/// Prints the `BitSlice` for debugging.
-///
-/// The output is of the form `BitSlice<C, T> [ELT, *]` where `<C, T>` is the
-/// cursor and element type, with square brackets on each end of the bits and
-/// all the elements of the array printed in binary. The printout is always in
-/// semantic order, and may not reflect the underlying buffer. To see the
-/// underlying buffer, use `.as_ref()`.
-///
-/// The alternate character `{:#?}` prints each element on its own line, rather
-/// than having all elements on the same line.
+/** Prints the `BitSlice` for debugging.
+
+The output is of the form `BitSlice<C, T> [ELT, *]` where `<C, T>` is the cursor
+and element type, with square brackets on each end of the bits and all the
+elements of the array printed in binary. The printout is always in semantic
+order, and may not reflect the underlying buffer. To see the underlying buffer,
+use `.as_ref()`.
+
+The alternate character `{:#?}` prints each element on its own line, rather than
+having all elements on the same line.
+**/
 impl<C, T> Debug for BitSlice<C, T>
 where C: Cursor, T: BitStore {
 	/// Renders the `BitSlice` type header and contents for debug.
@@ -2616,16 +2619,17 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Prints the `BitSlice` for displaying.
-///
-/// This prints each element in turn, formatted in binary in semantic order (so
-/// the first bit seen is printed first and the last bit seen is printed last).
-/// Each element of storage is separated by a space for ease of reading.
-///
-/// The alternate character `{:#}` prints each element on its own line.
-///
-/// To see the in-memory representation, use `.as_ref()` to get access to the
-/// raw elements and print that slice instead.
+/** Prints the `BitSlice` for displaying.
+
+This prints each element in turn, formatted in binary in semantic order (so the
+first bit seen is printed first and the last bit seen is printed last). Each
+element of storage is separated by a space for ease of reading.
+
+The alternate character `{:#}` prints each element on its own line.
+
+To see the in-memory representation, use `.as_ref()` to get access to the raw
+elements and print that slice instead.
+**/
 impl<C, T> Display for BitSlice<C, T>
 where C: Cursor, T: BitStore {
 	/// Renders the `BitSlice` contents for display.
@@ -2741,11 +2745,12 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Produces a read-only iterator over all the bits in the `BitSlice`.
-///
-/// This iterator follows the ordering in the `BitSlice` type, and implements
-/// `ExactSizeIterator` as `BitSlice` has a known, fixed, length, and
-/// `DoubleEndedIterator` as it has known ends.
+/** Produces a read-only iterator over all the bits in the `BitSlice`.
+
+This iterator follows the ordering in the `BitSlice` type, and implements
+`ExactSizeIterator` as `BitSlice` has a known, fixed, length, and
+`DoubleEndedIterator` as it has known ends.
+**/
 impl<'a, C, T> IntoIterator for &'a BitSlice<C, T>
 where C: Cursor, T: 'a + BitStore {
 	type Item = bool;
@@ -2780,64 +2785,71 @@ where C: Cursor, T: 'a + BitStore {
 	}
 }
 
-/// `BitSlice` is safe to move across thread boundaries, when atomic operations
-/// are enabled.
-///
-/// Consider this (contrived) example:
-///
-/// ```rust
-/// # #[cfg(feature = "std")] {
-/// use bitvec::prelude::*;
-/// use std::thread;
-///
-/// static mut SRC: u8 = 0;
-/// # {
-/// let bits = unsafe { SRC.as_mut_bitslice::<BigEndian>() };
-/// let (l, r) = bits.split_at_mut(4);
-///
-/// let a = thread::spawn(move || l.set(2, true));
-/// let b = thread::spawn(move || r.set(2, true));
-/// a.join();
-/// b.join();
-/// # }
-///
-/// println!("{:02X}", unsafe { SRC });
-/// # }
-/// ```
-///
-/// Without atomic operations, this is logically a data race. It *so happens*
-/// that, on x86, the read/modify/write cycles used in the crate are *basically*
-/// atomic by default, even when not specified as such. This is not necessarily
-/// true on other architectures, however
+/** `BitSlice` is safe to move across thread boundaries, when atomic operations
+are enabled.
+
+Consider this (contrived) example:
+
+```rust
+# #[cfg(feature = "std")] {
+use bitvec::prelude::*;
+use std::thread;
+
+static mut SRC: u8 = 0;
+# {
+let bits = unsafe { SRC.as_mut_bitslice::<BigEndian>() };
+let (l, r) = bits.split_at_mut(4);
+
+let a = thread::spawn(move || l.set(2, true));
+let b = thread::spawn(move || r.set(2, true));
+a.join();
+b.join();
+# }
+
+println!("{:02X}", unsafe { SRC });
+# }
+```
+
+Without atomic operations, this is logically a data race. It *so happens* that,
+on x86, the read/modify/write cycles used in the crate are *basically* atomic by
+default, even when not specified as such. This is not necessarily true on other
+architectures, however.
+**/
 #[cfg(feature = "atomic")]
 unsafe impl<C, T> Send for BitSlice<C, T>
 where C: Cursor, T: BitStore {}
 
-/// `BitSlice` is safe to share between multiple threads.
+/** Reading across threads still has synchronization concerns if one thread can
+mutate, so read access across threads requires atomicity in order to ensure that
+write operations from one thread to an element conclude before another thread
+can read from the element, even if the two `BitSlice`s do not collide.
+**/
+#[cfg(feature = "atomic")]
 unsafe impl<C, T> Sync for BitSlice<C, T>
 where C: Cursor, T: BitStore {}
 
-/// Performs unsigned addition in place on a `BitSlice`.
-///
-/// If the addend bitstream is shorter than `self`, the addend is zero-extended
-/// at the left (so that its final bit matches with `self`’s final bit). If the
-/// addend is longer, the excess front length is unused.
-///
-/// Addition proceeds from the right ends of each slice towards the left.
-/// Because this trait is forbidden from returning anything, the final carry-out
-/// bit is discarded.
-///
-/// Note that, unlike `BitVec`, there is no subtraction implementation until I
-/// find a subtraction algorithm that does not require modifying the subtrahend.
-///
-/// Subtraction can be implemented by negating the intended subtrahend yourself
-/// and then using addition, or by using `BitVec`s instead of `BitSlice`s.
-///
-/// # Type Parameters
-///
-/// - `I: IntoIterator<Item=bool, IntoIter: DoubleEndedIterator>`: The bitstream
-///   to add into `self`. It must be finite and double-ended, since addition
-///   operates in reverse.
+/** Performs unsigned addition in place on a `BitSlice`.
+
+If the addend bitstream is shorter than `self`, the addend is zero-extended at
+the left (so that its final bit matches with `self`’s final bit). If the addend
+is longer, the excess front length is unused.
+
+Addition proceeds from the right ends of each slice towards the left. Because
+this trait is forbidden from returning anything, the final carry-out bit is
+discarded.
+
+Note that, unlike `BitVec`, there is no subtraction implementation until I find
+a subtraction algorithm that does not require modifying the subtrahend.
+
+Subtraction can be implemented by negating the intended subtrahend yourself and
+then using addition, or by using `BitVec`s instead of `BitSlice`s.
+
+# Type Parameters
+
+- `I: IntoIterator<Item=bool, IntoIter: DoubleEndedIterator>`: The bitstream to
+  add into `self`. It must be finite and double-ended, since addition operates
+  in reverse.
+**/
 impl<C, T, I> AddAssign<I> for BitSlice<C, T>
 where C: Cursor, T: BitStore,
 	I: IntoIterator<Item=bool>, I::IntoIter: DoubleEndedIterator {
@@ -2890,14 +2902,15 @@ where C: Cursor, T: BitStore,
 	}
 }
 
-/// Performs the Boolean `AND` operation against another bitstream and writes
-/// the result into `self`. If the other bitstream ends before `self,`, the
-/// remaining bits of `self` are cleared.
-///
-/// # Type Parameters
-///
-/// - `I: IntoIterator<Item=bool>`: A stream of bits, which may be a `BitSlice`
-///   or some other bit producer as desired.
+/** Performs the Boolean `AND` operation against another bitstream and writes
+the result into `self`. If the other bitstream ends before `self,`, the
+remaining bits of `self` are cleared.
+
+# Type Parameters
+
+- `I: IntoIterator<Item=bool>`: A stream of bits, which may be a `BitSlice`
+  or some other bit producer as desired.
+**/
 impl<C, T, I> BitAndAssign<I> for BitSlice<C, T>
 where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `AND`s a bitstream into a slice.
@@ -2932,14 +2945,15 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	}
 }
 
-/// Performs the Boolean `OR` operation against another bitstream and writes the
-/// result into `self`. If the other bitstream ends before `self`, the remaining
-/// bits of `self` are not affected.
-///
-/// # Type Parameters
-///
-/// - `I: IntoIterator<Item=bool>`: A stream of bits, which may be a `BitSlice`
-///   or some other bit producer as desired.
+/** Performs the Boolean `OR` operation against another bitstream and writes the
+result into `self`. If the other bitstream ends before `self`, the remaining
+bits of `self` are not affected.
+
+# Type Parameters
+
+- `I: IntoIterator<Item=bool>`: A stream of bits, which may be a `BitSlice`
+  or some other bit producer as desired.
+**/
 impl<C, T, I> BitOrAssign<I> for BitSlice<C, T>
 where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `OR`s a bitstream into a slice.
@@ -2972,14 +2986,15 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	}
 }
 
-/// Performs the Boolean `XOR` operation against another bitstream and writes
-/// the result into `self`. If the other bitstream ends before `self`, the
-/// remaining bits of `self` are not affected.
-///
-/// # Type Parameters
-///
-/// - `I: IntoIterator<Item=bool>`: A stream of bits, which may be a `BitSlice`
-///   or some other bit producer as desired.
+/** Performs the Boolean `XOR` operation against another bitstream and writes
+the result into `self`. If the other bitstream ends before `self`, the remaining
+bits of `self` are not affected.
+
+# Type Parameters
+
+- `I: IntoIterator<Item=bool>`: A stream of bits, which may be a `BitSlice`
+  or some other bit producer as desired.
+**/
 impl<C, T, I> BitXorAssign<I> for BitSlice<C, T>
 where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `XOR`s a bitstream into a slice.
@@ -3192,26 +3207,26 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Performs fixed-width 2’s-complement negation of a `BitSlice`.
-///
-/// Unlike the `!` operator (`Not` trait), the unary `-` operator treats the
-/// `BitSlice` as if it represents a signed 2’s-complement integer of fixed
-/// width. The negation of a number in 2’s complement is defined as its
-/// inversion (using `!`) plus one, and on fixed-width numbers has the following
-/// discontinuities:
-///
-/// - A slice whose bits are all zero is considered to represent the number zero
-///   which negates as itself.
-/// - A slice whose bits are all one is considered to represent the most
-///   negative number, which has no correpsonding positive number, and thus
-///   negates as zero.
-///
-/// This behavior was chosen so that all possible values would have *some*
-/// output, and so that repeated application converges at idempotence. The most
-/// negative input can never be reached by negation, but `--MOST_NEG` converges
-/// at the least unreasonable fallback value, 0.
-///
-/// Because `BitSlice` cannot move, the negation is performed in place.
+/** Performs fixed-width 2’s-complement negation of a `BitSlice`.
+
+Unlike the `!` operator (`Not` trait), the unary `-` operator treats the
+`BitSlice` as if it represents a signed 2’s-complement integer of fixed
+width. The negation of a number in 2’s complement is defined as its
+inversion (using `!`) plus one, and on fixed-width numbers has the following
+discontinuities:
+
+- A slice whose bits are all zero is considered to represent the number zero
+  which negates as itself.
+- A slice whose bits are all one is considered to represent the most negative
+  number, which has no correpsonding positive number, and thus negates as zero.
+
+This behavior was chosen so that all possible values would have *some*
+output, and so that repeated application converges at idempotence. The most
+negative input can never be reached by negation, but `--MOST_NEG` converges
+at the least unreasonable fallback value, 0.
+
+Because `BitSlice` cannot move, the negation is performed in place.
+**/
 impl<'a, C, T> Neg for &'a mut BitSlice<C, T>
 where C: Cursor, T: 'a + BitStore {
 	type Output = Self;
@@ -3374,35 +3389,35 @@ where C: Cursor, T: 'a + BitStore {
 
 __bitslice_shift!(u8, u16, u32, u64, i8, i16, i32, i64);
 
-/// Shifts all bits in the array to the left — **DOWN AND TOWARDS THE FRONT**.
-///
-/// On primitives, the left-shift operator `<<` moves bits away from the origin
-/// and towards the ceiling. This is because we label the bits in a primitive
-/// with the minimum on the right and the maximum on the left, which is
-/// big-endian bit order. This increases the value of the primitive being
-/// shifted.
-///
-/// **THAT IS NOT HOW `BitSlice` WORKS!**
-///
-/// `BitSlice` defines its layout with the minimum on the left and the maximum
-/// on the right! Thus, left-shifting moves bits towards the **minimum**.
-///
-/// In BigEndian order, the effect in memory will be what you expect the `<<`
-/// operator to do.
-///
-/// **In LittleEndian order, the effect will be equivalent to using `>>` on**
-/// **the primitives in memory!**
-///
-/// # Notes
-///
-/// In order to preserve the effecs in memory that this operator traditionally
-/// expects, the bits that are emptied by this operation are zeroed rather than
-/// left to their old value.
-///
-/// The shift amount is modulated against the array length, so it is not an
-/// error to pass a shift amount greater than the array length.
-///
-/// A shift amount of zero is a no-op, and returns immediately.
+/** Shifts all bits in the array to the left — **DOWN AND TOWARDS THE FRONT**.
+
+On fundamentals, the left-shift operator `<<` moves bits away from the origin
+and  towards the ceiling. This is because we label the bits in a primitive with
+the  minimum on the right and the maximum on the left, which is big-endian bit
+order.  This increases the value of the primitive being shifted.
+
+**THAT IS NOT HOW `BitSlice` WORKS!**
+
+`BitSlice` defines its layout with the minimum on the left and the maximum on
+the right! Thus, left-shifting moves bits towards the **minimum**.
+
+In BigEndian order, the effect in memory will be what you expect the `<<`
+operator to do.
+
+**In LittleEndian order, the effect will be equivalent to using `>>` on the**
+**fundamentals in memory!**
+
+# Notes
+
+In order to preserve the effecs in memory that this operator traditionally
+expects, the bits that are emptied by this operation are zeroed rather than
+left to their old value.
+
+The shift amount is modulated against the array length, so it is not an
+error to pass a shift amount greater than the array length.
+
+A shift amount of zero is a no-op, and returns immediately.
+**/
 impl<C, T> ShlAssign<usize> for BitSlice<C, T>
 where C: Cursor, T: BitStore {
 	/// Shifts a slice left, in place.
@@ -3479,35 +3494,35 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Shifts all bits in the array to the right — **UP AND TOWARDS THE BACK**.
-///
-/// On primitives, the right-shift operator `>>` moves bits towards the origin
-/// and away from the ceiling. This is because we label the bits in a primitive
-/// with the minimum on the right and the maximum on the left, which is
-/// big-endian bit order. This decreases the value of the primitive being
-/// shifted.
-///
-/// **THAT IS NOT HOW `BitSlice` WORKS!**
-///
-/// `BitSlice` defines its layout with the minimum on the left and the maximum
-/// on the right! Thus, right-shifting moves bits towards the **maximum**.
-///
-/// In Big-Endian order, the effect in memory will be what you expect the `>>`
-/// operator to do.
-///
-/// **In LittleEndian order, the effect will be equivalent to using `<<` on**
-/// **the primitives in memory!**
-///
-/// # Notes
-///
-/// In order to preserve the effects in memory that this operator traditionally
-/// expects, the bits that are emptied by this operation are zeroed rather than
-/// left to their old value.
-///
-/// The shift amount is modulated against the array length, so it is not an
-/// error to pass a shift amount greater than the array length.
-///
-/// A shift amount of zero is a no-op, and returns immediately.
+/** Shifts all bits in the array to the right — **UP AND TOWARDS THE BACK**.
+
+On fundamentals, the right-shift operator `>>` moves bits towards the origin and
+away from the ceiling. This is because we label the bits in a primitive with the
+minimum on the right and the maximum on the left, which is big-endian bit order.
+This decreases the value of the primitive being shifted.
+
+**THAT IS NOT HOW `BitSlice` WORKS!**
+
+`BitSlice` defines its layout with the minimum on the left and the maximum on
+the right! Thus, right-shifting moves bits towards the **maximum**.
+
+In Big-Endian order, the effect in memory will be what you expect the `>>`
+operator to do.
+
+**In LittleEndian order, the effect will be equivalent to using `<<` on the**
+**fundamentals in memory!**
+
+# Notes
+
+In order to preserve the effects in memory that this operator traditionally
+expects, the bits that are emptied by this operation are zeroed rather than left
+to their old value.
+
+The shift amount is modulated against the array length, so it is not an error to
+pass a shift amount greater than the array length.
+
+A shift amount of zero is a no-op, and returns immediately.
+**/
 impl<C, T> ShrAssign<usize> for BitSlice<C, T>
 where C: Cursor, T: BitStore {
 	/// Shifts a slice right, in place.
@@ -3626,16 +3641,17 @@ where C: Cursor, T: 'a + BitStore {
 unsafe impl<'a, C, T> Send for BitGuard<'a, C, T>
 where C: Cursor, T: 'a + BitStore {}
 
-/// State keeper for chunked iteration over a `BitSlice`.
-///
-/// # Type Parameters
-///
-/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
-///
-/// # Lifetimes
-///
-/// - `'a`: The lifetime of the underlying `BitSlice`.
+/** State keeper for chunked iteration over a `BitSlice`.
+
+# Type Parameters
+
+- `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+- `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
+
+# Lifetimes
+
+- `'a`: The lifetime of the underlying `BitSlice`.
+**/
 #[derive(Clone, Debug)]
 pub struct Chunks<'a, C, T>
 where C: Cursor, T: 'a + BitStore {
@@ -3852,16 +3868,17 @@ where C: Cursor, T: 'a + BitStore {
 	}
 }
 
-/// State keeper for mutable chunked iteration over a `BitSlice`.
-///
-/// # Type Parameters
-///
-/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
-///
-/// # Lifetimes
-///
-/// - `'a`: The lifetime of the underlying `BitSlice`.
+/** State keeper for mutable chunked iteration over a `BitSlice`.
+
+# Type Parameters
+
+- `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+- `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
+
+# Lifetimes
+
+- `'a`: The lifetime of the underlying `BitSlice`.
+**/
 #[derive(Debug)]
 pub struct ChunksMut<'a, C, T>
 where C: Cursor, T: 'a + BitStore {
@@ -4012,16 +4029,17 @@ where C: Cursor, T: 'a + BitStore {
 	}
 }
 
-/// State keeper for exact chunked iteration over a `BitSlice`.
-///
-/// # Type Parameters
-///
-/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
-///
-/// # Lifetimes
-///
-/// - `'a`: The lifetime of the underlying `BitSlice`.
+/** State keeper for exact chunked iteration over a `BitSlice`.
+
+# Type Parameters
+
+- `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+- `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
+
+# Lifetimes
+
+- `'a`: The lifetime of the underlying `BitSlice`.
+**/
 #[derive(Clone, Debug)]
 pub struct ChunksExact<'a, C, T>
 where C: Cursor, T: 'a + BitStore {
@@ -4253,16 +4271,17 @@ where C: Cursor, T: 'a + BitStore {
 	}
 }
 
-/// State keeper for mutable exact chunked iteration over a `BitSlice`.
-///
-/// # Type Parameters
-///
-/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
-///
-/// # Lifetimes
-///
-/// - `'a`: The lifetime of the underlying `BitSlice`.
+/** State keeper for mutable exact chunked iteration over a `BitSlice`.
+
+# Type Parameters
+
+- `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+- `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
+
+# Lifetimes
+
+- `'a`: The lifetime of the underlying `BitSlice`.
+**/
 #[derive(Debug)]
 pub struct ChunksExactMut<'a, C, T>
 where C: Cursor, T: 'a + BitStore {
@@ -4411,16 +4430,17 @@ where C: Cursor, T: 'a + BitStore {
 	}
 }
 
-/// State keeper for iteration over a `BitSlice`.
-///
-/// # Type Parameters
-///
-/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
-///
-/// # Lifetimes
-///
-/// - `'a`: The lifetime of the underlying `BitSlice`.
+/** State keeper for iteration over a `BitSlice`.
+
+# Type Parameters
+
+- `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+- `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
+
+# Lifetimes
+
+- `'a`: The lifetime of the underlying `BitSlice`.
+**/
 #[derive(Clone, Debug)]
 pub struct Iter<'a, C, T>
 where C: Cursor, T: 'a + BitStore {
@@ -4632,16 +4652,17 @@ where C: Cursor, T: 'a + BitStore {
 	}
 }
 
-/// State keeper for reverse chunked iteration over a `BitSlice`.
-///
-/// # Type Parameters
-///
-/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
-///
-/// # Lifetimes
-///
-/// - `'a`: The lifetime of the underlying `BitSlice`.
+/** State keeper for reverse chunked iteration over a `BitSlice`.
+
+# Type Parameters
+
+- `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+- `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
+
+# Lifetimes
+
+- `'a`: The lifetime of the underlying `BitSlice`.
+**/
 #[derive(Clone, Debug)]
 pub struct RChunks<'a, C, T>
 where C: Cursor, T: 'a + BitStore {
@@ -4856,16 +4877,17 @@ where C: Cursor, T: 'a + BitStore {
 	}
 }
 
-/// State keeper for mutable reverse chunked iteration over a `BitSlice`.
-///
-/// # Type Parameters
-///
-/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
-///
-/// # Lifetimes
-///
-/// - `'a`: The lifetime of the underlying `BitSlice`.
+/** State keeper for mutable reverse chunked iteration over a `BitSlice`.
+
+# Type Parameters
+
+- `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+- `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
+
+# Lifetimes
+
+- `'a`: The lifetime of the underlying `BitSlice`.
+**/
 #[derive(Debug)]
 pub struct RChunksMut<'a, C, T>
 where C: Cursor, T: 'a + BitStore {
@@ -5014,16 +5036,17 @@ where C: Cursor, T: 'a + BitStore {
 	}
 }
 
-/// State keeper for reverse exact iteration over a `BitSlice`.
-///
-/// # Type Parameters
-///
-/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
-///
-/// # Lifetimes
-///
-/// - `'a`: The lifetime of the underlying `BitSlice`.
+/** State keeper for reverse exact iteration over a `BitSlice`.
+
+# Type Parameters
+
+- `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+- `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
+
+# Lifetimes
+
+- `'a`: The lifetime of the underlying `BitSlice`.
+**/
 #[derive(Clone, Debug)]
 pub struct RChunksExact<'a, C, T>
 where C: Cursor, T: 'a + BitStore {
@@ -5255,16 +5278,17 @@ where C: Cursor, T: 'a + BitStore {
 	}
 }
 
-/// State keeper for mutable reverse exact chunked iteration over a `BitSlice`.
-///
-/// # Type Parameters
-///
-/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
-///
-/// # Lifetimes
-///
-/// - `'a`: The lifetime of the underlying `BitSlice`.
+/** State keeper for mutable reverse exact chunked iteration over a `BitSlice`.
+
+# Type Parameters
+
+- `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+- `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
+
+# Lifetimes
+
+- `'a`: The lifetime of the underlying `BitSlice`.
+**/
 #[derive(Debug)]
 pub struct RChunksExactMut<'a, C, T>
 where C: Cursor, T: 'a + BitStore {
@@ -5422,16 +5446,17 @@ where C: Cursor, T: 'a + BitStore {
 	}
 }
 
-/// State keeper for sliding-window iteration over a `BitSlice`.
-///
-/// # Type Parameters
-///
-/// - `C: Cursor`: The bit-order type of the underlying `BitSlice`.
-/// - `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
-///
-/// # Lifetimes
-///
-/// - `'a`: The lifetime of the underlying `BitSlice`.
+/** State keeper for sliding-window iteration over a `BitSlice`.
+
+# Type Parameters
+
+- `C: Cursor`: The bit-order type of the underlying `BitSlice`.
+- `T: 'a + BitStore`: The storage type of the underlying `BitSlice`.
+
+# Lifetimes
+
+- `'a`: The lifetime of the underlying `BitSlice`.
+**/
 #[derive(Clone, Debug)]
 pub struct Windows<'a, C, T>
 where C: Cursor, T: 'a + BitStore {

@@ -1788,12 +1788,13 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Tests if two `BitVec`s are semantically — not bitwise — equal.
-///
-/// It is valid to compare two vectors of different cursor or element types.
-///
-/// The equality condition requires that they have the same number of stored
-/// bits and that each pair of bits in semantic order are identical.
+/** Tests if two `BitVec`s are semantically — not bitwise — equal.
+
+It is valid to compare two vectors of different cursor or element types.
+
+The equality condition requires that they have the same number of stored bits
+and that each pair of bits in semantic order are identical.
+**/
 impl<A, B, C, D> PartialEq<BitVec<C, D>> for BitVec<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	/// Performs a comparison by `==`.
@@ -1848,14 +1849,15 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	}
 }
 
-/// Compares two `BitVec`s by semantic — not bitwise — ordering.
-///
-/// The comparison sorts by testing each index for one vector to have a set bit
-/// where the other vector has an unset bit. If the vectors are different, the
-/// vector with the set bit sorts greater than the vector with the unset bit.
-///
-/// If one of the vectors is exhausted before they differ, the longer vector is
-/// greater.
+/** Compares two `BitVec`s by semantic — not bitwise — ordering.
+
+The comparison sorts by testing each index for one vector to have a set bit
+where the other vector has an unset bit. If the vectors are different, the
+vector with the set bit sorts greater than the vector with the unset bit.
+
+If one of the vectors is exhausted before they differ, the longer vector is
+greater.
+**/
 impl<A, B, C, D> PartialOrd<BitVec<C, D>> for BitVec<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	/// Performs a comparison by `<` or `>`.
@@ -1948,10 +1950,11 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Builds a `BitVec` out of a slice of `bool`.
-///
-/// This is primarily for the `bitvec!` macro; it is not recommended for general
-/// use.
+/** Builds a `BitVec` out of a slice of `bool`.
+
+This is primarily for the `bitvec!` macro; it is not recommended for general
+use.
+**/
 impl<C, T> From<&[bool]> for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	fn from(src: &[bool]) -> Self {
@@ -1987,11 +1990,12 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Builds a `BitVec` out of a `Vec` of elements.
-///
-/// This moves the memory as-is from the source buffer into the new `BitVec`.
-/// The source buffer will be unchanged by this operation, so you don't need to
-/// worry about using the correct cursor type.
+/** Builds a `BitVec` out of a `Vec` of elements.
+
+This moves the memory as-is from the source buffer into the new `BitVec`. The
+source buffer will be unchanged by this operation, so you don't need to worry
+about using the correct cursor type.
+**/
 impl<C, T> From<Vec<T>> for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	fn from(src: Vec<T>) -> Self {
@@ -2013,16 +2017,17 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Prints the `BitVec` for debugging.
-///
-/// The output is of the form `BitVec<C, T> [ELT, *]`, where `<C, T>` is the
-/// cursor and element type, with square brackets on each end of the bits and
-/// all the live elements in the vector printed in binary. The printout is
-/// always in semantic order, and may not reflect the underlying store. To see
-/// the underlying store, use `format!("{:?}", self.as_slice());` instead.
-///
-/// The alternate character `{:#?}` prints each element on its own line, rather
-/// than separated by a space.
+/** Prints the `BitVec` for debugging.
+
+The output is of the form `BitVec<C, T> [ELT, *]`, where `<C, T>` is the cursor
+and element type, with square brackets on each end of the bits and all the live
+elements in the vector printed in binary. The printout is always in semantic
+order, and may not reflect the underlying store. To see the underlying store,
+use `format!("{:?}", self.as_slice());` instead.
+
+The alternate character `{:#?}` prints each element on its own line, rather than
+separated by a space.
+**/
 impl<C, T> Debug for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	/// Renders the `BitVec` type header and contents for debug.
@@ -2050,16 +2055,17 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Prints the `BitVec` for displaying.
-///
-/// This prints each element in turn, formatted in binary in semantic order (so
-/// the first bit seen is printed first and the last bit seen printed last).
-/// Each element of storage is separated by a space for ease of reading.
-///
-/// The alternate character `{:#}` prints each element on its own line.
-///
-/// To see the in-memory representation, use `AsRef` to get access to the raw
-/// elements and print that slice instead.
+/** Prints the `BitVec` for displaying.
+
+This prints each element in turn, formatted in binary in semantic order (so the
+first bit seen is printed first and the last bit seen printed last). Each
+element of storage is separated by a space for ease of reading.
+
+The alternate character `{:#}` prints each element on its own line.
+
+To see the in-memory representation, use `AsRef` to get access to the raw
+elements and print that slice instead.
+**/
 impl<C, T> Display for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	/// Renders the `BitVec` contents for display.
@@ -2104,11 +2110,12 @@ where C: Cursor, T: BitStore {
 	fn flush(&mut self) -> io::Result<()> { Ok(()) }
 }
 
-/// Extends a `BitVec` with the contents of another bitstream.
-///
-/// At present, this just calls `.push()` in a loop. When specialization becomes
-/// available, it will be able to more intelligently perform bulk moves from the
-/// source into `self` when the source is `BitSlice`-compatible.
+/** Extends a `BitVec` with the contents of another bitstream.
+
+At present, this just calls `.push()` in a loop. When specialization becomes
+available, it will be able to more intelligently perform bulk moves from the
+source into `self` when the source is `BitSlice`-compatible.
+**/
 impl<C, T> Extend<bool> for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	/// Extends a `BitVec` from another bitstream.
@@ -2174,11 +2181,12 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Produces an iterator over all the bits in the vector.
-///
-/// This iterator follows the ordering in the vector type, and implements
-/// `ExactSizeIterator`, since `BitVec`s always know exactly how large they are,
-/// and `DoubleEndedIterator`, since they have known ends.
+/** Produces an iterator over all the bits in the vector.
+
+This iterator follows the ordering in the vector type, and implements
+`ExactSizeIterator`, since `BitVec`s always know exactly how large they are, and
+`DoubleEndedIterator`, since they have known ends.
+**/
 impl<C, T> IntoIterator for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	type Item = bool;
@@ -2224,21 +2232,21 @@ where C: Cursor, T: BitStore {}
 unsafe impl<C, T> Sync for BitVec<C, T>
 where C: Cursor, T: BitStore {}
 
-/// Adds two `BitVec`s together, zero-extending the shorter.
-///
-/// `BitVec` addition works just like adding numbers longhand on paper. The
-/// first bits in the `BitVec` are the highest, so addition works from right to
-/// left, and the shorter `BitVec` is assumed to be extended to the left with
-/// zero.
-///
-/// The output `BitVec` may be one bit longer than the longer input, if addition
-/// overflowed.
-///
-/// Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
-/// computation on variable-length integers should use the `num_bigint` crate
-/// instead, which is written specifically for that use case. `BitVec`s are not
-/// intended for arithmetic, and `bitvec` makes no guarantees about sustained
-/// correctness in arithmetic at this time.
+/** Adds two `BitVec`s together, zero-extending the shorter.
+
+`BitVec` addition works just like adding numbers longhand on paper. The first
+bits in the `BitVec` are the highest, so addition works from right to left, and
+the shorter `BitVec` is assumed to be extended to the left with zero.
+
+The output `BitVec` may be one bit longer than the longer input, if addition
+overflowed.
+
+Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
+computation on variable-length integers should use the `num_bigint` crate
+instead, which is written specifically for that use case. `BitVec`s are not
+intended for arithmetic, and `bitvec` makes no guarantees about sustained
+correctness in arithmetic at this time.
+**/
 impl<C, T> Add for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	type Output = Self;
@@ -2273,21 +2281,21 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Adds another `BitVec` into `self`, zero-extending the shorter.
-///
-/// `BitVec` addition works just like adding numbers longhand on paper. The
-/// first bits in the `BitVec` are the highest, so addition works from right to
-/// left, and the shorter `BitVec` is assumed to be extended to the left with
-/// zero.
-///
-/// The output `BitVec` may be one bit longer than the longer input, if addition
-/// overflowed.
-///
-/// Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
-/// computation on variable-length integers should use the `num_bigint` crate
-/// instead, which is written specifically for that use case. `BitVec`s are not
-/// intended for arithmetic, and `bitvec` makes no guarantees about sustained
-/// correctness in arithmetic at this time.
+/** Adds another `BitVec` into `self`, zero-extending the shorter.
+
+`BitVec` addition works just like adding numbers longhand on paper. The first
+bits in the `BitVec` are the highest, so addition works from right to left, and
+the shorter `BitVec` is assumed to be extended to the left with zero.
+
+The output `BitVec` may be one bit longer than the longer input, if addition
+overflowed.
+
+Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
+computation on variable-length integers should use the `num_bigint` crate
+instead, which is written specifically for that use case. `BitVec`s are not
+intended for arithmetic, and `bitvec` makes no guarantees about sustained
+correctness in arithmetic at this time.
+**/
 impl<C, T> AddAssign for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	/// Adds another `BitVec` into `self`.
@@ -2327,11 +2335,12 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Performs the Boolean `AND` operation between each element of a `BitVec` and
-/// anything that can provide a stream of `bool` values (such as another
-/// `BitVec`, or any `bool` generator of your choice). The `BitVec` emitted will
-/// have the length of the shorter sequence of bits -- if one is longer than the
-/// other, the extra bits will be ignored.
+/** Performs the Boolean `AND` operation between each element of a `BitVec` and
+anything that can provide a stream of `bool` values (such as another `BitVec`,
+or any `bool` generator of your choice). The `BitVec` emitted will have the
+length of the shorter sequence of bits -- if one is longer than the other, the
+extra bits will be ignored.
+**/
 impl<C, T, I> BitAnd<I> for BitVec<C, T>
 where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	type Output = Self;
@@ -2354,9 +2363,10 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	}
 }
 
-/// Performs the Boolean `AND` operation in place on a `BitVec`, using a stream
-/// of `bool` values as the other bit for each operation. If the other stream is
-/// shorter than `self`, `self` will be truncated when the other stream expires.
+/** Performs the Boolean `AND` operation in place on a `BitVec`, using a stream
+of `bool` values as the other bit for each operation. If the other stream is
+shorter than `self`, `self` will be truncated when the other stream expires.
+**/
 impl<C, T, I> BitAndAssign<I> for BitVec<C, T>
 where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `AND`s another bitstream into a vector.
@@ -2386,11 +2396,12 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	}
 }
 
-/// Performs the Boolean `OR` operation between each element of a `BitVec` and
-/// anything that can provide a stream of `bool` values (such as another
-/// `BitVec`, or any `bool` generator of your choice). The `BitVec` emitted will
-/// have the length of the shorter sequence of bits -- if one is longer than the
-/// other, the extra bits will be ignored.
+/** Performs the Boolean `OR` operation between each element of a `BitVec` and
+anything that can provide a stream of `bool` values (such as another `BitVec`,
+or any `bool` generator of your choice). The `BitVec` emitted will have the
+length of the shorter sequence of bits -- if one is longer than the other, the
+extra bits will be ignored.
+**/
 impl<C, T, I> BitOr<I> for BitVec<C, T>
 where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	type Output = Self;
@@ -2413,9 +2424,10 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	}
 }
 
-/// Performs the Boolean `OR` operation in place on a `BitVec`, using a stream
-/// of `bool` values as the other bit for each operation. If the other stream is
-/// shorter than `self`, `self` will be truncated when the other stream expires.
+/** Performs the Boolean `OR` operation in place on a `BitVec`, using a stream
+of `bool` values as the other bit for each operation. If the other stream is
+shorter than `self`, `self` will be truncated when the other stream expires.
+**/
 impl<C, T, I> BitOrAssign<I> for BitVec<C, T>
 where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `OR`s another bitstream into a vector.
@@ -2445,11 +2457,12 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	}
 }
 
-/// Performs the Boolean `XOR` operation between each element of a `BitVec` and
-/// anything that can provide a stream of `bool` values (such as another
-/// `BitVec`, or any `bool` generator of your choice). The `BitVec` emitted will
-/// have the length of the shorter sequence of bits -- if one is longer than the
-/// other, the extra bits will be ignored.
+/** Performs the Boolean `XOR` operation between each element of a `BitVec` and
+anything that can provide a stream of `bool` values (such as another `BitVec`,
+or any `bool` generator of your choice). The `BitVec` emitted will have the
+length of the shorter sequence of bits -- if one is longer than the other, the
+extra bits will be ignored.
+**/
 impl<C, T, I> BitXor<I> for BitVec<C, T>
 where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	type Output = Self;
@@ -2472,9 +2485,10 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	}
 }
 
-/// Performs the Boolean `XOR` operation in place on a `BitVec`, using a stream
-/// of `bool` values as the other bit for each operation. If the other stream is
-/// shorter than `self`, `self` will be truncated when the other stream expires.
+/** Performs the Boolean `XOR` operation in place on a `BitVec`, using a stream
+of `bool` values as the other bit for each operation. If the other stream is
+shorter than `self`, `self` will be truncated when the other stream expires.
+**/
 impl<C, T, I> BitXorAssign<I> for BitVec<C, T>
 where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `XOR`s another bitstream into a vector.
@@ -2504,9 +2518,10 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	}
 }
 
-/// Reborrows the `BitVec` as a `BitSlice`.
-///
-/// This mimics the separation between `Vec<T>` and `[T]`.
+/** Reborrows the `BitVec` as a `BitSlice`.
+
+This mimics the separation between `Vec<T>` and `[T]`.
+**/
 impl<C, T> Deref for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	type Target = BitSlice<C, T>;
@@ -2527,9 +2542,10 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Mutably reborrows the `BitVec` as a `BitSlice`.
-///
-/// This mimics the separation between `Vec<T>` and `[T]`.
+/** Mutably reborrows the `BitVec` as a `BitSlice`.
+
+This mimics the separation between `Vec<T>` and `[T]`.
+**/
 impl<C, T> DerefMut for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	/// Dereferences `&mut BitVec` down to `&mut BitSlice`.
@@ -2695,16 +2711,16 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// 2’s-complement negation of a `BitVec`.
-///
-/// In 2’s-complement, negation is defined as bit-inversion followed by adding
-/// one.
-///
-/// Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
-/// computation on variable-length integers should use the `num_bigint` crate
-/// instead, which is written specifically for that use case. `BitVec`s are not
-/// intended for arithmetic, and `bitvec` makes no guarantees about sustained
-/// correctness in arithmetic at this time.
+/** 2’s-complement negation of a `BitVec`.
+
+In 2’s-complement, negation is defined as bit-inversion followed by adding one.
+
+Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
+computation on variable-length integers should use the `num_bigint` crate
+instead, which is written specifically for that use case. `BitVec`s are not
+intended for arithmetic, and `bitvec` makes no guarantees about sustained
+correctness in arithmetic at this time.
+**/
 impl<C, T> Neg for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	type Output = Self;
@@ -2756,34 +2772,35 @@ where C: Cursor, T: BitStore {
 
 __bitvec_shift!(u8, u16, u32, u64, i8, i16, i32, i64);
 
-/// Shifts all bits in the vector to the left – **DOWN AND TOWARDS THE FRONT**.
-///
-/// On primitives, the left-shift operator `<<` moves bits away from origin and
-/// towards the ceiling. This is because we label the bits in a primitive with
-/// the minimum on the right and the maximum on the left, which is big-endian
-/// bit order. This increases the value of the primitive being shifted.
-///
-/// **THAT IS NOT HOW `BITVEC` WORKS!**
-///
-/// `BitVec` defines its layout with the minimum on the left and the maximum on
-/// the right! Thus, left-shifting moves bits towards the **minimum**.
-///
-/// In BigEndian order, the effect in memory will be what you expect the `<<`
-/// operator to do.
-///
-/// **In LittleEndian order, the effect will be equivalent to using `>>` on**
-/// **the primitives in memory!**
-///
-/// # Notes
-///
-/// In order to preserve the effects in memory that this operator traditionally
-/// expects, the bits that are emptied by this operation are zeroed rather than
-/// left to their old value.
-///
-/// The length of the vector is decreased by the shift amount.
-///
-/// If the shift amount is greater than the length, the vector calls `clear()`
-/// and zeroes its memory. This is *not* an error.
+/** Shifts all bits in the vector to the left – **DOWN AND TOWARDS THE FRONT**.
+
+On fundamentals, the left-shift operator `<<` moves bits away from origin and
+towards the ceiling. This is because we label the bits in a primitive with the
+minimum on the right and the maximum on the left, which is big-endian bit order.
+This increases the value of the primitive being shifted.
+
+**THAT IS NOT HOW `BITVEC` WORKS!**
+
+`BitVec` defines its layout with the minimum on the left and the maximum on the
+right! Thus, left-shifting moves bits towards the **minimum**.
+
+In BigEndian order, the effect in memory will be what you expect the `<<`
+operator to do.
+
+**In LittleEndian order, the effect will be equivalent to using `>>` on the**
+**fundamentals in memory!**
+
+# Notes
+
+In order to preserve the effects in memory that this operator traditionally
+expects, the bits that are emptied by this operation are zeroed rather than
+left to their old value.
+
+The length of the vector is decreased by the shift amount.
+
+If the shift amount is greater than the length, the vector calls `clear()` and
+zeroes its memory. This is *not* an error.
+**/
 impl<C, T> Shl<usize> for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	type Output = Self;
@@ -2810,34 +2827,35 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Shifts all bits in the vector to the left – **DOWN AND TOWARDS THE FRONT**.
-///
-/// On primitives, the left-shift operator `<<` moves bits away from origin and
-/// towards the ceiling. This is because we label the bits in a primitive with
-/// the minimum on the right and the maximum on the left, which is big-endian
-/// bit order. This increases the value of the primitive being shifted.
-///
-/// **THAT IS NOT HOW `BITVEC` WORKS!**
-///
-/// `BitVec` defines its layout with the minimum on the left and the maximum on
-/// the right! Thus, left-shifting moves bits towards the **minimum**.
-///
-/// In BigEndian order, the effect in memory will be what you expect the `<<`
-/// operator to do.
-///
-/// **In LittleEndian order, the effect will be equivalent to using `>>` on**
-/// **the primitives in memory!**
-///
-/// # Notes
-///
-/// In order to preserve the effects in memory that this operator traditionally
-/// expects, the bits that are emptied by this operation are zeroed rather than
-/// left to their old value.
-///
-/// The length of the vector is decreased by the shift amount.
-///
-/// If the shift amount is greater than the length, the vector calls `clear()`
-/// and zeroes its memory. This is *not* an error.
+/** Shifts all bits in the vector to the left – **DOWN AND TOWARDS THE FRONT**.
+
+On fundamentals, the left-shift operator `<<` moves bits away from origin and
+towards the ceiling. This is because we label the bits in a primitive with the
+minimum on the right and the maximum on the left, which is big-endian bit order.
+This increases the value of the primitive being shifted.
+
+**THAT IS NOT HOW `BITVEC` WORKS!**
+
+`BitVec` defines its layout with the minimum on the left and the maximum on the
+right! Thus, left-shifting moves bits towards the **minimum**.
+
+In BigEndian order, the effect in memory will be what you expect the `<<`
+operator to do.
+
+**In LittleEndian order, the effect will be equivalent to using `>>` on the**
+**fundamentals in memory!**
+
+# Notes
+
+In order to preserve the effects in memory that this operator traditionally
+expects, the bits that are emptied by this operation are zeroed rather than left
+to their old value.
+
+The length of the vector is decreased by the shift amount.
+
+If the shift amount is greater than the length, the vector calls `clear()` and
+zeroes its memory. This is *not* an error.
+**/
 impl<C, T> ShlAssign<usize> for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	/// Shifts a `BitVec` to the left in place, shortening it.
@@ -2875,35 +2893,35 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Shifts all bits in the vector to the right – **UP AND TOWARDS THE BACK**.
-///
-/// On primitives, the right-shift operator `>>` moves bits towards the origin
-/// and away from the ceiling. This is because we label the bits in a primitive
-/// with the minimum on the right and the maximum on the left, which is
-/// big-endian bit order. This decreases the value of the primitive being
-/// shifted.
-///
-/// **THAT IS NOT HOW `BITVEC` WORKS!**
-///
-/// `BitVec` defines its layout with the minimum on the left and the maximum on
-/// the right! Thus, right-shifting moves bits towards the **maximum**.
-///
-/// In BigEndian order, the effect in memory will be what you expect the `>>`
-/// operator to do.
-///
-/// **In LittleEndian order, the effect will be equivalent to using `<<` on**
-/// **the primitives in memory!**
-///
-/// # Notes
-///
-/// In order to preserve the effects in memory that this operator traditionally
-/// expects, the bits that are emptied by this operation are zeroed rather than
-/// left to their old value.
-///
-/// The length of the vector is increased by the shift amount.
-///
-/// If the new length of the vector would overflow, a panic occurs. This *is* an
-/// error.
+/** Shifts all bits in the vector to the right – **UP AND TOWARDS THE BACK**.
+
+On fundamentals, the right-shift operator `>>` moves bits towards the origin and
+away from the ceiling. This is because we label the bits in a primitive with the
+minimum on the right and the maximum on the left, which is big-endian bit order.
+This decreases the value of the primitive being shifted.
+
+**THAT IS NOT HOW `BITVEC` WORKS!**
+
+`BitVec` defines its layout with the minimum on the left and the maximum on the
+right! Thus, right-shifting moves bits towards the **maximum**.
+
+In BigEndian order, the effect in memory will be what you expect the `>>`
+operator to do.
+
+**In LittleEndian order, the effect will be equivalent to using `<<` on the**
+**fundamentals in memory!**
+
+# Notes
+
+In order to preserve the effects in memory that this operator traditionally
+expects, the bits that are emptied by this operation are zeroed rather than left
+to their old value.
+
+The length of the vector is increased by the shift amount.
+
+If the new length of the vector would overflow, a panic occurs. This *is* an
+error.
+**/
 impl<C, T> Shr<usize> for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	type Output = Self;
@@ -2931,35 +2949,35 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Shifts all bits in the vector to the right – **UP AND TOWARDS THE BACK**.
-///
-/// On primitives, the right-shift operator `>>` moves bits towards the origin
-/// and away from the ceiling. This is because we label the bits in a primitive
-/// with the minimum on the right and the maximum on the left, which is
-/// big-endian bit order. This decreases the value of the primitive being
-/// shifted.
-///
-/// **THAT IS NOT HOW `BITVEC` WORKS!**
-///
-/// `BitVec` defines its layout with the minimum on the left and the maximum on
-/// the right! Thus, right-shifting moves bits towards the **maximum**.
-///
-/// In BigEndian order, the effect in memory will be what you expect the `>>`
-/// operator to do.
-///
-/// **In LittleEndian order, the effect will be equivalent to using `<<` on**
-/// **the primitives in memory!**
-///
-/// # Notes
-///
-/// In order to preserve the effects in memory that this operator traditionally
-/// expects, the bits that are emptied by this operation are zeroed rather than
-/// left to their old value.
-///
-/// The length of the vector is increased by the shift amount.
-///
-/// If the new length of the vector would overflow, a panic occurs. This *is* an
-/// error.
+/** Shifts all bits in the vector to the right – **UP AND TOWARDS THE BACK**.
+
+On fundamentals, the right-shift operator `>>` moves bits towards the origin and
+away from the ceiling. This is because we label the bits in a primitive with the
+minimum on the right and the maximum on the left, which is big-endian bit order.
+This decreases the value of the primitive being shifted.
+
+**THAT IS NOT HOW `BITVEC` WORKS!**
+
+`BitVec` defines its layout with the minimum on the left and the maximum on the
+right! Thus, right-shifting moves bits towards the **maximum**.
+
+In BigEndian order, the effect in memory will be what you expect the `>>`
+operator to do.
+
+**In LittleEndian order, the effect will be equivalent to using `<<` on the**
+**fundamentals in memory!**
+
+# Notes
+
+In order to preserve the effects in memory that this operator traditionally
+expects, the bits that are emptied by this operation are zeroed rather than left
+to their old value.
+
+The length of the vector is increased by the shift amount.
+
+If the new length of the vector would overflow, a panic occurs. This *is* an
+error.
+**/
 impl<C, T> ShrAssign<usize> for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	/// Shifts a `BitVec` to the right in place, lengthening it and filling the
@@ -2994,34 +3012,34 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Subtracts one `BitVec` from another assuming 2’s-complement encoding.
-///
-/// Subtraction is a more complex operation than addition. The bit-level work is
-/// largely the same, but semantic distinctions must be made. Unlike addition,
-/// which is commutative and tolerant of switching the order of the addends,
-/// subtraction cannot swap the minuend (LHS) and subtrahend (RHS).
-///
-/// Because of the properties of 2’s-complement arithmetic, M - S is equivalent
-/// to M + (!S + 1). Subtraction therefore bitflips the subtrahend and adds one.
-/// This may, in a degenerate case, cause the subtrahend to increase in length.
-///
-/// Once the subtrahend is stable, the minuend zero-extends its left side in
-/// order to match the length of the subtrahend if needed (this is provided by
-/// the `>>` operator).
-///
-/// When the minuend is stable, the minuend and subtrahend are added together
-/// by the `<BitVec as Add>` implementation. The output will be encoded in
-/// 2’s-complement, so a leading one means that the output is considered
-/// negative.
-///
-/// Interpreting the contents of a `BitVec` as an integer is beyond the scope of
-/// this crate.
-///
-/// Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
-/// computation on variable-length integers should use the `num_bigint` crate
-/// instead, which is written specifically for that use case. `BitVec`s are not
-/// intended for arithmetic, and `bitvec` makes no guarantees about sustained
-/// correctness in arithmetic at this time.
+/** Subtracts one `BitVec` from another assuming 2’s-complement encoding.
+
+Subtraction is a more complex operation than addition. The bit-level work is
+largely the same, but semantic distinctions must be made. Unlike addition, which
+is commutative and tolerant of switching the order of the addends, subtraction
+cannot swap the minuend (LHS) and subtrahend (RHS).
+
+Because of the properties of 2’s-complement arithmetic, M - S is equivalent to M
++ (!S + 1). Subtraction therefore bitflips the subtrahend and adds one. This
+may, in a degenerate case, cause the subtrahend to increase in length.
+
+Once the subtrahend is stable, the minuend zero-extends its left side in order
+to match the length of the subtrahend if needed (this is provided by the `>>`
+operator).
+
+When the minuend is stable, the minuend and subtrahend are added together by the
+`<BitVec as Add>` implementation. The output will be encoded in 2’s-complement,
+so a leading one means that the output is considered negative.
+
+Interpreting the contents of a `BitVec` as an integer is beyond the scope of
+this crate.
+
+Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
+computation on variable-length integers should use the `num_bigint` crate
+instead, which is written specifically for that use case. `BitVec`s are not
+intended for arithmetic, and `bitvec` makes no guarantees about sustained
+correctness in arithmetic at this time.
+**/
 impl<C, T> Sub for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	type Output = Self;
@@ -3068,18 +3086,19 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// Subtracts another `BitVec` from `self`, assuming 2’s-complement encoding.
-///
-/// The minuend is zero-extended, or the subtrahend sign-extended, as needed to
-/// ensure that the vectors are the same width before subtraction occurs.
-///
-/// The `Sub` trait has more documentation on the subtraction process.
-///
-/// Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
-/// computation on variable-length integers should use the `num_bigint` crate
-/// instead, which is written specifically for that use case. `BitVec`s are not
-/// intended for arithmetic, and `bitvec` makes no guarantees about sustained
-/// correctness in arithmetic at this time.
+/** Subtracts another `BitVec` from `self`, assuming 2’s-complement encoding.
+
+The minuend is zero-extended, or the subtrahend sign-extended, as needed to
+ensure that the vectors are the same width before subtraction occurs.
+
+The `Sub` trait has more documentation on the subtraction process.
+
+Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
+computation on variable-length integers should use the `num_bigint` crate
+instead, which is written specifically for that use case. `BitVec`s are not
+intended for arithmetic, and `bitvec` makes no guarantees about sustained
+correctness in arithmetic at this time.
+**/
 impl<C, T> SubAssign for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	/// Subtracts another `BitVec` from `self`.
@@ -3128,16 +3147,17 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// State keeper for draining iteration.
-///
-/// # Type Parameters
-///
-/// - `C: Cursor`: The cursor type of the underlying vector.
-/// - `T: 'a + BitStore`: The storage type of the underlying vector.
-///
-/// # Lifetimes
-///
-/// - `'a`: The lifetime of the underlying vector.
+/** State keeper for draining iteration.
+
+# Type Parameters
+
+- `C: Cursor`: The cursor type of the underlying vector.
+- `T: 'a + BitStore`: The storage type of the underlying vector.
+
+# Lifetimes
+
+- `'a`: The lifetime of the underlying vector.
+**/
 pub struct Drain<'a, C, T>
 where C: Cursor, T: 'a + BitStore {
 	/// Pointer to the `BitVec` being drained.
@@ -3454,18 +3474,19 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/// A splicing iterator for `BitVec`.
-///
-/// This removes a segment from the vector and inserts another bitstream into
-/// its spot. Any bits from the original `BitVec` after the removed segment are
-/// kept, after the inserted bitstream.
-///
-/// Only the removed segment is available for iteration.
-///
-/// # Type Parameters
-///
-/// - `I: Iterator<Item=bool>`: Any bitstream. This will be used to fill the
-///   removed span.
+/** A splicing iterator for `BitVec`.
+
+This removes a segment from the vector and inserts another bitstream into its
+spot. Any bits from the original `BitVec` after the removed segment are kept,
+after the inserted bitstream.
+
+Only the removed segment is available for iteration.
+
+# Type Parameters
+
+- `I: Iterator<Item=bool>`: Any bitstream. This will be used to fill the
+  removed span.
+**/
 pub struct Splice<'a, C, T, I>
 where C: Cursor, T: 'a + BitStore, I: Iterator<Item=bool> {
 	drain: Drain<'a, C, T>,

@@ -303,12 +303,13 @@ impl BitStore for u64 {
 	type Access = Cell<Self>;
 }
 
-/// Marker trait to seal `BitStore` against downstream implementation.
-///
-/// This trait is public in the module, so that other modules in the crate can
-/// use it, but so long as it is not exported by the crate root and this module
-/// is private, this trait effectively forbids downstream implementation of the
-/// `BitStore` trait.
+/** Marker trait to seal `BitStore` against downstream implementation.
+
+This trait is public in the module, so that other modules in the crate can use
+it, but so long as it is not exported by the crate root and this module is
+private, this trait effectively forbids downstream implementation of the
+`BitStore` trait.
+**/
 #[doc(hidden)]
 pub trait Sealed {}
 
