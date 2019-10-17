@@ -20,6 +20,30 @@ This document is written according to the [Keep a Changelog][kac] style.
   through either atomic (default) or `Cell` types.
 - Bit indexing is more firmly encoded in the type system
 
+### Removed
+
+- `BitSlice::change_cursor` and `change_cursor_mut` allow incorrectly aliasing
+  memory with different slice handles, because there is no way for them to
+  compute the electrical positions they govern and then construct new indices in
+  the target `Cursor` that match those positions.
+
+  Example:
+
+  ```rust
+  use bitvec::prelude::*;
+  let mut elt = 0u8;
+  let bits = elt.bits_mut::<BigEndian>();
+  let (head, tail) = bits.split_at_mut(4);
+  let tail = tail.change_cursor_mut::<LittleEndian>();
+  ```
+
+  `head` now points at the first four bits in big-endian order, and tail at the
+  last four bits in little-endian order, and these indices all map to the high
+  nibble of `elt`. `head` and `tail` mutably alias.
+
+  These functions are retained in `BitBox` and `BitVec`, as those types do not
+  allow memory contention.
+
 ## 0.15.2
 
 ### Changed
