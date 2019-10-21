@@ -19,7 +19,10 @@ use crate::{
 	store::BitStore,
 };
 
-use core::sync::atomic::Ordering;
+use core::{
+	fmt::Debug,
+	sync::atomic::Ordering,
+};
 
 use radium::{
 	Radium,
@@ -33,7 +36,7 @@ associated type, which implements this trait, in order to perform *any* access
 to underlying memory. This trait extends the `Radium` element-wise shared
 mutable access with single-bit operations suited for use by `BitSlice`.
 **/
-pub trait BitAccess<T>: Radium<T>
+pub trait BitAccess<T>: Debug + Radium<T>
 where T: BitStore + BitOps {
 	/// Set a single bit in an element low.
 	///
@@ -56,6 +59,17 @@ where T: BitStore + BitOps {
 		self.fetch_and(!*C::mask(place), Ordering::Relaxed);
 	}
 
+	/// Writes the low bits of the mask into the underlying element.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `mask`: Any value. The low bits of the mask will be written into
+	///   `*self`; the high bits will preserve their value in `*self`.
+	fn clear_bits(&self, mask: T) {
+		self.fetch_and(mask, Ordering::Relaxed);
+	}
+
 	/// Set a single bit in an element high.
 	///
 	/// `BitAccess::set` calls this when its `value` is `true`; it
@@ -75,6 +89,17 @@ where T: BitStore + BitOps {
 	fn set_bit<C>(&self, place: BitIdx<T>)
 	where C: Cursor {
 		self.fetch_or(*C::mask(place), Ordering::Relaxed);
+	}
+
+	/// Writes the high bits of the mask into the underlying element.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `mask`: Any value. The high bits of the mask will be written into
+	///   `*self`; the low bits will preserve their value in `*self`.
+	fn set_bits(&self, mask: T) {
+		self.fetch_or(mask, Ordering::Relaxed);
 	}
 
 	/// Invert a single bit in an element.
@@ -151,4 +176,4 @@ where T: BitStore + BitOps {
 }
 
 impl<T, R> BitAccess<T> for R
-where T: BitStore + BitOps, R: Radium<T> {}
+where T: BitStore + BitOps, R: Debug + Radium<T> {}

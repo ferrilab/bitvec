@@ -33,6 +33,7 @@ use core::{
 	ops::{
 		BitAnd,
 		BitAndAssign,
+		BitOr,
 		BitOrAssign,
 		Not,
 		Shl,
@@ -64,8 +65,9 @@ pub trait BitStore:
 	Sealed
 	+ Binary
 	//  Element-wise binary manipulation
-	+ BitAnd<Self, Output=Self>
+	+ BitAnd<Self, Output = Self>
 	+ BitAndAssign<Self>
+	+ BitOr<Self, Output = Self>
 	+ BitOrAssign<Self>
 	//  Permit indexing into a generic array
 	+ Copy
@@ -80,11 +82,11 @@ pub trait BitStore:
 	//  Permit extending into a `u64`.
 	+ Into<u64>
 	+ LowerHex
-	+ Not<Output=Self>
+	+ Not<Output = Self>
 	+ Send
-	+ Shl<u8, Output=Self>
+	+ Shl<u8, Output = Self>
 	+ ShlAssign<u8>
-	+ Shr<u8, Output=Self>
+	+ Shr<u8, Output = Self>
 	+ ShrAssign<u8>
 	//  Allow direct access to a concrete implementor type.
 	+ Sized

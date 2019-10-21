@@ -14,6 +14,7 @@ pub use crate::{
 		BigEndian,
 		LittleEndian,
 	},
+	fields::BitField,
 	slice::BitSlice,
 	store::BitStore,
 };

@@ -14,6 +14,12 @@ This document is written according to the [Keep a Changelog][kac] style.
 - `Bits` and `BitsMut` renamed their methods to `bits` and `bits_mut`,
   respectively; `as_bitslice` and `as_mut_bitslice` are marked deprecated and
   will be removed in `0.17`.
+- The `BitField` trait allows `BitSlice<BigEndian, _>` and
+  `BitSlice<LittleEndian, _>` to provide behavior analagous to bitfields in C
+  and C++ `struct` definitions. This trait provides `load` and `store` methods
+  on `BitSlice`s with those two `Cursor`s which allow for parallel access to the
+  underlying memory. This trait is currently not able to be implemented by
+  downstream crates; this restriction may ease in the future.
 
 ### Changed
 
