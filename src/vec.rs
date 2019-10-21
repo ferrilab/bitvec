@@ -527,7 +527,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bs = [0u8, !0].as_bitslice::<BigEndian>();
+	/// let bs = [0u8, !0].bits::<BigEndian>();
 	/// let bv = BitVec::from_bitslice(bs);
 	/// assert_eq!(bv.len(), 16);
 	/// assert!(bv.some());

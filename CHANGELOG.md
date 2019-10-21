@@ -11,6 +11,9 @@ This document is written according to the [Keep a Changelog][kac] style.
 - `Cursor` now provides a `mask` function, which produces a one-hot mask usable
   for direct memory access. Implementors of `Cursor` may use the default, or
   provide their own.
+- `Bits` and `BitsMut` renamed their methods to `bits` and `bits_mut`,
+  respectively; `as_bitslice` and `as_mut_bitslice` are marked deprecated and
+  will be removed in `0.17`.
 
 ### Changed
 

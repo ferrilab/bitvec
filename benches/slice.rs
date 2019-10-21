@@ -49,25 +49,25 @@ fn slice(b: &mut Bencher) {
 
 #[bench]
 fn len(b: &mut Bencher) {
-	let bsb08 = [0u8; 16].as_bitslice::<BigEndian>();
-	let bsl08 = [0u8; 16].as_bitslice::<LittleEndian>();
+	let bsb08 = [0u8; 16].bits::<BigEndian>();
+	let bsl08 = [0u8; 16].bits::<LittleEndian>();
 	b.iter(|| bsb08.len());
 	b.iter(|| bsl08.len());
 
-	let bsb16 = [0u16; 8].as_bitslice::<BigEndian>();
-	let bsl16 = [0u16; 8].as_bitslice::<LittleEndian>();
+	let bsb16 = [0u16; 8].bits::<BigEndian>();
+	let bsl16 = [0u16; 8].bits::<LittleEndian>();
 	b.iter(|| bsb16.len());
 	b.iter(|| bsl16.len());
 
-	let bsb32 = [0u32; 4].as_bitslice::<BigEndian>();
-	let bsl32 = [0u32; 4].as_bitslice::<LittleEndian>();
+	let bsb32 = [0u32; 4].bits::<BigEndian>();
+	let bsl32 = [0u32; 4].bits::<LittleEndian>();
 	b.iter(|| bsb32.len());
 	b.iter(|| bsl32.len());
 
 	#[cfg(target_pointer_width = "64")] {
 
-	let bsb64 = [0u64; 2].as_bitslice::<BigEndian>();
-	let bsl64 = [0u64; 2].as_bitslice::<LittleEndian>();
+	let bsb64 = [0u64; 2].bits::<BigEndian>();
+	let bsl64 = [0u64; 2].bits::<LittleEndian>();
 	b.iter(|| bsb64.len());
 	b.iter(|| bsl64.len());
 
@@ -78,25 +78,25 @@ fn len(b: &mut Bencher) {
 //  hit in `BitIdx::offset`.
 #[bench]
 fn index(b: &mut Bencher) {
-	let bsb08 = [0u8; 16].as_bitslice::<BigEndian>();
-	let bsl08 = [0u8; 16].as_bitslice::<LittleEndian>();
+	let bsb08 = [0u8; 16].bits::<BigEndian>();
+	let bsl08 = [0u8; 16].bits::<LittleEndian>();
 	b.iter(|| bsb08[69]);
 	b.iter(|| bsl08[69]);
 
-	let bsb16 = [0u16; 8].as_bitslice::<BigEndian>();
-	let bsl16 = [0u16; 8].as_bitslice::<LittleEndian>();
+	let bsb16 = [0u16; 8].bits::<BigEndian>();
+	let bsl16 = [0u16; 8].bits::<LittleEndian>();
 	b.iter(|| bsb16[69]);
 	b.iter(|| bsl16[69]);
 
-	let bsb32 = [0u32; 4].as_bitslice::<BigEndian>();
-	let bsl32 = [0u32; 4].as_bitslice::<LittleEndian>();
+	let bsb32 = [0u32; 4].bits::<BigEndian>();
+	let bsl32 = [0u32; 4].bits::<LittleEndian>();
 	b.iter(|| bsb32[69]);
 	b.iter(|| bsl32[69]);
 
 	#[cfg(target_pointer_width = "64")] {
 
-	let bsb64 = [0u64; 2].as_bitslice::<BigEndian>();
-	let bsl64 = [0u64; 2].as_bitslice::<LittleEndian>();
+	let bsb64 = [0u64; 2].bits::<BigEndian>();
+	let bsl64 = [0u64; 2].bits::<LittleEndian>();
 	b.iter(|| bsb64[69]);
 	b.iter(|| bsl64[69]);
 
@@ -109,33 +109,33 @@ fn index(b: &mut Bencher) {
 #[bench]
 fn at(b: &mut Bencher) {
 	let mut src = [0u8; 16];
-	let bsb08 = src.as_mut_bitslice::<BigEndian>();
+	let bsb08 = src.bits_mut::<BigEndian>();
 	b.iter(|| *bsb08.at(69) = true);
 	let mut src = [0u8; 16];
-	let bsl08 = src.as_mut_bitslice::<LittleEndian>();
+	let bsl08 = src.bits_mut::<LittleEndian>();
 	b.iter(|| *bsl08.at(69) = true);
 
 	let mut src = [0u16; 8];
-	let bsb16 = src.as_mut_bitslice::<BigEndian>();
+	let bsb16 = src.bits_mut::<BigEndian>();
 	b.iter(|| *bsb16.at(69) = true);
 	let mut src = [0u16; 8];
-	let bsl16 = src.as_mut_bitslice::<LittleEndian>();
+	let bsl16 = src.bits_mut::<LittleEndian>();
 	b.iter(|| *bsl16.at(69) = true);
 
 	let mut src = [0u32; 4];
-	let bsb32 = src.as_mut_bitslice::<BigEndian>();
+	let bsb32 = src.bits_mut::<BigEndian>();
 	b.iter(|| *bsb32.at(69) = true);
 	let mut src = [0u32; 4];
-	let bsl32 = src.as_mut_bitslice::<LittleEndian>();
+	let bsl32 = src.bits_mut::<LittleEndian>();
 	b.iter(|| *bsl32.at(69) = true);
 
 	#[cfg(target_pointer_width = "64")] {
 
 	let mut src = [0u64; 2];
-	let bsb64 = src.as_mut_bitslice::<BigEndian>();
+	let bsb64 = src.bits_mut::<BigEndian>();
 	b.iter(|| *bsb64.at(69) = true);
 	let mut src = [0u64; 2];
-	let bsl64 = src.as_mut_bitslice::<LittleEndian>();
+	let bsl64 = src.bits_mut::<LittleEndian>();
 	b.iter(|| *bsl64.at(69) = true);
 
 	}
@@ -144,40 +144,40 @@ fn at(b: &mut Bencher) {
 #[bench]
 fn add_assign(b: &mut Bencher) {
 	let mut src = [0u8; 16];
-	let bsb08a = src.as_mut_bitslice::<BigEndian>();
-	let bsb08b = [0u8; 16].as_bitslice::<BigEndian>();
+	let bsb08a = src.bits_mut::<BigEndian>();
+	let bsb08b = [0u8; 16].bits::<BigEndian>();
 	let mut src = [0u8; 16];
-	let bsl08a = src.as_mut_bitslice::<LittleEndian>();
-	let bsl08b = [0u8; 16].as_bitslice::<LittleEndian>();
+	let bsl08a = src.bits_mut::<LittleEndian>();
+	let bsl08b = [0u8; 16].bits::<LittleEndian>();
 	b.iter(|| bsb08a.add_assign(bsb08b));
 	b.iter(|| bsl08a.add_assign(bsl08b));
 
 	let mut src = [0u16; 8];
-	let bsb16a = src.as_mut_bitslice::<BigEndian>();
-	let bsb16b = [0u16; 8].as_bitslice::<BigEndian>();
+	let bsb16a = src.bits_mut::<BigEndian>();
+	let bsb16b = [0u16; 8].bits::<BigEndian>();
 	let mut src = [0u16; 8];
-	let bsl16a = src.as_mut_bitslice::<LittleEndian>();
-	let bsl16b = [0u16; 8].as_bitslice::<LittleEndian>();
+	let bsl16a = src.bits_mut::<LittleEndian>();
+	let bsl16b = [0u16; 8].bits::<LittleEndian>();
 	b.iter(|| bsb16a.add_assign(bsb16b));
 	b.iter(|| bsl16a.add_assign(bsl16b));
 
 	let mut src = [0u32; 4];
-	let bsb32a = src.as_mut_bitslice::<BigEndian>();
-	let bsb32b = [0u32; 4].as_bitslice::<BigEndian>();
+	let bsb32a = src.bits_mut::<BigEndian>();
+	let bsb32b = [0u32; 4].bits::<BigEndian>();
 	let mut src = [0u32; 4];
-	let bsl32a = src.as_mut_bitslice::<LittleEndian>();
-	let bsl32b = [0u32; 4].as_bitslice::<LittleEndian>();
+	let bsl32a = src.bits_mut::<LittleEndian>();
+	let bsl32b = [0u32; 4].bits::<LittleEndian>();
 	b.iter(|| bsb32a.add_assign(bsb32b));
 	b.iter(|| bsl32a.add_assign(bsl32b));
 
 	#[cfg(target_pointer_width = "64")] {
 
 	let mut src = [0u64; 2];
-	let bsb64a = src.as_mut_bitslice::<BigEndian>();
-	let bsb64b = [0u64; 2].as_bitslice::<BigEndian>();
+	let bsb64a = src.bits_mut::<BigEndian>();
+	let bsb64b = [0u64; 2].bits::<BigEndian>();
 	let mut src = [0u64; 2];
-	let bsl64a = src.as_mut_bitslice::<LittleEndian>();
-	let bsl64b = [0u64; 2].as_bitslice::<LittleEndian>();
+	let bsl64a = src.bits_mut::<LittleEndian>();
+	let bsl64b = [0u64; 2].bits::<LittleEndian>();
 	b.iter(|| bsb64a.add_assign(bsb64b));
 	b.iter(|| bsl64a.add_assign(bsl64b));
 

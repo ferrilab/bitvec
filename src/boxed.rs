@@ -222,7 +222,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = [0u8, !0];
-	/// let bb = BitBox::<BigEndian, _>::from_bitslice(src.as_bitslice());
+	/// let bb = BitBox::<BigEndian, _>::from_bitslice(src.bits());
 	/// assert_eq!(bb.len(), 16);
 	/// assert!(bb.some());
 	/// ```

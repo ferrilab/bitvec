@@ -298,19 +298,19 @@ denial-of-service attack on each rebuild.
 These traits are left open so that if you need to implement them on wider
 arrays, you are able to do so.
 
-You can use these traits to attach `.as_bitslice::<C: Cursor>()` and
-`.as_mut_bitslice::<C: Cursor>()` conversion methods to any implementor, and
-gain access to a `BitSlice` over that type, or to bound a generic function
-similar to how the standard library uses `AsRef<Path>`:
+You can use these traits to attach `.bits::<C: Cursor>()` and
+`.bits_mut::<C: Cursor>()` conversion methods to any implementor, and gain
+access to a `BitSlice` over that type, or to bound a generic function similar to
+how the standard library uses `AsRef<Path>`:
 
 ```rust
 let mut base = [0u8; 8];
-let bits = base.as_mut_bitslice::<LittleEndian>();
+let bits = base.bits_mut::<LittleEndian>();
 //  bits is now an `&mut BitSlice<LittleEndian, u8>`
 println!("{}", bits.len()); // 64
 
 fn operate_on_bits(mut data: impl BitsMut) {
-  let bits = data.as_mut_bitslice::<BigEndian>();
+  let bits = data.bits_mut::<BigEndian>();
   //  `bits` is now an `&mut BitSlice<BigEndian, _>`
 }
 ```
