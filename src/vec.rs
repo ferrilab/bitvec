@@ -12,13 +12,16 @@ slice and vector types.
 use crate::{
 	boxed::BitBox,
 	cursor::{
-		BigEndian,
 		Cursor,
+		Local,
 	},
 	indices::Indexable,
 	pointer::BitPtr,
 	slice::BitSlice,
-	store::BitStore,
+	store::{
+		BitStore,
+		Word,
+	},
 };
 
 #[cfg(feature = "alloc")]
@@ -332,7 +335,7 @@ is ***extremely binary incompatible*** with them. Attempting to treat
 [`&[]`]: https://doc.rust-lang.org/stable/std/primitive.slice.html
 **/
 #[repr(C)]
-pub struct BitVec<C = BigEndian, T = u8>
+pub struct BitVec<C = Local, T = Word>
 where C: Cursor, T: BitStore {
 	/// Phantom `Cursor` member to satisfy the constraint checker.
 	_cursor: PhantomData<C>,
@@ -1426,7 +1429,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut bv = bitvec![0; 10];
+	/// let mut bv = bitvec![Local, u8; 0; 10];
 	/// assert_eq!(bv.as_slice(), &[0, 0]);
 	/// bv.set_elements(0xA5);
 	/// assert_eq!(bv.as_slice(), &[0xA5, 0xA5]);
@@ -1947,7 +1950,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bv = bitvec![0, 0, 0, 0, 0, 0, 0, 0, 1];
+	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 0, 0, 0, 0, 0, 1];
 	/// assert_eq!(&[0, 0b1000_0000], bv.as_slice());
 	/// ```
 	fn as_ref(&self) -> &[T] {
@@ -2147,7 +2150,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut bv = bitvec![0; 4];
+	/// let mut bv = bitvec![BigEndian, u8; 0; 4];
 	/// bv.extend(bitvec![1; 4]);
 	/// assert_eq!(0x0F, bv.as_slice()[0]);
 	/// ```
@@ -2173,7 +2176,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// use std::iter::repeat;
-	/// let bv: BitVec = repeat(true)
+	/// let bv: BitVec<BigEndian, u8> = repeat(true)
 	///   .take(4)
 	///   .chain(repeat(false).take(4))
 	///   .collect();

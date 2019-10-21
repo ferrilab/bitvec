@@ -65,20 +65,20 @@ macro_rules! bitvec {
 
 	//  bitvec![ endian ; 0 , 1 , … ]
 	( $cursor:path ; $( $val:expr ),* ) => {
-		bitvec![ __bv_impl__ $cursor , u8 ; $( $val ),* ]
+		bitvec![ __bv_impl__ $cursor , $crate::store::Word ; $( $val ),* ]
 	};
 	//  bitvec![ endian ; 0 , 1 , … , ]
 	( $cursor:path ; $( $val:expr , )* ) => {
-		bitvec![ __bv_impl__ $cursor , u8 ; $( $val ),* ]
+		bitvec![ __bv_impl__ $cursor , $crate::store::Word ; $( $val ),* ]
 	};
 
 	//  bitvec![ 0 , 1 , … ]
 	( $( $val:expr ),* ) => {
-		bitvec![ __bv_impl__ $crate::prelude::BigEndian , u8 ; $( $val ),* ]
+		bitvec![ __bv_impl__ $crate::cursor::Local , $crate::store::Word ; $( $val ),* ]
 	};
 	//  bitvec![ 0 , 1 , … , ]
 	( $( $val:expr , )* ) => {
-		bitvec![ __bv_impl__ $crate::prelude::BigEndian , u8 ; $( $val ),* ]
+		bitvec![ __bv_impl__ $crate::cursor::Local , $crate::store::Word ; $( $val ),* ]
 	};
 
 	//  bitvec![ endian , type ; bit ; rep ]
@@ -87,11 +87,11 @@ macro_rules! bitvec {
 	};
 	//  bitvec![ endian ; bit ; rep ]
 	( $cursor:path ; $val:expr ; $rep:expr ) => {
-		bitvec![ __bv_impl__ $cursor , u8 ; $val ; $rep ]
+		bitvec![ __bv_impl__ $cursor , $crate::store::Word ; $val ; $rep ]
 	};
 	//  bitvec![ bit ; rep ]
 	( $val:expr ; $rep:expr ) => {
-		bitvec![ __bv_impl__ $crate::prelude::BigEndian , u8 ; $val ; $rep ]
+		bitvec![ __bv_impl__ $crate::cursor::Local , $crate::store::Word ; $val ; $rep ]
 	};
 
 	//  GitHub issue #25 is to make this into a proc-macro that produces the
@@ -144,20 +144,20 @@ macro_rules! bitbox {
 
 	//  bitbox![ endian ; 0 , 1 , … ]
 	( $cursor:path ; $( $val:expr ),* ) => {
-		bitvec![ $cursor , u8 ; $( $val ),* ].into_boxed_bitslice()
+		bitvec![ $cursor , $crate::store::Word ; $( $val ),* ].into_boxed_bitslice()
 	};
 	//  bitbox![ endian ; 0 , 1 , … , ]
 	( $cursor:path ; $( $val:expr , )* ) => {
-		bitvec![ $cursor , u8 ; $( $val ),* ].into_boxed_bitslice()
+		bitvec![ $cursor , $crate::store::Word ; $( $val ),* ].into_boxed_bitslice()
 	};
 
 	//  bitbox![ 0 , 1 , … ]
 	( $( $val:expr ),* ) => {
-		bitvec![ $crate::prelude::BigEndian , u8 ; $( $val ),* ].into_boxed_bitslice()
+		bitvec![ $crate::cursor::Local , $crate::store::Word ; $( $val ),* ].into_boxed_bitslice()
 	};
 	//  bitbox![ 0 , 1 , … , ]
 	( $( $val:expr , )* ) => {
-		bitvec![ $crate::prelude::BigEndian , u8 ; $( $val ),* ].into_boxed_bitslice()
+		bitvec![ $crate::cursor::Local , $crate::store::Word ; $( $val ),* ].into_boxed_bitslice()
 	};
 
 	//  bitbox![ endian , type ; bit ; rep ]
@@ -166,11 +166,11 @@ macro_rules! bitbox {
 	};
 	//  bitbox![ endian ; bit ; rep ]
 	( $cursor:path ; $val:expr ; $rep:expr ) => {
-		bitvec![ $cursor , u8 ; $val ; $rep ].into_boxed_bitslice()
+		bitvec![ $cursor , $crate::store::Word ; $val ; $rep ].into_boxed_bitslice()
 	};
 	//  bitbox![ bit ; rep ]
 	( $val:expr ; $rep:expr ) => {
-		bitvec![ $crate::prelude::BigEndian , u8 ; $val ; $rep ].into_boxed_bitslice()
+		bitvec![ $crate::cursor::Local , $crate::store::Word ; $val ; $rep ].into_boxed_bitslice()
 	};
 }
 

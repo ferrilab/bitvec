@@ -275,12 +275,13 @@ If you are using `bitvec` to perform set arithmetic, and you expect that your
 sets will have more full elements in the interior than partially-used elements
 on the front and back edge, it is advantageous to use the local CPU word. The
 `BitSlice` operations which traverse the slice are required to perform
-bit-by-bit crawls on partial-use elements, but are able to use whole-word
-instructions on full elements. The latter is a marked acceleration.
+bit-by-bit crawls on partially-used elements, but are able to use whole-word
+instructions on full elements. The latter is a marked acceleration. The local
+CPU word size (accessible through the type alias `bitvec::store::Local`) is the
+default storage type for all data structures in the library.
 
 If you are using `bitvec` to perform I/O packet manipulation, you should use the
-fundamental best suited for your protocols. This is likely `u8`, which is why it
-is the default type.
+fundamental and ordering that match your protocol specification.
 
 #### `Bits` and `BitsMut`
 
@@ -373,7 +374,7 @@ fn main() {
     bv = !bv;
 
     //  Arithmetic operations
-    let one = bitvec![1];
+    let one = bitvec![BigEndian, u8; 1];
     bv += one.clone();
     assert_eq!(bv.as_slice(), &[0b0101_0001, 0b0000_0000]);
     bv -= one.clone();

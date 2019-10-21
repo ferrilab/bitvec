@@ -20,9 +20,30 @@ This document is written according to the [Keep a Changelog][kac] style.
   on `BitSlice`s with those two `Cursor`s which allow for parallel access to the
   underlying memory. This trait is currently not able to be implemented by
   downstream crates; this restriction may ease in the future.
+- The `cursor::Local` type alias is a default bit ordering. Big-endian targets
+  set it to `cursor::BigEndian`; all other targets set it to
+  `cursor::LittleEndian`.
+- The `store::Word` type alias is a default unit size. Targets with 32-bit CPU
+  words set it to `u32`; 64-bit CPU word targets set it to `u64`; all other
+  targets set it to `u8`.
 
 ### Changed
 
+- The default order and storage type parameters for all type constructors in the
+  library have been changed. This means that `BitSlice`, `BitBox`, `BitVec`, and
+  the `bitbox!` and `bitvec!` macros, are all changing the produced type if you
+  have not specified their ordering and storage. The new default storage type is
+  the target CPU word (`u32` on 32-bit systems, `u64` on 64-bit, `u8` on other)
+  and the new default order type is the target byte ordering (`BigEndian` on
+  big-endian, `LittleEndian` on little-endian and unknown).
+
+  This change is expected to break dependent crates. The fix is straightforward:
+  specify the types produced by this crate’s constructors, or adapt the types
+  that receive them.
+
+  This change was made in order to provide performance advantages by using the
+  native CPU word size, and to ease choice of a bit ordering in usages that do
+  not particularly care about the underlying memory’s appearance.
 - The internal process that translates `BitSlice` operations into access
   operations on underlying memory has been rewritten. Production of contended
   references to bare fundamentals is now forbidden, and all access is mediated

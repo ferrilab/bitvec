@@ -190,6 +190,30 @@ impl Cursor for LittleEndian {
 	}
 }
 
+/** A default bit ordering.
+
+The target has big-endian byte ordering, so the default bit ordering is set to
+big-endian as well, as a convenience. These two orderings are not related.
+**/
+#[cfg(target_endian = "big")]
+pub type Local = BigEndian;
+
+/** A default bit ordering.
+
+The target has little-endian byte ordering, so the default bit ordering is set
+to little-endian as well, as a convenience. These two orderings are not related.
+**/
+#[cfg(target_endian = "little")]
+pub type Local = LittleEndian;
+
+/** A default bit ordering.
+
+The byte ordering of the target could not be determined, so little-endian bit
+ordering is chosen as an uninformed default.
+**/
+#[cfg(not(any(target_endian = "big", target_endian = "little")))]
+pub type Local = LittleEndian;
+
 #[cfg(test)]
 mod tests {
 	use super::*;

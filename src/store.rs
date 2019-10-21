@@ -305,6 +305,28 @@ impl BitStore for u64 {
 	type Access = Cell<Self>;
 }
 
+/** A default word size for bit sequences.
+
+The target has 32-bit CPU words, so `u32` is a good default unit size.
+**/
+#[cfg(target_pointer_width = "32")]
+pub type Word = u32;
+
+/** A default word size for bit sequences.
+
+The target has 64-bit CPU words, so `u64` is a good default unit size.
+**/
+#[cfg(target_pointer_width = "64")]
+pub type Word = u64;
+
+/** A default word size for bit sequences.
+
+The target’s CPU size is neither 32 nor 64 bits, so the default unit size is set
+to `u8` as an uninformed guess.
+**/
+#[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
+pub type Word = u8;
+
 /** Marker trait to seal `BitStore` against downstream implementation.
 
 This trait is public in the module, so that other modules in the crate can use

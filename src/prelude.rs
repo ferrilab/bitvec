@@ -13,10 +13,14 @@ pub use crate::{
 		Cursor,
 		BigEndian,
 		LittleEndian,
+		Local,
 	},
 	fields::BitField,
 	slice::BitSlice,
-	store::BitStore,
+	store::{
+		BitStore,
+		Word,
+	},
 };
 
 #[cfg(feature = "alloc")]

@@ -8,12 +8,15 @@ the more appropriate and useful type for most collections.
 
 use crate::{
 	cursor::{
-		BigEndian,
 		Cursor,
+		Local,
 	},
 	pointer::BitPtr,
 	slice::BitSlice,
-	store::BitStore,
+	store::{
+		BitStore,
+		Word,
+	},
 	vec::BitVec,
 };
 
@@ -124,7 +127,7 @@ deferring to the `BitSlice` implementation. It also implements conversion traits
 to and from `BitSlice`, and to/from `BitVec`.
 **/
 #[repr(C)]
-pub struct BitBox<C = BigEndian, T = u8>
+pub struct BitBox<C = Local, T = Word>
 where C: Cursor, T: BitStore {
 	_cursor: PhantomData<C>,
 	pointer: BitPtr<T>,
@@ -196,7 +199,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = [5, 10];
-	/// let bb: BitBox = BitBox::from_slice(&src[..]);
+	/// let bb: BitBox<BigEndian, u8> = BitBox::from_slice(&src[..]);
 	/// assert!(bb[5]);
 	/// assert!(bb[7]);
 	/// assert!(bb[12]);

@@ -48,7 +48,7 @@ fn readme() {
     bv = !bv;
 
     //  Arithmetic operations
-    let one = bitvec![1];
+    let one = bitvec![BigEndian, u8; 1];
     bv += one.clone();
     assert_eq!(bv.as_slice(), &[0b0101_0001, 0b0000_0000]);
     bv -= one.clone();

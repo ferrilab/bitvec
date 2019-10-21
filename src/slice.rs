@@ -11,13 +11,16 @@ Rust slices, and must never be interchanged except through the provided APIs.
 use crate::{
 	access::BitAccess,
 	cursor::{
-		BigEndian,
 		Cursor,
+		Local,
 	},
 	domain::*,
 	indices::Indexable,
 	pointer::BitPtr,
-	store::BitStore,
+	store::{
+		BitStore,
+		Word,
+	},
 };
 
 #[cfg(feature = "alloc")]
@@ -115,8 +118,9 @@ let bv = bitvec![0, 1, 0, 1];
 //  slicing a bitvec
 let bslice: &BitSlice = &bv[..];
 # }
+
 //  coercing an array to a bitslice
-let bslice: &BitSlice = [1u8, 254u8].bits::<BigEndian>();
+let bslice: &BitSlice<_, _> = [1u8, 254u8].bits::<BigEndian>();
 ```
 
 Bit slices are either mutable or shared. The shared slice type is
@@ -128,7 +132,7 @@ use bitvec::prelude::*;
 
 let mut base = [0u8, 0, 0, 0];
 {
- let bs: &mut BitSlice = base.bits_mut::<BigEndian>();
+ let bs: &mut BitSlice<_, _> = base.bits_mut::<BigEndian>();
  bs.set(13, true);
  eprintln!("{:?}", bs.as_ref());
  assert!(bs[13]);
@@ -159,7 +163,7 @@ is ***catastrophically*** unsafe and unsound.
 [`bitvec!`]: ../macro.bitvec.html
 **/
 #[repr(transparent)]
-pub struct BitSlice<C = BigEndian, T = u8>
+pub struct BitSlice<C = Local, T = Word>
 where C: Cursor, T: BitStore {
 	/// Cursor type for selecting bits inside an element.
 	_kind: PhantomData<C>,
@@ -226,7 +230,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let elt: u8 = !0;
-	/// let bs: &BitSlice = BitSlice::from_element(&elt);
+	/// let bs: &BitSlice<Local, _> = BitSlice::from_element(&elt);
 	/// assert!(bs.all());
 	/// ```
 	pub fn from_element(elt: &T) -> &Self {
@@ -252,7 +256,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut elt: u8 = !0;
-	/// let bs: &mut BitSlice = BitSlice::from_element_mut(&mut elt);
+	/// let bs: &mut BitSlice<Local, _> = BitSlice::from_element_mut(&mut elt);
 	/// bs.set(0, false);
 	/// assert!(!bs.all());
 	/// ```
@@ -1332,8 +1336,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let store: &[u8] = &[0b0100_1011];
-	/// let bits: &BitSlice = store.into();
+	/// let bits = 0b0100_1011u8.bits::<BigEndian>();
 	/// let mut rchunks_exact = bits.rchunks_exact(3);
 	/// assert_eq!(rchunks_exact.next(), Some(&bits[5 .. 8]));
 	/// assert_eq!(rchunks_exact.next(), Some(&bits[2 .. 5]));
@@ -5464,8 +5467,7 @@ where C: Cursor, T: 'a + BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let store: &[u8] = &[0b0010_1101];
-	/// let bits: &BitSlice = store.into();
+	/// let bits = 0b0010_1101u8.bits::<BigEndian>();
 	/// let mut windows = bits[2 .. 7].windows(3);
 	/// assert_eq!(windows.next_back(), Some(&bits[4 .. 7]));
 	/// assert_eq!(windows.next_back(), Some(&bits[3 .. 6]));

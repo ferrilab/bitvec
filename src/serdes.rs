@@ -250,7 +250,7 @@ mod tests {
 	#[cfg(feature = "alloc")]
 	#[test]
 	fn small() {
-		let bv = bitvec![1; 5];
+		let bv = bitvec![BigEndian, u8; 1; 5];
 		let bs = &bv[1 ..];
 		assert_ser_tokens(&bs, bvtok![s 1, 1, 4, U8, 0b1111_1000]);
 
@@ -265,15 +265,14 @@ mod tests {
 	#[test]
 	fn wide() {
 		let src: &[u8] = &[0, !0];
-		let bs: &BitSlice = src.into();
+		let bs = src.bits::<Local>();
 		assert_ser_tokens(&(&bs[1 .. 15]), bvtok![s 2, 1, 14, U8, 0, !0]);
 	}
 
 	#[cfg(feature = "alloc")]
 	#[test]
-	#[cfg(feature = "alloc")]
 	fn deser() {
-		let bv = bitvec![0, 1, 1, 0, 1, 0];
+		let bv = bitvec![BigEndian, u8; 0, 1, 1, 0, 1, 0];
 		assert_de_tokens(&bv, bvtok![d 1, 0, 6, U8, 0b0110_1000]);
 		//  test that the bits outside the bits domain don't matter in deser
 		assert_de_tokens(&bv, bvtok![d 1, 0, 6, U8, 0b0110_1001]);
