@@ -2405,7 +2405,10 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 		let len = rhs.into_iter()
 			.take(self.len())
 			.enumerate()
-			.flat_map(|(i, r)| self.get(i).map(|l| self.set(i, l & r)))
+			.map(|(i, r)| {
+				let l = unsafe { self.get_unchecked(i) };
+				unsafe { self.set_unchecked(i, l & r); }
+			})
 			.count();
 		self.truncate(len);
 	}
@@ -2466,7 +2469,10 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 		let len = rhs.into_iter()
 			.take(self.len())
 			.enumerate()
-			.flat_map(|(i, r)| self.get(i).map(|l| self.set(i, l | r)))
+			.map(|(i, r)| {
+				let l = unsafe { self.get_unchecked(i) };
+				unsafe { self.set_unchecked(i, l | r); }
+			})
 			.count();
 		self.truncate(len);
 	}
@@ -2527,7 +2533,10 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 		let len = rhs.into_iter()
 			.take(self.len())
 			.enumerate()
-			.flat_map(|(i, r)| self.get(i).map(|l| self.set(i, l ^ r)))
+			.map(|(i, r)| {
+				let l = unsafe { self.get_unchecked(i) };
+				unsafe { self.set_unchecked(i, l ^ r); }
+			})
 			.count();
 		self.truncate(len);
 	}

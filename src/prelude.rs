@@ -5,6 +5,7 @@ This collects the general public API into a single spot for inclusion, as
 !*/
 
 pub use crate::{
+	access::BitAccess,
 	bits::{
 		Bits,
 		BitsMut,
@@ -16,7 +17,10 @@ pub use crate::{
 		Local,
 	},
 	fields::BitField,
-	slice::BitSlice,
+	slice::{
+		BitGuard,
+		BitSlice,
+	},
 	store::{
 		BitStore,
 		Word,

@@ -142,7 +142,6 @@ where T: BitStore {
 	}
 
 	/// Tests if the variant is `Spanning`.
-	#[cfg(test)]
 	pub(crate) fn is_spanning(&self) -> bool {
 		match self {
 			BitDomain::Spanning(..) => true,

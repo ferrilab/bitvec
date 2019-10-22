@@ -61,11 +61,7 @@ use core::{
 		Iterator,
 		IntoIterator,
 	},
-	marker::{
-		PhantomData,
-		Send,
-		Sync,
-	},
+	marker::PhantomData,
 	mem,
 	ops::{
 		AddAssign,
@@ -142,17 +138,17 @@ assert_eq!(base[1], 4);
 
 # Type Parameters
 
-- `C: Cursor`: An implementor of the `Cursor` trait. This type is used to
-  convert semantic indices into concrete bit positions in elements, and store or
+- `C`: An implementor of the `Cursor` trait. This type is used to convert
+  semantic indices into concrete bit positions in elements, and store or
   retrieve bit values from the storage type.
-- `T: BitStore`: An implementor of the `BitStore` trait: `u8`, `u16`, `u32`, or
-  `u64` (64-bit systems only). This is the actual type in memory that the slice
-  will use to store data.
+- `T`: An implementor of the `BitStore` trait: `u8`, `u16`, `u32`, or `u64`
+  (64-bit systems only). This is the actual type in memory that the slice will
+  use to store data.
 
 # Safety
 
 The `&BitSlice` reference handle has the same *size* as standard Rust slice
-handles, but it is ***extremely binary incompatible*** with them. Attempting to
+handles, but it is ***extremely value-incompatible*** with them. Attempting to
 treat `&BitSlice<_, T>` as `&[T]` in any manner except through the provided APIs
 is ***catastrophically*** unsafe and unsound.
 
@@ -344,291 +340,6 @@ where C: Cursor, T: BitStore {
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
 	pub fn from_slice_mut(slice: &mut [T]) -> &mut Self {
 		Self::from_slice(slice).bitptr().into_bitslice_mut()
-	}
-
-	/// Returns the number of bits contained in the `BitSlice`.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// The number of live bits in the slice domain.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let store = 0u8;
-	/// let bs = store.bits::<BigEndian>();
-	/// assert_eq!(bs.len(), 8);
-	/// ```
-	pub fn len(&self) -> usize {
-		self.bitptr().len()
-	}
-
-	/// Tests if the slice is empty.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// Whether the slice has no live bits.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bs = BitSlice::<BigEndian, u8>::empty();
-	/// assert!(bs.is_empty());
-	/// let bs = 0u8.bits::<BigEndian>();
-	/// assert!(!bs.is_empty());
-	/// ```
-	pub fn is_empty(&self) -> bool {
-		self.len() == 0
-	}
-
-	/// Gets the first element of the slice, if present.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// `None` if the slice is empty, or `Some(bit)` if it is not.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// assert!(BitSlice::<BigEndian, u8>::empty().first().is_none());
-	/// assert!(128u8.bits::<BigEndian>().first().unwrap());
-	/// ```
-	pub fn first(&self) -> Option<bool> {
-		self.get(0)
-	}
-
-	/// Returns the first and all the rest of the bits of the slice, or `None`
-	/// if it is empty.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// If the slice is empty, this returns `None`, otherwise, it returns `Some`
-	/// of:
-	///
-	/// - the first bit
-	/// - a `&BitSlice` of all the rest of the bits (this may be empty)
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// assert!(BitSlice::<BigEndian, u8>::empty().split_first().is_none());
-	///
-	/// let store = 128u8;
-	/// let bits = store.bits::<BigEndian>();
-	/// let (h, t) = bits.split_first().unwrap();
-	/// assert!(h);
-	/// assert!(t.not_any());
-	///
-	/// let (h, t) = bits[0 .. 1].split_first().unwrap();
-	/// assert!(h);
-	/// assert!(t.is_empty());
-	/// ```
-	pub fn split_first(&self) -> Option<(bool, &Self)> {
-		if self.is_empty() {
-			None
-		}
-		else {
-			Some((self[0], &self[1 ..]))
-		}
-	}
-
-	/// Returns the first and all the rest of the bits of the slice, or `None`
-	/// if it is empty.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// If the slice is empty, this returns `None`, otherwise, it returns `Some`
-	/// of:
-	///
-	/// - the first bit
-	/// - a `&mut BitSlice` of all the rest of the bits (this may be empty)
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let mut store = 0u8;
-	/// let bits = store.bits_mut::<LittleEndian>();
-	/// assert!(!bits[0]);
-	/// *bits.at(0) = true;
-	/// let (h, t) = bits.split_first_mut().unwrap();
-	/// assert!(h);
-	/// assert_eq!(t.len(), 7);
-	/// ```
-	pub fn split_first_mut(&mut self) -> Option<(bool, &mut Self)> {
-		if self.is_empty() {
-			None
-		}
-		else {
-			Some((self[0], &mut self[1 ..]))
-		}
-	}
-
-	/// Returns the last and all the rest of the bits in the slice, or `None`
-	/// if it is empty.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// If the slice is empty, this returns `None`, otherwise, it returns `Some`
-	/// of:
-	///
-	/// - the last bit
-	/// - a `&BitSlice` of all the rest of the bits (this may be empty)
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// assert!(BitSlice::<BigEndian, u8>::empty().split_last().is_none());
-	///
-	/// let bits = 1u8.bits::<BigEndian>();
-	/// let (t, h) = bits.split_last().unwrap();
-	/// assert!(t);
-	/// assert!(h.not_any());
-	///
-	/// let bits = &bits[7 .. 8];
-	/// let (t, h) = bits.split_last().unwrap();
-	/// assert!(t);
-	/// assert!(h.is_empty());
-	/// ```
-	pub fn split_last(&self) -> Option<(bool, &Self)> {
-		if self.is_empty() {
-			None
-		}
-		else {
-			let len = self.len();
-			Some((self[len - 1], &self[.. len - 1]))
-		}
-	}
-
-	/// Returns the last and all the rest of the bits in the slice, or `None`
-	/// if it is empty.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// If the slice is empty, this returns `None`, otherwise, it returns `Some`
-	/// of:
-	///
-	/// - the last bit
-	/// - a `&BitSlice` of all the rest of the bits (this may be empty)
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let mut store = 0u8;
-	/// let bits = store.bits_mut::<LittleEndian>();
-	/// assert!(!bits[7]);
-	/// *bits.at(7) = true;
-	/// let (h, t) = bits.split_last_mut().unwrap();
-	/// assert!(h);
-	/// assert_eq!(t.len(), 7);
-	/// ```
-	pub fn split_last_mut(&mut self) -> Option<(bool, &mut Self)> {
-		if self.is_empty() {
-			None
-		}
-		else {
-			let len = self.len();
-			Some((self[len - 1], &mut self[.. len - 1]))
-		}
-	}
-
-	/// Gets the last element of the slice, or `None` if it is empty.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// `None` if the slice is empty, or `Some(bit)` if it is not.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// assert!(BitSlice::<BigEndian, u8>::empty().last().is_none());
-	/// assert!(1u8.bits::<BigEndian>().last().unwrap());
-	/// ```
-	pub fn last(&self) -> Option<bool> {
-		if self.is_empty() {
-			None
-		}
-		else {
-			Some(self[self.len() - 1])
-		}
-	}
-
-	/// Gets the bit value at the given position.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	/// - `index`: The bit index to retrieve.
-	///
-	/// # Returns
-	///
-	/// The bit at the specified index, if any. If `index` is beyond the bounds
-	/// of `self`, then `None` is produced.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bits = 8u8.bits::<BigEndian>();
-	/// assert!(bits.get(4).unwrap());
-	/// assert!(!bits.get(3).unwrap());
-	/// assert!(bits.get(10).is_none());
-	/// ```
-	pub fn get(&self, index: usize) -> Option<bool> {
-		if index >= self.len() {
-			None
-		}
-		else {
-			Some(unsafe { self.get_unchecked(index) })
-		}
 	}
 
 	/// Looks up a bit at an index, without doing bounds checking.
@@ -835,9 +546,20 @@ where C: Cursor, T: BitStore {
 	/// [`split_at_mut`]: #method.split_at_mut
 	pub fn at(&mut self, index: usize) -> BitGuard<C, T> {
 		BitGuard {
-			_m: PhantomData,
 			bit: self[index],
 			slot: &mut self[index ..= index],
+		}
+	}
+
+	pub unsafe fn at_unchecked(&mut self, index: usize) -> BitGuard<C, T> {
+		BitGuard {
+			bit: self.get_unchecked(index),
+			slot: {
+				let bitptr = self.bitptr();
+				let (data, head) = (bitptr.pointer().w(), bitptr.head());
+				let (offset, new_head) = head.offset(index as isize);
+				BitPtr::new_unchecked(data.offset(offset), new_head, 1).into_bitslice_mut()
+			},
 		}
 	}
 
@@ -1564,12 +1286,11 @@ where C: Cursor, T: BitStore {
 		}
 
 		for _ in 0 .. by {
-			let tmp = self[0];
+			let tmp = unsafe { self.get_unchecked(0) };
 			for n in 1 .. len {
-				let bit = self[n];
-				self.set(n - 1, bit);
+				unsafe { self.copy_unchecked(n, n - 1); }
 			}
-			self.set(len - 1, tmp);
+			unsafe { self.set_unchecked(len - 1, tmp); }
 		}
 	}
 
@@ -1609,13 +1330,12 @@ where C: Cursor, T: BitStore {
 
 		//  Perform `by` repetitions,
 		for _ in 0 .. by {
-			let tmp = self[len - 1];
+			let tmp = unsafe { self.get_unchecked(len - 1) };
 			//  of `len` steps
 			for n in (0 .. len - 1).rev() {
-				let bit = self[n];
-				self.set(n + 1, bit);
+				unsafe { self.copy_unchecked(n, n + 1); }
 			}
-			self.set(0, tmp);
+			unsafe { self.set_unchecked(0, tmp); }
 		}
 	}
 
@@ -1891,52 +1611,37 @@ where C: Cursor, T: BitStore {
 	pub fn count_ones(&self) -> usize {
 		match self.bitptr().domain() {
 			BitDomain::Empty => 0,
-			BitDomain::Minor(head, elt, tail) => {
-				(*head .. *tail)
-					.map(|n| elt.get::<C>(n.idx()))
-					.filter(|b| *b)
-					.count()
-			},
-			BitDomain::Major(h, head, body, tail, t) => {
-				(*h .. T::BITS)
-					.map(|n| head.get::<C>(n.idx()))
-					.filter(|b| *b)
-					.count() +
-				body.iter()
-					.map(BitAccess::<T>::load)
-					.map(T::count_ones)
-					.sum::<usize>() +
-				(0 .. *t)
-					.map(|n| tail.get::<C>(n.idx()))
-					.filter(|b| *b)
-					.count()
-			},
-			BitDomain::PartialHead(h, head, body) => {
-				(*h .. T::BITS)
-					.map(|n| head.get::<C>(n.idx()))
-					.filter(|b| *b)
-					.count() +
-				body.iter()
+			BitDomain::Minor(head, elt, tail) => (*head .. *tail)
+				.map(|n| elt.get::<C>(n.idx()) as usize)
+				.sum(),
+			BitDomain::Major(h, head, body, tail, t) => (*h .. T::BITS)
+				.map(|n| head.get::<C>(n.idx()) as usize)
+				.sum::<usize>()
+				+ body.iter()
 					.map(BitAccess::<T>::load)
 					.map(T::count_ones)
 					.sum::<usize>()
-			},
-			BitDomain::PartialTail(body, tail, t) => {
-				body.iter()
+				+ (0 .. *t)
+					.map(|n| tail.get::<C>(n.idx()) as usize)
+					.sum::<usize>(),
+			BitDomain::PartialHead(h, head, body) => (*h .. T::BITS)
+				.map(|n| head.get::<C>(n.idx()) as usize)
+				.sum::<usize>()
+				+ body.iter()
 					.map(BitAccess::<T>::load)
 					.map(T::count_ones)
-					.sum::<usize>() +
-				(0 .. *t)
-					.map(|n| tail.get::<C>(n.idx()))
-					.filter(|b| *b)
-					.count()
-			},
-			BitDomain::Spanning(body) => {
-				body.iter()
-					.map(BitAccess::<T>::load)
-					.map(T::count_ones)
-					.sum::<usize>()
-			}
+					.sum::<usize>(),
+			BitDomain::PartialTail(body, tail, t) => body.iter()
+				.map(BitAccess::<T>::load)
+				.map(T::count_ones)
+				.sum::<usize>()
+				+ (0 .. *t)
+					.map(|n| tail.get::<C>(n.idx()) as usize)
+					.sum::<usize>(),
+			BitDomain::Spanning(body) => body.iter()
+				.map(BitAccess::<T>::load)
+				.map(T::count_ones)
+				.sum(),
 		}
 	}
 
@@ -1961,52 +1666,37 @@ where C: Cursor, T: BitStore {
 	pub fn count_zeros(&self) -> usize {
 		match self.bitptr().domain() {
 			BitDomain::Empty => 0,
-			BitDomain::Minor(head, elt, tail) => {
-				(*head .. *tail)
-					.map(|n| !elt.get::<C>(n.idx()))
-					.filter(|b| !*b)
-					.count()
-			},
-			BitDomain::Major(h, head, body, tail, t) => {
-				(*h .. T::BITS)
-					.map(|n| head.get::<C>(n.idx()))
-					.filter(|b| !*b)
-					.count() +
-				body.iter()
-					.map(BitAccess::<T>::load)
-					.map(T::count_zeros)
-					.sum::<usize>() +
-				(0 .. *t)
-					.map(|n| tail.get::<C>(n.idx()))
-					.filter(|b| !*b)
-					.count()
-			},
-			BitDomain::PartialHead(h, head, body) => {
-				(*h .. T::BITS)
-					.map(|n| head.get::<C>(n.idx()))
-					.filter(|b| !*b)
-					.count() +
-				body.iter()
+			BitDomain::Minor(head, elt, tail) => (*head .. *tail)
+				.map(|n| !elt.get::<C>(n.idx()) as usize)
+				.sum(),
+			BitDomain::Major(h, head, body, tail, t) => (*h .. T::BITS)
+				.map(|n| head.get::<C>(n.idx()) as usize)
+				.sum::<usize>()
+				+ body.iter()
 					.map(BitAccess::<T>::load)
 					.map(T::count_zeros)
 					.sum::<usize>()
-			},
-			BitDomain::PartialTail(body, tail, t) => {
-				body.iter()
+				+ (0 .. *t)
+					.map(|n| tail.get::<C>(n.idx()) as usize)
+					.sum::<usize>(),
+			BitDomain::PartialHead(h, head, body) => (*h .. T::BITS)
+				.map(|n| head.get::<C>(n.idx()) as usize)
+				.sum::<usize>()
+				+ body.iter()
 					.map(BitAccess::<T>::load)
 					.map(T::count_zeros)
-					.sum::<usize>() +
-				(0 .. *t)
-					.map(|n| tail.get::<C>(n.idx()))
-					.filter(|b| !*b)
-					.count()
-			},
-			BitDomain::Spanning(body) => {
-				body.iter()
-					.map(BitAccess::<T>::load)
-					.map(T::count_zeros)
-					.sum::<usize>()
-			},
+					.sum::<usize>(),
+			BitDomain::PartialTail(body, tail, t) => body.iter()
+				.map(BitAccess::<T>::load)
+				.map(T::count_zeros)
+				.sum::<usize>()
+				+ (0 .. *t)
+					.map(|n| tail.get::<C>(n.idx()) as usize)
+					.sum::<usize>(),
+			BitDomain::Spanning(body) => body.iter()
+				.map(BitAccess::<T>::load)
+				.map(T::count_zeros)
+				.sum(),
 		}
 	}
 
@@ -2034,43 +1724,26 @@ where C: Cursor, T: BitStore {
 	pub fn set_all(&mut self, value: bool) {
 		match self.bitptr().domain() {
 			BitDomain::Empty => {},
-			BitDomain::Minor(head, elt, tail) => {
-				for n in *head .. *tail {
-					elt.set::<C>(n.idx(), value);
-				}
-			},
+			//  Generalizing `BitField` over any cursor would allow these
+			//  accesses to become parallel rather than sequential.
+			BitDomain::Minor(head, elt, tail) => (*head .. *tail)
+				.for_each(|n| elt.set::<C>(n.idx(), value)),
 			BitDomain::Major(h, head, body, tail, t) => {
-				for n in *h .. T::BITS {
-					head.set::<C>(n.idx(), value);
-				}
-				for elt in body {
-					elt.store(T::bits(value));
-				}
-				for n in 0 .. *t {
-					tail.set::<C>(n.idx(), value);
-				}
+				(*h .. T::BITS).for_each(|n| head.set::<C>(n.idx(), value));
+				body.iter().for_each(|elt| elt.store(T::bits(value)));
+				(0 .. *t).for_each(|n| tail.set::<C>(n.idx(), value));
 			},
 			BitDomain::PartialHead(h, head, body) => {
-				for n in *h .. T::BITS {
-					head.set::<C>(n.idx(), value);
-				}
-				for elt in body {
-					elt.store(T::bits(value));
-				}
+				(*h .. T::BITS).for_each(|n| head.set::<C>(n.idx(), value));
+				body.iter().for_each(|elt| elt.store(T::bits(value)));
 			},
 			BitDomain::PartialTail(body, tail, t) => {
-				for elt in body {
-					elt.store(T::bits(value));
-				}
-				for n in 0 .. *t {
-					tail.set::<C>(n.idx(), value);
-				}
+				body.iter().for_each(|elt| elt.store(T::bits(value)));
+				(0 .. *t).for_each(|n| tail.set::<C>(n.idx(), value));
 			},
-			BitDomain::Spanning(body) => {
-				for elt in body {
-					elt.store(T::bits(value));
-				}
-			},
+			BitDomain::Spanning(body) => body
+				.iter()
+				.for_each(|elt| elt.store(T::bits(value))),
 		}
 	}
 
@@ -2103,8 +1776,9 @@ where C: Cursor, T: BitStore {
 	pub fn for_each<F>(&mut self, func: F)
 	where F: Fn(usize, bool) -> bool {
 		for idx in 0 .. self.len() {
-			let tmp = self[idx];
-			self.set(idx, func(idx, tmp));
+			let tmp = unsafe { self.get_unchecked(idx) };
+			let new = func(idx, tmp);
+			unsafe { self.set_unchecked(idx, new); }
 		}
 	}
 
@@ -2281,6 +1955,22 @@ where C: Cursor, T: BitStore {
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
 	pub(crate) fn bitptr(&self) -> BitPtr<T> {
 		BitPtr::from_bitslice(self)
+	}
+
+	/// Copy a bit from one location in a slice to another.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `from`: The index of the bit to be copied.
+	/// - `to`: The index at which the copied bit will be written.
+	///
+	/// # Safety
+	///
+	/// `from` and `to` must be within the bounds of `self`. This is not
+	/// checked.
+	unsafe fn copy_unchecked(&mut self, from: usize, to: usize) {
+		self.set_unchecked(to, self.get_unchecked(from));
 	}
 }
 
@@ -2930,9 +2620,9 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 			.chain(iter::repeat(false))
 			.enumerate()
 			.take(self.len())
-			.for_each(|(idx, bit)| {
-				let val = self[idx] & bit;
-				self.set(idx, val);
+			.for_each(|(idx, bit)| unsafe {
+				let val = self.get_unchecked(idx);
+				self.set_unchecked(idx, val & bit);
 			});
 	}
 }
@@ -2971,9 +2661,9 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 		rhs.into_iter()
 			.enumerate()
 			.take(self.len())
-			.for_each(|(idx, bit)| {
-				let val = self[idx] | bit;
-				self.set(idx, val);
+			.for_each(|(idx, bit)| unsafe {
+				let val = self.get_unchecked(idx);
+				self.set_unchecked(idx, val | bit);
 			});
 	}
 }
@@ -3012,9 +2702,9 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 		rhs.into_iter()
 			.enumerate()
 			.take(self.len())
-			.for_each(|(idx, bit)| {
-				let val = self[idx] ^ bit;
-				self.set(idx, val);
+			.for_each(|(idx, bit)| unsafe {
+				let val = self.get_unchecked(idx);
+				self.set_unchecked(idx, val ^ bit);
 			})
 	}
 }
@@ -3291,20 +2981,18 @@ where C: Cursor, T: 'a + BitStore {
 		}
 		//  The most negative number (leading one, all zeroes else) negates to
 		//  zero.
-		if self[0] {
+		if unsafe { self.get_unchecked(0) } {
 			//  Testing the whole range, rather than [1 ..], is more likely to
-			//  hit the fast path.
-			self.set(0, false);
+			//  hit the fast path for `not_any`.
+			unsafe { self.set_unchecked(0, false); }
 			if self.not_any() {
 				return self;
 			}
-			self.set(0, true);
+			unsafe { self.set_unchecked(0, true); }
 		}
-		let _ = Not::not(&mut *self);
-		let one: &[T] = &[T::bits(true)];
-		let one_bs: &BitSlice<C, T> = one.into();
-		AddAssign::add_assign(&mut *self, &one_bs[.. 1]);
-		self
+		let this = !self;
+		*this += core::iter::once(true);
+		this
 	}
 }
 
@@ -3337,43 +3025,24 @@ where C: Cursor, T: 'a + BitStore {
 	fn not(self) -> Self::Output {
 		match self.bitptr().domain() {
 			BitDomain::Empty => {},
-			BitDomain::Minor(head, elt, tail) => {
-				for n in *head .. *tail {
-					elt.invert_bit::<C>(n.idx());
-				}
-			},
+			BitDomain::Minor(head, elt, tail) => (*head .. *tail)
+				.for_each(|n| elt.invert_bit::<C>(n.idx())),
 			BitDomain::Major(h, head, body, tail, t) => {
-				for n in *h .. T::BITS {
-					head.invert_bit::<C>(n.idx());
-				}
-				for elt in body {
-					elt.store(!elt.load());
-				}
-				for n in 0 .. *t {
-					tail.invert_bit::<C>(n.idx());
-				}
+				(*h .. T::BITS).for_each(|n| head.invert_bit::<C>(n.idx()));
+				body.iter().for_each(|elt| elt.store(!elt.load()));
+				(0 .. *t).for_each(|n| tail.invert_bit::<C>(n.idx()));
 			},
 			BitDomain::PartialHead(h, head, body) => {
-				for n in *h .. T::BITS {
-					head.invert_bit::<C>(n.idx());
-				}
-				for elt in body {
-					elt.store(!elt.load());
-				}
+				(*h .. T::BITS).for_each(|n| head.invert_bit::<C>(n.idx()));
+				body.iter().for_each(|elt| elt.store(!elt.load()));
 			},
 			BitDomain::PartialTail(body, tail, t) => {
-				for elt in body {
-					elt.store(!elt.load());
-				}
-				for n in 0 .. *t {
-					tail.invert_bit::<C>(n.idx());
-				}
+				body.iter().for_each(|elt| elt.store(!elt.load()));
+				(0 .. *t).for_each(|n| tail.invert_bit::<C>(n.idx()));
 			},
-			BitDomain::Spanning(body) => {
-				for elt in body {
-					elt.store(!elt.load());
-				}
-			},
+			BitDomain::Spanning(body) => body
+				.iter()
+				.for_each(|elt| elt.store(!elt.load())),
 		}
 		self
 	}
@@ -3431,7 +3100,6 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(src, [0b01_011_101, 0b001_000_01]);
 	/// ```
 	fn shl_assign(&mut self, shamt: usize) {
-		use core::ops::Shr;
 		if shamt == 0 {
 			return;
 		}
@@ -3440,49 +3108,48 @@ where C: Cursor, T: BitStore {
 			self.set_all(false);
 			return;
 		}
-		//  If the shift amount is an even multiple of the element width, use
-		//  `ptr::copy` instead of a bitwise crawl.
-		if shamt & T::MASK as usize == 0 {
+		//  If the slice fully owns its memory, then a fast path is available
+		//  with element-wise `memmove`.
+		if self.bitptr().domain().is_spanning() {
 			//  Compute the shift distance measured in elements.
-			let offset = shamt.shr(T::INDX);
+			let offset = shamt >> T::INDX;
 			//  Compute the number of elements that will remain.
-			let rem = self.as_ref().len().saturating_sub(offset);
-			//  Clear the bits after the tail cursor before the move.
-			for n in *self.bitptr().tail() .. T::BITS {
-				self.as_mut()[len.saturating_sub(1)].set::<C>(n.idx(), false);
-			}
-			//  Memory model: suppose we have this slice of sixteen elements,
-			//  that is shifted five elements to the left. We have three
-			//  pointers and two lengths to manage.
-			//  - rem is 11
-			//  - offset is 5
-			//  - head is [0]
-			//  - body is [5; 11]
-			//  - tail is [11]
-			//  [ 0 1 2 3 4 5 6 7 8 9 a b c d e f ]
-			//              ^-------before------^
-			//    ^-------after-------^ 0 0 0 0 0
-			//  Pointer to the front of the slice
-			let head: *mut T = self.as_mut_ptr();
+			let rem = self.bitptr().elements() - offset;
+
+			/* Memory model: suppose we have this slice of sixteen elements,
+			that is shifted five elements to the left. We have three pointers
+			and two lengths to manage.
+			- rem is 11 (len - offset)
+			- offset is 5
+			- to is &[0 .. 11]
+			- from is &[5 .. 16]
+			- tail is &[11]
+			  _ _ _ _ _ v-------before------v
+			[ 0 1 2 3 4 5 6 7 8 9 a b c d e f ]
+			  ^-------after-------^ 0 0 0 0 0
+			*/
+
+			//  Pointer to the front of the slice.
+			let to: *mut T = self.as_mut_ptr();
 			//  Pointer to the front of the section that will move and be
-			//  retained
-			let body: *const T = &self.as_ref()[offset];
+			//  retained.
+			let from: *const T = &self.as_slice()[offset];
 			//  Pointer to the back of the slice that will be zero-filled.
-			let tail: *mut T = &mut self.as_mut()[rem];
+			let tail: *mut T = &mut self.as_mut_slice()[rem];
 			unsafe {
-				ptr::copy(body, head, rem);
+				ptr::copy(from, to, rem);
 				ptr::write_bytes(tail, 0, offset);
 			}
+			//  Any remaining shift amount only needs to shift the `after` block
+			//  above.
+			self[.. rem << T::INDX] <<= shamt & T::INDX as usize;
 			return;
 		}
 		//  Otherwise, crawl.
 		for (to, from) in (shamt .. len).enumerate() {
-			let val = self[from];
-			self.set(to, val);
+			unsafe { self.copy_unchecked(from, to); }
 		}
-		for bit in (len.saturating_sub(shamt)) .. len {
-			self.set(bit, false);
-		}
+		self[len - shamt ..].set_all(false);
 	}
 }
 
@@ -3544,43 +3211,41 @@ where C: Cursor, T: BitStore {
 			self.set_all(false);
 			return;
 		}
-		//  IF the shift amount is an even multiple of the element width, use
-		//  `ptr::copy` instead of a bitwise crawl.
-		if shamt & T::MASK as usize == 0 {
+		//  If the slice fully owns its memory, then a fast path is available
+		//  with element-wise `memmove`.
+		if self.bitptr().domain().is_spanning() {
 			//  Compute the shift amount measured in elements.
 			let offset = shamt >> T::INDX;
 			// Compute the number of elements that will remain.
-			let rem = self.as_ref().len().saturating_sub(offset);
-			//  Clear the bits ahead of the head cursor before the move.
-			for n in 0 .. *self.bitptr().head() {
-				self.as_mut()[0].set::<C>(n.idx(), false);
-			}
-			//  Memory model: suppose we have this slice of sixteen elements,
-			//  that is shifted five elements to the right. We have two pointers
-			//  and two lengths to manage.
-			//  - rem is 11
-			//  - offset is 5
-			//  - head is [0; 11]
-			//  - body is [5]
-			//  [ 0 1 2 3 4 5 6 7 8 9 a b c d e f ]
-			//    ^-------before------^
-			//    0 0 0 0 0 ^-------after-------^
-			let head: *mut T = self.as_mut_ptr();
-			let body: *mut T = &mut self.as_mut()[offset];
+			let rem = self.bitptr().elements() - offset;
+
+			/* Memory model: suppose we have this slice of sixteen elements,
+			that is shifted five elements to the right. We have two pointers
+			and two lengths to manage.
+			- rem is 11 (len - offset)
+			- offset is 5
+			- from is &[0 .. 11]
+			- to is &[5 .. 16]
+			  v-------before------v
+			[ 0 1 2 3 4 5 6 7 8 9 a b c d e f ]
+			  0 0 0 0 0 ^-------after-------^
+			*/
+			let from: *mut T = self.as_mut_ptr();
+			let to: *mut T = &mut self.as_mut_slice()[offset];
 			unsafe {
-				ptr::copy(head, body, rem);
-				ptr::write_bytes(head, 0, offset);
+				ptr::copy(from, to, rem);
+				ptr::write_bytes(from, 0, offset);
 			}
+			//  Any remaining shift amount only needs to shift the `after` block
+			//  above.
+			self[offset << T::INDX ..] >>= shamt & T::INDX as usize;
 			return;
 		}
 		//  Otherwise, crawl.
 		for (from, to) in (shamt .. len).enumerate().rev() {
-			let val = self[from];
-			self.set(to, val);
+			unsafe { self.copy_unchecked(from, to); }
 		}
-		for bit in 0 .. shamt {
-			self.set(bit, false);
-		}
+		self[.. shamt].set_all(false);
 	}
 }
 
@@ -3599,7 +3264,6 @@ pub struct BitGuard<'a, C, T>
 where C: Cursor, T: 'a + BitStore {
 	slot: &'a mut BitSlice<C, T>,
 	bit: bool,
-	_m: PhantomData<*mut T>,
 }
 
 /// Read from the local cache.
@@ -3630,6 +3294,7 @@ where C: Cursor, T: 'a + BitStore {
 
 /// This type is a mutable reference with extra steps, so, it should be moveable
 /// but not shareable.
+#[cfg(feature = "atomic")]
 unsafe impl<'a, C, T> Send for BitGuard<'a, C, T>
 where C: Cursor, T: 'a + BitStore {}
 
@@ -4484,7 +4149,7 @@ where C: Cursor, T: 'a + BitStore {
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.inner.split_last().map(|(b, r)| {
 			self.inner = r;
-			b
+			*b
 		})
 	}
 }
@@ -4525,7 +4190,7 @@ where C: Cursor, T: 'a + BitStore {
 	fn next(&mut self) -> Option<Self::Item> {
 		self.inner.split_first().map(|(b, r)| {
 			self.inner = r;
-			b
+			*b
 		})
 	}
 
@@ -5661,3 +5326,5 @@ where C: Cursor, T: 'a + BitStore {
 		self.next_back()
 	}
 }
+
+mod api;
