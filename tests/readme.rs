@@ -57,8 +57,8 @@ fn readme() {
     //  Borrowing iteration
     let mut iter = bv.iter();
     //  index 0
-    assert_eq!(iter.next().unwrap(), false);
+    assert_eq!(iter.next().copied().unwrap(), false);
     //  index 11
-    assert_eq!(iter.next_back().unwrap(), true);
+    assert_eq!(iter.next_back().copied().unwrap(), true);
     assert_eq!(iter.len(), 10);
 }

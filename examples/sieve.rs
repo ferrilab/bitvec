@@ -93,7 +93,7 @@ fn main() {
 	//  Count primes and non-primes.
 	let (mut one, mut zero) = (0u64, 0u64);
 	for n in primes.iter() {
-		if n {
+		if *n {
 			one += 1;
 		}
 		else {
@@ -113,6 +113,7 @@ fn main() {
 	//  Find the widest number that will be printed, and get its width.
 	let cell_width = primes[.. limit]
 		.iter()
+		.copied()
 		//  search from the back
 		.rev()
 		.enumerate()

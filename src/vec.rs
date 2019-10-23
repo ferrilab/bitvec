@@ -536,7 +536,9 @@ where C: Cursor, T: BitStore {
 	/// assert!(bv.some());
 	/// ```
 	pub fn from_bitslice(slice: &BitSlice<C, T>) -> Self {
-		Self::from_iter(slice.iter())
+		let mut out = Self::with_capacity(slice.len());
+		out.extend(slice.iter().copied());
+		out
 	}
 
 	/// Converts a frozen `BitBox` allocation into a growable `BitVec`.
@@ -1151,7 +1153,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	pub fn append<D, U>(&mut self, other: &mut BitVec<D, U>)
 	where D: Cursor, U: BitStore {
-		self.extend(other.iter());
+		self.extend(other.iter().copied());
 		other.clear();
 	}
 
@@ -1247,7 +1249,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// let mut bv = bitvec![1; 30];
 	/// assert_eq!(bv.len(), 30);
-	/// assert!(bv.iter().all(|b| b));
+	/// assert!(bv.iter().all(|b| *b));
 	/// bv.clear();
 	/// assert!(bv.is_empty());
 	/// ```
@@ -1302,7 +1304,7 @@ where C: Cursor, T: BitStore {
 			},
 			n if n == len => Self::new(),
 			_ => {
-				let out = self.as_bitslice().iter().skip(at).collect();
+				let out = self.as_bitslice().iter().skip(at).copied().collect();
 				self.truncate(at);
 				out
 			},
@@ -1513,7 +1515,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// let mut a = bitvec![0, 1, 0, 1];
 	/// let     b = bitvec![0, 0, 1, 1];
-	/// a.add_assign_reverse(&b);
+	/// a.add_assign_reverse(b.iter().copied());
 	/// assert_eq!(a, bitvec![0, 1, 1, 0, 1]);
 	/// ```
 	pub fn add_assign_reverse<I>(&mut self, addend: I)
@@ -2118,7 +2120,7 @@ where C: Cursor, T: BitStore {
 	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
 		use std::cmp;
 		let amt = cmp::min(buf.len(), BitPtr::<T>::MAX_BITS - self.len());
-		self.extend(<&BitSlice<C, u8>>::from(buf));
+		self.extend(<&BitSlice<C, u8>>::from(buf).iter().copied());
 		Ok(amt)
 	}
 
@@ -2231,7 +2233,7 @@ where C: Cursor, T: BitStore {
 
 impl<'a, C, T> IntoIterator for &'a BitVec<C, T>
 where C: Cursor, T: 'a + BitStore {
-	type Item = bool;
+	type Item = &'a bool;
 	type IntoIter = <&'a BitSlice<C, T> as IntoIterator>::IntoIter;
 
 	fn into_iter(self) -> Self::IntoIter {
@@ -2335,7 +2337,7 @@ where C: Cursor, T: BitStore {
 		let mut c = false;
 		let mut stack = BitVec::<C, T>::with_capacity(self.len());
 		let addend = addend.into_iter().rev().chain(repeat(false));
-		for (a, b) in self.iter().rev().zip(addend) {
+		for (a, b) in self.iter().copied().rev().zip(addend) {
 			let (y, z) = crate::rca1(a, b, c);
 			stack.push(y);
 			c = z;
@@ -2406,7 +2408,7 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 			.take(self.len())
 			.enumerate()
 			.map(|(i, r)| {
-				let l = unsafe { self.get_unchecked(i) };
+				let l = unsafe { *self.get_unchecked(i) };
 				unsafe { self.set_unchecked(i, l & r); }
 			})
 			.count();
@@ -2470,7 +2472,7 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 			.take(self.len())
 			.enumerate()
 			.map(|(i, r)| {
-				let l = unsafe { self.get_unchecked(i) };
+				let l = unsafe { *self.get_unchecked(i) };
 				unsafe { self.set_unchecked(i, l | r); }
 			})
 			.count();
@@ -2534,7 +2536,7 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 			.take(self.len())
 			.enumerate()
 			.map(|(i, r)| {
-				let l = unsafe { self.get_unchecked(i) };
+				let l = unsafe { *self.get_unchecked(i) };
 				unsafe { self.set_unchecked(i, l ^ r); }
 			})
 			.count();
@@ -3187,7 +3189,7 @@ where C: Cursor, T: 'a + BitStore {
 	/// Pointer to the `BitVec` being drained.
 	bitvec: NonNull<BitVec<C, T>>,
 	/// Current remaining range to remove.
-	iter: crate::slice::Iter<'a, C, T>,
+	iter: crate::slice::iter::Iter<'a, C, T>,
 	/// Index of the original vector tail to preserve.
 	tail_start: usize,
 	/// Length of the tail.
@@ -3261,7 +3263,7 @@ where C: Cursor, T: 'a + BitStore {
 impl<'a, C, T> DoubleEndedIterator for Drain<'a, C, T>
 where C: Cursor, T: 'a + BitStore {
 	fn next_back(&mut self) -> Option<Self::Item> {
-		self.iter.next_back()
+		self.iter.next_back().copied()
 	}
 }
 
@@ -3276,7 +3278,7 @@ where C: Cursor, T: 'a + BitStore {
 	type Item = bool;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		self.iter.next()
+		self.iter.next().copied()
 	}
 
 	fn size_hint(&self) -> (usize, Option<usize>) {
@@ -3288,11 +3290,11 @@ where C: Cursor, T: 'a + BitStore {
 	}
 
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
-		self.iter.nth(n)
+		self.iter.nth(n).copied()
 	}
 
 	fn last(mut self) -> Option<Self::Item> {
-		self.iter.next_back()
+		self.iter.next_back().copied()
 	}
 }
 
@@ -3341,7 +3343,7 @@ impl<C, T> DoubleEndedIterator for IntoIter<C, T>
 where C: Cursor, T: BitStore {
 	fn next_back(&mut self) -> Option<Self::Item> {
 		let mut slice_iter = self.iterator();
-		let out = slice_iter.next_back();
+		let out = slice_iter.next_back().copied();
 		self.region = slice_iter.bitptr();
 		out
 	}
@@ -3380,7 +3382,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	fn next(&mut self) -> Option<Self::Item> {
 		let mut slice_iter = self.iterator();
-		let out = slice_iter.next();
+		let out = slice_iter.next().copied();
 		self.region = slice_iter.bitptr();
 		out
 	}
@@ -3472,7 +3474,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
 		let mut slice_iter = self.iterator();
-		let out = slice_iter.nth(n);
+		let out = slice_iter.nth(n).copied();
 		self.region = slice_iter.bitptr();
 		out
 	}

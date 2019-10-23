@@ -149,8 +149,8 @@ fn add_assign(b: &mut Bencher) {
 	let mut src = [0u8; 16];
 	let bsl08a = src.bits_mut::<LittleEndian>();
 	let bsl08b = [0u8; 16].bits::<LittleEndian>();
-	b.iter(|| bsb08a.add_assign(bsb08b));
-	b.iter(|| bsl08a.add_assign(bsl08b));
+	b.iter(|| bsb08a.add_assign(bsb08b.iter().copied()));
+	b.iter(|| bsl08a.add_assign(bsl08b.iter().copied()));
 
 	let mut src = [0u16; 8];
 	let bsb16a = src.bits_mut::<BigEndian>();
@@ -158,8 +158,8 @@ fn add_assign(b: &mut Bencher) {
 	let mut src = [0u16; 8];
 	let bsl16a = src.bits_mut::<LittleEndian>();
 	let bsl16b = [0u16; 8].bits::<LittleEndian>();
-	b.iter(|| bsb16a.add_assign(bsb16b));
-	b.iter(|| bsl16a.add_assign(bsl16b));
+	b.iter(|| bsb16a.add_assign(bsb16b.iter().copied()));
+	b.iter(|| bsl16a.add_assign(bsl16b.iter().copied()));
 
 	let mut src = [0u32; 4];
 	let bsb32a = src.bits_mut::<BigEndian>();
@@ -167,8 +167,8 @@ fn add_assign(b: &mut Bencher) {
 	let mut src = [0u32; 4];
 	let bsl32a = src.bits_mut::<LittleEndian>();
 	let bsl32b = [0u32; 4].bits::<LittleEndian>();
-	b.iter(|| bsb32a.add_assign(bsb32b));
-	b.iter(|| bsl32a.add_assign(bsl32b));
+	b.iter(|| bsb32a.add_assign(bsb32b.iter().copied()));
+	b.iter(|| bsl32a.add_assign(bsl32b.iter().copied()));
 
 	#[cfg(target_pointer_width = "64")] {
 
@@ -178,8 +178,8 @@ fn add_assign(b: &mut Bencher) {
 	let mut src = [0u64; 2];
 	let bsl64a = src.bits_mut::<LittleEndian>();
 	let bsl64b = [0u64; 2].bits::<LittleEndian>();
-	b.iter(|| bsb64a.add_assign(bsb64b));
-	b.iter(|| bsl64a.add_assign(bsl64b));
+	b.iter(|| bsb64a.add_assign(bsb64b.iter().copied()));
+	b.iter(|| bsl64a.add_assign(bsl64b.iter().copied()));
 
 	}
 }

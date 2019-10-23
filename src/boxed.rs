@@ -689,7 +689,7 @@ where C: Cursor, T: BitStore {
 
 impl<'a, C, T> IntoIterator for &'a BitBox<C, T>
 where C: Cursor, T: 'a + BitStore {
-	type Item = bool;
+	type Item = &'a bool;
 	type IntoIter = <&'a BitSlice<C, T> as IntoIterator>::IntoIter;
 
 	fn into_iter(self) -> Self::IntoIter {
@@ -718,7 +718,7 @@ where C: Cursor, T: BitStore {
 impl<C, T> AddAssign for BitBox<C, T>
 where C: Cursor, T: BitStore {
 	fn add_assign(&mut self, addend: Self) {
-		self.as_mut_bitslice().add_assign(addend.as_bitslice())
+		self.as_mut_bitslice().add_assign(addend.as_bitslice().iter().copied())
 	}
 }
 
@@ -983,7 +983,7 @@ impl<C, T> DoubleEndedIterator for IntoIter<C, T>
 where C: Cursor, T: BitStore {
 	fn next_back(&mut self) -> Option<Self::Item> {
 		let mut slice_iter = self.iterator();
-		let out = slice_iter.next_back();
+		let out = slice_iter.next_back().copied();
 		self.region = slice_iter.bitptr();
 		out
 	}
@@ -1001,7 +1001,7 @@ where C: Cursor, T: BitStore {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		let mut slice_iter = self.iterator();
-		let out = slice_iter.next();
+		let out = slice_iter.next().copied();
 		self.region = slice_iter.bitptr();
 		out
 	}
@@ -1016,7 +1016,7 @@ where C: Cursor, T: BitStore {
 
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
 		let mut slice_iter = self.iterator();
-		let out = slice_iter.nth(n);
+		let out = slice_iter.nth(n).copied();
 		self.region = slice_iter.bitptr();
 		out
 	}
