@@ -570,7 +570,7 @@ where C: Cursor, T: BitStore {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		super::Chunks {
 			inner: self,
-			chunk_size,
+			width: chunk_size,
 		}
 	}
 
@@ -611,7 +611,7 @@ where C: Cursor, T: BitStore {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		super::ChunksMut {
 			inner: self,
-			chunk_size,
+			width: chunk_size,
 		}
 	}
 
@@ -658,7 +658,7 @@ where C: Cursor, T: BitStore {
 		super::ChunksExact {
 			inner,
 			extra,
-			chunk_size,
+			width: chunk_size,
 		}
 	}
 
@@ -711,43 +711,320 @@ where C: Cursor, T: BitStore {
 		super::ChunksExactMut {
 			inner,
 			extra,
-			chunk_size,
+			width: chunk_size,
 		}
 	}
 
+	/// Returns an iterator over `chunk_size` bits of the slice at a time,
+	/// starting at the end of the slice.
+	///
+	/// The chunks are slices and do not overlap. If `chunk_size` does not
+	/// divide the length of the slice, then the last chunk will not have length
+	/// of the slice, then the last chunk will not have length `chunk_size`.
+	///
+	/// See [`rchunks_exact`] for a variant of this iterator that returns chunks
+	/// of always exactly `chunk_size` bits, and [`chunks`] for the same
+	/// iterator but starting at the beginning of the slice.
+	///
+	/// # Panics
+	///
+	/// Panics if `chunk_size` is 0.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let data = 0b01_010_100u8;
+	/// let bits = data.bits::<BigEndian>();
+	/// let mut iter = bits.rchunks(3);
+	/// assert_eq!(iter.next().unwrap(), &bits[5 .. 8]);
+	/// assert_eq!(iter.next().unwrap(), &bits[2 .. 5]);
+	/// assert_eq!(iter.next().unwrap(), &bits[0 .. 2]);
+	/// assert!(iter.next().is_none());
+	/// ```
+	///
+	/// [`chunks`]: #method.chunks
+	/// [`rchunks_exact`]: #method.rchunks_exact
 	pub fn rchunks(&self, chunk_size: usize) -> super::RChunks<C, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		RChunks {
 			inner: self,
-			chunk_size,
+			width: chunk_size,
 		}
 	}
 
+	/// Returns an iterator over `chunk_size` bits of the slice at a time,
+	/// starting at the end of the slice.
+	///
+	/// The chunks are mutable slices and do not overlap. If `chunk_size` does
+	/// not divide the length of the slice, then the last chunk will not have
+	/// length of the slice, then the last chunk will not have length
+	/// `chunk_size`.
+	///
+	/// See [`rchunks_exact_mut`] for a variant of this iterator that returns
+	/// chunks of always exactly `chunk_size` bits, and [`chunks_mut`] for the
+	/// same iterator but starting at the beginning of the slice.
+	///
+	/// # Panics
+	///
+	/// Panics if `chunk_size` is 0.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut data = 0u8;
+	/// let bits = data.bits_mut::<LittleEndian>();
+	/// let mut count = 0;
+	///
+	/// for chunk in bits.rchunks_mut(3) {
+	///     chunk.store(4 >> count);
+	///     count += 1;
+	/// }
+	/// assert_eq!(count, 3);
+	/// assert_eq!(data, 0b100_010_01);
+	/// ```
+	///
+	/// [`chunks_mut`]: #method.chunks_mut
+	/// [`rchunks_exact_mut`]: #method.rchunks_exact_mut
 	pub fn rchunks_mut(&mut self, chunk_size: usize) -> super::RChunksMut<C, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		RChunksMut {
 			inner: self,
-			chunk_size,
+			width: chunk_size,
 		}
 	}
 
-	pub fn rchunks_exact(&mut self, chunk_size: usize) -> super::RChunksExact<C, T> {
+	/// Returns an iterator over `chunk_size` bits of the slice at a time,
+	/// starting at the end of the slice.
+	///
+	/// The chunks are slices and do not overlap. If `chunk_size` does not
+	/// divide the length of the slice, then the last up to `chunk_size - 1`
+	/// bits will be omitted and can be retrieved from the `remainder` function
+	/// of the iterator.
+	///
+	/// Due to each chunk having exactly `chunk_size` bits, the compiler can
+	/// often optimize the resulting code better than in the case of [`chunks`].
+	///
+	/// See [`rchunks`] for a variant of this iterator that also returns the
+	/// remainder as a smaller chunk, and [`chunks_exact`] for the same iterator
+	/// but starting at the beginning of the slice.
+	///
+	/// # Panics
+	///
+	/// Panics if `chunk_size` is 0.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let data = 0b100_010_01u8;
+	/// let bits = data.bits::<LittleEndian>();
+	/// let mut iter = bits.rchunks_exact(3);
+	/// assert_eq!(iter.next().unwrap(), &bits[5 .. 8]);
+	/// assert_eq!(iter.next().unwrap(), &bits[2 .. 5]);
+	/// assert!(iter.next().is_none());
+	/// assert_eq!(iter.remainder(), &bits[0 ..2]);
+	/// ```
+	///
+	/// [`chunks`]: #method.chunks
+	/// [`rchunks`]: #method.rchunks
+	/// [`chunks_exact`]: #method.chunks_exact
+	pub fn rchunks_exact(&self, chunk_size: usize) -> super::RChunksExact<C, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		let (extra, inner) = self.split_at(self.len() % chunk_size);
 		RChunksExact {
 			inner,
 			extra,
-			chunk_size,
+			width: chunk_size,
 		}
 	}
 
+	/// Returns an iterator over `chunk_size` bits of the slice at a time,
+	/// starting at the end of the slice.
+	///
+	/// The chunks are mutable slices, and do not overlap. If `chunk_size` does
+	/// not divide the length of the slice, then the last up to `chunk_size - 1`
+	/// bits will be omitted and can be retrieved from the `into_remainder`
+	/// function of the iterator.
+	///
+	/// Due to each chunk having exactly `chunk_size` bits, the compiler can
+	/// often optimize the resulting code better than in the case of
+	/// [`chunks_mut`].
+	///
+	/// See [`rchunks_mut`] for a variant of this iterator that also returns the
+	/// remainder as a smaller chunk, and [`chunks_exact_mut`] for the same
+	/// iterator but starting at the beginning of the slice.
+	///
+	/// # Panics
+	///
+	/// Panics if `chunk_size` is 0.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut data = 0u8;
+	/// let bits = data.bits_mut::<LittleEndian>();
+	/// let mut count = 0;
+	/// let mut iter = bits.rchunks_exact_mut(3);
+	///
+	/// for chunk in &mut iter {
+	///     chunk.store(4 >> count);
+	///     count += 1;
+	/// }
+	/// iter.into_remainder().store(1);
+	/// assert_eq!(data, 0b100_010_01);
+	/// assert_eq!(count, 2);
+	/// ```
+	///
+	/// [`chunks_mut`]: #method.chunks_mut
+	/// [`rchunks_mut`]: #method.rchunks_mut
+	/// [`chunks_exact_mut`]: #method.chunks_exact_mut
 	pub fn rchunks_exact_mut(&mut self, chunk_size: usize) -> super::RChunksExactMut<C, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		let (extra, inner) = self.split_at_mut(self.len() % chunk_size);
 		RChunksExactMut {
 			inner,
 			extra,
-			chunk_size,
+			width: chunk_size,
+		}
+	}
+
+	/// Divides one slice into two at an index.
+	///
+	/// The first will contain all indices from `[0, mid)` (excluding the index
+	/// `mid` itself) and the second will contain all indices from `[mid, len)`
+	/// (excluding the index `len` itself).
+	///
+	/// # Panics
+	///
+	/// Panics if `mid > len`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let data = 0x0Fu8;
+	/// let bits = data.bits::<BigEndian>();
+	///
+	/// {
+	///     let (left, right) = bits.split_at(0);
+	///     assert!(left.is_empty());
+	///     assert_eq!(right, bits);
+	/// }
+	///
+	/// {
+	///     let (left, right) = bits.split_at(4);
+	///     assert!(left.not_any());
+	///     assert!(right.all());
+	/// }
+	///
+	/// {
+	///     let (left, right) = bits.split_at(8);
+	///     assert_eq!(left, bits);
+	///     assert!(right.is_empty());
+	/// }
+	/// ```
+	pub fn split_at(&self, mid: usize) -> (&Self, &Self) {
+		let len = self.len();
+		assert!(mid <= len, "Index {} out of bounds: {}", mid, len);
+		unsafe { self.split_at_unchecked(mid) }
+	}
+
+	/// Divides one mutable slice into two at an index.
+	///
+	/// The first will contain all indices from `[0, mid)` (excluding the index
+	/// `mid` itself) and the second will contain all indices from `[mid, len)`
+	/// (excluding the index `len` itself).
+	///
+	/// # Panics
+	///
+	/// Panics if `mid > len`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut data = 0x0Fu8;
+	/// let bits = data.bits_mut::<BigEndian>();
+	///
+	/// let (left, right) = bits.split_at_mut(4);
+	/// assert!(left.not_any());
+	/// assert!(right.all());
+	/// *left.at(1) = true;
+	/// *right.at(2) = false;
+	///
+	/// assert_eq!(data, 0b0100_1101);
+	/// ```
+	pub fn split_at_mut(&mut self, mid: usize) -> (&mut Self, &mut Self) {
+		let (head, tail) = self.split_at(mid);
+		(head.bitptr().into_bitslice_mut(), tail.bitptr().into_bitslice_mut())
+	}
+
+	/// Returns an iterator over subslices separated by indexed bits that
+	/// satisfy the predicate `func`tion. The matched position is not contained
+	/// in the subslices.
+	///
+	/// # API Differences
+	///
+	/// The [`core::slice::split`] method takes a predicate function with
+	/// signature `(&T) -> bool`, whereas this method’s predicate function has
+	/// signature `(usize, &T) -> bool`. This difference is in place because
+	/// `BitSlice` by definition has only one bit of information per slice item,
+	/// and including the index allows the callback function to make more
+	/// informed choices.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let data = 0b01_001_000u8;
+	/// let bits = data.bits::<BigEndian>();
+	/// let mut iter = bits.split(|pos, bit| *bit);
+	///
+	/// assert_eq!(iter.next().unwrap(), &bits[0 .. 1]);
+	/// assert_eq!(iter.next().unwrap(), &bits[2 .. 4]);
+	/// assert_eq!(iter.next().unwrap(), &bits[5 .. 8]);
+	/// assert!(iter.next().is_none());
+	/// ```
+	///
+	/// If the first position is matched, an empty slice will be the first item
+	/// returned by the iterator. Similarly, if the last position in the slice
+	/// is matched, an empty slice will be the last item returned by the
+	/// iterator:
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let data = 1u8;
+	/// let bits = data.bits::<BigEndian>();
+	/// let mut iter = bits.split(|pos, bit| *bit);
+	///
+	/// assert_eq!(iter.next().unwrap(), &bits[0 .. 7]);
+	/// assert_eq!(iter.next().unwrap(), BitSlice::<Local, Word>::empty());
+	/// assert!(iter.next().is_none());
+	/// ```
+	///
+	/// If two matched positions are directly adjacent, an empty slice will be
+	/// present between them.
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let data = 0b001_100_00u8;
+	/// let bits = data.bits::<BigEndian>();
+	/// let mut iter = bits.split(|pos, bit| *bit);
+	///
+	/// assert_eq!(iter.next().unwrap(), &bits[0 .. 2]);
+	/// assert_eq!(iter.next().unwrap(), BitSlice::<Local, Word>::empty());
+	/// assert_eq!(iter.next().unwrap(), &bits[4 .. 8]);
+	/// assert!(iter.next().is_none());
+	/// ```
+	pub fn split<'a, F>(&'a self, func: F) -> super::Split<'a, C, T, F>
+	where F: FnMut(usize, &'a bool) -> bool {
+		Split {
+			inner: self,
+			place: Some(0),
+			func,
 		}
 	}
 }

@@ -496,95 +496,36 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`split_at_mut`]: #method.split_at_mut
 	pub fn at(&mut self, index: usize) -> BitGuard<C, T> {
-		BitGuard {
-			bit: self[index],
-			slot: &mut self[index ..= index],
-		}
+		let len = self.len();
+		assert!(index < len, "Index {} out of bounds: {}", index, len);
+		unsafe { self.at_unchecked(index) }
 	}
 
+	/// Version of [`at`](#method.at) that does not perform boundary checking.
 	pub unsafe fn at_unchecked(&mut self, index: usize) -> BitGuard<C, T> {
 		BitGuard {
 			bit: *self.get_unchecked(index),
-			slot: {
-				let bitptr = self.bitptr();
-				let (data, head) = (bitptr.pointer().w(), bitptr.head());
-				let (offset, new_head) = head.offset(index as isize);
-				BitPtr::new_unchecked(data.offset(offset), new_head, 1).into_bitslice_mut()
-			},
+			slot: self.get_unchecked_mut(index ..= index),
 		}
 	}
 
-	/// Divides one slice into two at an index.
-	///
-	/// The first will contain all indices from `[0, mid)` (excluding the index
-	/// `mid` itself) and the second will contain all indices from `[mid, len)`
-	/// (excluding the index `len` itself).
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	/// - `mid`: The index at which to split
-	///
-	/// # Returns
-	///
-	/// - The bits up to but not including `mid`.
-	/// - The bits from mid onwards.
-	///
-	/// # Panics
-	///
-	/// Panics if `mid > self.len()`.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bits = 15u8.bits::<BigEndian>();
-	///
-	/// let (l, r) = bits.split_at(0);
-	/// assert!(l.is_empty());
-	/// assert_eq!(r, bits);
-	///
-	/// let (l, r) = bits.split_at(4);
-	/// assert_eq!(l, &bits[0 .. 4]);
-	/// assert_eq!(r, &bits[4 .. 8]);
-	///
-	/// let (l, r) = bits.split_at(8);
-	/// assert_eq!(l, bits);
-	/// assert!(r.is_empty());
-	/// ```
-	pub fn split_at(&self, mid: usize) -> (&Self, &Self) {
-		let len = self.len();
-		assert!(mid <= len, "Index {} out of bounds: {}", mid, len);
-		if mid == len {
-			(&self, Self::empty())
-		}
-		else {
-			(&self[.. mid], &self[mid ..])
+	/// Version of [`split_at`](#method.split_at) that does not perform boundary
+	/// checking.
+	pub unsafe fn split_at_unchecked(&self, mid: usize) -> (&Self, &Self) {
+		match mid {
+			0 => (BitSlice::empty(), self),
+			n if n == self.len() => (self, BitSlice::empty()),
+			_ => (self.get_unchecked(.. mid), self.get_unchecked(mid ..)),
 		}
 	}
 
-	/// Divides one slice into two at an index.
-	///
-	/// The first will contain all indices from `[0, mid)` (excluding the index
-	/// `mid` itself) and the second will contain all indices from `[mid, len)`
-	/// (excluding the index `len` itself).
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`
-	/// - `mid`: The index at which to split
-	///
-	/// # Returns
-	///
-	/// - The bits up to but not including `mid`.
-	/// - The bits from mid onwards.
-	///
-	/// # Panics
-	///
-	/// Panics if `mid > self.len()`.
-	pub fn split_at_mut(&mut self, mid: usize) -> (&mut Self, &mut Self) {
-		let (head, tail) = self.split_at(mid);
+	/// Version of [`split_at_mut`](#method.split_at_mut) that does not perform
+	/// boundary checking.
+	pub unsafe fn split_at_mut_unchecked(
+		&mut self,
+		mid: usize,
+	) -> (&mut Self, &mut Self) {
+		let (head, tail) = self.split_at_unchecked(mid);
 		(head.bitptr().into_bitslice_mut(), tail.bitptr().into_bitslice_mut())
 	}
 

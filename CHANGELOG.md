@@ -26,6 +26,10 @@ This document is written according to the [Keep a Changelog][kac] style.
 - The `store::Word` type alias is a default unit size. Targets with 32-bit CPU
   words set it to `u32`; 64-bit CPU word targets set it to `u64`; all other
   targets set it to `u8`.
+- `BitSlice` is able to provide mutable borrowing access through iteration and
+  inherent methods by using the `BitGuard` custom referential type. This type is
+  not able to be used as an `&mut bool`, so the API is still not an exact mirror
+  of the standard library.
 
 ### Changed
 
@@ -44,6 +48,9 @@ This document is written according to the [Keep a Changelog][kac] style.
   This change was made in order to provide performance advantages by using the
   native CPU word size, and to ease choice of a bit ordering in usages that do
   not particularly care about the underlying memory’s appearance.
+- The `BitSlice` inherent and trait API is updated to more closely track the
+  standard library’s API as of `1.36.0`. The major change to existing code is
+  that the `Iterator` implementations are now of `&bool`, not `bool`.
 - The internal process that translates `BitSlice` operations into access
   operations on underlying memory has been rewritten. Production of contended
   references to bare fundamentals is now forbidden, and all access is mediated
