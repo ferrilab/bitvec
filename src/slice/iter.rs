@@ -1113,7 +1113,17 @@ where C: Cursor, T: BitStore {}
 impl<C, T> FusedIterator for RChunksMut<'_, C, T>
 where C: Cursor, T: BitStore {}
 
-/** An iterator over subslices separated by bits that match a predicate
+/** An internal abstraction over the splitting iterators, so that
+`{,r}splitn{,_mut}` can have a single implementation.
+**/
+#[doc(hidden)]
+pub(super) trait SplitIter: DoubleEndedIterator {
+	/// Marks the underlying iterator as complete, extracting the remaining
+	/// portion of the slice.
+	fn finish(&mut self) -> Option<Self::Item>;
+}
+
+/** An iterator over subslices separated by bits that satisfy a predicate
 function.
 
 This struct is created by the [`split`] method on [`BitSlice`]s.
@@ -1123,7 +1133,7 @@ This struct is created by the [`split`] method on [`BitSlice`]s.
 **/
 #[derive(Clone)]
 pub struct Split<'a, C, T, F>
-where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &'a bool) -> bool {
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 	/// The `BitSlice` undergoing iteration.
 	pub(super) inner: &'a BitSlice<C, T>,
 	/// The offset from the original slice to the current `inner`. If `None`,
@@ -1133,16 +1143,8 @@ where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &'a bool) -> bool {
 	pub(super) func: F,
 }
 
-impl<'a, C, T, F> Split<'a, C, T, F>
-where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &'a bool) -> bool {
-	#[inline]
-	fn finish(&mut self) -> Option<&'a BitSlice<C, T>> {
-		self.place.take().map(|_| self.inner)
-	}
-}
-
 impl<'a, C, T, F> Debug for Split<'a, C, T, F>
-where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &'a bool) -> bool {
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		f.debug_struct("Split")
 			.field("inner", &self.inner)
@@ -1151,8 +1153,16 @@ where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &'a bool) -> bool {
 	}
 }
 
+impl<'a, C, T, F> SplitIter for Split<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	#[inline]
+	fn finish(&mut self) -> Option<&'a BitSlice<C, T>> {
+		self.place.take().map(|_| self.inner)
+	}
+}
+
 impl<'a, C, T, F> Iterator for Split<'a, C, T, F>
-where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &'a bool) -> bool {
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 	type Item = &'a BitSlice<C, T>;
 
 	#[inline]
@@ -1183,7 +1193,7 @@ where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &'a bool) -> bool {
 }
 
 impl<'a, C, T, F> DoubleEndedIterator for Split<'a, C, T, F>
-where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &'a bool) -> bool {
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		let place = self.place?;
@@ -1202,6 +1212,400 @@ where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &'a bool) -> bool {
 		}
 	}
 }
+
+impl<'a, C, T, F> FusedIterator for Split<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {}
+
+/** An iterator over subslices separated by positions that satisfy a predicate
+function.
+
+This struct is created by the [`split_mut`] method on [`BitSlice`]s.
+
+[`BitSlice`]: struct.BitSlice.html
+[`split_mut`]: struct.BitSlice.html#method.split_mut
+**/
+pub struct SplitMut<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	/// The `BitSlice` undergoing iteration.
+	pub(super) inner: &'a mut BitSlice<C, T>,
+	/// The offset from the original slice to the current `inner`. If `None`,
+	/// the split is done operating.
+	pub(super) place: Option<usize>,
+	/// The testing function.
+	pub(super) func: F,
+}
+
+impl<'a, C, T, F> Debug for SplitMut<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		fmt.debug_struct("SplitMut")
+			.field("inner", &self.inner)
+			.field("place", &self.place)
+			.finish()
+	}
+}
+
+impl<'a, C, T, F> SplitIter for SplitMut<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	#[inline]
+	fn finish(&mut self) -> Option<&'a mut BitSlice<C, T>> {
+		self.place.take().map(|_| mem::replace(&mut self.inner, BitSlice::empty_mut()))
+	}
+}
+
+impl<'a, C, T, F> Iterator for SplitMut<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	type Item = &'a mut BitSlice<C, T>;
+
+	#[inline]
+	fn next(&mut self) -> Option<Self::Item> {
+		let place = self.place?;
+		match {
+			let func = &mut self.func;
+			self.inner
+				.iter()
+				.zip(place ..)
+				.position(|(bit, idx)| (*func)(place + idx, bit))
+		} {
+			None => self.finish(),
+			Some(idx) => unsafe {
+				let (out, rest) = mem::replace(
+					&mut self.inner,
+					BitSlice::empty_mut(),
+				).split_at_mut(idx);
+				self.inner = rest.get_unchecked_mut(1 ..);
+				self.place = Some(place + idx + 1);
+				Some(out)
+			},
+		}
+	}
+
+	#[inline]
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		match self.place {
+			None => (0, Some(0)),
+			Some(_) => (1, Some(self.inner.len() + 1)),
+		}
+	}
+}
+
+impl<'a, C, T, F> DoubleEndedIterator for SplitMut<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	#[inline]
+	fn next_back(&mut self) -> Option<Self::Item> {
+		let place = self.place?;
+
+		match {
+			let func = &mut self.func;
+			self.inner
+				.iter()
+				.zip(place .. place + self.inner.len())
+				.rposition(|(bit, idx)| (*func)(place + idx, bit))
+		} {
+			None => self.finish(),
+			Some(idx) => unsafe {
+				let (rest, out) = mem::replace(
+					&mut self.inner,
+					BitSlice::empty_mut(),
+				).split_at_mut(idx);
+				self.inner = rest;
+				self.place = Some(place + idx + 1);
+				Some(out.get_unchecked_mut(1 ..))
+			},
+		}
+	}
+}
+
+impl<'a, C, T, F> FusedIterator for SplitMut<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {}
+
+/** An iterator over subslices separated by bits that satisfy a predicate
+function, starting from the end of the slice.
+
+This struct is created by the [`rsplit`] method on [`BitSlice`]s.
+
+[`BitSlice`]: struct.BitSlice.html
+[`rsplit`]: struct.BitSlice.html#rsplit
+**/
+#[derive(Clone)]
+pub struct RSplit<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	/// This delegates to `Split`, and switches `next` and `next_back`.
+	pub(super) inner: Split<'a, C, T, F>,
+}
+
+impl<'a, C, T, F> Debug for RSplit<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		f.debug_struct("RSplit")
+			.field("inner", &self.inner.inner)
+			.field("place", &self.inner.place)
+			.finish()
+	}
+}
+
+impl<'a, C, T, F> SplitIter for RSplit<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	fn finish(&mut self) -> Option<Self::Item> {
+		self.inner.finish()
+	}
+}
+
+impl<'a, C, T, F> Iterator for RSplit<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	type Item = &'a BitSlice<C, T>;
+
+	#[inline]
+	fn next(&mut self) -> Option<Self::Item> {
+		self.inner.next_back()
+	}
+
+	#[inline]
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		self.inner.size_hint()
+	}
+}
+
+impl<'a, C, T, F> DoubleEndedIterator for RSplit<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	#[inline]
+	fn next_back(&mut self) -> Option<Self::Item> {
+		self.inner.next()
+	}
+}
+
+impl<'a, C, T, F> FusedIterator for RSplit<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {}
+
+/** An iterator over subslices separated by bits that satisfy a predicate
+function, starting from the end of the slice.
+
+This struct is created by the [`rsplit_mut`] method on [`BitSlice`]s.
+
+[`BitSlice`]: struct.BitSlice.html
+[`rsplit_mut`]: struct.BitSlice.html#rsplit_mut
+**/
+pub struct RSplitMut<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	/// This delegates to `SplitMut`, and switches `next` and `next_back`.
+	pub(super) inner: SplitMut<'a, C, T, F>,
+}
+
+impl<'a, C, T, F> Debug for RSplitMut<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		f.debug_struct("RSplitMut")
+			.field("inner", &self.inner.inner)
+			.field("place", &self.inner.place)
+			.finish()
+	}
+}
+
+impl<'a, C, T, F> SplitIter for RSplitMut<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	fn finish(&mut self) -> Option<Self::Item> {
+		self.inner.finish()
+	}
+}
+
+impl<'a, C, T, F> Iterator for RSplitMut<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	type Item = &'a mut BitSlice<C, T>;
+
+	#[inline]
+	fn next(&mut self) -> Option<Self::Item> {
+		self.inner.next_back()
+	}
+
+	#[inline]
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		self.inner.size_hint()
+	}
+}
+
+impl<'a, C, T, F> DoubleEndedIterator for RSplitMut<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	#[inline]
+	fn next_back(&mut self) -> Option<Self::Item> {
+		self.inner.next()
+	}
+}
+
+impl<'a, C, T, F> FusedIterator for RSplitMut<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {}
+
+pub(super) struct GenericSplitN<I>
+where I: SplitIter {
+	/// Some splitting wrapper.
+	pub(super) inner: I,
+	/// The count of remaining splits that may occur.
+	pub(super) count: usize,
+}
+
+impl<I> Iterator for GenericSplitN<I>
+where I: SplitIter {
+	type Item = I::Item;
+
+	#[inline]
+	fn next(&mut self) -> Option<Self::Item> {
+		match self.count {
+			0 => None,
+			1 => { self.count = 0; self.inner.finish() },
+			_ => { self.count -= 1; self.inner.next() },
+		}
+	}
+
+	#[inline]
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		let (floor, ceil) = self.inner.size_hint();
+		(floor, ceil.map(|c| cmp::min(self.count, c)))
+	}
+}
+
+/** An iterator over subslices separated by positions that satisfy a predicate
+function, limited to a given number of splits.
+
+This struct is created by the [`splitn`] method on [`BitSlice`]s.
+
+[`BitSlice`]: struct.BitSlice.html
+[`splitn`]: struct.BitSlice.html#method.splitn
+**/
+pub struct SplitN<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	/// The interior splitter.
+	pub(super) inner: GenericSplitN<Split<'a, C, T, F>>,
+}
+
+impl<'a, C, T, F> Debug for SplitN<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		fmt.debug_struct("SplitN")
+			.field("inner", &self.inner.inner)
+			.field("count", &self.inner.count)
+			.finish()
+	}
+}
+
+/** An iterator over mutable subslices separated by positions that satisfy a
+predicate function, limited to a given number of splits.
+
+This struct is created by the [`splitn_mut`] method on [`BitSlice`]s.
+
+[`BitSlice`]: struct.BitSlice.html
+[`splitn_mut`]: struct.BitSlice.html#method.splitn_mut
+**/
+pub struct SplitNMut<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	/// The interior splitter.
+	pub(super) inner: GenericSplitN<SplitMut<'a, C, T, F>>,
+}
+
+impl<'a, C, T, F> Debug for SplitNMut<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		fmt.debug_struct("SplitNMut")
+			.field("inner", &self.inner.inner)
+			.field("count", &self.inner.count)
+			.finish()
+	}
+}
+
+/** An iterator over subslices separated by positions that satisfy a predicate
+function, limited to a given number of splits, starting from the end of the
+slice.
+
+This struct is created by the [`rsplitn`] method on [`BitSlice`]s.
+
+[`BitSlice`]: struct.BitSlice.html
+[`rsplitn`]: struct.BitSlice.html#method.rsplitn
+**/
+pub struct RSplitN<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	/// The interior splitter.
+	pub(super) inner: GenericSplitN<RSplit<'a, C, T, F>>,
+}
+
+impl<'a, C, T, F> Debug for RSplitN<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		fmt.debug_struct("RSplitN")
+			.field("inner", &self.inner.inner)
+			.field("count", &self.inner.count)
+			.finish()
+	}
+}
+
+/** An iterator over mutable subslices separated by positions that satisfy a
+predicate function, limited to a given number of splits, starting from the end
+of the slice.
+
+This struct is created by the [`rsplitn_mut`] method on [`BitSlice`]s.
+
+[`BitSlice`]: struct.BitSlice.html
+[`rsplitn_mut`]: struct.BitSlice.html#method.rsplitn_mut
+**/
+pub struct RSplitNMut<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	/// The interior splitter.
+	pub(super) inner: GenericSplitN<RSplitMut<'a, C, T, F>>,
+}
+
+impl<'a, C, T, F> Debug for RSplitNMut<'a, C, T, F>
+where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		fmt.debug_struct("RSplitNMut")
+			.field("inner", &self.inner.inner)
+			.field("count", &self.inner.count)
+			.finish()
+	}
+}
+
+macro_rules! forward_iterator {
+	( $name:ident ) => {
+		impl<'a, C, T, F> Iterator for $name <'a, C, T, F>
+		where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+			type Item = &'a BitSlice<C, T>;
+
+			#[inline]
+			fn next(&mut self) -> Option<Self::Item> {
+				self.inner.next()
+			}
+
+			#[inline]
+			fn size_hint(&self) -> (usize, Option<usize>) {
+				self.inner.size_hint()
+			}
+		}
+
+		impl<'a, C, T, F> FusedIterator for $name <'a, C, T, F>
+		where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {}
+	};
+
+	( $name:ident mut ) => {
+		impl<'a, C, T, F> Iterator for $name <'a, C, T, F>
+		where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+			type Item = &'a mut BitSlice<C, T>;
+
+			#[inline]
+			fn next(&mut self) -> Option<Self::Item> {
+				self.inner.next()
+			}
+
+			#[inline]
+			fn size_hint(&self) -> (usize, Option<usize>) {
+				self.inner.size_hint()
+			}
+		}
+
+		impl<'a, C, T, F> FusedIterator for $name <'a, C, T, F>
+		where C: Cursor, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {}
+	};
+}
+
+forward_iterator!(SplitN);
+forward_iterator!(RSplitN);
+forward_iterator!(SplitNMut mut);
+forward_iterator!(RSplitNMut mut);
 
 /** An iterator over overlapping subslices of some width.
 

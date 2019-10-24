@@ -477,7 +477,7 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(iter.next(), Some(&false));
 	/// assert!(iter.next().is_none());
 	/// ```
-	pub fn iter(&self) -> super::Iter<C, T> {
+	pub fn iter(&self) -> Iter<C, T> {
 		self.into_iter()
 	}
 
@@ -494,7 +494,7 @@ where C: Cursor, T: BitStore {
 	/// }
 	/// assert_eq!(data, 3);
 	/// ```
-	pub fn iter_mut(&mut self) -> super::IterMut<C, T> {
+	pub fn iter_mut(&mut self) -> IterMut<C, T> {
 		self.into_iter()
 	}
 
@@ -528,7 +528,7 @@ where C: Cursor, T: BitStore {
 	/// let bits = data.bits::<Local>();
 	/// let mut iter = bits[.. 3].windows(4);
 	/// assert!(iter.next().is_none());
-	pub fn windows(&self, width: usize) -> super::Windows<C, T> {
+	pub fn windows(&self, width: usize) -> Windows<C, T> {
 		assert_ne!(width, 0, "Window width cannot be zero");
 		super::Windows {
 			inner: self,
@@ -566,7 +566,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`chunks_exact`]: #method.chunks_exact
 	/// [`rchunks`]: #method.rchunks
-	pub fn chunks(&self, chunk_size: usize) -> super::Chunks<C, T> {
+	pub fn chunks(&self, chunk_size: usize) -> Chunks<C, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		super::Chunks {
 			inner: self,
@@ -607,7 +607,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`chunks_exact_mut`]: #method.chunks_exact_mut
 	/// [`rchunks_mut`]: #method.rchunks_mut
-	pub fn chunks_mut(&mut self, chunk_size: usize) -> super::ChunksMut<C, T> {
+	pub fn chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<C, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		super::ChunksMut {
 			inner: self,
@@ -649,7 +649,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`chunks`]: #method.chunks
 	/// [`rchunks_exact`]: #method.rchunks_exact
-	pub fn chunks_exact(&self, chunk_size: usize) -> super::ChunksExact<C, T> {
+	pub fn chunks_exact(&self, chunk_size: usize) -> ChunksExact<C, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		let len = self.len();
 		let rem = len % chunk_size;
@@ -702,7 +702,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`chunks_mut`]: #method.chunks_mut
 	/// [`rchunks_exact_mut`]: #method.rchunks_exact_mut
-	pub fn chunks_exact_mut(&mut self, chunk_size: usize) -> super::ChunksExactMut<C, T> {
+	pub fn chunks_exact_mut(&mut self, chunk_size: usize) -> ChunksExactMut<C, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		let len = self.len();
 		let rem = len % chunk_size;
@@ -745,7 +745,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`chunks`]: #method.chunks
 	/// [`rchunks_exact`]: #method.rchunks_exact
-	pub fn rchunks(&self, chunk_size: usize) -> super::RChunks<C, T> {
+	pub fn rchunks(&self, chunk_size: usize) -> RChunks<C, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		RChunks {
 			inner: self,
@@ -787,7 +787,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`chunks_mut`]: #method.chunks_mut
 	/// [`rchunks_exact_mut`]: #method.rchunks_exact_mut
-	pub fn rchunks_mut(&mut self, chunk_size: usize) -> super::RChunksMut<C, T> {
+	pub fn rchunks_mut(&mut self, chunk_size: usize) -> RChunksMut<C, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		RChunksMut {
 			inner: self,
@@ -830,7 +830,7 @@ where C: Cursor, T: BitStore {
 	/// [`chunks`]: #method.chunks
 	/// [`rchunks`]: #method.rchunks
 	/// [`chunks_exact`]: #method.chunks_exact
-	pub fn rchunks_exact(&self, chunk_size: usize) -> super::RChunksExact<C, T> {
+	pub fn rchunks_exact(&self, chunk_size: usize) -> RChunksExact<C, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		let (extra, inner) = self.split_at(self.len() % chunk_size);
 		RChunksExact {
@@ -881,7 +881,7 @@ where C: Cursor, T: BitStore {
 	/// [`chunks_mut`]: #method.chunks_mut
 	/// [`rchunks_mut`]: #method.rchunks_mut
 	/// [`chunks_exact_mut`]: #method.chunks_exact_mut
-	pub fn rchunks_exact_mut(&mut self, chunk_size: usize) -> super::RChunksExactMut<C, T> {
+	pub fn rchunks_exact_mut(&mut self, chunk_size: usize) -> RChunksExactMut<C, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		let (extra, inner) = self.split_at_mut(self.len() % chunk_size);
 		RChunksExactMut {
@@ -1019,13 +1019,590 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(iter.next().unwrap(), &bits[4 .. 8]);
 	/// assert!(iter.next().is_none());
 	/// ```
-	pub fn split<'a, F>(&'a self, func: F) -> super::Split<'a, C, T, F>
-	where F: FnMut(usize, &'a bool) -> bool {
+	///
+	/// [`core::slice::split`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.split
+	pub fn split<F>(&self, func: F) -> Split<'_, C, T, F>
+	where F: FnMut(usize, &bool) -> bool {
 		Split {
 			inner: self,
 			place: Some(0),
 			func,
 		}
+	}
+
+	/// Returns an iterator over mutable subslices separated by indexed bits
+	/// that satisfy the predicate `func`tion. The matched position is not
+	/// contained in the subslices.
+	///
+	/// # API Differences
+	///
+	/// The [`core::slice::split_mut`] method takes a predicate function with
+	/// signature `(&T) -> bool`, whereas this method’s predicate function has
+	/// signature `(usize, &T) -> bool`. This difference is in place because
+	/// `BitSlice` by definition has only one bit of information per slice item,
+	/// and including the index allows the callback function to make more
+	/// informed choices.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut data = 0b001_000_10u8;
+	/// let bits = data.bits_mut::<BigEndian>();
+	///
+	/// for group in bits.split_mut(|pos, bit| *bit) {
+	///     *group.at(0) = true;
+	/// }
+	/// assert_eq!(data, 0b101_1001_1u8);
+	/// ```
+	///
+	/// [`core::slice::split_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.split_muts
+	pub fn split_mut<F>(&mut self, func: F) -> SplitMut<'_, C, T, F>
+	where F: FnMut(usize, &bool) -> bool {
+		SplitMut {
+			inner: self,
+			place: Some(0),
+			func,
+		}
+	}
+
+	/// Returns an iterator over subslices separated by indexed bits that
+	/// satisfy a predicate `func`tion, starting at the end of the slice and
+	/// working backwards. The matched position is not contained in the
+	/// subslices.
+	///
+	/// # API Differences
+	///
+	/// The [`core::slice::rsplit`] method takes a predicate function with
+	/// signature `(&T) -> bool`, whereas this method’s predicate function has
+	/// signature `(usize, &T) -> bool`. This difference is in place because
+	/// `BitSlice` by definition has only one bit of information per slice item,
+	/// and including the index allows the callback function to make more
+	/// informed choices.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let data = 0b0001_0000u8;
+	/// let bits = data.bits::<BigEndian>();
+	/// let mut iter = bits.rsplit(|pos, bit| *bit);
+	///
+	/// assert_eq!(iter.next().unwrap(), &bits[4 .. 8]);
+	/// assert_eq!(iter.next().unwrap(), &bits[0 .. 3]);
+	/// assert!(iter.next().is_none());
+	/// ```
+	///
+	/// As with `split()`, if the first or last position is matched, an empty
+	/// slice will be the first (or last) item returned by the iterator.
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let data = 0b1001_0001u8;
+	/// let bits = data.bits::<BigEndian>();
+	/// let mut iter = bits.rsplit(|pos, bit| *bit);
+	/// assert!(iter.next().unwrap().is_empty());
+	/// assert_eq!(iter.next().unwrap(), &bits[4 .. 7]);
+	/// assert_eq!(iter.next().unwrap(), &bits[1 .. 3]);
+	/// assert!(iter.next().unwrap().is_empty());
+	/// assert!(iter.next().is_none());
+	/// ```
+	///
+	/// [`core::slice::rsplit`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplit
+	pub fn rsplit<F>(&self, func: F) -> RSplit<'_, C, T, F>
+	where F: FnMut(usize, &bool) -> bool {
+		RSplit {
+			inner: self.split(func),
+		}
+	}
+
+	/// Returns an iterator over mutable subslices separated by indexed bits
+	/// that satisfy a predicate `func`tion, starting at the end of the slice
+	/// and working backwards. The matched position is not contained in the
+	/// subslices.
+	///
+	/// # API Differences
+	///
+	/// The [`core::slice::rsplit_mut`] method takes a predicate function with
+	/// signature `(&T) -> bool`, whereas this method’s predicate function has
+	/// signature `(usize, &T) -> bool`. This difference is in place because
+	/// `BitSlice` by definition has only one bit of information per slice item,
+	/// and including the index allows the callback function to make more
+	/// informed choices.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut data = 0u8;
+	/// let bits = data.bits_mut::<BigEndian>();
+	///
+	/// let mut count = 0;
+	/// for group in bits.rsplit_mut(|pos, bit| pos % 3 == 2) {
+	///     count += 1;
+	///     group.store(count);
+	/// }
+	/// assert_eq!(data, 0b11_0_10_0_01);
+	/// ```
+	///
+	/// [`core::slice::rsplit_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplit_mut
+	pub fn rsplit_mut<F>(&mut self, func: F) -> RSplitMut<'_, C, T, F>
+	where F: FnMut(usize, &bool) -> bool {
+		RSplitMut {
+			inner: self.split_mut(func),
+		}
+	}
+
+	/// Returns an iterator over subslices separated by indexed bits that
+	/// satisfy the predicate `func`tion, limited to returning at most `n`
+	/// items. The matched position is not contained in the subslices.
+	///
+	/// The last element returned, if any, will contain the remainder of the
+	/// slice.
+	///
+	/// # API Differences
+	///
+	/// The [`core::slice::splitn`] method takes a predicate function with
+	/// signature `(&T) -> bool`, whereas this method’s predicate function has
+	/// signature `(usize, &T) -> bool`. This difference is in place because
+	/// `BitSlice` by definition has only one bit of information per slice item,
+	/// and including the index allows the callback function to make more
+	/// informed choices.
+	///
+	/// # Examples
+	///
+	/// Print the slice split once by indices divisible by 3:
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let data = 0xA5u8;
+	/// let bits = data.bits::<BigEndian>();
+	///
+	/// for group in bits.splitn(2, |pos, bit| pos % 3 == 2) {
+	///     println!("{}", group);
+	/// }
+	/// //  [10]
+	/// //  [00101]
+	/// ```
+	///
+	/// [`core::slice::splitn`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.splitn
+	pub fn splitn<F>(&self, n: usize, func: F) -> SplitN<'_, C, T, F>
+	where F: FnMut(usize, &bool) -> bool {
+		SplitN {
+			inner: GenericSplitN {
+				inner: self.split(func),
+				count: n,
+			}
+		}
+	}
+
+	/// Returns an iterator over mutable subslices separated by indexed bits
+	/// that satisfy the predicate `func`tion, limited to returning at most `n`
+	/// items. The matched position is not contained in the subslices.
+	///
+	/// The last element returned, if any, will contain the remainder of the
+	/// slice.
+	///
+	/// # API Differences
+	///
+	/// The [`core::slice::splitn_mut`] method takes a predicate function with
+	/// signature `(&T) -> bool`, whereas this method’s predicate function has
+	/// signature `(usize, &T) -> bool`. This difference is in place because
+	/// `BitSlice` by definition has only one bit of information per slice item,
+	/// and including the index allows the callback function to make more
+	/// informed choices.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut data = 0u8;
+	/// let bits = data.bits_mut::<BigEndian>();
+	/// let mut counter = 0;
+	///
+	/// for group in bits.splitn_mut(2, |pos, bit| pos % 4 == 3) {
+	///     counter += 1;
+	///     group.store(counter);
+	/// }
+	/// assert_eq!(data, 0b001_0_0010);
+	/// ```
+	///
+	/// [`core::slice::splitn_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.splitn_mut
+	pub fn splitn_mut<F>(&mut self, n: usize, func: F) -> SplitNMut<'_, C, T, F>
+	where F: FnMut(usize, &bool) -> bool {
+		SplitNMut {
+			inner: GenericSplitN {
+				inner: self.split_mut(func),
+				count: n,
+			}
+		}
+	}
+
+	/// Returns an iterator over subslices separated by indexed bits that
+	/// satisfy a predicate `func`tion, limited to returning at most `n` items.
+	/// This starts at the end of the slice and works backwards. The matched
+	/// position is not contained in the subslices.
+	///
+	/// The last element returned, if any, will contain the remainder of the
+	/// slice.
+	///
+	/// # API Differences
+	///
+	/// The [`core::slice::rsplitn`] method takes a predicate function with
+	/// signature `(&T) -> bool`, whereas this method’s predicate function has
+	/// signature `(usize, &T) -> bool`. This difference is in place because
+	/// `BitSlice` by definition has only one bit of information per slice item,
+	/// and including the index allows the callback function to make more
+	/// informed choices.
+	///
+	/// # Examples
+	///
+	/// Print the slice split once, starting from the end, by indices divisible
+	/// by 3:
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let data = 0xA5u8;
+	/// let bits = data.bits::<BigEndian>();
+	///
+	/// for group in bits.rsplitn(2, |pos, bit| pos % 3 == 2) {
+	///     println!("{}", group);
+	/// }
+	/// //  [01]
+	/// //  [10100]
+	/// ```
+	///
+	/// [`core::slice::rsplitn`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplitn
+	pub fn rsplitn<F>(&self, n: usize, func: F) -> RSplitN<'_, C, T, F>
+	where F: FnMut(usize, &bool) -> bool {
+		RSplitN {
+			inner: GenericSplitN {
+				inner: self.rsplit(func),
+				count: n,
+			}
+		}
+	}
+
+	/// Returns an iterator over mutable subslices separated by indexed bits
+	/// that satisfy a predicate `func`tion, limited to returning at most `n`
+	/// items. This starts at the end of the slice and works backwards. The
+	/// matched position is not contained in the subslices.
+	///
+	/// The last element returned, if any, will contain the remainder of the
+	/// slice.
+	///
+	/// # API Differences
+	///
+	/// The [`core::slice::rsplitn_mut`] method takes a predicate function with
+	/// signature `(&T) -> bool`, whereas this method’s predicate function has
+	/// signature `(usize, &T) -> bool`. This difference is in place because
+	/// `BitSlice` by definition has only one bit of information per slice item,
+	/// and including the index allows the callback function to make more
+	/// informed choices.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut data = 0u8;
+	/// let bits = data.bits_mut::<BigEndian>();
+	/// let mut counter = 0;
+	///
+	/// for group in bits.rsplitn_mut(2, |pos, bit| pos % 3 == 2) {
+	///     counter += 1;
+	///     group.store(counter);
+	/// }
+	/// assert_eq!(data, 0b00010_0_01);
+	/// ```
+	///
+	/// [`core::slice::rsplitn_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplitn_mut
+	pub fn rsplitn_mut<F>(&mut self, n: usize, func: F) -> RSplitNMut<'_, C, T, F>
+	where F: FnMut(usize, &bool) -> bool {
+		RSplitNMut {
+			inner: GenericSplitN {
+				inner: self.rsplit_mut(func),
+				count: n,
+			}
+		}
+	}
+
+	/// Returns `true` if the slice contains a region that matches the given
+	/// span.
+	///
+	/// # API Differences
+	///
+	/// The [`core::slice::contains`] method tests for a single slice element.
+	/// Because this is a slice of single bits, testing for the presence of one
+	/// `bool` value is not very informative. This instead searches for a
+	/// subslice, which may be one or more bits.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let data = 0b0101_1010u8;
+	/// let bits_be = data.bits::<BigEndian>();
+	/// let bits_le = data.bits::<LittleEndian>();
+	/// assert!(bits_be.contains(&bits_le[1 .. 5]));
+	/// ```
+	///
+	/// This example uses a palindrome pattern to demonstrate that the query
+	/// does not need to have the same type parameters as the searched slice.
+	pub fn contains<D, U>(&self, query: &BitSlice<D, U>) -> bool
+	where D: Cursor, U: BitStore {
+		let len = query.len();
+		if len > self.len() {
+			return false;
+		}
+		self.windows(len).any(|s| s == query)
+	}
+
+	/// Returns `true` if `prefix` is a prefix of the slice.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let data = 0b0110_1110u8;
+	/// let bits = data.bits::<BigEndian>();
+	/// assert!(bits.starts_with(&data.bits::<LittleEndian>()[.. 2]));
+	/// ```
+	pub fn starts_with<D, U>(&self, prefix: &BitSlice<D, U>) -> bool
+	where D: Cursor, U: BitStore {
+		let plen = prefix.len();
+		self.len() >= plen && prefix == unsafe { self.get_unchecked(.. plen) }
+	}
+
+	/// Returns `true` if `suffix` is a suffix of the slice.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let data = 0b0111_1010u8;
+	/// let bits = data.bits::<BigEndian>();
+	/// assert!(bits.ends_with(&data.bits::<LittleEndian>()[6 ..]));
+	/// ```
+	pub fn ends_with<D, U>(&self, suffix: &BitSlice<D, U>) -> bool
+	where D: Cursor, U: BitStore, {
+		let slen = suffix.len();
+		let len = self.len();
+		len >= slen && suffix == unsafe { self.get_unchecked(len - slen ..) }
+	}
+
+	/// Rotates the slice in-place such that the first `by` bits of the slice
+	/// move to the end while the last `self.len() - by` bits move to the
+	/// front. After calling `rotate_left`, the bit previously at index `by`
+	/// will become the first bit in the slice.
+	///
+	/// # Panics
+	///
+	/// This function will panic if `by` is greater than the length of the
+	/// slice. Note that `by == self.len()` does *not* panic and is a no-op
+	/// rotation.
+	///
+	/// # Complexity
+	///
+	/// Takes linear (in `self.len()`) time.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut data = 0xF0u8;
+	/// let bits = data.bits_mut::<BigEndian>();
+	/// bits.rotate_left(2);
+	/// assert_eq!(data, 0xC3);
+	/// ```
+	///
+	/// Rotating a subslice:
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut data = 0xF0u8;
+	/// let bits = data.bits_mut::<BigEndian>();
+	/// bits[1 .. 5].rotate_left(1);
+	/// assert_eq!(data, 0b1_1101_000);
+	/// ```
+	pub fn rotate_left(&mut self, by: usize) {
+		let len = self.len();
+		assert!(by <= len, "Slices cannot be rotated by more than their length");
+		if by == 0 || by == len {
+			return;
+		}
+
+		for _ in 0 .. by {
+			unsafe {
+				let tmp = *self.get_unchecked(0);
+				for n in 1 .. len {
+					self.copy_unchecked(n, n - 1);
+				}
+				self.set_unchecked(len - 1, tmp);
+			}
+		}
+	}
+
+	/// Rotates the slice in-place such that the first `self.len() - by` bits of
+	/// the slice move to the end while the last `by` bits move to the front.
+	/// After calling `rotate_right`, the bit previously at index
+	/// `self.len() - by` will become the first bit in the slice.
+	///
+	/// # Panics
+	///
+	/// This function will panic if `by` is greater than the length of the
+	/// slice. Note that `by == self.len()` does *not* panic and is a no-op
+	/// rotation.
+	///
+	/// # Complexity
+	///
+	/// Takes linear (in `self.len()`) time.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut data = 0xF0u8;
+	/// let bits = data.bits_mut::<BigEndian>();
+	/// bits.rotate_right(2);
+	/// assert_eq!(data, 0x3C);
+	/// ```
+	///
+	/// Rotate a subslice:
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut data = 0xF0u8;
+	/// let bits = data.bits_mut::<BigEndian>();
+	/// bits[1 .. 5].rotate_right(1);
+	/// assert_eq!(data, 0b1_0111_000);
+	/// ```
+	pub fn rotate_right(&mut self, by: usize) {
+		let len = self.len();
+		assert!(by <= len, "Slices cannot be rotated by more than their length");
+		if by == 0 || by == len {
+			return;
+		}
+
+		for _ in 0 .. by {
+			unsafe {
+				let tmp = *self.get_unchecked(len - 1);
+				for n in (0 .. len - 1).rev() {
+					self.copy_unchecked(n, n + 1);
+				}
+				self.set_unchecked(0, tmp);
+			}
+		}
+	}
+
+	/// Copies the elements from `src` into `self`.
+	///
+	/// The length of `src` must be the same as `self`.
+	///
+	/// This is equivalent to `copy_from_slice`; this function is only included
+	/// for API surface equivalence.
+	///
+	/// # Panics
+	///
+	/// This function will panic if the two slices have different lengths.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut data = 0u8;
+	/// let bits = data.bits_mut::<BigEndian>();
+	/// let src = 0x0Fu16.bits::<LittleEndian>();
+	/// bits.clone_from_slice(&src[.. 8]);
+	/// assert_eq!(data, 0xF0);
+	/// ```
+	///
+	/// Rust enforces that there can only be one mutable reference with no
+	/// immutable references to a particular piece of data in a particular
+	/// scope. Because of this, attempting to use `clone_from_slice` on a single
+	/// slice will result in a compile failure:
+	///
+	/// ```rust,compile_fail
+	/// # use bitvec::prelude::*;
+	/// let mut data = 3u8;
+	/// let bits = data.bits_mut::<BigEndian>();
+	/// bits[.. 2].clone_from_slice(&bits[6 ..]);
+	/// ```
+	///
+	/// To work around this, we can use [`split_at_mut`] to create two distinct
+	/// sub-slices from a slice:
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut data = 3u8;
+	/// let bits = data.bits_mut::<BigEndian>();
+	/// let (head, tail) = bits.split_at_mut(4);
+	/// head.clone_from_slice(tail);
+	/// assert_eq!(data, 0x33);
+	/// ```
+	pub fn clone_from_slice<D, U>(&mut self, src: &BitSlice<D, U>)
+	where D: Cursor, U: BitStore {
+		assert_eq!(
+			self.len(),
+			src.len(),
+			"Cloning from slice requires equal lengths",
+		);
+		self.iter_mut().zip(src.iter()).for_each(|(mut a, b)| *a = *b);
+	}
+
+	/// Copies the elements from `src` into `self`.
+	///
+	/// The length of `src` must be the same as `self`.
+	///
+	/// This is restricted to take exactly the same type of bit slice as the
+	/// source slice, so that the implementation has the chace to use faster
+	/// `memcpy` if possible.
+	///
+	/// # Panics
+	///
+	/// This function will panic if the two slices have different lengths.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut data = 0u8;
+	/// let bits = data.bits_mut::<BigEndian>();
+	/// let src = 0x0Fu8.bits::<BigEndian>();
+	/// bits.copy_from_slice(src);
+	/// assert_eq!(data, 0x0F);
+	/// ```
+	///
+	/// Rust enforces that there can only be one mutable reference with no
+	/// immutable references to a particular piece of data in a particular
+	/// scope. Because of this, attempting to use `copy_from_slice` on a single
+	/// slice will result in a compile failure:
+	///
+	/// ```rust,compile_fail
+	/// # use bitvec::prelude::*;
+	/// let mut data = 3u8;
+	/// let bits = data.bits_mut::<BigEndian>();
+	/// bits[.. 2].copy_from_slice(&bits[6 ..]);
+	/// ```
+	///
+	/// To work around this, we can use [`split_at_mut`] to create two distinct
+	/// sub-slices from a slice:
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut data = 3u8;
+	/// let bits = data.bits_mut::<BigEndian>();
+	/// let (head, tail) = bits.split_at_mut(4);
+	/// head.copy_from_slice(tail);
+	/// assert_eq!(data, 0x33);
+	/// ```
+	pub fn copy_from_slice(&mut self, src: &Self) {
+		assert_eq!(
+			self.len(),
+			src.len(),
+			"Cloning from slice requires equal lengths",
+		);
+		//  TODO(myrrlyn): implement galloping copy where possible
+		self.iter_mut().zip(src.iter()).for_each(|(mut a, b)| *a = *b);
 	}
 }
 
