@@ -314,6 +314,21 @@ where T: BitStore {
 	}
 }
 
+/** Indicates a real electrical index within an element.
+
+This type is produced by [`Cursor`] implementors, and marks a specific
+electrical bit within a memory element, rather than `BitIdx`’s semantic bit.
+
+# Type Parameters
+
+- `T`: A `BitStore` element which provides bounds-checking information. The
+  [`new`] constructor uses [`T::BITS`] to ensure that constructed `BitPos`
+  instances are always valid to use within `T` elements.
+
+[`Cursor`]: ../cursor/trait.Cursor.html
+[`T::BITS`]: ../store/trait.BitStore.html#associatedconstant.BITS
+[`new`]: #method.new
+**/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct BitPos<T>
 where T: BitStore {

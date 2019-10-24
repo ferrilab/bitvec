@@ -35,6 +35,8 @@ elements as a slice.
 !*/
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(debug_assertions, warn(missing_docs))]
+#![cfg_attr(not(debug_assertions), deny(missing_docs))]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
