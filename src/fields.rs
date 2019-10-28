@@ -138,7 +138,7 @@ where T: BitStore {
 			BitDomain::PartialTail([], elt, _) => Some(elt.load() & low_mask()),
 
 			//  `self` fills an element, so that element is copied directly.
-			BitDomain::Spanning([elt]) => Some(*elt),
+			BitDomain::Spanning([elt]) => Some(elt.load()),
 
 			_ => unreachable!(
 				"Invalid memory representation! File an issue at https://github.com/myrrlyn/bitvec, and include this information:\n\
@@ -166,10 +166,10 @@ where T: BitStore {
 		//  Mask away unusable bits in the incoming `value`.
 		let value = value & mask;
 
-		match self.bitptr().domain_mut() {
-			BitDomainMut::Empty => return,
+		match self.bitptr().domain() {
+			BitDomain::Empty => return,
 
-			BitDomainMut::Minor(head, elt, _) => {
+			BitDomain::Minor(head, elt, _) => {
 				//  Erase the storage region, starting at `head` for `len`.
 				elt.clear_bits(!(mask << *head));
 				//  Write the truncated value into that region.
@@ -177,7 +177,7 @@ where T: BitStore {
 			}
 
 			//  See `load` for the memory model in effect here.
-			BitDomainMut::Major(head, left, [], right, _) => {
+			BitDomain::Major(head, left, [], right, _) => {
 				//  Split the value at the MSedge of `left`.
 				let mid = T::BITS - *head;
 
@@ -197,18 +197,18 @@ where T: BitStore {
 			},
 
 			//  The live region ends at the MSedge.
-			BitDomainMut::PartialHead(head, elt, []) => {
+			BitDomain::PartialHead(head, elt, []) => {
 				elt.clear_bits(T::bits(true) >> len as u8);
 				elt.set_bits(value << *head);
 			},
 
 			//  The live region begins at the LSedge.
-			BitDomainMut::PartialTail([], elt, _) => {
+			BitDomain::PartialTail([], elt, _) => {
 				elt.clear_bits(!mask);
 				elt.set_bits(value);
 			},
 
-			BitDomainMut::Spanning([body]) => *body = value,
+			BitDomain::Spanning([body]) => body.store(value),
 
 			_ => unreachable!(
 				"Invalid memory representation! File an issue at https://github.com/myrrlyn/bitvec, and include this information:\n\
@@ -282,7 +282,7 @@ where T: BitStore {
 			//  Touches the MSedge, so only the shift is needed.
 			BitDomain::PartialTail([], e, t) => Some(e.load() >> (T::BITS - *t)),
 
-			BitDomain::Spanning([body]) => Some(*body),
+			BitDomain::Spanning([body]) => Some(body.load()),
 
 			_ => unreachable!(
 				"Invalid memory representation! File an issue at https://github.com/myrrlyn/bitvec, and include this information:\n\
@@ -310,10 +310,10 @@ where T: BitStore {
 		let mask = mask_for(len);
 		let value = value & mask;
 
-		match self.bitptr().domain_mut() {
-			BitDomainMut::Empty => return,
+		match self.bitptr().domain() {
+			BitDomain::Empty => return,
 
-			BitDomainMut::Minor(_, elt, tail) => {
+			BitDomain::Minor(_, elt, tail) => {
 				//  Find the distance between the LSedge and the live region,
 				let dead_low = T::BITS - *tail;
 				//  Then erase `len` bits of live region, offset from LSedge.
@@ -323,7 +323,7 @@ where T: BitStore {
 			},
 
 			//  See `load` for the memory model in effect here.
-			BitDomainMut::Major(head, left, [], right, tail) => {
+			BitDomain::Major(head, left, [], right, tail) => {
 				//  The left element erases from the interior up to the LSedge.
 				left.clear_bits(!(T::bits(true) >> *head));
 				//  The least `*tail` bits of the value go in `right`; the
@@ -338,7 +338,7 @@ where T: BitStore {
 			},
 
 			//  The live region touches LSedge but not MSedge.
-			BitDomainMut::PartialHead(_, elt, []) => {
+			BitDomain::PartialHead(_, elt, []) => {
 				//  Erase the `len` bits ending at LSedge.
 				elt.clear_bits(T::bits(true) << len as u8);
 				//  Write.
@@ -346,14 +346,14 @@ where T: BitStore {
 			},
 
 			//  The live region touches MSedge but not LSedge.
-			BitDomainMut::PartialTail([], elt, _) => {
+			BitDomain::PartialTail([], elt, _) => {
 				//  Erase the `len` bits starting from MSedge.
 				elt.clear_bits(T::bits(true) >> len as u8);
 				//  Shift the value up from LSedge to MSedge and write.
 				elt.set_bits(value << (T::BITS - len as u8));
 			},
 
-			BitDomainMut::Spanning([body]) => *body = value,
+			BitDomain::Spanning([body]) => body.store(value),
 
 			_ => unreachable!(
 				"Invalid memory representation! File an issue at https://github.com/myrrlyn/bitvec, and include this information:\n\

@@ -1669,7 +1669,7 @@ where C: Cursor, T: BitStore {
 						return false;
 					}
 				}
-				return body.iter().all(|e| *e == T::bits(true));
+				return body.iter().all(|e| e.load() == T::bits(true));
 			},
 			BitDomain::PartialHead(h, head, body) => {
 				for n in *h .. T::BITS {
@@ -1677,7 +1677,7 @@ where C: Cursor, T: BitStore {
 						return false;
 					}
 				}
-				return body.iter().all(|e| *e == T::bits(true));
+				return body.iter().all(|e| e.load() == T::bits(true));
 			},
 			BitDomain::PartialTail(body, tail, t) => {
 				for n in 0 .. *t {
@@ -1685,10 +1685,10 @@ where C: Cursor, T: BitStore {
 						return false;
 					}
 				}
-				return body.iter().all(|e| *e == T::bits(true));
+				return body.iter().all(|e| e.load() == T::bits(true));
 			},
 			BitDomain::Spanning(body) => {
-				return body.iter().all(|e| *e == T::bits(true));
+				return body.iter().all(|e| e.load() == T::bits(true));
 			},
 		}
 		true
@@ -1744,7 +1744,7 @@ where C: Cursor, T: BitStore {
 						return true;
 					}
 				}
-				return body.iter().any(|e| *e != T::bits(false));
+				return body.iter().any(|e| e.load() != T::bits(false));
 			},
 			BitDomain::PartialHead(h, head, body) => {
 				for n in *h .. T::BITS {
@@ -1752,7 +1752,7 @@ where C: Cursor, T: BitStore {
 						return true;
 					}
 				}
-				return body.iter().any(|e| *e != T::bits(false));
+				return body.iter().any(|e| e.load() != T::bits(false));
 			},
 			BitDomain::PartialTail(body, tail, t) => {
 				for n in 0 .. *t {
@@ -1760,10 +1760,10 @@ where C: Cursor, T: BitStore {
 						return true;
 					}
 				}
-				return body.iter().any(|e| *e != T::bits(false));
+				return body.iter().any(|e| e.load() != T::bits(false));
 			},
 			BitDomain::Spanning(body) => {
-				return body.iter().any(|e| *e != T::bits(false));
+				return body.iter().any(|e| e.load() != T::bits(false));
 			},
 		}
 		false
@@ -1903,6 +1903,7 @@ where C: Cursor, T: BitStore {
 					.filter(|b| *b)
 					.count() +
 				body.iter()
+					.map(BitAccess::<T>::load)
 					.map(T::count_ones)
 					.sum::<usize>() +
 				(0 .. *t)
@@ -1916,11 +1917,13 @@ where C: Cursor, T: BitStore {
 					.filter(|b| *b)
 					.count() +
 				body.iter()
+					.map(BitAccess::<T>::load)
 					.map(T::count_ones)
 					.sum::<usize>()
 			},
 			BitDomain::PartialTail(body, tail, t) => {
 				body.iter()
+					.map(BitAccess::<T>::load)
 					.map(T::count_ones)
 					.sum::<usize>() +
 				(0 .. *t)
@@ -1930,6 +1933,7 @@ where C: Cursor, T: BitStore {
 			},
 			BitDomain::Spanning(body) => {
 				body.iter()
+					.map(BitAccess::<T>::load)
 					.map(T::count_ones)
 					.sum::<usize>()
 			}
@@ -1969,6 +1973,7 @@ where C: Cursor, T: BitStore {
 					.filter(|b| !*b)
 					.count() +
 				body.iter()
+					.map(BitAccess::<T>::load)
 					.map(T::count_zeros)
 					.sum::<usize>() +
 				(0 .. *t)
@@ -1982,11 +1987,13 @@ where C: Cursor, T: BitStore {
 					.filter(|b| !*b)
 					.count() +
 				body.iter()
+					.map(BitAccess::<T>::load)
 					.map(T::count_zeros)
 					.sum::<usize>()
 			},
 			BitDomain::PartialTail(body, tail, t) => {
 				body.iter()
+					.map(BitAccess::<T>::load)
 					.map(T::count_zeros)
 					.sum::<usize>() +
 				(0 .. *t)
@@ -1996,6 +2003,7 @@ where C: Cursor, T: BitStore {
 			},
 			BitDomain::Spanning(body) => {
 				body.iter()
+					.map(BitAccess::<T>::load)
 					.map(T::count_zeros)
 					.sum::<usize>()
 			},
@@ -2024,43 +2032,43 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(bits.as_ref(), &[0b1010_0100]);
 	/// ```
 	pub fn set_all(&mut self, value: bool) {
-		match self.bitptr().domain_mut() {
-			BitDomainMut::Empty => {},
-			BitDomainMut::Minor(head, elt, tail) => {
+		match self.bitptr().domain() {
+			BitDomain::Empty => {},
+			BitDomain::Minor(head, elt, tail) => {
 				for n in *head .. *tail {
 					elt.set::<C>(n.idx(), value);
 				}
 			},
-			BitDomainMut::Major(h, head, body, tail, t) => {
+			BitDomain::Major(h, head, body, tail, t) => {
 				for n in *h .. T::BITS {
 					head.set::<C>(n.idx(), value);
 				}
 				for elt in body {
-					*elt = T::bits(value);
+					elt.store(T::bits(value));
 				}
 				for n in 0 .. *t {
 					tail.set::<C>(n.idx(), value);
 				}
 			},
-			BitDomainMut::PartialHead(h, head, body) => {
+			BitDomain::PartialHead(h, head, body) => {
 				for n in *h .. T::BITS {
 					head.set::<C>(n.idx(), value);
 				}
 				for elt in body {
-					*elt = T::bits(value);
+					elt.store(T::bits(value));
 				}
 			},
-			BitDomainMut::PartialTail(body, tail, t) => {
+			BitDomain::PartialTail(body, tail, t) => {
 				for elt in body {
-					*elt = T::bits(value);
+					elt.store(T::bits(value));
 				}
 				for n in 0 .. *t {
 					tail.set::<C>(n.idx(), value);
 				}
 			},
-			BitDomainMut::Spanning(body) => {
+			BitDomain::Spanning(body) => {
 				for elt in body {
-					*elt = T::bits(value);
+					elt.store(T::bits(value));
 				}
 			},
 		}
@@ -2201,18 +2209,18 @@ where C: Cursor, T: BitStore {
 	/// let accum = bits.as_slice()
 	///   .iter()
 	///   .map(|elt| elt.count_ones())
-	///   .sum::<usize>();
+	///   .sum::<u32>();
 	/// assert_eq!(accum, 3);
 	/// ```
 	pub fn as_slice(&self) -> &[T] {
-		match self.bitptr().domain() {
+		&* unsafe { BitAccess::as_slice_mut(match self.bitptr().domain() {
 			| BitDomain::Empty
 			| BitDomain::Minor(_, _, _) => &[],
 			| BitDomain::PartialHead(_, _, body)
 			| BitDomain::PartialTail(body, _, _)
 			| BitDomain::Major(_, _, body, _, _)
 			| BitDomain::Spanning(body) => body,
-		}
+		}) }
 	}
 
 	/// Accesses the underlying store.
@@ -2233,14 +2241,14 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(&[3, 66], bits.as_slice());
 	/// ```
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
-		match self.bitptr().domain_mut() {
-			| BitDomainMut::Empty
-			| BitDomainMut::Minor(_, _, _) => &mut [],
-			| BitDomainMut::PartialHead(_, _, body)
-			| BitDomainMut::PartialTail(body, _, _)
-			| BitDomainMut::Major(_, _, body, _, _)
-			| BitDomainMut::Spanning(body) => body,
-		}
+		unsafe { BitAccess::as_slice_mut(match self.bitptr().domain() {
+			| BitDomain::Empty
+			| BitDomain::Minor(_, _, _) => &[],
+			| BitDomain::PartialHead(_, _, body)
+			| BitDomain::PartialTail(body, _, _)
+			| BitDomain::Major(_, _, body, _, _)
+			| BitDomain::Spanning(body) => body,
+		}) }
 	}
 
 	/// Accesses the underlying store, including contended partial elements.
@@ -2680,25 +2688,25 @@ where C: Cursor, T: BitStore {
 				BitDomain::Major(h, head, body, tail, t) => {
 					writer::<C, T>(&mut dbg, &mut w, &head.load(), *h, T::BITS);
 					for elt in body {
-						writer::<C, T>(&mut dbg, &mut w, elt, 0, T::BITS);
+						writer::<C, T>(&mut dbg, &mut w, &elt.load(), 0, T::BITS);
 					}
 					writer::<C, T>(&mut dbg, &mut w, &tail.load(), 0, *t);
 				},
 				BitDomain::PartialHead(h, head, body) => {
 					writer::<C, T>(&mut dbg, &mut w, &head.load(), *h, T::BITS);
 					for elt in body {
-						writer::<C, T>(&mut dbg, &mut w, elt, 0, T::BITS);
+						writer::<C, T>(&mut dbg, &mut w, &elt.load(), 0, T::BITS);
 					}
 				},
 				BitDomain::PartialTail(body, tail, t) => {
 					for elt in body {
-						writer::<C, T>(&mut dbg, &mut w, elt, 0, T::BITS);
+						writer::<C, T>(&mut dbg, &mut w, &elt.load(), 0, T::BITS);
 					}
 					writer::<C, T>(&mut dbg, &mut w, &tail.load(), 0, *t);
 				},
 				BitDomain::Spanning(body) => {
 					for elt in body {
-						writer::<C, T>(&mut dbg, &mut w, elt, 0, T::BITS);
+						writer::<C, T>(&mut dbg, &mut w, &elt.load(), 0, T::BITS);
 					}
 				},
 			}
@@ -3327,43 +3335,43 @@ where C: Cursor, T: 'a + BitStore {
 	/// assert_eq!(src, [0x3F, 0xFC]);
 	/// ```
 	fn not(self) -> Self::Output {
-		match self.bitptr().domain_mut() {
-			BitDomainMut::Empty => {},
-			BitDomainMut::Minor(head, elt, tail) => {
+		match self.bitptr().domain() {
+			BitDomain::Empty => {},
+			BitDomain::Minor(head, elt, tail) => {
 				for n in *head .. *tail {
 					elt.invert_bit::<C>(n.idx());
 				}
 			},
-			BitDomainMut::Major(h, head, body, tail, t) => {
+			BitDomain::Major(h, head, body, tail, t) => {
 				for n in *h .. T::BITS {
 					head.invert_bit::<C>(n.idx());
 				}
 				for elt in body {
-					*elt = !*elt;
+					elt.store(!elt.load());
 				}
 				for n in 0 .. *t {
 					tail.invert_bit::<C>(n.idx());
 				}
 			},
-			BitDomainMut::PartialHead(h, head, body) => {
+			BitDomain::PartialHead(h, head, body) => {
 				for n in *h .. T::BITS {
 					head.invert_bit::<C>(n.idx());
 				}
 				for elt in body {
-					*elt = !*elt;
+					elt.store(!elt.load());
 				}
 			},
-			BitDomainMut::PartialTail(body, tail, t) => {
+			BitDomain::PartialTail(body, tail, t) => {
 				for elt in body {
-					*elt = !*elt;
+					elt.store(!elt.load());
 				}
 				for n in 0 .. *t {
 					tail.invert_bit::<C>(n.idx());
 				}
 			},
-			BitDomainMut::Spanning(body) => {
+			BitDomain::Spanning(body) => {
 				for elt in body {
-					*elt = !*elt;
+					elt.store(!elt.load());
 				}
 			},
 		}

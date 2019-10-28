@@ -179,7 +179,7 @@ pub trait BitStore:
 	///
 	/// # Parameters
 	///
-	/// - `&self`
+	/// - `self`
 	///
 	/// # Returns
 	///
@@ -190,21 +190,21 @@ pub trait BitStore:
 	///
 	/// ```rust
 	/// use bitvec::prelude::BitStore;
-	/// assert_eq!(BitStore::count_ones(&0u8), 0);
-	/// assert_eq!(BitStore::count_ones(&128u8), 1);
-	/// assert_eq!(BitStore::count_ones(&192u8), 2);
-	/// assert_eq!(BitStore::count_ones(&224u8), 3);
-	/// assert_eq!(BitStore::count_ones(&240u8), 4);
-	/// assert_eq!(BitStore::count_ones(&248u8), 5);
-	/// assert_eq!(BitStore::count_ones(&252u8), 6);
-	/// assert_eq!(BitStore::count_ones(&254u8), 7);
-	/// assert_eq!(BitStore::count_ones(&255u8), 8);
+	/// assert_eq!(BitStore::count_ones(0u8), 0);
+	/// assert_eq!(BitStore::count_ones(128u8), 1);
+	/// assert_eq!(BitStore::count_ones(192u8), 2);
+	/// assert_eq!(BitStore::count_ones(224u8), 3);
+	/// assert_eq!(BitStore::count_ones(240u8), 4);
+	/// assert_eq!(BitStore::count_ones(248u8), 5);
+	/// assert_eq!(BitStore::count_ones(252u8), 6);
+	/// assert_eq!(BitStore::count_ones(254u8), 7);
+	/// assert_eq!(BitStore::count_ones(255u8), 8);
 	/// ```
 	///
 	/// [`u64::count_ones`]: https://doc.rust-lang.org/stable/std/primitive.u64.html#method.count_ones
 	#[inline(always)]
-	fn count_ones(&self) -> usize {
-		Into::<u64>::into(*self).count_ones() as usize
+	fn count_ones(self) -> usize {
+		Into::<u64>::into(self).count_ones() as usize
 	}
 
 	/// Counts how many bits in `self` are set to `0`.
@@ -215,7 +215,7 @@ pub trait BitStore:
 	///
 	/// # Parameters
 	///
-	/// - `&self`
+	/// - `self`
 	///
 	/// # Returns
 	///
@@ -226,22 +226,22 @@ pub trait BitStore:
 	///
 	/// ```rust
 	/// use bitvec::prelude::BitStore;
-	/// assert_eq!(BitStore::count_zeros(&0u8), 8);
-	/// assert_eq!(BitStore::count_zeros(&1u8), 7);
-	/// assert_eq!(BitStore::count_zeros(&3u8), 6);
-	/// assert_eq!(BitStore::count_zeros(&7u8), 5);
-	/// assert_eq!(BitStore::count_zeros(&15u8), 4);
-	/// assert_eq!(BitStore::count_zeros(&31u8), 3);
-	/// assert_eq!(BitStore::count_zeros(&63u8), 2);
-	/// assert_eq!(BitStore::count_zeros(&127u8), 1);
-	/// assert_eq!(BitStore::count_zeros(&255u8), 0);
+	/// assert_eq!(BitStore::count_zeros(0u8), 8);
+	/// assert_eq!(BitStore::count_zeros(1u8), 7);
+	/// assert_eq!(BitStore::count_zeros(3u8), 6);
+	/// assert_eq!(BitStore::count_zeros(7u8), 5);
+	/// assert_eq!(BitStore::count_zeros(15u8), 4);
+	/// assert_eq!(BitStore::count_zeros(31u8), 3);
+	/// assert_eq!(BitStore::count_zeros(63u8), 2);
+	/// assert_eq!(BitStore::count_zeros(127u8), 1);
+	/// assert_eq!(BitStore::count_zeros(255u8), 0);
 	/// ```
 	///
 	/// [`u64::count_ones`]: https://doc.rust-lang.org/stable/std/primitive.u64.html#method.count_ones
 	#[inline(always)]
-	fn count_zeros(&self) -> usize {
+	fn count_zeros(self) -> usize {
 		//  invert (0 becomes 1, 1 becomes 0), zero-extend, count ones
-		Into::<u64>::into(!*self).count_ones() as usize
+		Into::<u64>::into(!self).count_ones() as usize
 	}
 
 	/// Extends a single bit to fill the entire element.

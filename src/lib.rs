@@ -81,7 +81,6 @@ pub mod testing {
 		bits::*,
 		boxed::*,
 		cursor::*,
-		domain::*,
 		indices::*,
 		fields::*,
 		macros::*,

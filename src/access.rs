@@ -36,8 +36,8 @@ associated type, which implements this trait, in order to perform *any* access
 to underlying memory. This trait extends the `Radium` element-wise shared
 mutable access with single-bit operations suited for use by `BitSlice`.
 **/
-pub trait BitAccess<T>: Debug + Radium<T>
-where T: BitStore + BitOps {
+pub trait BitAccess<T>: Debug + Radium<T> + Sized
+where T: BitStore + BitOps + Sized {
 	/// Set a single bit in an element low.
 	///
 	/// `BitAccess::set` calls this when its `value` is `false`; it
@@ -172,6 +172,25 @@ where T: BitStore + BitOps {
 	/// uncontended by multiple `BitSlice` regions.
 	fn load(&self) -> T {
 		Radium::load(self, Ordering::Relaxed)
+	}
+
+	/// Stores a value into a contended memory element.
+	///
+	/// # Parameters
+	///
+	/// - `&self`: A shared reference to underlying memory.
+	/// - `value`: The new value to write into `*self`.
+	fn store(&self, value: T) {
+		Radium::store(self, value, Ordering::Relaxed)
+	}
+
+	/// Converts a slice of `BitAccess` to a mutable slice of `BitStore`.
+	///
+	/// # Safety
+	///
+	/// This can only be called on wholly owned, uncontended, regions.
+	unsafe fn as_slice_mut(this: &[Self]) -> &mut [T] {
+		&mut *(this as *const [Self] as *const [T] as *mut [T])
 	}
 }
 

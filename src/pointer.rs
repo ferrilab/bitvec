@@ -744,19 +744,6 @@ where T: BitStore {
 		unsafe { slice::from_raw_parts(self.pointer().a, self.elements()) }
 	}
 
-	/// Gets the domain kind for the region the pointer describes.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// An enum describing the live bits in the region the pointer covers.
-	pub fn domain_kind(&self) -> BitDomainKind {
-		self.into()
-	}
-
 	/// Gets the domain for the region the pointer describes.
 	///
 	/// # Parameters
@@ -768,20 +755,6 @@ where T: BitStore {
 	/// An enum containing the logical components of the domain governed by
 	/// `self`.
 	pub(crate) fn domain<'a>(self) -> BitDomain<'a, T> {
-		self.into()
-	}
-
-	/// Gets the domain for the region the pointer describes.
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	///
-	/// # Returns
-	///
-	/// An enum containing the logical components of the domain governed by
-	/// `self`.
-	pub(crate) fn domain_mut<'a>(self) -> BitDomainMut<'a, T> {
 		self.into()
 	}
 
