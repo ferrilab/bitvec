@@ -1859,10 +1859,38 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	}
 }
 
+impl<A, B, C, D> PartialEq<BitVec<C, D>> for BitSlice<A, B>
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
+	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
+		self.eq(rhs.as_bitslice())
+	}
+}
+
 impl<A, B, C, D> PartialEq<&BitSlice<C, D>> for BitVec<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn eq(&self, rhs: &&BitSlice<C, D>) -> bool {
 		self.as_bitslice().eq(*rhs)
+	}
+}
+
+impl<A, B, C, D> PartialEq<&mut BitSlice<C, D>> for BitVec<A, B>
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
+	fn eq(&self, rhs: &&mut BitSlice<C, D>) -> bool {
+		self.as_bitslice().eq(*rhs)
+	}
+}
+
+impl<A, B, C, D> PartialEq<BitVec<C, D>> for &BitSlice<A, B>
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
+	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
+		self.eq(rhs.as_bitslice())
+	}
+}
+
+impl<A, B, C, D> PartialEq<BitVec<C, D>> for &mut BitSlice<A, B>
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
+	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
+		(**self).eq(rhs.as_bitslice())
 	}
 }
 
@@ -1911,10 +1939,38 @@ where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	}
 }
 
+impl<A, B, C, D> PartialOrd<BitVec<C, D>> for BitSlice<A, B>
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
+	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<Ordering> {
+		self.partial_cmp(rhs.as_bitslice())
+	}
+}
+
 impl<A, B, C, D> PartialOrd<&BitSlice<C, D>> for BitVec<A, B>
 where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
 	fn partial_cmp(&self, rhs: &&BitSlice<C, D>) -> Option<Ordering> {
 		self.as_bitslice().partial_cmp(*rhs)
+	}
+}
+
+impl<A, B, C, D> PartialOrd<BitVec<C, D>> for &BitSlice<A, B>
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
+	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<Ordering> {
+		self.partial_cmp(rhs.as_bitslice())
+	}
+}
+
+impl<A, B, C, D> PartialOrd<&mut BitSlice<C, D>> for BitVec<A, B>
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
+	fn partial_cmp(&self, rhs: &&mut BitSlice<C, D>) -> Option<Ordering> {
+		self.as_bitslice().partial_cmp(*rhs)
+	}
+}
+
+impl<A, B, C, D> PartialOrd<BitVec<C, D>> for &mut BitSlice<A, B>
+where A: Cursor, B: BitStore, C: Cursor, D: BitStore {
+	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<Ordering> {
+		(**self).partial_cmp(rhs.as_bitslice())
 	}
 }
 
