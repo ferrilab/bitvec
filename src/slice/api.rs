@@ -3,6 +3,8 @@
 
 use super::*;
 
+use crate::vec::BitVec;
+
 use core::{
 	ops::{
 		Range,
@@ -12,7 +14,98 @@ use core::{
 		RangeTo,
 		RangeToInclusive,
 	},
+	slice,
 };
+
+/// Converts a reference to `T` into a bit slice one element long (without
+/// copying).
+pub fn from_ref<C, T>(elt: &T) -> &BitSlice<C, T>
+where C: Cursor, T: BitStore {
+	BitSlice::from_element(elt)
+}
+
+/// Converts a reference to `T` into a bit slice one element long (without
+/// copying).
+pub fn from_mut<C, T>(elt: &mut T) -> &mut BitSlice<C, T>
+where C: Cursor, T: BitStore {
+	BitSlice::from_element_mut(elt)
+}
+
+/** Forms a bit slice from a pointer and a length.
+
+The `len` argument is the number of **elements**, not the number of bits.
+
+# Safety
+
+This function is unsafe as there is no guarantee that the given pointer is valid
+for `len` elements, nor whether the lifetime inferred is a suitable lifetime for
+the returned slice.
+
+`data` must be non-null and aligned, even for zero-length slices. One reason for
+this is that enum layout optimizations may rely on references (including bit
+slices of any length) being aligned and non-null to distinguish them from other
+data. You can obtain a pointer that is usable as `data` for zero-length slices
+from [`NonNull::dangling()`].
+
+The total size of the bit slice must be no larger than `BitPtr::<T>::MAX_BITS`
+**bits** in memory. See the safety documentation of `BitPtr` (if available).
+
+# Caveat
+
+The lifetime for the returned slice is inferred from its usage. To prevent
+accidental misuse, it’s suggested to tie the lifetime to whichever source
+lifetime is safe in the context, such as by providing a helper function taking
+the lifetime of a host value for the slice, or by explicit annotation.
+
+# `bitvec`-specific notes
+
+The Rust standard library `slice::from_raw_parts` function takes the raw
+components of a standard slice. The analagous `bitvec::slice::from_raw_parts`
+function would take the raw components of a bit-slice, which are a custom-built
+mangled pointer. This pointer type is not exposed to the public, and so cannot
+be used in public API functions.
+
+# Examples
+
+```rust
+# use bitvec::prelude::*;
+use bitvec::slice as bitslice;
+
+//  manifest a slice for a single element
+let x = 42u8; // 0b0010_1010
+let ptr = &x as *const _;
+let bitslice = unsafe { bitslice::from_raw_parts::<BigEndian, _>(ptr, 1) };
+assert!(bitslice[2]);
+```
+**/
+pub unsafe fn from_raw_parts<'a, C, T>(
+	data: *const T,
+	len: usize,
+) -> &'a BitSlice<C, T>
+where C: Cursor, T: 'a + BitStore {
+	BitSlice::from_slice(slice::from_raw_parts(data, len))
+}
+
+/** Performs the same functionality as [`from_raw_parts`], except that a mutable
+slice is returned.
+
+This function is unsafe for the same reason as [`from_raw_parts`], as well as
+not being able to provide a non-aliasing guarantee of the returned mutable
+slice. `data` must be non-null and aligned even for zero-length slices as with
+[`from_raw_parts`]. The total size of the slice must be no larger than
+`BitPtr::<T>::MAX_ELTS` **elements** in memory.
+
+See the documentation of [`from_raw_parts`] for more details.
+
+[`from_raw_parts`]: #fn.from_raw_parts
+**/
+pub unsafe fn from_raw_parts_mut<'a, C, T>(
+	data: *mut T,
+	len: usize,
+) -> &'a mut BitSlice<C, T>
+where C: Cursor, T: 'a + BitStore {
+	BitSlice::from_slice_mut(slice::from_raw_parts_mut(data, len))
+}
 
 /// Reimplementation of the `[T]` inherent-method API.
 impl<C, T> BitSlice<C, T>
@@ -1603,6 +1696,179 @@ where C: Cursor, T: BitStore {
 		);
 		//  TODO(myrrlyn): implement galloping copy where possible
 		self.iter_mut().zip(src.iter()).for_each(|(mut a, b)| *a = *b);
+	}
+
+	/// Swaps all bits in `self` with those in `other`.
+	///
+	/// The length of `other` must be the same as `self`.
+	///
+	/// # Panics
+	///
+	/// This function will panic if the two slices hav different lengths.
+	///
+	/// # Example
+	///
+	/// Swapping two elements across slices:
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut a = 0u8;
+	/// let mut b = 0x96A5u16;
+	/// let bits_a = a.bits_mut::<LittleEndian>();
+	/// let bits_b = b.bits_mut::<BigEndian>();
+	///
+	/// bits_a.swap_with_slice(&mut bits_b[4 .. 12]);
+	///
+	/// assert_eq!(a, 0x56);
+	/// assert_eq!(b, 0x9005);
+	/// ```
+	///
+	/// Rust enforces that there can only be one mutable reference to a
+	/// particular piece of data in a particular scope. Because of this,
+	/// attempting to use `swap_with_slice` on a single slice will result in a
+	/// compile failure:
+	///
+	/// ```rust,compile_fail
+	/// # use bitvec::prelude::*;
+	/// let mut data = 15u8;
+	/// let bits = data.bits_mut::<BigEndian>();
+	/// bits[.. 3].swap_with_slice(&mut bits[5 ..]);
+	/// ```
+	///
+	/// To work around this, we can use [`split_at_mut`] to create two distinct
+	/// mutable sub-slices from a slice:
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut data = 15u8;
+	/// let bits = data.bits_mut::<BigEndian>();
+	///
+	/// {
+	///     let (left, right) = bits.split_at_mut(4);
+	///     left[.. 2].swap_with_slice(&mut right[2 ..]);
+	/// }
+	///
+	/// assert_eq!(data, 0xCC);
+	/// ```
+	pub fn swap_with_slice<D, U>(&mut self, other: &mut BitSlice<D, U>)
+	where D: Cursor, U: BitStore {
+		assert_eq!(
+			self.len(),
+			other.len(),
+			"Swapping between slices requires equal lengths",
+		);
+		self.iter_mut().zip(other.iter_mut()).for_each(|(mut this, mut that)| {
+			let (a, b) = (*this, *that);
+			*this = b;
+			*that = a;
+		})
+	}
+
+	/// Transmute the slice to a slice with a different backing store, ensuring
+	/// alignment of the types is maintained.
+	///
+	/// This method splits the slice into three distinct slices: prefix,
+	/// correctly aligned middle slice of a new backing type, and the suffix
+	/// slice. The method does a best effort to make the middle slice the
+	/// greatest length possible for a given type and input slice, but only your
+	/// algorithm’s performance should depend on that, not its correctness.
+	///
+	/// # Safety
+	///
+	/// This method is essentially a `transmute` with respect to the elements in
+	/// the returned middle slice, so all the usual caveats pertaining to
+	/// `transmute::<T, U>` also apply here.
+	///
+	/// # Examples
+	///
+	/// Basic usage:
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// unsafe {
+	///     let bytes: [u8; 7] = [1, 2, 3, 4, 5, 6, 7];
+	///     let bits = bytes.bits::<Local>();
+	///     let (prefix, shorts, suffix) = bits.align_to::<u16>();
+	///     match prefix.len() {
+	///         0 => {
+	///             assert_eq!(shorts, bits[.. 48]);
+	///             assert_eq!(suffix, bits[48 ..]);
+	///         },
+	///         8 => {
+	///             assert_eq!(prefix, bits[.. 8]);
+	///             assert_eq!(shorts, bits[8 ..]);
+	///         },
+	///         _ => unreachable!("This case will not occur")
+	///     }
+	/// }
+	/// ```
+	pub unsafe fn align_to<U>(&self) -> (&Self, &BitSlice<C, U>, &Self)
+	where U: BitStore {
+		let bitptr = self.bitptr();
+		let (l, c, r) = bitptr.as_slice().align_to::<U>();
+		let l_start = *bitptr.head() as usize;
+		let l = &Self::from_slice(l)[l_start ..];
+		let c = BitSlice::from_slice(c);
+		let r = &Self::from_slice(r)[.. bitptr.len() - l.len() - c.len()];
+		(l, c, r)
+	}
+
+	/// Transmute the slice to a slice with a different backing store, ensuring
+	/// alignment of the types is maintained.
+	///
+	/// This method splits the slice into three distinct slices: prefix,
+	/// correctly aligned middle slice of a new backing type, and the suffix
+	/// slice. The method does a best effort to make the middle slice the
+	/// greatest length possible for a given type and input slice, but only your
+	/// algorithm’s performance should depend on that, not its correctness.
+	///
+	/// # Safety
+	///
+	/// This method is essentially a `transmute` with respect to the elements in
+	/// the returned middle slice, so all the usual caveats pertaining to
+	/// `transmute::<T, U>` also apply here.
+	///
+	/// # Examples
+	///
+	/// Basic usage:
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// unsafe {
+	///     let mut bytes: [u8; 7] = [1, 2, 3, 4, 5, 6, 7];
+	///     let bits = bytes.bits_mut::<Local>();
+	///     let (prefix, shorts, suffix) = bits.align_to_mut::<u16>();
+	///     //  same access and behavior as in `align_to`
+	/// }
+	/// ```
+	pub unsafe fn align_to_mut<U>(&mut self) -> (
+		&mut Self,
+		&mut BitSlice<C, U>,
+		&mut Self,
+	)
+	where U: BitStore {
+		let (l, c, r) = self.align_to::<U>();
+		(
+			l.bitptr().into_bitslice_mut(),
+			c.bitptr().into_bitslice_mut(),
+			r.bitptr().into_bitslice_mut(),
+		)
+	}
+
+	/// Copies `self` into a new `BitVec`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let data = [0u8, !0u8];
+	/// let bits = data.bits::<Local>();
+	/// let vec = bits.to_vec();
+	/// assert_eq!(bits, vec);
+	/// ```
+	#[cfg(feature = "alloc")]
+	pub fn to_vec(&self) -> BitVec<C, T> {
+		BitVec::from_bitslice(self)
 	}
 }
 

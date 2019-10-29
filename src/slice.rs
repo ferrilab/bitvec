@@ -2464,8 +2464,5 @@ pub(crate) mod iter;
 
 //  Match the `core::slice` API module topology.
 
-pub use self::api::{
-	BitSliceIndex,
-};
-
+pub use self::api::*;
 pub use self::iter::*;
