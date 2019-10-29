@@ -560,48 +560,22 @@ where C: Cursor, T: BitStore {
 	/// ```
 	pub fn all(&self) -> bool {
 		match self.bitptr().domain() {
-			BitDomain::Empty => {},
-			BitDomain::Minor(head, elt, tail) => {
-				for n in *head .. *tail {
-					if !elt.get::<C>(n.idx()) {
-						return false;
-					}
-				}
-			},
-			BitDomain::Major(h, head, body, tail, t) => {
-				for n in *h .. T::BITS {
-					if !head.get::<C>(n.idx()) {
-						return false;
-					}
-				}
-				for n in 0 .. *t {
-					if !tail.get::<C>(n.idx()) {
-						return false;
-					}
-				}
-				return body.iter().all(|e| e.load() == T::bits(true));
-			},
-			BitDomain::PartialHead(h, head, body) => {
-				for n in *h .. T::BITS {
-					if !head.get::<C>(n.idx()) {
-						return false;
-					}
-				}
-				return body.iter().all(|e| e.load() == T::bits(true));
-			},
-			BitDomain::PartialTail(body, tail, t) => {
-				for n in 0 .. *t {
-					if !tail.get::<C>(n.idx()) {
-						return false;
-					}
-				}
-				return body.iter().all(|e| e.load() == T::bits(true));
-			},
-			BitDomain::Spanning(body) => {
-				return body.iter().all(|e| e.load() == T::bits(true));
-			},
+			BitDomain::Empty => true,
+			BitDomain::Minor(head, elt, tail) => (*head .. *tail)
+				.all(|n| elt.get::<C>(n.idx())),
+			BitDomain::Major(h, head, body, tail, t) => (*h .. T::BITS)
+				.all(|n| head.get::<C>(n.idx()))
+				&& (0 .. *t).all(|n| tail.get::<C>(n.idx()))
+				&& body.iter().all(|e| e.load() == T::bits(true)),
+			BitDomain::PartialHead(h, head, body) => (*h .. T::BITS)
+				.all(|n| head.get::<C>(n.idx()))
+				&& body.iter().all(|e| e.load() == T::bits(true)),
+			BitDomain::PartialTail(body, tail, t) => (0 .. *t)
+				.all(|n| tail.get::<C>(n.idx()))
+				&& body.iter().all(|e| e.load() == T::bits(true)),
+			BitDomain::Spanning(body) => body.iter()
+				.all(|e| e.load() == T::bits(true)),
 		}
-		true
 	}
 
 	/// Tests if *any* bit in the slice is set (logical `∨`).
@@ -635,48 +609,22 @@ where C: Cursor, T: BitStore {
 	/// ```
 	pub fn any(&self) -> bool {
 		match self.bitptr().domain() {
-			BitDomain::Empty => {},
-			BitDomain::Minor(head, elt, tail) => {
-				for n in *head .. *tail {
-					if elt.get::<C>(n.idx()) {
-						return true;
-					}
-				}
-			},
-			BitDomain::Major(h, head, body, tail, t) => {
-				for n in *h .. T::BITS {
-					if head.get::<C>(n.idx()) {
-						return true;
-					}
-				}
-				for n in 0 .. *t {
-					if tail.get::<C>(n.idx()) {
-						return true;
-					}
-				}
-				return body.iter().any(|e| e.load() != T::bits(false));
-			},
-			BitDomain::PartialHead(h, head, body) => {
-				for n in *h .. T::BITS {
-					if head.get::<C>(n.idx()) {
-						return true;
-					}
-				}
-				return body.iter().any(|e| e.load() != T::bits(false));
-			},
-			BitDomain::PartialTail(body, tail, t) => {
-				for n in 0 .. *t {
-					if tail.get::<C>(n.idx()) {
-						return true;
-					}
-				}
-				return body.iter().any(|e| e.load() != T::bits(false));
-			},
-			BitDomain::Spanning(body) => {
-				return body.iter().any(|e| e.load() != T::bits(false));
-			},
+			BitDomain::Empty => false,
+			BitDomain::Minor(head, elt, tail) => (*head .. *tail)
+				.any(|n| elt.get::<C>(n.idx())),
+			BitDomain::Major(h, head, body, tail, t) => (*h .. T::BITS)
+				.any(|n| head.get::<C>(n.idx()))
+				|| (0 .. *t).any(|n| tail.get::<C>(n.idx()))
+				|| body.iter().any(|e| e.load() != T::bits(false)),
+			BitDomain::PartialHead(h, head, body) => (*h .. T::BITS)
+				.any(|n| head.get::<C>(n.idx()))
+				|| body.iter().any(|e| e.load() != T::bits(false)),
+			BitDomain::PartialTail(body, tail, t) => (0 .. *t)
+				.any(|n| tail.get::<C>(n.idx()))
+				|| body.iter().any(|e| e.load() != T::bits(false)),
+			BitDomain::Spanning(body) => body.iter()
+				.any(|e| e.load() != T::bits(false)),
 		}
-		false
 	}
 
 	/// Tests if *any* bit in the slice is unset (logical `¬∧`).
@@ -807,7 +755,8 @@ where C: Cursor, T: BitStore {
 			BitDomain::Major(h, head, body, tail, t) => (*h .. T::BITS)
 				.map(|n| head.get::<C>(n.idx()) as usize)
 				.sum::<usize>()
-				+ body.iter().map(BitAccess::<T>::load)
+				+ body.iter()
+					.map(BitAccess::<T>::load)
 					.map(T::count_ones)
 					.sum::<usize>()
 				+ (0 .. *t)
@@ -816,7 +765,8 @@ where C: Cursor, T: BitStore {
 			BitDomain::PartialHead(h, head, body) => (*h .. T::BITS)
 				.map(|n| head.get::<C>(n.idx()) as usize)
 				.sum::<usize>()
-				+ body.iter().map(BitAccess::<T>::load)
+				+ body.iter()
+					.map(BitAccess::<T>::load)
 					.map(T::count_ones)
 					.sum::<usize>(),
 			BitDomain::PartialTail(body, tail, t) => body.iter()
@@ -858,27 +808,28 @@ where C: Cursor, T: BitStore {
 				.map(|n| !elt.get::<C>(n.idx()) as usize)
 				.sum(),
 			BitDomain::Major(h, head, body, tail, t) => (*h .. T::BITS)
-				.map(|n| head.get::<C>(n.idx()) as usize)
+				.map(|n| !head.get::<C>(n.idx()) as usize)
 				.sum::<usize>()
 				+ body.iter()
 					.map(BitAccess::<T>::load)
 					.map(T::count_zeros)
 					.sum::<usize>()
 				+ (0 .. *t)
-					.map(|n| tail.get::<C>(n.idx()) as usize)
+					.map(|n| !tail.get::<C>(n.idx()) as usize)
 					.sum::<usize>(),
 			BitDomain::PartialHead(h, head, body) => (*h .. T::BITS)
-				.map(|n| head.get::<C>(n.idx()) as usize)
+				.map(|n| !head.get::<C>(n.idx()) as usize)
 				.sum::<usize>()
 				+ body.iter()
 					.map(BitAccess::<T>::load)
 					.map(T::count_zeros)
 					.sum::<usize>(),
-			BitDomain::PartialTail(body, tail, t) => body.iter().map(BitAccess::<T>::load)
+			BitDomain::PartialTail(body, tail, t) => body.iter()
+				.map(BitAccess::<T>::load)
 				.map(T::count_zeros)
 				.sum::<usize>()
 				+ (0 .. *t)
-					.map(|n| tail.get::<C>(n.idx()) as usize)
+					.map(|n| !tail.get::<C>(n.idx()) as usize)
 					.sum::<usize>(),
 			BitDomain::Spanning(body) => body.iter()
 				.map(BitAccess::<T>::load)
@@ -2466,3 +2417,6 @@ pub(crate) mod iter;
 
 pub use self::api::*;
 pub use self::iter::*;
+
+#[cfg(test)]
+mod tests;
