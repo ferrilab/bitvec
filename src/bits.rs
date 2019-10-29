@@ -32,11 +32,6 @@ use crate::{
 	store::BitStore,
 };
 
-use core::convert::{
-	AsMut,
-	AsRef,
-};
-
 /** Allows a type to be used as a sequence of immutable bits.
 
 # Requirements

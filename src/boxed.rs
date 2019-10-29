@@ -31,21 +31,7 @@ use alloc::{
 };
 
 use core::{
-	clone::Clone,
-	cmp::{
-		Eq,
-		PartialEq,
-		PartialOrd,
-		Ord,
-		Ordering,
-	},
-	convert::{
-		AsMut,
-		AsRef,
-		From,
-		Into,
-	},
-	default::Default,
+	cmp::Ordering,
 	fmt::{
 		self,
 		Debug,
@@ -56,18 +42,8 @@ use core::{
 		Hash,
 		Hasher,
 	},
-	iter::{
-		DoubleEndedIterator,
-		ExactSizeIterator,
-		FusedIterator,
-		Iterator,
-		IntoIterator,
-	},
-	marker::{
-		PhantomData,
-		Send,
-		Sync,
-	},
+	iter::FusedIterator,
+	marker::PhantomData,
 	mem,
 	ops::{
 		Add,
@@ -80,7 +56,6 @@ use core::{
 		BitXorAssign,
 		Deref,
 		DerefMut,
-		Drop,
 		Index,
 		IndexMut,
 		Range,
