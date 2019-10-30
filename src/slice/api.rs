@@ -172,7 +172,7 @@ where C: Cursor, T: BitStore {
 	/// }
 	/// assert_eq!(data, 1u8);
 	/// ```
-	pub fn first_mut(&mut self) -> Option<BitGuard<C, T>> {
+	pub fn first_mut(&mut self) -> Option<BitMut<C, T>> {
 		if self.is_empty() {
 			None
 		}
@@ -219,7 +219,7 @@ where C: Cursor, T: BitStore {
 	/// }
 	/// assert_eq!(data, 7);
 	/// ```
-	pub fn split_first_mut(&mut self) -> Option<(BitGuard<C, T>, &mut Self)> {
+	pub fn split_first_mut(&mut self) -> Option<(BitMut<C, T>, &mut Self)> {
 		if self.is_empty() {
 			None
 		}
@@ -265,7 +265,7 @@ where C: Cursor, T: BitStore {
 	/// }
 	/// assert_eq!(data, 128 | 64 | 1);
 	/// ```
-	pub fn split_last_mut(&mut self) -> Option<(BitGuard<C, T>, &mut Self)> {
+	pub fn split_last_mut(&mut self) -> Option<(BitMut<C, T>, &mut Self)> {
 		match self.len() {
 			0 => None,
 			len => {
@@ -304,7 +304,7 @@ where C: Cursor, T: BitStore {
 	///     *last = true;
 	/// }
 	/// assert!(bits[7]);
-	pub fn last_mut(&mut self) -> Option<BitGuard<C, T>> {
+	pub fn last_mut(&mut self) -> Option<BitMut<C, T>> {
 		match self.len() {
 			0 => None,
 			len => Some(self.at(len - 1)),
@@ -1981,7 +1981,7 @@ where C: 'a + Cursor, T: 'a + BitStore {
 impl<'a, C, T> BitSliceIndex<'a, C, T> for usize
 where C: 'a + Cursor, T: 'a + BitStore {
 	type ImmutOutput = &'a bool;
-	type MutOutput = BitGuard<'a, C, T>;
+	type MutOutput = BitMut<'a, C, T>;
 
 	fn get(self, slice: &'a BitSlice<C, T>) -> Option<Self::ImmutOutput> {
 		if self >= slice.len() {
@@ -2081,7 +2081,7 @@ where C: 'a + Cursor, T: 'a + BitStore {
 
 	fn index(self, slice: &'a BitSlice<C, T>) -> Self::ImmutOutput {
 		match self.clone().get(slice) {
-			None => panic!("Range {:?} exceeds length {}", self, slice.len()),
+			None => panic!("Range {:?} exceeds slice length {}", self, slice.len()),
 			Some(out) => out,
 		}
 	}

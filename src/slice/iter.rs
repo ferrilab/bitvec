@@ -12,6 +12,7 @@ use core::{
 		Debug,
 		Formatter,
 	},
+	iter::FusedIterator,
 	mem,
 };
 
@@ -162,7 +163,7 @@ where C: Cursor, T: BitStore {
 
 impl<'a, C, T> IntoIterator for &'a mut BitSlice<C, T>
 where C: Cursor, T: 'a + BitStore {
-	type Item = BitGuard<'a, C, T>;
+	type Item = BitMut<'a, C, T>;
 	type IntoIter = IterMut<'a, C, T>;
 
 	fn into_iter(self) -> Self::IntoIter {
@@ -256,7 +257,7 @@ where C: Cursor, T: 'a + BitStore {
 
 impl<'a, C, T> Iterator for IterMut<'a, C, T>
 where C: Cursor, T: 'a + BitStore {
-	type Item = BitGuard<'a, C, T>;
+	type Item = BitMut<'a, C, T>;
 
 	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {

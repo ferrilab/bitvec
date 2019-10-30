@@ -18,7 +18,7 @@ pub use crate::{
 	},
 	fields::BitField,
 	slice::{
-		BitGuard,
+		BitMut,
 		BitSlice,
 	},
 	store::{
