@@ -103,8 +103,48 @@ where T: 'a + BitStore {
 	Spanning(&'a [T::Access]),
 }
 
-impl<T> BitDomain<'_, T>
+impl<'a, T> BitDomain<'a, T>
 where T: BitStore {
+	/// Unpacks a domain into components.
+	///
+	/// This is useful for deduplicating code that uses each region component
+	/// but does not otherwise branch on region kind.
+	///
+	/// # Returns
+	///
+	/// The `Minor` case returns a tuple of the head index, the element, and the
+	/// tail index; all other cases return a tuple of optional:
+	///
+	/// - head element, and start index in that element
+	/// - body slice
+	/// - tail element, and end index in that element
+	pub(crate) fn splat(self) -> Result<(
+		Option<(BitIdx<T>, &'a T::Access)>,
+		Option<&'a [T::Access]>,
+		Option<(&'a T::Access, BitTail<T>)>,
+	), (BitIdx<T>, &'a T::Access, BitTail<T>)> {
+		match self {
+			BitDomain::Empty => Ok((None, None, None)),
+			BitDomain::Minor(h, e, t) => Err((h, e, t)),
+			BitDomain::Major(h, head, body, tail, t) => Ok((
+				Some((h, head)),
+				Some(body),
+				Some((tail, t)),
+			)),
+			BitDomain::PartialHead(h, head, body) => Ok((
+				Some((h, head)),
+				Some(body),
+				None,
+			)),
+			BitDomain::PartialTail(body, tail, t) => Ok((
+				None,
+				Some(body),
+				Some((tail, t)),
+			)),
+			BitDomain::Spanning(body) => Ok((None, Some(body), None)),
+		}
+	}
+
 	/// Tests if the variant is `Minor`.
 	#[cfg(test)]
 	pub(crate) fn is_minor(&self) -> bool {
