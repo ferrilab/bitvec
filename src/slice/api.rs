@@ -3,8 +3,6 @@
 
 use super::*;
 
-use crate::vec::BitVec;
-
 use core::{
 	ops::{
 		Range,
@@ -16,6 +14,9 @@ use core::{
 	},
 	slice,
 };
+
+#[cfg(feature = "alloc")]
+use crate::vec::BitVec;
 
 /// Converts a reference to `T` into a bit slice one element long (without
 /// copying).
