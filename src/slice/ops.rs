@@ -1,5 +1,4 @@
-/*! Operator trait implementations.
-!*/
+//! Operator trait implementations.
 
 use super::api::BitSliceIndex;
 

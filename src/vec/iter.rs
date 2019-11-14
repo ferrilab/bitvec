@@ -1,5 +1,4 @@
-/*! Iteration processes for `BitVec`.
-!*/
+//! Iteration processes for `BitVec`.
 
 use super::*;
 
@@ -8,6 +7,8 @@ use crate::{
 	store::BitStore,
 };
 
+use alloc::vec::Vec;
+
 use core::{
 	iter::{
 		FromIterator,
@@ -15,9 +16,6 @@ use core::{
 	},
 	ptr::NonNull,
 };
-
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
 
 /** Extends a `BitVec` with the contents of another bitstream.
 

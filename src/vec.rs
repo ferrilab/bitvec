@@ -24,16 +24,15 @@ use crate::{
 	},
 };
 
+use alloc::{
+	borrow::ToOwned,
+	vec::Vec,
+};
+
 use core::{
 	marker::PhantomData,
 	mem,
 	slice,
-};
-
-#[cfg(feature = "alloc")]
-use alloc::{
-	borrow::ToOwned,
-	vec::Vec,
 };
 
 /** A compact [`Vec`] of bits, whose cursor and storage type can be customized.

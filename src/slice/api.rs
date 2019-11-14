@@ -1,5 +1,4 @@
-/*! Reimplementation of the slice fundamental’s inherent method API.
-!*/
+//! Reimplementation of the slice fundamental’s inherent method API.
 
 use super::*;
 

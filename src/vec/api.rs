@@ -1,5 +1,4 @@
-/*! Reimplementation of the standard library’s `Vec` inherent method API.
-!*/
+//! Reimplementation of the standard library’s `Vec` inherent method API.
 
 use super::*;
 
@@ -9,7 +8,10 @@ use crate::{
 	store::BitStore,
 };
 
-use alloc::vec::Vec;
+use alloc::{
+	boxed::Box,
+	vec::Vec,
+};
 
 use core::{
 	cmp,
@@ -20,9 +22,6 @@ use core::{
 		NonNull,
 	},
 };
-
-#[cfg(feature = "alloc")]
-use alloc::boxed::Box;
 
 impl<C, T> BitVec<C, T>
 where C: Cursor, T: BitStore {

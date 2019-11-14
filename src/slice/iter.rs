@@ -1,5 +1,4 @@
-/*! Iteration processes for `BitSlice`.
-!*/
+//! Iteration processes for `BitSlice`.
 
 //  TODO(myrrlyn, 2019-10-23): Upgrade to 1.37.0 and add `nth_back` implementations.
 

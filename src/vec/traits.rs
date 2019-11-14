@@ -10,6 +10,16 @@ use crate::{
 	store::BitStore,
 };
 
+use alloc::{
+	borrow::{
+		Borrow,
+		BorrowMut,
+		ToOwned,
+	},
+	boxed::Box,
+	vec::Vec,
+};
+
 use core::{
 	cmp::Ordering,
 	fmt::{
@@ -28,17 +38,6 @@ use core::{
 	},
 	marker::PhantomData,
 	mem,
-};
-
-#[cfg(feature = "alloc")]
-use alloc::{
-	borrow::{
-		Borrow,
-		BorrowMut,
-		ToOwned,
-	},
-	boxed::Box,
-	vec::Vec,
 };
 
 #[cfg(feature = "std")]
