@@ -111,7 +111,7 @@ where C: Cursor, T: BitStore {
 impl<C, T> Clone for BitVec<C, T>
 where C: Cursor, T: BitStore {
 	fn clone(&self) -> Self {
-		let new_vec = self.do_with_vec(Clone::clone);
+		let new_vec = self.as_slice().to_owned();
 		let capacity = new_vec.capacity();
 		let mut pointer = self.pointer;
 		unsafe { pointer.set_pointer(new_vec.as_ptr()); }

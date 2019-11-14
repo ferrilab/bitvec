@@ -718,41 +718,6 @@ where C: Cursor, T: BitStore {
 		mem::forget(v);
 		out
 	}
-
-	/// Permits a function to view the `Vec<T>` underneath a `BitVec<_, T>`.
-	///
-	/// This produces a `Vec<T>` structure referring to the same data region as
-	/// the `BitVec<_, T>`, allows a function to immutably view it, and then
-	/// forgets the `Vec<T>` after the function concludes.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	/// - `func`: A function which receives an immutable borrow to the `Vec<T>`
-	///   underlying the `BitVec<_, T>`.
-	///
-	/// # Returns
-	///
-	/// The return value of `func`.
-	///
-	/// # Type Parameters
-	///
-	/// - `F: FnOnce(&Vec<T>)`: Any callable object (function or closure) which
-	///   receives an immutable borrow of a `Vec<T>` and returns nothing.
-	///
-	/// # Safety
-	///
-	/// This produces an empty `Vec<T>` if the `BitVec<_, T>` is empty.
-	fn do_with_vec<F, R>(&self, func: F) -> R
-	where F: FnOnce(&Vec<T>) -> R {
-		let slice = self.pointer.as_mut_slice();
-		let v: Vec<T> = unsafe {
-			Vec::from_raw_parts(slice.as_mut_ptr(), slice.len(), self.capacity)
-		};
-		let out = func(&v);
-		mem::forget(v);
-		out
-	}
 }
 
 mod api;
