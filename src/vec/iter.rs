@@ -16,6 +16,9 @@ use core::{
 	ptr::NonNull,
 };
 
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
+
 /** Extends a `BitVec` with the contents of another bitstream.
 
 At present, this just calls `.push()` in a loop. When specialization becomes

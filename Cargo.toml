@@ -38,11 +38,6 @@ default = [
 std = [
 	"alloc",
 ]
-testing = [
-	"atomic",
-	"serde",
-	"std",
-]
 
 [dependencies]
 radium = "0.2"

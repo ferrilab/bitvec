@@ -74,24 +74,6 @@ pub mod vec;
 #[cfg(feature = "serde")]
 mod serdes;
 
-/// Expose crate internals for use in doctests and external tests.
-#[cfg(feature = "testing")]
-pub mod testing {
-	pub use crate::{
-		access::*,
-		bits::*,
-		boxed::*,
-		cursor::*,
-		indices::*,
-		fields::*,
-		macros::*,
-		pointer::*,
-		slice::*,
-		store::*,
-		vec::*,
-	};
-}
-
 /** Perform single-bit ripple-carry addition.
 
 This function performs carry-aware binary addition on single bits of each

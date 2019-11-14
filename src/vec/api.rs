@@ -21,6 +21,9 @@ use core::{
 	},
 };
 
+#[cfg(feature = "alloc")]
+use alloc::boxed::Box;
+
 impl<C, T> BitVec<C, T>
 where C: Cursor, T: BitStore {
 	/// Constructs a new, empty `BitVec<C, T>`.

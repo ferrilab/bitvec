@@ -75,6 +75,7 @@ where T: BitStore {
 	///
 	/// - `.0`: An incremented cursor, modulated to the domain `0 .. T::BITS`.
 	/// - `.1`: Marks whether the increment crossed an element boundary.
+	#[cfg(any(test, feature = "alloc"))]
 	#[inline(always)]
 	pub(crate) fn incr(self) -> (Self, bool) {
 		let next = (*self).wrapping_add(1) & T::MASK;
@@ -91,6 +92,8 @@ where T: BitStore {
 	///
 	/// - `.0`: A decremented cursor, modulated to the domain `0 .. T::BITS`.
 	/// - `.1`: Marks whether the decrement crossed an element boundary.
+	#[cfg(any(test, feature = "alloc"))]
+	#[inline(always)]
 	pub(crate) fn decr(self) -> (Self, bool) {
 		let (prev, wrap) = (*self).overflowing_sub(1);
 		((prev & T::MASK).idx(), wrap)

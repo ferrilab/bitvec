@@ -96,7 +96,7 @@ where C: Cursor, T: BitStore + Deserialize<'de> {
 		let bitptr = BitPtr::new(
 			data.as_ptr(),
 			head.try_into().map_err(|_| Error::invalid_value(
-				Unexpected::Unsigned(head as u64),
+				Unexpected::Unsigned(u64::from(head)),
 				&self,
 			))?,
 			bits,
@@ -136,7 +136,7 @@ where C: Cursor, T: BitStore + Deserialize<'de> {
 		let bitptr = BitPtr::new(
 			data.as_ptr(),
 			head.try_into().map_err(|_| Error::invalid_value(
-				Unexpected::Unsigned(head as u64),
+				Unexpected::Unsigned(u64::from(head)),
 				&self,
 			))?,
 			cmp::min(bits, data.len() * T::BITS as usize),

@@ -30,6 +30,12 @@ use core::{
 	slice,
 };
 
+#[cfg(feature = "alloc")]
+use alloc::{
+	borrow::ToOwned,
+	vec::Vec,
+};
+
 /** A compact [`Vec`] of bits, whose cursor and storage type can be customized.
 
 `BitVec` is a newtype wrapper over `Vec`, and as such is exactly three words in

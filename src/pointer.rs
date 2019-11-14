@@ -11,7 +11,6 @@ use crate::{
 	domain::*,
 	indices::{
 		BitIdx,
-		BitTail,
 		Indexable,
 	},
 	slice::BitSlice,
@@ -29,6 +28,9 @@ use core::{
 	ptr::NonNull,
 	slice,
 };
+
+#[cfg(any(test, feature = "alloc"))]
+use crate::indices::BitTail;
 
 /// Width in bits of a pointer on the target machine.
 const PTR_BITS: usize = size_of::<*const u8>() * 8;
@@ -291,10 +293,6 @@ where T: BitStore {
 
 impl<T> BitPtr<T>
 where T: BitStore {
-	/// The number of high bits in `self.ptr` that are actually the address of
-	/// the zeroth `T`.
-	pub const PTR_DATA_BITS: usize = PTR_BITS - Self::PTR_HEAD_BITS;
-
 	/// Marks the bits of `self.ptr` that are the `data` section.
 	pub const PTR_DATA_MASK: usize = !Self::PTR_HEAD_MASK;
 
@@ -585,6 +583,7 @@ where T: BitStore {
 	/// # Safety
 	///
 	/// None. The caller must ensure that the invariants of `::new` are upheld.
+	#[cfg(feature = "alloc")]
 	#[inline]
 	pub unsafe fn set_len(&mut self, len: usize) {
 		let n = (len << Self::LEN_HEAD_BITS) | (self.len & Self::LEN_HEAD_MASK);
@@ -637,6 +636,7 @@ where T: BitStore {
 	/// A `BitTail` that is the index of the first dead bit after the last live
 	/// bit in the last element. This will almost always be in the domain
 	/// `1 ..= T::BITS`.
+	#[cfg(any(test, feature = "alloc"))]
 	#[inline]
 	pub(crate) fn tail(&self) -> BitTail<T> {
 		let (head, len) = (self.head(), self.len());
@@ -666,25 +666,10 @@ where T: BitStore {
 	/// # Returns
 	///
 	/// Whether the slice is empty or populated.
+	#[cfg(any(test, feature = "alloc"))]
 	#[inline]
 	pub fn is_empty(&self) -> bool {
 		self.len & !Self::LEN_HEAD_MASK == 0
-	}
-
-	/// Checks if the pointer represents the full slice.
-	///
-	/// The full slice has `!0` `bits` counters.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// Whether the slice is full or has room for more growth.
-	#[inline]
-	pub fn is_full(&self) -> bool {
-		self.len | Self::LEN_HEAD_MASK == !0
 	}
 
 	/// Accesses the element slice behind the pointer as a Rust slice.
@@ -768,6 +753,7 @@ where T: BitStore {
 	/// memory. It mutates the pointer and element count, so if this pointer is
 	/// solely responsible for owned memory, its conception of the allocation
 	/// will differ from the allocator’s.
+	#[cfg(feature = "alloc")]
 	pub unsafe fn incr_head(&mut self) {
 		let (data, head, bits) = self.raw_parts();
 		if bits == 0 {
@@ -797,6 +783,7 @@ where T: BitStore {
 	/// memory. It mutates the pointer and element count, so if this pointer is
 	/// solely responsible for owned memory, its conception of the allocation
 	/// will differ from the allocator’s.
+	#[cfg(feature = "alloc")]
 	pub unsafe fn decr_head(&mut self) {
 		let (data, head, bits) = self.raw_parts();
 		if bits == 0 {
@@ -826,6 +813,7 @@ where T: BitStore {
 	/// memory. It mutates the element count, so if this pointer is solely
 	/// responsible for owned memory, its conception of the allocation will
 	/// differ from the allocator’s.
+	#[cfg(feature = "alloc")]
 	pub unsafe fn incr_tail(&mut self) {
 		let len = self.len();
 		if len == Self::MAX_BITS {
@@ -850,6 +838,7 @@ where T: BitStore {
 	/// memory. It mutates the element count, so if this pointer is solely
 	/// responsible for owned memory, its conception of the allocation will
 	/// differ from the allocator’s.
+	#[cfg(feature = "alloc")]
 	pub unsafe fn decr_tail(&mut self) {
 		let len = self.len();
 		if len == 0 {
@@ -1003,7 +992,6 @@ mod tests {
 
 	#[test]
 	fn associated_consts_u8() {
-		assert_eq!(BitPtr::<u8>::PTR_DATA_BITS, PTR_BITS);
 		assert_eq!(BitPtr::<u8>::PTR_HEAD_BITS, 0);
 
 		assert_eq!(BitPtr::<u8>::PTR_DATA_MASK, !0);
@@ -1012,7 +1000,6 @@ mod tests {
 
 	#[test]
 	fn associated_consts_u16() {
-		assert_eq!(BitPtr::<u16>::PTR_DATA_BITS, PTR_BITS - 1);
 		assert_eq!(BitPtr::<u16>::PTR_HEAD_BITS, 1);
 
 		assert_eq!(BitPtr::<u16>::PTR_DATA_MASK, !0 << 1);
@@ -1021,7 +1008,6 @@ mod tests {
 
 	#[test]
 	fn associated_consts_u32() {
-		assert_eq!(BitPtr::<u32>::PTR_DATA_BITS, PTR_BITS - 2);
 		assert_eq!(BitPtr::<u32>::PTR_HEAD_BITS, 2);
 
 		assert_eq!(BitPtr::<u32>::PTR_DATA_MASK, !0 << 2);
@@ -1030,7 +1016,6 @@ mod tests {
 
 	#[test]
 	fn associated_consts_u64() {
-		assert_eq!(BitPtr::<u64>::PTR_DATA_BITS, PTR_BITS - 3);
 		assert_eq!(BitPtr::<u64>::PTR_HEAD_BITS, 3);
 
 		assert_eq!(BitPtr::<u64>::PTR_DATA_MASK, !0 << 3);
