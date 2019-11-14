@@ -5,6 +5,11 @@ The operator traits are defined in the `ops` module.
 
 use super::*;
 
+use crate::{
+	cursor::Cursor,
+	store::BitStore,
+};
+
 use core::{
 	cmp::Ordering,
 	fmt::{

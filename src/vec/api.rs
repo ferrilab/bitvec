@@ -14,6 +14,11 @@ use alloc::vec::Vec;
 use core::{
 	cmp,
 	hint::unreachable_unchecked,
+	ops::RangeBounds,
+	ptr::{
+		self,
+		NonNull,
+	},
 };
 
 impl<C, T> BitVec<C, T>
