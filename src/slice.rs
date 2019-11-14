@@ -28,6 +28,8 @@ use core::{
 	str,
 };
 
+use either::Either;
+
 /** A compact slice of bits, whose cursor and storage types can be customized.
 
 `BitSlice` is a specialized slice type, which can only ever be held by
@@ -501,11 +503,11 @@ where C: Cursor, T: BitStore {
 	/// ```
 	pub fn all(&self) -> bool {
 		match self.bitptr().domain().splat() {
-			Err((h, e, t)) => {
+			Either::Right((h, e, t)) => {
 				let elt = e.load();
 				(*h .. *t).all(|n| elt.get::<C>(n.idx()))
 			},
-			Ok((h, b, t)) => {
+			Either::Left((h, b, t)) => {
 				let mut out = true;
 				if let Some((h, head)) = h {
 					let elt = head.load();
@@ -554,11 +556,11 @@ where C: Cursor, T: BitStore {
 	/// ```
 	pub fn any(&self) -> bool {
 		match self.bitptr().domain().splat() {
-			Err((h, e, t)) => {
+			Either::Right((h, e, t)) => {
 				let elt = e.load();
 				(*h .. *t).any(|n| elt.get::<C>(n.idx()))
 			},
-			Ok((h, b, t)) => {
+			Either::Left((h, b, t)) => {
 				let mut out = false;
 				if let Some((h, head)) = h {
 					let elt = head.load();
@@ -697,11 +699,11 @@ where C: Cursor, T: BitStore {
 	/// ```
 	pub fn count_ones(&self) -> usize {
 		match self.bitptr().domain().splat() {
-			Err((h, e, t)) => {
+			Either::Right((h, e, t)) => {
 				let elt = e.load();
 				(*h .. *t).filter(|n| elt.get::<C>(n.idx())).count()
 			},
-			Ok((h, b, t)) => {
+			Either::Left((h, b, t)) => {
 				let mut out = 0usize;
 				if let Some((h, head)) = h {
 					let elt = head.load();
@@ -771,12 +773,12 @@ where C: Cursor, T: BitStore {
 	/// ```
 	pub fn set_all(&mut self, value: bool) {
 		match self.bitptr().domain().splat() {
-			Err((h, e, t)) => {
+			Either::Right((h, e, t)) => {
 				for n in *h .. *t {
 					e.set::<C>(n.idx(), value);
 				}
 			},
-			Ok((h, b, t)) => {
+			Either::Left((h, b, t)) => {
 				if let Some((h, head)) = h {
 					for n in *h .. T::BITS {
 						head.set::<C>(n.idx(), value);

@@ -29,6 +29,8 @@ use core::{
 	hint::unreachable_unchecked,
 };
 
+use either::Either;
+
 #[cfg(feature = "alloc")]
 use {
 	crate::vec::BitVec,
@@ -276,12 +278,12 @@ where C: Cursor, T: BitStore {
 			}));
 		};
 		match self.bitptr().domain().splat() {
-			Err((head, elt, tail)) => {
+			Either::Right((head, elt, tail)) => {
 				let (h, e, t) = (*head as usize, elt.load(), *tail as usize);
 				let bits = Self::from_element(&e);
 				writer(&bits[h .. t]);
 			},
-			Ok((h, b, t)) => {
+			Either::Left((h, b, t)) => {
 				if let Some((h, head)) = h {
 					writer(&Self::from_element(&head.load())[*h as usize ..]);
 				}

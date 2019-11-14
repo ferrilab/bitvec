@@ -47,6 +47,10 @@ testing = [
 [dependencies]
 radium = "0.2"
 
+[dependencies.either]
+default-features = false
+version = "1.5"
+
 [dependencies.serde]
 default-features = false
 features = [

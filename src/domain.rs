@@ -16,6 +16,31 @@ use crate::{
 	store::BitStore,
 };
 
+use either::Either;
+
+/** Alias for the region components produced by the `BitDomain::splat` method.
+
+Splatting a domain will produce either a `(head, element, tail)` tuple when the
+region is contained entirely within a single element, or a much more complex
+tuple of the head partial element, the body whole elements, and the tail partial
+element.
+
+# Types
+
+- `T`: The backing storage the splat is describing.
+
+# Lifetimes
+
+- `'a`: The backing storage the splat is describing.
+**/
+//  Type bounds in `type` aliases are disallowed, so `T::Access` is not writable
+//  here.
+pub(crate) type Splat<'a, T, A> = Either<(
+	Option<(BitIdx<T>, &'a A)>,
+	Option<&'a [A]>,
+	Option<(&'a A, BitTail<T>)>,
+), (BitIdx<T>, &'a A, BitTail<T>)>;
+
 /** Representations of the state of the bit domain in its containing elements.
 
 # Lifetimes
@@ -118,30 +143,26 @@ where T: BitStore {
 	/// - head element, and start index in that element
 	/// - body slice
 	/// - tail element, and end index in that element
-	pub(crate) fn splat(self) -> Result<(
-		Option<(BitIdx<T>, &'a T::Access)>,
-		Option<&'a [T::Access]>,
-		Option<(&'a T::Access, BitTail<T>)>,
-	), (BitIdx<T>, &'a T::Access, BitTail<T>)> {
+	pub(crate) fn splat(self) -> Splat<'a, T, T::Access> {
 		match self {
-			BitDomain::Empty => Ok((None, None, None)),
-			BitDomain::Minor(h, e, t) => Err((h, e, t)),
-			BitDomain::Major(h, head, body, tail, t) => Ok((
+			BitDomain::Empty => Either::Left((None, None, None)),
+			BitDomain::Minor(h, e, t) => Either::Right((h, e, t)),
+			BitDomain::Major(h, head, body, tail, t) => Either::Left((
 				Some((h, head)),
 				Some(body),
 				Some((tail, t)),
 			)),
-			BitDomain::PartialHead(h, head, body) => Ok((
+			BitDomain::PartialHead(h, head, body) => Either::Left((
 				Some((h, head)),
 				Some(body),
 				None,
 			)),
-			BitDomain::PartialTail(body, tail, t) => Ok((
+			BitDomain::PartialTail(body, tail, t) => Either::Left((
 				None,
 				Some(body),
 				Some((tail, t)),
 			)),
-			BitDomain::Spanning(body) => Ok((None, Some(body), None)),
+			BitDomain::Spanning(body) => Either::Left((None, Some(body), None)),
 		}
 	}
 

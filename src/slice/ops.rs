@@ -11,6 +11,8 @@ use crate::{
 	store::BitStore,
 };
 
+use either::Either;
+
 use core::{
 	ops::{
 		AddAssign,
@@ -473,10 +475,10 @@ where C: Cursor, T: 'a + BitStore {
 	/// ```
 	fn not(self) -> Self::Output {
 		match self.bitptr().domain().splat() {
-			Err((h, e, t)) => for n in *h .. *t {
+			Either::Right((h, e, t)) => for n in *h .. *t {
 				e.invert_bit::<C>(n.idx());
 			},
-			Ok((h, b, t)) => {
+			Either::Left((h, b, t)) => {
 				if let Some((h, head)) = h {
 					for n in *h .. T::BITS {
 						head.invert_bit::<C>(n.idx())
