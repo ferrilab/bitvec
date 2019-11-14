@@ -98,6 +98,10 @@ slice. `data` must be non-null and aligned even for zero-length slices as with
 
 See the documentation of [`from_raw_parts`] for more details.
 
+# Safety
+
+See `from_raw_parts`.
+
 [`from_raw_parts`]: #fn.from_raw_parts
 **/
 pub unsafe fn from_raw_parts_mut<'a, C, T>(
@@ -371,6 +375,13 @@ where C: Cursor, T: BitStore {
 	/// This is generally not recommended; use with caution! For a safe
 	/// alternative, see [`get`].
 	///
+	/// # Safety
+	///
+	/// As this function does not perform boundary checking, the caller must
+	/// ensure that `self` is an index within the boundaries of `slice` before
+	/// calling in order to avoid boundary escapes and ensuing safety
+	/// violations.
+	///
 	/// # Examples
 	///
 	/// ```rust
@@ -397,6 +408,13 @@ where C: Cursor, T: BitStore {
 	///
 	/// This is generally not recommended; use with caution! For a safe
 	/// alternative, see [`get_mut`].
+	///
+	/// # Safety
+	///
+	/// As this function does not perform boundary checking, the caller must
+	/// ensure that `self` is an index within the boundaries of `slice` before
+	/// calling in order to avoid boundary escapes and ensuing safety
+	/// violations.
 	///
 	/// # Examples
 	///
@@ -1930,6 +1948,13 @@ where C: 'a + Cursor, T: 'a + BitStore {
 	/// # Returns
 	///
 	/// An immutable output.
+	///
+	/// # Safety
+	///
+	/// As this function does not perform boundary checking, the caller must
+	/// ensure that `self` is an index within the boundaries of `slice` before
+	/// calling in order to avoid boundary escapes and ensuing safety
+	/// violations.
 	unsafe fn get_unchecked(self, slice: &'a BitSlice<C, T>) -> Self::ImmutOutput;
 
 	/// Returns a mutable reference to the output at this location, without
@@ -1943,6 +1968,13 @@ where C: 'a + Cursor, T: 'a + BitStore {
 	/// # Returns
 	///
 	/// A mutable output.
+	///
+	/// # Safety
+	///
+	/// As this function does not perform boundary checking, the caller must
+	/// ensure that `self` is an index within the boundaries of `slice` before
+	/// calling in order to avoid boundary escapes and ensuing safety
+	/// violations.
 	unsafe fn get_unchecked_mut(self, slice: &'a mut BitSlice<C, T>) -> Self::MutOutput;
 
 	/// Returns a shared reference to the output at this location, panicking if
@@ -2093,6 +2125,7 @@ where C: 'a + Cursor, T: 'a + BitStore {
 	}
 }
 
+#[allow(clippy::range_plus_one)] // An inclusive range cannot be used here
 impl<'a, C, T> BitSliceIndex<'a, C, T> for RangeInclusive<usize>
 where C: 'a + Cursor, T: 'a + BitStore {
 	type ImmutOutput = &'a BitSlice<C, T>;
@@ -2237,6 +2270,7 @@ where C: 'a + Cursor, T: 'a + BitStore {
 	}
 }
 
+#[allow(clippy::range_plus_one)] // An inclusive range cannot be used here
 impl<'a, C, T> BitSliceIndex<'a, C, T> for RangeToInclusive<usize>
 where C: 'a + Cursor, T: 'a + BitStore {
 	type ImmutOutput = &'a BitSlice<C, T>;

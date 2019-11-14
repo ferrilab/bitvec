@@ -551,6 +551,7 @@ where C: Cursor, T: BitStore {
 	/// *bits <<= 3;
 	/// assert_eq!(src, [0b01_011_101, 0b001_000_01]);
 	/// ```
+	#[allow(clippy::suspicious_op_assign_impl)] // These functions require math
 	fn shl_assign(&mut self, shamt: usize) {
 		if shamt == 0 {
 			return;
@@ -654,6 +655,7 @@ where C: Cursor, T: BitStore {
 	/// *bits >>= 3;
 	/// assert_eq!(src, [0b01_000_00_1, 0b011_101_01])
 	/// ```
+	#[allow(clippy::suspicious_op_assign_impl)] // These functions require math
 	fn shr_assign(&mut self, shamt: usize) {
 		if shamt == 0 {
 			return;

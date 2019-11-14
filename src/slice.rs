@@ -445,6 +445,12 @@ where C: Cursor, T: BitStore {
 	}
 
 	/// Version of [`at`](#method.at) that does not perform boundary checking.
+	///
+	/// # Safety
+	///
+	/// If `index` is outside the boundaries of `self`, then this function will
+	/// induce safety violations. The caller must ensure that `index` is within
+	/// the boundaries of `self` before calling.
 	pub unsafe fn at_unchecked(&mut self, index: usize) -> BitMut<C, T> {
 		BitMut {
 			data: *self.get_unchecked(index),
@@ -454,6 +460,12 @@ where C: Cursor, T: BitStore {
 
 	/// Version of [`split_at`](#method.split_at) that does not perform boundary
 	/// checking.
+	///
+	/// # Safety
+	///
+	/// If `mid` is outside the boundaries of `self`, then this function will
+	/// induce safety violations. The caller must ensure that `mid` is within
+	/// the boundaries of `self` before calling.
 	pub unsafe fn split_at_unchecked(&self, mid: usize) -> (&Self, &Self) {
 		match mid {
 			0 => (BitSlice::empty(), self),
@@ -464,6 +476,12 @@ where C: Cursor, T: BitStore {
 
 	/// Version of [`split_at_mut`](#method.split_at_mut) that does not perform
 	/// boundary checking.
+	///
+	/// # Safety
+	///
+	/// If `mid` is outside the boundaries of `self`, then this function will
+	/// induce safety violations. The caller must ensure that `mid` is within
+	/// the boundaries of `self` before calling.
 	pub unsafe fn split_at_mut_unchecked(
 		&mut self,
 		mid: usize,

@@ -167,7 +167,7 @@ where T: BitStore {
 		let value = value & mask;
 
 		match self.bitptr().domain() {
-			BitDomain::Empty => return,
+			BitDomain::Empty => {},
 
 			BitDomain::Minor(head, elt, _) => {
 				//  Erase the storage region, starting at `head` for `len`.
@@ -238,7 +238,7 @@ where T: BitStore {
 			//  `t` is towards the LSedge; move the value to LSedge, and mask
 			//  the high excess.
 			BitDomain::Minor(_, e, t) => {
-				Some((e.load() >> T::BITS - *t) & low_mask())
+				Some((e.load() >> (T::BITS - *t)) & low_mask())
 			},
 
 			/* The live region of `self` is in the interior of a two-element
@@ -270,7 +270,7 @@ where T: BitStore {
 				let high = left.load() << right_bits;
 				//  Move `right` from MSedge down to LSedge by the number of
 				//  dead bits in `right`.
-				let low = right.load() >> T::BITS - *tail;
+				let low = right.load() >> (T::BITS - *tail);
 
 				//  Recombine, and mask away any excess.
 				Some((high | low) & low_mask())
@@ -311,7 +311,7 @@ where T: BitStore {
 		let value = value & mask;
 
 		match self.bitptr().domain() {
-			BitDomain::Empty => return,
+			BitDomain::Empty => {},
 
 			BitDomain::Minor(_, elt, tail) => {
 				//  Find the distance between the LSedge and the live region,

@@ -323,6 +323,15 @@ where C: Cursor, T: BitStore {
 	/// The proper way to do so is to convert the `BitPtr` back into a `BitBox`
 	/// with the [`BitBox::from_raw`] function.
 	///
+	/// # Safety
+	///
+	/// The returned value is an opaque pointer type. It must not have its value
+	/// modified. Modifying this value will cause inconsistencies in all future
+	/// accesses.
+	///
+	/// It is safe to let this value go out of scope; this is only a memory
+	/// leak, not a safety violation.
+	///
 	/// [`BitBox::from_raw`]: #method.from_raw
 	pub unsafe fn into_raw(self) -> BitPtr<T> {
 		let out = self.bitptr();

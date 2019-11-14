@@ -43,7 +43,7 @@ fn readme() {
 
     //  Set operations
     bv &= repeat(true);
-    bv = bv | repeat(false);
+    bv |= repeat(false);
     bv ^= repeat(true);
     bv = !bv;
 
@@ -51,7 +51,7 @@ fn readme() {
     let one = bitvec![BigEndian, u8; 1];
     bv += one.clone();
     assert_eq!(bv.as_slice(), &[0b0101_0001, 0b0000_0000]);
-    bv -= one.clone();
+    bv -= one;
     assert_eq!(bv.as_slice(), &[0b0101_0000, 0b1111_0000]);
 
     //  Borrowing iteration

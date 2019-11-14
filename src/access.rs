@@ -189,6 +189,7 @@ where T: BitStore + BitOps + Sized {
 	/// # Safety
 	///
 	/// This can only be called on wholly owned, uncontended, regions.
+	#[allow(clippy::mut_from_ref)] // I *am* the law, Clippy
 	unsafe fn as_slice_mut(this: &[Self]) -> &mut [T] {
 		&mut *(this as *const [Self] as *const [T] as *mut [T])
 	}

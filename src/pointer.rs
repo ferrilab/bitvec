@@ -73,7 +73,7 @@ where T: BitStore {
 	/// The stored address, interpreted as a shared pointer to a mutable memory
 	/// location.
 	#[inline]
-	pub(crate) fn a(&self) -> *const <T as BitStore>::Access {
+	pub(crate) fn a(self) -> *const <T as BitStore>::Access {
 		unsafe { self.a }
 	}
 
@@ -87,7 +87,7 @@ where T: BitStore {
 	///
 	/// The stored address, as a read pointer.
 	#[inline]
-	pub(crate) fn r(&self) -> *const T {
+	pub(crate) fn r(self) -> *const T {
 		unsafe { self.r }
 	}
 
@@ -101,7 +101,7 @@ where T: BitStore {
 	///
 	/// The stored address, as a write pointer.
 	#[inline]
-	pub(crate) fn w(&self) -> *mut T {
+	pub(crate) fn w(self) -> *mut T {
 		unsafe { self.w }
 	}
 
@@ -115,7 +115,7 @@ where T: BitStore {
 	///
 	/// The stored address, as a bare integer.
 	#[inline]
-	pub(crate) fn u(&self) -> usize {
+	pub(crate) fn u(self) -> usize {
 		unsafe { self.u }
 	}
 }
@@ -1039,7 +1039,7 @@ mod tests {
 
 	#[test]
 	fn ctors() {
-		let data: [u32; 4] = [0x756c6153, 0x2c6e6f74, 0x6e6f6d20, 0x00216f64];
+		let data: [u32; 4] = [0; 4];
 		let bp = BitPtr::<u32>::new(&data as *const u32, 0u8.idx(), 32 * 4);
 		assert_eq!(bp.pointer().r(), &data as *const u32);
 		assert_eq!(bp.elements(), 4);

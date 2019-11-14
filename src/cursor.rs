@@ -215,6 +215,7 @@ ordering is chosen as an uninformed default.
 pub type Local = LittleEndian;
 
 #[cfg(test)]
+#[allow(clippy::cognitive_complexity)] // Permit large test functions
 mod tests {
 	use super::*;
 
