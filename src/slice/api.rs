@@ -1062,12 +1062,11 @@ where C: Cursor, T: BitStore {
 	///
 	/// # API Differences
 	///
-	/// The [`core::slice::split`] method takes a predicate function with
-	/// signature `(&T) -> bool`, whereas this method’s predicate function has
-	/// signature `(usize, &T) -> bool`. This difference is in place because
-	/// `BitSlice` by definition has only one bit of information per slice item,
-	/// and including the index allows the callback function to make more
-	/// informed choices.
+	/// The [`slice::split`] method takes a predicate function with signature
+	/// `(&T) -> bool`, whereas this method’s predicate function has signature
+	/// `(usize, &T) -> bool`. This difference is in place because `BitSlice` by
+	/// definition has only one bit of information per slice item, and including
+	/// the index allows the callback function to make more informed choices.
 	///
 	/// # Examples
 	///
@@ -1114,7 +1113,7 @@ where C: Cursor, T: BitStore {
 	/// assert!(iter.next().is_none());
 	/// ```
 	///
-	/// [`core::slice::split`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.split
+	/// [`slice::split`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.split
 	pub fn split<F>(&self, func: F) -> Split<'_, C, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		Split {
@@ -1130,7 +1129,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// # API Differences
 	///
-	/// The [`core::slice::split_mut`] method takes a predicate function with
+	/// The [`slice::split_mut`] method takes a predicate function with
 	/// signature `(&T) -> bool`, whereas this method’s predicate function has
 	/// signature `(usize, &T) -> bool`. This difference is in place because
 	/// `BitSlice` by definition has only one bit of information per slice item,
@@ -1150,7 +1149,7 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(data, 0b101_1001_1u8);
 	/// ```
 	///
-	/// [`core::slice::split_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.split_muts
+	/// [`slice::split_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.split_muts
 	pub fn split_mut<F>(&mut self, func: F) -> SplitMut<'_, C, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		SplitMut {
@@ -1167,7 +1166,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// # API Differences
 	///
-	/// The [`core::slice::rsplit`] method takes a predicate function with
+	/// The [`slice::rsplit`] method takes a predicate function with
 	/// signature `(&T) -> bool`, whereas this method’s predicate function has
 	/// signature `(usize, &T) -> bool`. This difference is in place because
 	/// `BitSlice` by definition has only one bit of information per slice item,
@@ -1202,7 +1201,7 @@ where C: Cursor, T: BitStore {
 	/// assert!(iter.next().is_none());
 	/// ```
 	///
-	/// [`core::slice::rsplit`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplit
+	/// [`slice::rsplit`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplit
 	pub fn rsplit<F>(&self, func: F) -> RSplit<'_, C, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplit {
@@ -1217,7 +1216,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// # API Differences
 	///
-	/// The [`core::slice::rsplit_mut`] method takes a predicate function with
+	/// The [`slice::rsplit_mut`] method takes a predicate function with
 	/// signature `(&T) -> bool`, whereas this method’s predicate function has
 	/// signature `(usize, &T) -> bool`. This difference is in place because
 	/// `BitSlice` by definition has only one bit of information per slice item,
@@ -1239,7 +1238,7 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(data, 0b11_0_10_0_01);
 	/// ```
 	///
-	/// [`core::slice::rsplit_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplit_mut
+	/// [`slice::rsplit_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplit_mut
 	pub fn rsplit_mut<F>(&mut self, func: F) -> RSplitMut<'_, C, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplitMut {
@@ -1256,7 +1255,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// # API Differences
 	///
-	/// The [`core::slice::splitn`] method takes a predicate function with
+	/// The [`slice::splitn`] method takes a predicate function with
 	/// signature `(&T) -> bool`, whereas this method’s predicate function has
 	/// signature `(usize, &T) -> bool`. This difference is in place because
 	/// `BitSlice` by definition has only one bit of information per slice item,
@@ -1279,7 +1278,7 @@ where C: Cursor, T: BitStore {
 	/// //  [00101]
 	/// ```
 	///
-	/// [`core::slice::splitn`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.splitn
+	/// [`slice::splitn`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.splitn
 	pub fn splitn<F>(&self, n: usize, func: F) -> SplitN<'_, C, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		SplitN {
@@ -1299,7 +1298,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// # API Differences
 	///
-	/// The [`core::slice::splitn_mut`] method takes a predicate function with
+	/// The [`slice::splitn_mut`] method takes a predicate function with
 	/// signature `(&T) -> bool`, whereas this method’s predicate function has
 	/// signature `(usize, &T) -> bool`. This difference is in place because
 	/// `BitSlice` by definition has only one bit of information per slice item,
@@ -1321,7 +1320,7 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(data, 0b001_0_0010);
 	/// ```
 	///
-	/// [`core::slice::splitn_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.splitn_mut
+	/// [`slice::splitn_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.splitn_mut
 	pub fn splitn_mut<F>(&mut self, n: usize, func: F) -> SplitNMut<'_, C, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		SplitNMut {
@@ -1342,7 +1341,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// # API Differences
 	///
-	/// The [`core::slice::rsplitn`] method takes a predicate function with
+	/// The [`slice::rsplitn`] method takes a predicate function with
 	/// signature `(&T) -> bool`, whereas this method’s predicate function has
 	/// signature `(usize, &T) -> bool`. This difference is in place because
 	/// `BitSlice` by definition has only one bit of information per slice item,
@@ -1366,7 +1365,7 @@ where C: Cursor, T: BitStore {
 	/// //  [10100]
 	/// ```
 	///
-	/// [`core::slice::rsplitn`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplitn
+	/// [`slice::rsplitn`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplitn
 	pub fn rsplitn<F>(&self, n: usize, func: F) -> RSplitN<'_, C, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplitN {
@@ -1387,7 +1386,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// # API Differences
 	///
-	/// The [`core::slice::rsplitn_mut`] method takes a predicate function with
+	/// The [`slice::rsplitn_mut`] method takes a predicate function with
 	/// signature `(&T) -> bool`, whereas this method’s predicate function has
 	/// signature `(usize, &T) -> bool`. This difference is in place because
 	/// `BitSlice` by definition has only one bit of information per slice item,
@@ -1409,7 +1408,7 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(data, 0b00010_0_01);
 	/// ```
 	///
-	/// [`core::slice::rsplitn_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplitn_mut
+	/// [`slice::rsplitn_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplitn_mut
 	pub fn rsplitn_mut<F>(&mut self, n: usize, func: F) -> RSplitNMut<'_, C, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplitNMut {
@@ -1425,7 +1424,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// # API Differences
 	///
-	/// The [`core::slice::contains`] method tests for a single slice element.
+	/// The [`slice::contains`] method tests for a single slice element.
 	/// Because this is a slice of single bits, testing for the presence of one
 	/// `bool` value is not very informative. This instead searches for a
 	/// subslice, which may be one or more bits.
@@ -1442,6 +1441,8 @@ where C: Cursor, T: BitStore {
 	///
 	/// This example uses a palindrome pattern to demonstrate that the query
 	/// does not need to have the same type parameters as the searched slice.
+	///
+	/// [`slice::contains`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.contains
 	pub fn contains<D, U>(&self, query: &BitSlice<D, U>) -> bool
 	where D: Cursor, U: BitStore {
 		let len = query.len();
@@ -1873,7 +1874,7 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-/** Replacement for [`core::slice::SliceIndex`].
+/** Replacement for [`slice::SliceIndex`].
 
 This trait is stabilized in definition and `type Output` only, but all methods
 are unstable. This makes it unusable in non-`libstd` slice libraries, and so it
@@ -1881,7 +1882,7 @@ must be duplicated here.
 
 There is no tracking issue for `feature(slice_index_methods)`.
 
-[`core::slice::SliceIndex`]: https://doc.rust-lang.org/stable/core/slice/trait.SliceIndex.html
+[`slice::SliceIndex`]: https://doc.rust-lang.org/stable/core/slice/trait.SliceIndex.html
 **/
 pub trait BitSliceIndex<'a, C, T>
 where C: 'a + Cursor, T: 'a + BitStore {

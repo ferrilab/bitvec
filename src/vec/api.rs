@@ -9,11 +9,10 @@ use crate::{
 	store::BitStore,
 };
 
-use alloc::{
-	vec::Vec,
-};
+use alloc::vec::Vec;
 
 use core::{
+	cmp,
 	hint::unreachable_unchecked,
 };
 
@@ -404,6 +403,408 @@ where C: Cursor, T: BitStore {
 		unsafe {
 			self.get_unchecked_mut(index ..).rotate_left(1);
 			self.pop().unwrap_or_else(|| unreachable_unchecked())
+		}
+	}
+
+	/// Retains only the bits that pass the predicate.
+	///
+	/// This removes all bits `b` where `f(e)` returns `false`. This method
+	/// operates in place and preserves the order of the retained bits. Because
+	/// it is in-place, it operates in `O(n²)` time.
+	///
+	/// # API Differences
+	///
+	/// The [`Vec::retain`] method takes a predicate function with signature
+	/// `(&T) -> bool`, whereas this method’s predicate function has signature
+	/// `(usize, &T) -> bool`. This difference is in place because `BitSlice` by
+	/// definition has only one bit of information per slice item, and including
+	/// the index allows the callback function to make more informed choices.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut bv = bitvec![0, 1, 0, 1, 0, 1];
+	/// bv.retain(|_, b| b);
+	/// assert_eq!(bv, bitvec![1, 1, 1]);
+	/// ```
+	///
+	/// [`BitSlice::for_each`]: ../slice/struct.BitSlice.html#method.for_each
+	pub fn retain<F>(&mut self, mut pred: F)
+	where F: FnMut(usize, bool) -> bool {
+		for n in (0 .. self.len()).rev() {
+			if !pred(n, self[n]) {
+				self.remove(n);
+			}
+		}
+	}
+
+	/// Appends a bit to the back of the vector.
+	///
+	/// If the vector is at capacity, this may cause a reallocation.
+	///
+	/// # Panics
+	///
+	/// This will panic if the push will cause the vector to allocate above
+	/// `BitPtr<T>::MAX_ELTS` or machine capacity.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut bv: BitVec = BitVec::new();
+	/// assert!(bv.is_empty());
+	/// bv.push(true);
+	/// assert_eq!(bv.len(), 1);
+	/// assert!(bv[0]);
+	/// ```
+	pub fn push(&mut self, value: bool) {
+		let len = self.len();
+		assert!(
+			len <= BitPtr::<T>::MAX_BITS,
+			"Capacity overflow: {} >= {}",
+			len,
+			BitPtr::<T>::MAX_BITS,
+		);
+		//  If self is empty *or* tail is at the back edge of an element, push
+		//  an element onto the vector.
+		if self.is_empty() || *self.pointer.tail() == T::BITS {
+			self.do_unto_vec(|v| v.push(0.into()));
+		}
+		//  At this point, it is always safe to increment the tail, and then
+		//  write to the newly live bit.
+		unsafe { self.pointer.incr_tail() };
+		self.set(len, value);
+	}
+
+	/// Removes the last element from a vector and returns it, or `None` if it
+	/// is empty.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut bv: BitVec = BitVec::new();
+	/// assert!(bv.is_empty());
+	/// bv.push(true);
+	/// assert_eq!(bv.len(), 1);
+	/// assert!(bv[0]);
+	///
+	/// assert!(bv.pop().unwrap());
+	/// assert!(bv.is_empty());
+	/// assert!(bv.pop().is_none());
+	/// ```
+	pub fn pop(&mut self) -> Option<bool> {
+		if self.is_empty() {
+			return None;
+		}
+		let out = self[self.len() - 1];
+		unsafe { self.pointer.decr_tail() };
+		Some(out)
+	}
+
+	/// Moves all the elements of `other` into `self`, leaving `other` empty.
+	///
+	/// # Panics
+	///
+	/// Panics if the number of bits in the vector overflows
+	/// `BitPtr::<T>::MAX_ELTS`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut bv1 = bitvec![0; 10];
+	/// let mut bv2 = bitvec![1; 10];
+	/// bv1.append(&mut bv2);
+	/// assert_eq!(bv1.len(), 20);
+	/// assert!(bv1[10]);
+	/// assert!(bv2.is_empty());
+	/// ```
+	pub fn append<D, U>(&mut self, other: &mut BitVec<D, U>)
+	where D: Cursor, U: BitStore {
+		self.extend(other.iter().copied());
+		other.clear();
+	}
+
+	/// Creates a draining iterator that removes the specified range from the
+	/// vector and yields the removed bits.
+	///
+	/// # Notes
+	///
+	/// 1. The element range is removed even if the iterator is only partially
+	///    consumed or not consumed at all.
+	/// 2. It is unspecified how many bits are removed from the vector if the
+	///    `Drain` value is leaked.
+	///
+	/// # Panics
+	///
+	/// Panics if the starting point is greater than the end point or if the end
+	/// point is greater than the length of the vector.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut bv = bitvec![0, 0, 1, 1, 1, 0, 0];
+	/// assert_eq!(bv.len(), 7);
+	/// for bit in bv.drain(2 .. 5) {
+	///   assert!(bit);
+	/// }
+	/// assert!(bv.not_any());
+	/// assert_eq!(bv.len(), 4);
+	/// ```
+	pub fn drain<R>(&mut self, range: R) -> Drain<C, T>
+	where R: RangeBounds<usize> {
+		use core::ops::Bound::*;
+		let len = self.len();
+		let from = match range.start_bound() {
+			Included(&n) => n,
+			Excluded(&n) => n + 1,
+			Unbounded    => 0,
+		};
+		//  First index beyond the end of the drain.
+		let upto = match range.end_bound() {
+			Included(&n) => n + 1,
+			Excluded(&n) => n,
+			Unbounded    => len,
+		};
+		assert!(from <= upto, "The drain start must be below the drain end");
+		assert!(upto <= len, "The drain end must be within the vector bounds");
+
+		unsafe {
+			let ranging: &BitSlice<C, T> = self.as_bitslice()[from..upto]
+				//  remove the lifetime and borrow awareness
+				.bitptr()
+				.into_bitslice();
+			self.set_len(from);
+
+			Drain {
+				bitvec: NonNull::from(self),
+				iter: ranging.iter(),
+				tail_start: upto,
+				tail_len: len - upto,
+			}
+		}
+	}
+
+	/// Clears the vector, removing all values.
+	///
+	/// Note that this method has no effect on the allocated capacity of the
+	/// vector.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut bv = bitvec![1; 30];
+	/// assert_eq!(bv.len(), 30);
+	/// assert!(bv.iter().all(|b| *b));
+	/// bv.clear();
+	/// assert!(bv.is_empty());
+	/// ```
+	///
+	/// After calling `clear()`, `bv` will no longer show raw memory, so the
+	/// above test cannot show that the underlying memory is not altered. This
+	/// is also an implementation detail on which you should not rely.
+	pub fn clear(&mut self) {
+		unsafe { self.set_len(0) }
+	}
+
+	/// Splits the collection into two at the given index.
+	///
+	/// Returns a newly allocated `Self`. `self` contains elements `[0, at)`,
+	/// and the returned `Self` contains elements `[at, len)`.
+	///
+	/// Note that the capacity of `self` does not change.
+	///
+	/// # Panics
+	///
+	/// Panics if `at > len`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut bv1 = bitvec![0, 0, 0, 1, 1, 1];
+	/// let bv2 = bv1.split_off(3);
+	/// assert_eq!(bv1, bitvec![0, 0, 0]);
+	/// assert_eq!(bv2, bitvec![1, 1, 1]);
+	/// ```
+	pub fn split_off(&mut self, at: usize) -> Self {
+		let len = self.len();
+		assert!(at <= len, "Index out of bounds: {} is beyond {}", at, len);
+		match at {
+			0 => unsafe {
+				let out = Self::from_raw_parts(self.pointer, self.capacity);
+				ptr::write(self, Self::new());
+				out
+			},
+			n if n == len => Self::new(),
+			_ => {
+				let out = self.as_bitslice().iter().skip(at).copied().collect();
+				self.truncate(at);
+				out
+			},
+		}
+	}
+
+	/// Resizes the `BitVec` in-place so that `len` is equal to `new_len`.
+	///
+	/// If `new_len` is greater than `len`, the `BitVec` is extended by the
+	/// difference, with each additional slot filled with the result of calling
+	/// the closure `f`. The return values from `f` will end up in the `BitVec`
+	/// in the order they have been generated.
+	///
+	/// If `new_len` is less than `len`, the `BitVec` is simply truncated.
+	///
+	/// This method uses a closure to create new values on every push. If you’d
+	/// rather [`Clone`] a given value, use [`resize`]. If you want to use the
+	/// [`Default`] trait to generate values, you can pass
+	/// [`Default::default()`] as the second argument.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut bv = bitvec![1, 0, 1];
+	/// bv.resize_with(5, Default::default);
+	/// assert_eq!(bv, bitvec![1, 0, 1, 0, 0]);
+	///
+	/// let mut bv = bitvec![];
+	/// let mut p = 1;
+	/// bv.resize_with(4, || { p += 1; p % 2 == 0});
+	/// assert_eq!(bv, bitvec![1, 0, 1, 0]);
+	/// ```
+	///
+	/// [`Clone`]: https://doc.rust-lang.org/std/clone/trait.Clone.html
+	/// [`Default`]: https://doc.rust-lang.org/std/default/trait.Default.html
+	/// [`Default::default()`]: https://doc.rust-lang.org/std/default/trait.Default.html#tymethod.default
+	/// [`resize`]: #method.resize
+	pub fn resize_with<F>(&mut self, new_len: usize, mut f: F)
+	where F: FnMut() -> bool {
+		let len = self.len();
+		match new_len.cmp(&len) {
+			cmp::Ordering::Less => self.truncate(new_len),
+			cmp::Ordering::Greater => {
+				let diff = new_len - len;
+				self.reserve(diff);
+				for _ in 0 .. (new_len - len) {
+					self.push(f());
+				}
+			},
+			cmp::Ordering::Equal => {},
+		}
+	}
+
+	/// Resizes the `BitVec` in place so that `len` is equal to `new_len`.
+	///
+	/// If `new_len` is greater than `len`, the `BitVec` is extended by the
+	/// difference, with each additional slot filled with `value`. If `new_len`
+	/// is less than `len`, the `BitVec` is simply truncated.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut bv = bitvec![0; 4];
+	/// bv.resize(8, true);
+	/// assert_eq!(bv, bitvec![0, 0, 0, 0, 1, 1, 1, 1]);
+	/// bv.resize(5, false);
+	/// assert_eq!(bv, bitvec![0, 0, 0, 0, 1]);
+	/// ```
+	pub fn resize(&mut self, new_len: usize, value: bool) {
+		let len = self.len();
+		match new_len.cmp(&len) {
+			cmp::Ordering::Less => self.truncate(new_len),
+			cmp::Ordering::Greater => {
+				let diff = new_len - len;
+				self.reserve(diff);
+				unsafe { self.set_len(new_len); }
+				self[len ..].set_all(value);
+			},
+			cmp::Ordering::Equal => {},
+		}
+	}
+
+	/// Clones and appends all bits in a bit-slice to the `BitVec`.
+	///
+	/// Iterates over the bit-slice `other`, clones each bit, and then appends
+	/// it to this `BitVec`. The `other` slice is traversed in-order.
+	///
+	/// Note that this function is the same as [`extend`] except that it is
+	/// specialized to work with bit-slices instead. If and when Rust gets
+	/// specialization this function will likely be deprecated (but still
+	/// available).
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut bv = bitvec![1];
+	/// bv.extend_from_slice(0xA5u8.bits::<LittleEndian>());
+	/// assert_eq!(bv, bitvec![1, 1, 0, 1, 0, 0, 1, 0, 1]);
+	/// ```
+	///
+	/// [`extend`]: #method.extend
+	pub fn extend_from_slice<D, U>(&mut self, other: &BitSlice<D, U>)
+	where D: Cursor, U: BitStore {
+		let len = self.len();
+		let olen = other.len();
+		self.reserve(olen);
+		unsafe { self.set_len(len + olen); }
+		self[len ..].clone_from_slice(other)
+	}
+
+	/// Creates a splicing iterator that replaces the specified range in the
+	/// vector with the given `replace_with` iterator and yields the removed
+	/// bits. `replace_with` does not need to be the same length as `range`.
+	///
+	/// # Notes
+	///
+	/// 1. The element range is removed and replaced even if the iterator
+	///    produced by this method is not consumed until the end.
+	/// 2. It is unspecified how many bits are removed from the vector if the
+	///    `Splice` value is leaked.
+	/// 3. The input iterator `replace_with` is only consumed when the `Splice`
+	///    value is dropped.
+	/// 4. This is optimal if:
+	///    - the tail (elements in the vector after `range`) is empty,
+	///    - or `replace_with` yields fewer bits than `range`’s length,
+	///    - the lower bound of its `size_hint()` is exact.
+	///
+	///    Otherwise, a temporary vector is allocated and the tail is moved
+	///    twice.
+	///
+	/// # Panics
+	///
+	/// Panics if the starting point is greater than the end point or if the end
+	/// point is greater than the length of the vector.
+	///
+	/// # Examples
+	///
+	/// This example starts with six bits of zero, and then splices out bits 2
+	/// and 3 and replaces them with four bits of one.
+	///
+	/// ```rust
+	/// # use bitvec::prelude::*;
+	/// let mut bv = bitvec![0; 6];
+	/// let bv2 = bitvec![1; 4];
+	///
+	/// let s = bv.splice(2 .. 4, bv2).collect::<BitVec>();
+	/// assert_eq!(s.len(), 2);
+	/// assert!(!s[0]);
+	/// assert_eq!(bv, bitvec![0, 0, 1, 1, 1, 1, 0, 0]);
+	/// ```
+	pub fn splice<R, I>(
+		&mut self,
+		range: R,
+		replace_with: I,
+	) -> Splice<C, T, <I as IntoIterator>::IntoIter>
+	where I: IntoIterator<Item=bool>, R: RangeBounds<usize> {
+		Splice {
+			drain: self.drain(range),
+			splice: replace_with.into_iter(),
 		}
 	}
 }
