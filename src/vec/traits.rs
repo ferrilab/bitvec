@@ -44,7 +44,6 @@ use core::{
 use std::{
 	io::{
 		self,
-		Read,
 		Write,
 	},
 };
@@ -541,26 +540,6 @@ where C: Cursor, T: BitStore {
 	/// - `hasher`: The hashing pool into which the vector is written.
 	fn hash<H: Hasher>(&self, hasher: &mut H) {
 		<BitSlice<C, T> as Hash>::hash(self, hasher)
-	}
-}
-
-#[cfg(feature = "std")]
-impl<C, T> Read for BitVec<C, T>
-where
-	C: Cursor,
-	T: BitStore,
-{
-	/// Unlike the default implementation, the return value of this function is
-	/// the number of *bits* read into the slice, not the number of *bytes*.
-	///
-	/// Be aware of this distinction when using the return value to interact
-	/// with the `buf`fer.
-	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-		let tgt = BitSlice::<C, u8>::from_slice_mut(buf);
-		let len = core::cmp::min(self.len(), tgt.len());
-		tgt[..len].clone_from_slice(&self.as_bitslice()[..len]);
-		*self <<= len;
-		Ok(len)
 	}
 }
 
