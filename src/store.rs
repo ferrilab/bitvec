@@ -73,7 +73,7 @@ pub trait BitStore:
 	+ Copy
 	+ Debug
 	+ Display
-	//  Permit testing a value against 1 in `get()`.
+	//  Permit testing a value against 0 in `get()`.
 	+ Eq
 	//  Rust treats numeric literals in code as vaguely typed and does not make
 	//  them concrete until long after trait expansion, so this enables building

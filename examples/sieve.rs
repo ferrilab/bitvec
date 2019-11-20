@@ -47,7 +47,7 @@ use std::{
 fn main() {
 	let max: usize = env::args()
 		.nth(1)
-		.unwrap_or("1000000".into())
+		.unwrap_or_else(|| "1000000".into())
 		.parse()
 		.unwrap_or(1_000_000);
 
@@ -58,7 +58,7 @@ fn main() {
 		bv.set(0, false);
 		bv.set(1, false);
 
-		for n in 2 .. (1 + (max as f64).sqrt() as usize) {
+		for n in 2 ..= ((max as f64).sqrt() as usize) {
 			//  Adjust the frequency of log statements vaguely logarithmically.
 			if n <  20_000 && n %  1_000 == 0
 			|| n <  50_000 && n %  5_000 == 0
@@ -104,7 +104,7 @@ fn main() {
 
 	let dim: usize = env::args()
 		.nth(2)
-		.unwrap_or("10".into())
+		.unwrap_or_else(|| "10".into())
 		.parse()
 		.unwrap_or(10);
 
