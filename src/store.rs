@@ -17,7 +17,10 @@ use crate::{
 
 use core::{
 	cmp::Eq,
-	convert::From,
+	convert::{
+		From,
+		TryInto,
+	},
 	fmt::{
 		Binary,
 		Debug,
@@ -41,6 +44,7 @@ use core::{
 		Shr,
 		ShrAssign,
 	},
+	slice,
 };
 
 use radium::marker::BitOps;
@@ -262,6 +266,33 @@ pub trait BitStore:
 			Self::from(0)
 		}
 	}
+
+	/// Interprets a value as a sequence of bytes.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// A slice covering `*self` as a sequence of individual bytes.
+	fn as_bytes(&self) -> &[u8];
+
+	/// Interprets a sequence of bytes as `Self`.
+	///
+	/// # Parameters
+	///
+	/// - `bytes`: The bytes to interpret as `Self`. This must be exactly
+	///   `mem::size_of::<Self>` bytes long.
+	///
+	/// # Returns
+	///
+	/// An instance of `Self` constructed by reinterpreting `bytes`.
+	///
+	/// # Panics
+	///
+	/// This panics if `bytes.len()` is not `mem::size_of::<Self>()`.
+	fn from_bytes(bytes: &[u8]) -> Self;
 }
 
 impl BitStore for u8 {
@@ -272,6 +303,19 @@ impl BitStore for u8 {
 
 	#[cfg(not(feature = "atomic"))]
 	type Access = Cell<Self>;
+
+	#[inline]
+	fn as_bytes(&self) -> &[u8] {
+		unsafe { slice::from_raw_parts(self as *const Self as *const u8, 1) }
+	}
+
+	#[inline]
+	fn from_bytes(bytes: &[u8]) -> Self {
+		bytes
+			.try_into()
+			.map(Self::from_ne_bytes)
+			.expect("<u8 as BitStore>::from_bytes requires a slice of length 1")
+	}
 }
 
 impl BitStore for u16 {
@@ -282,6 +326,19 @@ impl BitStore for u16 {
 
 	#[cfg(not(feature = "atomic"))]
 	type Access = Cell<Self>;
+
+	#[inline]
+	fn as_bytes(&self) -> &[u8] {
+		unsafe { slice::from_raw_parts(self as *const Self as *const u8, 2) }
+	}
+
+	#[inline]
+	fn from_bytes(bytes: &[u8]) -> Self {
+		bytes
+			.try_into()
+			.map(Self::from_ne_bytes)
+			.expect("<u16 as BitStore>::from_bytes requires a slice of length 2")
+	}
 }
 
 impl BitStore for u32 {
@@ -292,6 +349,19 @@ impl BitStore for u32 {
 
 	#[cfg(not(feature = "atomic"))]
 	type Access = Cell<Self>;
+
+	#[inline]
+	fn as_bytes(&self) -> &[u8] {
+		unsafe { slice::from_raw_parts(self as *const Self as *const u8, 4) }
+	}
+
+	#[inline]
+	fn from_bytes(bytes: &[u8]) -> Self {
+		bytes
+			.try_into()
+			.map(Self::from_ne_bytes)
+			.expect("<u32 as BitStore>::from_bytes requires a slice of length 4")
+	}
 }
 
 #[cfg(target_pointer_width = "64")]
@@ -303,6 +373,19 @@ impl BitStore for u64 {
 
 	#[cfg(not(feature = "atomic"))]
 	type Access = Cell<Self>;
+
+	#[inline]
+	fn as_bytes(&self) -> &[u8] {
+		unsafe { slice::from_raw_parts(self as *const Self as *const u8, 8) }
+	}
+
+	#[inline]
+	fn from_bytes(bytes: &[u8]) -> Self {
+		bytes
+			.try_into()
+			.map(Self::from_ne_bytes)
+			.expect("<u64 as BitStore>::from_bytes requires a slice of length 8")
+	}
 }
 
 /** A default word size for bit sequences.

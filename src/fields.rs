@@ -16,6 +16,10 @@ use crate::{
 	store::BitStore,
 };
 
+use core::mem;
+
+use either::Either;
+
 /** Permit a specific `BitSlice` to be used for C-style bitfield access.
 
 Cursors that permit batched access to regions of memory are enabled to load data
@@ -74,6 +78,12 @@ where T: BitStore {
 	/// without effect. Otherwise, the `self.len()` least significant bits of
 	/// `value` are written into the domain of `self`.
 	fn store(&mut self, value: T);
+
+	fn load_val<U>(&self) -> Option<U>
+	where U: BitStore;
+
+	fn store_val<U>(&mut self, value: U)
+	where U: BitStore;
 }
 
 impl<T> BitField<T> for BitSlice<LittleEndian, T>
@@ -218,6 +228,170 @@ where T: BitStore {
 				self.bitptr().domain(),
 			),
 
+		}
+	}
+
+	fn load_val<U>(&self) -> Option<U>
+	where U: BitStore {
+		let len = self.len();
+		if !(1 ..= U::BITS as usize).contains(&len) {
+			return None;
+		}
+
+		//  Prepare eight bytes into which memory will be copied from `self`.
+		let mut slab = 0u64.to_ne_bytes();
+		//  Start the cursor from the right-most byte
+		let mut cursor = 7;
+		//  Save `self`’s bit pointer
+		let bp = self.bitptr();
+		//  In little-endian, the head is the distance from the first live bit
+		//  to the LSedge.
+		let shamt = *bp.head();
+		//  Copy elements out of the total memory region covered by `self`, from
+		//  right to left.
+		for elt in bp.as_access_slice().iter().rev() {
+			//  Copy bytes out of each element into the prepared slab, from
+			//  right to left.
+			for byte in elt.load().as_bytes().iter().rev() {
+				slab[cursor] = *byte;
+				dbg!(slab);
+				cursor -= 1;
+			}
+		}
+		//  After this loop, `slab`’s memory has live data in the rightmost
+		//  elements. It needs to be recast into a `u64` as-is, then shifted
+		//  right by `shamt` bits, then cast *back* into bytes.
+		let bytes = (u64::from_be_bytes(slab) >> shamt).to_be_bytes();
+		dbg!(bytes);
+		//  The live bits are now touching the LSedge of `slab`. It must now be
+		//  truncated to fit `U`.
+		match mem::size_of::<U>() {
+			1 => Some(U::from_bytes(&bytes[7 ..])),
+			2 => Some(U::from_bytes(&bytes[6 ..])),
+			4 => Some(U::from_bytes(&bytes[4 ..])),
+			8 => Some(U::from_bytes(&bytes[..])),
+			_ => unreachable!(
+				"BitStore is not implemented on types of this size",
+			),
+		}
+	}
+
+	fn store_val<U>(&mut self, value: U)
+	where U: BitStore {
+		let len = self.len();
+		if !(1 ..= U::BITS as usize).contains(&len) {
+			//  Panic in debug mode.
+			#[cfg(debug_assertions)]
+			panic!("Cannot store {} bits in a {}-bit region", U::BITS, len);
+
+			#[cfg(not(debug_assertions))]
+			return;
+		}
+
+		let mut slab = expand::<U>(value);
+		match self.bitptr().domain().splat() {
+			Either::Right((head, elt, _)) => {
+				let head = *head;
+				//  Erase the storage region, from `head` for `len`
+				elt.clear_bits(!(mask_for::<T>(len) << head));
+				//  Truncate `value` to `T`, then for `len`, and write
+				elt.set_bits(trunc::<T>(slab) << head);
+			},
+			Either::Left((head, body, tail)) => {
+				let mut rem = len;
+				//  Fill the partial tail, if present
+				if let Some((tail, t)) = tail {
+					//  `t` counts how many bits MSward from LSedge are live.
+					let t = *t;
+					//  Get the right-most `t` bits of `slab`
+					let masked = slab & mask_for::<u64>(t as usize);
+					//  Erase the right-most bits of `tail`.
+					tail.clear_bits(T::bits(true) << t);
+					//  Write the right chunk of `slab` into `tail`
+					tail.set_bits(trunc(masked));
+					//  And discard the written partial element.
+					slab >>= t;
+					rem -= t as usize;
+				}
+				//  Now, copy chunks of `slab` into `body`
+				if let Some(elts) = body {
+					for elt in elts.iter().rev() {
+						elt.store(trunc(slab));
+						slab >>= T::BITS;
+						rem -= T::BITS as usize;
+					}
+				}
+				//  Fill the partial head, if present
+				if let Some((h, head)) = head {
+					//  `h` counts how many bits MSward from LSedge are dead.
+					let h = *h;
+					//  Get the remaining right-most `t` bits of `slab`
+					let masked = slab & mask_for::<u64>(rem);
+					head.clear_bits(T::bits(true) >> (rem as u8));
+					head.set_bits(trunc(masked << h));
+					rem -= (T::BITS - h) as usize;
+				}
+				debug_assert!(rem == 0, "Bits still remain after filling `self`");
+			},
+		}
+
+		fn expand<T>(val: T) -> u64
+		where T: BitStore {
+			let mut slab = 0u64.to_ne_bytes();
+			let mut cursor = 0;
+
+			match mem::size_of::<T>() {
+				1 => {
+					#[cfg(target_endian = "big")]
+					let mut cursor = 7;
+
+					for byte in val.as_bytes() {
+						slab[cursor] = *byte;
+						cursor += 1;
+					}
+				},
+				2 => {
+					#[cfg(target_endian = "big")]
+					let mut cursor = 6;
+
+					for byte in val.as_bytes() {
+						slab[cursor] = *byte;
+						cursor += 1;
+					}
+				},
+				4 => {
+					#[cfg(target_endian = "big")]
+					let mut cursor = 4;
+
+					for byte in val.as_bytes() {
+						slab[cursor] = *byte;
+						cursor += 1;
+					}
+				},
+				8 => {
+					for byte in val.as_bytes() {
+						slab[cursor] = *byte;
+						cursor += 1;
+					}
+				},
+				_ => unreachable!(
+					"BitStore is not implemented on types of this size",
+				),
+			}
+			u64::from_ne_bytes(slab)
+		}
+
+		fn trunc<T>(src: u64) -> T
+		where T: BitStore {
+			match mem::size_of::<T>() {
+				1 => T::from_bytes(&(src as u8).to_ne_bytes()[..]),
+				2 => T::from_bytes(&(src as u16).to_ne_bytes()[..]),
+				4 => T::from_bytes(&(src as u32).to_ne_bytes()[..]),
+				8 => T::from_bytes(&src.to_ne_bytes()[..]),
+				_ => unreachable!(
+					"BitStore is not implemented on types of this size",
+				),
+			}
 		}
 	}
 }
@@ -365,6 +539,20 @@ where T: BitStore {
 
 		}
 	}
+
+	fn load_val<U>(&self) -> Option<U>
+	where U: BitStore {
+		let len = self.len();
+		if !(1 ..= U::BITS as usize).contains(&len) {
+			return None;
+		}
+		unimplemented!()
+	}
+
+	fn store_val<U>(&mut self, value: U)
+	where U: BitStore {
+		unimplemented!()
+	}
 }
 
 /** Safely compute an LS-edge bitmask for a value of some length.
@@ -470,5 +658,24 @@ mod tests {
 		assert_eq!(bits[3 .. 6].load(), Some(4));
 
 		assert!(bits[5 .. 5].load().is_none());
+	}
+
+	#[test]
+	fn le_u8() {
+		let mut slab = [0u8; 8];
+		let slice = slab.bits_mut::<LittleEndian>();
+		let mut val = 1u32;
+		for _ in 0 .. 20 {
+			slice[5 ..][.. 20].store_val(val);
+			eprintln!("{:?}", &slice[5 ..][.. 20]);
+			val <<= 1;
+			val |= 1;
+		}
+
+		slice[5 ..][.. 20].store_val(18u32);
+		eprintln!("{:?}", slice);
+		let val: u32 = slice[5 ..][.. 20].load_val().unwrap();
+		assert_eq!(val, 18);
+		panic!("{:x?}", slice.as_slice());
 	}
 }
