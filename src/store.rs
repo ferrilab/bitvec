@@ -109,6 +109,12 @@ pub trait BitStore:
 	/// are always stored in the lowest bits of an index value.
 	const MASK: u8 = Self::BITS - 1;
 
+	/// The value with all bits unset.
+	const FALSE: Self;
+
+	/// The value with all bits set.
+	const TRUE: Self;
+
 	/// Name of the implementing type. This is only necessary until the compiler
 	/// stabilizes `type_name()`.
 	const TYPENAME: &'static str;
@@ -298,6 +304,9 @@ pub trait BitStore:
 impl BitStore for u8 {
 	const TYPENAME: &'static str = "u8";
 
+	const FALSE: Self = 0;
+	const TRUE: Self = !0;
+
 	#[cfg(feature = "atomic")]
 	type Access = atomic::AtomicU8;
 
@@ -320,6 +329,9 @@ impl BitStore for u8 {
 
 impl BitStore for u16 {
 	const TYPENAME: &'static str = "u16";
+
+	const FALSE: Self = 0;
+	const TRUE: Self = !0;
 
 	#[cfg(feature = "atomic")]
 	type Access = atomic::AtomicU16;
@@ -344,6 +356,9 @@ impl BitStore for u16 {
 impl BitStore for u32 {
 	const TYPENAME: &'static str = "u32";
 
+	const FALSE: Self = 0;
+	const TRUE: Self = !0;
+
 	#[cfg(feature = "atomic")]
 	type Access = atomic::AtomicU32;
 
@@ -367,6 +382,9 @@ impl BitStore for u32 {
 #[cfg(target_pointer_width = "64")]
 impl BitStore for u64 {
 	const TYPENAME: &'static str = "u64";
+
+	const FALSE: Self = 0;
+	const TRUE: Self = !0;
 
 	#[cfg(feature = "atomic")]
 	type Access = atomic::AtomicU64;
