@@ -133,7 +133,7 @@ where T: BitStore + BitOps + Sized {
 	#[inline]
 	fn get<C>(&self, place: BitIdx<T>) -> bool
 	where C: Cursor {
-		<Self as BitAccess<T>>::load(&self) & *C::mask(place) != T::bits(false)
+		<Self as BitAccess<T>>::load(&self) & *C::mask(place) != T::FALSE
 	}
 
 	/// Set a single bit in an element to some value.

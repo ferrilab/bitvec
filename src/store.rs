@@ -152,7 +152,7 @@ pub trait BitStore:
 	/// - `C`: A `Cursor` implementation to translate the index into a position.
 	fn get<C>(&self, place: BitIdx<Self>) -> bool
 	where C: Cursor {
-		*self & *C::mask(place) != Self::bits(false)
+		*self & *C::mask(place) != Self::FALSE
 	}
 
 	/// Sets a specific bit in an element to a given value.
@@ -252,25 +252,6 @@ pub trait BitStore:
 	fn count_zeros(self) -> usize {
 		//  invert (0 becomes 1, 1 becomes 0), zero-extend, count ones
 		Into::<u64>::into(!self).count_ones() as usize
-	}
-
-	/// Extends a single bit to fill the entire element.
-	///
-	/// # Parameters
-	///
-	/// - `bit`: The bit to extend.
-	///
-	/// # Returns
-	///
-	/// An element with all bits set to the input.
-	#[inline]
-	fn bits(bit: bool) -> Self {
-		if bit {
-			!Self::from(0)
-		}
-		else {
-			Self::from(0)
-		}
 	}
 
 	/// Interprets a value as a sequence of bytes.
@@ -444,25 +425,3 @@ impl Sealed for u32 {}
 
 #[cfg(target_pointer_width = "64")]
 impl Sealed for u64 {}
-
-#[cfg(test)]
-mod tests {
-	use super::*;
-
-	#[test]
-	fn bits() {
-		assert_eq!(u8::bits(false), 0);
-		assert_eq!(u8::bits(true), u8::max_value());
-
-		assert_eq!(u16::bits(false), 0);
-		assert_eq!(u16::bits(true), u16::max_value());
-
-		assert_eq!(u32::bits(false), 0);
-		assert_eq!(u32::bits(true), u32::max_value());
-
-		#[cfg(target_pointer_width = "64")]
-		assert_eq!(u64::bits(false), 0);
-		#[cfg(target_pointer_width = "64")]
-		assert_eq!(u64::bits(true), u64::max_value());
-	}
-}

@@ -532,7 +532,7 @@ where C: Cursor, T: BitStore {
 					out &= (*h .. T::BITS).all(|n| elt.get::<C>(n.idx()));
 				}
 				if let Some(body) = b {
-					out &= body.iter().all(|e| e.load() == T::bits(true));
+					out &= body.iter().all(|e| e.load() == T::TRUE);
 				}
 				if let Some((tail, t)) = t {
 					let elt = tail.load();
@@ -585,7 +585,7 @@ where C: Cursor, T: BitStore {
 					out |= (*h .. T::BITS).any(|n| elt.get::<C>(n.idx()));
 				}
 				if let Some(body) = b {
-					out |= body.iter().any(|elt| elt.load() != T::bits(false));
+					out |= body.iter().any(|elt| elt.load() != T::FALSE);
 				}
 				if let Some((tail, t)) = t {
 					let elt = tail.load();
@@ -804,7 +804,7 @@ where C: Cursor, T: BitStore {
 				}
 				if let Some(body) = b {
 					for elt in body {
-						elt.store(T::bits(value));
+						elt.store(if value { T::TRUE } else { T::FALSE });
 					}
 				}
 				if let Some((tail, t)) = t {
