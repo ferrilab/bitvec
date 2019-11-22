@@ -19,6 +19,15 @@ use core::mem;
 
 use either::Either;
 
+#[cfg(target_pointer_width = "32")]
+type Usize = u32;
+
+#[cfg(target_pointer_width = "64")]
+type Usize = u64;
+
+#[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
+compile_fail!("Bitfield access is not supported on this architecture");
+
 /** Permit a specific `BitSlice` to be used for C-style bitfield access.
 
 Cursors that permit batched access to regions of memory are enabled to load data
@@ -109,10 +118,7 @@ where T: BitStore {
 				amount, then write the chunk into the now-free least significant
 				bits.
 				*/
-				let mut accum = 0u64;
-
-				//  Debug counter. Strip once the implementation is correct.
-				let mut rem = len;
+				let mut accum: Usize = 0;
 
 				/* In little-endian byte-order architectures, the LSelement is
 				at the low address and the MSelement is at the high address.
@@ -127,15 +133,13 @@ where T: BitStore {
 					let width = *t as usize;
 					let val = tail.load() & mask_for::<T>(width);
 					accum = resize(val);
-					rem -= width;
 				}
 				//  Read the body, from high to low, into the accumulator.
 				if let Some(elts) = body {
 					for elt in elts.iter().rev() {
-						let val: u64 = resize(elt.load());
+						let val: Usize = resize(elt.load());
 						accum <<= T::BITS;
 						accum |= val;
-						rem -= T::BITS as usize;
 					}
 				}
 				//  If the head exists, it contains the least significant chunk
@@ -145,10 +149,9 @@ where T: BitStore {
 					let lsedge = *h;
 					//  Get the live chunk width.
 					let width = T::BITS - lsedge;
-					let val: u64 = resize(head.load() >> lsedge);
+					let val: Usize = resize(head.load() >> lsedge);
 					accum <<= width;
 					accum |= val;
-					rem -= width as usize;
 				}
 
 				}
@@ -166,15 +169,13 @@ where T: BitStore {
 					let lsedge = *h;
 					let val = head.load() >> lsedge;
 					accum = resize(val);
-					rem -= (T::BITS - lsedge) as usize;
 				}
 				//  Read the body, from low to high, into the accumulator.
 				if let Some(elts) = body {
 					for elt in elts.iter() {
-						let val: u64 = resize(elt.load());
+						let val: Usize = resize(elt.load());
 						accum <<= T::BITS;
 						accum |= val;
-						rem -= T::BITS as usize;
 					}
 				}
 				//  If the tail exists, it contains the least significant chunk
@@ -185,7 +186,6 @@ where T: BitStore {
 					let val = tail.load() & mask_for::<T>(width);
 					accum <<= width;
 					accum |= resize(val);
-					rem -= width;
 				}
 
 				}
@@ -196,7 +196,6 @@ where T: BitStore {
 				)))]
 				compile_fail!("This architecture is not supported.");
 
-				debug_assert!(rem == 0, "Bits remaining to load");
 				Some(resize(accum))
 			},
 		}
@@ -228,8 +227,7 @@ where T: BitStore {
 				elt.set_bits(resize::<U, T>(value) << lsedge);
 			},
 			Either::Left((head, body, tail)) => {
-				let mut value = resize::<U, u64>(value) & mask_for::<u64>(len);
-				let mut rem = len;
+				let mut value = resize::<U, Usize>(value) & mask_for::<Usize>(len);
 
 				/* In little-endian byte-order architectures, the MSelement is
 				at the high address and the LSelement is at the low address.
@@ -242,31 +240,27 @@ where T: BitStore {
 				if let Some((h, head)) = head {
 					let lsedge = *h;
 					let width = T::BITS - lsedge;
-					let val = value & mask_for::<u64>(width as usize);
+					let val = value & mask_for::<Usize>(width as usize);
 					//  Clear the MSedge region.
 					head.clear_bits(T::TRUE >> width);
-					head.set_bits(resize::<u64, T>(val) << lsedge);
+					head.set_bits(resize::<Usize, T>(val) << lsedge);
 					value >>= width;
-					rem -= width as usize;
 				}
 				//  Write the value, from low to high, into memory.
 				if let Some(elts) = body {
 					for elt in elts.iter() {
 						elt.store(resize(value));
 						value >>= T::BITS;
-						rem -= T::BITS as usize;
 					}
 				}
 				//  If the tail exists, it contains the most significant chunk
 				//  of the value, on the LSedge side.
 				if let Some((tail, t)) = tail {
 					let width = *t;
-					let val = value & mask_for::<u64>(width as usize);
+					let val = value & mask_for::<Usize>(width as usize);
 					//  Clear the LSedge region.
 					tail.clear_bits(T::TRUE << width);
 					tail.set_bits(resize(val));
-					value >>= width;
-					rem -= width as usize;
 				}
 
 				}
@@ -281,18 +275,16 @@ where T: BitStore {
 				//  the destination, on the LSedge side.
 				if let Some((tail, t)) = tail {
 					let width = *t;
-					let val = value & mask_for::<u64>(width as usize);
+					let val = value & mask_for::<Usize>(width as usize);
 					//  Clear the LSedge region
 					tail.clear_bits(T::TRUE << width);
 					tail.set_bits(resize(val));
 					value >>= width;
-					rem -= width as usize;
 				}
 				if let Some(elts) = body {
 					for elt in elts.iter().rev() {
 						elt.store(resize(value));
 						value >>= bits;
-						rem -= T::BITS as usize;
 					}
 				}
 				//  If the head exists, it holds the most significant chunk of
@@ -300,12 +292,10 @@ where T: BitStore {
 				if let Some((h, head)) = head {
 					let lsedge = *h;
 					let width = T::BITS - lsedge;
-					let val = value & mask_for::<u64>(width as usize);
+					let val = value & mask_for::<Usize>(width as usize);
 					//  Clear the MSedge region.
 					head.clear_bits(T::TRUE >> width);
-					head.set_bits(resize::<u64, T>(val) << lsedge);
-					value >>= width;
-					rem -= width as usize;
+					head.set_bits(resize::<Usize, T>(val) << lsedge);
 				}
 
 				}
@@ -315,9 +305,6 @@ where T: BitStore {
 					target_endian = "little",
 				)))]
 				compile_fail!("This architecture is not supported.");
-
-				debug_assert!(value == 0, "Bits remaining to store");
-				debug_assert!(rem == 0, "Bits remaining to store");
 			},
 		}
 	}
@@ -346,9 +333,7 @@ where T: BitStore {
 				amount, then write the chunk into the now-free least significant
 				bits.
 				*/
-				let mut accum = 0u64;
-
-				let mut rem = len;
+				let mut accum: Usize = 0;
 
 				//  Same element ordering as in the LittleEndian implementation.
 				#[cfg(target_endian = "little")] {
@@ -359,17 +344,15 @@ where T: BitStore {
 					let width = *t;
 					//  Get the distance from the LSedge.
 					let lsedge = T::BITS - width;
-					let val: u64 = resize(tail.load() >> lsedge);
+					let val: Usize = resize(tail.load() >> lsedge);
 					accum |= val;
-					rem -= width as usize;
 				}
 				//  Read the body, from high to low, into the accumulator.
 				if let Some(elts) = body {
 					for elt in elts.iter().rev() {
-						let val: u64 = resize(elt.load());
+						let val: Usize = resize(elt.load());
 						accum <<= T::BITS;
 						accum |= val;
-						rem -= T::BITS as usize;
 					}
 				}
 				//  If the head exists, it contains the least significant chunk
@@ -378,8 +361,7 @@ where T: BitStore {
 					let width = (T::BITS - *h) as usize;
 					let val = head.load() & mask_for::<T>(width);
 					accum <<= width;
-					accum |= resize::<T, u64>(val);
-					rem -= width;
+					accum |= resize::<T, Usize>(val);
 				}
 
 				}
@@ -392,16 +374,14 @@ where T: BitStore {
 				if let Some((h, head)) = head {
 					let width = (T::BITS - *h) as usize;
 					let val = head.load() & mask_for::<T>(width);
-					accum |= resize::<T, u64>(val);
-					rem -= width;
+					accum |= resize::<T, Usize>(val);
 				}
 				//  Read the body, from low to high, into the accumulator.
 				if let Some(elts) = body {
 					for elt in elts.iter() {
-						let val: u64 = resize(elt.load());
+						let val: Usize = resize(elt.load());
 						accum <<= T::BITS;
 						accum |= val;
-						rem -= T::BITS as usize;
 					}
 				}
 				//  If the tail exists, it contains the least significant chunk
@@ -413,7 +393,6 @@ where T: BitStore {
 					let val = tail.load() >> lsedge;
 					accum <<= width;
 					accum |= resize(val);
-					rem -= width;
 				}
 
 				}
@@ -423,8 +402,6 @@ where T: BitStore {
 					target_endian = "little",
 				)))]
 				compile_fail!("This architecture is not supported.");
-
-				debug_assert!(rem == 0, "Bits remaining to load");
 				Some(resize(accum))
 			},
 		}
@@ -453,9 +430,7 @@ where T: BitStore {
 				elt.set_bits(resize::<U, T>(value) << lsedge);
 			},
 			Either::Left((head, body, tail)) => {
-				let mut value = resize::<U, u64>(value) & mask_for::<u64>(len);
-				dbg!(value);
-				let mut rem = len;
+				let mut value = resize::<U, Usize>(value) & mask_for::<Usize>(len);
 
 				//  Same element ordering as in the LittleEndian implementation.
 				#[cfg(target_endian = "little")] {
@@ -464,19 +439,17 @@ where T: BitStore {
 				//  of the value, on the LSedge side.
 				if let Some((h, head)) = head {
 					let width = T::BITS - *h;
-					let val = value & mask_for::<u64>(width as usize);
+					let val = value & mask_for::<Usize>(width as usize);
 					//  Clear the LSedge region.
 					head.clear_bits(T::TRUE << width);
 					head.set_bits(resize(val));
 					value >>= width;
-					rem -= width as usize;
 				}
 				//  Write the value, from low to high, into memory.
 				if let Some(elts) = body {
 					for elt in elts.iter() {
 						elt.store(resize(value));
 						value >>= T::BITS;
-						rem -= T::BITS as usize;
 					}
 				}
 				//  If the tail exists, it contains the most significant chunk
@@ -484,12 +457,10 @@ where T: BitStore {
 				if let Some((tail, t)) = tail {
 					let width = *t;
 					let lsedge = T::BITS - width;
-					let val = value & mask_for::<u64>(width as usize);
+					let val = value & mask_for::<Usize>(width as usize);
 					//  Clear the MSedge region.
 					tail.clear_bits(T::TRUE >> width);
-					tail.set_bits(resize::<u64, T>(val) << lsedge);
-					value >>= width;
-					rem -= width as usize;
+					tail.set_bits(resize::<Usize, T>(val) << lsedge);
 				}
 
 				}
@@ -498,8 +469,25 @@ where T: BitStore {
 				//  Same element ordering as in the LittleEndian implementation.
 				#[cfg(target_endian = "big")] {
 
-				//
-
+				if let Some((tail, t)) = tail {
+					let lsedge = *t;
+					let width = T::BITS - lsedge;
+					let val = value & mask_for::<Usize>(width as usize);
+					tail.clear_bits(T::TRUE >> width);
+					tail.set_bits(resize::<Usize, T>(val) << lsedge);
+					value >>= width;
+				}
+				if let Some(elts) = body {
+					for elt in elts.iter().rev() {
+						elt.store(resize(value));
+						value >>= bits;
+					}
+				}
+				if let Some((h, head)) = head {}
+					let width = *t;
+					let val = value & mask_for::<Usize>(width as usize);
+					head.clear_bits(T::TRUE << width);
+					head.set_bits(resize(val));
 				}
 
 				#[cfg(not(any(
@@ -507,9 +495,6 @@ where T: BitStore {
 					target_endian = "little",
 				)))]
 				compile_fail!("This architecture is not supported.");
-
-				debug_assert!(value == 0, "Bits remaining to store");
-				debug_assert!(rem == 0, "Bits remaining to store");
 			},
 		}
 	}
@@ -564,7 +549,8 @@ zero-extends; where `U` is narrower, it truncates.
 **/
 fn resize<T, U>(value: T) -> U
 where T: BitStore, U: BitStore {
-	let mut slab = 0u64.to_ne_bytes();
+	let zero: Usize = 0;
+	let mut slab = zero.to_ne_bytes();
 	let cursor = 0;
 
 	/* Copy the source value into the correct region of the intermediate slab.
@@ -576,36 +562,39 @@ where T: BitStore, U: BitStore {
 	match mem::size_of::<T>() {
 		1 => {
 			#[cfg(target_endian = "big")]
-			let cursor = 7;
+			let cursor = mem::size_of::<Usize>() - 1;
 
 			slab[cursor ..][.. 1].copy_from_slice(value.as_bytes());
 		},
 		2 => {
 			#[cfg(target_endian = "big")]
-			let cursor = 6;
+			let cursor = mem::size_of::<Usize>() - 2;
 
 			slab[cursor ..][.. 2].copy_from_slice(value.as_bytes());
 		},
 		4 => {
 			#[cfg(target_endian = "big")]
-			let cursor = 4;
+			let cursor = mem::size_of::<Usize>() - 4;
 
 			slab[cursor ..][.. 4].copy_from_slice(value.as_bytes());
 		},
+		#[cfg(target_pointer_width = "64")]
 		8 => slab[..].copy_from_slice(value.as_bytes()),
 		_ => unreachable!("BitStore is not implemented on types of this size"),
 	}
-	let mid = u64::from_ne_bytes(slab);
+	let mid = Usize::from_ne_bytes(slab);
 	//  Truncate to the correct size, then wrap in `U` through the trait method.
 	match mem::size_of::<U>() {
 		1 => U::from_bytes(&(mid as u8).to_ne_bytes()[..]),
 		2 => U::from_bytes(&(mid as u16).to_ne_bytes()[..]),
 		4 => U::from_bytes(&(mid as u32).to_ne_bytes()[..]),
+		#[cfg(target_pointer_width = "64")]
 		8 => U::from_bytes(&mid.to_ne_bytes()[..]),
 		_ => unreachable!("BitStore is not implemented on types of this size"),
 	}
 }
 
+#[allow(clippy::inconsistent_digit_grouping)]
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -639,91 +628,99 @@ mod tests {
 		}
 	}
 
+	#[cfg(target_endian = "little")]
 	#[test]
 	fn le() {
-		let mut data = [0u8; 2];
-		let bits = data.bits_mut::<LittleEndian>();
+		let mut bytes = [0u8; 16];
+		let bytes = bytes.bits_mut::<LittleEndian>();
 
-		bits[.. 3].store(15u8);
-		assert_eq!(bits[.. 4].load(), Some(7u8));
-		assert_eq!(bits.as_slice(), [7, 0]);
+		bytes[4 ..][.. 8].store(0xA5u8);
+		assert_eq!(bytes[4 ..][.. 8].load(), Some(0xA5u8));
+		assert_eq!(&bytes.as_slice()[.. 2], &[0b0101_0000, 0b0000_1010]);
 
-		bits[6 .. 10].store(31u8);
-		assert_eq!(bits[5 .. 11].load(), Some(30u8));
-		assert_eq!(bits.as_slice(), [192 | 7, 3]);
+		//  expected byte pattern: 0x34 0x12
+		//  bits: 0011_0100 __01_0010
+		//  idx:  7654 3210 fedc ba98
+		bytes[6 ..][.. 14].store(0x1234u16);
+		assert_eq!(bytes[6 ..][.. 14].load(), Some(0x1234u16));
+		assert_eq!(
+			&bytes.as_slice()[.. 3],
+			&[0b00_010000, 0b10_0011_01, 0b0000_01_00],
+		);
+		//      10 xxxxxx    98 7654 32         dc ba
 
-		bits[13 ..].store(15u8);
-		assert_eq!(bits[12 ..].load(), Some(14u8));
-		assert_eq!(bits.as_slice(), [192 | 7, 224 | 3]);
+		//  bytes: 21        43        65        00
+		//  bits:  0010 0001 0100 0011 0110 0101
+		//  idx:   7654 3210 fedc ba98 nmlk jihg
+		bytes[10 ..][.. 24].store(0x00_65_43_21u32);
+		assert_eq!(bytes[10 ..][.. 24].load(), Some(0x00_65_43_21u32));
+		assert_eq!(
+			&bytes.as_slice()[1 .. 5],
+			&[0b10_0001_01, 0b00_0011_00, 0b10_0101_01, 0b00000_01],
+		);
+		//      54 3210 xx    dc ba98 76    lk jihg fe   xxxxxx nm
 
-		bits[10 .. 13].store(15u8);
-		assert_eq!(bits.as_slice(), [192 | 7, 255]);
-		assert_eq!(bits[8 ..].load(), Some(255u8));
+		/*
+		let mut shorts = [0u16; 8];
+		let shorts = shorts.bits_mut::<LittleEndian>();
 
-		bits[.. 8].store(0u8);
-		bits[8 ..].store(0u8);
+		let mut ints = [0u32; 4];
+		let ints = ints.bits_mut::<LittleEndian>();
 
-		bits[.. 3].store(1u8);
-		assert_eq!(bits[.. 3].load(), Some(1u8));
-		bits[3 .. 6].store(4u8);
-		assert_eq!(bits[3 .. 6].load(), Some(4u8));
+		#[cfg(target_pointer_width = "64")] {
 
-		assert!(bits[5 .. 5].load::<u8>().is_none());
+		let mut longs = [0u64; 2];
+		let longs = longs.bits_mut::<LittleEndian>();
+
+		}
+		*/
 	}
 
+	#[cfg(target_endian = "little")]
 	#[test]
 	fn be() {
-		let mut data = [0u8; 2];
-		let bits = data.bits_mut::<BigEndian>();
+		let mut bytes = [0u8; 16];
+		let bytes = bytes.bits_mut::<BigEndian>();
 
-		bits[.. 3].store(15u8);
-		assert_eq!(bits[.. 4].load(), Some(14u8));
-		assert_eq!(bits.as_slice(), [224, 0]);
+		bytes[4 ..][.. 8].store(0xA5u8);
+		assert_eq!(bytes[4 ..][.. 8].load(), Some(0xA5u8));
+		assert_eq!(&bytes.as_slice()[.. 2], &[0b0000_0101, 0b1010_0000]);
 
-		bits[6 .. 10].store(31u8);
-		assert_eq!(bits[5 .. 11].load(), Some(30u8));
-		assert_eq!(bits.as_slice(), [224 | 3, 192]);
+		//  expected byte pattern: 0x34 0x12
+		//  bits: 0011_0100 __01_0010
+		//  idx:  7654 3210 fedc ba98
+		bytes[6 ..][.. 14].store(0x1234u16);
+		assert_eq!(bytes[6 ..][.. 14].load(), Some(0x1234u16));
+		assert_eq!(
+			&bytes.as_slice()[.. 3],
+			&[0b000001_00, 0b10_0011_01, 0b01_00_0000],
+		);
+		//      xxxxxx 10    98 7654 32    dc ba
 
-		bits[13 ..].store(15u8);
-		assert_eq!(bits[12 ..].load(), Some(7u8));
-		assert_eq!(bits.as_slice(), [224 | 3, 192 | 7]);
+		//  bytes: 21        43        65        00
+		//  bits:  0010 0001 0100 0011 0110 0101
+		//  idx:   7654 3210 fedc ba98 nmlk jihg
+		bytes[10 ..][.. 24].store(0x00_65_43_21u32);
+		assert_eq!(bytes[10 ..][.. 24].load(), Some(0x00_65_43_21u32));
+		assert_eq!(
+			&bytes.as_slice()[1 .. 5],
+			&[0b10_10_0001, 0b00_0011_00, 0b10_0101_01, 0b01_000000],
+		);
+		//  xxxxxx 54 3210    dc ba98 76    lk jihg fe    nm xxxxxx
 
-		bits[10 .. 13].store(15u8);
-		assert_eq!(bits[10 .. 13].load(), Some(7u8));
-		assert_eq!(bits.as_slice(), [224 | 3, 255]);
-		assert_eq!(bits[8 ..].load(), Some(255u8));
+		/*
+		let mut shorts = [0u16; 8];
+		let shorts = shorts.bits_mut::<BigEndian>();
 
-		bits[.. 8].store(0u8);
-		bits[8 ..].store(0u8);
+		let mut ints = [0u32; 4];
+		let ints = ints.bits_mut::<BigEndian>();
 
-		bits[.. 3].store(1u8);
-		assert_eq!(bits[.. 3].load(), Some(1u8));
-		bits[.. 3].store(4u8);
-		//  old set bits are erased
-		assert_eq!(bits[.. 3].load(), Some(4u8));
+		#[cfg(target_pointer_width = "64")] {
 
-		bits[3 .. 6].store(4u8);
-		assert_eq!(bits[3 .. 6].load(), Some(4u8));
+		let mut longs = [0u64; 2];
+		let longs = longs.bits_mut::<BigEndian>();
 
-		assert!(bits[5 .. 5].load::<u8>().is_none());
-	}
-
-	#[test]
-	fn le_u8() {
-		let mut slab = [0u8; 8];
-		let slice = slab.bits_mut::<LittleEndian>();
-		let mut val = 1u32;
-		for _ in 0 .. 20 {
-			slice[5 ..][.. 20].store(val);
-			assert_eq!(slice[5 ..][.. 20].load::<u32>().unwrap(), val);
-			val <<= 1;
-			val |= 1;
 		}
-
-		slice[5 ..][.. 20].store(18u32);
-		eprintln!("{:?}", slice);
-		let val: u32 = slice[5 ..][.. 20].load().unwrap();
-		assert_eq!(val, 18);
-		// panic!("{:x?}", slice.as_slice());
+		*/
 	}
 }

@@ -23,10 +23,7 @@ use crate::{
 	},
 };
 
-use core::{
-	marker::PhantomData,
-	str,
-};
+use core::marker::PhantomData;
 
 use either::Either;
 

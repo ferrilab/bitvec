@@ -30,6 +30,7 @@ use core::{
 		Hasher,
 	},
 	hint::unreachable_unchecked,
+	str,
 };
 
 use either::Either;

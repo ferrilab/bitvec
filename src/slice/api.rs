@@ -709,7 +709,7 @@ where C: Cursor, T: BitStore {
 	/// let mut count = 0;
 	///
 	/// for chunk in bits.chunks_mut(3) {
-	///     chunk.store(4 >> count);
+	///     chunk.store(4u8 >> count);
 	///     count += 1;
 	/// }
 	/// assert_eq!(count, 3);
@@ -799,14 +799,14 @@ where C: Cursor, T: BitStore {
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
 	/// let bits = data.bits_mut::<BigEndian>();
-	/// let mut count = 0;
+	/// let mut count = 0u8;
 	///
 	/// let mut iter = bits.chunks_exact_mut(3);
 	/// for chunk in &mut iter {
-	///     chunk.store(4 >> count);
+	///     chunk.store(4u8 >> count);
 	///     count += 1;
 	/// }
-	/// iter.into_remainder().store(1);
+	/// iter.into_remainder().store(1u8);
 	/// assert_eq!(count, 2);
 	/// assert_eq!(data, 0b100_010_01);
 	/// ```
@@ -889,7 +889,7 @@ where C: Cursor, T: BitStore {
 	/// let mut count = 0;
 	///
 	/// for chunk in bits.rchunks_mut(3) {
-	///     chunk.store(4 >> count);
+	///     chunk.store(4u8 >> count);
 	///     count += 1;
 	/// }
 	/// assert_eq!(count, 3);
@@ -981,10 +981,10 @@ where C: Cursor, T: BitStore {
 	/// let mut iter = bits.rchunks_exact_mut(3);
 	///
 	/// for chunk in &mut iter {
-	///     chunk.store(4 >> count);
+	///     chunk.store(4u8 >> count);
 	///     count += 1;
 	/// }
-	/// iter.into_remainder().store(1);
+	/// iter.into_remainder().store(1u8);
 	/// assert_eq!(data, 0b100_010_01);
 	/// assert_eq!(count, 2);
 	/// ```
@@ -1247,7 +1247,7 @@ where C: Cursor, T: BitStore {
 	/// let mut data = 0u8;
 	/// let bits = data.bits_mut::<BigEndian>();
 	///
-	/// let mut count = 0;
+	/// let mut count = 0u8;
 	/// for group in bits.rsplit_mut(|pos, bit| pos % 3 == 2) {
 	///     count += 1;
 	///     group.store(count);
@@ -1328,7 +1328,7 @@ where C: Cursor, T: BitStore {
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
 	/// let bits = data.bits_mut::<BigEndian>();
-	/// let mut counter = 0;
+	/// let mut counter = 0u8;
 	///
 	/// for group in bits.splitn_mut(2, |pos, bit| pos % 4 == 3) {
 	///     counter += 1;
@@ -1416,7 +1416,7 @@ where C: Cursor, T: BitStore {
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
 	/// let bits = data.bits_mut::<BigEndian>();
-	/// let mut counter = 0;
+	/// let mut counter = 0u8;
 	///
 	/// for group in bits.rsplitn_mut(2, |pos, bit| pos % 3 == 2) {
 	///     counter += 1;

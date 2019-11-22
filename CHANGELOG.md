@@ -20,6 +20,20 @@ This document is written according to the [Keep a Changelog][kac] style.
   on `BitSlice`s with those two `Cursor`s which allow for parallel access to the
   underlying memory. This trait is currently not able to be implemented by
   downstream crates; this restriction may ease in the future.
+
+  The `load` and `store` methods are generic over `BitStore` value types,
+  allowing users to load and store values of any of the four fundamental widths
+  out of and into a `BitSlice` of any storage type. Users are able to, for
+  example, use this trait to load and store `u32` values into `BitSlice<_, u8>`
+  byte sequences.
+
+  The behavior implemented in this crate follows local memory conventions as
+  best it can. When storing a value into memory, the least significant part of
+  the value will be in the least significant storage element of the slice, and
+  the bits in each storage element’s region for value storage will be in
+  standard memory order. This behavior *should* provide maximum compatibility
+  for interoperability with the bitfield implementations in C and C++, and the
+  bitstring implementation in Erlang.
 - The `cursor::Local` type alias is a default bit ordering. Big-endian targets
   set it to `cursor::BigEndian`; all other targets set it to
   `cursor::LittleEndian`.
