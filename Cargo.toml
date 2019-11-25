@@ -20,6 +20,10 @@ description = "A crate for manipulating memory, bit by bit"
 documentation = "https://docs.rs/bitvec"
 edition = "2018"
 homepage = "https://myrrlyn.net/crates/bitvec"
+include = [
+	"Cargo.toml",
+	"src/**/*.rs",
+]
 keywords = [
 	"bits",
 	"bitvec",
