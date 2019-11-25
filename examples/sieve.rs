@@ -28,22 +28,22 @@ square 25x25.
 //
 //  Heisenbugs are weird.
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 extern crate bitvec;
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 use bitvec::prelude::{
 	BigEndian,
 	bitvec,
 };
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 use std::{
 	cmp,
 	env,
 };
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 fn main() {
 	let max: usize = env::args()
 		.nth(1)
@@ -148,7 +148,7 @@ fn main() {
 	println!();
 }
 
-#[cfg(not(any(feature = "alloc", feature = "std")))]
+#[cfg(not(feature = "std"))]
 fn main() {
-	println!("This example only runs when an allocator is present");
+	//  This example requires the standard library.
 }

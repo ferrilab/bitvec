@@ -6,10 +6,10 @@ a sample of the various operations that can be applied to it.
 This example prints **a lot** of text to the console.
 !*/
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 extern crate bitvec;
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 use bitvec::prelude::{
 	//  `bitvec!` macro
 	bitvec,
@@ -28,10 +28,10 @@ use bitvec::prelude::{
 	//  this ordering)
 	LittleEndian,
 };
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 use std::iter::repeat;
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 fn main() {
 	let bv = bitvec![   //  BigEndian, u8;  //  default type values
 		0, 0, 0, 0, 0, 0, 0, 1,
@@ -117,7 +117,7 @@ are dominant.\
 	}
 }
 
-#[cfg(not(any(feature = "alloc", feature = "std")))]
+#[cfg(not(feature = "std"))]
 fn main() {
-	println!("This example only runs when an allocator is present");
+	//  This example requires the standard library.
 }

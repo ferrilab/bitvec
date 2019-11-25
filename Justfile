@@ -62,5 +62,6 @@ publish: checkout
 test: check clippy
 	cargo test --no-default-features
 	cargo test --all-features
+	cargo run --all-features --example ipv4
 	cargo run --all-features --example sieve
 	cargo run --all-features --example tour
