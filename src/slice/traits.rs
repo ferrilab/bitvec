@@ -11,10 +11,7 @@ use crate::{
 };
 
 use core::{
-	cmp::{
-		self,
-		Ordering,
-	},
+	cmp::Ordering,
 	fmt::{
 		self,
 		Binary,
@@ -39,15 +36,6 @@ use either::Either;
 use {
 	crate::vec::BitVec,
 	alloc::borrow::ToOwned,
-};
-
-#[cfg(feature = "std")]
-use std::{
-	io::{
-		self,
-		Read,
-	},
-	mem,
 };
 
 #[cfg(feature = "alloc")]
@@ -399,44 +387,6 @@ where C: Cursor, T: BitStore {
 		for bit in self {
 			hasher.write_u8(*bit as u8);
 		}
-	}
-}
-
-#[cfg(feature = "std")]
-impl<C, T> Read for &BitSlice<C, T>
-where C: Cursor, T: BitStore {
-	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-		let tgt = BitSlice::<C, u8>::from_slice_mut(buf);
-		let len = cmp::min(self.len(), tgt.len());
-		let (head, rest) = self.split_at(len);
-		tgt[.. len].clone_from_slice(head);
-		*self = rest;
-		Ok(len)
-	}
-
-	fn read_exact(&mut self, buf: &mut [u8]) -> io::Result<()> {
-		let tgt = BitSlice::<C, u8>::from_slice_mut(buf);
-		let len = tgt.len();
-		if self.len() > len {
-			return Err(io::Error::new(
-				io::ErrorKind::UnexpectedEof,
-				"failed to fill whole buffer",
-			));
-		}
-		let (head, rest) = self.split_at(len);
-		tgt.clone_from_slice(&head[.. len]);
-		*self = rest;
-		Ok(())
-	}
-
-	fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
-		let mut bv = BitVec::<C, u8>::from_vec(mem::replace(buf, Vec::new()));
-		let len = self.len();
-		bv.reserve(len);
-		bv.extend(self.iter().copied());
-		*self = BitSlice::<C, T>::empty();
-		mem::replace(buf, bv.into_vec());
-		Ok(len)
 	}
 }
 

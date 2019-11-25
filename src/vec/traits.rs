@@ -40,14 +40,6 @@ use core::{
 	mem,
 };
 
-#[cfg(feature = "std")]
-use std::{
-	io::{
-		self,
-		Write,
-	},
-};
-
 /// Signifies that `BitSlice` is the borrowed form of `BitVec`.
 impl<C, T> Borrow<BitSlice<C, T>> for BitVec<C, T>
 where C: Cursor, T: BitStore {
@@ -541,19 +533,6 @@ where C: Cursor, T: BitStore {
 	fn hash<H: Hasher>(&self, hasher: &mut H) {
 		<BitSlice<C, T> as Hash>::hash(self, hasher)
 	}
-}
-
-#[cfg(feature = "std")]
-impl<C, T> Write for BitVec<C, T>
-where C: Cursor, T: BitStore {
-	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-		use std::cmp;
-		let amt = cmp::min(buf.len(), BitPtr::<T>::MAX_BITS - self.len());
-		self.extend(<&BitSlice<C, u8>>::from(buf).iter().copied());
-		Ok(amt)
-	}
-
-	fn flush(&mut self) -> io::Result<()> { Ok(()) }
 }
 
 /// `BitVec` is safe to move across thread boundaries, as is `&mut BitVec`.
