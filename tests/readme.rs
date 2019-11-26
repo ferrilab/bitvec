@@ -17,7 +17,7 @@ use std::iter::repeat;
 #[cfg(feature = "alloc")]
 #[test]
 fn readme() {
-    let mut bv = bitvec![BigEndian, u8; 0, 1, 0, 1];
+    let mut bv = bitvec![Msb0, u8; 0, 1, 0, 1];
     bv.reserve(8);
     bv.extend(repeat(false).take(4).chain(repeat(true).take(4)));
 
@@ -48,7 +48,7 @@ fn readme() {
     bv = !bv;
 
     //  Arithmetic operations
-    let one = bitvec![BigEndian, u8; 1];
+    let one = bitvec![Msb0, u8; 1];
     bv += one.clone();
     assert_eq!(bv.as_slice(), &[0b0101_0001, 0b0000_0000]);
     bv -= one;

@@ -3,7 +3,7 @@
 use super::*;
 
 use crate::{
-	cursor::Cursor,
+	order::BitOrder,
 	store::BitStore,
 };
 
@@ -53,8 +53,8 @@ instead, which is written specifically for that use case. `BitVec`s are not
 intended for arithmetic, and `bitvec` makes no guarantees about sustained
 correctness in arithmetic at this time.
 **/
-impl<C, T> Add for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Add for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	type Output = Self;
 
 	/// Adds two `BitVec`s.
@@ -102,8 +102,8 @@ instead, which is written specifically for that use case. `BitVec`s are not
 intended for arithmetic, and `bitvec` makes no guarantees about sustained
 correctness in arithmetic at this time.
 **/
-impl<C, T> AddAssign for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> AddAssign for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	/// Adds another `BitVec` into `self`.
 	///
 	/// # Examples
@@ -124,7 +124,7 @@ where C: Cursor, T: BitStore {
 		}
 		//  Now that self.len() >= addend.len(), proceed with addition.
 		let mut c = false;
-		let mut stack = BitVec::<C, T>::with_capacity(self.len());
+		let mut stack = BitVec::<O, T>::with_capacity(self.len());
 		let addend = addend.into_iter().rev().chain(repeat(false));
 		for (a, b) in self.iter().copied().rev().zip(addend) {
 			let (y, z) = crate::rca1(a, b, c);
@@ -147,8 +147,8 @@ or any `bool` generator of your choice). The `BitVec` emitted will have the
 length of the shorter sequence of bits -- if one is longer than the other, the
 extra bits will be ignored.
 **/
-impl<C, T, I> BitAnd<I> for BitVec<C, T>
-where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
+impl<O, T, I> BitAnd<I> for BitVec<O, T>
+where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
 	type Output = Self;
 
 	/// `AND`s a vector and a bitstream, producing a new vector.
@@ -158,8 +158,8 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let lhs = bitvec![BigEndian, u8; 0, 1, 0, 1];
-	/// let rhs = bitvec![BigEndian, u8; 0, 0, 1, 1];
+	/// let lhs = bitvec![Msb0, u8; 0, 1, 0, 1];
+	/// let rhs = bitvec![Msb0, u8; 0, 0, 1, 1];
 	/// let and = lhs & rhs;
 	/// assert_eq!("[0001]", &format!("{}", and));
 	/// ```
@@ -173,8 +173,8 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 of `bool` values as the other bit for each operation. If the other stream is
 shorter than `self`, `self` will be truncated when the other stream expires.
 **/
-impl<C, T, I> BitAndAssign<I> for BitVec<C, T>
-where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
+impl<O, T, I> BitAndAssign<I> for BitVec<O, T>
+where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `AND`s another bitstream into a vector.
 	///
 	/// # Examples
@@ -182,8 +182,8 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut src  = bitvec![BigEndian, u8; 0, 1, 0, 1];
-	///         src &= bitvec![BigEndian, u8; 0, 0, 1, 1];
+	/// let mut src  = bitvec![Msb0, u8; 0, 1, 0, 1];
+	///         src &= bitvec![Msb0, u8; 0, 0, 1, 1];
 	/// assert_eq!("[0001]", &format!("{}", src));
 	/// ```
 	fn bitand_assign(&mut self, rhs: I) {
@@ -203,8 +203,8 @@ or any `bool` generator of your choice). The `BitVec` emitted will have the
 length of the shorter sequence of bits -- if one is longer than the other, the
 extra bits will be ignored.
 **/
-impl<C, T, I> BitOr<I> for BitVec<C, T>
-where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
+impl<O, T, I> BitOr<I> for BitVec<O, T>
+where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
 	type Output = Self;
 
 	/// `OR`s a vector and a bitstream, producing a new vector.
@@ -229,8 +229,8 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 of `bool` values as the other bit for each operation. If the other stream is
 shorter than `self`, `self` will be truncated when the other stream expires.
 **/
-impl<C, T, I> BitOrAssign<I> for BitVec<C, T>
-where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
+impl<O, T, I> BitOrAssign<I> for BitVec<O, T>
+where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `OR`s another bitstream into a vector.
 	///
 	/// # Examples
@@ -259,8 +259,8 @@ or any `bool` generator of your choice). The `BitVec` emitted will have the
 length of the shorter sequence of bits -- if one is longer than the other, the
 extra bits will be ignored.
 **/
-impl<C, T, I> BitXor<I> for BitVec<C, T>
-where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
+impl<O, T, I> BitXor<I> for BitVec<O, T>
+where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
 	type Output = Self;
 
 	/// `XOR`s a vector and a bitstream, producing a new vector.
@@ -285,8 +285,8 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 of `bool` values as the other bit for each operation. If the other stream is
 shorter than `self`, `self` will be truncated when the other stream expires.
 **/
-impl<C, T, I> BitXorAssign<I> for BitVec<C, T>
-where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
+impl<O, T, I> BitXorAssign<I> for BitVec<O, T>
+where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `XOR`s another bitstream into a vector.
 	///
 	/// # Examples
@@ -313,9 +313,9 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 
 This mimics the separation between `Vec<T>` and `[T]`.
 **/
-impl<C, T> Deref for BitVec<C, T>
-where C: Cursor, T: BitStore {
-	type Target = BitSlice<C, T>;
+impl<O, T> Deref for BitVec<O, T>
+where O: BitOrder, T: BitStore {
+	type Target = BitSlice<O, T>;
 
 	/// Dereferences `&BitVec` down to `&BitSlice`.
 	///
@@ -337,8 +337,8 @@ where C: Cursor, T: BitStore {
 
 This mimics the separation between `Vec<T>` and `[T]`.
 **/
-impl<C, T> DerefMut for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> DerefMut for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	/// Dereferences `&mut BitVec` down to `&mut BitSlice`.
 	///
 	/// # Examples
@@ -358,8 +358,8 @@ where C: Cursor, T: BitStore {
 }
 
 /// Readies the underlying storage for Drop.
-impl<C, T> Drop for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Drop for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	/// Rebuild the interior `Vec` and let it run the deallocator.
 	fn drop(&mut self) {
 		let bp = mem::replace(&mut self.pointer, BitPtr::empty());
@@ -371,8 +371,8 @@ where C: Cursor, T: BitStore {
 
 /// Gets the bit at a specific index. The index must be less than the length of
 /// the `BitVec`.
-impl<C, T> Index<usize> for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Index<usize> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	type Output = bool;
 
 	/// Looks up a single bit by semantic count.
@@ -382,7 +382,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 0, 0, 0, 0, 0, 1, 0];
+	/// let bv = bitvec![Msb0, u8; 0, 0, 0, 0, 0, 0, 0, 0, 1, 0];
 	/// assert!(!bv[7]); // ---------------------------------^  |  |
 	/// assert!( bv[8]); // ------------------------------------^  |
 	/// assert!(!bv[9]); // ---------------------------------------^
@@ -406,97 +406,97 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-impl<C, T> Index<Range<usize>> for BitVec<C, T>
-where C: Cursor, T: BitStore {
-	type Output = BitSlice<C, T>;
+impl<O, T> Index<Range<usize>> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
+	type Output = BitSlice<O, T>;
 
 	fn index(&self, range: Range<usize>) -> &Self::Output {
 		&self.as_bitslice()[range]
 	}
 }
 
-impl<C, T> IndexMut<Range<usize>> for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> IndexMut<Range<usize>> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	fn index_mut(&mut self, range: Range<usize>) -> &mut Self::Output {
 		&mut self.as_mut_bitslice()[range]
 	}
 }
 
-impl<C, T> Index<RangeFrom<usize>> for BitVec<C, T>
-where C: Cursor, T: BitStore {
-	type Output = BitSlice<C, T>;
+impl<O, T> Index<RangeFrom<usize>> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
+	type Output = BitSlice<O, T>;
 
 	fn index(&self, range: RangeFrom<usize>) -> &Self::Output {
 		&self.as_bitslice()[range]
 	}
 }
 
-impl<C, T> IndexMut<RangeFrom<usize>> for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> IndexMut<RangeFrom<usize>> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	fn index_mut(&mut self, range: RangeFrom<usize>) -> &mut Self::Output {
 		&mut self.as_mut_bitslice()[range]
 	}
 }
 
-impl<C, T> Index<RangeFull> for BitVec<C, T>
-where C: Cursor, T: BitStore {
-	type Output = BitSlice<C, T>;
+impl<O, T> Index<RangeFull> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
+	type Output = BitSlice<O, T>;
 
 	fn index(&self, _: RangeFull) -> &Self::Output {
 		self.as_bitslice()
 	}
 }
 
-impl<C, T> IndexMut<RangeFull> for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> IndexMut<RangeFull> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	fn index_mut(&mut self, _: RangeFull) -> &mut Self::Output {
 		self.as_mut_bitslice()
 	}
 }
 
-impl<C, T> Index<RangeInclusive<usize>> for BitVec<C, T>
-where C: Cursor, T: BitStore {
-	type Output = BitSlice<C, T>;
+impl<O, T> Index<RangeInclusive<usize>> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
+	type Output = BitSlice<O, T>;
 
 	fn index(&self, range: RangeInclusive<usize>) -> &Self::Output {
 		&self.as_bitslice()[range]
 	}
 }
 
-impl<C, T> IndexMut<RangeInclusive<usize>> for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> IndexMut<RangeInclusive<usize>> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	fn index_mut(&mut self, range: RangeInclusive<usize>) -> &mut Self::Output {
 		&mut self.as_mut_bitslice()[range]
 	}
 }
 
-impl<C, T> Index<RangeTo<usize>> for BitVec<C, T>
-where C: Cursor, T: BitStore {
-	type Output = BitSlice<C, T>;
+impl<O, T> Index<RangeTo<usize>> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
+	type Output = BitSlice<O, T>;
 
 	fn index(&self, range: RangeTo<usize>) -> &Self::Output {
 		&self.as_bitslice()[range]
 	}
 }
 
-impl<C, T> IndexMut<RangeTo<usize>> for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> IndexMut<RangeTo<usize>> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	fn index_mut(&mut self, range: RangeTo<usize>) -> &mut Self::Output {
 		&mut self.as_mut_bitslice()[range]
 	}
 }
 
-impl<C, T> Index<RangeToInclusive<usize>> for BitVec<C, T>
-where C: Cursor, T: BitStore {
-	type Output = BitSlice<C, T>;
+impl<O, T> Index<RangeToInclusive<usize>> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
+	type Output = BitSlice<O, T>;
 
 	fn index(&self, range: RangeToInclusive<usize>) -> &Self::Output {
 		&self.as_bitslice()[range]
 	}
 }
 
-impl<C, T> IndexMut<RangeToInclusive<usize>> for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> IndexMut<RangeToInclusive<usize>> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	fn index_mut(&mut self, range: RangeToInclusive<usize>) -> &mut Self::Output {
 		&mut self.as_mut_bitslice()[range]
 	}
@@ -512,8 +512,8 @@ instead, which is written specifically for that use case. `BitVec`s are not
 intended for arithmetic, and `bitvec` makes no guarantees about sustained
 correctness in arithmetic at this time.
 **/
-impl<C, T> Neg for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Neg for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	type Output = Self;
 
 	/// Numerically negates a `BitVec` using 2’s-complement arithmetic.
@@ -542,8 +542,8 @@ where C: Cursor, T: BitStore {
 }
 
 /// Flips all bits in the vector.
-impl<C, T> Not for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Not for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	type Output = Self;
 
 	/// Inverts all bits in the vector.
@@ -553,7 +553,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bv: BitVec<BigEndian, u32> = BitVec::from(&[0u32] as &[u32]);
+	/// let bv: BitVec<Msb0, u32> = BitVec::from(&[0u32] as &[u32]);
 	/// let flip = !bv;
 	/// assert_eq!(!0u32, flip.as_slice()[0]);
 	/// ```
@@ -577,10 +577,10 @@ This increases the value of the primitive being shifted.
 `BitVec` defines its layout with the minimum on the left and the maximum on the
 right! Thus, left-shifting moves bits towards the **minimum**.
 
-In BigEndian order, the effect in memory will be what you expect the `<<`
-operator to do.
+In `Msb0` order, the effect in memory will be what you expect the `<<` operator
+to do.
 
-**In LittleEndian order, the effect will be equivalent to using `>>` on the**
+**In `Lsb0` order, the effect will be equivalent to using `>>` on the**
 **fundamentals in memory!**
 
 # Notes
@@ -594,8 +594,8 @@ The length of the vector is decreased by the shift amount.
 If the shift amount is greater than the length, the vector calls `clear()` and
 zeroes its memory. This is *not* an error.
 **/
-impl<C, T> Shl<usize> for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Shl<usize> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	type Output = Self;
 
 	/// Shifts a `BitVec` to the left, shortening it.
@@ -605,7 +605,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 1, 1, 1];
+	/// let bv = bitvec![Msb0, u8; 0, 0, 0, 1, 1, 1];
 	/// assert_eq!("[000111]", &format!("{}", bv));
 	/// assert_eq!(0b0001_1100, bv.as_slice()[0]);
 	/// assert_eq!(bv.len(), 6);
@@ -632,10 +632,10 @@ This increases the value of the primitive being shifted.
 `BitVec` defines its layout with the minimum on the left and the maximum on the
 right! Thus, left-shifting moves bits towards the **minimum**.
 
-In BigEndian order, the effect in memory will be what you expect the `<<`
-operator to do.
+In `Msb0` order, the effect in memory will be what you expect the `<<` operator
+to do.
 
-**In LittleEndian order, the effect will be equivalent to using `>>` on the**
+**In `Lsb0` order, the effect will be equivalent to using `>>` on the**
 **fundamentals in memory!**
 
 # Notes
@@ -649,8 +649,8 @@ The length of the vector is decreased by the shift amount.
 If the shift amount is greater than the length, the vector calls `clear()` and
 zeroes its memory. This is *not* an error.
 **/
-impl<C, T> ShlAssign<usize> for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> ShlAssign<usize> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	/// Shifts a `BitVec` to the left in place, shortening it.
 	///
 	/// # Examples
@@ -658,7 +658,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut bv = bitvec![LittleEndian, u8; 0, 0, 0, 1, 1, 1];
+	/// let mut bv = bitvec![Lsb0, u8; 0, 0, 0, 1, 1, 1];
 	/// assert_eq!("[000111]", &format!("{}", bv));
 	/// assert_eq!(0b0011_1000, bv.as_slice()[0]);
 	/// assert_eq!(bv.len(), 6);
@@ -698,10 +698,10 @@ This decreases the value of the primitive being shifted.
 `BitVec` defines its layout with the minimum on the left and the maximum on the
 right! Thus, right-shifting moves bits towards the **maximum**.
 
-In BigEndian order, the effect in memory will be what you expect the `>>`
-operator to do.
+In `Msb0` order, the effect in memory will be what you expect the `>>` operator
+to do.
 
-**In LittleEndian order, the effect will be equivalent to using `<<` on the**
+**In `Lsb0` order, the effect will be equivalent to using `<<` on the**
 **fundamentals in memory!**
 
 # Notes
@@ -715,8 +715,8 @@ The length of the vector is increased by the shift amount.
 If the new length of the vector would overflow, a panic occurs. This *is* an
 error.
 **/
-impl<C, T> Shr<usize> for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Shr<usize> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	type Output = Self;
 
 	/// Shifts a `BitVec` to the right, lengthening it and filling the front
@@ -727,7 +727,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 1, 1, 1];
+	/// let bv = bitvec![Msb0, u8; 0, 0, 0, 1, 1, 1];
 	/// assert_eq!("[000111]", &format!("{}", bv));
 	/// assert_eq!(0b0001_1100, bv.as_slice()[0]);
 	/// assert_eq!(bv.len(), 6);
@@ -754,10 +754,10 @@ This decreases the value of the primitive being shifted.
 `BitVec` defines its layout with the minimum on the left and the maximum on the
 right! Thus, right-shifting moves bits towards the **maximum**.
 
-In BigEndian order, the effect in memory will be what you expect the `>>`
-operator to do.
+In `Msb0` order, the effect in memory will be what you expect the `>>` operator
+to do.
 
-**In LittleEndian order, the effect will be equivalent to using `<<` on the**
+**In `Lsb0` order, the effect will be equivalent to using `<<` on the**
 **fundamentals in memory!**
 
 # Notes
@@ -771,8 +771,8 @@ The length of the vector is increased by the shift amount.
 If the new length of the vector would overflow, a panic occurs. This *is* an
 error.
 **/
-impl<C, T> ShrAssign<usize> for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> ShrAssign<usize> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	/// Shifts a `BitVec` to the right in place, lengthening it and filling the
 	/// front with 0.
 	///
@@ -781,7 +781,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut bv = bitvec![LittleEndian, u8; 0, 0, 0, 1, 1, 1];
+	/// let mut bv = bitvec![Lsb0, u8; 0, 0, 0, 1, 1, 1];
 	/// assert_eq!("[000111]", &format!("{}", bv));
 	/// assert_eq!(0b0011_1000, bv.as_slice()[0]);
 	/// assert_eq!(bv.len(), 6);
@@ -833,8 +833,8 @@ instead, which is written specifically for that use case. `BitVec`s are not
 intended for arithmetic, and `bitvec` makes no guarantees about sustained
 correctness in arithmetic at this time.
 **/
-impl<C, T> Sub for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Sub for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	type Output = Self;
 
 	/// Subtracts one `BitVec` from another.
@@ -892,8 +892,8 @@ instead, which is written specifically for that use case. `BitVec`s are not
 intended for arithmetic, and `bitvec` makes no guarantees about sustained
 correctness in arithmetic at this time.
 **/
-impl<C, T> SubAssign for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> SubAssign for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	/// Subtracts another `BitVec` from `self`.
 	///
 	/// # Examples

@@ -16,7 +16,7 @@ used in the `&mut` write reference system, as a good-enough substitute.
 !*/
 
 use crate::{
-	cursor::Cursor,
+	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
 };
@@ -39,16 +39,16 @@ to a location within the canonical handle, and on `Drop` writes the `Deref`
 location into referent memory, is impossible. Short of that, a C++-style thick
 reference-like type is as close as Rust will allow.
 **/
-pub struct BitMut<'a, C, T>
-where C: Cursor, T: 'a + BitStore {
+pub struct BitMut<'a, O, T>
+where O: BitOrder, T: 'a + BitStore {
 	/// A reference to a single bit in memory.
-	pub(super) slot: &'a mut BitSlice<C, T>,
+	pub(super) slot: &'a mut BitSlice<O, T>,
 	/// A local cache for `Deref` usage.
 	pub(super) data: bool,
 }
 
-impl<C, T> Deref for BitMut<'_, C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Deref for BitMut<'_, O, T>
+where O: BitOrder, T: BitStore {
 	type Target = bool;
 
 	fn deref(&self) -> &Self::Target {
@@ -56,15 +56,15 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-impl<C, T> DerefMut for BitMut<'_, C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> DerefMut for BitMut<'_, O, T>
+where O: BitOrder, T: BitStore {
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		&mut self.data
 	}
 }
 
-impl<C, T> Drop for BitMut<'_, C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Drop for BitMut<'_, O, T>
+where O: BitOrder, T: BitStore {
 	fn drop(&mut self) {
 		unsafe { self.slot.set_unchecked(0, self.data) }
 	}

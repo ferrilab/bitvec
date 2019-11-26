@@ -3,10 +3,10 @@
 This document describes how bit slices describe memory, and how their pointer
 structures are composed.
 
-## Cursor Addressing
+## Order Addressing
 
 This table displays the *bit index*, in [base64], of each position in a
-`BitSlice<Cursor, Fundamental>` on a little-endian machine.
+`BitSlice<BitOrder, BitStore>` on a little-endian machine.
 
 ```text
 byte  | 00000000 11111111 22222222 33333333 44444444 55555555 66666666 77777777
@@ -20,7 +20,7 @@ BEu8  | ABCDEFGH IJKLMNOP QRSTUVWX YZabcdef ghijklmn opqrstuv wxyz0123 456789+/
 ```
 
 This table displays the bit index, in [base64], of each position in a
-`BitSlice<Cursor, Fundamental>` on a big-endian machine.
+`BitSlice<BitOrder, BitStore>` on a big-endian machine.
 
 ```text
 byte  | 00000000 11111111 22222222 33333333 44444444 55555555 66666666 77777777
@@ -33,8 +33,8 @@ LEu16 | PONMLKJI HGFEDCBA fedcbaZY XWVUTSRQ vutsrqpo nmlkjihg /+987654 3210zyxw
 LEu8  | HGFEDCBA PONMLKJI XWVUTSRQ fedcbaZY nmlkjihg vutsrqpo 3210zyxw /+987654
 ```
 
-`<BigEndian, u8>` and `<LittleEndian, u8>` will always have the same
-representation in memory on all machines. The wider cursors will not.
+`<Msb0, u8>` and `<Lsb0, u8>` will always have the same representation in memory
+on all machines. The wider orders will not.
 
 ## Pointer Representation
 

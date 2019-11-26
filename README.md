@@ -30,7 +30,7 @@ and trait implementations, that are found in the standard library.
 ## What Makes `bitvec` Different Than All The Other Bit Vector Crates
 
 The most significant differences are that `bitvec` provides arbitrary bit
-ordering through the `Cursor` trait, and provides a full-featured slice type.
+ordering through the `BitOrder` trait, and provides a full-featured slice type.
 Other crates have fixed orderings, and are often unable to produce slices that
 begin at any arbitrary bit.
 
@@ -93,21 +93,19 @@ use bitvec::prelude::*;
 
 This imports the following symbols:
 
-- `BigEndian`
 - `BitBox` (only when an allocator is present)
+- `BitOrder`
 - `BitSlice`
 - `BitStore`
 - `BitVec` (only when an allocator is present)
 - `Bits`
-- `BitsMut`
-- `Cursor`
-- `LittleEndian`
+- `Lsb0`
+- `Msb0`
 - `bitbox!` (only when an allocator is present)
 - `bitvec!` (only when an allocator is present)
 
-If you do not want these names imported directly into the local scope –
-`Cursor`, `BigEndian`, and `LittleEndian` are likely culprits for name collision
-– then you can import the prelude with a scope guard:
+If you do not want these names imported directly into the local scope, then you
+can import the prelude with a scope guard:
 
 ```rust
 use bitvec::prelude as bv;
@@ -197,10 +195,10 @@ features = ["serde"]
 `bitvec`’s three data structures are `&BitSlice`, `BitBox`, and `BitVec`. Each
 of these types takes two type parameters, which I have elided previously.
 
-The first type parameter is the `Cursor` trait. This trait governs how a bit
+The first type parameter is the `BitOrder` trait. This trait governs how a bit
 index maps to a bit position in the underlying memory. This parameter defaults
-to the `BigEndian` type, which counts from the most significant bit first to the
-least significant bit last. The `LittleEndian` type counts in the opposite
+to the `Msb0` type, which counts from the most significant bit first to the
+least significant bit last. The `Lsb0` type counts in the opposite
 direction.
 
 The second type parameter is the `BitStore` trait. This trait abstracts over the
@@ -209,12 +207,12 @@ available. This parameter defaults to `u8`, which acts on individual bytes.
 
 These traits are both explained in the next section.
 
-`&BitSlice<C: Cursor, T: BitStore>` is an immutable region of memory,
+`&BitSlice<O: BitOrder, T: BitStore>` is an immutable region of memory,
 addressable at bit precision. This has all the inherent methods of Rust’s slice
 primitive, `&[bool]`, and all the trait implementations. It has additional
 methods which are specialized to its status as a slice of individual bits.
 
-`&mut BitSlice<C: Cursor, T: BitStore>` is a mutable region of memory. This
+`&mut BitSlice<O: BitOrder, T: BitStore>` is a mutable region of memory. This
 functions identically to `&mut [bool]`, with the exception that `IndexMut` is
 impossible: you cannot write `bitslice[index] = bit;`. This restriction is
 sidestepped with the C++-style method `at`: `*bitslice.at(index) = bit;` is the
@@ -228,11 +226,12 @@ the edge of their `T: BitStore` type parameter. While this is not strictly
 required by the implementation, it is convenient for ensuring that the
 allocation pointer is preserved.
 
-`BitBox<C: Cursor, T: BitStore>` is a `&mut BitSlice<C: Cursor, T: BitStore>` in
-owned memory. It has few useful methods and no trait implementations of its own.
-It is only capable of taking a bit slice into owned memory.
+`BitBox<O: BitOrder, T: BitStore>` is a
+`&mut BitSlice<O: BitOrder, T: BitStore>` in owned memory. It has few useful
+methods and no distinct trait implementations of its own. It is only capable of
+taking a bit slice into owned memory.
 
-`BitVec<C: Cursor, T: BitStore>` is a `BitBox` that can adjust its allocation
+`BitVec<O: BitOrder, T: BitStore>` is a `BitBox` that can adjust its allocation
 size. It follows the inherent and trait API of the standard library’s `Vec`
 type.
 
@@ -251,13 +250,13 @@ erasure would require significantly rewriting core infrastructure, and this is
 not a design goal. I am willing to consider it if demand is shown, but I am not
 going to proactively pursue it.
 
-#### `Cursor`
+#### `BitOrder`
 
-The `Cursor` trait is an open-ended trait, that you are free to implement
+The `BitOrder` trait is an open-ended trait, that you are free to implement
 yourself. It has one required function: `fn at<T: BitStore>(BitIdx) -> BitPos`.
 
 This function translates a semantic index to an electrical position. `bitvec`
-provides two implementations for you: `BigEndian` and `LittleEndian`, described
+provides two implementations for you: `Msb0` and `Lsb0`, described
 above. The invariants this function must uphold are listed in its documentation.
 
 #### `BitStore`
@@ -266,9 +265,9 @@ The `BitStore` trait is sealed, and may only be implemented by this library. It
 is used to abstract over the Rust fundamentals `u8`, `u16`, `u32`, and (on
 64-bit systems) `u64`.
 
-Your choice in fundamental types governs how the `Cursor` type translates
+Your choice in fundamental types governs how the `BitOrder` type translates
 indices, and how the memory underneath your slice is written. The document
-`doc/Bit Patterns.md` enumerates the effect of the `Cursor` and `BitStore`
+`doc/Bit Patterns.md` enumerates the effect of the `BitOrder` and `BitStore`
 combinations on raw memory.
 
 If you are using `bitvec` to perform set arithmetic, and you expect that your
@@ -283,36 +282,36 @@ default storage type for all data structures in the library.
 If you are using `bitvec` to perform I/O packet manipulation, you should use the
 fundamental and ordering that match your protocol specification.
 
-#### `Bits` and `BitsMut`
+#### `Bits`
 
-The `Bits` and `BitsMut` traits are entry interfaces to the `BitSlice` types.
-These are equivalent to the `AsRef` and `AsMut` reference conversion traits in
-the standard library, and should be used as such.
+The `Bits` traits is an entry interface to the `BitSlice` types. This is
+equivalent to the `AsRef` and `AsMut` reference conversion traits in the
+standard library, and should be used as such.
 
-These traits are implemented on the Rust fundamentals that implement `BitStore`
+This trait is implemented on the Rust fundamentals that implement `BitStore`
 (`uN`), on slices of those fundamentals (`[uN]`), and the first thirty-two
-arrays of them (`[uN; 0]` to `[uN; 32]`). Each implementation of these traits
+arrays of them (`[uN; 0]` to `[uN; 32]`). Each implementation of this trait
 causes a linear expansion of compile time, and going beyond thirty-two both
 surpasses the standard library’s manual implementation limits, and is a
 denial-of-service attack on each rebuild.
 
-These traits are left open so that if you need to implement them on wider
-arrays, you are able to do so.
+This trait is left open so that if you need to implement them on wider arrays,
+you are able to do so.
 
-You can use these traits to attach `.bits::<C: Cursor>()` and
-`.bits_mut::<C: Cursor>()` conversion methods to any implementor, and gain
+You can use this trait to attach `.bits::<O: BitOrder>()` and
+`.bits_mut::<O: BitOrder>()` conversion methods to any implementor, and gain
 access to a `BitSlice` over that type, or to bound a generic function similar to
 how the standard library uses `AsRef<Path>`:
 
 ```rust
 let mut base = [0u8; 8];
-let bits = base.bits_mut::<LittleEndian>();
-//  bits is now an `&mut BitSlice<LittleEndian, u8>`
+let bits = base.bits_mut::<Lsb0>();
+//  bits is now an `&mut BitSlice<Lsb0, u8>`
 println!("{}", bits.len()); // 64
 
 fn operate_on_bits(mut data: impl BitsMut) {
-  let bits = data.bits_mut::<BigEndian>();
-  //  `bits` is now an `&mut BitSlice<BigEndian, _>`
+  let bits = data.bits_mut::<Msb0>();
+  //  `bits` is now an `&mut BitSlice<Msb0, _>`
 }
 ```
 
@@ -343,7 +342,7 @@ use bitvec::prelude::*;
 use std::iter::repeat;
 
 fn main() {
-    let mut bv = bitvec![BigEndian, u8; 0, 1, 0, 1];
+    let mut bv = bitvec![Msb0, u8; 0, 1, 0, 1];
     bv.reserve(8);
     bv.extend(repeat(false).take(4).chain(repeat(true).take(4)));
 
@@ -374,7 +373,7 @@ fn main() {
     bv = !bv;
 
     //  Arithmetic operations
-    let one = bitvec![BigEndian, u8; 1];
+    let one = bitvec![Msb0, u8; 1];
     bv += one.clone();
     assert_eq!(bv.as_slice(), &[0b0101_0001, 0b0000_0000]);
     bv -= one;

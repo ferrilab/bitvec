@@ -4,11 +4,8 @@
 use super::*;
 
 use crate::{
-	bits::{
-		Bits,
-		BitsMut,
-	},
-	cursor::BigEndian,
+	bits::Bits,
+	order::Msb0,
 };
 
 #[test]
@@ -90,7 +87,7 @@ fn count_zeros() {
 #[test]
 fn set_all() {
 	let mut data = [0u8; 5];
-	let bits = data.bits_mut::<BigEndian>();
+	let bits = data.bits_mut::<Msb0>();
 
 	bits[18 .. 22].set_all(true);
 	assert_eq!(bits.as_slice(), [0, 0, 0b0011_1100, 0, 0]);

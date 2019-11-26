@@ -3,7 +3,7 @@
 use super::*;
 
 use crate::{
-	cursor::Cursor,
+	order::BitOrder,
 	store::BitStore,
 };
 
@@ -23,8 +23,8 @@ At present, this just calls `.push()` in a loop. When specialization becomes
 available, it will be able to more intelligently perform bulk moves from the
 source into `self` when the source is `BitSlice`-compatible.
 **/
-impl<C, T> Extend<bool> for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Extend<bool> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	/// Extends a `BitVec` from another bitstream.
 	///
 	/// # Parameters
@@ -42,7 +42,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut bv = bitvec![BigEndian, u8; 0; 4];
+	/// let mut bv = bitvec![Msb0, u8; 0; 4];
 	/// bv.extend(bitvec![1; 4]);
 	/// assert_eq!(0x0F, bv.as_slice()[0]);
 	/// ```
@@ -58,8 +58,8 @@ where C: Cursor, T: BitStore {
 
 /// Permits the construction of a `BitVec` by using `.collect()` on an iterator
 /// of `bool`.
-impl<C, T> FromIterator<bool> for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> FromIterator<bool> for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	/// Collects an iterator of `bool` into a vector.
 	///
 	/// # Examples
@@ -68,7 +68,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// use std::iter::repeat;
-	/// let bv: BitVec<BigEndian, u8> = repeat(true)
+	/// let bv: BitVec<Msb0, u8> = repeat(true)
 	///   .take(4)
 	///   .chain(repeat(false).take(4))
 	///   .collect();
@@ -94,10 +94,10 @@ This iterator follows the ordering in the vector type, and implements
 `ExactSizeIterator`, since `BitVec`s always know exactly how large they are, and
 `DoubleEndedIterator`, since they have known ends.
 **/
-impl<C, T> IntoIterator for BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> IntoIterator for BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	type Item = bool;
-	type IntoIter = IntoIter<C, T>;
+	type IntoIter = IntoIter<O, T>;
 
 	/// Iterates over the vector.
 	///
@@ -106,7 +106,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bv = bitvec![BigEndian, u8; 1, 1, 1, 1, 0, 0, 0, 0];
+	/// let bv = bitvec![Msb0, u8; 1, 1, 1, 1, 0, 0, 0, 0];
 	/// let mut count = 0;
 	/// for bit in bv {
 	///   if bit { count += 1; }
@@ -121,13 +121,13 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-impl<'a, C, T> IntoIterator for &'a BitVec<C, T>
-where C: Cursor, T: 'a + BitStore {
+impl<'a, O, T> IntoIterator for &'a BitVec<O, T>
+where O: BitOrder, T: 'a + BitStore {
 	type Item = &'a bool;
-	type IntoIter = <&'a BitSlice<C, T> as IntoIterator>::IntoIter;
+	type IntoIter = <&'a BitSlice<O, T> as IntoIterator>::IntoIter;
 
 	fn into_iter(self) -> Self::IntoIter {
-		<&'a BitSlice<C, T> as IntoIterator>::into_iter(self)
+		<&'a BitSlice<O, T> as IntoIterator>::into_iter(self)
 	}
 }
 
@@ -135,27 +135,27 @@ where C: Cursor, T: 'a + BitStore {
 
 # Type Parameters
 
-- `C: Cursor`: The cursor type of the underlying vector.
+- `O: BitOrder`: The ordering type of the underlying vector.
 - `T: 'a + BitStore`: The storage type of the underlying vector.
 
 # Lifetimes
 
 - `'a`: The lifetime of the underlying vector.
 **/
-pub struct Drain<'a, C, T>
-where C: Cursor, T: 'a + BitStore {
+pub struct Drain<'a, O, T>
+where O: BitOrder, T: 'a + BitStore {
 	/// Pointer to the `BitVec` being drained.
-	pub(super) bitvec: NonNull<BitVec<C, T>>,
+	pub(super) bitvec: NonNull<BitVec<O, T>>,
 	/// Current remaining range to remove.
-	pub(super) iter: crate::slice::iter::Iter<'a, C, T>,
+	pub(super) iter: crate::slice::iter::Iter<'a, O, T>,
 	/// Index of the original vector tail to preserve.
 	pub(super) tail_start: usize,
 	/// Length of the tail.
 	pub(super) tail_len: usize,
 }
 
-impl<'a, C, T> Drain<'a, C, T>
-where C: Cursor, T: 'a + BitStore {
+impl<'a, O, T> Drain<'a, O, T>
+where O: BitOrder, T: 'a + BitStore {
 	/// Fills the drain span with another iterator.
 	///
 	/// If the stream exhausts before the drain is filled, then the tail
@@ -218,21 +218,21 @@ where C: Cursor, T: 'a + BitStore {
 	}
 }
 
-impl<'a, C, T> DoubleEndedIterator for Drain<'a, C, T>
-where C: Cursor, T: 'a + BitStore {
+impl<'a, O, T> DoubleEndedIterator for Drain<'a, O, T>
+where O: BitOrder, T: 'a + BitStore {
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.iter.next_back().copied()
 	}
 }
 
-impl<'a, C, T> ExactSizeIterator for Drain<'a, C, T>
-where C: Cursor, T: 'a + BitStore {}
+impl<'a, O, T> ExactSizeIterator for Drain<'a, O, T>
+where O: BitOrder, T: 'a + BitStore {}
 
-impl<'a, C, T> FusedIterator for Drain<'a, C, T>
-where C: Cursor, T: 'a + BitStore {}
+impl<'a, O, T> FusedIterator for Drain<'a, O, T>
+where O: BitOrder, T: 'a + BitStore {}
 
-impl<'a, C, T> Iterator for Drain<'a, C, T>
-where C: Cursor, T: 'a + BitStore {
+impl<'a, O, T> Iterator for Drain<'a, O, T>
+where O: BitOrder, T: 'a + BitStore {
 	type Item = bool;
 
 	fn next(&mut self) -> Option<Self::Item> {
@@ -256,10 +256,10 @@ where C: Cursor, T: 'a + BitStore {
 	}
 }
 
-impl<'a, C, T> Drop for Drain<'a, C, T>
-where C: Cursor, T: 'a + BitStore {
+impl<'a, O, T> Drop for Drain<'a, O, T>
+where O: BitOrder, T: 'a + BitStore {
 	fn drop(&mut self) { unsafe {
-		let bv: &mut BitVec<C, T> = self.bitvec.as_mut();
+		let bv: &mut BitVec<O, T> = self.bitvec.as_mut();
 		//  Get the start of the drained span.
 		let start = bv.len();
 		//  Get the start of the remnant span.
@@ -282,23 +282,23 @@ where C: Cursor, T: 'a + BitStore {
 
 /// A consuming iterator for `BitVec`.
 #[repr(C)]
-pub struct IntoIter<C, T>
-where C: Cursor, T: BitStore {
+pub struct IntoIter<O, T>
+where O: BitOrder, T: BitStore {
 	/// Owning descriptor for the allocation. This is not modified by iteration.
-	pub(super) bitvec: BitVec<C, T>,
+	pub(super) bitvec: BitVec<O, T>,
 	/// Descriptor for the live portion of the vector as iteration proceeds.
 	pub(super) region: BitPtr<T>,
 }
 
-impl<C, T> IntoIter<C, T>
-where C: Cursor, T: BitStore {
-	fn iterator(&self) -> <&BitSlice<C, T> as IntoIterator>::IntoIter {
+impl<O, T> IntoIter<O, T>
+where O: BitOrder, T: BitStore {
+	fn iterator(&self) -> <&BitSlice<O, T> as IntoIterator>::IntoIter {
 		self.region.into_bitslice().into_iter()
 	}
 }
 
-impl<C, T> DoubleEndedIterator for IntoIter<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> DoubleEndedIterator for IntoIter<O, T>
+where O: BitOrder, T: BitStore {
 	fn next_back(&mut self) -> Option<Self::Item> {
 		let mut slice_iter = self.iterator();
 		let out = slice_iter.next_back().copied();
@@ -307,14 +307,14 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-impl<C, T> ExactSizeIterator for IntoIter<C, T>
-where C: Cursor, T: BitStore {}
+impl<O, T> ExactSizeIterator for IntoIter<O, T>
+where O: BitOrder, T: BitStore {}
 
-impl<C, T> FusedIterator for IntoIter<C, T>
-where C: Cursor, T: BitStore {}
+impl<O, T> FusedIterator for IntoIter<O, T>
+where O: BitOrder, T: BitStore {}
 
-impl<C, T> Iterator for IntoIter<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Iterator for IntoIter<O, T>
+where O: BitOrder, T: BitStore {
 	type Item = bool;
 
 	/// Advances the iterator by one, returning the first bit in it (if any).
@@ -393,7 +393,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
-	/// let bv = bitvec![BigEndian, u8; 0, 1, 0, 1, 0];
+	/// let bv = bitvec![Msb0, u8; 0, 1, 0, 1, 0];
 	/// assert_eq!(bv.into_iter().count(), 5);
 	/// ```
 	///
@@ -424,7 +424,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
-	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 1];
+	/// let bv = bitvec![Msb0, u8; 0, 0, 0, 1];
 	/// let mut iter = bv.into_iter();
 	/// assert_eq!(iter.len(), 4);
 	/// assert!(iter.nth(3).unwrap());
@@ -443,7 +443,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
-	/// let bv = bitvec![BigEndian, u8; 0, 0, 0, 1];
+	/// let bv = bitvec![Msb0, u8; 0, 0, 0, 1];
 	/// assert!(bv.into_iter().last().unwrap());
 	/// ```
 	///
@@ -471,28 +471,28 @@ Only the removed segment is available for iteration.
 - `I: Iterator<Item=bool>`: Any bitstream. This will be used to fill the
   removed span.
 **/
-pub struct Splice<'a, C, T, I>
-where C: Cursor, T: 'a + BitStore, I: Iterator<Item=bool> {
-	pub(super) drain: Drain<'a, C, T>,
+pub struct Splice<'a, O, T, I>
+where O: BitOrder, T: 'a + BitStore, I: Iterator<Item=bool> {
+	pub(super) drain: Drain<'a, O, T>,
 	pub(super) splice: I,
 }
 
-impl<'a, C, T, I> DoubleEndedIterator for Splice<'a, C, T, I>
-where C: Cursor, T: 'a + BitStore, I: Iterator<Item=bool> {
+impl<'a, O, T, I> DoubleEndedIterator for Splice<'a, O, T, I>
+where O: BitOrder, T: 'a + BitStore, I: Iterator<Item=bool> {
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.drain.next_back()
 	}
 }
 
-impl<'a, C, T, I> ExactSizeIterator for Splice<'a, C, T, I>
-where C: Cursor, T: 'a + BitStore, I: Iterator<Item=bool> {}
+impl<'a, O, T, I> ExactSizeIterator for Splice<'a, O, T, I>
+where O: BitOrder, T: 'a + BitStore, I: Iterator<Item=bool> {}
 
-impl<'a, C, T, I> FusedIterator for Splice<'a, C, T, I>
-where C: Cursor, T: 'a + BitStore, I: Iterator<Item=bool> {}
+impl<'a, O, T, I> FusedIterator for Splice<'a, O, T, I>
+where O: BitOrder, T: 'a + BitStore, I: Iterator<Item=bool> {}
 
 //  Forward iteration to the interior drain
-impl<'a, C, T, I> Iterator for Splice<'a, C, T, I>
-where C: Cursor, T: 'a + BitStore, I: Iterator<Item=bool> {
+impl<'a, O, T, I> Iterator for Splice<'a, O, T, I>
+where O: BitOrder, T: 'a + BitStore, I: Iterator<Item=bool> {
 	type Item = bool;
 
 	fn next(&mut self) -> Option<Self::Item> {
@@ -526,8 +526,8 @@ where C: Cursor, T: 'a + BitStore, I: Iterator<Item=bool> {
 	}
 }
 
-impl<'a, C, T, I> Drop for Splice<'a, C, T, I>
-where C: Cursor, T: 'a + BitStore, I: Iterator<Item=bool> {
+impl<'a, O, T, I> Drop for Splice<'a, O, T, I>
+where O: BitOrder, T: 'a + BitStore, I: Iterator<Item=bool> {
 	fn drop(&mut self) { unsafe {
 		if self.drain.tail_len == 0 {
 			self.drain.bitvec.as_mut().extend(self.splice.by_ref());

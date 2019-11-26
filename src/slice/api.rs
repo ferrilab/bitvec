@@ -19,15 +19,15 @@ use crate::vec::BitVec;
 
 /// Converts a reference to `T` into a bit slice one element long (without
 /// copying).
-pub fn from_ref<C, T>(elt: &T) -> &BitSlice<C, T>
-where C: Cursor, T: BitStore {
+pub fn from_ref<O, T>(elt: &T) -> &BitSlice<O, T>
+where O: BitOrder, T: BitStore {
 	BitSlice::from_element(elt)
 }
 
 /// Converts a reference to `T` into a bit slice one element long (without
 /// copying).
-pub fn from_mut<C, T>(elt: &mut T) -> &mut BitSlice<C, T>
-where C: Cursor, T: BitStore {
+pub fn from_mut<O, T>(elt: &mut T) -> &mut BitSlice<O, T>
+where O: BitOrder, T: BitStore {
 	BitSlice::from_element_mut(elt)
 }
 
@@ -74,15 +74,15 @@ use bitvec::slice as bitslice;
 //  manifest a slice for a single element
 let x = 42u8; // 0b0010_1010
 let ptr = &x as *const _;
-let bitslice = unsafe { bitslice::from_raw_parts::<BigEndian, _>(ptr, 1) };
+let bitslice = unsafe { bitslice::from_raw_parts::<Msb0, _>(ptr, 1) };
 assert!(bitslice[2]);
 ```
 **/
-pub unsafe fn from_raw_parts<'a, C, T>(
+pub unsafe fn from_raw_parts<'a, O, T>(
 	data: *const T,
 	len: usize,
-) -> &'a BitSlice<C, T>
-where C: Cursor, T: 'a + BitStore {
+) -> &'a BitSlice<O, T>
+where O: BitOrder, T: 'a + BitStore {
 	BitSlice::from_slice(slice::from_raw_parts(data, len))
 }
 
@@ -103,17 +103,17 @@ See `from_raw_parts`.
 
 [`from_raw_parts`]: #fn.from_raw_parts
 **/
-pub unsafe fn from_raw_parts_mut<'a, C, T>(
+pub unsafe fn from_raw_parts_mut<'a, O, T>(
 	data: *mut T,
 	len: usize,
-) -> &'a mut BitSlice<C, T>
-where C: Cursor, T: 'a + BitStore {
+) -> &'a mut BitSlice<O, T>
+where O: BitOrder, T: 'a + BitStore {
 	BitSlice::from_slice_mut(slice::from_raw_parts_mut(data, len))
 }
 
 /// Reimplementation of the `[T]` inherent-method API.
-impl<C, T> BitSlice<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> BitSlice<O, T>
+where O: BitOrder, T: BitStore {
 	/// Returns the number of bits in the slice.
 	///
 	/// # Examples
@@ -148,7 +148,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// ```rust
 	/// # use bitvec::prelude::*;
-	/// let bits = 1u8.bits::<LittleEndian>();
+	/// let bits = 1u8.bits::<Lsb0>();
 	/// assert_eq!(bits.first(), Some(&true));
 	///
 	/// assert!(BitSlice::<Local, Word>::empty().first().is_none());
@@ -170,13 +170,13 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
-	/// let bits = data.bits_mut::<LittleEndian>();
+	/// let bits = data.bits_mut::<Lsb0>();
 	/// if let Some(mut first) = bits.first_mut() {
 	///     *first = true;
 	/// }
 	/// assert_eq!(data, 1u8);
 	/// ```
-	pub fn first_mut(&mut self) -> Option<BitMut<C, T>> {
+	pub fn first_mut(&mut self) -> Option<BitMut<O, T>> {
 		if self.is_empty() {
 			None
 		}
@@ -192,7 +192,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// ```rust
 	/// # use bitvec::prelude::*;
-	/// let bits = 1u8.bits::<LittleEndian>();
+	/// let bits = 1u8.bits::<Lsb0>();
 	/// if let Some((first, rest)) = bits.split_first() {
 	///     assert_eq!(first, &true);
 	///     assert_eq!(rest, &bits[1 ..]);
@@ -215,7 +215,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
-	/// let bits = data.bits_mut::<LittleEndian>();
+	/// let bits = data.bits_mut::<Lsb0>();
 	/// if let Some((mut first, rest)) = bits.split_first_mut() {
 	///     *first = true;
 	///     *rest.at(0) = true;
@@ -223,7 +223,7 @@ where C: Cursor, T: BitStore {
 	/// }
 	/// assert_eq!(data, 7);
 	/// ```
-	pub fn split_first_mut(&mut self) -> Option<(BitMut<C, T>, &mut Self)> {
+	pub fn split_first_mut(&mut self) -> Option<(BitMut<O, T>, &mut Self)> {
 		if self.is_empty() {
 			None
 		}
@@ -240,7 +240,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// ```rust
 	/// # use bitvec::prelude::*;
-	/// let bits = 1u8.bits::<BigEndian>();
+	/// let bits = 1u8.bits::<Msb0>();
 	/// if let Some((last, rest)) = bits.split_last() {
 	///     assert_eq!(last, &true);
 	///     assert_eq!(rest, &bits[.. 7]);
@@ -261,7 +261,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	/// if let Some((mut last, rest)) = bits.split_last_mut() {
 	///     *last = true;
 	///     *rest.at(0) = true;
@@ -269,7 +269,7 @@ where C: Cursor, T: BitStore {
 	/// }
 	/// assert_eq!(data, 128 | 64 | 1);
 	/// ```
-	pub fn split_last_mut(&mut self) -> Option<(BitMut<C, T>, &mut Self)> {
+	pub fn split_last_mut(&mut self) -> Option<(BitMut<O, T>, &mut Self)> {
 		match self.len() {
 			0 => None,
 			len => {
@@ -285,7 +285,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// ```rust
 	/// # use bitvec::prelude::*;
-	/// let bits = 1u8.bits::<BigEndian>();
+	/// let bits = 1u8.bits::<Msb0>();
 	/// assert_eq!(Some(&true), bits.last());
 	/// assert!(BitSlice::<Local, Word>::empty().last().is_none());
 	/// ```
@@ -303,12 +303,12 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	/// if let Some(mut last) = bits.last_mut() {
 	///     *last = true;
 	/// }
 	/// assert!(bits[7]);
-	pub fn last_mut(&mut self) -> Option<BitMut<C, T>> {
+	pub fn last_mut(&mut self) -> Option<BitMut<O, T>> {
 		match self.len() {
 			0 => None,
 			len => Some(self.at(len - 1)),
@@ -328,7 +328,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 1u8;
-	/// let bits = data.bits::<LittleEndian>();
+	/// let bits = data.bits::<Lsb0>();
 	/// assert_eq!(Some(&true), bits.get(0));
 	/// assert!(bits.get(8).is_none());
 	/// assert!(bits.get(1 ..).expect("in bounds").not_any());
@@ -337,8 +337,8 @@ where C: Cursor, T: BitStore {
 	pub fn get<'a, I>(
 		&'a self,
 		index: I,
-	) -> Option<<I as BitSliceIndex<'a, C, T>>::ImmutOutput>
-	where I: BitSliceIndex<'a, C, T> {
+	) -> Option<<I as BitSliceIndex<'a, O, T>>::ImmutOutput>
+	where I: BitSliceIndex<'a, O, T> {
 		index.get(self)
 	}
 
@@ -350,7 +350,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
-	/// let bits = data.bits_mut::<LittleEndian>();
+	/// let bits = data.bits_mut::<Lsb0>();
 	/// if let Some(mut bit) = bits.get_mut(1) {
 	///     *bit = true;
 	/// }
@@ -364,8 +364,8 @@ where C: Cursor, T: BitStore {
 	pub fn get_mut<'a, I>(
 		&'a mut self,
 		index: I,
-	) -> Option<<I as BitSliceIndex<'a, C, T>>::MutOutput>
-	where I: BitSliceIndex<'a, C, T> {
+	) -> Option<<I as BitSliceIndex<'a, O, T>>::MutOutput>
+	where I: BitSliceIndex<'a, O, T> {
 		index.get_mut(self)
 	}
 
@@ -386,7 +386,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 4u8;
-	/// let bits = data.bits::<LittleEndian>();
+	/// let bits = data.bits::<Lsb0>();
 	/// unsafe {
 	///     assert!(bits.get_unchecked(2));
 	///     assert!(!bits.get_unchecked(1));
@@ -397,8 +397,8 @@ where C: Cursor, T: BitStore {
 	pub unsafe fn get_unchecked<'a, I>(
 		&'a self,
 		index: I,
-	) -> <I as BitSliceIndex<'a, C, T>>::ImmutOutput
-	where I: BitSliceIndex<'a, C, T> {
+	) -> <I as BitSliceIndex<'a, O, T>>::ImmutOutput
+	where I: BitSliceIndex<'a, O, T> {
 		index.get_unchecked(self)
 	}
 
@@ -420,7 +420,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	/// unsafe {
 	///     let mut bit = bits.get_unchecked_mut(0);
 	///     *bit = true;
@@ -435,8 +435,8 @@ where C: Cursor, T: BitStore {
 	pub unsafe fn get_unchecked_mut<'a, I>(
 		&'a mut self,
 		index: I,
-	) -> <I as BitSliceIndex<'a, C, T>>::MutOutput
-	where I: BitSliceIndex<'a, C, T> {
+	) -> <I as BitSliceIndex<'a, O, T>>::MutOutput
+	where I: BitSliceIndex<'a, O, T> {
 		index.get_unchecked_mut(self)
 	}
 
@@ -465,7 +465,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = [0u8; 2];
-	/// let bits = data.bits::<BigEndian>();
+	/// let bits = data.bits::<Msb0>();
 	/// let (head, rest) = bits.split_at(4);
 	/// assert_eq!(head.as_ptr(), rest.as_ptr());
 	/// ```
@@ -496,7 +496,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = [0u8; 2];
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	/// let (head, rest) = bits.split_at_mut(4);
 	/// assert_eq!(head.as_mut_ptr(), rest.as_mut_ptr());
 	/// unsafe { *head.as_mut_ptr() = 2; }
@@ -522,7 +522,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 2u8;
-	/// let bits = data.bits_mut::<LittleEndian>();
+	/// let bits = data.bits_mut::<Lsb0>();
 	/// bits.swap(0, 1);
 	/// assert_eq!(data, 1);
 	/// ```
@@ -545,7 +545,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	/// let mut data = 0b1_1001100u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	/// bits[1 ..].reverse();
 	/// assert_eq!(data, 0b1_0011001);
 	/// ```
@@ -580,7 +580,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 3u8;
-	/// let bits = data.bits::<LittleEndian>();
+	/// let bits = data.bits::<Lsb0>();
 	/// let mut iter = bits[.. 4].iter();
 	/// assert_eq!(iter.next(), Some(&true));
 	/// assert_eq!(iter.next(), Some(&true));
@@ -588,7 +588,7 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(iter.next(), Some(&false));
 	/// assert!(iter.next().is_none());
 	/// ```
-	pub fn iter(&self) -> Iter<C, T> {
+	pub fn iter(&self) -> Iter<O, T> {
 		self.into_iter()
 	}
 
@@ -599,13 +599,13 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
-	/// let bits = &mut data.bits_mut::<LittleEndian>()[.. 2];
+	/// let bits = &mut data.bits_mut::<Lsb0>()[.. 2];
 	/// for mut bit in bits.iter_mut() {
 	///     *bit = true;
 	/// }
 	/// assert_eq!(data, 3);
 	/// ```
-	pub fn iter_mut(&mut self) -> IterMut<C, T> {
+	pub fn iter_mut(&mut self) -> IterMut<O, T> {
 		self.into_iter()
 	}
 
@@ -623,7 +623,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 0b100_010_01u8;
-	/// let bits = data.bits::<BigEndian>();
+	/// let bits = data.bits::<Msb0>();
 	/// let mut iter = bits[.. 5].windows(3);
 	/// assert_eq!(iter.next().unwrap(), &bits[0 .. 3]);
 	/// assert_eq!(iter.next().unwrap(), &bits[1 .. 4]);
@@ -639,7 +639,7 @@ where C: Cursor, T: BitStore {
 	/// let bits = data.bits::<Local>();
 	/// let mut iter = bits[.. 3].windows(4);
 	/// assert!(iter.next().is_none());
-	pub fn windows(&self, width: usize) -> Windows<C, T> {
+	pub fn windows(&self, width: usize) -> Windows<O, T> {
 		assert_ne!(width, 0, "Window width cannot be zero");
 		super::Windows {
 			inner: self,
@@ -667,7 +667,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 0b001_010_10u8;
-	/// let bits = data.bits::<BigEndian>();
+	/// let bits = data.bits::<Msb0>();
 	/// let mut iter = bits.chunks(3);
 	/// assert_eq!(iter.next().unwrap(), &bits[0 .. 3]);
 	/// assert_eq!(iter.next().unwrap(), &bits[3 .. 6]);
@@ -677,7 +677,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`chunks_exact`]: #method.chunks_exact
 	/// [`rchunks`]: #method.rchunks
-	pub fn chunks(&self, chunk_size: usize) -> Chunks<C, T> {
+	pub fn chunks(&self, chunk_size: usize) -> Chunks<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		super::Chunks {
 			inner: self,
@@ -705,7 +705,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	/// let mut count = 0;
 	///
 	/// for chunk in bits.chunks_mut(3) {
@@ -718,7 +718,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`chunks_exact_mut`]: #method.chunks_exact_mut
 	/// [`rchunks_mut`]: #method.rchunks_mut
-	pub fn chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<C, T> {
+	pub fn chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		super::ChunksMut {
 			inner: self,
@@ -750,7 +750,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 0b100_010_01u8;
-	/// let bits = data.bits::<BigEndian>();
+	/// let bits = data.bits::<Msb0>();
 	/// let mut iter = bits.chunks_exact(3);
 	/// assert_eq!(iter.next().unwrap(), &bits[0 .. 3]);
 	/// assert_eq!(iter.next().unwrap(), &bits[3 .. 6]);
@@ -760,7 +760,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`chunks`]: #method.chunks
 	/// [`rchunks_exact`]: #method.rchunks_exact
-	pub fn chunks_exact(&self, chunk_size: usize) -> ChunksExact<C, T> {
+	pub fn chunks_exact(&self, chunk_size: usize) -> ChunksExact<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		let len = self.len();
 		let rem = len % chunk_size;
@@ -798,7 +798,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	/// let mut count = 0u8;
 	///
 	/// let mut iter = bits.chunks_exact_mut(3);
@@ -813,7 +813,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`chunks_mut`]: #method.chunks_mut
 	/// [`rchunks_exact_mut`]: #method.rchunks_exact_mut
-	pub fn chunks_exact_mut(&mut self, chunk_size: usize) -> ChunksExactMut<C, T> {
+	pub fn chunks_exact_mut(&mut self, chunk_size: usize) -> ChunksExactMut<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		let len = self.len();
 		let rem = len % chunk_size;
@@ -846,7 +846,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 0b01_010_100u8;
-	/// let bits = data.bits::<BigEndian>();
+	/// let bits = data.bits::<Msb0>();
 	/// let mut iter = bits.rchunks(3);
 	/// assert_eq!(iter.next().unwrap(), &bits[5 .. 8]);
 	/// assert_eq!(iter.next().unwrap(), &bits[2 .. 5]);
@@ -856,7 +856,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`chunks`]: #method.chunks
 	/// [`rchunks_exact`]: #method.rchunks_exact
-	pub fn rchunks(&self, chunk_size: usize) -> RChunks<C, T> {
+	pub fn rchunks(&self, chunk_size: usize) -> RChunks<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		RChunks {
 			inner: self,
@@ -885,7 +885,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
-	/// let bits = data.bits_mut::<LittleEndian>();
+	/// let bits = data.bits_mut::<Lsb0>();
 	/// let mut count = 0;
 	///
 	/// for chunk in bits.rchunks_mut(3) {
@@ -898,7 +898,7 @@ where C: Cursor, T: BitStore {
 	///
 	/// [`chunks_mut`]: #method.chunks_mut
 	/// [`rchunks_exact_mut`]: #method.rchunks_exact_mut
-	pub fn rchunks_mut(&mut self, chunk_size: usize) -> RChunksMut<C, T> {
+	pub fn rchunks_mut(&mut self, chunk_size: usize) -> RChunksMut<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		RChunksMut {
 			inner: self,
@@ -930,7 +930,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 0b100_010_01u8;
-	/// let bits = data.bits::<LittleEndian>();
+	/// let bits = data.bits::<Lsb0>();
 	/// let mut iter = bits.rchunks_exact(3);
 	/// assert_eq!(iter.next().unwrap(), &bits[5 .. 8]);
 	/// assert_eq!(iter.next().unwrap(), &bits[2 .. 5]);
@@ -941,7 +941,7 @@ where C: Cursor, T: BitStore {
 	/// [`chunks`]: #method.chunks
 	/// [`rchunks`]: #method.rchunks
 	/// [`chunks_exact`]: #method.chunks_exact
-	pub fn rchunks_exact(&self, chunk_size: usize) -> RChunksExact<C, T> {
+	pub fn rchunks_exact(&self, chunk_size: usize) -> RChunksExact<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		let (extra, inner) = self.split_at(self.len() % chunk_size);
 		RChunksExact {
@@ -976,7 +976,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
-	/// let bits = data.bits_mut::<LittleEndian>();
+	/// let bits = data.bits_mut::<Lsb0>();
 	/// let mut count = 0;
 	/// let mut iter = bits.rchunks_exact_mut(3);
 	///
@@ -992,7 +992,7 @@ where C: Cursor, T: BitStore {
 	/// [`chunks_mut`]: #method.chunks_mut
 	/// [`rchunks_mut`]: #method.rchunks_mut
 	/// [`chunks_exact_mut`]: #method.chunks_exact_mut
-	pub fn rchunks_exact_mut(&mut self, chunk_size: usize) -> RChunksExactMut<C, T> {
+	pub fn rchunks_exact_mut(&mut self, chunk_size: usize) -> RChunksExactMut<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		let (extra, inner) = self.split_at_mut(self.len() % chunk_size);
 		RChunksExactMut {
@@ -1017,7 +1017,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 0x0Fu8;
-	/// let bits = data.bits::<BigEndian>();
+	/// let bits = data.bits::<Msb0>();
 	///
 	/// {
 	///     let (left, right) = bits.split_at(0);
@@ -1058,7 +1058,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0x0Fu8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	///
 	/// let (left, right) = bits.split_at_mut(4);
 	/// assert!(left.not_any());
@@ -1090,7 +1090,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 0b01_001_000u8;
-	/// let bits = data.bits::<BigEndian>();
+	/// let bits = data.bits::<Msb0>();
 	/// let mut iter = bits.split(|pos, bit| *bit);
 	///
 	/// assert_eq!(iter.next().unwrap(), &bits[0 .. 1]);
@@ -1107,7 +1107,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 1u8;
-	/// let bits = data.bits::<BigEndian>();
+	/// let bits = data.bits::<Msb0>();
 	/// let mut iter = bits.split(|pos, bit| *bit);
 	///
 	/// assert_eq!(iter.next().unwrap(), &bits[0 .. 7]);
@@ -1121,7 +1121,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 0b001_100_00u8;
-	/// let bits = data.bits::<BigEndian>();
+	/// let bits = data.bits::<Msb0>();
 	/// let mut iter = bits.split(|pos, bit| *bit);
 	///
 	/// assert_eq!(iter.next().unwrap(), &bits[0 .. 2]);
@@ -1131,7 +1131,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	///
 	/// [`slice::split`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.split
-	pub fn split<F>(&self, func: F) -> Split<'_, C, T, F>
+	pub fn split<F>(&self, func: F) -> Split<'_, O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		Split {
 			inner: self,
@@ -1158,7 +1158,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0b001_000_10u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	///
 	/// for group in bits.split_mut(|pos, bit| *bit) {
 	///     *group.at(0) = true;
@@ -1167,7 +1167,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	///
 	/// [`slice::split_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.split_muts
-	pub fn split_mut<F>(&mut self, func: F) -> SplitMut<'_, C, T, F>
+	pub fn split_mut<F>(&mut self, func: F) -> SplitMut<'_, O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		SplitMut {
 			inner: self,
@@ -1195,7 +1195,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 0b0001_0000u8;
-	/// let bits = data.bits::<BigEndian>();
+	/// let bits = data.bits::<Msb0>();
 	/// let mut iter = bits.rsplit(|pos, bit| *bit);
 	///
 	/// assert_eq!(iter.next().unwrap(), &bits[4 .. 8]);
@@ -1209,7 +1209,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 0b1001_0001u8;
-	/// let bits = data.bits::<BigEndian>();
+	/// let bits = data.bits::<Msb0>();
 	/// let mut iter = bits.rsplit(|pos, bit| *bit);
 	/// assert!(iter.next().unwrap().is_empty());
 	/// assert_eq!(iter.next().unwrap(), &bits[4 .. 7]);
@@ -1219,7 +1219,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	///
 	/// [`slice::rsplit`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplit
-	pub fn rsplit<F>(&self, func: F) -> RSplit<'_, C, T, F>
+	pub fn rsplit<F>(&self, func: F) -> RSplit<'_, O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplit {
 			inner: self.split(func),
@@ -1245,7 +1245,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	///
 	/// let mut count = 0u8;
 	/// for group in bits.rsplit_mut(|pos, bit| pos % 3 == 2) {
@@ -1256,7 +1256,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	///
 	/// [`slice::rsplit_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplit_mut
-	pub fn rsplit_mut<F>(&mut self, func: F) -> RSplitMut<'_, C, T, F>
+	pub fn rsplit_mut<F>(&mut self, func: F) -> RSplitMut<'_, O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplitMut {
 			inner: self.split_mut(func),
@@ -1286,7 +1286,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 0xA5u8;
-	/// let bits = data.bits::<BigEndian>();
+	/// let bits = data.bits::<Msb0>();
 	///
 	/// for group in bits.splitn(2, |pos, bit| pos % 3 == 2) {
 	///     println!("{}", group);
@@ -1296,7 +1296,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	///
 	/// [`slice::splitn`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.splitn
-	pub fn splitn<F>(&self, n: usize, func: F) -> SplitN<'_, C, T, F>
+	pub fn splitn<F>(&self, n: usize, func: F) -> SplitN<'_, O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		SplitN {
 			inner: GenericSplitN {
@@ -1327,7 +1327,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	/// let mut counter = 0u8;
 	///
 	/// for group in bits.splitn_mut(2, |pos, bit| pos % 4 == 3) {
@@ -1338,7 +1338,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	///
 	/// [`slice::splitn_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.splitn_mut
-	pub fn splitn_mut<F>(&mut self, n: usize, func: F) -> SplitNMut<'_, C, T, F>
+	pub fn splitn_mut<F>(&mut self, n: usize, func: F) -> SplitNMut<'_, O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		SplitNMut {
 			inner: GenericSplitN {
@@ -1373,7 +1373,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 0xA5u8;
-	/// let bits = data.bits::<BigEndian>();
+	/// let bits = data.bits::<Msb0>();
 	///
 	/// for group in bits.rsplitn(2, |pos, bit| pos % 3 == 2) {
 	///     println!("{}", group);
@@ -1383,7 +1383,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	///
 	/// [`slice::rsplitn`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplitn
-	pub fn rsplitn<F>(&self, n: usize, func: F) -> RSplitN<'_, C, T, F>
+	pub fn rsplitn<F>(&self, n: usize, func: F) -> RSplitN<'_, O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplitN {
 			inner: GenericSplitN {
@@ -1415,7 +1415,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	/// let mut counter = 0u8;
 	///
 	/// for group in bits.rsplitn_mut(2, |pos, bit| pos % 3 == 2) {
@@ -1426,7 +1426,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	///
 	/// [`slice::rsplitn_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplitn_mut
-	pub fn rsplitn_mut<F>(&mut self, n: usize, func: F) -> RSplitNMut<'_, C, T, F>
+	pub fn rsplitn_mut<F>(&mut self, n: usize, func: F) -> RSplitNMut<'_, O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplitNMut {
 			inner: GenericSplitN {
@@ -1451,8 +1451,8 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 0b0101_1010u8;
-	/// let bits_be = data.bits::<BigEndian>();
-	/// let bits_le = data.bits::<LittleEndian>();
+	/// let bits_be = data.bits::<Msb0>();
+	/// let bits_le = data.bits::<Lsb0>();
 	/// assert!(bits_be.contains(&bits_le[1 .. 5]));
 	/// ```
 	///
@@ -1460,8 +1460,8 @@ where C: Cursor, T: BitStore {
 	/// does not need to have the same type parameters as the searched slice.
 	///
 	/// [`slice::contains`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.contains
-	pub fn contains<D, U>(&self, query: &BitSlice<D, U>) -> bool
-	where D: Cursor, U: BitStore {
+	pub fn contains<P, U>(&self, query: &BitSlice<P, U>) -> bool
+	where P: BitOrder, U: BitStore {
 		let len = query.len();
 		if len > self.len() {
 			return false;
@@ -1476,11 +1476,11 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 0b0110_1110u8;
-	/// let bits = data.bits::<BigEndian>();
-	/// assert!(bits.starts_with(&data.bits::<LittleEndian>()[.. 2]));
+	/// let bits = data.bits::<Msb0>();
+	/// assert!(bits.starts_with(&data.bits::<Lsb0>()[.. 2]));
 	/// ```
-	pub fn starts_with<D, U>(&self, prefix: &BitSlice<D, U>) -> bool
-	where D: Cursor, U: BitStore {
+	pub fn starts_with<P, U>(&self, prefix: &BitSlice<P, U>) -> bool
+	where P: BitOrder, U: BitStore {
 		let plen = prefix.len();
 		self.len() >= plen && prefix == unsafe { self.get_unchecked(.. plen) }
 	}
@@ -1492,11 +1492,11 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let data = 0b0111_1010u8;
-	/// let bits = data.bits::<BigEndian>();
-	/// assert!(bits.ends_with(&data.bits::<LittleEndian>()[6 ..]));
+	/// let bits = data.bits::<Msb0>();
+	/// assert!(bits.ends_with(&data.bits::<Lsb0>()[6 ..]));
 	/// ```
-	pub fn ends_with<D, U>(&self, suffix: &BitSlice<D, U>) -> bool
-	where D: Cursor, U: BitStore, {
+	pub fn ends_with<P, U>(&self, suffix: &BitSlice<P, U>) -> bool
+	where P: BitOrder, U: BitStore, {
 		let slen = suffix.len();
 		let len = self.len();
 		len >= slen && suffix == unsafe { self.get_unchecked(len - slen ..) }
@@ -1522,7 +1522,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0xF0u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	/// bits.rotate_left(2);
 	/// assert_eq!(data, 0xC3);
 	/// ```
@@ -1532,7 +1532,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0xF0u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	/// bits[1 .. 5].rotate_left(1);
 	/// assert_eq!(data, 0b1_1101_000);
 	/// ```
@@ -1574,7 +1574,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0xF0u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	/// bits.rotate_right(2);
 	/// assert_eq!(data, 0x3C);
 	/// ```
@@ -1584,7 +1584,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0xF0u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	/// bits[1 .. 5].rotate_right(1);
 	/// assert_eq!(data, 0b1_0111_000);
 	/// ```
@@ -1622,8 +1622,8 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
-	/// let bits = data.bits_mut::<BigEndian>();
-	/// let src = 0x0Fu16.bits::<LittleEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
+	/// let src = 0x0Fu16.bits::<Lsb0>();
 	/// bits.clone_from_slice(&src[.. 8]);
 	/// assert_eq!(data, 0xF0);
 	/// ```
@@ -1636,7 +1636,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust,compile_fail
 	/// # use bitvec::prelude::*;
 	/// let mut data = 3u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	/// bits[.. 2].clone_from_slice(&bits[6 ..]);
 	/// ```
 	///
@@ -1646,13 +1646,13 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 3u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	/// let (head, tail) = bits.split_at_mut(4);
 	/// head.clone_from_slice(tail);
 	/// assert_eq!(data, 0x33);
 	/// ```
-	pub fn clone_from_slice<D, U>(&mut self, src: &BitSlice<D, U>)
-	where D: Cursor, U: BitStore {
+	pub fn clone_from_slice<P, U>(&mut self, src: &BitSlice<P, U>)
+	where P: BitOrder, U: BitStore {
 		assert_eq!(
 			self.len(),
 			src.len(),
@@ -1678,8 +1678,8 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 0u8;
-	/// let bits = data.bits_mut::<BigEndian>();
-	/// let src = 0x0Fu8.bits::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
+	/// let src = 0x0Fu8.bits::<Msb0>();
 	/// bits.copy_from_slice(src);
 	/// assert_eq!(data, 0x0F);
 	/// ```
@@ -1692,7 +1692,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust,compile_fail
 	/// # use bitvec::prelude::*;
 	/// let mut data = 3u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	/// bits[.. 2].copy_from_slice(&bits[6 ..]);
 	/// ```
 	///
@@ -1702,7 +1702,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 3u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	/// let (head, tail) = bits.split_at_mut(4);
 	/// head.copy_from_slice(tail);
 	/// assert_eq!(data, 0x33);
@@ -1733,8 +1733,8 @@ where C: Cursor, T: BitStore {
 	/// # use bitvec::prelude::*;
 	/// let mut a = 0u8;
 	/// let mut b = 0x96A5u16;
-	/// let bits_a = a.bits_mut::<LittleEndian>();
-	/// let bits_b = b.bits_mut::<BigEndian>();
+	/// let bits_a = a.bits_mut::<Lsb0>();
+	/// let bits_b = b.bits_mut::<Msb0>();
 	///
 	/// bits_a.swap_with_slice(&mut bits_b[4 .. 12]);
 	///
@@ -1750,7 +1750,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust,compile_fail
 	/// # use bitvec::prelude::*;
 	/// let mut data = 15u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	/// bits[.. 3].swap_with_slice(&mut bits[5 ..]);
 	/// ```
 	///
@@ -1760,7 +1760,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut data = 15u8;
-	/// let bits = data.bits_mut::<BigEndian>();
+	/// let bits = data.bits_mut::<Msb0>();
 	///
 	/// {
 	///     let (left, right) = bits.split_at_mut(4);
@@ -1769,8 +1769,8 @@ where C: Cursor, T: BitStore {
 	///
 	/// assert_eq!(data, 0xCC);
 	/// ```
-	pub fn swap_with_slice<D, U>(&mut self, other: &mut BitSlice<D, U>)
-	where D: Cursor, U: BitStore {
+	pub fn swap_with_slice<P, U>(&mut self, other: &mut BitSlice<P, U>)
+	where P: BitOrder, U: BitStore {
 		assert_eq!(
 			self.len(),
 			other.len(),
@@ -1821,7 +1821,7 @@ where C: Cursor, T: BitStore {
 	///     }
 	/// }
 	/// ```
-	pub unsafe fn align_to<U>(&self) -> (&Self, &BitSlice<C, U>, &Self)
+	pub unsafe fn align_to<U>(&self) -> (&Self, &BitSlice<O, U>, &Self)
 	where U: BitStore {
 		let bitptr = self.bitptr();
 		let (l, c, r) = bitptr.as_slice().align_to::<U>();
@@ -1862,7 +1862,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	pub unsafe fn align_to_mut<U>(&mut self) -> (
 		&mut Self,
-		&mut BitSlice<C, U>,
+		&mut BitSlice<O, U>,
 		&mut Self,
 	)
 	where U: BitStore {
@@ -1886,7 +1886,7 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(bits, vec);
 	/// ```
 	#[cfg(feature = "alloc")]
-	pub fn to_vec(&self) -> BitVec<C, T> {
+	pub fn to_vec(&self) -> BitVec<O, T> {
 		BitVec::from_bitslice(self)
 	}
 }
@@ -1901,8 +1901,8 @@ There is no tracking issue for `feature(slice_index_methods)`.
 
 [`slice::SliceIndex`]: https://doc.rust-lang.org/stable/core/slice/trait.SliceIndex.html
 **/
-pub trait BitSliceIndex<'a, C, T>
-where C: 'a + Cursor, T: 'a + BitStore {
+pub trait BitSliceIndex<'a, O, T>
+where O: 'a + BitOrder, T: 'a + BitStore {
 	/// Immutable output type.
 	type ImmutOutput;
 
@@ -1921,7 +1921,7 @@ where C: 'a + Cursor, T: 'a + BitStore {
 	/// # Returns
 	///
 	/// An immutable output, if `self` is in bounds; otherwise `None`.
-	fn get(self, slice: &'a BitSlice<C, T>) -> Option<Self::ImmutOutput>;
+	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::ImmutOutput>;
 
 	/// Returns a mutable reference to the output at this location, if in
 	/// bounds.
@@ -1934,7 +1934,7 @@ where C: 'a + Cursor, T: 'a + BitStore {
 	/// # Returns
 	///
 	/// A mutable output, if `self` is in bounds; otherwise `None`.
-	fn get_mut(self, slice: &'a mut BitSlice<C, T>) -> Option<Self::MutOutput>;
+	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::MutOutput>;
 
 	/// Returns a shared reference to the output at this location, without
 	/// performing any bounds checking.
@@ -1954,7 +1954,7 @@ where C: 'a + Cursor, T: 'a + BitStore {
 	/// ensure that `self` is an index within the boundaries of `slice` before
 	/// calling in order to avoid boundary escapes and ensuing safety
 	/// violations.
-	unsafe fn get_unchecked(self, slice: &'a BitSlice<C, T>) -> Self::ImmutOutput;
+	unsafe fn get_unchecked(self, slice: &'a BitSlice<O, T>) -> Self::ImmutOutput;
 
 	/// Returns a mutable reference to the output at this location, without
 	/// performing any bounds checking.
@@ -1974,7 +1974,7 @@ where C: 'a + Cursor, T: 'a + BitStore {
 	/// ensure that `self` is an index within the boundaries of `slice` before
 	/// calling in order to avoid boundary escapes and ensuing safety
 	/// violations.
-	unsafe fn get_unchecked_mut(self, slice: &'a mut BitSlice<C, T>) -> Self::MutOutput;
+	unsafe fn get_unchecked_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::MutOutput;
 
 	/// Returns a shared reference to the output at this location, panicking if
 	/// out of bounds.
@@ -1991,7 +1991,7 @@ where C: 'a + Cursor, T: 'a + BitStore {
 	/// # Panics
 	///
 	/// This panics if `self` is out of bounds of `slice`.
-	fn index(self, slice: &'a BitSlice<C, T>) -> Self::ImmutOutput;
+	fn index(self, slice: &'a BitSlice<O, T>) -> Self::ImmutOutput;
 
 	/// Returns a mutable reference to the output at this location, panicking if
 	/// out of bounds.
@@ -2008,15 +2008,15 @@ where C: 'a + Cursor, T: 'a + BitStore {
 	/// # Panics
 	///
 	/// This panics if `self` is out of bounds of `slice`.
-	fn index_mut(self, slice: &'a mut BitSlice<C, T>) -> Self::MutOutput;
+	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::MutOutput;
 }
 
-impl<'a, C, T> BitSliceIndex<'a, C, T> for usize
-where C: 'a + Cursor, T: 'a + BitStore {
+impl<'a, O, T> BitSliceIndex<'a, O, T> for usize
+where O: 'a + BitOrder, T: 'a + BitStore {
 	type ImmutOutput = &'a bool;
-	type MutOutput = BitMut<'a, C, T>;
+	type MutOutput = BitMut<'a, O, T>;
 
-	fn get(self, slice: &'a BitSlice<C, T>) -> Option<Self::ImmutOutput> {
+	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::ImmutOutput> {
 		if self >= slice.len() {
 			None
 		}
@@ -2025,7 +2025,7 @@ where C: 'a + Cursor, T: 'a + BitStore {
 		}
 	}
 
-	fn get_mut(self, slice: &'a mut BitSlice<C, T>) -> Option<Self::MutOutput> {
+	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::MutOutput> {
 		if self < slice.len() {
 			Some(slice.at(self))
 		}
@@ -2036,13 +2036,13 @@ where C: 'a + Cursor, T: 'a + BitStore {
 
 	unsafe fn get_unchecked(
 		self,
-		slice: &'a BitSlice<C, T>,
+		slice: &'a BitSlice<O, T>,
 	) -> Self::ImmutOutput {
 		let bitptr = slice.bitptr();
 		let (elt, bit) = bitptr.head().offset(self as isize);
 		let data_ptr = bitptr.pointer().a();
 
-		if (&*data_ptr.offset(elt)).get::<C>(bit) {
+		if (&*data_ptr.offset(elt)).get::<O>(bit) {
 			&true
 		}
 		else {
@@ -2052,29 +2052,29 @@ where C: 'a + Cursor, T: 'a + BitStore {
 
 	unsafe fn get_unchecked_mut(
 		self,
-		slice: &'a mut BitSlice<C, T>,
+		slice: &'a mut BitSlice<O, T>,
 	) -> Self::MutOutput {
 		slice.at_unchecked(self)
 	}
 
-	fn index(self, slice: &'a BitSlice<C, T>) -> Self::ImmutOutput {
+	fn index(self, slice: &'a BitSlice<O, T>) -> Self::ImmutOutput {
 		match self.get(slice) {
 			None => panic!("Index {} out of bounds: {}", self, slice.len()),
 			Some(out) => out,
 		}
 	}
 
-	fn index_mut(self, slice: &'a mut BitSlice<C, T>) -> Self::MutOutput {
+	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::MutOutput {
 		slice.at(self)
 	}
 }
 
-impl<'a, C, T> BitSliceIndex<'a, C, T> for Range<usize>
-where C: 'a + Cursor, T: 'a + BitStore {
-	type ImmutOutput = &'a BitSlice<C, T>;
-	type MutOutput = &'a mut BitSlice<C, T>;
+impl<'a, O, T> BitSliceIndex<'a, O, T> for Range<usize>
+where O: 'a + BitOrder, T: 'a + BitStore {
+	type ImmutOutput = &'a BitSlice<O, T>;
+	type MutOutput = &'a mut BitSlice<O, T>;
 
-	fn get(self, slice: &'a BitSlice<C, T>) -> Option<Self::ImmutOutput> {
+	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::ImmutOutput> {
 		let Range { start, end } = self;
 		let len = slice.len();
 		if start > len || end > len || start > end {
@@ -2084,13 +2084,13 @@ where C: 'a + Cursor, T: 'a + BitStore {
 		Some(unsafe { self.get_unchecked(slice) })
 	}
 
-	fn get_mut(self, slice: &'a mut BitSlice<C, T>) -> Option<Self::MutOutput> {
-		self.get(slice).map(|s| s.bitptr().into_bitslice_mut::<C>())
+	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::MutOutput> {
+		self.get(slice).map(|s| s.bitptr().into_bitslice_mut::<O>())
 	}
 
 	unsafe fn get_unchecked(
 		self,
-		slice: &'a BitSlice<C, T>,
+		slice: &'a BitSlice<O, T>,
 	) -> Self::ImmutOutput {
 		let Range { start, end } = self;
 		let (data, head, _) = slice.bitptr().raw_parts();
@@ -2102,206 +2102,206 @@ where C: 'a + Cursor, T: 'a + BitStore {
 			data.r().offset(skip),
 			new_head,
 			new_bits,
-		).into_bitslice::<C>()
+		).into_bitslice::<O>()
 	}
 
 	unsafe fn get_unchecked_mut(
 		self,
-		slice: &'a mut BitSlice<C, T>,
+		slice: &'a mut BitSlice<O, T>,
 	) -> Self::MutOutput {
-		self.get_unchecked(slice).bitptr().into_bitslice_mut::<C>()
+		self.get_unchecked(slice).bitptr().into_bitslice_mut::<O>()
 	}
 
-	fn index(self, slice: &'a BitSlice<C, T>) -> Self::ImmutOutput {
+	fn index(self, slice: &'a BitSlice<O, T>) -> Self::ImmutOutput {
 		match self.clone().get(slice) {
 			None => panic!("Range {:?} exceeds slice length {}", self, slice.len()),
 			Some(out) => out,
 		}
 	}
 
-	fn index_mut(self, slice: &'a mut BitSlice<C, T>) -> Self::MutOutput {
-		self.index(slice).bitptr().into_bitslice_mut::<C>()
+	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::MutOutput {
+		self.index(slice).bitptr().into_bitslice_mut::<O>()
 	}
 }
 
 #[allow(clippy::range_plus_one)] // An inclusive range cannot be used here
-impl<'a, C, T> BitSliceIndex<'a, C, T> for RangeInclusive<usize>
-where C: 'a + Cursor, T: 'a + BitStore {
-	type ImmutOutput = &'a BitSlice<C, T>;
-	type MutOutput = &'a mut BitSlice<C, T>;
+impl<'a, O, T> BitSliceIndex<'a, O, T> for RangeInclusive<usize>
+where O: 'a + BitOrder, T: 'a + BitStore {
+	type ImmutOutput = &'a BitSlice<O, T>;
+	type MutOutput = &'a mut BitSlice<O, T>;
 
-	fn get(self, slice: &'a BitSlice<C, T>) -> Option<Self::ImmutOutput> {
+	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::ImmutOutput> {
 		(*self.start() .. *self.end() + 1).get(slice)
 	}
 
-	fn get_mut(self, slice: &'a mut BitSlice<C, T>) -> Option<Self::MutOutput> {
+	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::MutOutput> {
 		(*self.start() .. *self.end() + 1).get_mut(slice)
 	}
 
 	unsafe fn get_unchecked(
 		self,
-		slice: &'a BitSlice<C, T>,
+		slice: &'a BitSlice<O, T>,
 	) -> Self::ImmutOutput {
 		(*self.start() .. *self.end() + 1).get_unchecked(slice)
 	}
 
 	unsafe fn get_unchecked_mut(
 		self,
-		slice: &'a mut BitSlice<C, T>,
+		slice: &'a mut BitSlice<O, T>,
 	) -> Self::MutOutput {
 		(*self.start() .. *self.end() + 1).get_unchecked_mut(slice)
 	}
 
-	fn index(self, slice: &'a BitSlice<C, T>) -> Self::ImmutOutput {
+	fn index(self, slice: &'a BitSlice<O, T>) -> Self::ImmutOutput {
 		(*self.start() .. *self.end() + 1).index(slice)
 	}
 
-	fn index_mut(self, slice: &'a mut BitSlice<C, T>) -> Self::MutOutput {
+	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::MutOutput {
 		(*self.start() .. *self.end() + 1).index_mut(slice)
 	}
 }
 
-impl<'a, C, T> BitSliceIndex<'a, C, T> for RangeFrom<usize>
-where C: 'a + Cursor, T: 'a + BitStore {
-	type ImmutOutput = &'a BitSlice<C, T>;
-	type MutOutput = &'a mut BitSlice<C, T>;
+impl<'a, O, T> BitSliceIndex<'a, O, T> for RangeFrom<usize>
+where O: 'a + BitOrder, T: 'a + BitStore {
+	type ImmutOutput = &'a BitSlice<O, T>;
+	type MutOutput = &'a mut BitSlice<O, T>;
 
-	fn get(self, slice: &'a BitSlice<C, T>) -> Option<Self::ImmutOutput> {
+	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::ImmutOutput> {
 		(self.start .. slice.len()).get(slice)
 	}
 
-	fn get_mut(self, slice: &'a mut BitSlice<C, T>) -> Option<Self::MutOutput> {
+	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::MutOutput> {
 		(self.start .. slice.len()).get_mut(slice)
 	}
 
 	unsafe fn get_unchecked(
 		self,
-		slice: &'a BitSlice<C, T>,
+		slice: &'a BitSlice<O, T>,
 	) -> Self::ImmutOutput {
 		(self.start .. slice.len()).get_unchecked(slice)
 	}
 
 	unsafe fn get_unchecked_mut(
 		self,
-		slice: &'a mut BitSlice<C, T>,
+		slice: &'a mut BitSlice<O, T>,
 	) -> Self::MutOutput {
 		(self.start .. slice.len()).get_unchecked_mut(slice)
 	}
 
-	fn index(self, slice: &'a BitSlice<C, T>) -> Self::ImmutOutput {
+	fn index(self, slice: &'a BitSlice<O, T>) -> Self::ImmutOutput {
 		(self.start .. slice.len()).index(slice)
 	}
 
-	fn index_mut(self, slice: &'a mut BitSlice<C, T>) -> Self::MutOutput {
+	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::MutOutput {
 		(self.start .. slice.len()).index_mut(slice)
 	}
 }
 
-impl<'a, C, T> BitSliceIndex<'a, C, T> for RangeFull
-where C: 'a + Cursor, T: 'a + BitStore {
-	type ImmutOutput = &'a BitSlice<C, T>;
-	type MutOutput = &'a mut BitSlice<C, T>;
+impl<'a, O, T> BitSliceIndex<'a, O, T> for RangeFull
+where O: 'a + BitOrder, T: 'a + BitStore {
+	type ImmutOutput = &'a BitSlice<O, T>;
+	type MutOutput = &'a mut BitSlice<O, T>;
 
-	fn get(self, slice: &'a BitSlice<C, T>) -> Option<Self::ImmutOutput> {
+	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::ImmutOutput> {
 		Some(slice)
 	}
 
-	fn get_mut(self, slice: &'a mut BitSlice<C, T>) -> Option<Self::MutOutput> {
+	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::MutOutput> {
 		Some(slice)
 	}
 
 	unsafe fn get_unchecked(
 		self,
-		slice: &'a BitSlice<C, T>,
+		slice: &'a BitSlice<O, T>,
 	) -> Self::ImmutOutput {
 		slice
 	}
 
 	unsafe fn get_unchecked_mut(
 		self,
-		slice: &'a mut BitSlice<C, T>,
+		slice: &'a mut BitSlice<O, T>,
 	) -> Self::MutOutput {
 		slice
 	}
 
-	fn index(self, slice: &'a BitSlice<C, T>) -> Self::ImmutOutput {
+	fn index(self, slice: &'a BitSlice<O, T>) -> Self::ImmutOutput {
 		slice
 	}
 
-	fn index_mut(self, slice: &'a mut BitSlice<C, T>) -> Self::MutOutput {
+	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::MutOutput {
 		slice
 	}
 }
 
-impl<'a, C, T> BitSliceIndex<'a, C, T> for RangeTo<usize>
-where C: 'a + Cursor, T: 'a + BitStore {
-	type ImmutOutput = &'a BitSlice<C, T>;
-	type MutOutput = &'a mut BitSlice<C, T>;
+impl<'a, O, T> BitSliceIndex<'a, O, T> for RangeTo<usize>
+where O: 'a + BitOrder, T: 'a + BitStore {
+	type ImmutOutput = &'a BitSlice<O, T>;
+	type MutOutput = &'a mut BitSlice<O, T>;
 
-	fn get(self, slice: &'a BitSlice<C, T>) -> Option<Self::ImmutOutput> {
+	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::ImmutOutput> {
 		(0 .. self.end).get(slice)
 	}
 
-	fn get_mut(self, slice: &'a mut BitSlice<C, T>) -> Option<Self::MutOutput> {
+	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::MutOutput> {
 		(0 .. self.end).get_mut(slice)
 	}
 
 	unsafe fn get_unchecked(
 		self,
-		slice: &'a BitSlice<C, T>,
+		slice: &'a BitSlice<O, T>,
 	) -> Self::ImmutOutput {
 		(0 .. self.end).get_unchecked(slice)
 	}
 
 	unsafe fn get_unchecked_mut(
 		self,
-		slice: &'a mut BitSlice<C, T>,
+		slice: &'a mut BitSlice<O, T>,
 	) -> Self::MutOutput {
 		(0 .. self.end).get_unchecked_mut(slice)
 	}
 
-	fn index(self, slice: &'a BitSlice<C, T>) -> Self::ImmutOutput {
+	fn index(self, slice: &'a BitSlice<O, T>) -> Self::ImmutOutput {
 		(0 .. self.end).index(slice)
 	}
 
-	fn index_mut(self, slice: &'a mut BitSlice<C, T>) -> Self::MutOutput {
+	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::MutOutput {
 		(0 .. self.end).index_mut(slice)
 	}
 }
 
 #[allow(clippy::range_plus_one)] // An inclusive range cannot be used here
-impl<'a, C, T> BitSliceIndex<'a, C, T> for RangeToInclusive<usize>
-where C: 'a + Cursor, T: 'a + BitStore {
-	type ImmutOutput = &'a BitSlice<C, T>;
-	type MutOutput = &'a mut BitSlice<C, T>;
+impl<'a, O, T> BitSliceIndex<'a, O, T> for RangeToInclusive<usize>
+where O: 'a + BitOrder, T: 'a + BitStore {
+	type ImmutOutput = &'a BitSlice<O, T>;
+	type MutOutput = &'a mut BitSlice<O, T>;
 
-	fn get(self, slice: &'a BitSlice<C, T>) -> Option<Self::ImmutOutput> {
+	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::ImmutOutput> {
 		(0 .. self.end + 1).get(slice)
 	}
 
-	fn get_mut(self, slice: &'a mut BitSlice<C, T>) -> Option<Self::MutOutput> {
+	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::MutOutput> {
 		(0 .. self.end + 1).get_mut(slice)
 	}
 
 	unsafe fn get_unchecked(
 		self,
-		slice: &'a BitSlice<C, T>,
+		slice: &'a BitSlice<O, T>,
 	) -> Self::ImmutOutput {
 		(0 .. self.end + 1).get_unchecked(slice)
 	}
 
 	unsafe fn get_unchecked_mut(
 		self,
-		slice: &'a mut BitSlice<C, T>,
+		slice: &'a mut BitSlice<O, T>,
 	) -> Self::MutOutput {
 		(0 .. self.end + 1).get_unchecked_mut(slice)
 	}
 
-	fn index(self, slice: &'a BitSlice<C, T>) -> Self::ImmutOutput {
+	fn index(self, slice: &'a BitSlice<O, T>) -> Self::ImmutOutput {
 		(0 .. self.end + 1).index(slice)
 	}
 
-	fn index_mut(self, slice: &'a mut BitSlice<C, T>) -> Self::MutOutput {
+	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::MutOutput {
 		(0 .. self.end + 1).index_mut(slice)
 	}
 }

@@ -32,10 +32,7 @@ square 25x25.
 extern crate bitvec;
 
 #[cfg(feature = "std")]
-use bitvec::prelude::{
-	BigEndian,
-	bitvec,
-};
+use bitvec::prelude::bitvec;
 
 #[cfg(feature = "std")]
 use std::{
@@ -52,7 +49,7 @@ fn main() {
 		.unwrap_or(1_000_000);
 
 	let primes = {
-		let mut bv = bitvec![BigEndian, u64; 1; max];
+		let mut bv = bitvec![1; max];
 
 		//  0 and 1 are not primes
 		bv.set(0, false);

@@ -7,8 +7,8 @@ the more appropriate and useful type for most collections.
 #![cfg(feature = "alloc")]
 
 use crate::{
-	cursor::{
-		Cursor,
+	order::{
+		BitOrder,
 		Local,
 	},
 	pointer::BitPtr,
@@ -38,7 +38,7 @@ can. It is useful for fixed-size collections without lifetime tracking.
 
 # Type Parameters
 
-- `C: Cursor`: An implementor of the [`Cursor`] trait. This type is used to
+- `O: BitOrder`: An implementor of the [`BitOrder`] trait. This type is used to
   convert semantic indices into concrete bit positions in elements, and store or
   retrieve bit values from the storage type.
 - `T: BitStore`: An implementor of the [`BitStore`] trait: `u8`, `u16`, `u32`,
@@ -54,19 +54,19 @@ it is ***extremely binary incompatible*** with them. Attempting to treat
 
 # Trait Implementations
 
-`BitBox<C, T>` implements all the traits that `BitSlice<C, T>` does, by
+`BitBox<O, T>` implements all the traits that `BitSlice<O, T>` does, by
 deferring to the `BitSlice` implementation. It also implements conversion traits
 to and from `BitSlice`, and to/from `BitVec`.
 **/
 #[repr(C)]
-pub struct BitBox<C = Local, T = Word>
-where C: Cursor, T: BitStore {
-	_cursor: PhantomData<C>,
+pub struct BitBox<O = Local, T = Word>
+where O: BitOrder, T: BitStore {
+	_order: PhantomData<O>,
 	pointer: BitPtr<T>,
 }
 
-impl<C, T> BitBox<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> BitBox<O, T>
+where O: BitOrder, T: BitStore {
 	/// Constructs an empty boxed bitslice.
 	///
 	/// # Returns
@@ -83,7 +83,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	pub fn empty() -> Self {
 		Self {
-			_cursor: PhantomData,
+			_order: PhantomData,
 			pointer: BitPtr::empty(),
 		}
 	}
@@ -103,11 +103,11 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bb: BitBox<BigEndian, u16> = BitBox::from_element(!0);
+	/// let bb: BitBox<Msb0, u16> = BitBox::from_element(!0);
 	/// assert!(bb.all());
 	/// ```
 	pub fn from_element(elt: T) -> Self {
-		BitSlice::<C, T>::from_element(&elt).into()
+		BitSlice::<O, T>::from_element(&elt).into()
 	}
 
 	/// Builds a `BitBox` from a borrowed slice of elements.
@@ -131,7 +131,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = [5, 10];
-	/// let bb: BitBox<BigEndian, u8> = BitBox::from_slice(&src[..]);
+	/// let bb: BitBox<Msb0, u8> = BitBox::from_slice(&src[..]);
 	/// assert!(bb[5]);
 	/// assert!(bb[7]);
 	/// assert!(bb[12]);
@@ -157,11 +157,11 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = [0u8, !0];
-	/// let bb = BitBox::<BigEndian, _>::from_bitslice(src.bits());
+	/// let bb = BitBox::<Msb0, _>::from_bitslice(src.bits());
 	/// assert_eq!(bb.len(), 16);
 	/// assert!(bb.some());
 	/// ```
-	pub fn from_bitslice(slice: &BitSlice<C, T>) -> Self {
+	pub fn from_bitslice(slice: &BitSlice<O, T>) -> Self {
 		BitVec::from_bitslice(slice).into_boxed_bitslice()
 	}
 
@@ -187,7 +187,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let slice: Box<[u16]> = vec![0, !0].into_boxed_slice();
-	/// let bb = BitBox::<LittleEndian, _>::from_boxed_slice(slice);
+	/// let bb = BitBox::<Lsb0, _>::from_boxed_slice(slice);
 	/// assert!(bb.some());
 	/// assert_eq!(bb.len(), 32);
 	/// ```
@@ -199,10 +199,10 @@ where C: Cursor, T: BitStore {
 			len,
 		);
 
-		let bs = BitSlice::<C, T>::from_slice(&boxed[..]);
+		let bs = BitSlice::<O, T>::from_slice(&boxed[..]);
 		let pointer = bs.bitptr();
 		let out = Self {
-			_cursor: PhantomData,
+			_order: PhantomData,
 			pointer,
 		};
 		mem::forget(boxed);
@@ -225,7 +225,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let slice: Box<[u16]> = vec![0, !0].into_boxed_slice();
-	/// let bb = BitBox::<LittleEndian, _>::from_boxed_slice(slice);
+	/// let bb = BitBox::<Lsb0, _>::from_boxed_slice(slice);
 	/// assert_eq!(bb.len(), 32);
 	/// let slice = bb.into_boxed_slice();
 	/// assert_eq!(slice.len(), 2);
@@ -257,7 +257,7 @@ where C: Cursor, T: BitStore {
 		self
 	}
 
-	/// Changes the cursor on a box handle, without changing the data it
+	/// Changes the order on a box handle, without changing the data it
 	/// governs.
 	///
 	/// # Parameters
@@ -266,15 +266,15 @@ where C: Cursor, T: BitStore {
 	///
 	/// # Returns
 	///
-	/// An equivalent handle to the same data, with a new cursor parameter.
-	pub fn change_cursor<D>(self) -> BitBox<D, T>
-	where D: Cursor {
+	/// An equivalent handle to the same data, with a new order parameter.
+	pub fn change_order<P>(self) -> BitBox<P, T>
+	where P: BitOrder {
 		let bp = self.bitptr();
 		mem::forget(self);
 		unsafe { BitBox::from_raw(bp) }
 	}
 
-	/// Accesses the `BitSlice<C, T>` to which the `BitBox` refers.
+	/// Accesses the `BitSlice<O, T>` to which the `BitBox` refers.
 	///
 	/// # Parameters
 	///
@@ -283,11 +283,11 @@ where C: Cursor, T: BitStore {
 	/// # Returns
 	///
 	/// The slice of bits behind the box.
-	pub fn as_bitslice(&self) -> &BitSlice<C, T> {
+	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
 		self.pointer.into_bitslice()
 	}
 
-	/// Accesses the `BitSlice<C, T>` to which the `BitBox` refers.
+	/// Accesses the `BitSlice<O, T>` to which the `BitBox` refers.
 	///
 	/// # Parameters
 	///
@@ -296,7 +296,7 @@ where C: Cursor, T: BitStore {
 	/// # Returns
 	///
 	/// The slice of bits behind the box.
-	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<C, T> {
+	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
 		self.pointer.into_bitslice_mut()
 	}
 

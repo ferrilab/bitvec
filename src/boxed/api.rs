@@ -3,7 +3,7 @@
 use super::*;
 
 use crate::{
-	cursor::Cursor,
+	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
 };
@@ -17,25 +17,25 @@ use core::{
 	pin::Pin,
 };
 
-impl<C, T> BitBox<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> BitBox<O, T>
+where O: BitOrder, T: BitStore {
 	/// Allocates memory on the heap and then places `bits` into it.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// # use bitvec::prelude::*;
-	/// let boxed = BitBox::new(0u8.bits::<LittleEndian>());
+	/// let boxed = BitBox::new(0u8.bits::<Lsb0>());
 	/// ```
-	pub fn new(bits: &BitSlice<C, T>) -> Self {
+	pub fn new(bits: &BitSlice<O, T>) -> Self {
 		Self::from_bitslice(bits)
 	}
 
-	/// Constructs a new `Pin<BitBox<C, T>>`.
+	/// Constructs a new `Pin<BitBox<O, T>>`.
 	///
 	/// `BitSlice` is always `Unpin`, so this has no actual immobility effect.
-	pub fn pin(bits: &BitSlice<C, T>) -> Pin<Self>
-	where C: Unpin, T: Unpin {
+	pub fn pin(bits: &BitSlice<O, T>) -> Pin<Self>
+	where O: Unpin, T: Unpin {
 		Pin::new(Self::new(bits))
 	}
 
@@ -59,13 +59,13 @@ where C: Cursor, T: BitStore {
 	///
 	/// ```rust
 	/// # use bitvec::prelude::*;
-	/// let b = BitBox::new(0u8.bits::<LittleEndian>());
+	/// let b = BitBox::new(0u8.bits::<Lsb0>());
 	/// let ptr = BitBox::into_raw(b);
-	/// let b = unsafe { BitBox::<BigEndian, _>::from_raw(ptr) };
+	/// let b = unsafe { BitBox::<Msb0, _>::from_raw(ptr) };
 	/// ```
 	pub unsafe fn from_raw(raw: BitPtr<T>) -> Self {
 		Self {
-			_cursor: PhantomData,
+			_order: PhantomData,
 			pointer: raw,
 		}
 	}
@@ -94,7 +94,7 @@ where C: Cursor, T: BitStore {
 	/// # use bitvec::prelude::*;
 	/// let b = BitBox::new(0u64.bits::<Local>());
 	/// let ptr = BitBox::into_raw(b);
-	/// let b = unsafe { BitBox::<BigEndian, _>::from_raw(ptr) };
+	/// let b = unsafe { BitBox::<Msb0, _>::from_raw(ptr) };
 	/// ```
 	///
 	/// [`BitBox::from_raw`]: #fn.from_raw
@@ -105,7 +105,7 @@ where C: Cursor, T: BitStore {
 	}
 
 	/// Consumes and leaks the `BitBox`, returning a mutable reference,
-	/// `&'a mut BitSlice<C, T>`. Note that the memory region `[T]` must outlive
+	/// `&'a mut BitSlice<O, T>`. Note that the memory region `[T]` must outlive
 	/// the chosen lifetime `'a`.
 	///
 	/// This function is mainly useful for bit regions that live for the
@@ -133,7 +133,7 @@ where C: Cursor, T: BitStore {
 	/// ```
 	///
 	/// [`BitBox::from_raw`]: #method.from_raw
-	pub fn leak<'a>(self) -> &'a mut BitSlice<C, T> {
+	pub fn leak<'a>(self) -> &'a mut BitSlice<O, T> {
 		let out = self.bitptr();
 		mem::forget(self);
 		out.into_bitslice_mut()

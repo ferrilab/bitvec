@@ -14,8 +14,8 @@ builds, or `AtomicT` in atomic builds.
 !*/
 
 use crate::{
-	cursor::Cursor,
 	indices::BitIdx,
+	order::BitOrder,
 	store::BitStore,
 };
 
@@ -42,21 +42,21 @@ where T: BitStore + BitOps + Sized {
 	///
 	/// `BitAccess::set` calls this when its `value` is `false`; it
 	/// unconditionally writes a `0` bit into the electrical position that
-	/// `place` controls according to the `Cursor` parameter `C`.
+	/// `place` controls according to the `BitOrder` parameter `O`.
 	///
 	/// # Type Parameters
 	///
-	/// - `C`: A `Cursor` implementation which translates `place` into a usable
-	///   bit-mask.
+	/// - `O`: A `BitOrder` implementation which translates `place` into a
+	///   usable bit-mask.
 	///
 	/// # Parameters
 	///
 	/// - `&self`: A shared reference to underlying memory.
 	/// - `place`: A semantic bit index in the `self` element.
 	#[inline(always)]
-	fn clear_bit<C>(&self, place: BitIdx<T>)
-	where C: Cursor {
-		self.fetch_and(!*C::mask(place), Ordering::Relaxed);
+	fn clear_bit<O>(&self, place: BitIdx<T>)
+	where O: BitOrder {
+		self.fetch_and(!*O::mask(place), Ordering::Relaxed);
 	}
 
 	/// Writes the low bits of the mask into the underlying element.
@@ -74,21 +74,21 @@ where T: BitStore + BitOps + Sized {
 	///
 	/// `BitAccess::set` calls this when its `value` is `true`; it
 	/// unconditionally writes a `1` bit into the electrical position that
-	/// `place` controls according to the `Cursor` parameter `C`.
+	/// `place` controls according to the `BitOrder` parameter `O`.
 	///
 	/// # Type Parameters
 	///
-	/// - `C`: A `Cursor` implementation which translates `place` into a usable
-	///   bit-mask.
+	/// - `O`: A `BitOrder` implementation which translates `place` into a
+	///   usable bit-mask.
 	///
 	/// # Parameters
 	///
 	/// - `&self`: A shared reference to underlying memory.
 	/// - `place`: A semantic bit index in the `self` element.
 	#[inline(always)]
-	fn set_bit<C>(&self, place: BitIdx<T>)
-	where C: Cursor {
-		self.fetch_or(*C::mask(place), Ordering::Relaxed);
+	fn set_bit<O>(&self, place: BitIdx<T>)
+	where O: BitOrder {
+		self.fetch_or(*O::mask(place), Ordering::Relaxed);
 	}
 
 	/// Writes the high bits of the mask into the underlying element.
@@ -106,41 +106,41 @@ where T: BitStore + BitOps + Sized {
 	///
 	/// # Type Parameters
 	///
-	/// - `C`: A `Cursor` implementation which translates `place` into a usable
-	///   bit-mask.
+	/// - `O`: A `BitOrder` implementation which translates `place` into a
+	///   usable bit-mask.
 	///
 	/// # Parameters
 	///
 	/// - `&self`: A shared reference to underlying memory.
 	/// - `place`: A semantic bit index in the `self` element.
 	#[inline(always)]
-	fn invert_bit<C>(&self, place: BitIdx<T>)
-	where C: Cursor {
-		self.fetch_xor(*C::mask(place), Ordering::Relaxed);
+	fn invert_bit<O>(&self, place: BitIdx<T>)
+	where O: BitOrder {
+		self.fetch_xor(*O::mask(place), Ordering::Relaxed);
 	}
 
 	/// Retrieve a single bit from an element.
 	///
 	/// # Type Parameters
 	///
-	/// - `C`: A `Cursor` implementation which translates `place` into a usable
-	///   bit-mask.
+	/// - `O`: A `BitOrder` implementation which translates `place` into a
+	///   usable bit-mask.
 	///
 	/// # Parameters
 	///
 	/// - `&self`: A shared reference to underlying memory.
 	/// - `place`: A semantic bit index in the `self` element.
 	#[inline]
-	fn get<C>(&self, place: BitIdx<T>) -> bool
-	where C: Cursor {
-		<Self as BitAccess<T>>::load(&self) & *C::mask(place) != T::FALSE
+	fn get<O>(&self, place: BitIdx<T>) -> bool
+	where O: BitOrder {
+		<Self as BitAccess<T>>::load(&self) & *O::mask(place) != T::FALSE
 	}
 
 	/// Set a single bit in an element to some value.
 	///
 	/// # Type Parameters
 	///
-	/// - `C`: A `Cursor` implementation which translates `place` into a usable
+	/// - `O`: A `BitOrder` implementation which translates `place` into a usable
 	///   bit-mask.
 	///
 	/// # Parameters
@@ -150,13 +150,13 @@ where T: BitStore + BitOps + Sized {
 	/// - `value`: The value to which the bit controlled by `place` shall be
 	///   set.
 	#[inline]
-	fn set<C>(&self, place: BitIdx<T>, value: bool)
-	where C: Cursor {
+	fn set<O>(&self, place: BitIdx<T>, value: bool)
+	where O: BitOrder {
 		if value {
-			self.set_bit::<C>(place);
+			self.set_bit::<O>(place);
 		}
 		else {
-			self.clear_bit::<C>(place);
+			self.clear_bit::<O>(place);
 		}
 	}
 
