@@ -8,10 +8,10 @@ extern crate bitvec;
 extern crate serde;
 extern crate serde_json;
 
-#[cfg(all(any(feature = "alloc", feature = "std"), feature = "serde"))]
+#[cfg(all(feature = "alloc", feature = "serde"))]
 use bitvec::prelude::*;
 
-#[cfg(all(any(feature = "alloc", feature = "std"), feature = "serde"))]
+#[cfg(all(feature = "alloc", feature = "serde"))]
 #[test]
 fn serdes() {
 	let bv = bitvec![BigEndian, u8; 1, 0, 1, 1, 0, 0, 1, 0];

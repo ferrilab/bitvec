@@ -7,7 +7,7 @@ boundary, is a valid tail but not a valid head.
 This is a regression.
 !*/
 
-#![cfg(any(feature = "alloc", feature = "std"))]
+#![cfg(feature = "alloc")]
 
 use bitvec::prelude::*;
 

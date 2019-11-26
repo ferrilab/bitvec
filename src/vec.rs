@@ -7,7 +7,7 @@ The `BitSlice` module discusses the design decisions for the separation between
 slice and vector types.
 !*/
 
-#![cfg(any(feature = "alloc", feature = "std"))]
+#![cfg(feature = "alloc")]
 
 use crate::{
 	boxed::BitBox,
