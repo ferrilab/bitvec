@@ -6,17 +6,14 @@ This collects the general public API into a single spot for inclusion, as
 
 pub use crate::{
 	access::BitAccess,
-	bits::{
-		Bits,
-		BitsMut,
-	},
-	cursor::{
-		Cursor,
-		BigEndian,
-		LittleEndian,
-		Local,
-	},
+	bits::Bits,
 	fields::BitField,
+	order::{
+		BitOrder,
+		Local,
+		Lsb0,
+		Msb0,
+	},
 	slice::{
 		BitMut,
 		BitSlice,

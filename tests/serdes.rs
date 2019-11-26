@@ -14,11 +14,11 @@ use bitvec::prelude::*;
 #[cfg(all(feature = "alloc", feature = "serde"))]
 #[test]
 fn serdes() {
-	let bv = bitvec![BigEndian, u8; 1, 0, 1, 1, 0, 0, 1, 0];
+	let bv = bitvec![Msb0, u8; 1, 0, 1, 1, 0, 0, 1, 0];
 	let json = serde_json::to_string(&bv).expect("cannot fail to serialize");
 	assert_eq!(json.trim(), r#"{"head":0,"bits":8,"data":[178]}"#);
 
-	let bb: BitBox<BigEndian, u8> = serde_json::from_str(&json)
+	let bb: BitBox<Msb0, u8> = serde_json::from_str(&json)
 		.expect("cannot fail to deserialize");
 
 	assert!(bb[0]);

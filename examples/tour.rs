@@ -1,4 +1,4 @@
-/*! Demonstrates construction and use of a big-endian, u8, `BitVec`
+/*! Demonstrates construction and use of a `BitVec<Msb0, u8>`.
 
 This example uses `bitvec!` to construct a `BitVec` from literals, then shows
 a sample of the various operations that can be applied to it.
@@ -20,21 +20,18 @@ use bitvec::prelude::{
 	//  vector type, analagous to `Vec<u1>`
 	BitVec,
 	//  element-traversal trait (you shouldn’t explicitly need this)
-	Cursor,
-	//  directionality type marker (the default for `BitVec`; you will rarely
-	//  explicitly need this)
-	BigEndian,
-	//  directionality type marker (you will explicitly need this if you want
-	//  this ordering)
-	LittleEndian,
+	BitOrder,
+	//  directionality type markers
+	Msb0,
+	Lsb0,
 };
 #[cfg(feature = "std")]
 use std::iter::repeat;
 
 #[cfg(feature = "std")]
 fn main() {
-	let bv = bitvec![   //  BigEndian, u8;  //  default type values
-		0, 0, 0, 0, 0, 0, 0, 1,
+	let bv = bitvec![Msb0, u8;  //  Default values are `order::Local` and
+		0, 0, 0, 0, 0, 0, 0, 1, //  `store::Word`.
 		0, 0, 0, 0, 0, 0, 1, 0,
 		0, 0, 0, 0, 0, 1, 0, 0,
 		0, 0, 0, 0, 1, 0, 0, 0,
@@ -52,17 +49,17 @@ fn main() {
 		0, 0, 0, 0, 0, 0, 0, 1,
 		1, 0, 1, 0,
 	];
-	println!("A BigEndian BitVec has the same layout in memory as it does \
+	println!("A Msb0 BitVec has the same layout in memory as it does \
 		semantically");
 	render(&bv);
 
 	//  BitVec can turn into iterators, and be built from iterators.
-	let bv: BitVec<LittleEndian, u8> = bv.into_iter().collect();
-	println!("A LittleEndian BitVec has the opposite layout in memory as it \
+	let bv: BitVec<Lsb0, u8> = bv.into_iter().collect();
+	println!("An Lsb0 BitVec has the opposite layout in memory as it \
 		does semantically");
 	render(&bv);
 
-	let bv: BitVec<BigEndian, u16> = bv.into_iter().collect();
+	let bv: BitVec<Msb0, u16> = bv.into_iter().collect();
 	println!("A BitVec can use storage other than u8");
 	render(&bv);
 
@@ -99,7 +96,7 @@ are dominant.\
 	println!("End example");
 
 	fn render<C, T>(bs: &BitSlice<C, T>)
-	where C: Cursor, T: BitStore {
+	where C: BitOrder, T: BitStore {
 		println!(
 			"Memory information: {} elements, {} bits",
 			bs.as_slice().len(),

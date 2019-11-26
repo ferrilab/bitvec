@@ -4,8 +4,8 @@ use super::api::BitSliceIndex;
 
 use crate::{
 	access::BitAccess,
-	cursor::Cursor,
 	indices::Indexable,
+	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
 };
@@ -57,8 +57,8 @@ then using addition, or by using `BitVec`s instead of `BitSlice`s.
   add into `self`. It must be finite and double-ended, since addition operates
   in reverse.
 **/
-impl<C, T, I> AddAssign<I> for BitSlice<C, T>
-where C: Cursor, T: BitStore,
+impl<O, T, I> AddAssign<I> for BitSlice<O, T>
+where O: BitOrder, T: BitStore,
 	I: IntoIterator<Item=bool>, I::IntoIter: DoubleEndedIterator {
 	/// Performs unsigned wrapping addition in place.
 	///
@@ -70,7 +70,7 @@ where C: Cursor, T: BitStore,
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = [0b1110_1111u8, 0b0000_0001];
-	/// let bits = src.bits_mut::<BigEndian>();
+	/// let bits = src.bits_mut::<Msb0>();
 	/// let (nums, one) = bits.split_at_mut(12);
 	/// let (accum, steps) = nums.split_at_mut(4);
 	/// *accum += one.iter().copied();
@@ -118,8 +118,8 @@ remaining bits of `self` are cleared.
 - `I: IntoIterator<Item=bool>`: A stream of bits, which may be a `BitSlice`
   or some other bit producer as desired.
 **/
-impl<C, T, I> BitAndAssign<I> for BitSlice<C, T>
-where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
+impl<O, T, I> BitAndAssign<I> for BitSlice<O, T>
+where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `AND`s a bitstream into a slice.
 	///
 	/// # Parameters
@@ -134,8 +134,8 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	///
 	/// let mut store = [0b0101_0100u8];
 	/// let     other = [0b0011_0000u8];
-	/// let lhs = store.bits_mut::<BigEndian>();
-	/// let rhs = other.bits::<BigEndian>();
+	/// let lhs = store.bits_mut::<Msb0>();
+	/// let rhs = other.bits::<Msb0>();
 	/// lhs[.. 6] &= rhs[.. 4].iter().copied();
 	/// assert_eq!(store[0], 0b0001_0000);
 	/// ```
@@ -161,8 +161,8 @@ bits of `self` are not affected.
 - `I: IntoIterator<Item=bool>`: A stream of bits, which may be a `BitSlice`
   or some other bit producer as desired.
 **/
-impl<C, T, I> BitOrAssign<I> for BitSlice<C, T>
-where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
+impl<O, T, I> BitOrAssign<I> for BitSlice<O, T>
+where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `OR`s a bitstream into a slice.
 	///
 	/// # Parameters
@@ -177,8 +177,8 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	///
 	/// let mut store = [0b0101_0100u8];
 	/// let     other = [0b0011_0000u8];
-	/// let lhs = store.bits_mut::<BigEndian>();
-	/// let rhs = other.bits::<BigEndian>();
+	/// let lhs = store.bits_mut::<Msb0>();
+	/// let rhs = other.bits::<Msb0>();
 	/// lhs[.. 6] |= rhs[.. 4].iter().copied();
 	/// assert_eq!(store[0], 0b0111_0100);
 	/// ```
@@ -202,8 +202,8 @@ bits of `self` are not affected.
 - `I: IntoIterator<Item=bool>`: A stream of bits, which may be a `BitSlice`
   or some other bit producer as desired.
 **/
-impl<C, T, I> BitXorAssign<I> for BitSlice<C, T>
-where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
+impl<O, T, I> BitXorAssign<I> for BitSlice<O, T>
+where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
 	/// `XOR`s a bitstream into a slice.
 	///
 	/// # Parameters
@@ -218,8 +218,8 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	///
 	/// let mut store = [0b0101_0100u8];
 	/// let     other = [0b0011_0000u8];
-	/// let lhs = store.bits_mut::<BigEndian>();
-	/// let rhs = other.bits::<BigEndian>();
+	/// let lhs = store.bits_mut::<Msb0>();
+	/// let rhs = other.bits::<Msb0>();
 	/// lhs[.. 6] ^= rhs[.. 4].iter().copied();
 	/// assert_eq!(store[0], 0b0110_0100);
 	/// ```
@@ -234,8 +234,8 @@ where C: Cursor, T: BitStore, I: IntoIterator<Item=bool> {
 	}
 }
 
-impl<C, T> Index<usize> for BitSlice<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Index<usize> for BitSlice<O, T>
+where O: BitOrder, T: BitStore {
 	type Output = bool;
 
 	fn index(&self, place: usize) -> &Self::Output {
@@ -243,8 +243,8 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-impl<C, T> Index<Range<usize>> for BitSlice<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Index<Range<usize>> for BitSlice<O, T>
+where O: BitOrder, T: BitStore {
 	type Output = Self;
 
 	fn index(&self, range: Range<usize>) -> &Self {
@@ -252,15 +252,15 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-impl<C, T> IndexMut<Range<usize>> for BitSlice<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> IndexMut<Range<usize>> for BitSlice<O, T>
+where O: BitOrder, T: BitStore {
 	fn index_mut(&mut self, range: Range<usize>) -> &mut Self {
 		range.index_mut(self)
 	}
 }
 
-impl<C, T> Index<RangeInclusive<usize>> for BitSlice<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Index<RangeInclusive<usize>> for BitSlice<O, T>
+where O: BitOrder, T: BitStore {
 	type Output = Self;
 
 	fn index(&self, range: RangeInclusive<usize>) -> &Self {
@@ -268,15 +268,15 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-impl<C, T> IndexMut<RangeInclusive<usize>> for BitSlice<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> IndexMut<RangeInclusive<usize>> for BitSlice<O, T>
+where O: BitOrder, T: BitStore {
 	fn index_mut(&mut self, range: RangeInclusive<usize>) -> &mut Self {
 		range.index_mut(self)
 	}
 }
 
-impl<C, T> Index<RangeFrom<usize>> for BitSlice<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Index<RangeFrom<usize>> for BitSlice<O, T>
+where O: BitOrder, T: BitStore {
 	type Output = Self;
 
 	fn index(&self, range: RangeFrom<usize>) -> &Self {
@@ -284,15 +284,15 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-impl<C, T> IndexMut<RangeFrom<usize>> for BitSlice<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> IndexMut<RangeFrom<usize>> for BitSlice<O, T>
+where O: BitOrder, T: BitStore {
 	fn index_mut(&mut self, range: RangeFrom<usize>) -> &mut Self {
 		range.index_mut(self)
 	}
 }
 
-impl<C, T> Index<RangeFull> for BitSlice<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Index<RangeFull> for BitSlice<O, T>
+where O: BitOrder, T: BitStore {
 	type Output = Self;
 
 	fn index(&self, _: RangeFull) -> &Self {
@@ -300,15 +300,15 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-impl<C, T> IndexMut<RangeFull> for BitSlice<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> IndexMut<RangeFull> for BitSlice<O, T>
+where O: BitOrder, T: BitStore {
 	fn index_mut(&mut self, _: RangeFull) -> &mut Self {
 		self
 	}
 }
 
-impl<C, T> Index<RangeTo<usize>> for BitSlice<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Index<RangeTo<usize>> for BitSlice<O, T>
+where O: BitOrder, T: BitStore {
 	type Output = Self;
 
 	fn index(&self, range: RangeTo<usize>) -> &Self {
@@ -316,15 +316,15 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-impl<C, T> IndexMut<RangeTo<usize>> for BitSlice<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> IndexMut<RangeTo<usize>> for BitSlice<O, T>
+where O: BitOrder, T: BitStore {
 	fn index_mut(&mut self, range: RangeTo<usize>) -> &mut Self {
 		range.index_mut(self)
 	}
 }
 
-impl<C, T> Index<RangeToInclusive<usize>> for BitSlice<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> Index<RangeToInclusive<usize>> for BitSlice<O, T>
+where O: BitOrder, T: BitStore {
 	type Output = Self;
 
 	fn index(&self, range: RangeToInclusive<usize>) -> &Self {
@@ -332,8 +332,8 @@ where C: Cursor, T: BitStore {
 	}
 }
 
-impl<C, T> IndexMut<RangeToInclusive<usize>> for BitSlice<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> IndexMut<RangeToInclusive<usize>> for BitSlice<O, T>
+where O: BitOrder, T: BitStore {
 	fn index_mut(&mut self, range: RangeToInclusive<usize>) -> &mut Self {
 		range.index_mut(self)
 	}
@@ -359,8 +359,8 @@ at the least unreasonable fallback value, 0.
 
 Because `BitSlice` cannot move, the negation is performed in place.
 **/
-impl<'a, C, T> Neg for &'a mut BitSlice<C, T>
-where C: Cursor, T: 'a + BitStore {
+impl<'a, O, T> Neg for &'a mut BitSlice<O, T>
+where O: BitOrder, T: 'a + BitStore {
 	type Output = Self;
 
 	/// Perform 2’s-complement fixed-width negation.
@@ -387,7 +387,7 @@ where C: Cursor, T: 'a + BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = 0b0110_1010u8;
-	/// let bits = src.bits_mut::<BigEndian>();
+	/// let bits = src.bits_mut::<Msb0>();
 	/// eprintln!("{:?}", bits.split_at(4));
 	/// let num = &mut bits[.. 4];
 	/// -num;
@@ -402,7 +402,7 @@ where C: Cursor, T: 'a + BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = 0b1010_0110u8;
-	/// let bits = src.bits_mut::<BigEndian>();
+	/// let bits = src.bits_mut::<Msb0>();
 	/// let num = &mut bits[.. 4];
 	/// -num;
 	/// assert_eq!(&bits[.. 4], &bits[4 ..]);
@@ -415,7 +415,7 @@ where C: Cursor, T: 'a + BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = 128u8;
-	/// let bits = src.bits_mut::<BigEndian>();
+	/// let bits = src.bits_mut::<Msb0>();
 	/// let num = &mut bits[..];
 	/// -num;
 	/// assert!(bits.not_any());
@@ -447,8 +447,8 @@ where C: Cursor, T: 'a + BitStore {
 }
 
 /// Flips all bits in the slice, in place.
-impl<'a, C, T> Not for &'a mut BitSlice<C, T>
-where C: Cursor, T: 'a + BitStore {
+impl<'a, O, T> Not for &'a mut BitSlice<O, T>
+where O: BitOrder, T: 'a + BitStore {
 	type Output = Self;
 
 	/// Inverts all bits in the slice.
@@ -465,7 +465,7 @@ where C: Cursor, T: 'a + BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = [0u8; 2];
-	/// let bits = &mut src.bits_mut::<BigEndian>()[2 .. 14];
+	/// let bits = &mut src.bits_mut::<Msb0>()[2 .. 14];
 	/// let _ = !bits;
 	/// //  The `bits` binding is consumed by the `!` operator, and a new
 	/// //  reference is returned.
@@ -475,12 +475,12 @@ where C: Cursor, T: 'a + BitStore {
 	fn not(self) -> Self::Output {
 		match self.bitptr().domain().splat() {
 			Either::Right((h, e, t)) => for n in *h .. *t {
-				e.invert_bit::<C>(n.idx());
+				e.invert_bit::<O>(n.idx());
 			},
 			Either::Left((h, b, t)) => {
 				if let Some((h, head)) = h {
 					for n in *h .. T::BITS {
-						head.invert_bit::<C>(n.idx())
+						head.invert_bit::<O>(n.idx())
 					}
 				}
 				if let Some(body) = b {
@@ -490,7 +490,7 @@ where C: Cursor, T: 'a + BitStore {
 				}
 				if let Some((tail, t)) = t {
 					for n in 0 .. *t {
-						tail.invert_bit::<C>(n.idx())
+						tail.invert_bit::<O>(n.idx())
 					}
 				}
 			},
@@ -513,10 +513,10 @@ order.  This increases the value of the primitive being shifted.
 `BitSlice` defines its layout with the minimum on the left and the maximum on
 the right! Thus, left-shifting moves bits towards the **minimum**.
 
-In BigEndian order, the effect in memory will be what you expect the `<<`
-operator to do.
+In `Msb0` order, the effect in memory will be what you expect the `<<` operator
+to do.
 
-**In LittleEndian order, the effect will be equivalent to using `>>` on the**
+**In `Lsb0` order, the effect will be equivalent to using `>>` on the**
 **fundamentals in memory!**
 
 # Notes
@@ -530,8 +530,8 @@ error to pass a shift amount greater than the array length.
 
 A shift amount of zero is a no-op, and returns immediately.
 **/
-impl<C, T> ShlAssign<usize> for BitSlice<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> ShlAssign<usize> for BitSlice<O, T>
+where O: BitOrder, T: BitStore {
 	/// Shifts a slice left, in place.
 	///
 	/// # Parameters
@@ -546,7 +546,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = [0x4Bu8, 0xA5];
-	/// let bits = &mut src.bits_mut::<BigEndian>()[2 .. 14];
+	/// let bits = &mut src.bits_mut::<Msb0>()[2 .. 14];
 	/// *bits <<= 3;
 	/// assert_eq!(src, [0b01_011_101, 0b001_000_01]);
 	/// ```
@@ -617,10 +617,10 @@ This decreases the value of the primitive being shifted.
 `BitSlice` defines its layout with the minimum on the left and the maximum on
 the right! Thus, right-shifting moves bits towards the **maximum**.
 
-In Big-Endian order, the effect in memory will be what you expect the `>>`
-operator to do.
+In `Msb0` order, the effect in memory will be what you expect the `>>` operator
+to do.
 
-**In LittleEndian order, the effect will be equivalent to using `<<` on the**
+**In `Lsb0` order, the effect will be equivalent to using `<<` on the**
 **fundamentals in memory!**
 
 # Notes
@@ -634,8 +634,8 @@ pass a shift amount greater than the array length.
 
 A shift amount of zero is a no-op, and returns immediately.
 **/
-impl<C, T> ShrAssign<usize> for BitSlice<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> ShrAssign<usize> for BitSlice<O, T>
+where O: BitOrder, T: BitStore {
 	/// Shifts a slice right, in place.
 	///
 	/// # Parameters
@@ -650,7 +650,7 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = [0x4Bu8, 0xA5];
-	/// let bits = &mut src.bits_mut::<BigEndian>()[2 .. 14];
+	/// let bits = &mut src.bits_mut::<Msb0>()[2 .. 14];
 	/// *bits >>= 3;
 	/// assert_eq!(src, [0b01_000_00_1, 0b011_101_01])
 	/// ```

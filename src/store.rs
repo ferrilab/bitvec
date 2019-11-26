@@ -11,8 +11,8 @@ not exported in the prelude.
 
 use crate::{
 	access::BitAccess,
-	cursor::Cursor,
 	indices::BitIdx,
+	order::BitOrder,
 };
 
 use core::{
@@ -141,7 +141,7 @@ pub trait BitStore:
 	///
 	/// - `&self`
 	/// - `place`: A bit index in the element. The bit under this index, as
-	///   governed by the `C` `Cursor`, will be retrieved as a `bool`.
+	///   governed by the `O` `BitOrder`, will be retrieved as a `bool`.
 	///
 	/// # Returns
 	///
@@ -149,10 +149,10 @@ pub trait BitStore:
 	///
 	/// # Type Parameters
 	///
-	/// - `C`: A `Cursor` implementation to translate the index into a position.
-	fn get<C>(&self, place: BitIdx<Self>) -> bool
-	where C: Cursor {
-		*self & *C::mask(place) != Self::FALSE
+	/// - `O`: A `BitOrder` implementation to translate the index into a position.
+	fn get<O>(&self, place: BitIdx<Self>) -> bool
+	where O: BitOrder {
+		*self & *O::mask(place) != Self::FALSE
 	}
 
 	/// Sets a specific bit in an element to a given value.
@@ -166,14 +166,14 @@ pub trait BitStore:
 	/// # Parameters
 	///
 	/// - `place`: A bit index in the element. The bit under this index, as
-	///   governed by the `C` `Cursor`, will be set according to `value`.
+	///   governed by the `O` `BitOrder`, will be set according to `value`.
 	///
 	/// # Type Parameters
 	///
-	/// - `C`: A `Cursor` implementation to translate the index into a position.
-	fn set<C>(&mut self, place: BitIdx<Self>, value: bool)
-	where C: Cursor {
-		let mask = *C::mask(place);
+	/// - `O`: A `BitOrder` implementation to translate the index into a position.
+	fn set<O>(&mut self, place: BitIdx<Self>, value: bool)
+	where O: BitOrder {
+		let mask = *O::mask(place);
 		if value {
 			*self |= mask;
 		}

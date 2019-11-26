@@ -3,7 +3,7 @@
 use super::*;
 
 use crate::{
-	cursor::Cursor,
+	order::BitOrder,
 	pointer::BitPtr,
 	store::BitStore,
 };
@@ -23,8 +23,8 @@ use core::{
 	},
 };
 
-impl<C, T> BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	/// Constructs a new, empty `BitVec<C, T>`.
 	///
 	/// The vector will not allocate until elements are pushed onto it.
@@ -58,7 +58,7 @@ where C: Cursor, T: BitStore {
 		//  Disarm the `Vec` destructor.
 		mem::forget(v);
 		Self {
-			_cursor: PhantomData,
+			_order: PhantomData,
 			pointer: BitPtr::uninhabited(ptr),
 			capacity: cap,
 		}
@@ -529,7 +529,7 @@ where C: Cursor, T: BitStore {
 	/// assert!(bv2.is_empty());
 	/// ```
 	pub fn append<D, U>(&mut self, other: &mut BitVec<D, U>)
-	where D: Cursor, U: BitStore {
+	where D: BitOrder, U: BitStore {
 		self.extend(other.iter().copied());
 		other.clear();
 	}
@@ -561,7 +561,7 @@ where C: Cursor, T: BitStore {
 	/// assert!(bv.not_any());
 	/// assert_eq!(bv.len(), 4);
 	/// ```
-	pub fn drain<R>(&mut self, range: R) -> Drain<C, T>
+	pub fn drain<R>(&mut self, range: R) -> Drain<O, T>
 	where R: RangeBounds<usize> {
 		use core::ops::Bound::*;
 		let len = self.len();
@@ -580,7 +580,7 @@ where C: Cursor, T: BitStore {
 		assert!(upto <= len, "The drain end must be within the vector bounds");
 
 		unsafe {
-			let ranging: &BitSlice<C, T> = self.as_bitslice()[from..upto]
+			let ranging: &BitSlice<O, T> = self.as_bitslice()[from..upto]
 				//  remove the lifetime and borrow awareness
 				.bitptr()
 				.into_bitslice();
@@ -749,13 +749,13 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// # use bitvec::prelude::*;
 	/// let mut bv = bitvec![1];
-	/// bv.extend_from_slice(0xA5u8.bits::<LittleEndian>());
+	/// bv.extend_from_slice(0xA5u8.bits::<Lsb0>());
 	/// assert_eq!(bv, bitvec![1, 1, 0, 1, 0, 0, 1, 0, 1]);
 	/// ```
 	///
 	/// [`extend`]: #method.extend
 	pub fn extend_from_slice<D, U>(&mut self, other: &BitSlice<D, U>)
-	where D: Cursor, U: BitStore {
+	where D: BitOrder, U: BitStore {
 		let len = self.len();
 		let olen = other.len();
 		self.reserve(olen);
@@ -807,7 +807,7 @@ where C: Cursor, T: BitStore {
 		&mut self,
 		range: R,
 		replace_with: I,
-	) -> Splice<C, T, <I as IntoIterator>::IntoIter>
+	) -> Splice<O, T, <I as IntoIterator>::IntoIter>
 	where I: IntoIterator<Item=bool>, R: RangeBounds<usize> {
 		Splice {
 			drain: self.drain(range),

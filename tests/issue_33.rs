@@ -23,7 +23,7 @@ use bitvec::prelude::*;
 #[cfg(feature = "alloc")]
 #[test]
 fn issue_33() {
-	let mut swdio = BitVec::<LittleEndian, u8>::new();
+	let mut swdio = BitVec::<Lsb0, u8>::new();
 
 	swdio.resize(64, true);
 

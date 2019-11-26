@@ -6,16 +6,16 @@ for code generation.
 
 /** Construct a `BitVec` out of a literal array in source code, like `vec!`.
 
-`bitvec!` can be invoked in a number of ways. It takes the name of a `Cursor`
+`bitvec!` can be invoked in a number of ways. It takes the name of a `BitOrder`
 implementation, the name of a `BitStore`-implementing fundamental, and zero or
 more fundamentals (integer, floating-point, or boolean) which are used to build
 the bits. Each fundamental literal corresponds to one bit, and is considered to
 represent `1` if it is any other value than exactly zero.
 
-`bitvec!` can be invoked with no specifiers, a `Cursor` specifier, or a `Cursor`
-and a `BitStore` specifier. It cannot be invoked with a `BitStore` specifier but
-no `Cursor` specifier, due to overlap in how those tokens are matched by the
-macro system.
+`bitvec!` can be invoked with no specifiers, a `BitOrder` specifier, or a
+`BitOrder` and a `BitStore` specifier. It cannot be invoked with a `BitStore`
+specifier but no `BitOrder` specifier, due to overlap in how those tokens are
+matched by the macro system.
 
 Like `vec!`, `bitvec!` supports bit lists `[0, 1, …]` and repetition markers
 `[1; n]`.
@@ -40,14 +40,14 @@ expectations, the repetition syntax implementation may speed up.
 ```rust
 use bitvec::prelude::*;
 
-bitvec![BigEndian, u8; 0, 1];
-bitvec![LittleEndian, u8; 0, 1,];
-bitvec![BigEndian; 0, 1];
-bitvec![LittleEndian; 0, 1,];
+bitvec![Msb0, u8; 0, 1];
+bitvec![Lsb0, u8; 0, 1,];
+bitvec![Msb0; 0, 1];
+bitvec![Lsb0; 0, 1,];
 bitvec![0, 1];
 bitvec![0, 1,];
-bitvec![BigEndian, u8; 1; 5];
-bitvec![LittleEndian; 0; 5];
+bitvec![Msb0, u8; 1; 5];
+bitvec![Lsb0; 0; 5];
 bitvec![1; 5];
 ```
 **/
@@ -55,51 +55,51 @@ bitvec![1; 5];
 #[macro_export]
 macro_rules! bitvec {
 	//  bitvec![ endian , type ; 0 , 1 , … ]
-	( $cursor:path , $bits:ty ; $( $val:expr ),* ) => {
-		bitvec![ __bv_impl__ $cursor , $bits ; $( $val ),* ]
+	( $order:path , $bits:ty ; $( $val:expr ),* ) => {
+		bitvec![ __bv_impl__ $order , $bits ; $( $val ),* ]
 	};
 	//  bitvec![ endian , type ; 0 , 1 , … , ]
-	( $cursor:path , $bits:ty ; $( $val:expr , )* ) => {
-		bitvec![ __bv_impl__ $cursor , $bits ; $( $val ),* ]
+	( $order:path , $bits:ty ; $( $val:expr , )* ) => {
+		bitvec![ __bv_impl__ $order , $bits ; $( $val ),* ]
 	};
 
 	//  bitvec![ endian ; 0 , 1 , … ]
-	( $cursor:path ; $( $val:expr ),* ) => {
-		bitvec![ __bv_impl__ $cursor , $crate::store::Word ; $( $val ),* ]
+	( $order:path ; $( $val:expr ),* ) => {
+		bitvec![ __bv_impl__ $order , $crate::store::Word ; $( $val ),* ]
 	};
 	//  bitvec![ endian ; 0 , 1 , … , ]
-	( $cursor:path ; $( $val:expr , )* ) => {
-		bitvec![ __bv_impl__ $cursor , $crate::store::Word ; $( $val ),* ]
+	( $order:path ; $( $val:expr , )* ) => {
+		bitvec![ __bv_impl__ $order , $crate::store::Word ; $( $val ),* ]
 	};
 
 	//  bitvec![ 0 , 1 , … ]
 	( $( $val:expr ),* ) => {
-		bitvec![ __bv_impl__ $crate::cursor::Local , $crate::store::Word ; $( $val ),* ]
+		bitvec![ __bv_impl__ $crate::order::Local , $crate::store::Word ; $( $val ),* ]
 	};
 	//  bitvec![ 0 , 1 , … , ]
 	( $( $val:expr , )* ) => {
-		bitvec![ __bv_impl__ $crate::cursor::Local , $crate::store::Word ; $( $val ),* ]
+		bitvec![ __bv_impl__ $crate::order::Local , $crate::store::Word ; $( $val ),* ]
 	};
 
 	//  bitvec![ endian , type ; bit ; rep ]
-	( $cursor:path , $bits:ty ; $val:expr ; $rep:expr ) => {
-		bitvec![ __bv_impl__ $cursor , $bits ; $val; $rep ]
+	( $order:path , $bits:ty ; $val:expr ; $rep:expr ) => {
+		bitvec![ __bv_impl__ $order , $bits ; $val; $rep ]
 	};
 	//  bitvec![ endian ; bit ; rep ]
-	( $cursor:path ; $val:expr ; $rep:expr ) => {
-		bitvec![ __bv_impl__ $cursor , $crate::store::Word ; $val ; $rep ]
+	( $order:path ; $val:expr ; $rep:expr ) => {
+		bitvec![ __bv_impl__ $order , $crate::store::Word ; $val ; $rep ]
 	};
 	//  bitvec![ bit ; rep ]
 	( $val:expr ; $rep:expr ) => {
-		bitvec![ __bv_impl__ $crate::cursor::Local , $crate::store::Word ; $val ; $rep ]
+		bitvec![ __bv_impl__ $crate::order::Local , $crate::store::Word ; $val ; $rep ]
 	};
 
 	//  GitHub issue #25 is to make this into a proc-macro that produces the
 	//  correct memory slab at compile time.
 
-	( __bv_impl__ $cursor:path , $bits:ty ; $( $val:expr ),* ) => {{
+	( __bv_impl__ $order:path , $bits:ty ; $( $val:expr ),* ) => {{
 		let init: &[bool] = &[ $( $val != 0 ),* ];
-		let mut bv = $crate::vec::BitVec::<$cursor, $bits>::with_capacity(
+		let mut bv = $crate::vec::BitVec::<$order, $bits>::with_capacity(
 			init.len(),
 		);
 		bv.extend(init.iter().copied());
@@ -110,8 +110,8 @@ macro_rules! bitvec {
 	//  use `.set_all` to force them to `$val`. This is much faster than
 	//  collecting from a bitstream.
 
-	( __bv_impl__ $cursor:path , $bits:ty ; $val:expr ; $rep:expr ) => {{
-		let mut bv = $crate::vec::BitVec::<$cursor, $bits>::with_capacity($rep);
+	( __bv_impl__ $order:path , $bits:ty ; $val:expr ; $rep:expr ) => {{
+		let mut bv = $crate::vec::BitVec::<$order, $bits>::with_capacity($rep);
 		bv.set_elements(0);
 		unsafe { bv.set_len($rep); }
 		let one = $val != 0;
@@ -134,43 +134,43 @@ freeze it.
 #[macro_export]
 macro_rules! bitbox {
 	//  bitbox![ endian , type ; 0 , 1 , … ]
-	( $cursor:path , $bits:ty ; $( $val:expr ),* ) => {
-		bitvec![ $cursor , $bits ; $( $val ),* ].into_boxed_bitslice()
+	( $order:path , $bits:ty ; $( $val:expr ),* ) => {
+		bitvec![ $order , $bits ; $( $val ),* ].into_boxed_bitslice()
 	};
 	//  bitbox![ endian , type ; 0 , 1 , … , ]
-	( $cursor:path , $bits:ty ; $( $val:expr , )* ) => {
-		bitvec![ $cursor , $bits ; $( $val ),* ].into_boxed_bitslice()
+	( $order:path , $bits:ty ; $( $val:expr , )* ) => {
+		bitvec![ $order , $bits ; $( $val ),* ].into_boxed_bitslice()
 	};
 
 	//  bitbox![ endian ; 0 , 1 , … ]
-	( $cursor:path ; $( $val:expr ),* ) => {
-		bitvec![ $cursor , $crate::store::Word ; $( $val ),* ].into_boxed_bitslice()
+	( $order:path ; $( $val:expr ),* ) => {
+		bitvec![ $order , $crate::store::Word ; $( $val ),* ].into_boxed_bitslice()
 	};
 	//  bitbox![ endian ; 0 , 1 , … , ]
-	( $cursor:path ; $( $val:expr , )* ) => {
-		bitvec![ $cursor , $crate::store::Word ; $( $val ),* ].into_boxed_bitslice()
+	( $order:path ; $( $val:expr , )* ) => {
+		bitvec![ $order , $crate::store::Word ; $( $val ),* ].into_boxed_bitslice()
 	};
 
 	//  bitbox![ 0 , 1 , … ]
 	( $( $val:expr ),* ) => {
-		bitvec![ $crate::cursor::Local , $crate::store::Word ; $( $val ),* ].into_boxed_bitslice()
+		bitvec![ $crate::order::Local , $crate::store::Word ; $( $val ),* ].into_boxed_bitslice()
 	};
 	//  bitbox![ 0 , 1 , … , ]
 	( $( $val:expr , )* ) => {
-		bitvec![ $crate::cursor::Local , $crate::store::Word ; $( $val ),* ].into_boxed_bitslice()
+		bitvec![ $crate::order::Local , $crate::store::Word ; $( $val ),* ].into_boxed_bitslice()
 	};
 
 	//  bitbox![ endian , type ; bit ; rep ]
-	( $cursor:path , $bits:ty ; $val:expr ; $rep:expr ) => {
-		bitvec![ $cursor , $bits ; $val; $rep ].into_boxed_bitslice()
+	( $order:path , $bits:ty ; $val:expr ; $rep:expr ) => {
+		bitvec![ $order , $bits ; $val; $rep ].into_boxed_bitslice()
 	};
 	//  bitbox![ endian ; bit ; rep ]
-	( $cursor:path ; $val:expr ; $rep:expr ) => {
-		bitvec![ $cursor , $crate::store::Word ; $val ; $rep ].into_boxed_bitslice()
+	( $order:path ; $val:expr ; $rep:expr ) => {
+		bitvec![ $order , $crate::store::Word ; $val ; $rep ].into_boxed_bitslice()
 	};
 	//  bitbox![ bit ; rep ]
 	( $val:expr ; $rep:expr ) => {
-		bitvec![ $crate::cursor::Local , $crate::store::Word ; $val ; $rep ].into_boxed_bitslice()
+		bitvec![ $crate::order::Local , $crate::store::Word ; $val ; $rep ].into_boxed_bitslice()
 	};
 }
 
@@ -180,7 +180,7 @@ macro_rules! __bitslice_shift {
 		#[doc(hidden)]
 		impl<C, T >core::ops::ShlAssign<$t>
 		for $crate::prelude::BitSlice<C,T>
-		where C: $crate::cursor::Cursor, T: $crate::store::BitStore {
+		where C: $crate::order::BitOrder, T: $crate::store::BitStore {
 			fn shl_assign(&mut self, shamt: $t) {
 				core::ops::ShlAssign::<usize>::shl_assign(
 					self,
@@ -192,7 +192,7 @@ macro_rules! __bitslice_shift {
 		#[doc(hidden)]
 		impl<C, T> core::ops::ShrAssign<$t>
 		for $crate::prelude::BitSlice<C,T>
-		where C: $crate::cursor::Cursor, T: $crate::store::BitStore {
+		where C: $crate::order::BitOrder, T: $crate::store::BitStore {
 			fn shr_assign(&mut self,shamt: $t){
 				core::ops::ShrAssign::<usize>::shr_assign(
 					self,
@@ -210,7 +210,7 @@ macro_rules! __bitvec_shift {
 		#[doc(hidden)]
 		impl<C, T> core::ops::Shl<$t>
 		for $crate::vec::BitVec<C, T>
-		where C: $crate::cursor::Cursor, T: $crate::store::BitStore {
+		where C: $crate::order::BitOrder, T: $crate::store::BitStore {
 			type Output = <Self as core::ops::Shl<usize>>::Output;
 
 			fn shl(self, shamt: $t) -> Self::Output {
@@ -221,7 +221,7 @@ macro_rules! __bitvec_shift {
 		#[doc(hidden)]
 		impl<C, T> core::ops::ShlAssign<$t>
 		for $crate::vec::BitVec<C, T>
-		where C: $crate::cursor::Cursor, T: $crate::store::BitStore {
+		where C: $crate::order::BitOrder, T: $crate::store::BitStore {
 			fn shl_assign(&mut self, shamt: $t) {
 				core::ops::ShlAssign::<usize>::shl_assign(
 					self,
@@ -233,7 +233,7 @@ macro_rules! __bitvec_shift {
 		#[doc(hidden)]
 		impl<C, T> core::ops::Shr<$t>
 		for $crate::vec::BitVec<C, T>
-		where C: $crate::cursor::Cursor, T: $crate::store::BitStore {
+		where C: $crate::order::BitOrder, T: $crate::store::BitStore {
 			type Output = <Self as core::ops::Shr<usize>>::Output;
 
 			fn shr(self, shamt: $t) -> Self::Output {
@@ -244,7 +244,7 @@ macro_rules! __bitvec_shift {
 		#[doc(hidden)]
 		impl<C, T> core::ops::ShrAssign<$t>
 		for $crate::vec::BitVec<C, T>
-		where C: $crate::cursor::Cursor, T: $crate::store::BitStore {
+		where C: $crate::order::BitOrder, T: $crate::store::BitStore {
 			fn shr_assign(&mut self, shamt: $t) {
 				core::ops::ShrAssign::<usize>::shr_assign(
 					self,
@@ -258,62 +258,62 @@ macro_rules! __bitvec_shift {
 #[cfg(all(test, feature = "alloc"))]
 mod tests {
 	#[allow(unused_imports)]
-	use crate::cursor::{
-		BigEndian,
-		LittleEndian,
+	use crate::order::{
+		Msb0,
+		Lsb0,
 	};
 
 	#[test]
 	fn compile_bitvec_macros() {
 		bitvec![0, 1];
-		bitvec![BigEndian; 0, 1];
-		bitvec![LittleEndian; 0, 1];
-		bitvec![BigEndian, u8; 0, 1];
-		bitvec![LittleEndian, u8; 0, 1];
-		bitvec![BigEndian, u16; 0, 1];
-		bitvec![LittleEndian, u16; 0, 1];
-		bitvec![BigEndian, u32; 0, 1];
-		bitvec![LittleEndian, u32; 0, 1];
-		bitvec![BigEndian, u64; 0, 1];
-		bitvec![LittleEndian, u64; 0, 1];
+		bitvec![Msb0; 0, 1];
+		bitvec![Lsb0; 0, 1];
+		bitvec![Msb0, u8; 0, 1];
+		bitvec![Lsb0, u8; 0, 1];
+		bitvec![Msb0, u16; 0, 1];
+		bitvec![Lsb0, u16; 0, 1];
+		bitvec![Msb0, u32; 0, 1];
+		bitvec![Lsb0, u32; 0, 1];
+		bitvec![Msb0, u64; 0, 1];
+		bitvec![Lsb0, u64; 0, 1];
 
 		bitvec![1; 70];
-		bitvec![BigEndian; 0; 70];
-		bitvec![LittleEndian; 1; 70];
-		bitvec![BigEndian, u8; 0; 70];
-		bitvec![LittleEndian, u8; 1; 70];
-		bitvec![BigEndian, u16; 0; 70];
-		bitvec![LittleEndian, u16; 1; 70];
-		bitvec![BigEndian, u32; 0; 70];
-		bitvec![LittleEndian, u32; 1; 70];
-		bitvec![BigEndian, u64; 0; 70];
-		bitvec![LittleEndian, u64; 1; 70];
+		bitvec![Msb0; 0; 70];
+		bitvec![Lsb0; 1; 70];
+		bitvec![Msb0, u8; 0; 70];
+		bitvec![Lsb0, u8; 1; 70];
+		bitvec![Msb0, u16; 0; 70];
+		bitvec![Lsb0, u16; 1; 70];
+		bitvec![Msb0, u32; 0; 70];
+		bitvec![Lsb0, u32; 1; 70];
+		bitvec![Msb0, u64; 0; 70];
+		bitvec![Lsb0, u64; 1; 70];
 	}
 
 	#[test]
 	fn compile_bitbox_macros() {
 		bitbox![0, 1];
-		bitbox![BigEndian; 0, 1];
-		bitbox![LittleEndian; 0, 1];
-		bitbox![BigEndian, u8; 0, 1];
-		bitbox![LittleEndian, u8; 0, 1];
-		bitbox![BigEndian, u16; 0, 1];
-		bitbox![LittleEndian, u16; 0, 1];
-		bitbox![BigEndian, u32; 0, 1];
-		bitbox![LittleEndian, u32; 0, 1];
-		bitbox![BigEndian, u64; 0, 1];
-		bitbox![LittleEndian, u64; 0, 1];
+		bitbox![Msb0; 0, 1];
+		bitbox![Lsb0; 0, 1];
+		bitbox![Msb0, u8; 0, 1];
+		bitbox![Lsb0, u8; 0, 1];
+		bitbox![Msb0, u16; 0, 1];
+		bitbox![Lsb0, u16; 0, 1];
+		bitbox![Msb0, u32; 0, 1];
+		bitbox![Lsb0, u32; 0, 1];
+		bitbox![Msb0, u64; 0, 1];
+		bitbox![Lsb0, u64; 0, 1];
 
 		bitbox![1; 70];
-		bitbox![BigEndian; 0; 70];
-		bitbox![LittleEndian; 1; 70];
-		bitbox![BigEndian, u8; 0; 70];
-		bitbox![LittleEndian, u8; 1; 70];
-		bitbox![BigEndian, u16; 0; 70];
-		bitbox![LittleEndian, u16; 1; 70];
-		bitbox![BigEndian, u32; 0; 70];
-		bitbox![LittleEndian, u32; 1; 70];
-		bitbox![BigEndian, u64; 0; 70];
-		bitbox![LittleEndian, u64; 1; 70];
+		bitbox![Msb0; 0; 70];
+		bitbox![Lsb0; 1; 70];
+		bitbox![Msb0, u8; 0; 70];
+		bitbox![Lsb0, u8; 1; 70];
+		bitbox![Msb0, u16; 0; 70];
+		bitbox![Lsb0, u16; 1; 70];
+		bitbox![Msb0, u32; 0; 70];
+		bitbox![Lsb0, u32; 1; 70];
+		bitbox![Msb0, u64; 0; 70];
+		bitbox![Lsb0, u64; 1; 70];
 	}
 }

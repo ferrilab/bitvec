@@ -7,12 +7,12 @@ work.
 !*/
 
 use crate::{
-	cursor::Cursor,
 	domain::*,
 	indices::{
 		BitIdx,
 		Indexable,
 	},
+	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
 };
@@ -276,10 +276,10 @@ where T: BitStore {
 	/// `NonNull<T>`.
 	///
 	/// This field cannot be treated as an address of the zeroth byte of the
-	/// slice domain, because the owning handle’s [`Cursor`] implementation
+	/// slice domain, because the owning handle’s [`BitOrder`] implementation
 	/// governs the bit pattern of the head cursor.
 	///
-	/// [`Cursor`]: ../trait.Cursor.html
+	/// [`BitOrder`]: ../order/trait.BitOrder.html
 	ptr: NonNull<u8>,
 	/// Two-element bitfield structure, holding bit-count and head-index
 	/// information.
@@ -851,14 +851,14 @@ where T: BitStore {
 	///
 	/// # Parameters
 	///
-	/// - `bs: &BitSlice<C, T>`: a `BitSlice` handle
+	/// - `bs: &BitSlice<O, T>`: a `BitSlice` handle
 	///
 	/// # Returns
 	///
 	/// The `BitPtr<T>` structure composing the handle.
-	pub(crate) fn from_bitslice<C>(bs: &BitSlice<C, T>) -> Self
-	where C: Cursor {
-		let src = unsafe { &*(bs as *const BitSlice<C, T> as *const [()]) };
+	pub(crate) fn from_bitslice<O>(bs: &BitSlice<O, T>) -> Self
+	where O: BitOrder {
+		let src = unsafe { &*(bs as *const BitSlice<O, T> as *const [()]) };
 		let ptr = Pointer::from(src.as_ptr() as *const u8);
 		let (ptr, len) = match (ptr.w(), src.len()) {
 			(_, 0) => (NonNull::dangling(), 0),
@@ -877,13 +877,13 @@ where T: BitStore {
 	/// # Returns
 	///
 	/// A `BitSlice` handle composed of the `BitPtr` structure.
-	pub(crate) fn into_bitslice<'a, C>(self) -> &'a BitSlice<C, T>
-	where C: Cursor {
+	pub(crate) fn into_bitslice<'a, O>(self) -> &'a BitSlice<O, T>
+	where O: BitOrder {
 		unsafe {
 			&*(slice::from_raw_parts(
 				Pointer::from(self.ptr.as_ptr()).r() as *const (),
 				self.len,
-			) as *const [()] as *const BitSlice<C, T>)
+			) as *const [()] as *const BitSlice<O, T>)
 		}
 	}
 
@@ -896,13 +896,13 @@ where T: BitStore {
 	/// # Returns
 	///
 	/// A `BitSlice` handle composed of the `BitPtr` structure.
-	pub(crate) fn into_bitslice_mut<'a, C>(self) -> &'a mut BitSlice<C, T>
-	where C: Cursor {
+	pub(crate) fn into_bitslice_mut<'a, O>(self) -> &'a mut BitSlice<O, T>
+	where O: BitOrder {
 		unsafe {
 			&mut *(slice::from_raw_parts_mut(
 				Pointer::from(self.ptr.as_ptr()).w() as *mut (),
 				self.len,
-			) as *mut [()] as *mut BitSlice<C, T>)
+			) as *mut [()] as *mut BitSlice<O, T>)
 		}
 	}
 }
@@ -932,16 +932,16 @@ where T: BitStore {
 	}
 }
 
-impl<'a, C, T> From<&'a BitSlice<C, T>> for BitPtr<T>
-where C: Cursor, T: 'a + BitStore {
-	fn from(src: &'a BitSlice<C, T>) -> Self {
+impl<'a, O, T> From<&'a BitSlice<O, T>> for BitPtr<T>
+where O: BitOrder, T: 'a + BitStore {
+	fn from(src: &'a BitSlice<O, T>) -> Self {
 		Self::from_bitslice(src)
 	}
 }
 
-impl<'a, C, T> From<&'a mut BitSlice<C, T>> for BitPtr<T>
-where C: Cursor, T: 'a + BitStore {
-	fn from(src: &'a mut BitSlice<C, T>) -> Self {
+impl<'a, O, T> From<&'a mut BitSlice<O, T>> for BitPtr<T>
+where O: BitOrder, T: 'a + BitStore {
+	fn from(src: &'a mut BitSlice<O, T>) -> Self {
 		Self::from_bitslice(src)
 	}
 }

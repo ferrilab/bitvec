@@ -11,11 +11,11 @@ slice and vector types.
 
 use crate::{
 	boxed::BitBox,
-	cursor::{
-		Cursor,
+	indices::Indexable,
+	order::{
+		BitOrder,
 		Local,
 	},
-	indices::Indexable,
 	pointer::BitPtr,
 	slice::BitSlice,
 	store::{
@@ -35,7 +35,7 @@ use core::{
 	slice,
 };
 
-/** A compact [`Vec`] of bits, whose cursor and storage type can be customized.
+/** A compact [`Vec`] of bits, whose order and storage type can be customized.
 
 `BitVec` is a newtype wrapper over `Vec`, and as such is exactly three words in
 size on the stack.
@@ -186,7 +186,7 @@ interpreted as anything but opaque binary data by user code.
 
 When a `BitVec` has allocated memory, then the memory to which it points is on
 the heap (as defined by the allocator Rust is configured to use by default), and
-its pointer points to [`len`] initialized bits in order of the [`Cursor`] type
+its pointer points to [`len`] initialized bits in order of the [`BitOrder`] type
 parameter, followed by `capacity - len` logically uninitialized bits.
 
 `BitVec` will never perform a “small optimization” where elements are stored in
@@ -220,7 +220,7 @@ space, then increasing the length to match, is always valid.
 
 # Type Parameters
 
-- `C: Cursor`: An implementor of the [`Cursor`] trait. This type is used to
+- `O: BitOrder`: An implementor of the [`BitOrder`] trait. This type is used to
   convert semantic indices into concrete bit positions in elements, and store or
   retrieve bit values from the storage type.
 - `T: BitStore`: An implementor of the [`BitStore`] trait: `u8`, `u16`, `u32`,
@@ -234,10 +234,10 @@ is ***extremely binary incompatible*** with them. Attempting to treat
 `BitVec<_, T>` as `Vec<T>` in any manner except through the provided APIs is
 ***catastrophically*** unsafe and unsound.
 
-[`BitSlice`]: ../struct.BitSlice.html
+[`BitSlice`]: ../slice/struct.BitSlice.html
 [`BitVec::with_capacity`]: #method.with_capacity
-[`BitStore`]: ../trait.BitStore.html
-[`Cursor`]: ../trait.Cursor.html
+[`BitStore`]: ../store/trait.BitStore.html
+[`BitOrder`]: ../order/trait.BitOrder.html
 [`Index`]: https://doc.rust-lang.org/stable/std/ops/trait.Index.html
 [`String`]: https://doc.rust-lang.org/stable/std/string/struct.String.html
 [`Vec`]: https://doc.rust-lang.org/stable/std/vec/struct.Vec.html
@@ -249,18 +249,18 @@ is ***extremely binary incompatible*** with them. Attempting to treat
 [`&[]`]: https://doc.rust-lang.org/stable/std/primitive.slice.html
 **/
 #[repr(C)]
-pub struct BitVec<C = Local, T = Word>
-where C: Cursor, T: BitStore {
-	/// Phantom `Cursor` member to satisfy the constraint checker.
-	_cursor: PhantomData<C>,
+pub struct BitVec<O = Local, T = Word>
+where O: BitOrder, T: BitStore {
+	/// Phantom `BitOrder` member to satisfy the constraint checker.
+	_order: PhantomData<O>,
 	/// Slice pointer over the owned memory.
 	pointer: BitPtr<T>,
 	/// The number of *elements* this vector has allocated.
 	capacity: usize,
 }
 
-impl<C, T> BitVec<C, T>
-where C: Cursor, T: BitStore {
+impl<O, T> BitVec<O, T>
+where O: BitOrder, T: BitStore {
 	/// Constructs a `BitVec` from a single element.
 	///
 	/// The produced `BitVec` will span the element, and include all bits in it.
@@ -278,7 +278,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bv = BitVec::<BigEndian, u8>::from_element(5);
+	/// let bv = BitVec::<Msb0, u8>::from_element(5);
 	/// assert_eq!(bv.count_ones(), 2);
 	/// ```
 	pub fn from_element(elt: T) -> Self {
@@ -307,14 +307,14 @@ where C: Cursor, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let src = [5, 10];
-	/// let bv = BitVec::<BigEndian, u8>::from_slice(&src[..]);
+	/// let bv = BitVec::<Msb0, u8>::from_slice(&src[..]);
 	/// assert!(bv[5]);
 	/// assert!(bv[7]);
 	/// assert!(bv[12]);
 	/// assert!(bv[14]);
 	/// ```
 	pub fn from_slice(slice: &[T]) -> Self {
-		BitSlice::<C, T>::from_slice(slice).to_owned()
+		BitSlice::<O, T>::from_slice(slice).to_owned()
 	}
 
 	/// Consumes a `Vec<T>` and creates a `BitVec<C, T>` from it.
@@ -337,7 +337,7 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bv = BitVec::<BigEndian, u8>::from_vec(vec![1, 2, 4, 8]);
+	/// let bv = BitVec::<Msb0, u8>::from_vec(vec![1, 2, 4, 8]);
 	/// assert_eq!(
 	///   "[00000001, 00000010, 00000100, 00001000]",
 	///   &format!("{}", bv),
@@ -351,12 +351,12 @@ where C: Cursor, T: BitStore {
 			len,
 			BitPtr::<T>::MAX_ELTS,
 		);
-		let bs = BitSlice::<C, T>::from_slice(&vec[..]);
+		let bs = BitSlice::<O, T>::from_slice(&vec[..]);
 		let pointer = bs.bitptr();
 		let capacity = vec.capacity();
 		mem::forget(vec);
 		Self {
-			_cursor: PhantomData,
+			_order: PhantomData,
 			pointer,
 			capacity,
 		}
@@ -377,12 +377,12 @@ where C: Cursor, T: BitStore {
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bs = [0u8, !0].bits::<BigEndian>();
+	/// let bs = [0u8, !0].bits::<Msb0>();
 	/// let bv = BitVec::from_bitslice(bs);
 	/// assert_eq!(bv.len(), 16);
 	/// assert!(bv.some());
 	/// ```
-	pub fn from_bitslice(slice: &BitSlice<C, T>) -> Self {
+	pub fn from_bitslice(slice: &BitSlice<O, T>) -> Self {
 		let mut out = Self::with_capacity(slice.len());
 		out.extend(slice.iter().copied());
 		out
@@ -409,7 +409,7 @@ where C: Cursor, T: BitStore {
 	/// assert_eq!(bv.len(), 2);
 	/// assert!(bv.some());
 	/// ```
-	pub fn from_boxed_bitslice(slice: BitBox<C, T>) -> Self {
+	pub fn from_boxed_bitslice(slice: BitBox<O, T>) -> Self {
 		let bitptr = slice.bitptr();
 		mem::forget(slice);
 		unsafe { Self::from_raw_parts(bitptr, bitptr.elements()) }
@@ -452,7 +452,7 @@ where C: Cursor, T: BitStore {
 	/// the pointer after calling this function.
 	pub unsafe fn from_raw_parts(pointer: BitPtr<T>, capacity: usize) -> Self {
 		Self {
-			_cursor: PhantomData,
+			_order: PhantomData,
 			pointer,
 			capacity,
 		}
@@ -478,7 +478,7 @@ where C: Cursor, T: BitStore {
 	/// let bv = bitvec![0, 1, 1, 0];
 	/// let bs = bv.as_bitslice();
 	/// ```
-	pub fn as_bitslice(&self) -> &BitSlice<C, T> {
+	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
 		self.pointer.into_bitslice()
 	}
 
@@ -502,7 +502,7 @@ where C: Cursor, T: BitStore {
 	/// let mut bv = bitvec![0, 1, 1, 0];
 	/// let bs = bv.as_mut_bitslice();
 	/// ```
-	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<C, T> {
+	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
 		self.pointer.into_bitslice_mut()
 	}
 
@@ -634,7 +634,7 @@ where C: Cursor, T: BitStore {
 		}
 	}
 
-	/// Changes the cursor type on the vector handle, without changing its
+	/// Changes the order type on the vector handle, without changing its
 	/// contents.
 	///
 	/// # Parameters
@@ -643,13 +643,13 @@ where C: Cursor, T: BitStore {
 	///
 	/// # Returns
 	///
-	/// An equivalent vector handle with a new cursor type. The contents of the
+	/// An equivalent vector handle with a new order type. The contents of the
 	/// backing storage are unchanged.
 	///
 	/// To reorder the bits in memory, drain this vector into a new handle with
-	/// the desired cursor type.
-	pub fn change_cursor<D>(self) -> BitVec<D, T>
-	where D: Cursor {
+	/// the desired order type.
+	pub fn change_order<P>(self) -> BitVec<P, T>
+	where P: BitOrder {
 		let (bp, cap) = (self.pointer, self.capacity);
 		mem::forget(self);
 		unsafe { BitVec::from_raw_parts(bp, cap) }
@@ -664,7 +664,7 @@ where C: Cursor, T: BitStore {
 	/// # Returns
 	///
 	/// Itself, with its size frozen and ungrowable.
-	pub fn into_boxed_bitslice(self) -> BitBox<C, T> {
+	pub fn into_boxed_bitslice(self) -> BitBox<O, T> {
 		let pointer = self.pointer;
 		//  Convert the Vec allocation into a Box<[T]> allocation
 		mem::forget(self.into_boxed_slice());

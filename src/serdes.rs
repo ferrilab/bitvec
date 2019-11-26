@@ -10,7 +10,7 @@ able to implement `Deserialize` as well.
 #![cfg(all(feature = "serde"))]
 
 use crate::{
-	cursor::Cursor,
+	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
 };
@@ -59,24 +59,24 @@ use serde::{
 /// A Serde visitor to pull `BitBox` data out of a serialized stream
 #[cfg(feature = "alloc")]
 #[derive(Clone, Copy, Default, Debug)]
-pub struct BitBoxVisitor<'de, C, T>
-where C: Cursor, T: BitStore + Deserialize<'de> {
-	_cursor: PhantomData<C>,
+pub struct BitBoxVisitor<'de, O, T>
+where O: BitOrder, T: BitStore + Deserialize<'de> {
+	_order: PhantomData<O>,
 	_storage: PhantomData<&'de T>,
 }
 
 #[cfg(feature = "alloc")]
-impl<'de, C, T> BitBoxVisitor<'de, C, T>
-where C: Cursor, T: BitStore + Deserialize<'de> {
+impl<'de, O, T> BitBoxVisitor<'de, O, T>
+where O: BitOrder, T: BitStore + Deserialize<'de> {
 	fn new() -> Self {
-		BitBoxVisitor { _cursor: PhantomData, _storage: PhantomData }
+		BitBoxVisitor { _order: PhantomData, _storage: PhantomData }
 	}
 }
 
 #[cfg(feature = "alloc")]
-impl<'de, C, T> Visitor<'de> for BitBoxVisitor<'de, C, T>
-where C: Cursor, T: BitStore + Deserialize<'de> {
-	type Value = BitBox<C, T>;
+impl<'de, O, T> Visitor<'de> for BitBoxVisitor<'de, O, T>
+where O: BitOrder, T: BitStore + Deserialize<'de> {
+	type Value = BitBox<O, T>;
 
 	fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.write_str("A BitSet data series")
@@ -147,8 +147,8 @@ where C: Cursor, T: BitStore + Deserialize<'de> {
 }
 
 #[cfg(feature = "alloc")]
-impl<'de, C, T> Deserialize<'de> for BitBox<C, T>
-where C: Cursor, T: 'de + BitStore + Deserialize<'de> {
+impl<'de, O, T> Deserialize<'de> for BitBox<O, T>
+where O: BitOrder, T: 'de + BitStore + Deserialize<'de> {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		deserializer
@@ -161,16 +161,16 @@ where C: Cursor, T: 'de + BitStore + Deserialize<'de> {
 }
 
 #[cfg(feature = "alloc")]
-impl<'de, C, T> Deserialize<'de> for BitVec<C, T>
-where C: Cursor, T: 'de + BitStore + Deserialize<'de> {
+impl<'de, O, T> Deserialize<'de> for BitVec<O, T>
+where O: BitOrder, T: 'de + BitStore + Deserialize<'de> {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		BitBox::deserialize(deserializer).map(Into::into)
 	}
 }
 
-impl<C, T> Serialize for BitSlice<C, T>
-where C: Cursor, T: BitStore + Serialize, T::Access: Serialize {
+impl<O, T> Serialize for BitSlice<O, T>
+where O: BitOrder, T: BitStore + Serialize, T::Access: Serialize {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		let head = self.bitptr().head();
@@ -185,8 +185,8 @@ where C: Cursor, T: BitStore + Serialize, T::Access: Serialize {
 }
 
 #[cfg(feature = "alloc")]
-impl<C, T> Serialize for BitBox<C, T>
-where C: Cursor, T: BitStore + Serialize, T::Access: Serialize {
+impl<O, T> Serialize for BitBox<O, T>
+where O: BitOrder, T: BitStore + Serialize, T::Access: Serialize {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		BitSlice::serialize(&*self, serializer)
@@ -194,8 +194,8 @@ where C: Cursor, T: BitStore + Serialize, T::Access: Serialize {
 }
 
 #[cfg(feature = "alloc")]
-impl<C, T> Serialize for BitVec<C, T>
-where C: Cursor, T: BitStore + Serialize, T::Access: Serialize {
+impl<O, T> Serialize for BitVec<O, T>
+where O: BitOrder, T: BitStore + Serialize, T::Access: Serialize {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		BitSlice::serialize(&*self, serializer)
@@ -239,7 +239,7 @@ mod tests {
 
 	#[test]
 	fn empty() {
-		let slice = BitSlice::<BigEndian, u8>::empty();
+		let slice = BitSlice::<Msb0, u8>::empty();
 
 		assert_ser_tokens(&slice, bvtok![s 0, 0, 0, U8]);
 
@@ -250,14 +250,14 @@ mod tests {
 	#[cfg(feature = "alloc")]
 	#[test]
 	fn small() {
-		let bv = bitvec![BigEndian, u8; 1; 5];
+		let bv = bitvec![Msb0, u8; 1; 5];
 		let bs = &bv[1 ..];
 		assert_ser_tokens(&bs, bvtok![s 1, 1, 4, U8, 0b1111_1000]);
 
-		let bv = bitvec![LittleEndian, u16; 1; 12];
+		let bv = bitvec![Lsb0, u16; 1; 12];
 		assert_ser_tokens(&bv, bvtok![s 1, 0, 12, U16, 0b00001111_11111111]);
 
-		let bb: BitBox<_, _> = bitvec![LittleEndian, u32; 1; 10].into();
+		let bb: BitBox<_, _> = bitvec![Lsb0, u32; 1; 10].into();
 		assert_ser_tokens(&bb, bvtok![s 1, 0, 10, U32, 0x00_00_03_FF]);
 	}
 
@@ -272,7 +272,7 @@ mod tests {
 	#[cfg(feature = "alloc")]
 	#[test]
 	fn deser() {
-		let bv = bitvec![BigEndian, u8; 0, 1, 1, 0, 1, 0];
+		let bv = bitvec![Msb0, u8; 0, 1, 1, 0, 1, 0];
 		assert_de_tokens(&bv, bvtok![d 1, 0, 6, U8, 0b0110_1000]);
 		//  test that the bits outside the bits domain don't matter in deser
 		assert_de_tokens(&bv, bvtok![d 1, 0, 6, U8, 0b0110_1001]);

@@ -7,9 +7,9 @@ the bitfield language feature found in C and C++.
 
 use crate::{
 	access::BitAccess,
-	cursor::{
-		BigEndian,
-		LittleEndian,
+	order::{
+		Msb0,
+		Lsb0,
 	},
 	slice::BitSlice,
 	store::BitStore,
@@ -30,7 +30,7 @@ compile_fail!("Bitfield access is not supported on this architecture");
 
 /** Permit a specific `BitSlice` to be used for C-style bitfield access.
 
-Cursors that permit batched access to regions of memory are enabled to load data
+Orders that permit batched access to regions of memory are enabled to load data
 from a `BitSlice` and store data to a `BitSlice` with faster behavior than the
 default bit-by-bit traversal.
 
@@ -94,7 +94,7 @@ where T: BitStore {
 	where U: BitStore;
 }
 
-impl<T> BitField<T> for BitSlice<LittleEndian, T>
+impl<T> BitField<T> for BitSlice<Lsb0, T>
 where T: BitStore {
 	fn load<U>(&self) -> Option<U>
 	where U: BitStore {
@@ -310,7 +310,7 @@ where T: BitStore {
 	}
 }
 
-impl<T> BitField<T> for BitSlice<BigEndian, T>
+impl<T> BitField<T> for BitSlice<Msb0, T>
 where T: BitStore {
 	fn load<U>(&self) -> Option<U>
 	where U: BitStore {
@@ -335,7 +335,7 @@ where T: BitStore {
 				*/
 				let mut accum: Usize = 0;
 
-				//  Same element ordering as in the LittleEndian implementation.
+				//  Same element ordering as in the Lsb0 implementation.
 				#[cfg(target_endian = "little")] {
 
 				//  If the tail exists, it contains the most significant chunk
@@ -366,7 +366,7 @@ where T: BitStore {
 
 				}
 
-				//  Same element ordering as in the LittleEndian implementation.
+				//  Same element ordering as in the Lsb0 implementation.
 				#[cfg(target_endian = "big")] {
 
 				//  If the head exists, it contains the most significant chunk
@@ -432,7 +432,7 @@ where T: BitStore {
 			Either::Left((head, body, tail)) => {
 				let mut value = resize::<U, Usize>(value) & mask_for::<Usize>(len);
 
-				//  Same element ordering as in the LittleEndian implementation.
+				//  Same element ordering as in the Lsb0 implementation.
 				#[cfg(target_endian = "little")] {
 
 				//  If the head exists, it contains the least significant chunk
@@ -466,7 +466,7 @@ where T: BitStore {
 				}
 
 
-				//  Same element ordering as in the LittleEndian implementation.
+				//  Same element ordering as in the Lsb0 implementation.
 				#[cfg(target_endian = "big")] {
 
 				if let Some((tail, t)) = tail {
@@ -551,7 +551,7 @@ fn resize<T, U>(value: T) -> U
 where T: BitStore, U: BitStore {
 	let zero: Usize = 0;
 	let mut slab = zero.to_ne_bytes();
-	let cursor = 0;
+	let start = 0;
 
 	/* Copy the source value into the correct region of the intermediate slab.
 
@@ -562,21 +562,21 @@ where T: BitStore, U: BitStore {
 	match mem::size_of::<T>() {
 		1 => {
 			#[cfg(target_endian = "big")]
-			let cursor = mem::size_of::<Usize>() - 1;
+			let start = mem::size_of::<Usize>() - 1;
 
-			slab[cursor ..][.. 1].copy_from_slice(value.as_bytes());
+			slab[start ..][.. 1].copy_from_slice(value.as_bytes());
 		},
 		2 => {
 			#[cfg(target_endian = "big")]
-			let cursor = mem::size_of::<Usize>() - 2;
+			let start = mem::size_of::<Usize>() - 2;
 
-			slab[cursor ..][.. 2].copy_from_slice(value.as_bytes());
+			slab[start ..][.. 2].copy_from_slice(value.as_bytes());
 		},
 		4 => {
 			#[cfg(target_endian = "big")]
-			let cursor = mem::size_of::<Usize>() - 4;
+			let start = mem::size_of::<Usize>() - 4;
 
-			slab[cursor ..][.. 4].copy_from_slice(value.as_bytes());
+			slab[start ..][.. 4].copy_from_slice(value.as_bytes());
 		},
 		#[cfg(target_pointer_width = "64")]
 		8 => slab[..].copy_from_slice(value.as_bytes()),
@@ -632,7 +632,7 @@ mod tests {
 	#[test]
 	fn le() {
 		let mut bytes = [0u8; 16];
-		let bytes = bytes.bits_mut::<LittleEndian>();
+		let bytes = bytes.bits_mut::<Lsb0>();
 
 		bytes[4 ..][.. 8].store(0xA5u8);
 		assert_eq!(bytes[4 ..][.. 8].load(), Some(0xA5u8));
@@ -662,15 +662,15 @@ mod tests {
 
 		/*
 		let mut shorts = [0u16; 8];
-		let shorts = shorts.bits_mut::<LittleEndian>();
+		let shorts = shorts.bits_mut::<Lsb0>();
 
 		let mut ints = [0u32; 4];
-		let ints = ints.bits_mut::<LittleEndian>();
+		let ints = ints.bits_mut::<Lsb0>();
 
 		#[cfg(target_pointer_width = "64")] {
 
 		let mut longs = [0u64; 2];
-		let longs = longs.bits_mut::<LittleEndian>();
+		let longs = longs.bits_mut::<Lsb0>();
 
 		}
 		*/
@@ -680,7 +680,7 @@ mod tests {
 	#[test]
 	fn be() {
 		let mut bytes = [0u8; 16];
-		let bytes = bytes.bits_mut::<BigEndian>();
+		let bytes = bytes.bits_mut::<Msb0>();
 
 		bytes[4 ..][.. 8].store(0xA5u8);
 		assert_eq!(bytes[4 ..][.. 8].load(), Some(0xA5u8));
@@ -710,15 +710,15 @@ mod tests {
 
 		/*
 		let mut shorts = [0u16; 8];
-		let shorts = shorts.bits_mut::<BigEndian>();
+		let shorts = shorts.bits_mut::<Msb0>();
 
 		let mut ints = [0u32; 4];
-		let ints = ints.bits_mut::<BigEndian>();
+		let ints = ints.bits_mut::<Msb0>();
 
 		#[cfg(target_pointer_width = "64")] {
 
 		let mut longs = [0u64; 2];
-		let longs = longs.bits_mut::<BigEndian>();
+		let longs = longs.bits_mut::<Msb0>();
 
 		}
 		*/

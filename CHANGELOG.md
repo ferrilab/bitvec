@@ -4,6 +4,14 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+## 0.17.0
+
+### Changed
+
+- Rename the `cursor` module to `order`, the `Cursor` trait to `BitOrder`, and
+  the `BigEndian` and `LittleEndian` types to `Msb0` and `Lsb0`, respectively
+- Fold `BitsMut` into `Bits`
+
 ## 0.16.2
 
 ### Fixed

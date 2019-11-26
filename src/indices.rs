@@ -21,7 +21,7 @@ use core::convert::TryFrom;
 
 /** Indicates a semantic index of a bit within a memory element.
 
-This type is consumed by [`Cursor`] implementors, which use it to produce a
+This type is consumed by [`BitOrder`] implementors, which use it to produce a
 concrete bit position inside an element.
 
 `BitIdx` is a semantic counter which has a defined, constant, and predictable
@@ -29,13 +29,13 @@ ordering. Values of `BitIdx` refer strictly to an abstract ordering, and not to
 any actual bit positions within a memory element, so `BitIdx::<T>(0)` is always
 the first bit counted within an element, but is not required to be the most or
 least significant bits, or any other particular bits. Which specific bit is
-referred by a `BitIdx` value is governed by implementors of `Cursor`.
+referred by a `BitIdx` value is governed by implementors of `BitOrder`.
 
 # Type Parameters
 
 - `T`: The memory element type controlled by this index.
 
-[`Cursor`]: ../cursor/trait.Cursor.html
+[`BitOrder`]: ../order/trait.BitOrder.html
 **/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct BitIdx<T>
@@ -319,7 +319,7 @@ where T: BitStore {
 
 /** Indicates a real electrical index within an element.
 
-This type is produced by [`Cursor`] implementors, and marks a specific
+This type is produced by [`BitOrder`] implementors, and marks a specific
 electrical bit within a memory element, rather than `BitIdx`’s semantic bit.
 
 # Type Parameters
@@ -328,7 +328,7 @@ electrical bit within a memory element, rather than `BitIdx`’s semantic bit.
   [`new`] constructor uses [`T::BITS`] to ensure that constructed `BitPos`
   instances are always valid to use within `T` elements.
 
-[`Cursor`]: ../cursor/trait.Cursor.html
+[`BitOrder`]: ../order/trait.BitOrder.html
 [`T::BITS`]: ../store/trait.BitStore.html#associatedconstant.BITS
 [`new`]: #method.new
 **/
@@ -345,7 +345,7 @@ impl<T> BitPos<T>
 where T: BitStore {
 	/// Produce a new bit position marker at a valid position value.
 	///
-	/// `Cursor` implementations should prefer this method, but *may* use
+	/// `BitOrder` implementations should prefer this method, but *may* use
 	/// [`::new_unchecked`] if they can guarantee that the range invariant is
 	/// upheld.
 	///
@@ -374,7 +374,7 @@ where T: BitStore {
 	///
 	/// # Safety
 	///
-	/// The caller *must* ensure that `pos` is less than `T::BITS`. `Cursor`
+	/// The caller *must* ensure that `pos` is less than `T::BITS`. `BitOrder`
 	/// implementations should prefer [`::new`], which panics on range failure.
 	///
 	/// # Parameters
@@ -416,7 +416,7 @@ where T: BitStore {
 
 /** Wrapper type indicating a one-hot encoding of a bit mask for an element.
 
-This type is produced by [`Cursor`] implementations to speed up access to the
+This type is produced by [`BitOrder`] implementations to speed up access to the
 underlying memory. It ensures that masks have exactly one set bit, and can
 safely be used as a mask for read/write access to memory.
 
@@ -424,7 +424,7 @@ safely be used as a mask for read/write access to memory.
 
 - `T`: The storage type being masked.
 
-[`Cursor`]: ../cursor/trait.Cursor.html
+[`BitOrder`]: ../order/trait.BitOrder.html
 **/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct BitMask<T>
@@ -437,7 +437,7 @@ impl<T> BitMask<T>
 where T: BitStore {
 	/// Produce a new bit-mask wrapper around a one-hot mask value.
 	///
-	/// `Cursor` implementations should prefer this method, but *may* use
+	/// `BitOrder` implementations should prefer this method, but *may* use
 	/// [`::new_unchecked`] if they can guarantee that the one-hot invariant is
 	/// upheld.
 	///
@@ -471,7 +471,7 @@ where T: BitStore {
 	///
 	/// # Safety
 	///
-	/// The caller *must* ensure that `mask` has exactly one bit set. `Cursor`
+	/// The caller *must* ensure that `mask` has exactly one bit set. `BitOrder`
 	/// implementations should prefer [`::new`], which always panics on failure.
 	///
 	/// # Parameters
