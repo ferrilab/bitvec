@@ -255,7 +255,7 @@ macro_rules! __bitvec_shift {
 	)+ };
 }
 
-#[cfg(all(test, any(feature = "alloc", feature = "std")))]
+#[cfg(all(test, feature = "alloc"))]
 mod tests {
 	#[allow(unused_imports)]
 	use crate::cursor::{
