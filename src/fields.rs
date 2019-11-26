@@ -19,6 +19,13 @@ use core::mem;
 
 use either::Either;
 
+#[cfg(feature = "alloc")]
+use crate::{
+	boxed::BitBox,
+	order::BitOrder,
+	vec::BitVec,
+};
+
 #[cfg(target_pointer_width = "32")]
 type Usize = u32;
 
@@ -46,8 +53,7 @@ location in an element to a variable location in the slice.
 Methods should be called as `bits[start .. end].load_or_store()`, where the
 range subslice selects up to but no more than the `T::BITS` width.
 **/
-pub trait BitField<T>
-where T: BitStore {
+pub trait BitField {
 	/// Load the sequence of bits from `self` into the least-significant bits of
 	/// an element.
 	///
@@ -94,7 +100,7 @@ where T: BitStore {
 	where U: BitStore;
 }
 
-impl<T> BitField<T> for BitSlice<Lsb0, T>
+impl<T> BitField for BitSlice<Lsb0, T>
 where T: BitStore {
 	fn load<U>(&self) -> Option<U>
 	where U: BitStore {
@@ -310,7 +316,7 @@ where T: BitStore {
 	}
 }
 
-impl<T> BitField<T> for BitSlice<Msb0, T>
+impl<T> BitField for BitSlice<Msb0, T>
 where T: BitStore {
 	fn load<U>(&self) -> Option<U>
 	where U: BitStore {
@@ -591,6 +597,34 @@ where T: BitStore, U: BitStore {
 		#[cfg(target_pointer_width = "64")]
 		8 => U::from_bytes(&mid.to_ne_bytes()[..]),
 		_ => unreachable!("BitStore is not implemented on types of this size"),
+	}
+}
+
+#[cfg(feature = "alloc")]
+impl<O, T> BitField for BitBox<O, T>
+where O: BitOrder, T: BitStore, BitSlice<O, T>: BitField {
+	fn load<U>(&self) -> Option<U>
+	where U: BitStore {
+		self.as_bitslice().load()
+	}
+
+	fn store<U>(&mut self, value: U)
+	where U: BitStore {
+		self.as_mut_bitslice().store(value);
+	}
+}
+
+#[cfg(feature = "alloc")]
+impl<O, T> BitField for BitVec<O, T>
+where O: BitOrder, T: BitStore, BitSlice<O, T>: BitField {
+	fn load<U>(&self) -> Option<U>
+	where U: BitStore {
+		self.as_bitslice().load()
+	}
+
+	fn store<U>(&mut self, value: U)
+	where U: BitStore {
+		self.as_mut_bitslice().store(value);
 	}
 }
 
