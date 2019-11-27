@@ -1,4 +1,4 @@
-<div class="title-block">
+<div class="title-block" style="text-align: center;">
 
 # `bitvec` <!-- omit in toc -->
 
@@ -587,10 +587,3 @@ crate.
 [`Word`]: #bitstore
 [`bitbox!`]: #macros
 [`bitvec!`]: #macros
-
-
-<style type="text/css">
-.title-block {
-  text-align: center;
-}
-</style>
