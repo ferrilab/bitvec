@@ -1,4 +1,4 @@
-<div class="title-block" style="text-align: center;">
+<div class="title-block" style="text-align: center;" align="center">
 
 # `bitvec` <!-- omit in toc -->
 
