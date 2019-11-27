@@ -6,7 +6,7 @@
 
 [package]
 name = "bitvec"
-version = "0.16.2"
+version = "0.17.0"
 authors = [
 	"myrrlyn <self@myrrlyn.dev>",
 ]
@@ -25,8 +25,11 @@ include = [
 	"src/**/*.rs",
 ]
 keywords = [
+	"bitfields",
 	"bits",
+	"bitstream",
 	"bitvec",
+	"bitvector",
 ]
 license = "MIT"
 readme = "README.md"
