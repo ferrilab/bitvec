@@ -206,13 +206,8 @@ to little-endian as well, as a convenience. These two orderings are not related.
 #[cfg(target_endian = "little")]
 pub type Local = Lsb0;
 
-/** A default bit ordering.
-
-The byte ordering of the target could not be determined, so little-endian bit
-ordering is chosen as an uninformed default.
-**/
 #[cfg(not(any(target_endian = "big", target_endian = "little")))]
-pub type Local = Lsb0;
+compile_fail!("This architecture is currently not supported. File an issue at https://github.com/myrrlyn/bitvec");
 
 #[cfg(test)]
 #[allow(clippy::cognitive_complexity)] // Permit large test functions
