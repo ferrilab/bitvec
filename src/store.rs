@@ -401,13 +401,8 @@ The target has 64-bit CPU words, so `u64` is a good default unit size.
 #[cfg(target_pointer_width = "64")]
 pub type Word = u64;
 
-/** A default word size for bit sequences.
-
-The target’s CPU size is neither 32 nor 64 bits, so the default unit size is set
-to `u8` as an uninformed guess.
-**/
 #[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
-pub type Word = u8;
+compile_fail!("This architecture is currently not supported. File an issue at https://github.com/myrrlyn/bitvec");
 
 /** Marker trait to seal `BitStore` against downstream implementation.
 
