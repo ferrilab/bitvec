@@ -6,6 +6,15 @@ This document is written according to the [Keep a Changelog][kac] style.
 
 ## 0.17.0
 
+### Added
+
+- `BitField` trait now has `{load,store}_{le,be}` methods for explicitly
+  choosing *element* order when performing storage. The `load`/`store` methods
+  default to the target’s byte endiannes as a convenience. These may be
+  deprecated in the future, if the explicit choice is strongly preferred.
+
+  See the module and trait documentation for more detail.
+
 ### Changed
 
 - Rename the `cursor` module to `order`, the `Cursor` trait to `BitOrder`, and

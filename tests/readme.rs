@@ -94,5 +94,5 @@ fn readme() {
   //  `BitSlice` can store variables
   bv[1 .. 7].store(0x3Fu8);
   //  and fetch them
-  assert_eq!(bv[1 .. 7].load::<u8>(), Some(0x3F));
+  assert_eq!(bv[1 .. 7].load::<u8>(), 0x3F);
 }

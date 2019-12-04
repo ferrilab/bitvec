@@ -64,10 +64,10 @@ fn parse(header: [u8; 20]) {
 
 	//  Check that the version field is `4`, by `load`ing it and by direct
 	//  inspection
-	assert_eq!(pkt[.. 4].load::<u8>().unwrap(), 4);
+	assert_eq!(pkt[.. 4].load::<u8>(), 4);
 	assert_eq!(header[0] & 0xF0, 0x40);
 
-	let ihl = pkt[4 .. 8].load::<u8>().unwrap() as usize;
+	let ihl = pkt[4 .. 8].load::<u8>() as usize;
 	assert!((5 .. 16).contains(&ihl));
 	assert!(pkt[49], "Unexpected fragmentation");
 	assert!(!pkt[50], "Unexpected fragmentation");
