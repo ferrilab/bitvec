@@ -4,6 +4,14 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+## 0.16.1
+
+This is a hotfix for [Issue #33], filed by GitHub user [@jonas-schievink].
+`BitVec::reserve` computed an incorrect element count to pass to `Vec::reserve`,
+causing `BitVec::resize` to panic when its `BitVec::reserve` call failed to
+sufficiently allocate memory before `BitVec::set_len` expanded into the memory
+it expected to be present.
+
 ## 0.16.0
 
 ### Added
@@ -569,6 +577,7 @@ Initial implementation and release.
 [@GeorgeGkas]: https://github.com/GeorgeGkas
 [@caelunshun]: https://github.com/caelunshun
 [@geq1t]: https://github.com/geq1t
+[@jonas-schievink]: https://github.com/jonas-schievink
 [@koushiro]: https://github.com/koushiro
 [@overminder]: https://github.com/overminder
 [@ratorx]: https://github.com/ratorx
@@ -582,5 +591,6 @@ Initial implementation and release.
 [Issue #15]: https://github.com/myrrlyn/bitvec/issues/15
 [Issue #16]: https://github.com/myrrlyn/bitvec/issues/16
 [Issue #28]: https://github.com/myrrlyn/bitvec/issues/28
+[Issue #33]: https://github.com/myrrlyn/bitvec/issues/33
 [`Sync`]: https://doc.rust-lang.org/stable/core/marker/trait.Sync.html
 [kac]: https://keepachangelog.com/en/1.0.0/

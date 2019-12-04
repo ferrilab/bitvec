@@ -105,7 +105,7 @@ where C: Cursor, T: BitStore {
 			BitPtr::<T>::MAX_BITS,
 		);
 		let (total_elts, _) = self.pointer.head().span(newlen);
-		if let Some(extra) = total_elts.checked_sub(self.capacity) {
+		if let Some(extra) = total_elts.checked_sub(self.pointer.elements()) {
 			self.do_unto_vec(|v| v.reserve(extra));
 		}
 	}
