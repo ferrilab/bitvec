@@ -3,16 +3,52 @@
 This module provides parallel, multiple-bit, access to a `BitSlice`. This
 functionality permits the use of `BitSlice` as a library-level implementation of
 the bitfield language feature found in C and C++.
+
+The `BitField` trait is not sealed against client implementation, as there is no
+useful way to automatically use a `Cursor` implementation to provide a universal
+behavior. As such, the trait has some requirements that the compiler cannot
+enforce for client implementations.
+
+# Batch Behavior
+
+The purpose of this trait is to provide access to arbitrary bit regions as if
+they were an ordinary memory location. As such, it is important for
+implementations of this trait to provide shift/mask register transfer behavior
+where possible, for as wide a span as possible in each action. Implementations
+of this trait should *not* use bit-by-bit iteration.
+
+# Register Bit Order Preservation
+
+As a default assumption – user orderings *may* violate this, but *should* not –
+each element of slice memory used to store part of a value should not reorder
+the value bits. Transfer between slice memory and a CPU register should solely
+be an ordinary value load or store between memory and the register, and a
+shift/mask operation to select the part of the value that is live.
+
+# Endianness
+
+The `_le` and `_be` methods of `BitField` refer to the order in which
+`T: BitStore` elements of the slice are assigned significance when containing
+fragments of a stored data value. Within any `T` element, the order of its
+constituent bytes is *not* governed by the `BitField` trait method.
+
+The provided `BitOrder` implementors `Lsb0` and `Msb0` use the local machine’s
+byte ordering. Other cursors *may* implement ordering of bytes within `T`
+elements differently, for instance by calling `.to_be_bytes` before store and
+`from_be_bytes` after load,
 !*/
 
 use crate::{
 	access::BitAccess,
 	order::{
-		Msb0,
 		Lsb0,
+		Msb0,
 	},
 	slice::BitSlice,
-	store::BitStore,
+	store::{
+		BitStore,
+		Word,
+	},
 };
 
 use core::mem;
@@ -25,15 +61,6 @@ use crate::{
 	order::BitOrder,
 	vec::BitVec,
 };
-
-#[cfg(target_pointer_width = "32")]
-type Usize = u32;
-
-#[cfg(target_pointer_width = "64")]
-type Usize = u64;
-
-#[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
-compile_fail!("Bitfield access is not supported on this architecture");
 
 /** Permit a specific `BitSlice` to be used for C-style bitfield access.
 
@@ -51,7 +78,7 @@ they expect for memory ordering. These methods merely move data from a fixed
 location in an element to a variable location in the slice.
 
 Methods should be called as `bits[start .. end].load_or_store()`, where the
-range subslice selects up to but no more than the `T::BITS` width.
+range subslice selects up to but no more than the `U::BITS` element width.
 **/
 pub trait BitField {
 	/// Load the sequence of bits from `self` into the least-significant bits of
@@ -61,21 +88,87 @@ pub trait BitField {
 	/// Rust fundamental types which do not implement it must be recast
 	/// appropriately by the user.
 	///
+	/// The default implementation of this function calls [`load_le`] on
+	/// little-endian byte-ordered CPUs, and [`load_be`] on big-endian
+	/// byte-ordered CPUs.
+	///
 	/// # Parameters
 	///
 	/// - `&self`: A read reference to some bits in memory. This slice must be
-	///   trimmed to have a width no more than the `U::BITS` width of the
-	///   type being loaded. This can be accomplished with range indexing on a
-	///   larger slice.
+	///   trimmed to have a width no more than the `U::BITS` width of the type
+	///   being loaded. This can be accomplished with range indexing on a larger
+	///   slice.
 	///
 	/// # Returns
 	///
-	/// If `self` has a length greater than zero, but not greater than the `U`
-	/// element width `U::BITS`, then this returns an element whose least
-	/// `self.len()` significant bits are filled with the bits of `self`.
+	/// A `U` value whose least `self.len()` significant bits are filled with
+	/// the bits of `self`.
 	///
-	/// If `self` is empty, or wider than a single element, this returns `None`.
-	fn load<U>(&self) -> Option<U>
+	/// # Panics
+	///
+	/// If `self` is empty, or wider than a single `U` element, this panics.
+	///
+	/// [`load_be`]: #tymethod.load_be
+	/// [`load_le`]: #tymethod.load_le
+	fn load<U>(&self) -> U
+	where U: BitStore {
+		#[cfg(target_endian = "little")]
+		return self.load_le();
+
+		#[cfg(target_endian = "big")]
+		return self.load_be();
+	}
+
+	/// Load from `self`, using little-endian element ordering.
+	///
+	/// This function interprets a multi-element slice as having its least
+	/// significant chunk in the low memory address, and its most significant
+	/// chunk in the high memory address. Each element `T` is still interpreted
+	/// from individual bytes according to the local CPU ordering.
+	///
+	/// # Parameters
+	///
+	/// - `&self`: A read reference to some bits in memory. This slice must be
+	///   trimmed to have a width no more than the `U::BITS` width of the type
+	///   being loaded. This can be accomplished with range indexing on a larger
+	///   slice.
+	///
+	/// # Returns
+	///
+	/// A `U` value whose least `self.len()` significant bits are filled with
+	/// the bits of `self`. If `self` spans multiple `T` elements, then the
+	/// lowest-address `T` is interpreted as containing the least significant
+	/// bits of the `U` return value, and the highest-address `T` is interpreted
+	/// as containing its most significant bits.
+	///
+	/// # Panics
+	///
+	/// If `self` is empty, or wider than a single `U` element, this panics.
+	fn load_le<U>(&self) -> U
+	where U: BitStore;
+
+	/// Load from `self`, using big-endian element ordering.
+	///
+	/// This function interprets a multi-element slice as having its most
+	/// significant chunk in the low memory address, and its least significant
+	/// chunk in the high memory address. Each element `T` is still interpreted
+	/// from individual bytes according to the local CPU ordering.
+	///
+	/// # Parameters
+	///
+	/// - `&self`: A read reference to some bits in memory. This slice must be
+	///   trimmed to have a width no more than the `U::BITS` width of the type
+	///   being loaded. This can be accomplished with range indexing on a larger
+	///   slice.
+	///
+	/// # Returns
+	///
+	/// A `U` value whose least `self.len()` significant bits are filled with
+	/// the bits of `self`. If `self` spans multiple `T` elements, then the
+	/// lowest-address `T` is interpreted as containing the most significant
+	/// bits of the `U` return value, and the highest-address `T` is interpreted
+	/// as containing its least significant bits.
+	fn load_be<U>(&self) -> U
 	where U: BitStore;
 
 	/// Stores a sequence of bits from the user into the domain of `self`.
@@ -84,66 +177,141 @@ pub trait BitField {
 	/// Rust fundamental types which do not implement it must be recast
 	/// appropriately by the user.
 	///
+	/// The default implementation of this function calls [`store_le`] on
+	/// little-endian byte-ordered CPUs, and [`store_be`] on big-endian
+	/// byte-ordered CPUs.
+	///
 	/// # Parameters
 	///
 	/// - `&mut self`: A write reference to some bits in memory. This slice must
 	///   be trimmed to have a width no more than the `U::BITS` width of the
 	///   type being stored. This can be accomplished with range indexing on a
 	///   larger slice.
+	/// - `value`: A value, whose `self.len()` least significant bits will be
+	///   stored into `self`.
 	///
 	/// # Behavior
 	///
-	/// If `self` is the empty slice, or wider than an element, then this exits
-	/// without effect. Otherwise, the `self.len()` least significant bits of
-	/// `value` are written into the domain of `self`.
+	/// The `self.len()` least significant bits of `value` are written into the
+	/// domain of `self`.
+	///
+	/// # Panics
+	///
+	/// If `self` is empty, or wider than a single `U` element, this panics.
+	///
+	/// [`store_be`]: #tymethod.store_be
+	/// [`store_le`]: #tymethod.store_le
 	fn store<U>(&mut self, value: U)
+	where U: BitStore {
+		#[cfg(target_endian = "little")]
+		self.store_le(value);
+
+		#[cfg(target_endian = "big")]
+		self.store_be(value);
+	}
+
+	/// Store into `self`, using little-endian element ordering.
+	///
+	/// This function interprets a multi-element slice as having its least
+	/// significant chunk in the low memory address, and its most significant
+	/// chunk in the high memory address. Each element `T` is still interpreted
+	/// from individual bytes according to the local CPU ordering.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`: A write reference to some bits in memory. This slice must
+	///   be trimmed to have a width no more than the `U::BITS` width of the
+	///   type being stored. This can be accomplished with range indexing on a
+	///   larger slice.
+	/// - `value`: A value, whose `self.len()` least significant bits will be
+	///   stored into `self`.
+	///
+	/// # Behavior
+	///
+	/// The `self.len()` least significant bits of `value` are written into the
+	/// domain of `self`. If `self` spans multiple `T` elements, then the
+	/// lowest-address `T` is interpreted as containing the least significant
+	/// bits of the `U` return value, and the highest-address `T` is interpreted
+	/// as containing its most significant bits.
+	///
+	/// # Panics
+	///
+	/// If `self` is empty, or wider than a single `U` element, this panics.
+	fn store_le<U>(&mut self, value: U)
+	where U: BitStore;
+
+	/// Store into `self`, using big-endian element ordering.
+	///
+	/// This function interprets a multi-element slice as having its most
+	/// significant chunk in the low memory address, and its least significant
+	/// chunk in the high memory address. Each element `T` is still interpreted
+	/// from individual bytes according to the local CPU ordering.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`: A write reference to some bits in memory. This slice must
+	///   be trimmed to have a width no more than the `U::BITS` width of the
+	///   type being stored. This can be accomplished with range indexing on a
+	///   larger slice.
+	/// - `value`: A value, whose `self.len()` least significant bits will be
+	///   stored into `self`.
+	///
+	/// # Behavior
+	///
+	/// The `self.len()` least significant bits of `value` are written into the
+	/// domain of `self`. If `self` spans multiple `T` elements, then the
+	/// lowest-address `T` is interpreted as containing the most significant
+	/// bits of the `U` return value, and the highest-address `T` is interpreted
+	/// as containing its least significant bits.
+	///
+	/// # Panics
+	///
+	/// If `self` is empty, or wider than a single `U` element, this panics.
+	fn store_be<U>(&mut self, value: U)
 	where U: BitStore;
 }
 
 impl<T> BitField for BitSlice<Lsb0, T>
 where T: BitStore {
-	fn load<U>(&self) -> Option<U>
+	fn load_le<U>(&self) -> U
 	where U: BitStore {
 		let len = self.len();
 		if !(1 ..= U::BITS as usize).contains(&len) {
-			return None;
+			panic!("Cannot load {} bits from a {}-bit region", U::BITS, len);
 		}
 
 		match self.bitptr().domain().splat() {
-			//  The live bits are in the interior of a single element.
-			Either::Right((head, elt, _)) => {
-				//  Get the distance from the LSedge.
-				let lsedge = *head;
-				//  Load the value, shift it to LSedge, and mask.
-				let val = (elt.load() >> lsedge) & mask_for::<T>(len);
-				Some(resize(val))
-			},
-			Either::Left((head, body, tail)) => {
-				/* Read chunks, from most-significant to least-significant, into
-				this value. Each successive read must left-shift by the read
-				amount, then write the chunk into the now-free least significant
-				bits.
-				*/
-				let mut accum: Usize = 0;
+			/* The live bits are in the interior of a single element.
 
-				/* In little-endian byte-order architectures, the LSelement is
-				at the low address and the MSelement is at the high address.
-				Read from high addresses to low into the accumulator.
-				*/
-				#[cfg(target_endian = "little")] {
+			This path only needs to load the element, shift it right by the
+			distance from LSedge to the live region, and mask it for the length
+			of `self`.
+			*/
+			Either::Right((head, elt, _)) =>
+				resize((elt.load() >> *head) & mask_for::<T>(len)),
+			/* The live region touches at least one element edge.
+
+			This block reads chunks from the slice memory into an accumulator,
+			from the most-significant chunk to the least-significant. Each read
+			must collect the live section of the chunk into a temporary, then
+			shift the accumulator left by the chunk’s bit width, then write the
+			temporary into the newly-vacated least significant bits of the
+			accumulator.
+			*/
+			Either::Left((head, body, tail)) => {
+				let mut accum: Word = 0;
 
 				//  If the tail exists, it contains the most significant chunk
 				//  of the value, on the LSedge side.
 				if let Some((tail, t)) = tail {
-					//  The live bits are at the LSedge of the element.
-					let width = *t as usize;
-					let val = tail.load() & mask_for::<T>(width);
-					accum = resize(val);
+					//  Load, mask, resize, and store. No other data is present.
+					accum = resize(tail.load() & mask_for::<T>(*t as usize));
 				}
-				//  Read the body, from high to low, into the accumulator.
+				//  Read the body elements, from high address to low, into the
+				//  accumulator.
 				if let Some(elts) = body {
 					for elt in elts.iter().rev() {
-						let val: Usize = resize(elt.load());
+						let val: Word = resize(elt.load());
 						accum <<= T::BITS;
 						accum |= val;
 					}
@@ -151,35 +319,60 @@ where T: BitStore {
 				//  If the head exists, it contains the least significant chunk
 				//  of the value, on the MSedge side.
 				if let Some((h, head)) = head {
-					//  Get the distance from the LSedge.
+					//  Get the live region’s distance from the LSedge.
 					let lsedge = *h;
-					//  Get the live chunk width.
+					//  Find the region width (MSedge to head).
 					let width = T::BITS - lsedge;
-					let val: Usize = resize(head.load() >> lsedge);
+					//  Load the element, shift down to LSedge, and resize.
+					let val: Word = resize(head.load() >> lsedge);
 					accum <<= width;
 					accum |= val;
 				}
 
-				}
+				resize(accum)
+			},
+		}
+	}
 
-				/* In big-endian byte-order architectures, the MSelement is at
-				the low address and the LSelement is at the high address.
-				Read from low addresses to high into the accumulator.
-				*/
-				#[cfg(target_endian = "big")] {
+	fn load_be<U>(&self) -> U
+	where U: BitStore {
+		let len = self.len();
+		if !(1 ..= U::BITS as usize).contains(&len) {
+			panic!("Cannot load {} bits from a {}-bit region", U::BITS, len);
+		}
+
+		match self.bitptr().domain().splat() {
+			/* The live bits are in the interior of a single element.
+
+			This path only needs to load the element, shift it right by the
+			distance from LSedge to the live region, and mask it for the length
+			of `self`.
+			*/
+			Either::Right((head, elt, _)) =>
+				resize((elt.load() >> *head) & mask_for::<T>(len)),
+			/* The live region touches at least one element edge.
+
+			This block reads chunks from the slice memory into an accumulator,
+			from the most-significant chunk to the least-significant. Each read
+			must collect the live section of the chunk into a temporary, then
+			shift the accumulator left by the chunk’s width, then write the
+			temporary into the newly-vacated least significant bits of the
+			accumulator.
+			*/
+			Either::Left((head, body, tail)) => {
+				let mut accum: Word = 0;
 
 				//  If the head exists, it contains the most significant chunk
 				//  of the value, on the MSedge side.
 				if let Some((h, head)) = head {
-					//  Get the distance from the LSedge.
-					let lsedge = *h;
-					let val = head.load() >> lsedge;
-					accum = resize(val);
+					//  Load, move, resize, and store. No other data is present.
+					accum = resize(head.load() >> *h);
 				}
-				//  Read the body, from low to high, into the accumulator.
+				//  Read the body elements, from low address to high, into the
+				//  accumulator.
 				if let Some(elts) = body {
 					for elt in elts.iter() {
-						let val: Usize = resize(elt.load());
+						let val: Word = resize(elt.load());
 						accum <<= T::BITS;
 						accum |= val;
 					}
@@ -187,72 +380,70 @@ where T: BitStore {
 				//  If the tail exists, it contains the least significant chunk
 				//  of the value, on the LSedge side.
 				if let Some((tail, t)) = tail {
-					//  The live bits are at the LSedge of the element.
+					//  Get the live region’s width.
 					let width = *t as usize;
-					let val = tail.load() & mask_for::<T>(width);
+					//  Load, mask, and resize.
+					let val: Word = resize(tail.load() & mask_for::<T>(width));
+					//  Shift the accumulator by the live width, and store.
 					accum <<= width;
-					accum |= resize(val);
+					accum |= val;
 				}
 
-				}
-
-				#[cfg(not(any(
-					target_endian = "bit",
-					target_endian = "little",
-				)))]
-				compile_fail!("This architecture is not supported.");
-
-				Some(resize(accum))
+				resize(accum)
 			},
 		}
 	}
 
-	fn store<U>(&mut self, value: U)
+	fn store_le<U>(&mut self, value: U)
 	where U: BitStore {
 		let len = self.len();
 		if !(1 ..= U::BITS as usize).contains(&len) {
-			#[cfg(debug_assertions)]
 			panic!("Cannot store {} bits in a {}-bit region", U::BITS, len);
-
-			#[cfg(not(debug_assertions))]
-			return;
 		}
 
-		/* Write chunks, from least-significant to most-significant, into the
-		`self` domain elements. Each successive write must copy the write amount
-		into memory, then right-shift the value by the write amount.
-		*/
+		let value = value & mask_for(len);
 		match self.bitptr().domain().splat() {
+			/* The live region is in the interior of a single element.
+
+			The `value` is shifted left by the region’s distance from the
+			LSedge, then written directly into place.
+			*/
 			Either::Right((head, elt, _)) => {
-				let value = value & mask_for(len);
-				//  Get the distance from the LSedge.
+				//  Get the region’s distance from the LSedge.
 				let lsedge = *head;
-				//  Erase the destination slot.
+				//  Erase the live region.
 				elt.clear_bits(!(mask_for::<T>(len) << lsedge));
-				//  Write the value into that slot.
+				//  Shift the value to fit the region, and write.
 				elt.set_bits(resize::<U, T>(value) << lsedge);
 			},
-			Either::Left((head, body, tail)) => {
-				let mut value = resize::<U, Usize>(value) & mask_for::<Usize>(len);
+			/* The live region touches at least one element edge.
 
-				/* In little-endian byte-order architectures, the MSelement is
-				at the high address and the LSelement is at the low address.
-				Write from low addresses to high into memory.
-				*/
-				#[cfg(target_endian = "little")] {
+			This block writes chunks from the value into slice memory, from the
+			least-significant chunk to the most-significant. Each write moves
+			a slice chunk’s width of bits from the LSedge of the value into
+			memory, then shifts the value right by that width.
+			*/
+			Either::Left((head, body, tail)) => {
+				let mut value: Word = resize(value);
 
 				//  If the head exists, it contains the least significant chunk
 				//  of the value, on the MSedge side.
 				if let Some((h, head)) = head {
+					//  Get the region distance from the LSedge.
 					let lsedge = *h;
+					//  Find the region width (MSedge to head).
 					let width = T::BITS - lsedge;
-					let val = value & mask_for::<Usize>(width as usize);
-					//  Clear the MSedge region.
+					//  Take the region-width LSedge bits of the value.
+					let val = value & mask_for::<Word>(width as usize);
+					//  Erase the region.
 					head.clear_bits(T::TRUE >> width);
-					head.set_bits(resize::<Usize, T>(val) << lsedge);
+					//  Shift the snippet to fit the region, and write.
+					head.set_bits(resize::<Word, T>(val) << lsedge);
+					//  Discard the now-written bits from the value.
 					value >>= width;
 				}
-				//  Write the value, from low to high, into memory.
+				//  Write into the body elements, from low address to high, from
+				//  the value.
 				if let Some(elts) = body {
 					for elt in elts.iter() {
 						elt.store(resize(value));
@@ -262,55 +453,80 @@ where T: BitStore {
 				//  If the tail exists, it contains the most significant chunk
 				//  of the value, on the LSedge side.
 				if let Some((tail, t)) = tail {
+					//  Get the region width.
 					let width = *t;
-					let val = value & mask_for::<Usize>(width as usize);
-					//  Clear the LSedge region.
+					//  Take the region-width LSedge bits of the value.
+					let val = value & mask_for::<Word>(width as usize);
+					//  Erase the region.
 					tail.clear_bits(T::TRUE << width);
+					//  Write the snippet into the region.
 					tail.set_bits(resize(val));
 				}
+			},
+		}
+	}
 
-				}
+	fn store_be<U>(&mut self, value: U)
+	where U: BitStore {
+		let len = self.len();
+		if !(1 ..= U::BITS as usize).contains(&len) {
+			panic!("Cannot store {} bits in a {}-bit region", U::BITS, len);
+		}
 
-				/* In big-endian byte-order architectures, the MSelement is at
-				the low address and the LSelement is at the high address. Write
-				from high addresses to low into memory.
-				*/
-				#[cfg(target_endian = "big")] {
+		let value = value & mask_for(len);
+		match self.bitptr().domain().splat() {
+			/* The live region is in the interior of a single element.
 
-				//  If the tail exists, it holds the least significant chunk of
-				//  the destination, on the LSedge side.
+			The `value` is shifted left by the region’s distance from the
+			LSedge, then written directly into place.
+			*/
+			Either::Right((head, elt, _)) => {
+				//  Get the region’s distance from the LSedge.
+				let lsedge = *head;
+				//  Erase the live region.
+				elt.clear_bits(!(mask_for::<T>(len) << lsedge));
+				//  Shift the value to fit the region, and write.
+				elt.set_bits(resize::<U, T>(value) << lsedge);
+			},
+			Either::Left((head, body, tail)) => {
+				let mut value: Word = resize(value);
+
+				//  If the tail exists, it contains the least significant chunk
+				//  of the value, on the LSedge side.
 				if let Some((tail, t)) = tail {
+					//  Get the region width.
 					let width = *t;
-					let val = value & mask_for::<Usize>(width as usize);
-					//  Clear the LSedge region
+					//  Take the region-width LSedge bits of the value.
+					let val = value & mask_for::<Word>(width as usize);
+					//  Erase the region.
 					tail.clear_bits(T::TRUE << width);
+					//  Write the snippet into the region.
 					tail.set_bits(resize(val));
+					//  Discard the now-written bits from the value.
 					value >>= width;
 				}
+				//  Write into the body elements, from high address to low, from
+				//  the value.
 				if let Some(elts) = body {
 					for elt in elts.iter().rev() {
 						elt.store(resize(value));
-						value >>= bits;
+						value >>= T::BITS;
 					}
 				}
-				//  If the head exists, it holds the most significant chunk of
-				//  the value, on the MSedge side.
+				//  If the head exists, it contains the most significant chunk
+				//  of the value, on the MSedge side.
 				if let Some((h, head)) = head {
+					//  Get the region distance from the LSedge.
 					let lsedge = *h;
+					//  Find the region width (MSedge to head).
 					let width = T::BITS - lsedge;
-					let val = value & mask_for::<Usize>(width as usize);
-					//  Clear the MSedge region.
+					//  Take the region-width LSedge bits of the value.
+					let val = value & mask_for::<Word>(width as usize);
+					//  Erase the region.
 					head.clear_bits(T::TRUE >> width);
-					head.set_bits(resize::<Usize, T>(val) << lsedge);
+					//  Shift the snippet to fit the region, and write.
+					head.set_bits(resize::<Word, T>(val) << lsedge);
 				}
-
-				}
-
-				#[cfg(not(any(
-					target_endian = "bit",
-					target_endian = "little",
-				)))]
-				compile_fail!("This architecture is not supported.");
 			},
 		}
 	}
@@ -318,45 +534,47 @@ where T: BitStore {
 
 impl<T> BitField for BitSlice<Msb0, T>
 where T: BitStore {
-	fn load<U>(&self) -> Option<U>
+	fn load_le<U>(&self) -> U
 	where U: BitStore {
 		let len = self.len();
 		if !(1 ..= U::BITS as usize).contains(&len) {
-			return None;
+			panic!("Cannot load {} bits from a {}-bit region", U::BITS, len);
 		}
 
 		match self.bitptr().domain().splat() {
-			Either::Right((_, elt, tail)) => {
-				//  Get the distance from the LSedge.
-				let lsedge = T::BITS - *tail;
-				//  Load the value, shift it to LSedge, and mask.
-				let val = (elt.load() >> lsedge) & mask_for::<T>(len);
-				Some(resize(val))
-			},
-			Either::Left((head, body, tail)) => {
-				/* Read chunks, from most-significant to least-significant, into
-				this value. Each successive read must left-shift by the read
-				amount, then write the chunk into the now-free least significant
-				bits.
-				*/
-				let mut accum: Usize = 0;
+			/* The live bits are in the interior of a single element.
 
-				//  Same element ordering as in the Lsb0 implementation.
-				#[cfg(target_endian = "little")] {
+			This path only needs to load the element, shift it right by the
+			distance from LSedge to the live region, and mask it for the length
+			of `self`.
+			*/
+			Either::Right((_, elt, tail)) =>
+				resize((elt.load() >> (T::BITS - *tail)) & mask_for::<T>(len)),
+			/* The live region touches at least one element edge.
+
+			This block reads chunks from the slice memory into an accumulator,
+			from the most-significant chunk to the least-significant. Each read
+			must collect the live section of the chunk into a temporary, then
+			shift the accumulator left by the chunk’s bit width, then write the
+			temporary into the newly-vacated least significant bits of the
+			accumulator.
+			*/
+			Either::Left((head, body, tail)) => {
+				let mut accum: Word = 0;
 
 				//  If the tail exists, it contains the most significant chunk
 				//  of the value, on the MSedge side.
 				if let Some((tail, t)) = tail {
-					let width = *t;
-					//  Get the distance from the LSedge.
-					let lsedge = T::BITS - width;
-					let val: Usize = resize(tail.load() >> lsedge);
-					accum |= val;
+					//  Find the live region’s distance from the LSedge.
+					let lsedge = T::BITS - *t;
+					//  Load, move, resize, and store. No other data is present.
+					accum = resize(tail.load() >> lsedge);
 				}
-				//  Read the body, from high to low, into the accumulator.
+				//  Read the body elements, from high address to low, into the
+				//  accumulator.
 				if let Some(elts) = body {
 					for elt in elts.iter().rev() {
-						let val: Usize = resize(elt.load());
+						let val: Word = resize(elt.load());
 						accum <<= T::BITS;
 						accum |= val;
 					}
@@ -364,28 +582,60 @@ where T: BitStore {
 				//  If the head exists, it contains the least significant chunk
 				//  of the value, on the LSedge side.
 				if let Some((h, head)) = head {
+					//  Find the region width (head to LSedge).
 					let width = (T::BITS - *h) as usize;
-					let val = head.load() & mask_for::<T>(width);
+					//  Load the element, mask, and resize.
+					let val: Word = resize(head.load() & mask_for::<T>(width));
 					accum <<= width;
-					accum |= resize::<T, Usize>(val);
+					accum |= val;
 				}
 
-				}
+				resize(accum)
+			},
+		}
+	}
 
-				//  Same element ordering as in the Lsb0 implementation.
-				#[cfg(target_endian = "big")] {
+	fn load_be<U>(&self) -> U
+	where U: BitStore {
+		let len = self.len();
+		if !(1 ..= U::BITS as usize).contains(&len) {
+			panic!("Cannot load {} bits from a {}-bit region", U::BITS, len);
+		}
+
+		match self.bitptr().domain().splat() {
+			/* The live bits are in the interior of a single element.
+
+			This path only needs to load the element, shift it right by the
+			distance from LSedge to the live region, and mask it for the length
+			of `self`.
+			*/
+			Either::Right((_, elt, tail)) =>
+				resize((elt.load() >> (T::BITS - *tail)) & mask_for::<T>(len)),
+			/* The live region touches at least one element edge.
+
+			This block reads chunks from the slice memory into an accumulator,
+			from the most-significant chunk to the least-significant. Each read
+			must collect the live section of the chunk into a temporary, then
+			shift the accumulator left by the chunk’s bit width, then write the
+			temporary into the newly-vacated least significant bits of the
+			accumulator.
+			*/
+			Either::Left((head, body, tail)) => {
+				let mut accum: Word = 0;
 
 				//  If the head exists, it contains the most significant chunk
 				//  of the value, on the LSedge side.
 				if let Some((h, head)) = head {
-					let width = (T::BITS - *h) as usize;
-					let val = head.load() & mask_for::<T>(width);
-					accum |= resize::<T, Usize>(val);
+					//  Find the region width (head to LSedge).
+					let width = T::BITS - *h;
+					//  Load, mask, resize, and store. No other data is present.
+					accum = resize(head.load() & mask_for::<T>(width as usize));
 				}
-				//  Read the body, from low to high, into the accumulator.
+				//  Read the body elements, from low address to high, into the
+				//  accumulator.
 				if let Some(elts) = body {
 					for elt in elts.iter() {
-						let val: Usize = resize(elt.load());
+						let val: Word = resize(elt.load());
 						accum <<= T::BITS;
 						accum |= val;
 					}
@@ -393,65 +643,67 @@ where T: BitStore {
 				//  If the tail exists, it contains the least significant chunk
 				//  of the value, on the MSedge side.
 				if let Some((tail, t)) = tail {
-					//  Get the distance from the LSedge.
+					//  Find the live region’s distance from LSedge.
 					let lsedge = T::BITS - *t;
-					let width = *t as usize;
-					let val = tail.load() >> lsedge;
-					accum <<= width;
-					accum |= resize(val);
+					//  Load the element, shift down to LSedge, and resize.
+					let val: Word = resize(tail.load() >> lsedge);
+					accum <<= *t;
+					accum |= val;
 				}
 
-				}
-
-				#[cfg(not(any(
-					target_endian = "bit",
-					target_endian = "little",
-				)))]
-				compile_fail!("This architecture is not supported.");
-				Some(resize(accum))
+				resize(accum)
 			},
 		}
 	}
 
-	fn store<U>(&mut self, value: U)
+	fn store_le<U>(&mut self, value: U)
 	where U: BitStore {
 		let len = self.len();
 		if !(1 ..= U::BITS as usize).contains(&len) {
-			#[cfg(debug_assertions)]
 			panic!("Cannot store {} bits in a {}-bit region", U::BITS, len);
-
-			#[cfg(not(debug_assertions))]
-			return;
 		}
 
-		/* Write chunks, from least significant to most-significant, into the
-		`self` domain elements. Each successive write must copy the write amount
-		into memory, then right-shift the value by the write amount.
-		*/
+		let value = value & mask_for(len);
 		match self.bitptr().domain().splat() {
+			/* The live region is in the interior of a single element.
+
+			The `value` is shifted left by the region’s distance from the
+			LSedge, then written directly into place.
+			*/
 			Either::Right((_, elt, tail)) => {
-				let value = value & mask_for(len);
+				//  Get the region’s distance from the LSedge.
 				let lsedge = T::BITS - *tail;
+				//  Erase the live region.
 				elt.clear_bits(!(mask_for::<T>(len) << lsedge));
+				//  Shift the value to fit the region, and write.
 				elt.set_bits(resize::<U, T>(value) << lsedge);
 			},
-			Either::Left((head, body, tail)) => {
-				let mut value = resize::<U, Usize>(value) & mask_for::<Usize>(len);
+			/* The live region touches at least one element edge.
 
-				//  Same element ordering as in the Lsb0 implementation.
-				#[cfg(target_endian = "little")] {
+			This block writes chunks from the value into slice memory, from the
+			least-significant chunk to the most-significant. Each write moves a
+			slice chunk’s width of bits from the LSedge of the value into
+			memory, then shifts the value right by that width.
+			*/
+			Either::Left((head, body, tail)) => {
+				let mut value: Word = resize(value);
 
 				//  If the head exists, it contains the least significant chunk
 				//  of the value, on the LSedge side.
 				if let Some((h, head)) = head {
+					//  Get the region width (head to LSedge).
 					let width = T::BITS - *h;
-					let val = value & mask_for::<Usize>(width as usize);
-					//  Clear the LSedge region.
+					//  Take the region-width LSedge bits of the value.
+					let val = value & mask_for::<Word>(width as usize);
+					//  Erase the region.
 					head.clear_bits(T::TRUE << width);
+					//  Write the snippet into the region.
 					head.set_bits(resize(val));
+					//  Discard the now-written bits from the value.
 					value >>= width;
 				}
-				//  Write the value, from low to high, into memory.
+				//  Write into the body elements, from low address to high, from
+				//  the value.
 				if let Some(elts) = body {
 					for elt in elts.iter() {
 						elt.store(resize(value));
@@ -461,52 +713,143 @@ where T: BitStore {
 				//  If the tail exists, it contains the most significant chunk
 				//  of the value, on the MSedge side.
 				if let Some((tail, t)) = tail {
+					//  Get the region width.
 					let width = *t;
+					//  Find the region distance from the LSedge.
 					let lsedge = T::BITS - width;
-					let val = value & mask_for::<Usize>(width as usize);
-					//  Clear the MSedge region.
+					//  Take the region-width LSedge bits of the value.
+					let val = value & mask_for::<Word>(width as usize);
+					//  Erase the region.
 					tail.clear_bits(T::TRUE >> width);
-					tail.set_bits(resize::<Usize, T>(val) << lsedge);
+					//  Shift the snippet to fit the region, and write.
+					tail.set_bits(resize::<Word, T>(val) << lsedge);
 				}
+			},
+		}
+	}
 
-				}
+	fn store_be<U>(&mut self, value: U)
+	where U: BitStore {
+		let len = self.len();
+		if !(1 ..= U::BITS as usize).contains(&len) {
+			panic!("Cannot store {} bits in a {}-bit region", U::BITS, len);
+		}
 
+		let value = value & mask_for(len);
+		match self.bitptr().domain().splat() {
+			/* The live region is in the interior of a single element.
 
-				//  Same element ordering as in the Lsb0 implementation.
-				#[cfg(target_endian = "big")] {
+			The `value` is shifted left by the region’s distance from the
+			LSedge, then written directly into place.
+			*/
+			Either::Right((_, elt, tail)) => {
+				//  Get the region’s distance from the LSedge.
+				let lsedge = T::BITS - *tail;
+				//  Erase the live region.
+				elt.clear_bits(!(mask_for::<T>(len) << lsedge));
+				//  Shift the value to fit the region, and write.
+				elt.set_bits(resize::<U, T>(value) << lsedge);
+			},
+			/* The live region touches at least one element edge.
 
+			This block writes chunks from the value into slice memory, from the
+			least-significant chunk to the most-significant. Each write moves a
+			slice chunk’s width of bits from the LSedge of the value into
+			memory, then shifts the value right by that width.
+			*/
+			Either::Left((head, body, tail)) => {
+				let mut value: Word = resize(value);
+
+				//  If the tail exists, it contains the least significant chunk
+				//  of the value, on the MSedge side.
 				if let Some((tail, t)) = tail {
-					let lsedge = *t;
-					let width = T::BITS - lsedge;
-					let val = value & mask_for::<Usize>(width as usize);
+					//  Get the region width (MSedge to tail).
+					let width = *t;
+					//  Find the region distance from the LSedge.
+					let lsedge = T::BITS - width;
+					//  Take the region-width LSedge bits of the value.
+					let val = value & mask_for::<Word>(width as usize);
+					//  Erase the region.
 					tail.clear_bits(T::TRUE >> width);
-					tail.set_bits(resize::<Usize, T>(val) << lsedge);
+					//  Shift the snippet to fit the region, and write.
+					tail.set_bits(resize::<Word, T>(val) << lsedge);
+					//  Discard the now-written bits from the value.
 					value >>= width;
 				}
+				//  Write into the body elements, from high address to low, from
+				//  the value.
 				if let Some(elts) = body {
 					for elt in elts.iter().rev() {
 						elt.store(resize(value));
-						value >>= bits;
+						value >>= T::BITS;
 					}
 				}
-				if let Some((h, head)) = head {}
-					let width = *t;
-					let val = value & mask_for::<Usize>(width as usize);
+				//  If the head exists, it contains the most significant chunk
+				//  of the value, on the LSedge side.
+				if let Some((h, head)) = head {
+					//  Find the region width.
+					let width = T::BITS - *h;
+					//  Take the region-width LSedge bits of the value.
+					let val = value & mask_for::<Word>(width as usize);
+					//  Erase the region.
 					head.clear_bits(T::TRUE << width);
+					//  Write the snippet into the region.
 					head.set_bits(resize(val));
 				}
-
-				#[cfg(not(any(
-					target_endian = "bit",
-					target_endian = "little",
-				)))]
-				compile_fail!("This architecture is not supported.");
 			},
 		}
 	}
 }
 
-/** Safely compute an LS-edge bitmask for a value of some length.
+#[cfg(feature = "alloc")]
+impl<O, T> BitField for BitBox<O, T>
+where O: BitOrder, T: BitStore, BitSlice<O, T>: BitField {
+	fn load_le<U>(&self) -> U
+	where U: BitStore {
+		self.as_bitslice().load_le()
+	}
+
+	fn load_be<U>(&self) -> U
+	where U: BitStore {
+		self.as_bitslice().load_be()
+	}
+
+	fn store_le<U>(&mut self, value: U)
+	where U: BitStore {
+		self.as_mut_bitslice().store_le(value)
+	}
+
+	fn store_be<U>(&mut self, value: U)
+	where U: BitStore {
+		self.as_mut_bitslice().store_be(value)
+	}
+}
+
+#[cfg(feature = "alloc")]
+impl<O, T> BitField for BitVec<O, T>
+where O: BitOrder, T: BitStore, BitSlice<O, T>: BitField {
+	fn load_le<U>(&self) -> U
+	where U: BitStore {
+		self.as_bitslice().load_le()
+	}
+
+	fn load_be<U>(&self) -> U
+	where U: BitStore {
+		self.as_bitslice().load_be()
+	}
+
+	fn store_le<U>(&mut self, value: U)
+	where U: BitStore {
+		self.as_mut_bitslice().store_le(value)
+	}
+
+	fn store_be<U>(&mut self, value: U)
+	where U: BitStore {
+		self.as_mut_bitslice().store_be(value)
+	}
+}
+
+/** Safely computes an LS-edge bitmask for a value of some length.
 
 The shift operators panic when the shift amount equals or exceeds the type
 width, but this module must be able to produce a mask for exactly the type
@@ -539,14 +882,19 @@ where T: BitStore {
 
 /** Resizes a value from one fundamental type to another.
 
-This function uses `u64` as the intermediate type (as it is the largest
-`BitStore` implementor), and either zero-extends or truncates the source value
-to be valid as the destination type. This is essentially a generic-aware version
-of the `as` operator.
+This function uses `Word` as the intermediate type (as it is the largest
+`BitStore` implementor on all supported targets), and either zero-extends or
+truncates the source value to be valid as the destination type. This is
+essentially a generic-aware version of the `as` operator.
 
 # Parameters
 
 - `value`: Any value to be resized.
+
+# Type Parameters
+
+- `T`: The source type of the value to be resized.
+- `U`: The destination type to which the value will be resized.
 
 # Returns
 
@@ -555,7 +903,7 @@ zero-extends; where `U` is narrower, it truncates.
 **/
 fn resize<T, U>(value: T) -> U
 where T: BitStore, U: BitStore {
-	let zero: Usize = 0;
+	let zero: Word = 0;
 	let mut slab = zero.to_ne_bytes();
 	let start = 0;
 
@@ -563,32 +911,19 @@ where T: BitStore, U: BitStore {
 
 	The `BitStore::as_bytes` method returns the value as native-endian-order
 	bytes. These bytes are then written into the correct location of the slab
-	(low on little-endian, high on big-endian) to be interpreted as `u64`.
+	(low addresses on little-endian, high addresses on big-endian) to be
+	interpreted as `Word`.
 	*/
 	match mem::size_of::<T>() {
-		1 => {
+		n @ 1 | n @ 2 | n @ 4 | n @ 8 => {
 			#[cfg(target_endian = "big")]
-			let start = mem::size_of::<Usize>() - 1;
+			let start = mem::size_of::<Word>() - n;
 
-			slab[start ..][.. 1].copy_from_slice(value.as_bytes());
+			slab[start ..][.. n].copy_from_slice(value.as_bytes());
 		},
-		2 => {
-			#[cfg(target_endian = "big")]
-			let start = mem::size_of::<Usize>() - 2;
-
-			slab[start ..][.. 2].copy_from_slice(value.as_bytes());
-		},
-		4 => {
-			#[cfg(target_endian = "big")]
-			let start = mem::size_of::<Usize>() - 4;
-
-			slab[start ..][.. 4].copy_from_slice(value.as_bytes());
-		},
-		#[cfg(target_pointer_width = "64")]
-		8 => slab[..].copy_from_slice(value.as_bytes()),
 		_ => unreachable!("BitStore is not implemented on types of this size"),
 	}
-	let mid = Usize::from_ne_bytes(slab);
+	let mid = Word::from_ne_bytes(slab);
 	//  Truncate to the correct size, then wrap in `U` through the trait method.
 	match mem::size_of::<U>() {
 		1 => U::from_bytes(&(mid as u8).to_ne_bytes()[..]),
@@ -600,34 +935,6 @@ where T: BitStore, U: BitStore {
 	}
 }
 
-#[cfg(feature = "alloc")]
-impl<O, T> BitField for BitBox<O, T>
-where O: BitOrder, T: BitStore, BitSlice<O, T>: BitField {
-	fn load<U>(&self) -> Option<U>
-	where U: BitStore {
-		self.as_bitslice().load()
-	}
-
-	fn store<U>(&mut self, value: U)
-	where U: BitStore {
-		self.as_mut_bitslice().store(value);
-	}
-}
-
-#[cfg(feature = "alloc")]
-impl<O, T> BitField for BitVec<O, T>
-where O: BitOrder, T: BitStore, BitSlice<O, T>: BitField {
-	fn load<U>(&self) -> Option<U>
-	where U: BitStore {
-		self.as_bitslice().load()
-	}
-
-	fn store<U>(&mut self, value: U)
-	where U: BitStore {
-		self.as_mut_bitslice().store(value);
-	}
-}
-
 #[allow(clippy::inconsistent_digit_grouping)]
 #[cfg(test)]
 mod tests {
@@ -635,72 +942,64 @@ mod tests {
 	use crate::prelude::*;
 
 	#[test]
-	fn check_resize() {
-		assert_eq!(resize::<u8, u8>(0xA5), 0xA5);
-		assert_eq!(resize::<u8, u16>(0xA5), 0xA5);
-		assert_eq!(resize::<u8, u32>(0xA5), 0xA5);
-
-		assert_eq!(resize::<u16, u8>(0x1234), 0x34);
-		assert_eq!(resize::<u16, u16>(0x1234), 0x1234);
-		assert_eq!(resize::<u16, u32>(0x1234), 0x1234);
-
-		assert_eq!(resize::<u32, u8>(0x1234_5678), 0x78);
-		assert_eq!(resize::<u32, u16>(0x1234_5678), 0x5678);
-		assert_eq!(resize::<u32, u32>(0x1234_5678), 0x1234_5678);
-
-		#[cfg(target_pointer_width = "64")] {
-
-		assert_eq!(resize::<u8, u64>(0xA5), 0xA5);
-		assert_eq!(resize::<u16, u64>(0x1234), 0x1234);
-		assert_eq!(resize::<u32, u64>(0x1234_5678), 0x1234_5678);
-
-		assert_eq!(resize::<u64, u8>(0x0123_4567_89ab_cdef), 0xef);
-		assert_eq!(resize::<u64, u16>(0x0123_4567_89ab_cdef), 0xcdef);
-		assert_eq!(resize::<u64, u32>(0x0123_4567_89ab_cdef), 0x89ab_cdef);
-		assert_eq!(resize::<u64, u64>(0x0123_4567_89ab_cdef), 0x0123_4567_89ab_cdef);
-
-		}
-	}
-
-	#[cfg(target_endian = "little")]
-	#[test]
-	fn le() {
+	fn lsb0() {
 		let mut bytes = [0u8; 16];
 		let bytes = bytes.bits_mut::<Lsb0>();
 
-		bytes[4 ..][.. 8].store(0xA5u8);
-		assert_eq!(bytes[4 ..][.. 8].load(), Some(0xA5u8));
-		assert_eq!(&bytes.as_slice()[.. 2], &[0b0101_0000, 0b0000_1010]);
+		bytes[1 ..][.. 4].store_le(0x0Au8);
+		assert_eq!(bytes[1 ..][.. 4].load_le::<u8>(), 0x0Au8);
+		assert_eq!(bytes.as_slice()[0], 0b000_1010_0u8);
+
+		bytes[1 ..][.. 4].store_be(0x05u8);
+		assert_eq!(bytes[1 ..][.. 4].load_be::<u8>(), 0x05u8);
+		assert_eq!(bytes.as_slice()[0], 0b000_0101_0u8);
+
+		bytes[1 ..][.. 4].store_le(0u8);
 
 		//  expected byte pattern: 0x34 0x12
 		//  bits: 0011_0100 __01_0010
 		//  idx:  7654 3210 fedc ba98
-		bytes[6 ..][.. 14].store(0x1234u16);
-		assert_eq!(bytes[6 ..][.. 14].load(), Some(0x1234u16));
+		let u16b = u16::from_ne_bytes(0x1234u16.to_le_bytes());
+		bytes[5 ..][.. 14].store_le(u16b);
+		assert_eq!(bytes[5 ..][.. 14].load_le::<u16>(), 0x1234u16);
 		assert_eq!(
 			&bytes.as_slice()[.. 3],
-			&[0b00_010000, 0b10_0011_01, 0b0000_01_00],
+			&[0b100_00000, 0b010_0011_0, 0b00000_01_0],
+			//  210          a98 7654 3          dc b
 		);
-		//      10 xxxxxx    98 7654 32         dc ba
-
-		//  bytes: 21        43        65        00
-		//  bits:  0010 0001 0100 0011 0110 0101
-		//  idx:   7654 3210 fedc ba98 nmlk jihg
-		bytes[10 ..][.. 24].store(0x00_65_43_21u32);
-		assert_eq!(bytes[10 ..][.. 24].load(), Some(0x00_65_43_21u32));
+		//  the load/store orderings only affect the order of elements, not of
+		//  bits within the element.
+		bytes[5 ..][.. 14].store_be(u16b);
+		assert_eq!(bytes[5 ..][.. 14].load_be::<u16>(), 0x1234u16);
 		assert_eq!(
-			&bytes.as_slice()[1 .. 5],
-			&[0b10_0001_01, 0b00_0011_00, 0b10_0101_01, 0b00000_01],
+			&bytes.as_slice()[.. 3],
+			&[0b01_0_00000, 0b010_0011_0, 0b00000_100],
+			//  dc b          a98 7654 3          210
 		);
-		//      54 3210 xx    dc ba98 76    lk jihg fe   xxxxxx nm
 
-		/*
 		let mut shorts = [0u16; 8];
 		let shorts = shorts.bits_mut::<Lsb0>();
+
+		shorts[3 ..][.. 12].store_le(0x0123u16);
+		assert_eq!(shorts[3 ..][.. 12].load_le::<u16>(), 0x0123u16);
+		assert_eq!(shorts.as_slice()[0], 0b0_0001_0010_0011_000u16);
+
+		shorts[3 ..][.. 12].store_be(0x0123u16);
+		assert_eq!(shorts[3 ..][.. 12].load_be::<u16>(), 0x0123u16);
+		assert_eq!(shorts.as_slice()[0], 0b0_0001_0010_0011_000u16);
 
 		let mut ints = [0u32; 4];
 		let ints = ints.bits_mut::<Lsb0>();
 
+		ints[1 ..][.. 28].store_le(0x0123_4567u32);
+		assert_eq!(ints[1 ..][.. 28].load_le::<u32>(), 0x0123_4567u32);
+		assert_eq!(ints.as_slice()[0], 0b000_0001_0010_0011_0100_0101_0110_0111_0u32);
+
+		ints[1 ..][.. 28].store_be(0x0123_4567u32);
+		assert_eq!(ints[1 ..][.. 28].load_be::<u32>(), 0x0123_4567u32);
+		assert_eq!(ints.as_slice()[0], 0b000_0001_0010_0011_0100_0101_0110_0111_0u32);
+
+		/*
 		#[cfg(target_pointer_width = "64")] {
 
 		let mut longs = [0u64; 2];
@@ -710,45 +1009,65 @@ mod tests {
 		*/
 	}
 
-	#[cfg(target_endian = "little")]
 	#[test]
-	fn be() {
+	fn msb0() {
 		let mut bytes = [0u8; 16];
 		let bytes = bytes.bits_mut::<Msb0>();
 
-		bytes[4 ..][.. 8].store(0xA5u8);
-		assert_eq!(bytes[4 ..][.. 8].load(), Some(0xA5u8));
-		assert_eq!(&bytes.as_slice()[.. 2], &[0b0000_0101, 0b1010_0000]);
+		bytes[1 ..][.. 4].store_le(0x0Au8);
+		assert_eq!(bytes[1 ..][.. 4].load_le::<u8>(), 0x0Au8);
+		assert_eq!(bytes.as_slice()[0], 0b0_1010_000u8);
+
+		bytes[1 ..][.. 4].store_be(0x05u8);
+		assert_eq!(bytes[1 ..][.. 4].load_be::<u8>(), 0x05u8);
+		assert_eq!(bytes.as_slice()[0], 0b0_0101_000u8);
+
+		bytes[1 ..][.. 4].store_le(0u8);
 
 		//  expected byte pattern: 0x34 0x12
 		//  bits: 0011_0100 __01_0010
 		//  idx:  7654 3210 fedc ba98
-		bytes[6 ..][.. 14].store(0x1234u16);
-		assert_eq!(bytes[6 ..][.. 14].load(), Some(0x1234u16));
+		let u16b = u16::from_ne_bytes(0x1234u16.to_le_bytes());
+		bytes[5 ..][.. 14].store_le(u16b);
+		assert_eq!(bytes[5 ..][.. 14].load_le::<u16>(), 0x1234u16);
 		assert_eq!(
 			&bytes.as_slice()[.. 3],
-			&[0b000001_00, 0b10_0011_01, 0b01_00_0000],
+			&[0b00000_100, 0b010_0011_0, 0b01_0_00000],
+			//        210    a98 7654 3    dc b
 		);
-		//      xxxxxx 10    98 7654 32    dc ba
-
-		//  bytes: 21        43        65        00
-		//  bits:  0010 0001 0100 0011 0110 0101
-		//  idx:   7654 3210 fedc ba98 nmlk jihg
-		bytes[10 ..][.. 24].store(0x00_65_43_21u32);
-		assert_eq!(bytes[10 ..][.. 24].load(), Some(0x00_65_43_21u32));
+		//  the load/store orderings only affect the order of elements, not of
+		//  bits within the element.
+		bytes[5 ..][.. 14].store_be(u16b);
+		assert_eq!(bytes[5 ..][.. 14].load_be::<u16>(), 0x1234u16);
 		assert_eq!(
-			&bytes.as_slice()[1 .. 5],
-			&[0b10_10_0001, 0b00_0011_00, 0b10_0101_01, 0b01_000000],
+			&bytes.as_slice()[.. 3],
+			&[0b00000_01_0, 0b010_0011_0, 0b100_00000],
+			//        dc b    a98 7654 3    210
 		);
-		//  xxxxxx 54 3210    dc ba98 76    lk jihg fe    nm xxxxxx
 
-		/*
 		let mut shorts = [0u16; 8];
 		let shorts = shorts.bits_mut::<Msb0>();
+
+		shorts[3 ..][.. 12].store_le(0x0123u16);
+		assert_eq!(shorts[3 ..][.. 12].load_le::<u16>(), 0x0123u16);
+		assert_eq!(shorts.as_slice()[0], 0b000_0001_0010_0011_0u16);
+
+		shorts[3 ..][.. 12].store_be(0x0123u16);
+		assert_eq!(shorts[3 ..][.. 12].load_be::<u16>(), 0x0123u16);
+		assert_eq!(shorts.as_slice()[0], 0b000_0001_0010_0011_0u16);
 
 		let mut ints = [0u32; 4];
 		let ints = ints.bits_mut::<Msb0>();
 
+		ints[1 ..][.. 28].store_le(0x0123_4567u32);
+		assert_eq!(ints[1 ..][.. 28].load_le::<u32>(), 0x0123_4567u32);
+		assert_eq!(ints.as_slice()[0], 0b0_0001_0010_0011_0100_0101_0110_0111_000u32);
+
+		ints[1 ..][.. 28].store_be(0x0123_4567u32);
+		assert_eq!(ints[1 ..][.. 28].load_be::<u32>(), 0x0123_4567u32);
+		assert_eq!(ints.as_slice()[0], 0b0_0001_0010_0011_0100_0101_0110_0111_000u32);
+
+		/*
 		#[cfg(target_pointer_width = "64")] {
 
 		let mut longs = [0u64; 2];
@@ -758,3 +1077,6 @@ mod tests {
 		*/
 	}
 }
+
+#[cfg(test)]
+mod permutation_tests;
