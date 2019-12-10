@@ -1041,16 +1041,16 @@ where O: BitOrder, T: BitStore {
 }
 
 mod api;
-mod guard;
 pub(crate) mod iter;
 mod ops;
+mod proxy;
 mod traits;
 
 //  Match the `core::slice` API module topology.
 
 pub use self::api::*;
-pub use self::guard::*;
 pub use self::iter::*;
+pub use self::proxy::*;
 
 #[cfg(test)]
 mod tests;

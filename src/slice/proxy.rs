@@ -26,7 +26,7 @@ use core::ops::{
 	DerefMut,
 };
 
-/** Heavy-weight equivalent to `&mut bool`.
+/** Proxy referential type, equivalent to `&mut bool`.
 
 This structure is three words wide, and cannot ever fit into the existing Rust
 language and library infrastructure in the way `&BitSlice` does. While `&mut`
