@@ -32,7 +32,6 @@ use alloc::{
 use core::{
 	marker::PhantomData,
 	mem,
-	slice,
 };
 
 /** A compact [`Vec`] of bits, whose order and storage type can be customized.
@@ -281,12 +280,9 @@ where O: BitOrder, T: BitStore {
 	/// let bv = BitVec::<Msb0, u8>::from_element(5);
 	/// assert_eq!(bv.count_ones(), 2);
 	/// ```
+	#[inline]
 	pub fn from_element(elt: T) -> Self {
-		Self::from_vec({
-			let mut v = Vec::with_capacity(1);
-			v.push(elt);
-			v
-		})
+		Self::from_slice(&[elt])
 	}
 
 	/// Constructs a `BitVec` from a slice of elements.
@@ -313,6 +309,7 @@ where O: BitOrder, T: BitStore {
 	/// assert!(bv[12]);
 	/// assert!(bv[14]);
 	/// ```
+	#[inline]
 	pub fn from_slice(slice: &[T]) -> Self {
 		BitSlice::<O, T>::from_slice(slice).to_owned()
 	}
@@ -450,6 +447,7 @@ where O: BitOrder, T: BitStore {
 	/// `BitVec<C, T>` which may then deallocate, reallocate, or modify the
 	/// contents of the referent slice at will. Ensure that nothing else uses
 	/// the pointer after calling this function.
+	#[inline]
 	pub unsafe fn from_raw_parts(pointer: BitPtr<T>, capacity: usize) -> Self {
 		Self {
 			_order: PhantomData,
@@ -478,6 +476,7 @@ where O: BitOrder, T: BitStore {
 	/// let bv = bitvec![0, 1, 1, 0];
 	/// let bs = bv.as_bitslice();
 	/// ```
+	#[inline]
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
 		self.pointer.into_bitslice()
 	}
@@ -502,25 +501,28 @@ where O: BitOrder, T: BitStore {
 	/// let mut bv = bitvec![0, 1, 1, 0];
 	/// let bs = bv.as_mut_bitslice();
 	/// ```
+	#[inline]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
 		self.pointer.into_bitslice_mut()
 	}
 
 	/// Sets the backing storage to the provided element.
 	///
-	/// This unconditionally sets each allocated element in the backing storage
-	/// to the provided value, without altering the `BitVec` length or capacity.
-	/// It operates on the underlying `Vec`’s memory region directly, and will
-	/// ignore the `BitVec`’s cursors.
+	/// This unconditionally sets each live element in the backing buffer to the
+	/// provided value, without altering the `BitVec` length or capacity. It
+	/// operates on the underlying `Vec`’s memory buffer directly, and ignores
+	/// the `BitVec`’s cursors.
 	///
-	/// This has the unobservable effect of setting the allocated, but dead,
-	/// bits beyond the end of the vector’s *length*, up to its *capacity*.
+	/// It is an implementation detail as to whether this affects the value of
+	/// allocated, but not currently used, elements in the buffer. Behavior of
+	/// this method on elements not visible through `self.as_slice()` is not
+	/// specified.
 	///
 	/// # Parameters
 	///
 	/// - `&mut self`
-	/// - `element`: The value to which each allocated element in the backing
-	///   store will be set.
+	/// - `element`: The value to which each live element in the backing store
+	///   will be set.
 	///
 	/// # Examples
 	///
@@ -532,13 +534,9 @@ where O: BitOrder, T: BitStore {
 	/// bv.set_elements(0xA5);
 	/// assert_eq!(bv.as_slice(), &[0xA5, 0xA5]);
 	/// ```
+	#[inline]
 	pub fn set_elements(&mut self, element: T) {
-		self.do_unto_vec(|v| {
-			let (ptr, cap) = (v.as_mut_ptr(), v.capacity());
-			for elt in unsafe { slice::from_raw_parts_mut(ptr, cap) } {
-				*elt = element;
-			}
-		})
+		self.as_mut_slice().iter_mut().for_each(|elt| *elt = element);
 	}
 
 	/// Performs “reverse” addition (left to right instead of right to left).
@@ -707,7 +705,7 @@ where O: BitOrder, T: BitStore {
 	///   closure) which receives a mutable borrow of a `Vec<T>`.
 	///
 	/// - `R`: The return value from the called function or closure.
-	fn do_unto_vec<F, R>(&mut self, func: F) -> R
+	fn with_vec<F, R>(&mut self, func: F) -> R
 	where F: FnOnce(&mut Vec<T>) -> R {
 		let slice = self.pointer.as_mut_slice();
 		let mut v = unsafe {

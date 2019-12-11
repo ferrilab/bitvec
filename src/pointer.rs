@@ -685,6 +685,7 @@ where T: BitStore {
 	/// # Lifetimes
 	///
 	/// - `'a`: Lifetime for which the data behind the pointer is live.
+	#[inline]
 	pub fn as_slice<'a>(&self) -> &'a [T] {
 		unsafe { slice::from_raw_parts(self.pointer().r, self.elements()) }
 	}
@@ -702,6 +703,7 @@ where T: BitStore {
 	/// # Lifetimes
 	///
 	/// - `'a`: Lifetime for which the data behind the pointer is live.
+	#[inline]
 	pub fn as_mut_slice<'a>(&self) -> &'a mut [T] {
 		unsafe { slice::from_raw_parts_mut(self.pointer().w, self.elements()) }
 	}
@@ -719,6 +721,7 @@ where T: BitStore {
 	/// # Lifetimes
 	///
 	/// - `'a`: Lifetime for which the data behind the pointer is live.
+	#[inline]
 	pub fn as_access_slice<'a>(&self) -> &'a [T::Access] {
 		unsafe { slice::from_raw_parts(self.pointer().a, self.elements()) }
 	}
@@ -733,118 +736,9 @@ where T: BitStore {
 	///
 	/// An enum containing the logical components of the domain governed by
 	/// `self`.
+	#[inline]
 	pub(crate) fn domain<'a>(self) -> BitDomain<'a, T> {
 		self.into()
-	}
-
-	/// Moves the `head` cursor upwards by one.
-	///
-	/// If `head` is at the back edge of the first element, then it will be set
-	/// to the front edge of the second element, and the pointer will be moved
-	/// upwards.
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`
-	///
-	/// # Safety
-	///
-	/// This method is unsafe when `self` is directly, solely, managing owned
-	/// memory. It mutates the pointer and element count, so if this pointer is
-	/// solely responsible for owned memory, its conception of the allocation
-	/// will differ from the allocator’s.
-	#[cfg(feature = "alloc")]
-	pub unsafe fn incr_head(&mut self) {
-		let (data, head, bits) = self.raw_parts();
-		if bits == 0 {
-			return;
-		}
-		let (head, wrap) = head.incr();
-		*self = Self::new_unchecked(
-			data.r().offset(wrap as isize),
-			head,
-			bits - 1,
-		);
-	}
-
-	/// Moves the `head` cursor downwards by one.
-	///
-	/// If `head` is at the front edge of the first element, then it will be set
-	/// to the back edge of the zeroth element, and the pointer will be moved
-	/// downwards.
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`
-	///
-	/// # Safety
-	///
-	/// This function is unsafe when `self` is directly, solely, managing owned
-	/// memory. It mutates the pointer and element count, so if this pointer is
-	/// solely responsible for owned memory, its conception of the allocation
-	/// will differ from the allocator’s.
-	#[cfg(feature = "alloc")]
-	pub unsafe fn decr_head(&mut self) {
-		let (data, head, bits) = self.raw_parts();
-		if bits == 0 {
-			return;
-		}
-		let (head, wrap) = head.decr();
-		*self = Self::new_unchecked(
-			data.r().offset(-(wrap as isize)),
-			head,
-			bits + 1,
-		);
-	}
-
-	/// Moves the `tail` cursor upwards by one.
-	///
-	/// If `tail` is at the back edge of the last element, then it will be set
-	/// to the front edge of the next element beyond, and the element count will
-	/// be increased.
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`
-	///
-	/// # Safety
-	///
-	/// This function is unsafe when `self` is directly, solely, managing owned
-	/// memory. It mutates the element count, so if this pointer is solely
-	/// responsible for owned memory, its conception of the allocation will
-	/// differ from the allocator’s.
-	#[cfg(feature = "alloc")]
-	pub unsafe fn incr_tail(&mut self) {
-		let len = self.len();
-		if len == Self::MAX_BITS {
-			return;
-		}
-		self.set_len(len + 1);
-	}
-
-	/// Moves the `tail` cursor downwards by one.
-	///
-	/// If `tail` is at the front edge of the back element, then it will be set
-	/// to the back edge of the next element forward, and the element count will
-	/// be decreased.
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`
-	///
-	/// # Safety
-	///
-	/// This function is unsafe when `self` is directly, solely, managing owned
-	/// memory. It mutates the element count, so if this pointer is solely
-	/// responsible for owned memory, its conception of the allocation will
-	/// differ from the allocator’s.
-	#[cfg(feature = "alloc")]
-	pub unsafe fn decr_tail(&mut self) {
-		let len = self.len();
-		if len == 0 {
-			return;
-		}
-		self.set_len(len - 1);
 	}
 
 	/// Converts a `BitSlice` handle into its `BitPtr` representation.
