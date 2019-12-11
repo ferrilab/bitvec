@@ -33,6 +33,7 @@ where O: BitOrder, T: BitStore {
 	/// # use bitvec::prelude::*;
 	/// let mut bv: BitVec<Local, Word> = BitVec::new();
 	/// ```
+	#[inline]
 	pub /* const */ fn new() -> Self {
 		Self::with_capacity(0)
 	}
@@ -72,6 +73,7 @@ where O: BitOrder, T: BitStore {
 	/// # use bitvec::prelude::*;
 	/// let bv: BitVec<Local, Word> = BitVec::with_capacity(100);
 	/// assert!(bv.capacity() >= 100);
+	#[inline]
 	pub fn capacity(&self) -> usize {
 		self.capacity
 			.checked_mul(T::BITS as usize)
@@ -106,7 +108,7 @@ where O: BitOrder, T: BitStore {
 		);
 		let (total_elts, _) = self.pointer.head().span(newlen);
 		if let Some(extra) = total_elts.checked_sub(self.pointer.elements()) {
-			self.do_unto_vec(|v| v.reserve(extra));
+			self.with_vec(|v| v.reserve(extra));
 		}
 	}
 
@@ -141,7 +143,7 @@ where O: BitOrder, T: BitStore {
 		);
 		let (total_elts, _) = self.pointer.head().span(newlen);
 		let extra = total_elts - self.capacity;
-		self.do_unto_vec(|v| v.reserve_exact(extra));
+		self.with_vec(|v| v.reserve_exact(extra));
 	}
 
 	/// Shrinks the capacity of the vector as much as possible.
@@ -159,8 +161,9 @@ where O: BitOrder, T: BitStore {
 	/// bv.shrink_to_fit();
 	/// assert!(bv.capacity() >= 3);
 	/// ```
+	#[inline]
 	pub fn shrink_to_fit(&mut self) {
-		self.do_unto_vec(Vec::shrink_to_fit);
+		self.with_vec(Vec::shrink_to_fit);
 	}
 
 	/// Converts the bit-vector into [`Box<[T]>`].
@@ -196,6 +199,7 @@ where O: BitOrder, T: BitStore {
 	/// [`BitBox<C, T>`]: ../boxed/struct.BitBox.html
 	/// [`Box<[T]>`]: https://doc.rust-lang.org/std/boxed/struct.Box.html
 	/// [`into_boxed_bitslice`]: #method.into_boxed_bitslice
+	#[inline]
 	pub fn into_boxed_slice(self) -> Box<[T]> {
 		self.into_vec().into_boxed_slice()
 	}
@@ -240,6 +244,7 @@ where O: BitOrder, T: BitStore {
 	/// bv.truncate(0);
 	/// assert!(bv.is_empty());
 	/// ```
+	#[inline]
 	pub fn truncate(&mut self, len: usize) {
 		if len < self.len() {
 			unsafe { self.set_len(len) }
@@ -263,6 +268,7 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	///
 	/// [`BitSlice::as_slice`]: ../slice/struct.BitSlice.html#method.as_slice
+	#[inline]
 	pub fn as_slice(&self) -> &[T] {
 		self.pointer.as_slice()
 	}
@@ -285,6 +291,7 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	///
 	/// [`BitSlice::as_mut_slice`]: ../slice/struct.BitSlice.html#method.as_mut_slice
+	#[inline]
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
 		self.pointer.as_mut_slice()
 	}
@@ -476,12 +483,14 @@ where O: BitOrder, T: BitStore {
 		//  If self is empty *or* tail is at the back edge of an element, push
 		//  an element onto the vector.
 		if self.is_empty() || *self.pointer.tail() == T::BITS {
-			self.do_unto_vec(|v| v.push(0.into()));
+			self.with_vec(|v| v.push(T::FALSE));
 		}
 		//  At this point, it is always safe to increment the tail, and then
 		//  write to the newly live bit.
-		unsafe { self.pointer.incr_tail() };
-		self.set(len, value);
+		unsafe {
+			self.pointer.set_len(len + 1);
+			self.set_unchecked(len, value);
+		}
 	}
 
 	/// Removes the last element from a vector and returns it, or `None` if it
@@ -502,12 +511,11 @@ where O: BitOrder, T: BitStore {
 	/// assert!(bv.pop().is_none());
 	/// ```
 	pub fn pop(&mut self) -> Option<bool> {
-		if self.is_empty() {
-			return None;
-		}
-		let out = self[self.len() - 1];
-		unsafe { self.pointer.decr_tail() };
-		Some(out)
+		self.len().checked_sub(1).map(|new_len| unsafe {
+			let out = *self.get_unchecked(new_len);
+			self.set_len(new_len);
+			out
+		})
 	}
 
 	/// Moves all the elements of `other` into `self`, leaving `other` empty.
@@ -528,6 +536,7 @@ where O: BitOrder, T: BitStore {
 	/// assert!(bv1[10]);
 	/// assert!(bv2.is_empty());
 	/// ```
+	#[inline]
 	pub fn append<D, U>(&mut self, other: &mut BitVec<D, U>)
 	where D: BitOrder, U: BitStore {
 		self.extend(other.iter().copied());

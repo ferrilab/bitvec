@@ -118,7 +118,7 @@ where O: BitOrder, T: BitStore {
 		self.clear();
 		//  Copy the other data region into the underlying vector, then grab its
 		//  pointer and capacity values.
-		let (ptr, capacity) = self.do_unto_vec(|v| {
+		let (ptr, capacity) = self.with_vec(|v| {
 			v.copy_from_slice(slice);
 			(v.as_ptr(), v.capacity())
 		});

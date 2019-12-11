@@ -247,18 +247,19 @@ mod tests {
 		assert_de_tokens(&bitvec![], bvtok![ d 0, 0, 0, U8 ]);
 	}
 
-	#[cfg(feature = "alloc")]
 	#[test]
 	fn small() {
-		let bv = bitvec![Msb0, u8; 1; 5];
-		let bs = &bv[1 ..];
-		assert_ser_tokens(&bs, bvtok![s 1, 1, 4, U8, 0b1111_1000]);
+		let bits = 0b1111_1000u8.bits::<Msb0>();
+		let bits = &bits[1 .. 5];
+		assert_ser_tokens(&bits, bvtok![s 1, 1, 4, U8, 0b1111_1000]);
 
-		let bv = bitvec![Lsb0, u16; 1; 12];
-		assert_ser_tokens(&bv, bvtok![s 1, 0, 12, U16, 0b00001111_11111111]);
+		let bits = 0b00001111_11111111u16.bits::<Lsb0>();
+		let bits = &bits[.. 12];
+		assert_ser_tokens(&bits, bvtok![s 1, 0, 12, U16, 0b00001111_11111111]);
 
-		let bb: BitBox<_, _> = bitvec![Lsb0, u32; 1; 10].into();
-		assert_ser_tokens(&bb, bvtok![s 1, 0, 10, U32, 0x00_00_03_FF]);
+		let bits = 0b11_11111111u32.bits::<Local>();
+		let bits = &bits[.. 10];
+		assert_ser_tokens(&bits, bvtok![s 1, 0, 10, U32, 0x00_00_03_FF]);
 	}
 
 	#[cfg(feature = "alloc")]

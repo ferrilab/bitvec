@@ -65,40 +65,6 @@ where T: BitStore {
 		Self { idx, _ty: PhantomData }
 	}
 
-	/// Increments a cursor to the next value, wrapping if needed.
-	///
-	/// # Parameters
-	///
-	/// - `self`: The original cursor.
-	///
-	/// # Returns
-	///
-	/// - `.0`: An incremented cursor, modulated to the domain `0 .. T::BITS`.
-	/// - `.1`: Marks whether the increment crossed an element boundary.
-	#[cfg(any(test, feature = "alloc"))]
-	#[inline(always)]
-	pub(crate) fn incr(self) -> (Self, bool) {
-		let next = (*self).wrapping_add(1) & T::MASK;
-		(next.idx(), next == 0)
-	}
-
-	/// Decrements a cursor to the prior value, wrapping if needed.
-	///
-	/// # Parameters
-	///
-	/// - `self`: The original cursor.
-	///
-	/// # Returns
-	///
-	/// - `.0`: A decremented cursor, modulated to the domain `0 .. T::BITS`.
-	/// - `.1`: Marks whether the decrement crossed an element boundary.
-	#[cfg(any(test, feature = "alloc"))]
-	#[inline(always)]
-	pub(crate) fn decr(self) -> (Self, bool) {
-		let (prev, wrap) = (*self).overflowing_sub(1);
-		((prev & T::MASK).idx(), wrap)
-	}
-
 	/// Finds the destination bit a certain distance away from a starting bit.
 	///
 	/// This produces the number of elements to move from the starting point,
@@ -578,39 +544,5 @@ mod tests {
 			assert_eq!(elt, isize::min_value() >> u8::INDX);
 			assert_eq!(*bit, n);
 		}
-	}
-
-	#[test]
-	fn incr() {
-		assert_eq!(6u8.idx::<u8>().incr(), (7u8.idx::<u8>(), false));
-		assert_eq!(7u8.idx::<u8>().incr(), (0u8.idx::<u8>(), true));
-
-		assert_eq!(14u8.idx::<u16>().incr(), (15u8.idx::<u16>(), false));
-		assert_eq!(15u8.idx::<u16>().incr(), (0u8.idx::<u16>(), true));
-
-		assert_eq!(30u8.idx::<u32>().incr(), (31u8.idx::<u32>(), false));
-		assert_eq!(31u8.idx::<u32>().incr(), (0u8.idx::<u32>(), true));
-
-		#[cfg(target_pointer_width = "64")]
-		assert_eq!(62u8.idx::<u64>().incr(), (63u8.idx::<u64>(), false));
-		#[cfg(target_pointer_width = "64")]
-		assert_eq!(63u8.idx::<u64>().incr(), (0u8.idx::<u64>(), true));
-	}
-
-	#[test]
-	fn decr() {
-		assert_eq!(1u8.idx::<u8>().decr(), (0u8.idx::<u8>(), false));
-		assert_eq!(0u8.idx::<u8>().decr(), (7u8.idx::<u8>(), true));
-
-		assert_eq!(1u8.idx::<u16>().decr(), (0u8.idx::<u16>(), false));
-		assert_eq!(0u8.idx::<u16>().decr(), (15u8.idx::<u16>(), true));
-
-		assert_eq!(1u8.idx::<u32>().decr(), (0u8.idx::<u32>(), false));
-		assert_eq!(0u8.idx::<u32>().decr(), (31u8.idx::<u32>(), true));
-
-		#[cfg(target_pointer_width = "64")]
-		assert_eq!(1u8.idx::<u64>().decr(), (0u8.idx::<u64>(), false));
-		#[cfg(target_pointer_width = "64")]
-		assert_eq!(0u8.idx::<u64>().decr(), (63u8.idx::<u64>(), true));
 	}
 }
