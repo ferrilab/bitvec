@@ -279,10 +279,8 @@ where O: BitOrder, T: BitStore {
 			}));
 		};
 		match self.bitptr().domain().splat() {
-			Either::Right((head, elt, tail)) => {
-				let (h, e, t) = (*head as usize, elt.load(), *tail as usize);
-				let bits = Self::from_element(&e);
-				writer(&bits[h .. t]);
+			Either::Right(_) => {
+				writer(self);
 			},
 			Either::Left((h, b, t)) => {
 				if let Some((h, head)) = h {

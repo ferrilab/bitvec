@@ -147,7 +147,7 @@ read_bitslice(&bv);
 
 // … and that’s all!
 // you can also do it like this:
-let bs : &BitSlice = &bv;
+let bs: &BitSlice = &bv;
 ```
 
 In Rust, it’s more common to pass slices as arguments rather than vectors when
