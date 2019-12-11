@@ -126,6 +126,7 @@ where O: BitOrder, T: BitStore {
 	///
 	/// let bits: &BitSlice = BitSlice::empty();
 	/// ```
+	#[inline]
 	pub fn empty<'a>() -> &'a Self {
 		BitPtr::empty().into_bitslice()
 	}
@@ -144,6 +145,7 @@ where O: BitOrder, T: BitStore {
 	///
 	/// let bits: &mut BitSlice = BitSlice::empty_mut();
 	/// ```
+	#[inline]
 	pub fn empty_mut<'a>() -> &'a mut Self {
 		BitPtr::empty().into_bitslice_mut()
 	}
@@ -168,6 +170,7 @@ where O: BitOrder, T: BitStore {
 	/// let bs: &BitSlice<Local, _> = BitSlice::from_element(&elt);
 	/// assert!(bs.all());
 	/// ```
+	#[inline]
 	pub fn from_element(elt: &T) -> &Self {
 		unsafe {
 			BitPtr::new_unchecked(elt, 0u8.idx(), T::BITS as usize)
@@ -195,6 +198,7 @@ where O: BitOrder, T: BitStore {
 	/// bs.set(0, false);
 	/// assert!(!bs.all());
 	/// ```
+	#[inline]
 	pub fn from_element_mut(elt: &mut T) -> &mut Self {
 		unsafe {
 			BitPtr::new_unchecked(elt, 0u8.idx(), T::BITS as usize)
@@ -277,6 +281,7 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	///
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
+	#[inline]
 	pub fn from_slice_mut(slice: &mut [T]) -> &mut Self {
 		Self::from_slice(slice).bitptr().into_bitslice_mut()
 	}
@@ -359,43 +364,41 @@ where O: BitOrder, T: BitStore {
 		let bitptr = self.bitptr();
 		let (elt, bit) = bitptr.head().offset(index as isize);
 		let data_ptr = bitptr.pointer().a();
-		(&*data_ptr.offset(elt)).set::<O>(bit, value);
+		(*data_ptr.offset(elt)).set::<O>(bit, value);
 	}
 
-	/// Produces a write reference to a single bit in the slice.
+	/// Produces a write reference to a region of the slice.
 	///
-	/// The structure returned by this method extends the borrow until it drops,
-	/// which precludes parallel use.
+	/// This method corresponds to [`Index::index`], except that it produces a
+	/// writable reference rather than a read-only reference. See
+	/// [`BitSliceIndex`] for the possible types of the produced reference.
 	///
-	/// The [`split_at_mut`] method allows splitting the borrows of a slice, and
-	/// will enable safe parallel use of these write references. The `atomic`
-	/// feature guarantees that parallel use does not cause data races when
-	/// modifying the underlying slice.
+	/// Use of this method locks the `&mut BitSlice` for the duration of the
+	/// produced reference’s lifetime. If you need multiple **non-overlapping**
+	/// write references into a single source `&mut BitSlice`, see the
+	/// [`::split_at_mut`] method.
 	///
 	/// # Lifetimes
 	///
-	/// - `'a` Propagates the lifetime of the referent slice to the single-bit
+	/// - `'a`: Propagates the lifetime of the referent slice to the interior
 	///   reference produced.
 	///
 	/// # Parameters
 	///
 	/// - `&mut self`
-	/// - `index`: The index of the bit in `self` selected.
+	/// - `index`: Some value whose type can be used to index `BitSlice`s.
 	///
 	/// # Returns
 	///
-	/// A write reference to the requested bit. Due to Rust limitations, this is
-	/// not a native reference type, but is a custom structure that holds the
-	/// address of the requested bit and its value. The produced structure
-	/// implements `Deref` and `DerefMut` to its cached bit, and commits the
-	/// cached bit to the parent slice on drop.
+	/// A writable reference into `self`, whose exact type is determined by
+	/// `index`’s implementation of [`BitSliceIndex`]. This may be either a
+	/// smaller `&mut BitSlice` when `index` is a range, or a [`BitMut`] proxy
+	/// type when `index` is a `usize`. See the [`BitMut`] documentation for
+	/// information on how to use it.
 	///
-	/// # Usage
+	/// # Panics
 	///
-	/// You must use the dereference operator on the `.at()` expression in order
-	/// to assign to it. In general, you should prefer immediately using and
-	/// discarding the returned value, rather than binding it to a name and
-	/// letting it live for more than one statement.
+	/// This panics if `index` is out of bounds of `self`.
 	///
 	/// # Examples
 	///
@@ -434,11 +437,13 @@ where O: BitOrder, T: BitStore {
 	/// The above example splits the slice into three (the first, the second,
 	/// and the rest) in order to hold multiple write references into the slice.
 	///
-	/// [`split_at_mut`]: #method.split_at_mut
-	pub fn at(&mut self, index: usize) -> BitMut<O, T> {
-		let len = self.len();
-		assert!(index < len, "Index {} out of bounds: {}", index, len);
-		unsafe { self.at_unchecked(index) }
+	/// [`BitSliceIndex`]: trait.BitSliceIndex.html
+	/// [`::get`]: #method.get
+	/// [`::split_at_mut`]: #method.split_at_mut
+	#[inline]
+	pub fn at<'a, I>(&'a mut self, index: I) -> I::Mut
+	where I: BitSliceIndex<'a, O, T> {
+		index.index_mut(self)
 	}
 
 	/// Version of [`at`](#method.at) that does not perform boundary checking.
@@ -448,11 +453,10 @@ where O: BitOrder, T: BitStore {
 	/// If `index` is outside the boundaries of `self`, then this function will
 	/// induce safety violations. The caller must ensure that `index` is within
 	/// the boundaries of `self` before calling.
-	pub unsafe fn at_unchecked(&mut self, index: usize) -> BitMut<O, T> {
-		BitMut {
-			data: *self.get_unchecked(index),
-			slot: self.get_unchecked_mut(index ..= index),
-		}
+	#[inline]
+	pub unsafe fn at_unchecked<'a, I>(&'a mut self, index: I) -> I::Mut
+	where I: BitSliceIndex<'a, O, T> {
+		index.get_unchecked_mut(self)
 	}
 
 	/// Version of [`split_at`](#method.split_at) that does not perform boundary
@@ -479,12 +483,27 @@ where O: BitOrder, T: BitStore {
 	/// If `mid` is outside the boundaries of `self`, then this function will
 	/// induce safety violations. The caller must ensure that `mid` is within
 	/// the boundaries of `self` before calling.
+	#[inline]
 	pub unsafe fn split_at_mut_unchecked(
 		&mut self,
 		mid: usize,
 	) -> (&mut Self, &mut Self) {
 		let (head, tail) = self.split_at_unchecked(mid);
 		(head.bitptr().into_bitslice_mut(), tail.bitptr().into_bitslice_mut())
+	}
+
+	/// Version of [`swap`](#method.swap) that does not perform boundary checks.
+	///
+	/// # Safety
+	///
+	/// `a` and `b` must be within the bounds of `self`, otherwise, the memory
+	/// access is unsound and may induce undefined behavior.
+	#[inline]
+	pub unsafe fn swap_unchecked(&mut self, a: usize, b: usize) {
+		let bit_a = *self.get_unchecked(a);
+		let bit_b = *self.get_unchecked(b);
+		self.set_unchecked(a, bit_b);
+		self.set_unchecked(b, bit_a);
 	}
 
 	/// Tests if *all* bits in the slice domain are set (logical `∧`).
@@ -523,19 +542,24 @@ where O: BitOrder, T: BitStore {
 				(*h .. *t).all(|n| elt.get::<O>(n.idx()))
 			},
 			Either::Left((h, b, t)) => {
-				let mut out = true;
 				if let Some((h, head)) = h {
 					let elt = head.load();
-					out &= (*h .. T::BITS).all(|n| elt.get::<O>(n.idx()));
+					if !(*h .. T::BITS).all(|n| elt.get::<O>(n.idx())) {
+						return false;
+					}
 				}
 				if let Some(body) = b {
-					out &= body.iter().all(|e| e.load() == T::TRUE);
+					if !body.iter().all(|e| e.load() == T::TRUE) {
+						return false;
+					}
 				}
 				if let Some((tail, t)) = t {
 					let elt = tail.load();
-					out &= (0 .. *t).all(|n| elt.get::<O>(n.idx()));
+					if !(0 .. *t).all(|n| elt.get::<O>(n.idx())) {
+						return false;
+					}
 				}
-				out
+				true
 			},
 		}
 	}
@@ -576,19 +600,24 @@ where O: BitOrder, T: BitStore {
 				(*h .. *t).any(|n| elt.get::<O>(n.idx()))
 			},
 			Either::Left((h, b, t)) => {
-				let mut out = false;
 				if let Some((h, head)) = h {
 					let elt = head.load();
-					out |= (*h .. T::BITS).any(|n| elt.get::<O>(n.idx()));
+					if (*h .. T::BITS).any(|n| elt.get::<O>(n.idx())) {
+						return true;
+					}
 				}
 				if let Some(body) = b {
-					out |= body.iter().any(|elt| elt.load() != T::FALSE);
+					if body.iter().any(|elt| elt.load() != T::FALSE) {
+						return true;
+					}
 				}
 				if let Some((tail, t)) = t {
 					let elt = tail.load();
-					out |= (0 .. *t).any(|n| elt.get::<O>(n.idx()));
+					if (0 .. *t).any(|n| elt.get::<O>(n.idx())) {
+						return true;
+					}
 				}
-				out
+				false
 			},
 		}
 	}
@@ -621,6 +650,7 @@ where O: BitOrder, T: BitStore {
 	/// assert!(!bits[.. 4].not_all());
 	/// assert!(bits[4 ..].not_all());
 	/// ```
+	#[inline]
 	pub fn not_all(&self) -> bool {
 		!self.all()
 	}
@@ -653,6 +683,7 @@ where O: BitOrder, T: BitStore {
 	/// assert!(!bits[.. 4].not_any());
 	/// assert!(bits[4 ..].not_any());
 	/// ```
+	#[inline]
 	pub fn not_any(&self) -> bool {
 		!self.any()
 	}
@@ -690,6 +721,7 @@ where O: BitOrder, T: BitStore {
 	/// assert!(!bits[3 .. 6].some());
 	/// assert!(bits[6 ..].some());
 	/// ```
+	#[inline]
 	pub fn some(&self) -> bool {
 		self.any() && self.not_all()
 	}
@@ -842,9 +874,11 @@ where O: BitOrder, T: BitStore {
 	pub fn for_each<F>(&mut self, func: F)
 	where F: Fn(usize, bool) -> bool {
 		for idx in 0 .. self.len() {
-			let tmp = unsafe { *self.get_unchecked(idx) };
-			let new = func(idx, tmp);
-			unsafe { self.set_unchecked(idx, new); }
+			unsafe {
+				let tmp = *self.get_unchecked(idx);
+				let new = func(idx, tmp);
+				self.set_unchecked(idx, new);
+			}
 		}
 	}
 
@@ -914,12 +948,14 @@ where O: BitOrder, T: BitStore {
 		let zero = core::iter::repeat(false);
 		for (i, b) in addend.into_iter().chain(zero).enumerate().take(len) {
 			//  The iterator is clamped to the upper bound of `self`.
-			let a = unsafe { *self.get_unchecked(i) };
-			let (y, z) = crate::rca1(a, b, c);
-			//  Write the sum into `self`
-			unsafe { self.set_unchecked(i, y); }
-			//  Propagate the carry
-			c = z;
+			c = unsafe {
+				let a = *self.get_unchecked(i);
+				let (y, z) = crate::rca1(a, b, c);
+				//  Write the sum into `self`
+				self.set_unchecked(i, y);
+				//  Propagate the carry
+				z
+			};
 		}
 		c
 	}
@@ -1004,6 +1040,7 @@ where O: BitOrder, T: BitStore {
 	///
 	/// A slice of all elements under the bit span, including any
 	/// partially-owned edge elements, wrapped in safe shared-mutation types.
+	#[inline]
 	pub fn as_total_slice(&self) -> &[T::Access] {
 		self.bitptr().as_access_slice()
 	}
@@ -1019,6 +1056,7 @@ where O: BitOrder, T: BitStore {
 	/// The [`BitPtr`] structure of the slice handle.
 	///
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
+	#[inline]
 	pub(crate) fn bitptr(&self) -> BitPtr<T> {
 		BitPtr::from_bitslice(self)
 	}
@@ -1035,6 +1073,7 @@ where O: BitOrder, T: BitStore {
 	///
 	/// `from` and `to` must be within the bounds of `self`. This is not
 	/// checked.
+	#[inline]
 	unsafe fn copy_unchecked(&mut self, from: usize, to: usize) {
 		self.set_unchecked(to, *self.get_unchecked(from));
 	}

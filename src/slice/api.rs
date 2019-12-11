@@ -153,13 +153,9 @@ where O: BitOrder, T: BitStore {
 	///
 	/// assert!(BitSlice::<Local, Word>::empty().first().is_none());
 	/// ```
+	#[inline]
 	pub fn first(&self) -> Option<&bool> {
-		if self.is_empty() {
-			None
-		}
-		else {
-			Some(&self[0])
-		}
+		0.get(self)
 	}
 
 	/// Returns a mutable pointer to the first bit of the slice, or `None` if it
@@ -176,13 +172,9 @@ where O: BitOrder, T: BitStore {
 	/// }
 	/// assert_eq!(data, 1u8);
 	/// ```
+	#[inline]
 	pub fn first_mut(&mut self) -> Option<BitMut<O, T>> {
-		if self.is_empty() {
-			None
-		}
-		else {
-			Some(self.at(0))
-		}
+		0.get_mut(self)
 	}
 
 	/// Returns the first and all the rest of the bits of the slice, or `None`
@@ -198,12 +190,14 @@ where O: BitOrder, T: BitStore {
 	///     assert_eq!(rest, &bits[1 ..]);
 	/// }
 	/// ```
+	#[inline]
 	pub fn split_first(&self) -> Option<(&bool, &Self)> {
 		if self.is_empty() {
 			None
 		}
 		else {
-			Some((&self[0], &self[1 ..]))
+			let (head, rest) = self.split_at(1);
+			unsafe { Some((0.get_unchecked(head), rest)) }
 		}
 	}
 
@@ -223,13 +217,14 @@ where O: BitOrder, T: BitStore {
 	/// }
 	/// assert_eq!(data, 7);
 	/// ```
+	#[inline]
 	pub fn split_first_mut(&mut self) -> Option<(BitMut<O, T>, &mut Self)> {
 		if self.is_empty() {
 			None
 		}
 		else {
 			let (head, rest) = self.split_at_mut(1);
-			Some((head.at(0), rest))
+			Some((unsafe { 0.get_unchecked_mut(head) }, rest))
 		}
 	}
 
@@ -246,10 +241,14 @@ where O: BitOrder, T: BitStore {
 	///     assert_eq!(rest, &bits[.. 7]);
 	/// }
 	/// ```
+	#[inline]
 	pub fn split_last(&self) -> Option<(&bool, &Self)> {
 		match self.len() {
 			0 => None,
-			len => Some((&self[len - 1], &self[.. len - 1])),
+			len => {
+				let (rest, tail) = self.split_at(len - 1);
+				Some((unsafe { 0.get_unchecked(tail) }, rest))
+			},
 		}
 	}
 
@@ -269,12 +268,13 @@ where O: BitOrder, T: BitStore {
 	/// }
 	/// assert_eq!(data, 128 | 64 | 1);
 	/// ```
+	#[inline]
 	pub fn split_last_mut(&mut self) -> Option<(BitMut<O, T>, &mut Self)> {
 		match self.len() {
 			0 => None,
 			len => {
 				let (rest, tail) = self.split_at_mut(len - 1);
-				Some((tail.at(0), rest))
+				Some((unsafe { 0.get_unchecked_mut(tail) }, rest))
 			},
 		}
 	}
@@ -289,10 +289,11 @@ where O: BitOrder, T: BitStore {
 	/// assert_eq!(Some(&true), bits.last());
 	/// assert!(BitSlice::<Local, Word>::empty().last().is_none());
 	/// ```
+	#[inline]
 	pub fn last(&self) -> Option<&bool> {
 		match self.len() {
 			0 => None,
-			len => Some(&self[len - 1]),
+			len => Some(unsafe { (len - 1).get_unchecked(self) }),
 		}
 	}
 
@@ -308,10 +309,11 @@ where O: BitOrder, T: BitStore {
 	///     *last = true;
 	/// }
 	/// assert!(bits[7]);
+	#[inline]
 	pub fn last_mut(&mut self) -> Option<BitMut<O, T>> {
 		match self.len() {
 			0 => None,
-			len => Some(self.at(len - 1)),
+			len => Some(unsafe { (len - 1).get_unchecked_mut(self) }),
 		}
 	}
 
@@ -334,10 +336,8 @@ where O: BitOrder, T: BitStore {
 	/// assert!(bits.get(1 ..).expect("in bounds").not_any());
 	/// assert!(bits.get(.. 12).is_none());
 	/// ```
-	pub fn get<'a, I>(
-		&'a self,
-		index: I,
-	) -> Option<<I as BitSliceIndex<'a, O, T>>::ImmutOutput>
+	#[inline]
+	pub fn get<'a, I>(&'a self, index: I) -> Option<I::Immut>
 	where I: BitSliceIndex<'a, O, T> {
 		index.get(self)
 	}
@@ -361,10 +361,8 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	///
 	/// [`get`]: #method.get
-	pub fn get_mut<'a, I>(
-		&'a mut self,
-		index: I,
-	) -> Option<<I as BitSliceIndex<'a, O, T>>::MutOutput>
+	#[inline]
+	pub fn get_mut<'a, I>(&'a mut self, index: I) -> Option<I::Mut>
 	where I: BitSliceIndex<'a, O, T> {
 		index.get_mut(self)
 	}
@@ -394,10 +392,8 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	///
 	/// [`get`]: #method.get
-	pub unsafe fn get_unchecked<'a, I>(
-		&'a self,
-		index: I,
-	) -> <I as BitSliceIndex<'a, O, T>>::ImmutOutput
+	#[inline]
+	pub unsafe fn get_unchecked<'a, I>(&'a self, index: I) -> I::Immut
 	where I: BitSliceIndex<'a, O, T> {
 		index.get_unchecked(self)
 	}
@@ -432,10 +428,8 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	///
 	/// [`get_mut`]: #method.get_mut
-	pub unsafe fn get_unchecked_mut<'a, I>(
-		&'a mut self,
-		index: I,
-	) -> <I as BitSliceIndex<'a, O, T>>::MutOutput
+	#[inline]
+	pub unsafe fn get_unchecked_mut<'a, I>(&'a mut self, index: I) -> I::Mut
 	where I: BitSliceIndex<'a, O, T> {
 		index.get_unchecked_mut(self)
 	}
@@ -472,6 +466,7 @@ where O: BitOrder, T: BitStore {
 	///
 	/// [`as_mut_ptr`]: #method.as_mut_ptr
 	//  FIXME(myrrlyn, 2019-10-22): Blocked on issue #57563.
+	#[inline]
 	pub /* const */ fn as_ptr(&self) -> *const T {
 		self.bitptr().pointer().r()
 	}
@@ -502,6 +497,7 @@ where O: BitOrder, T: BitStore {
 	/// unsafe { *head.as_mut_ptr() = 2; }
 	/// assert!(rest[2]);
 	/// ```
+	#[inline]
 	pub fn as_mut_ptr(&mut self) -> *mut T {
 		self.bitptr().pointer().w()
 	}
@@ -530,12 +526,7 @@ where O: BitOrder, T: BitStore {
 		let len = self.len();
 		assert!(a < len, "Index {} out of bounds: {}", a, len);
 		assert!(b < len, "Index {} out of bounds: {}", b, len);
-		unsafe {
-			let bit_a = *self.get_unchecked(a);
-			let bit_b = *self.get_unchecked(b);
-			self.set_unchecked(a, bit_b);
-			self.set_unchecked(b, bit_a);
-		}
+		unsafe { self.swap_unchecked(a, b); }
 	}
 
 	/// Reverses the order of bits in the slice, in place.
@@ -562,12 +553,8 @@ where O: BitOrder, T: BitStore {
 				return;
 			}
 			let back = len - 1;
-			//  `swap` has two assertions, which can be skipped here.
 			unsafe {
-				let h = *cur.get_unchecked(0);
-				let t = *cur.get_unchecked(back);
-				cur.set_unchecked(0, t);
-				cur.set_unchecked(back, h);
+				cur.swap_unchecked(0, back);
 				cur = cur.get_unchecked_mut(1 .. back);
 			}
 		}
@@ -588,6 +575,7 @@ where O: BitOrder, T: BitStore {
 	/// assert_eq!(iter.next(), Some(&false));
 	/// assert!(iter.next().is_none());
 	/// ```
+	#[inline]
 	pub fn iter(&self) -> Iter<O, T> {
 		self.into_iter()
 	}
@@ -605,6 +593,7 @@ where O: BitOrder, T: BitStore {
 	/// }
 	/// assert_eq!(data, 3);
 	/// ```
+	#[inline]
 	pub fn iter_mut(&mut self) -> IterMut<O, T> {
 		self.into_iter()
 	}
@@ -1068,6 +1057,7 @@ where O: BitOrder, T: BitStore {
 	///
 	/// assert_eq!(data, 0b0100_1101);
 	/// ```
+	#[inline]
 	pub fn split_at_mut(&mut self, mid: usize) -> (&mut Self, &mut Self) {
 		let (head, tail) = self.split_at(mid);
 		(head.bitptr().into_bitslice_mut(), tail.bitptr().into_bitslice_mut())
@@ -1131,6 +1121,7 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	///
 	/// [`slice::split`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.split
+	#[inline]
 	pub fn split<F>(&self, func: F) -> Split<'_, O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		Split {
@@ -1166,7 +1157,8 @@ where O: BitOrder, T: BitStore {
 	/// assert_eq!(data, 0b101_1001_1u8);
 	/// ```
 	///
-	/// [`slice::split_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.split_muts
+	/// [`slice::split_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.split_mut
+	#[inline]
 	pub fn split_mut<F>(&mut self, func: F) -> SplitMut<'_, O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		SplitMut {
@@ -1219,6 +1211,7 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	///
 	/// [`slice::rsplit`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplit
+	#[inline]
 	pub fn rsplit<F>(&self, func: F) -> RSplit<'_, O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplit {
@@ -1256,6 +1249,7 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	///
 	/// [`slice::rsplit_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplit_mut
+	#[inline]
 	pub fn rsplit_mut<F>(&mut self, func: F) -> RSplitMut<'_, O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplitMut {
@@ -1296,6 +1290,7 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	///
 	/// [`slice::splitn`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.splitn
+	#[inline]
 	pub fn splitn<F>(&self, n: usize, func: F) -> SplitN<'_, O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		SplitN {
@@ -1338,6 +1333,7 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	///
 	/// [`slice::splitn_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.splitn_mut
+	#[inline]
 	pub fn splitn_mut<F>(&mut self, n: usize, func: F) -> SplitNMut<'_, O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		SplitNMut {
@@ -1383,6 +1379,7 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	///
 	/// [`slice::rsplitn`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplitn
+	#[inline]
 	pub fn rsplitn<F>(&self, n: usize, func: F) -> RSplitN<'_, O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplitN {
@@ -1426,6 +1423,7 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	///
 	/// [`slice::rsplitn_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplitn_mut
+	#[inline]
 	pub fn rsplitn_mut<F>(&mut self, n: usize, func: F) -> RSplitNMut<'_, O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplitNMut {
@@ -1860,6 +1858,7 @@ where O: BitOrder, T: BitStore {
 	///     //  same access and behavior as in `align_to`
 	/// }
 	/// ```
+	#[inline]
 	pub unsafe fn align_to_mut<U>(&mut self) -> (
 		&mut Self,
 		&mut BitSlice<O, U>,
@@ -1886,6 +1885,7 @@ where O: BitOrder, T: BitStore {
 	/// assert_eq!(bits, vec);
 	/// ```
 	#[cfg(feature = "alloc")]
+	#[inline]
 	pub fn to_vec(&self) -> BitVec<O, T> {
 		BitVec::from_bitslice(self)
 	}
@@ -1904,12 +1904,12 @@ There is no tracking issue for `feature(slice_index_methods)`.
 pub trait BitSliceIndex<'a, O, T>
 where O: 'a + BitOrder, T: 'a + BitStore {
 	/// Immutable output type.
-	type ImmutOutput;
+	type Immut;
 
 	/// Mutable output type. This is necessary because `&mut BitSlice` is
 	/// producible for range indices, but `&mut bool` is not producable for
 	/// `usize` indices.
-	type MutOutput;
+	type Mut;
 
 	/// Returns a shared reference to the output at this location, if in bounds.
 	///
@@ -1921,7 +1921,7 @@ where O: 'a + BitOrder, T: 'a + BitStore {
 	/// # Returns
 	///
 	/// An immutable output, if `self` is in bounds; otherwise `None`.
-	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::ImmutOutput>;
+	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::Immut>;
 
 	/// Returns a mutable reference to the output at this location, if in
 	/// bounds.
@@ -1934,7 +1934,7 @@ where O: 'a + BitOrder, T: 'a + BitStore {
 	/// # Returns
 	///
 	/// A mutable output, if `self` is in bounds; otherwise `None`.
-	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::MutOutput>;
+	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::Mut>;
 
 	/// Returns a shared reference to the output at this location, without
 	/// performing any bounds checking.
@@ -1954,7 +1954,7 @@ where O: 'a + BitOrder, T: 'a + BitStore {
 	/// ensure that `self` is an index within the boundaries of `slice` before
 	/// calling in order to avoid boundary escapes and ensuing safety
 	/// violations.
-	unsafe fn get_unchecked(self, slice: &'a BitSlice<O, T>) -> Self::ImmutOutput;
+	unsafe fn get_unchecked(self, slice: &'a BitSlice<O, T>) -> Self::Immut;
 
 	/// Returns a mutable reference to the output at this location, without
 	/// performing any bounds checking.
@@ -1974,7 +1974,10 @@ where O: 'a + BitOrder, T: 'a + BitStore {
 	/// ensure that `self` is an index within the boundaries of `slice` before
 	/// calling in order to avoid boundary escapes and ensuing safety
 	/// violations.
-	unsafe fn get_unchecked_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::MutOutput;
+	unsafe fn get_unchecked_mut(
+		self,
+		slice: &'a mut BitSlice<O, T>,
+	) -> Self::Mut;
 
 	/// Returns a shared reference to the output at this location, panicking if
 	/// out of bounds.
@@ -1991,7 +1994,7 @@ where O: 'a + BitOrder, T: 'a + BitStore {
 	/// # Panics
 	///
 	/// This panics if `self` is out of bounds of `slice`.
-	fn index(self, slice: &'a BitSlice<O, T>) -> Self::ImmutOutput;
+	fn index(self, slice: &'a BitSlice<O, T>) -> Self::Immut;
 
 	/// Returns a mutable reference to the output at this location, panicking if
 	/// out of bounds.
@@ -2008,36 +2011,33 @@ where O: 'a + BitOrder, T: 'a + BitStore {
 	/// # Panics
 	///
 	/// This panics if `self` is out of bounds of `slice`.
-	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::MutOutput;
+	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::Mut;
 }
 
 impl<'a, O, T> BitSliceIndex<'a, O, T> for usize
 where O: 'a + BitOrder, T: 'a + BitStore {
-	type ImmutOutput = &'a bool;
-	type MutOutput = BitMut<'a, O, T>;
+	type Immut = &'a bool;
+	type Mut = BitMut<'a, O, T>;
 
-	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::ImmutOutput> {
-		if self >= slice.len() {
-			None
-		}
-		else {
+	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::Immut> {
+		if self < slice.len() {
 			Some(unsafe { self.get_unchecked(slice) })
 		}
+		else {
+			None
+		}
 	}
 
-	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::MutOutput> {
+	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::Mut> {
 		if self < slice.len() {
-			Some(slice.at(self))
+			Some(unsafe { self.get_unchecked_mut(slice) })
 		}
 		else {
 			None
 		}
 	}
 
-	unsafe fn get_unchecked(
-		self,
-		slice: &'a BitSlice<O, T>,
-	) -> Self::ImmutOutput {
+	unsafe fn get_unchecked(self, slice: &'a BitSlice<O, T>) -> Self::Immut {
 		let bitptr = slice.bitptr();
 		let (elt, bit) = bitptr.head().offset(self as isize);
 		let data_ptr = bitptr.pointer().a();
@@ -2050,258 +2050,229 @@ where O: 'a + BitOrder, T: 'a + BitStore {
 		}
 	}
 
+	#[inline]
 	unsafe fn get_unchecked_mut(
 		self,
 		slice: &'a mut BitSlice<O, T>,
-	) -> Self::MutOutput {
-		slice.at_unchecked(self)
-	}
-
-	fn index(self, slice: &'a BitSlice<O, T>) -> Self::ImmutOutput {
-		match self.get(slice) {
-			None => panic!("Index {} out of bounds: {}", self, slice.len()),
-			Some(out) => out,
+	) -> Self::Mut {
+		BitMut {
+			data: *slice.get_unchecked(self),
+			slot: slice.get_unchecked_mut(self ..= self),
 		}
 	}
 
-	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::MutOutput {
-		slice.at(self)
+	fn index(self, slice: &'a BitSlice<O, T>) -> Self::Immut {
+		self.get(slice).unwrap_or_else(|| {
+			panic!("Index {} out of bounds: {}", self, slice.len())
+		})
+	}
+
+	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::Mut {
+		let len = slice.len();
+		self.get_mut(slice).unwrap_or_else(|| {
+			panic!("Index {} out of bounds: {}", self, len)
+		})
 	}
 }
 
-impl<'a, O, T> BitSliceIndex<'a, O, T> for Range<usize>
-where O: 'a + BitOrder, T: 'a + BitStore {
-	type ImmutOutput = &'a BitSlice<O, T>;
-	type MutOutput = &'a mut BitSlice<O, T>;
+/// This macro allows each range implementation to have its own copy of the
+/// trait methods, rather than reshaping the range to route through `Range` and
+/// deepen the call AST.
+///
+/// Only `get` and `get_unchecked` are interesting; the other four methods can
+/// all be implemented in terms of these two.
+///
+/// This macro can be invoked either with definition bodies for `get` and
+/// `get_unchecked`, or with a range transform. The latter is useful for
+/// converting inclusive ranges to exclusive; the former allows different range
+/// shape to perform only the work that they actually need.
+macro_rules! range_impl {
+	( $( $r:ty => get $get:expr, unchecked $unchecked:expr; )* ) => { $(
+		impl<'a, O, T> BitSliceIndex<'a, O, T> for $r
+		where O: 'a + BitOrder, T: 'a + BitStore {
+			type Immut = &'a BitSlice<O, T>;
+			type Mut = &'a mut BitSlice<O, T>;
 
-	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::ImmutOutput> {
-		let Range { start, end } = self;
+			fn get(self, slice: Self::Immut) -> Option<Self::Immut> {
+				$get(self, slice)
+			}
+
+			#[inline]
+			fn get_mut(self, slice: Self::Mut) -> Option<Self::Mut> {
+				self.get(slice).map(|s| s.bitptr().into_bitslice_mut())
+			}
+
+			unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
+				$unchecked(self, slice)
+			}
+
+			#[inline]
+			unsafe fn get_unchecked_mut(self, slice: Self::Mut) -> Self::Mut {
+				self.get_unchecked(slice).bitptr().into_bitslice_mut()
+			}
+
+			#[inline]
+			fn index(self, slice: Self::Immut) -> Self::Immut {
+				let r = self.clone();
+				let l = slice.len();
+				self.clone()
+					.get(slice)
+					.unwrap_or_else(|| {
+						panic!("Range {:?} out of bounds: {}", r, l)
+					})
+			}
+
+			#[inline]
+			fn index_mut(self, slice: Self::Mut) -> Self::Mut {
+				self.index(slice).bitptr().into_bitslice_mut()
+			}
+		}
+	)* };
+
+	( $( $r:ty => map $func:expr; )* ) => { $(
+		impl<'a, O, T> BitSliceIndex<'a, O, T> for $r
+		where O: 'a + BitOrder, T: 'a + BitStore {
+			type Immut = &'a BitSlice<O, T>;
+			type Mut = &'a mut BitSlice<O, T>;
+
+			#[inline]
+			fn get(self, slice: Self::Immut) -> Option<Self::Immut> {
+				$func(self).get(slice)
+			}
+
+			#[inline]
+			fn get_mut(self, slice: Self::Mut) -> Option<Self::Mut> {
+				$func(self).get_mut(slice)
+			}
+
+			#[inline]
+			unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
+				$func(self).get_unchecked(slice)
+			}
+
+			#[inline]
+			unsafe fn get_unchecked_mut(self, slice: Self::Mut) -> Self::Mut {
+				$func(self).get_unchecked_mut(slice)
+			}
+
+			#[inline]
+			fn index(self, slice: Self::Immut) -> Self::Immut {
+				$func(self).index(slice)
+			}
+
+			#[inline]
+			fn index_mut(self, slice: Self::Mut) -> Self::Mut {
+				$func(self).index_mut(slice)
+			}
+		}
+	)* };
+}
+
+range_impl! {
+	Range<usize> => get |Range { start, end }, slice: Self::Immut| {
 		let len = slice.len();
+
 		if start > len || end > len || start > end {
 			return None;
 		}
 
-		Some(unsafe { self.get_unchecked(slice) })
-	}
-
-	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::MutOutput> {
-		self.get(slice).map(|s| s.bitptr().into_bitslice_mut::<O>())
-	}
-
-	unsafe fn get_unchecked(
-		self,
-		slice: &'a BitSlice<O, T>,
-	) -> Self::ImmutOutput {
-		let Range { start, end } = self;
+		Some(unsafe { (start .. end).get_unchecked(slice) })
+	},
+	unchecked |Range { start, end }, slice: Self::Immut| {
 		let (data, head, _) = slice.bitptr().raw_parts();
 
 		let (skip, new_head) = head.offset(start as isize);
-		let new_bits = end - start;
 
 		BitPtr::new_unchecked(
 			data.r().offset(skip),
 			new_head,
-			new_bits,
-		).into_bitslice::<O>()
-	}
+			end - start,
+		).into_bitslice()
+	};
 
-	unsafe fn get_unchecked_mut(
-		self,
-		slice: &'a mut BitSlice<O, T>,
-	) -> Self::MutOutput {
-		self.get_unchecked(slice).bitptr().into_bitslice_mut::<O>()
-	}
-
-	fn index(self, slice: &'a BitSlice<O, T>) -> Self::ImmutOutput {
-		match self.clone().get(slice) {
-			None => panic!("Range {:?} exceeds slice length {}", self, slice.len()),
-			Some(out) => out,
+	RangeFrom<usize> => get |RangeFrom { start }, slice: Self::Immut| {
+		let len = slice.len();
+		if start <= len {
+			Some(unsafe { (start ..).get_unchecked(slice) })
 		}
-	}
+		else {
+			None
+		}
+	},
+	unchecked |RangeFrom { start }, slice: Self::Immut| {
+		let (data, head, bits) = slice.bitptr().raw_parts();
 
-	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::MutOutput {
-		self.index(slice).bitptr().into_bitslice_mut::<O>()
-	}
+		let (skip, new_head) = head.offset(start as isize);
+
+		BitPtr::new_unchecked(
+			data.r().offset(skip),
+			new_head,
+			bits - start,
+		).into_bitslice()
+	};
+
+	// `.. end` just changes the length
+	RangeTo<usize> => get |RangeTo { end }, slice: Self::Immut| {
+		let len = slice.len();
+		if end <= len {
+			Some(unsafe { (.. end).get_unchecked(slice) })
+		}
+		else {
+			None
+		}
+	},
+	unchecked |RangeTo { end }, slice: Self::Immut| {
+		let mut bp = slice.bitptr();
+		bp.set_len(end);
+		bp.into_bitslice()
+	};
 }
 
-#[allow(clippy::range_plus_one)] // An inclusive range cannot be used here
-impl<'a, O, T> BitSliceIndex<'a, O, T> for RangeInclusive<usize>
-where O: 'a + BitOrder, T: 'a + BitStore {
-	type ImmutOutput = &'a BitSlice<O, T>;
-	type MutOutput = &'a mut BitSlice<O, T>;
+range_impl! {
+	RangeInclusive<usize> => map |this: Self| {
+		#[allow(clippy::range_plus_one)]
+		(*this.start() .. *this.end() + 1)
+	};
 
-	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::ImmutOutput> {
-		(*self.start() .. *self.end() + 1).get(slice)
-	}
-
-	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::MutOutput> {
-		(*self.start() .. *self.end() + 1).get_mut(slice)
-	}
-
-	unsafe fn get_unchecked(
-		self,
-		slice: &'a BitSlice<O, T>,
-	) -> Self::ImmutOutput {
-		(*self.start() .. *self.end() + 1).get_unchecked(slice)
-	}
-
-	unsafe fn get_unchecked_mut(
-		self,
-		slice: &'a mut BitSlice<O, T>,
-	) -> Self::MutOutput {
-		(*self.start() .. *self.end() + 1).get_unchecked_mut(slice)
-	}
-
-	fn index(self, slice: &'a BitSlice<O, T>) -> Self::ImmutOutput {
-		(*self.start() .. *self.end() + 1).index(slice)
-	}
-
-	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::MutOutput {
-		(*self.start() .. *self.end() + 1).index_mut(slice)
-	}
+	RangeToInclusive<usize> => map |RangeToInclusive { end }| {
+		#[allow(clippy::range_plus_one)]
+		(.. end + 1)
+	};
 }
 
-impl<'a, O, T> BitSliceIndex<'a, O, T> for RangeFrom<usize>
-where O: 'a + BitOrder, T: 'a + BitStore {
-	type ImmutOutput = &'a BitSlice<O, T>;
-	type MutOutput = &'a mut BitSlice<O, T>;
-
-	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::ImmutOutput> {
-		(self.start .. slice.len()).get(slice)
-	}
-
-	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::MutOutput> {
-		(self.start .. slice.len()).get_mut(slice)
-	}
-
-	unsafe fn get_unchecked(
-		self,
-		slice: &'a BitSlice<O, T>,
-	) -> Self::ImmutOutput {
-		(self.start .. slice.len()).get_unchecked(slice)
-	}
-
-	unsafe fn get_unchecked_mut(
-		self,
-		slice: &'a mut BitSlice<O, T>,
-	) -> Self::MutOutput {
-		(self.start .. slice.len()).get_unchecked_mut(slice)
-	}
-
-	fn index(self, slice: &'a BitSlice<O, T>) -> Self::ImmutOutput {
-		(self.start .. slice.len()).index(slice)
-	}
-
-	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::MutOutput {
-		(self.start .. slice.len()).index_mut(slice)
-	}
-}
-
+/// `RangeFull` is the identity function.
 impl<'a, O, T> BitSliceIndex<'a, O, T> for RangeFull
 where O: 'a + BitOrder, T: 'a + BitStore {
-	type ImmutOutput = &'a BitSlice<O, T>;
-	type MutOutput = &'a mut BitSlice<O, T>;
+	type Immut = &'a BitSlice<O, T>;
+	type Mut = &'a mut BitSlice<O, T>;
 
-	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::ImmutOutput> {
+	#[inline]
+	fn get(self, slice: Self::Immut) -> Option<Self::Immut> {
 		Some(slice)
 	}
 
-	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::MutOutput> {
+	#[inline]
+	fn get_mut(self, slice: Self::Mut) -> Option<Self::Mut> {
 		Some(slice)
 	}
 
-	unsafe fn get_unchecked(
-		self,
-		slice: &'a BitSlice<O, T>,
-	) -> Self::ImmutOutput {
+	#[inline]
+	unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
 		slice
 	}
 
-	unsafe fn get_unchecked_mut(
-		self,
-		slice: &'a mut BitSlice<O, T>,
-	) -> Self::MutOutput {
+	#[inline]
+	unsafe fn get_unchecked_mut(self, slice: Self::Mut) -> Self::Mut {
 		slice
 	}
 
-	fn index(self, slice: &'a BitSlice<O, T>) -> Self::ImmutOutput {
+	#[inline]
+	fn index(self, slice: Self::Immut) -> Self::Immut {
 		slice
 	}
 
-	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::MutOutput {
+	#[inline]
+	fn index_mut(self, slice: Self::Mut) -> Self::Mut {
 		slice
-	}
-}
-
-impl<'a, O, T> BitSliceIndex<'a, O, T> for RangeTo<usize>
-where O: 'a + BitOrder, T: 'a + BitStore {
-	type ImmutOutput = &'a BitSlice<O, T>;
-	type MutOutput = &'a mut BitSlice<O, T>;
-
-	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::ImmutOutput> {
-		(0 .. self.end).get(slice)
-	}
-
-	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::MutOutput> {
-		(0 .. self.end).get_mut(slice)
-	}
-
-	unsafe fn get_unchecked(
-		self,
-		slice: &'a BitSlice<O, T>,
-	) -> Self::ImmutOutput {
-		(0 .. self.end).get_unchecked(slice)
-	}
-
-	unsafe fn get_unchecked_mut(
-		self,
-		slice: &'a mut BitSlice<O, T>,
-	) -> Self::MutOutput {
-		(0 .. self.end).get_unchecked_mut(slice)
-	}
-
-	fn index(self, slice: &'a BitSlice<O, T>) -> Self::ImmutOutput {
-		(0 .. self.end).index(slice)
-	}
-
-	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::MutOutput {
-		(0 .. self.end).index_mut(slice)
-	}
-}
-
-#[allow(clippy::range_plus_one)] // An inclusive range cannot be used here
-impl<'a, O, T> BitSliceIndex<'a, O, T> for RangeToInclusive<usize>
-where O: 'a + BitOrder, T: 'a + BitStore {
-	type ImmutOutput = &'a BitSlice<O, T>;
-	type MutOutput = &'a mut BitSlice<O, T>;
-
-	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::ImmutOutput> {
-		(0 .. self.end + 1).get(slice)
-	}
-
-	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::MutOutput> {
-		(0 .. self.end + 1).get_mut(slice)
-	}
-
-	unsafe fn get_unchecked(
-		self,
-		slice: &'a BitSlice<O, T>,
-	) -> Self::ImmutOutput {
-		(0 .. self.end + 1).get_unchecked(slice)
-	}
-
-	unsafe fn get_unchecked_mut(
-		self,
-		slice: &'a mut BitSlice<O, T>,
-	) -> Self::MutOutput {
-		(0 .. self.end + 1).get_unchecked_mut(slice)
-	}
-
-	fn index(self, slice: &'a BitSlice<O, T>) -> Self::ImmutOutput {
-		(0 .. self.end + 1).index(slice)
-	}
-
-	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::MutOutput {
-		(0 .. self.end + 1).index_mut(slice)
 	}
 }
