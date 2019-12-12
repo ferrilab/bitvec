@@ -583,7 +583,6 @@ where T: BitStore {
 	/// # Safety
 	///
 	/// None. The caller must ensure that the invariants of `::new` are upheld.
-	#[cfg(feature = "alloc")]
 	#[inline]
 	pub unsafe fn set_len(&mut self, len: usize) {
 		let n = (len << Self::LEN_HEAD_BITS) | (self.len & Self::LEN_HEAD_MASK);
