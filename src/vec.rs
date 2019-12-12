@@ -530,7 +530,9 @@ where O: BitOrder, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![Local, u8; 0; 10];
-	/// assert_eq!(bv.as_slice(), &[0, 0]);
+	/// //  note: the second element is not required to be zero, only to have
+	/// //  bits `0` and `1` according to `Local` be `0`.
+	/// assert_eq!(bv.as_slice()[0], 0);
 	/// bv.set_elements(0xA5);
 	/// assert_eq!(bv.as_slice(), &[0xA5, 0xA5]);
 	/// ```
