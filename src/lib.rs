@@ -48,6 +48,10 @@ extern crate serde_test;
 #[macro_use]
 mod macros;
 
+// Not public API
+#[doc(hidden)]
+pub mod private;
+
 mod access;
 pub mod bits;
 mod domain;
