@@ -6,6 +6,9 @@ use core::mem;
 use crate::store::BitStore;
 use crate::indices::BitIdx;
 
+#[cfg(feature = "alloc")]
+pub use alloc::boxed::Box;
+
 // Not public API
 pub const fn word_len<T>(bit_len: usize) -> usize {
 	let width = mem::size_of::<T>() * 8;

@@ -328,68 +328,93 @@ bitvec![1; 5];
 #[cfg(feature = "alloc")]
 #[macro_export]
 macro_rules! bitvec {
-	//  bitvec![ endian , type ; 0 , 1 , … ]
-	( $order:path , $bits:ty ; $( $val:expr ),* ) => {
-		bitvec![ __bv_impl__ $order , $bits ; $( $val ),* ]
+	($order:ident, $bits:ident; $($val:expr),* $(,)?) => {
+		{
+			let mut bitvec = $crate::__bitvec_from_vec!(
+				$order, $bits, <[_]>::into_vec($crate::private::Box::new(
+					$crate::__bits_store_array!($order, $bits; $($val),*),
+				))
+			);
+			bitvec.truncate($crate::__bits_count!($($val),*));
+			bitvec
+		}
 	};
-	//  bitvec![ endian , type ; 0 , 1 , … , ]
-	( $order:path , $bits:ty ; $( $val:expr , )* ) => {
-		bitvec![ __bv_impl__ $order , $bits ; $( $val ),* ]
+	($order:path, $bits:ident; $($val:expr),* $(,)?) => {
+		// Wrap multi-tt `order` into a single opaque tt.
+		{
+			let mut bitvec = $crate::__bitvec_from_vec!(
+				$order, $bits, <[_]>::into_vec($crate::private::Box::new(
+					$crate::__bits_store_array!($order, $bits; $($val),*),
+				))
+			);
+			bitvec.truncate($crate::__bits_count!($($val),*));
+			bitvec
+		}
 	};
-
-	//  bitvec![ endian ; 0 , 1 , … ]
-	( $order:path ; $( $val:expr ),* ) => {
-		bitvec![ __bv_impl__ $order , $crate::store::Word ; $( $val ),* ]
+	($order:ident; $($val:expr),* $(,)?) => {
+		$crate::bitvec!($order, u64; $($val),*);
 	};
-	//  bitvec![ endian ; 0 , 1 , … , ]
-	( $order:path ; $( $val:expr , )* ) => {
-		bitvec![ __bv_impl__ $order , $crate::store::Word ; $( $val ),* ]
+	($order:path; $($val:expr),* $(,)?) => {
+		$crate::bitvec!($order, u64; $($val),*);
 	};
-
-	//  bitvec![ 0 , 1 , … ]
-	( $( $val:expr ),* ) => {
-		bitvec![ __bv_impl__ $crate::order::Local , $crate::store::Word ; $( $val ),* ]
-	};
-	//  bitvec![ 0 , 1 , … , ]
-	( $( $val:expr , )* ) => {
-		bitvec![ __bv_impl__ $crate::order::Local , $crate::store::Word ; $( $val ),* ]
-	};
-
-	//  bitvec![ endian , type ; bit ; rep ]
-	( $order:path , $bits:ty ; $val:expr ; $rep:expr ) => {
-		bitvec![ __bv_impl__ $order , $bits ; $val; $rep ]
-	};
-	//  bitvec![ endian ; bit ; rep ]
-	( $order:path ; $val:expr ; $rep:expr ) => {
-		bitvec![ __bv_impl__ $order , $crate::store::Word ; $val ; $rep ]
-	};
-	//  bitvec![ bit ; rep ]
-	( $val:expr ; $rep:expr ) => {
-		bitvec![ __bv_impl__ $crate::order::Local , $crate::store::Word ; $val ; $rep ]
+	($($val:expr),* $(,)?) => {
+		$crate::bitvec!(Local, u64; $($val),*);
 	};
 
-	//  GitHub issue #25 is to make this into a proc-macro that produces the
-	//  correct memory slab at compile time.
+	($order:ident, $bits:ident; $val:expr; $len:expr) => {
+		{
+			let len = $len;
+			let mut bitvec = $crate::__bitvec_from_vec!($order, $bits, vec![
+				(0 as $bits).wrapping_sub(($val != 0) as $bits);
+				$crate::private::word_len::<$bits>(len)
+			]);
+			bitvec.truncate(len);
+			bitvec
+		}
+	};
+	($order:path, $bits:ident; $val:expr; $len:expr) => {
+		{
+			let len = $len;
+			let mut bitvec = $crate::__bitvec_from_vec!($order, $bits, vec![
+				(0 as $bits).wrapping_sub(($val != 0) as $bits);
+				$crate::private::word_len::<$bits>(len)
+			]);
+			bitvec.truncate(len);
+			bitvec
+		}
+	};
+	($order:ident; $val:expr; $len:expr) => {
+		$crate::bitvec!($order, u64; $val; $len);
+	};
+	($order:path; $val:expr; $len:expr) => {
+		$crate::bitvec!($order, u64; $val; $len);
+	};
+	($val:expr; $len:expr) => {
+		$crate::bitvec!(Local, u64; $val; $len);
+	};
+}
 
-	( __bv_impl__ $order:path , $bits:ty ; $( $val:expr ),* ) => {{
-		let init: &[bool] = &[ $( $val != 0 ),* ];
-		let mut bv = $crate::vec::BitVec::<$order, $bits>::with_capacity(
-			init.len(),
-		);
-		bv.extend(init.iter().copied());
-		bv
-	}};
+// Not public API
+#[cfg(feature = "alloc")]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __bitvec_from_vec {
+	// Ensure literal `Msb0`, `Lsb0`, and `Local` always map to our internal
+	// definitions of the type, as we've been structurally matching them.
+	(Lsb0, $bits:ident, $vec:expr) => {
+		<$crate::vec::BitVec<$crate::order::Lsb0, $bits>>::from_vec($vec);
+	};
+	(Msb0, $bits:ident, $vec:expr) => {
+		<$crate::vec::BitVec<$crate::order::Msb0, $bits>>::from_vec($vec);
+	};
+	(Local, $bits:ident, $vec:expr) => {
+		<$crate::vec::BitVec<$crate::order::Local, $bits>>::from_vec($vec);
+	};
 
-	//  `[$val; $rep]` can just allocate a slab of at least `$rep` bits and then
-	//  use `.set_all` to force them to `$val`. This is much faster than
-	//  collecting from a bitstream.
-
-	( __bv_impl__ $order:path , $bits:ty ; $val:expr ; $rep:expr ) => {{
-		let mut bv = $crate::vec::BitVec::<$order, $bits>::with_capacity($rep);
-		unsafe { bv.set_len($rep); }
-		bv.set_all($val != 0);
-		bv
-	}};
+	// For other types, look it up in the caller's scope.
+	($order:tt, $bits:ident, $vec:expr) => {
+		<$crate::vec::BitVec<$order, $bits>>::from_vec($vec);
+	};
 }
 
 /** Construct a `BitBox` out of a literal array in source code, like `bitvec!`.
@@ -403,44 +428,8 @@ freeze it.
 #[cfg(feature = "alloc")]
 #[macro_export]
 macro_rules! bitbox {
-	//  bitbox![ endian , type ; 0 , 1 , … ]
-	( $order:path , $bits:ty ; $( $val:expr ),* ) => {
-		bitvec![ $order , $bits ; $( $val ),* ].into_boxed_bitslice()
-	};
-	//  bitbox![ endian , type ; 0 , 1 , … , ]
-	( $order:path , $bits:ty ; $( $val:expr , )* ) => {
-		bitvec![ $order , $bits ; $( $val ),* ].into_boxed_bitslice()
-	};
-
-	//  bitbox![ endian ; 0 , 1 , … ]
-	( $order:path ; $( $val:expr ),* ) => {
-		bitvec![ $order , $crate::store::Word ; $( $val ),* ].into_boxed_bitslice()
-	};
-	//  bitbox![ endian ; 0 , 1 , … , ]
-	( $order:path ; $( $val:expr , )* ) => {
-		bitvec![ $order , $crate::store::Word ; $( $val ),* ].into_boxed_bitslice()
-	};
-
-	//  bitbox![ 0 , 1 , … ]
-	( $( $val:expr ),* ) => {
-		bitvec![ $crate::order::Local , $crate::store::Word ; $( $val ),* ].into_boxed_bitslice()
-	};
-	//  bitbox![ 0 , 1 , … , ]
-	( $( $val:expr , )* ) => {
-		bitvec![ $crate::order::Local , $crate::store::Word ; $( $val ),* ].into_boxed_bitslice()
-	};
-
-	//  bitbox![ endian , type ; bit ; rep ]
-	( $order:path , $bits:ty ; $val:expr ; $rep:expr ) => {
-		bitvec![ $order , $bits ; $val; $rep ].into_boxed_bitslice()
-	};
-	//  bitbox![ endian ; bit ; rep ]
-	( $order:path ; $val:expr ; $rep:expr ) => {
-		bitvec![ $order , $crate::store::Word ; $val ; $rep ].into_boxed_bitslice()
-	};
-	//  bitbox![ bit ; rep ]
-	( $val:expr ; $rep:expr ) => {
-		bitvec![ $crate::order::Local , $crate::store::Word ; $val ; $rep ].into_boxed_bitslice()
+	($($t:tt)*) => {
+		$crate::bitvec![$($t)*].into_boxed_bitslice();
 	};
 }
 
