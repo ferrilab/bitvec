@@ -54,8 +54,9 @@ where T: BitStore {
 	///
 	/// - `idx`: A semantic index within a `T` memory element. It must be in the
 	///   range `0 .. T::BITS`.
-	#[inline(always)]
-	pub(crate) unsafe fn new_unchecked(idx: u8) -> Self {
+	#[doc(hidden)]
+	#[inline]
+	pub unsafe fn new_unchecked(idx: u8) -> Self {
 		debug_assert!(
 			idx < T::BITS,
 			"Bit index {} cannot exceed type width {}",

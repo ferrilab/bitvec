@@ -260,6 +260,26 @@ where O: BitOrder, T: BitStore {
 
 impl<O, T> BitVec<O, T>
 where O: BitOrder, T: BitStore {
+	/// Constructs a `BitVec` from a value repeated many times.
+	///
+	/// This function is equivalent to the `bitvec![O, T; bit; len]` macro call,
+	/// and is in fact the implementation of that macro syntax.
+	///
+	/// # Parameters
+	///
+	/// - `bit`: The bit value to which all `len` allocated bits will be set.
+	/// - `len`: The number of live bits in the constructed `BitVec`.
+	///
+	/// # Returns
+	///
+	/// A `BitVec` with `len` live bits, all set to `bit`.
+	pub fn repeat(bit: bool, len: usize) -> Self {
+		let mut out = Self::with_capacity(len);
+		unsafe { out.set_len(len); }
+		out.set_elements(if bit { T::TRUE } else { T::FALSE });
+		out
+	}
+
 	/// Constructs a `BitVec` from a single element.
 	///
 	/// The produced `BitVec` will span the element, and include all bits in it.

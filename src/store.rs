@@ -282,6 +282,25 @@ pub trait BitStore:
 	fn from_bytes(bytes: &[u8]) -> Self;
 }
 
+/** Compute the number of elements required to store a number of bits.
+
+# Parameters
+
+- `bits`: The number of bits to store in an element `T` array.
+
+# Returns
+
+The number of elements `T` required to store `bits`.
+
+Because this is a const function, when `bits` is a const-expr, this function can
+be used in array types `[T; elts(len)]`.
+**/
+#[doc(hidden)]
+pub const fn elts<T>(bits: usize) -> usize {
+	let width: usize = size_of::<T>() * 8;
+	bits / width + (bits % width != 0) as usize
+}
+
 impl BitStore for u8 {
 	const TYPENAME: &'static str = "u8";
 

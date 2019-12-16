@@ -2,19 +2,6 @@
 //
 // Helper methods and re-exports used by macros.
 
-use core::mem;
-use crate::store::BitStore;
-use crate::indices::BitIdx;
-
-#[cfg(feature = "alloc")]
-pub use alloc::boxed::Box;
-
-// Not public API
-pub const fn word_len<T>(bit_len: usize) -> usize {
-	let width = mem::size_of::<T>() * 8;
-	(bit_len + width - 1) / width
-}
-
 // Not public API
 pub const fn u8_from_le_bits(
 	a: bool,
@@ -62,8 +49,3 @@ pub use self::u8_from_le_bits as u8_from_local_bits;
 
 #[cfg(target_endian = "big")]
 pub use self::u8_from_be_bits as u8_from_local_bits;
-
-// Not public API
-pub unsafe fn bitidx_new_unchecked<T: BitStore>(idx: u8) -> BitIdx<T> {
-	BitIdx::new_unchecked(idx)
-}
