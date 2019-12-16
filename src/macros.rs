@@ -534,8 +534,13 @@ mod tests {
 		bits![Lsb0, u16; 0, 1];
 		bits![Msb0, u32; 0, 1];
 		bits![Lsb0, u32; 0, 1];
+
+		#[cfg(target_pointer_width = "64")] {
+
 		bits![Msb0, u64; 0, 1];
 		bits![Lsb0, u64; 0, 1];
+
+		}
 
 		bits![1; 70];
 		bits![Msb0; 0; 70];
@@ -546,8 +551,13 @@ mod tests {
 		bits![Lsb0, u16; 1; 70];
 		bits![Msb0, u32; 0; 70];
 		bits![Lsb0, u32; 1; 70];
+
+		#[cfg(target_pointer_width = "64")] {
+
 		bits![Msb0, u64; 0; 70];
 		bits![Lsb0, u64; 1; 70];
+
+		}
 	}
 
 	#[test]
@@ -562,8 +572,13 @@ mod tests {
 		bitvec![Lsb0, u16; 0, 1];
 		bitvec![Msb0, u32; 0, 1];
 		bitvec![Lsb0, u32; 0, 1];
+
+		#[cfg(target_pointer_width = "64")] {
+
 		bitvec![Msb0, u64; 0, 1];
 		bitvec![Lsb0, u64; 0, 1];
+
+		}
 
 		bitvec![1; 70];
 		bitvec![Msb0; 0; 70];
@@ -574,8 +589,13 @@ mod tests {
 		bitvec![Lsb0, u16; 1; 70];
 		bitvec![Msb0, u32; 0; 70];
 		bitvec![Lsb0, u32; 1; 70];
+
+		#[cfg(target_pointer_width = "64")] {
+
 		bitvec![Msb0, u64; 0; 70];
 		bitvec![Lsb0, u64; 1; 70];
+
+		}
 	}
 
 	#[test]
@@ -590,8 +610,13 @@ mod tests {
 		bitbox![Lsb0, u16; 0, 1];
 		bitbox![Msb0, u32; 0, 1];
 		bitbox![Lsb0, u32; 0, 1];
+
+		#[cfg(target_pointer_width = "64")] {
+
 		bitbox![Msb0, u64; 0, 1];
 		bitbox![Lsb0, u64; 0, 1];
+
+		}
 
 		bitbox![1; 70];
 		bitbox![Msb0; 0; 70];
@@ -602,7 +627,12 @@ mod tests {
 		bitbox![Lsb0, u16; 1; 70];
 		bitbox![Msb0, u32; 0; 70];
 		bitbox![Lsb0, u32; 1; 70];
+
+		#[cfg(target_pointer_width = "64")] {
+
 		bitbox![Msb0, u64; 0; 70];
 		bitbox![Lsb0, u64; 1; 70];
+
+		}
 	}
 }

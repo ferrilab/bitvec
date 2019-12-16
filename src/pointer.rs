@@ -907,6 +907,7 @@ mod tests {
 		assert_eq!(BitPtr::<u32>::PTR_HEAD_MASK, 3);
 	}
 
+	#[cfg(target_pointer_width = "64")]
 	#[test]
 	fn associated_consts_u64() {
 		assert_eq!(BitPtr::<u64>::PTR_HEAD_BITS, 3);
