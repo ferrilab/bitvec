@@ -12,7 +12,7 @@ use crate::{
 fn all() {
 	assert!(BitSlice::<Local, Word>::empty().all());
 
-	let bits = &(!0u64).bits::<Local>()[2 ..][.. 60];
+	let bits = &(!0u32).bits::<Local>()[2 ..][.. 28];
 	assert!(bits.all());
 	let bits = &0xA5u8.bits::<Local>()[1 ..][.. 6];
 	assert!(bits.not_all());
@@ -42,7 +42,7 @@ fn any() {
 
 	let bits = &(0xA5u8).bits::<Local>()[1 ..][.. 6];
 	assert!(bits.any());
-	let bits = &0u64.bits::<Local>()[2 ..][.. 60];
+	let bits = &0u32.bits::<Local>()[2 ..][.. 28];
 	assert!(bits.not_any());
 
 	let bits = &[0u8, 0xA5, 0].bits::<Local>()[2 ..][.. 20];

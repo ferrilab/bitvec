@@ -1467,6 +1467,8 @@ fn bsl32_sb32_full() {
 fn bsl32_sb64_full() {
 	[0u32; 3].bits_mut::<Lsb0>().store_be::<u64>(0);
 }
+
+#[cfg(target_pointer_width = "64")]
 #[test]
 #[should_panic]
 fn bsl64_sl08_full() {
@@ -1671,6 +1673,8 @@ fn bsm32_sb32_full() {
 fn bsm32_sb64_full() {
 	[0u32; 3].bits_mut::<Msb0>().store_be::<u64>(0);
 }
+
+#[cfg(target_pointer_width = "64")]
 #[test]
 #[should_panic]
 fn bsm64_sl08_full() {
