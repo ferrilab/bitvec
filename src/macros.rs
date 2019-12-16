@@ -21,7 +21,6 @@ matched by the macro system.
 Like `vec!`, `bits!` supports bit lists `[0, 1, …]` and repetition markers
 `[1; n]`.
 
-
 # Examples
 
 ```rust
@@ -46,47 +45,62 @@ macro_rules! bits {
 		$crate::__bits_from_slice!(
 			$order, $bits, $crate::__bits_count!($($val),*),
 			&$crate::__bits_store_array!($order, $bits; $($val),*)
-		);
+		)
 	};
 	($order:path, $bits:ident; $($val:expr),* $(,)?) => {
 		// Wrap multi-tt `order` into a single opaque tt.
 		$crate::__bits_from_slice!(
 			$order, $bits, $crate::__bits_count!($($val),*),
 			&$crate::__bits_store_array!($order, $bits; $($val),*)
-		);
+		)
 	};
 	($order:ident; $($val:expr),* $(,)?) => {
-		$crate::bits!($order, u64; $($val),*);
+		$crate::bits!($order, u64; $($val),*)
 	};
 	($order:path; $($val:expr),* $(,)?) => {
-		$crate::bits!($order, u64; $($val),*);
+		$crate::bits!($order, u64; $($val),*)
 	};
 	($($val:expr),* $(,)?) => {
-		$crate::bits!(Local, u64; $($val),*);
+		$crate::bits!(Local, u64; $($val),*)
 	};
 
 	// NOTE: `len` must be `const`, as this is a non-allocating macro.
 	($order:ident, $bits:ident; $val:expr; $len:expr) => {
 		$crate::__bits_from_slice!($order, $bits, $len, &[
 			(0 as $bits).wrapping_sub(($val != 0) as $bits);
-			$crate::private::word_len::<$bits>($len)
-		]);
+			$crate::store::elts::<$bits>($len)
+		])
 	};
 	($order:path, $bits:ident; $val:expr; $len:expr) => {
 		// Wrap multi-tt `order` into a single opaque tt.
 		$crate::__bits_from_slice!($order, $bits, $len, &[
 			(0 as $bits).wrapping_sub(($val != 0) as $bits);
-			$crate::private::word_len::<$bits>($len)
-		]);
+			$crate::store::elts::<$bits>($len)
+		])
 	};
 	($order:ident; $val:expr; $len:expr) => {
-		$crate::bits!($order, u64; $val; $len);
+		$crate::__bits_from_slice!($order, Word, $len, &[
+			(0 as $crate::store::Word).wrapping_sub(
+				($val != 0) as $crate::store::Word,
+			);
+			$crate::store::elts::<$crate::store::Word>($len)
+		])
 	};
 	($order:path; $val:expr; $len:expr) => {
-		$crate::bits!($order, u64; $val; $len);
+		$crate::__bits_from_slice!($order, Word, $len, &[
+			(0 as $crate::store::Word).wrapping_sub(
+				($val != 0) as $crate::store::Word,
+			);
+			$crate::store::elts::<$crate::store::Word>($len)
+		])
 	};
 	($val:expr; $len:expr) => {
-		$crate::bits!(Local, u64; $val; $len);
+		$crate::__bits_from_slice!(Local, Word, $len, &[
+			(0 as $crate::store::Word).wrapping_sub(
+				($val != 0) as $crate::store::Word,
+			);
+			$crate::store::elts::<$crate::store::Word>($len)
+		])
 	};
 }
 
@@ -109,55 +123,61 @@ macro_rules! __bits_from_slice {
 	// Ensure literal `Msb0`, `Lsb0`, and `Local` always map to our internal
 	// definitions of the type, as we've been structurally matching them.
 	(Lsb0, $bits:ident, $len:expr, $slice:expr) => {
-		&<$crate::slice::BitSlice<$crate::order::Lsb0, $bits>>::from_slice($slice)[..$len];
+		&$crate::slice::BitSlice::<
+			$crate::order::Lsb0,
+			$bits,
+		>::from_slice($slice)[.. $len]
 	};
 	(Msb0, $bits:ident, $len:expr, $slice:expr) => {
-		&<$crate::slice::BitSlice<$crate::order::Msb0, $bits>>::from_slice($slice)[..$len];
+		&$crate::slice::BitSlice::<
+			$crate::order::Msb0,
+			$bits,
+		>::from_slice($slice)[.. $len]
 	};
 	(Local, $bits:ident, $len:expr, $slice:expr) => {
-		&<$crate::slice::BitSlice<$crate::order::Local, $bits>>::from_slice($slice)[..$len];
+		&$crate::slice::BitSlice::<
+			$crate::order::Local,
+			$bits,
+		>::from_slice($slice)[.. $len]
 	};
 
 	// For other types, look it up in the caller's scope.
-	($order:tt, $bits:ident, $len:expr, $slice:expr) => {
-		&<$crate::slice::BitSlice<$order, $bits>>::from_slice($slice)[..$len];
+	($order:tt, $bits:tt, $len:expr, $slice:expr) => {
+		&$crate::slice::BitSlice::<$order, $bits>::from_slice($slice)[.. $len]
 	};
 }
 
 // Not public API
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __word_from_bits {
+macro_rules! __elt_from_bits {
 	// Optimized Orders
 	(
 		Lsb0, $bits:ident;
 		$($a:tt, $b:tt, $c:tt, $d:tt, $e:tt, $f:tt, $g:tt, $h:tt),*
 	) => {
-		$bits::from_le_bytes([$(
-			$crate::private::u8_from_le_bits(
-				$a != 0, $b != 0, $c != 0, $d != 0, $e != 0, $f != 0, $g != 0, $h != 0
-			)
-		),*]);
+		$bits::from_le_bytes([$($crate::private::u8_from_le_bits(
+			$a != 0, $b != 0, $c != 0, $d != 0,
+			$e != 0, $f != 0, $g != 0, $h != 0,
+		)),*])
 	};
 	(
 		Msb0, $bits:ident;
 		$($a:tt, $b:tt, $c:tt, $d:tt, $e:tt, $f:tt, $g:tt, $h:tt),*
 	) => {
-		$bits::from_be_bytes([$(
-			$crate::private::u8_from_be_bits(
-				$a != 0, $b != 0, $c != 0, $d != 0, $e != 0, $f != 0, $g != 0, $h != 0
-			)
-		),*]);
+		$bits::from_be_bytes([$($crate::private::u8_from_be_bits(
+			$a != 0, $b != 0, $c != 0, $d != 0,
+			$e != 0, $f != 0, $g != 0, $h != 0,
+		)),*])
 	};
 	(
 		Local, $bits:ident;
 		$($a:tt, $b:tt, $c:tt, $d:tt, $e:tt, $f:tt, $g:tt, $h:tt),*
 	) => {
-		$bits::from_ne_bytes([$(
-			$crate::private::u8_from_local_bits(
-				$a != 0, $b != 0, $c != 0, $d != 0, $e != 0, $f != 0, $g != 0, $h != 0
-			)
-		),*]);
+		$bits::from_ne_bytes([$($crate::private::u8_from_local_bits(
+			$a != 0, $b != 0, $c != 0, $d != 0,
+			$e != 0, $f != 0, $g != 0, $h != 0,
+		)),*])
 	};
 
 	// Arbitrary Order
@@ -168,7 +188,7 @@ macro_rules! __word_from_bits {
 			$(
 				$crate::store::BitStore::set::<$order>(
 					&mut value,
-					unsafe { $crate::private::bitidx_new_unchecked(_idx) },
+					unsafe { $crate::indices::BitIdx::new_unchecked(_idx) },
 					$a != 0,
 				);
 				let _idx = _idx + 1;
@@ -189,7 +209,7 @@ macro_rules! __bits_store_array {
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 16
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 32
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 48
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0	// 64
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0  // 64
 		);
 	};
 
@@ -200,7 +220,7 @@ macro_rules! __bits_store_array {
 	// match the extra `0`s added at the end.
 	($order:tt, $bits:ident, [$( ($($elt:tt),*) )*]; $(0),*) => {
 		[$(
-			$crate::__word_from_bits!($order, $bits; $($elt),*)
+			$crate::__elt_from_bits!($order, $bits; $($elt),*)
 		),*]
 	};
 
@@ -330,10 +350,10 @@ bitvec![1; 5];
 macro_rules! bitvec {
 	($order:ident, $bits:ident; $($val:expr),* $(,)?) => {
 		{
-			let mut bitvec = $crate::__bitvec_from_vec!(
-				$order, $bits, <[_]>::into_vec($crate::private::Box::new(
-					$crate::__bits_store_array!($order, $bits; $($val),*),
-				))
+			let mut bitvec = $crate::__bitvec_from_slice!(
+				$order,
+				$bits,
+				$crate::__bits_store_array!($order, $bits; $($val),*)
 			);
 			bitvec.truncate($crate::__bits_count!($($val),*));
 			bitvec
@@ -342,10 +362,10 @@ macro_rules! bitvec {
 	($order:path, $bits:ident; $($val:expr),* $(,)?) => {
 		// Wrap multi-tt `order` into a single opaque tt.
 		{
-			let mut bitvec = $crate::__bitvec_from_vec!(
-				$order, $bits, <[_]>::into_vec($crate::private::Box::new(
-					$crate::__bits_store_array!($order, $bits; $($val),*),
-				))
+			let mut bitvec = $crate::__bitvec_from_slice!(
+				$order,
+				$bits,
+				$crate::__bits_store_array!($order, $bits; $($val),*)
 			);
 			bitvec.truncate($crate::__bits_count!($($val),*));
 			bitvec
@@ -362,35 +382,28 @@ macro_rules! bitvec {
 	};
 
 	($order:ident, $bits:ident; $val:expr; $len:expr) => {
-		{
-			let len = $len;
-			let mut bitvec = $crate::__bitvec_from_vec!($order, $bits, vec![
-				(0 as $bits).wrapping_sub(($val != 0) as $bits);
-				$crate::private::word_len::<$bits>(len)
-			]);
-			bitvec.truncate(len);
-			bitvec
-		}
+		$crate::vec::BitVec::<$order, $bits>::repeat($val != 0, $len)
 	};
 	($order:path, $bits:ident; $val:expr; $len:expr) => {
-		{
-			let len = $len;
-			let mut bitvec = $crate::__bitvec_from_vec!($order, $bits, vec![
-				(0 as $bits).wrapping_sub(($val != 0) as $bits);
-				$crate::private::word_len::<$bits>(len)
-			]);
-			bitvec.truncate(len);
-			bitvec
-		}
+		$crate::vec::BitVec::<$order, $bits>::repeat($val != 0, $len)
 	};
 	($order:ident; $val:expr; $len:expr) => {
-		$crate::bitvec!($order, u64; $val; $len);
+		$crate::vec::BitVec::<
+			$order,
+			$crate::store::Word,
+		>::repeat($val != 0, $len)
 	};
 	($order:path; $val:expr; $len:expr) => {
-		$crate::bitvec!($order, u64; $val; $len);
+		$crate::vec::BitVec::<
+			$order,
+			$crate::store::Word,
+		>::repeat($val != 0, $len)
 	};
 	($val:expr; $len:expr) => {
-		$crate::bitvec!(Local, u64; $val; $len);
+		$crate::vec::BitVec::<
+			$crate::order::Local,
+			$crate::store::Word,
+		>::repeat($val != 0, $len)
 	};
 }
 
@@ -398,22 +411,31 @@ macro_rules! bitvec {
 #[cfg(feature = "alloc")]
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __bitvec_from_vec {
+macro_rules! __bitvec_from_slice {
 	// Ensure literal `Msb0`, `Lsb0`, and `Local` always map to our internal
 	// definitions of the type, as we've been structurally matching them.
-	(Lsb0, $bits:ident, $vec:expr) => {
-		<$crate::vec::BitVec<$crate::order::Lsb0, $bits>>::from_vec($vec);
+	(Lsb0, $bits:ident, $slice:expr) => {
+		$crate::vec::BitVec::<
+			$crate::order::Lsb0,
+			$bits,
+		>::from_slice(&$slice[..])
 	};
-	(Msb0, $bits:ident, $vec:expr) => {
-		<$crate::vec::BitVec<$crate::order::Msb0, $bits>>::from_vec($vec);
+	(Msb0, $bits:ident, $slice:expr) => {
+		$crate::vec::BitVec::<
+			$crate::order::Msb0,
+			$bits,
+		>::from_slice(&$slice[..])
 	};
-	(Local, $bits:ident, $vec:expr) => {
-		<$crate::vec::BitVec<$crate::order::Local, $bits>>::from_vec($vec);
+	(Local, $bits:ident, $slice:expr) => {
+		$crate::vec::BitVec::<
+			$crate::order::Local,
+			$bits,
+		>::from_slice(&$slice[..])
 	};
 
 	// For other types, look it up in the caller's scope.
-	($order:tt, $bits:ident, $vec:expr) => {
-		<$crate::vec::BitVec<$order, $bits>>::from_vec($vec);
+	($order:tt, $bits:tt, $slice:expr) => {
+		$crate::vec::BitVec::<$order, $bits>::from_slice(&$slice[..])
 	};
 }
 
@@ -429,7 +451,7 @@ freeze it.
 #[macro_export]
 macro_rules! bitbox {
 	($($t:tt)*) => {
-		$crate::bitvec![$($t)*].into_boxed_bitslice();
+		$crate::bitvec![$($t)*].into_boxed_bitslice()
 	};
 }
 
