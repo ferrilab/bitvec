@@ -41,6 +41,12 @@ bits![bitvec::order::Local; 0, 1,];
 */
 #[macro_export]
 macro_rules! bits {
+	($order:ident, Word; $($val:expr),* $(,)?) => {
+		$crate::__bits_from_slice_word!($order; $($val),*)
+	};
+	($order:path, Word; $($val:expr),* $(,)?) => {
+		$crate::__bits_from_slice_word!($order; $($val),*)
+	};
 	($order:ident, $bits:ident; $($val:expr),* $(,)?) => {
 		$crate::__bits_from_slice!(
 			$order, $bits, $crate::__bits_count!($($val),*),
@@ -55,13 +61,13 @@ macro_rules! bits {
 		)
 	};
 	($order:ident; $($val:expr),* $(,)?) => {
-		$crate::bits!($order, u64; $($val),*)
+		$crate::bits!($order, Word; $($val),*)
 	};
 	($order:path; $($val:expr),* $(,)?) => {
-		$crate::bits!($order, u64; $($val),*)
+		$crate::bits!($order, Word; $($val),*)
 	};
 	($($val:expr),* $(,)?) => {
-		$crate::bits!(Local, u64; $($val),*)
+		$crate::bits!(Local, Word; $($val),*)
 	};
 
 	// NOTE: `len` must be `const`, as this is a non-allocating macro.
@@ -79,7 +85,7 @@ macro_rules! bits {
 		])
 	};
 	($order:ident; $val:expr; $len:expr) => {
-		$crate::__bits_from_slice!($order, Word, $len, &[
+		$crate::__bits_from_slice!($order, $crate::store::Word, $len, &[
 			(0 as $crate::store::Word).wrapping_sub(
 				($val != 0) as $crate::store::Word,
 			);
@@ -87,7 +93,7 @@ macro_rules! bits {
 		])
 	};
 	($order:path; $val:expr; $len:expr) => {
-		$crate::__bits_from_slice!($order, Word, $len, &[
+		$crate::__bits_from_slice!($order, $crate::store::Word, $len, &[
 			(0 as $crate::store::Word).wrapping_sub(
 				($val != 0) as $crate::store::Word,
 			);
@@ -95,7 +101,7 @@ macro_rules! bits {
 		])
 	};
 	($val:expr; $len:expr) => {
-		$crate::__bits_from_slice!(Local, Word, $len, &[
+		$crate::__bits_from_slice!(Local, $crate::store::Word, $len, &[
 			(0 as $crate::store::Word).wrapping_sub(
 				($val != 0) as $crate::store::Word,
 			);
@@ -140,9 +146,15 @@ macro_rules! __bits_from_slice {
 			$bits,
 		>::from_slice($slice)[.. $len]
 	};
+	(Local, $bits:path, $len:expr, $slice:expr) => {
+		&$crate::slice::BitSlice::<
+			$crate::order::Local,
+			$bits,
+		>::from_slice($slice)[.. $len]
+	};
 
 	// For other types, look it up in the caller's scope.
-	($order:tt, $bits:tt, $len:expr, $slice:expr) => {
+	($order:tt, $bits:path, $len:expr, $slice:expr) => {
 		&$crate::slice::BitSlice::<$order, $bits>::from_slice($slice)[.. $len]
 	};
 }
@@ -298,6 +310,30 @@ macro_rules! __bits_store_array {
 	};
 }
 
+#[doc(hidden)]
+#[macro_export]
+#[cfg(target_pointer_width = "32")]
+macro_rules! __bits_from_slice_word {
+	($order:tt; $($val:expr),*) => {
+		$crate::__bits_from_slice!(
+			$order, u32, $crate::__bits_count!($($val),*),
+			&$crate::__bits_store_array!($order, u32; $($val),*)
+		)
+	};
+}
+
+#[doc(hidden)]
+#[macro_export]
+#[cfg(target_pointer_width = "64")]
+macro_rules! __bits_from_slice_word {
+	($order:tt; $($val:expr),*) => {
+		$crate::__bits_from_slice!(
+			$order, u64, $crate::__bits_count!($($val),*),
+			&$crate::__bits_store_array!($order, u64; $($val),*)
+		)
+	};
+}
+
 /** Construct a `BitVec` out of a literal array in source code, like `vec!`.
 
 `bitvec!` can be invoked in a number of ways. It takes the name of a `BitOrder`
@@ -372,13 +408,22 @@ macro_rules! bitvec {
 		}
 	};
 	($order:ident; $($val:expr),* $(,)?) => {
-		$crate::bitvec!($order, u64; $($val),*);
+		$crate::vec::BitVec::<
+			$order,
+			$crate::store::Word,
+		>::from_bitslice($crate::__bits_from_slice_word!($order; $($val),*))
 	};
 	($order:path; $($val:expr),* $(,)?) => {
-		$crate::bitvec!($order, u64; $($val),*);
+		$crate::vec::BitVec::<
+			$order,
+			$crate::store::Word,
+		>::from_bitslice($crate::__bits_from_slice_word!($order; $($val),*))
 	};
 	($($val:expr),* $(,)?) => {
-		$crate::bitvec!(Local, u64; $($val),*);
+		$crate::vec::BitVec::<
+			$crate::order::Local,
+			$crate::store::Word,
+		>::from_bitslice($crate::__bits_from_slice_word!(Local; $($val),*))
 	};
 
 	($order:ident, $bits:ident; $val:expr; $len:expr) => {
