@@ -291,13 +291,13 @@ mod tests {
 
 	#[test]
 	fn partial_tail() {
-		let data: u64 = 0u64;
+		let data: u32 = 0u32;
 		let bp = BitPtr::new(&data, 0u8.idx(), 60);
 
 		assert!(bp.domain().is_partial_tail());
 
-		let data: &[u64] = &[0u64, !0u64];
-		let bp = BitPtr::new(&data[0], 0u8.idx(), 124);
+		let data: &[u32] = &[0u32, !0u32];
+		let bp = BitPtr::new(&data[0], 0u8.idx(), 60);
 
 		assert!(bp.domain().is_partial_tail());
 	}
