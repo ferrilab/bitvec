@@ -62,16 +62,22 @@ macro_rules! bits {
 	};
 
 	//  Explicit order and store.
-	($order:ident, $store:ident; $($val:expr),* $(,)?) => {
-		&$crate::slice::BitSlice::<$order, $store>::from_slice(
-			&$crate::__bits_store_array!($order, $store; $($val),*)[..]
-		)[.. $crate::__count!($($val),*)]
-	};
-	($order:path, $store:ident; $($val:expr),* $(,)?) => {
-		&$crate::slice::BitSlice::<$order, $store>::from_slice(
-			&$crate::__bits_store_array!($order, $store; $($val),*)[..]
-		)[.. $crate::__count!($($val),*)]
-	};
+	($order:ident, $store:ident; $($val:expr),* $(,)?) => {{
+		static DATA: &[$store] = &$crate::__bits_store_array!(
+			$order, $store; $($val),*
+		);
+		$crate::__bits_from_slice!(
+			$order, $store, $crate::__count!($($val),*), DATA
+		)
+	}};
+	($order:path, $store:ident; $($val:expr),* $(,)?) => {{
+		static DATA: &[$store] = &$crate::__bits_store_array!(
+			$order, $store; $($val),*
+		);
+		$crate::__bits_from_slice!(
+			$order, $store, $crate::__count!($($val),*), DATA
+		)
+	}};
 
 	//  Explicit order, default store.
 	($order:ident; $($val:expr),* $(,)?) => {
@@ -90,46 +96,48 @@ macro_rules! bits {
 	//  NOTE: `count` must be `const`, as this is a non-allocating macro.
 
 	//  Explicit order and store.
-	($order:ident, $store:ident; $val:expr; $len:expr) => {
-		&$crate::slice::BitSlice::<$order, $store>::from_slice(&[
+	($order:ident, $store:ident; $val:expr; $len:expr) => {{
+		static DATA: &[$store] = &[
 			(0 as $store).wrapping_sub(($val != 0) as $store)
 			; $crate::store::elts::<$store>($len)
-		][..])[.. $len]
-	};
-	($order:path, $store:ident; $val:expr; $len:expr) => {
-		&$crate::slice::BitSlice::<$order, $store>::from_slice(&[
+		];
+		$crate::__bits_from_slice!($order, $store, $len, DATA)
+	}};
+	($order:path, $store:ident; $val:expr; $len:expr) => {{
+		static DATA: &[$store] = &[
 			(0 as $store).wrapping_sub(($val != 0) as $store)
 			; $crate::store::elts::<$store>($len)
-		][..])[.. $len]
-	};
+		];
+		$crate::__bits_from_slice!($order, $store, $len, DATA)
+	}};
 
 	//  Explicit order, default store.
-	($order:ident; $val:expr; $len:expr) => {
-		&$crate::slice::BitSlice::<$order, $crate::store::Word>::from_slice(&[
+	($order:ident; $val:expr; $len:expr) => {{
+		static DATA: &[$crate::store::Word] = &[
 			(0 as $crate::store::Word).wrapping_sub(
 				($val != 0) as $crate::store::Word,
 			); $crate::store::elts::<$crate::store::Word>($len)
-		][..])[.. $len]
-	};
-	($order:path; $val:expr; $len:expr) => {
-		&$crate::slice::BitSlice::<$order, $crate::store::Word>::from_slice(&[
+		];
+		$crate::__bits_from_slice!($order, $crate::store::Word, $len, DATA)
+	}};
+	($order:path; $val:expr; $len:expr) => {{
+		static DATA: &[$crate::store::Word] = &[
 			(0 as $crate::store::Word).wrapping_sub(
 				($val != 0) as $crate::store::Word,
 			); $crate::store::elts::<$crate::store::Word>($len)
-		][..])[.. $len]
-	};
+		];
+		$crate::__bits_from_slice!($order, $crate::store::Word, $len, DATA)
+	}};
 
 	//  Default order and store.
-	($val:expr; $len:expr) => {
-		&$crate::slice::BitSlice::<
-			$crate::order::Local,
-			$crate::store::Word,
-		>::from_slice(&[
+	($val:expr; $len:expr) => {{
+		static DATA: &[$crate::store::Word] = &[
 			(0 as $crate::store::Word).wrapping_sub(
 				($val != 0) as $crate::store::Word,
 			); $crate::store::elts::<$crate::store::Word>($len)
-		][..])[.. $len]
-	};
+		];
+		$crate::__bits_from_slice!(Local, $crate::store::Word, $len, DATA)
+	}};
 }
 
 /** Construct a `BitVec` out of a literal array in source code, like `vec!`.

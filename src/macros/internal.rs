@@ -27,15 +27,45 @@ macro_rules! __count {
 #[macro_export]
 #[cfg(target_pointer_width = "32")]
 macro_rules! __bits_from_words {
-	(Local; $($val:expr),*) => {
+	(Local; $($val:expr),*) => {{
+		static DATA: &[u32] = &$crate::__bits_store_array!(Local, u32; $($val),*);
 		&$crate::slice::BitSlice::<$crate::order::Local, u32>::from_slice(
-			&$crate::__bits_store_array!(Local, u32; $($val),*)[..]
+			DATA
 		)[.. $crate::__count!($($val),*)]
-	};
-	($order:tt; $($val:expr),*) => {
+	}};
+	($order:tt; $($val:expr),*) => {{
+		static DATA: &[u32] = &$crate::__bits_store_array!(Local, u32; $($val),*);
 		&$crate::slice::BitSlice::<$order, u32>::from_slice(
-			&$crate::__bits_store_array!($order, u32; $($val),*)[..]
+			DATA
 		)[.. $crate::__count!($($val),*)]
+	}};
+}
+
+/// Ensures that the ordering tokens map to a known ordering type path.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __bits_from_slice {
+	(Local, $store:path, $len:expr, $slice:ident $(,)?) => {
+		&$crate::slice::BitSlice::<
+			$crate::order::Local,
+			$store,
+		>::from_slice($slice)[.. $len]
+	};
+	(Lsb0, $store:path, $len:expr, $slice:ident $(,)?) => {
+		&$crate::slice::BitSlice::<
+			$crate::order::Lsb0,
+			$store,
+		>::from_slice($slice)[.. $len]
+	};
+	(Msb0, $store:path, $len:expr, $slice:ident $(,)?) => {
+		&$crate::slice::BitSlice::<
+			$crate::order::Msb0,
+			$store,
+		>::from_slice($slice)[.. $len]
+	};
+
+	($order:tt, $store:path, $len:expr, $slice:ident $(,)?) => {
+		&$crate::slice::BitSlice::<$order, $store>::from_slice($slice)[.. $len]
 	};
 }
 
@@ -44,16 +74,18 @@ macro_rules! __bits_from_words {
 #[macro_export]
 #[cfg(target_pointer_width = "64")]
 macro_rules! __bits_from_words {
-	(Local; $($val:expr),*) => {
+	(Local; $($val:expr),*) => {{
+		static DATA: &[u64] = &$crate::__bits_store_array!(Local, u64; $($val),*);
 		&$crate::slice::BitSlice::<$crate::order::Local, u64>::from_slice(
-			&$crate::__bits_store_array!(Local, u64; $($val),*)[..]
+			DATA
 		)[.. $crate::__count!($($val),*)]
-	};
-	($order:tt; $($val:expr),*) => {
+	}};
+	($order:tt; $($val:expr),*) => {{
+		static DATA: &[u64] = &$crate::__bits_store_array!(Local, u64; $($val),*);
 		&$crate::slice::BitSlice::<$order, u64>::from_slice(
-			&$crate::__bits_store_array!($order, u64; $($val),*)[..]
+			DATA
 		)[.. $crate::__count!($($val),*)]
-	};
+	}};
 }
 
 /** Accumulates a stream of bit expressions into a compacted array of elements.
@@ -171,28 +203,30 @@ macro_rules! __elt_from_bits {
 		Lsb0, $bits:ident;
 		$($a:tt, $b:tt, $c:tt, $d:tt, $e:tt, $f:tt, $g:tt, $h:tt),*
 	) => {
-		$bits::from_le_bytes([$($crate::macros::internal::u8_from_le_bits(
-			$a != 0, $b != 0, $c != 0, $d != 0,
-			$e != 0, $f != 0, $g != 0, $h != 0,
-		)),*])
+		$crate::__ty_from_bytes!($bits Lsb0 $(
+			$crate::macros::internal::u8_from_le_bits(
+				$a != 0, $b != 0, $c != 0, $d != 0,
+				$e != 0, $f != 0, $g != 0, $h != 0,
+			)
+		),*)
 	};
 	(
 		Msb0, $bits:ident;
 		$($a:tt, $b:tt, $c:tt, $d:tt, $e:tt, $f:tt, $g:tt, $h:tt),*
 	) => {
-		$bits::from_be_bytes([$($crate::macros::internal::u8_from_be_bits(
+		$crate::__ty_from_bytes!($bits Msb0 $($crate::macros::internal::u8_from_be_bits(
 			$a != 0, $b != 0, $c != 0, $d != 0,
 			$e != 0, $f != 0, $g != 0, $h != 0,
-		)),*])
+		)),*)
 	};
 	(
 		Local, $bits:ident;
 		$($a:tt, $b:tt, $c:tt, $d:tt, $e:tt, $f:tt, $g:tt, $h:tt),*
 	) => {
-		$bits::from_ne_bytes([$($crate::macros::internal::u8_from_ne_bits(
+		$crate::__ty_from_bytes!($bits Local $($crate::macros::internal::u8_from_ne_bits(
 			$a != 0, $b != 0, $c != 0, $d != 0,
 			$e != 0, $f != 0, $g != 0, $h != 0,
-		)),*])
+		)),*)
 	};
 
 	//  Unknown orders require using the indexing API.
@@ -296,6 +330,48 @@ macro_rules! __bitvec_shift {
 	)+ };
 }
 
+/// Constructs a fundamental integer from a list of bytes.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __ty_from_bytes {
+	(u8 Msb0 $($byte:expr),*) => {
+		$crate::macros::internal::u8_from_be_bytes([$($byte),*])
+	};
+	(u8 Lsb0 $($byte:expr),*) => {
+		$crate::macros::internal::u8_from_le_bytes([$($byte),*])
+	};
+	(u8 Local $($byte:expr),*) => {
+		$crate::macros::internal::u8_from_ne_bytes([$($byte),*])
+	};
+	(u16 Msb0 $($byte:expr),*) => {
+		$crate::macros::internal::u16_from_be_bytes([$($byte),*])
+	};
+	(u16 Lsb0 $($byte:expr),*) => {
+		$crate::macros::internal::u16_from_le_bytes([$($byte),*])
+	};
+	(u16 Local $($byte:expr),*) => {
+		$crate::macros::internal::u16_from_ne_bytes([$($byte),*])
+	};
+	(u32 Msb0 $($byte:expr),*) => {
+		$crate::macros::internal::u32_from_be_bytes([$($byte),*])
+	};
+	(u32 Lsb0 $($byte:expr),*) => {
+		$crate::macros::internal::u32_from_le_bytes([$($byte),*])
+	};
+	(u32 Local $($byte:expr),*) => {
+		$crate::macros::internal::u32_from_ne_bytes([$($byte),*])
+	};
+	(u64 Msb0 $($byte:expr),*) => {
+		$crate::macros::internal::u64_from_be_bytes([$($byte),*])
+	};
+	(u64 Lsb0 $($byte:expr),*) => {
+		$crate::macros::internal::u64_from_le_bytes([$($byte),*])
+	};
+	(u64 Local $($byte:expr),*) => {
+		$crate::macros::internal::u64_from_ne_bytes([$($byte),*])
+	};
+}
+
 /// Construct a `u8` from bits applied in Lsb0-order.
 #[allow(clippy::many_single_char_names)]
 pub const fn u8_from_le_bits(
@@ -345,3 +421,64 @@ pub use self::u8_from_le_bits as u8_from_ne_bits;
 
 #[cfg(target_endian = "big")]
 pub use self::u8_from_be_bits as u8_from_ne_bits;
+
+pub const fn u8_from_be_bytes(bytes: [u8; 1]) -> u8 {
+	bytes[0]
+}
+
+pub const fn u8_from_le_bytes(bytes: [u8; 1]) -> u8 {
+	bytes[0]
+}
+
+pub const fn u16_from_be_bytes(bytes: [u8; 2]) -> u16 {
+	((bytes[0] as u16) << 8) | bytes[1] as u16
+}
+
+pub const fn u16_from_le_bytes(bytes: [u8; 2]) -> u16 {
+	((bytes[1] as u16) << 8) | bytes[0] as u16
+}
+
+pub const fn u32_from_be_bytes(bytes: [u8; 4]) -> u32 {
+	(u16_from_be_bytes([bytes[0], bytes[1]]) as u32) << 16
+		| u16_from_be_bytes([bytes[2], bytes[3]]) as u32
+}
+
+pub const fn u32_from_le_bytes(bytes: [u8; 4]) -> u32 {
+	(u16_from_le_bytes([bytes[2], bytes[3]]) as u32) << 16
+		| u16_from_le_bytes([bytes[0], bytes[1]]) as u32
+}
+
+pub const fn u64_from_be_bytes(bytes: [u8; 8]) -> u64 {
+	(u32_from_be_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]) as u64) << 32
+		| u32_from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as u64
+}
+
+pub const fn u64_from_le_bytes(bytes: [u8; 8]) -> u64 {
+	(u32_from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as u64) << 32
+		| u32_from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as u64
+}
+
+#[cfg(target_endian = "big")]
+pub use u8_from_be_bytes as u8_from_ne_bytes;
+
+#[cfg(target_endian = "big")]
+pub use u16_from_be_bytes as u16_from_ne_bytes;
+
+#[cfg(target_endian = "big")]
+pub use u32_from_be_bytes as u32_from_ne_bytes;
+
+#[cfg(target_endian = "big")]
+pub use u64_from_be_bytes as u64_from_ne_bytes;
+
+#[cfg(target_endian = "little")]
+pub use u8_from_le_bytes as u8_from_ne_bytes;
+
+#[cfg(target_endian = "little")]
+pub use u16_from_le_bytes as u16_from_ne_bytes;
+
+#[cfg(target_endian = "little")]
+pub use u32_from_le_bytes as u32_from_ne_bytes;
+
+#[cfg(target_endian = "little")]
+pub use u64_from_le_bytes as u64_from_ne_bytes;
+
