@@ -40,7 +40,7 @@ bits![0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0];
 bits![Msb0, u8; 1; 5];
 bits![Lsb0; 0; 5];
 bits![1; 5];
-bits![bitvec::order::Local; 0, 1,];
+bits![Local; 0, 1,];
 ```
 **/
 #[macro_export]
@@ -66,7 +66,7 @@ macro_rules! bits {
 		static DATA: &[$store] = &$crate::__bits_store_array!(
 			$order, $store; $($val),*
 		);
-		$crate::__bits_from_slice!(
+		&$crate::__bits_from_slice!(
 			$order, $store, $crate::__count!($($val),*), DATA
 		)
 	}};
@@ -74,7 +74,7 @@ macro_rules! bits {
 		static DATA: &[$store] = &$crate::__bits_store_array!(
 			$order, $store; $($val),*
 		);
-		$crate::__bits_from_slice!(
+		&$crate::__bits_from_slice!(
 			$order, $store, $crate::__count!($($val),*), DATA
 		)
 	}};
@@ -98,46 +98,31 @@ macro_rules! bits {
 	//  Explicit order and store.
 	($order:ident, $store:ident; $val:expr; $len:expr) => {{
 		static DATA: &[$store] = &[
-			(0 as $store).wrapping_sub(($val != 0) as $store)
-			; $crate::store::elts::<$store>($len)
+			$crate::__extend_bool!($val, $store);
+			$crate::store::elts::<$store>($len)
 		];
-		$crate::__bits_from_slice!($order, $store, $len, DATA)
+		&$crate::__bits_from_slice!($order, $store, $len, DATA)
 	}};
 	($order:path, $store:ident; $val:expr; $len:expr) => {{
 		static DATA: &[$store] = &[
-			(0 as $store).wrapping_sub(($val != 0) as $store)
-			; $crate::store::elts::<$store>($len)
+			$crate::__extend_bool!($val, $store);
+			$crate::store::elts::<$store>($len)
 		];
-		$crate::__bits_from_slice!($order, $store, $len, DATA)
+		&$crate::__bits_from_slice!($order, $store, $len, DATA)
 	}};
 
 	//  Explicit order, default store.
-	($order:ident; $val:expr; $len:expr) => {{
-		static DATA: &[$crate::store::Word] = &[
-			(0 as $crate::store::Word).wrapping_sub(
-				($val != 0) as $crate::store::Word,
-			); $crate::store::elts::<$crate::store::Word>($len)
-		];
-		$crate::__bits_from_slice!($order, $crate::store::Word, $len, DATA)
-	}};
-	($order:path; $val:expr; $len:expr) => {{
-		static DATA: &[$crate::store::Word] = &[
-			(0 as $crate::store::Word).wrapping_sub(
-				($val != 0) as $crate::store::Word,
-			); $crate::store::elts::<$crate::store::Word>($len)
-		];
-		$crate::__bits_from_slice!($order, $crate::store::Word, $len, DATA)
-	}};
+	($order:ident; $val:expr; $len:expr) => {
+		$crate::__bits_from_words!($order; $val; $len)
+	};
+	($order:path; $val:expr; $len:expr) => {
+		$crate::__bits_from_words!($order; $val; $len)
+	};
 
 	//  Default order and store.
-	($val:expr; $len:expr) => {{
-		static DATA: &[$crate::store::Word] = &[
-			(0 as $crate::store::Word).wrapping_sub(
-				($val != 0) as $crate::store::Word,
-			); $crate::store::elts::<$crate::store::Word>($len)
-		];
-		$crate::__bits_from_slice!(Local, $crate::store::Word, $len, DATA)
-	}};
+	($val:expr; $len:expr) => {
+		$crate::__bits_from_words!(Local; $val; $len)
+	};
 }
 
 /** Construct a `BitVec` out of a literal array in source code, like `vec!`.

@@ -22,51 +22,65 @@ macro_rules! __count {
 	};
 }
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __bits_from_slice {
+	(Local, $store:ident, $len:expr, $slice:ident) => {
+		$crate::slice::BitSlice::<
+			$crate::order::Local,
+			$store,
+		>::from_slice($slice)[.. $len]
+	};
+	(Lsb0, $store:ident, $len:expr, $slice:ident) => {
+		$crate::slice::BitSlice::<
+			$crate::order::Lsb0,
+			$store,
+		>::from_slice($slice)[.. $len]
+	};
+	(Msb0, $store:ident, $len:expr, $slice:ident) => {
+		$crate::slice::BitSlice::<
+			$crate::order::Msb0,
+			$store,
+		>::from_slice($slice)[.. $len]
+	};
+	($order:tt, $store:ident, $len:expr, $slice:ident) => {
+		$crate::slice::BitSlice::<$order, $store>::from_slice($slice)[.. $len]
+	};
+}
+
 /// Constructs a `BitSlice` over the target’s `Word` type.
 #[doc(hidden)]
 #[macro_export]
 #[cfg(target_pointer_width = "32")]
 macro_rules! __bits_from_words {
 	(Local; $($val:expr),*) => {{
-		static DATA: &[u32] = &$crate::__bits_store_array!(Local, u32; $($val),*);
-		&$crate::slice::BitSlice::<$crate::order::Local, u32>::from_slice(
-			DATA
-		)[.. $crate::__count!($($val),*)]
+		static DATA: &[u32] = &$crate::__bits_store_array!(
+			Local, u32; $($val),*
+		);
+		&$crate::__bits_from_slice!(
+			Local, u32, $crate::__count!($($val),*), DATA
+		)
 	}};
 	($order:tt; $($val:expr),*) => {{
-		static DATA: &[u32] = &$crate::__bits_store_array!(Local, u32; $($val),*);
-		&$crate::slice::BitSlice::<$order, u32>::from_slice(
-			DATA
-		)[.. $crate::__count!($($val),*)]
+		static DATA: &[u32] = &$crate::__bits_store_array!(
+			$order, u32; $($val),*
+		);
+		&$crate::__bits_from_slice!(
+			$order, u32, $crate::__count!($($val),*), DATA
+		)
 	}};
-}
-
-/// Ensures that the ordering tokens map to a known ordering type path.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __bits_from_slice {
-	(Local, $store:path, $len:expr, $slice:ident $(,)?) => {
-		&$crate::slice::BitSlice::<
-			$crate::order::Local,
-			$store,
-		>::from_slice($slice)[.. $len]
-	};
-	(Lsb0, $store:path, $len:expr, $slice:ident $(,)?) => {
-		&$crate::slice::BitSlice::<
-			$crate::order::Lsb0,
-			$store,
-		>::from_slice($slice)[.. $len]
-	};
-	(Msb0, $store:path, $len:expr, $slice:ident $(,)?) => {
-		&$crate::slice::BitSlice::<
-			$crate::order::Msb0,
-			$store,
-		>::from_slice($slice)[.. $len]
-	};
-
-	($order:tt, $store:path, $len:expr, $slice:ident $(,)?) => {
-		&$crate::slice::BitSlice::<$order, $store>::from_slice($slice)[.. $len]
-	};
+	(Local; $val:expr; $len:expr) => {{
+		static DATA: &[u32] = &[
+			$crate::__extend_bool!($val, u32); $crate::store::elts::<u32>($len)
+		];
+		&$crate::__bits_from_slice!(Local, u32, $len, DATA)
+	}};
+	($order:tt; $val:expr; $len:expr) => {{
+		static DATA: &[u32] = &[
+			$crate::__extend_bool!($val, u32); $crate::store::elts::<u32>($len)
+		];
+		&$crate::__bits_from_slice!($order, u32, $len, DATA)
+	}};
 }
 
 /// Constructs a `BitSlice` over the target’s `Word` type.
@@ -75,16 +89,32 @@ macro_rules! __bits_from_slice {
 #[cfg(target_pointer_width = "64")]
 macro_rules! __bits_from_words {
 	(Local; $($val:expr),*) => {{
-		static DATA: &[u64] = &$crate::__bits_store_array!(Local, u64; $($val),*);
-		&$crate::slice::BitSlice::<$crate::order::Local, u64>::from_slice(
-			DATA
-		)[.. $crate::__count!($($val),*)]
+		static DATA: &[u64] = &$crate::__bits_store_array!(
+			Local, u64; $($val),*
+		);
+		&$crate::__bits_from_slice!(
+			Local, u64, $crate::__count!($($val),*), DATA
+		)
 	}};
 	($order:tt; $($val:expr),*) => {{
-		static DATA: &[u64] = &$crate::__bits_store_array!(Local, u64; $($val),*);
-		&$crate::slice::BitSlice::<$order, u64>::from_slice(
-			DATA
-		)[.. $crate::__count!($($val),*)]
+		static DATA: &[u64] = &$crate::__bits_store_array!(
+			$order, u64; $($val),*
+		);
+		&$crate::__bits_from_slice!(
+			$order, u64, $crate::__count!($($val),*), DATA
+		)
+	}};
+	(Local; $val:expr; $len:expr) => {{
+		static DATA: &[u64] = &[
+			$crate::__extend_bool!($val, u64); $crate::store::elts::<u64>($len)
+		];
+		&$crate::__bits_from_slice!(Local, u64, $len, DATA)
+	}};
+	($order:tt; $val:expr; $len:expr) => {{
+		static DATA: &[u64] = &[
+			$crate::__extend_bool!($val, u64); $crate::store::elts::<u64>($len)
+		];
+		&$crate::__bits_from_slice!($order, u64, $len, DATA)
 	}};
 }
 
@@ -98,9 +128,9 @@ construct `bitvec` types.
 #[macro_export]
 macro_rules! __bits_store_array {
 	// Entry point.
-	($order:tt, $bits:ident; $($val:expr),*) => {
+	($order:tt, $store:ident; $($val:expr),*) => {
 		$crate::__bits_store_array!(
-			$order, $bits, []; $($val,)*
+			$order, $store, []; $($val,)*
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 16
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 32
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 48
@@ -114,9 +144,9 @@ macro_rules! __bits_store_array {
 	fragment, it is no longer considered to match a literal `0`, so this pattern
 	will only match the extra padding `0`s added at the end.
 	*/
-	($order:tt, $bits:ident, [$( ($($elt:tt),*) )*]; $(0),*) => {
+	($order:tt, $store:ident, [$( ($($elt:tt),*) )*]; $(0),*) => {
 		[$(
-			$crate::__elt_from_bits!($order, $bits; $($elt),*)
+			$crate::__elt_from_bits!($order, $store; $($elt),*)
 		),*]
 	};
 
@@ -200,50 +230,94 @@ macro_rules! __bits_store_array {
 macro_rules! __elt_from_bits {
 	//  Known orderings can be performed immediately.
 	(
-		Lsb0, $bits:ident;
+		Lsb0, $store:ident;
 		$($a:tt, $b:tt, $c:tt, $d:tt, $e:tt, $f:tt, $g:tt, $h:tt),*
 	) => {
-		$crate::__ty_from_bytes!($bits Lsb0 $(
-			$crate::macros::internal::u8_from_le_bits(
+		$crate::__ty_from_bytes!(
+			Lsb0, $store, [$($crate::macros::internal::u8_from_le_bits(
 				$a != 0, $b != 0, $c != 0, $d != 0,
 				$e != 0, $f != 0, $g != 0, $h != 0,
-			)
-		),*)
+			)),*]
+		)
 	};
 	(
-		Msb0, $bits:ident;
+		Msb0, $store:ident;
 		$($a:tt, $b:tt, $c:tt, $d:tt, $e:tt, $f:tt, $g:tt, $h:tt),*
 	) => {
-		$crate::__ty_from_bytes!($bits Msb0 $($crate::macros::internal::u8_from_be_bits(
-			$a != 0, $b != 0, $c != 0, $d != 0,
-			$e != 0, $f != 0, $g != 0, $h != 0,
-		)),*)
+		$crate::__ty_from_bytes!(
+			Msb0, $store, [$($crate::macros::internal::u8_from_be_bits(
+				$a != 0, $b != 0, $c != 0, $d != 0,
+				$e != 0, $f != 0, $g != 0, $h != 0,
+			)),*]
+		)
 	};
 	(
-		Local, $bits:ident;
+		Local, $store:ident;
 		$($a:tt, $b:tt, $c:tt, $d:tt, $e:tt, $f:tt, $g:tt, $h:tt),*
 	) => {
-		$crate::__ty_from_bytes!($bits Local $($crate::macros::internal::u8_from_ne_bits(
-			$a != 0, $b != 0, $c != 0, $d != 0,
-			$e != 0, $f != 0, $g != 0, $h != 0,
-		)),*)
+		$crate::__ty_from_bytes!(
+			Local, $store, [$($crate::macros::internal::u8_from_ne_bits(
+				$a != 0, $b != 0, $c != 0, $d != 0,
+				$e != 0, $f != 0, $g != 0, $h != 0,
+			)),*]
+		)
 	};
 
-	//  Unknown orders require using the indexing API.
-	($order:tt, $bits:ident; $($a:tt),*) => {
-		{
-			let mut value: $bits = 0;
-			let _idx = 0u8;
-			$(
-				$crate::store::BitStore::set::<$order>(
-					&mut value,
-					unsafe { $crate::indices::BitIdx::new_unchecked(_idx) },
-					$a != 0,
-				);
-				let _idx = _idx + 1;
-			)*
-			value
-		}
+	//  Unknown orders are currently unsupported in `macro_rules!`.
+	($order:tt, $store:ident; $($a:tt),*) => {{
+		/* Note: they can *become* supported, by adding a `ident <-` argument
+		to `bits!` that allows construction of runtime values into a binding
+		which outlives the returned reference without necessarily being `static`
+		(which requires `const` constructors).
+
+		The call-site syntax
+
+		```rust
+		let slab;
+		let bits = bits![slab <- args…];
+		```
+
+		would construct the array literal into `slab` and then produce a
+		`&BitSlice` reference from `&slab`. This works because Rust allows
+		delayed initialization if there is exactly one initialization point in
+		all program branch pathways. The expansion of `bits!` would be something
+		like
+
+		```rust
+		let slab;
+		let bits = {
+			slab = __bits_store_array!($args…);
+			&BitSlice::<$o, $t>::from_slice(&slab)[.. $len];
+		};
+		```
+
+		The `slab` binding outlives the `bits` reference; construction of the
+		`slab` value occurs at runtime in non-`const` contexts.
+
+		This is a deferred item.
+		*/
+		compile_error!("The ordering argument you provided is unrecognized, \
+			and as such cannot be used in const contexts.");
+		let mut value: $store = 0;
+		let mut _idx = 0u8;
+		$(
+			$crate::store::BitStore::set::<$order>(
+				&mut value,
+				unsafe { $crate::indices::BitIdx::new_unchecked(_idx) },
+				$a != 0,
+			);
+			_idx += 1;
+		)*
+		value
+	}};
+}
+
+/// Extend a single bit to fill an element.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __extend_bool {
+	($val:expr, $typ:ident) => {
+		(0 as $typ).wrapping_sub(($val != 0) as $typ)
 	};
 }
 
@@ -334,40 +408,40 @@ macro_rules! __bitvec_shift {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __ty_from_bytes {
-	(u8 Msb0 $($byte:expr),*) => {
+	(Msb0, u8, [$($byte:expr),*]) => {
 		$crate::macros::internal::u8_from_be_bytes([$($byte),*])
 	};
-	(u8 Lsb0 $($byte:expr),*) => {
+	(Lsb0, u8, [$($byte:expr),*]) => {
 		$crate::macros::internal::u8_from_le_bytes([$($byte),*])
 	};
-	(u8 Local $($byte:expr),*) => {
+	(Local, u8, [$($byte:expr),*]) => {
 		$crate::macros::internal::u8_from_ne_bytes([$($byte),*])
 	};
-	(u16 Msb0 $($byte:expr),*) => {
+	(Msb0, u16, [$($byte:expr),*]) => {
 		$crate::macros::internal::u16_from_be_bytes([$($byte),*])
 	};
-	(u16 Lsb0 $($byte:expr),*) => {
+	(Lsb0, u16, [$($byte:expr),*]) => {
 		$crate::macros::internal::u16_from_le_bytes([$($byte),*])
 	};
-	(u16 Local $($byte:expr),*) => {
+	(Local, u16, [$($byte:expr),*]) => {
 		$crate::macros::internal::u16_from_ne_bytes([$($byte),*])
 	};
-	(u32 Msb0 $($byte:expr),*) => {
+	(Msb0, u32, [$($byte:expr),*]) => {
 		$crate::macros::internal::u32_from_be_bytes([$($byte),*])
 	};
-	(u32 Lsb0 $($byte:expr),*) => {
+	(Lsb0, u32, [$($byte:expr),*]) => {
 		$crate::macros::internal::u32_from_le_bytes([$($byte),*])
 	};
-	(u32 Local $($byte:expr),*) => {
+	(Local, u32, [$($byte:expr),*]) => {
 		$crate::macros::internal::u32_from_ne_bytes([$($byte),*])
 	};
-	(u64 Msb0 $($byte:expr),*) => {
+	(Msb0, u64, [$($byte:expr),*]) => {
 		$crate::macros::internal::u64_from_be_bytes([$($byte),*])
 	};
-	(u64 Lsb0 $($byte:expr),*) => {
+	(Lsb0, u64, [$($byte:expr),*]) => {
 		$crate::macros::internal::u64_from_le_bytes([$($byte),*])
 	};
-	(u64 Local $($byte:expr),*) => {
+	(Local, u64, [$($byte:expr),*]) => {
 		$crate::macros::internal::u64_from_ne_bytes([$($byte),*])
 	};
 }
@@ -481,4 +555,3 @@ pub use u32_from_le_bytes as u32_from_ne_bytes;
 
 #[cfg(target_endian = "little")]
 pub use u64_from_le_bytes as u64_from_ne_bytes;
-
