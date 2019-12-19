@@ -3,25 +3,6 @@
 This module exposes a trait, `Bits`, which functions similarly to the `AsRef`
 and `AsMut` traits in the standard library. This trait allows an implementor to
 express the means by which it can be interpreted as a collection of bits.
-
-Trait coherence rules forbid the following blanket implementation:
-
-```rust,compile_fail
-# use bitvec::prelude::*;
-impl<O: BitOrder, T: Bits> AsRef<BitSlice<O, T::Store>> for T {
-  fn as_ref(&self) -> &BitSlice<O, T::Store> {
-    Bits::bits(self)
-  }
-}
-impl<O: BitOrder, T: Bits> AsMut<BitSlice<O, T::Store>> for T {
-  fn as_ref(&mut self) -> &mut BitSlice<O, T::Store> {
-    Bits::bits_mut(self)
-  }
-}
-```
-
-but it is correct in theory, and so all types which implement `Bits` should
-implement `AsRef<BitSlice>` and `AsMut<BitSlice>`.
 !*/
 
 use crate::{
@@ -141,7 +122,7 @@ where T: BitStore {
 }
 
 macro_rules! impl_bits_for {
-	( n $( $n:expr ),* ) => { $(
+	($( $n:expr ),* ) => { $(
 		impl<T> Bits for [T; $n]
 		where T: BitStore {
 			type Store = T;
@@ -155,64 +136,12 @@ macro_rules! impl_bits_for {
 			}
 		}
 	)* };
-	( t $( $t:ty ),*) => { $(
-		impl<O> AsMut<BitSlice<O, $t>> for $t
-		where O: BitOrder {
-			fn as_mut(&mut self) -> &mut BitSlice<O, $t> {
-				BitSlice::from_element_mut(self)
-			}
-		}
-		impl<O> AsRef<BitSlice<O, $t>> for $t
-		where O: BitOrder {
-			fn as_ref(&self) -> &BitSlice<O, $t> {
-				BitSlice::from_element(self)
-			}
-		}
-		impl<O> AsMut<BitSlice<O, $t>> for [$t]
-		where O: BitOrder {
-			fn as_mut(&mut self) -> &mut BitSlice<O, $t> {
-				BitSlice::from_slice_mut(self)
-			}
-		}
-		impl<O> AsRef<BitSlice<O, $t>> for [$t]
-		where O: BitOrder {
-			fn as_ref(&self) -> &BitSlice<O, $t> {
-				BitSlice::from_slice(self)
-			}
-		}
-		impl_bits_for!(ts $t ; n
-			0, 1, 2, 3, 4, 5, 6, 7,
-			8, 9, 10, 11, 12, 13, 14, 15,
-			16, 17, 18, 19, 20, 21, 22, 23,
-			24, 25, 26, 27, 28, 29, 30, 31,
-			32
-		);
-	)* };
-	( ts $t:ty ; n $( $n:expr ),* ) => { $(
-		impl<O> AsMut<BitSlice<O, $t>> for [$t; $n]
-		where O: BitOrder {
-			fn as_mut(&mut self) -> &mut BitSlice<O, $t> {
-				BitSlice::from_slice_mut(self)
-			}
-		}
-		impl<O> AsRef<BitSlice<O, $t>> for [$t; $n]
-		where O: BitOrder {
-			fn as_ref(&self) -> &BitSlice<O, $t> {
-				BitSlice::from_slice(self)
-			}
-		}
-	)* };
 }
 
-impl_bits_for![n
+impl_bits_for![
 	0, 1, 2, 3, 4, 5, 6, 7,
 	8, 9, 10, 11, 12, 13, 14, 15,
 	16, 17, 18, 19, 20, 21, 22, 23,
 	24, 25, 26, 27, 28, 29, 30, 31,
 	32
 ];
-
-impl_bits_for![t u8, u16, u32];
-
-#[cfg(target_pointer_width = "64")]
-impl_bits_for![t u64];

@@ -21,6 +21,12 @@ This document is written according to the [Keep a Changelog][kac] style.
   the `BigEndian` and `LittleEndian` types to `Msb0` and `Lsb0`, respectively
 - Fold `BitsMut` into `Bits`
 
+## Removed
+
+The Rust types `T`, `[T; 0 <= N <= 32]`, and `[T]` for `T: BitStore` no longer
+implement `AsRef<BitSlice<_, T>>` or `AsMut<BitSlice<_, T>>`. This decision was
+made due to consideration of [Issue #35], by GitHub user [@Fotosmile].
+
 ## 0.16.2
 
 ### Fixed
@@ -600,6 +606,7 @@ Initial implementation and release.
 - `BitVec` type with basic `Vec` idioms and parallel trait implementations
 - `bitvec!` generator macro
 
+[@Fotosmile]: https://github.com/Fotosmile
 [@GeorgeGkas]: https://github.com/GeorgeGkas
 [@caelunshun]: https://github.com/caelunshun
 [@geq1t]: https://github.com/geq1t
@@ -619,6 +626,7 @@ Initial implementation and release.
 [Issue #16]: https://github.com/myrrlyn/bitvec/issues/16
 [Issue #28]: https://github.com/myrrlyn/bitvec/issues/28
 [Issue #33]: https://github.com/myrrlyn/bitvec/issues/33
+[Issue #35]: https://github.com/myrrlyn/bitvec/issues/35
 [Issue #36]: https://github.com/myrrlyn/bitvec/issues/36
 [`Sync`]: https://doc.rust-lang.org/stable/core/marker/trait.Sync.html
 [kac]: https://keepachangelog.com/en/1.0.0/
