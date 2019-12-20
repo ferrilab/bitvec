@@ -10,18 +10,6 @@ public-API constructor macros.
 
 #![doc(hidden)]
 
-/// Counts the number of repetitions inside a `$()*` sequence.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __count {
-	(@ $val:expr) => {
-		1
-	};
-	($($val:expr),*) => {
-		0usize $(+ $crate::__count!(@ $val))*
-	};
-}
-
 /// Constructs a `BitSlice` over the target’s `Word` type.
 #[doc(hidden)]
 #[macro_export]
@@ -191,6 +179,18 @@ macro_rules! __bits_store_array {
 			)];
 			$($($t)*)?
 		);
+	};
+}
+
+/// Counts the number of repetitions inside a `$()*` sequence.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __count {
+	(@ $val:expr) => {
+		1
+	};
+	($($val:expr),*) => {
+		0usize $(+ $crate::__count!(@ $val))*
 	};
 }
 
