@@ -121,7 +121,7 @@ macro_rules! bits {
 
 	//  Default order and store.
 	($val:expr; $len:expr) => {
-		$crate::__bits_from_words!(Local; $val; $len)
+		$crate::bits!(Local; $val; $len)
 	};
 }
 
@@ -182,37 +182,67 @@ macro_rules! bitvec {
 	*/
 
 	//  Sequence syntax
+	($order:ident, $store:ident; $($val:expr),* $(,)?) => {{
+		let data = $crate::__bits_store_array!($order, $store; $($val),*);
+		let vec = data[..].to_owned();
+		let mut out = $crate::vec::BitVec::<$order, $store>::from_vec(vec);
+		out.truncate($crate::__count!($($val),*));
+		out
+	}};
+	($order:path, $store:ident; $($val:expr),* $(,)?) => {{
+		let data = $crate::__bits_store_array!($order, $store; $($val),*);
+		let vec = data[..].to_owned();
+		let mut out = $crate::vec::BitVec::<$order, $store>::from_vec(vec);
+		out.truncate($crate::__count!($($val),*));
+		out
+	}};
 
-	($order:ident, $store:ident; $($val:expr),* $(,)?) => {
-		$crate::vec::BitVec::<$order, $store>::from_bitslice(
-			$crate::bits!($order, $store; $($val),*),
-		)
-	};
-	($order:path, $store:ident; $($val:expr),* $(,)?) => {
-		$crate::vec::BitVec::<$order, $store>::from_bitslice(
-			$crate::bits!($order, $store; $($val),*),
-		)
-	};
+	($order:ident; $($val:expr),* $(,)?) => {{
+		#[cfg(target_pointer_width = "32")]
+		let data = $crate::__bits_store_array!(Local, u32; $($val),*);
 
-	($order:ident; $($val:expr),* $(,)?) => {
-		$crate::vec::BitVec::<
+		#[cfg(target_pointer_width = "64")]
+		let data = $crate::__bits_store_array!(Local, u64; $($val),*);
+
+		let vec = data[..].to_owned();
+		let mut out = $crate::vec::BitVec::<
 			$order,
 			$crate::store::Word,
-		>::from_bitslice($crate::__bits_from_words!($order; $($val),*))
-	};
-	($order:path; $($val:expr),* $(,)?) => {
-		$crate::vec::BitVec::<
+		>::from_vec(vec);
+		out.truncate($crate::__count!($($val),*));
+		out
+	}};
+	($order:path; $($val:expr),* $(,)?) => {{
+		#[cfg(target_pointer_width = "32")]
+		let data = $crate::__bits_store_array!(Local, u32; $($val),*);
+
+		#[cfg(target_pointer_width = "64")]
+		let data = $crate::__bits_store_array!(Local, u64; $($val),*);
+
+		let vec = data[..].to_owned();
+		let mut out = $crate::vec::BitVec::<
 			$order,
 			$crate::store::Word,
-		>::from_bitslice($crate::__bits_from_words!($order; $($val),*))
-	};
+		>::from_vec(vec);
+		out.truncate($crate::__count!($($val),*));
+		out
+	}};
 
-	($($val:expr),* $(,)?) => {
-		$crate::vec::BitVec::<
+	($($val:expr),* $(,)?) => {{
+		#[cfg(target_pointer_width = "32")]
+		let data = $crate::__bits_store_array!(Local, u32; $($val),*);
+
+		#[cfg(target_pointer_width = "64")]
+		let data = $crate::__bits_store_array!(Local, u64; $($val),*);
+
+		let vec = data[..].to_owned();
+		let mut out = $crate::vec::BitVec::<
 			$crate::order::Local,
 			$crate::store::Word,
-		>::from_bitslice($crate::__bits_from_words!(Local; $($val),*))
-	};
+		>::from_vec(vec);
+		out.truncate($crate::__count!($($val),*));
+		out
+	}};
 
 	//  Repetition syntax
 

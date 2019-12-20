@@ -10,18 +10,26 @@ public-API constructor macros.
 
 #![doc(hidden)]
 
-/// Counts the number of repetitions inside a `$()*` sequence.
+/// Constructs a `BitSlice` over the target’s `Word` type.
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __count {
-	(@ $val:expr) => {
-		1
-	};
-	($($val:expr),*) => {
-		0usize $(+ $crate::__count!(@ $val))*
-	};
+#[cfg(target_pointer_width = "32")]
+macro_rules! __bits_from_words {
+	(Local; $($val:expr),*) => {{
+		static DATA: &[u32] = &$crate::__bits_store_array!(Local, u32; $($val),*);
+		&$crate::slice::BitSlice::<$crate::order::Local, u32>::from_slice(
+			DATA
+		)[.. $crate::__count!($($val),*)]
+	}};
+	($order:tt; $($val:expr),*) => {{
+		static DATA: &[u32] = &$crate::__bits_store_array!(Local, u32; $($val),*);
+		&$crate::slice::BitSlice::<$order, u32>::from_slice(
+			DATA
+		)[.. $crate::__count!($($val),*)]
+	}};
 }
 
+/// Ensures that the ordering tokens map to a known ordering type path.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __bits_from_slice {
@@ -221,6 +229,18 @@ macro_rules! __bits_store_array {
 			)];
 			$($($t)*)?
 		);
+	};
+}
+
+/// Counts the number of repetitions inside a `$()*` sequence.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __count {
+	(@ $val:expr) => {
+		1
+	};
+	($($val:expr),*) => {
+		0usize $(+ $crate::__count!(@ $val))*
 	};
 }
 
