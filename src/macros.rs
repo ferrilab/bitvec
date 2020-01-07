@@ -1,7 +1,6 @@
 /*! Utility macros for constructing data structures and implementing bulk types.
 
-The only public macro is `bitvec`; this module also provides convenience macros
-for code generation.
+The public macros are `bits!`, `bitvec!`, and `bitbox!`.
 !*/
 
 #[macro_use]
@@ -193,10 +192,7 @@ macro_rules! bitvec {
 		let data = $crate::__bits_store_array!(Local, usize; $($val),*);
 
 		let vec = data[..].to_owned();
-		let mut out = $crate::vec::BitVec::<
-			$order,
-			usize,
-		>::from_vec(vec);
+		let mut out = $crate::vec::BitVec::<$order, usize>::from_vec(vec);
 		out.truncate($crate::__count!($($val),*));
 		out
 	}};
@@ -204,10 +200,7 @@ macro_rules! bitvec {
 		let data = $crate::__bits_store_array!(Local, usize; $($val),*);
 
 		let vec = data[..].to_owned();
-		let mut out = $crate::vec::BitVec::<
-			$order,
-			usize,
-		>::from_vec(vec);
+		let mut out = $crate::vec::BitVec::<$order, usize>::from_vec(vec);
 		out.truncate($crate::__count!($($val),*));
 		out
 	}};
@@ -234,16 +227,10 @@ macro_rules! bitvec {
 	};
 
 	($order:ident; $val:expr; $len:expr) => {
-		$crate::vec::BitVec::<
-			$order,
-			usize,
-		>::repeat($val != 0, $len)
+		$crate::vec::BitVec::<$order, usize>::repeat($val != 0, $len)
 	};
 	($order:path; $val:expr; $len:expr) => {
-		$crate::vec::BitVec::<
-			$order,
-			usize,
-		>::repeat($val != 0, $len)
+		$crate::vec::BitVec::<$order, usize>::repeat($val != 0, $len)
 	};
 
 	($val:expr; $len:expr) => {

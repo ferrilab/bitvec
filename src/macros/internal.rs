@@ -83,6 +83,10 @@ macro_rules! __bits_store_array {
 	Even if the `:expr` matcher was a literal `0`, after being wrapped by the
 	`:expr` fragment, it is no longer considered to match a literal `0`, so
 	these patterns will only match the extra padding `0`s added at the end.
+
+	Once the user-provided `$val` expressions are all consumed, the remaining
+	`0` tokens inserted by the arm above are all removed, ensuring that the
+	produced array has no wasted elements.
 	*/
 	($order:tt, $store:ident @ usz, [$( ($($elt:tt),*) )*]; $(0),*) => {
 		[$(
@@ -107,7 +111,7 @@ macro_rules! __bits_store_array {
 				$a0, $b0, $c0, $d0, $e0, $f0, $g0, $h0
 			)];
 			$($($t)*)?
-		);
+		)
 	};
 	(
 		$order:tt, u16 $(@ $usz:ident)?, [$($w:tt)*];
@@ -121,7 +125,7 @@ macro_rules! __bits_store_array {
 				$a1, $b1, $c1, $d1, $e1, $f1, $g1, $h1
 			)];
 			$($($t)*)?
-		);
+		)
 	};
 	(
 		$order:tt, u32 $(@ $usz:ident)?, [$($w:tt)*];
@@ -139,7 +143,7 @@ macro_rules! __bits_store_array {
 				$a3, $b3, $c3, $d3, $e3, $f3, $g3, $h3
 			)];
 			$($($t)*)?
-		);
+		)
 	};
 	(
 		$order:tt, u64 $(@ $usz:ident)?, [$($w:tt)*];
@@ -165,7 +169,7 @@ macro_rules! __bits_store_array {
 				$a7, $b7, $c7, $d7, $e7, $f7, $g7, $h7
 			)];
 			$($($t)*)?
-		);
+		)
 	};
 }
 
@@ -176,9 +180,17 @@ macro_rules! __count {
 	(@ $val:expr) => {
 		1
 	};
-	($($val:expr),*) => {
-		0usize $(+ $crate::__count!(@ $val))*
-	};
+	($($val:expr),*) => {{
+		/* Clippy warns that `.. EXPR + 1`, for any value of `EXPR`, should be
+		replaced with `..= EXPR`. This means that `.. $crate::__count!` raises
+		the lint, causing `bits![(val,)…]` to have an unfixable lint warning.
+		By binding to a `const`, then returning the `const`, this syntax
+		construction is avoided as macros only expand to `.. LEN` rather than
+		`.. 0 (+ 1)…`.
+		*/
+		const LEN: usize = 0usize $(+ $crate::__count!(@ $val))*;
+		LEN
+	}};
 }
 
 /// Construct a `T` element from an array of `u8`.
@@ -414,6 +426,7 @@ macro_rules! __ty_from_bytes {
 
 /// Construct a `u8` from bits applied in Lsb0-order.
 #[allow(clippy::many_single_char_names)]
+#[allow(clippy::too_many_arguments)]
 pub const fn u8_from_le_bits(
 	a: bool,
 	b: bool,
@@ -436,6 +449,7 @@ pub const fn u8_from_le_bits(
 
 /// Construct a `u8` from bits applied in Msb0-order.
 #[allow(clippy::many_single_char_names)]
+#[allow(clippy::too_many_arguments)]
 pub const fn u8_from_be_bits(
 	a: bool,
 	b: bool,

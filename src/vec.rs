@@ -135,7 +135,7 @@ a bit slice, use `&`. Example:
 ```rust
 use bitvec::prelude::*;
 fn read_bitslice(slice: &BitSlice) {
-	// use slice
+    // use slice
 }
 
 let bv = bitvec![0, 1];

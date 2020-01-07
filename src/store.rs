@@ -16,21 +16,13 @@ use crate::{
 };
 
 use core::{
-	cmp::Eq,
-	convert::{
-		From,
-		TryInto,
-	},
+	convert::TryInto,
 	fmt::{
 		Binary,
 		Debug,
 		Display,
 		LowerHex,
 		UpperHex,
-	},
-	marker::{
-		Send,
-		Sync,
 	},
 	mem::size_of,
 	ops::{
