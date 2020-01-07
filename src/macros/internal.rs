@@ -295,9 +295,9 @@ macro_rules! __extend_bool {
 macro_rules! __bitslice_shift {
 	( $( $t:ty ),+ ) => { $(
 		#[doc(hidden)]
-		impl<C, T >core::ops::ShlAssign<$t>
-		for $crate::prelude::BitSlice<C,T>
-		where C: $crate::order::BitOrder, T: $crate::store::BitStore {
+		impl<O, T> core::ops::ShlAssign<$t>
+		for $crate::prelude::BitSlice<O, T>
+		where O: $crate::order::BitOrder, T: $crate::store::BitStore {
 			fn shl_assign(&mut self, shamt: $t) {
 				core::ops::ShlAssign::<usize>::shl_assign(
 					self,
@@ -307,9 +307,9 @@ macro_rules! __bitslice_shift {
 		}
 
 		#[doc(hidden)]
-		impl<C, T> core::ops::ShrAssign<$t>
-		for $crate::prelude::BitSlice<C,T>
-		where C: $crate::order::BitOrder, T: $crate::store::BitStore {
+		impl<O, T> core::ops::ShrAssign<$t>
+		for $crate::prelude::BitSlice<O, T>
+		where O: $crate::order::BitOrder, T: $crate::store::BitStore {
 			fn shr_assign(&mut self,shamt: $t){
 				core::ops::ShrAssign::<usize>::shr_assign(
 					self,
@@ -326,9 +326,9 @@ macro_rules! __bitslice_shift {
 macro_rules! __bitvec_shift {
 	( $( $t:ty ),+ ) => { $(
 		#[doc(hidden)]
-		impl<C, T> core::ops::Shl<$t>
-		for $crate::vec::BitVec<C, T>
-		where C: $crate::order::BitOrder, T: $crate::store::BitStore {
+		impl<O, T> core::ops::Shl<$t>
+		for $crate::vec::BitVec<O, T>
+		where O: $crate::order::BitOrder, T: $crate::store::BitStore {
 			type Output = <Self as core::ops::Shl<usize>>::Output;
 
 			fn shl(self, shamt: $t) -> Self::Output {
@@ -337,9 +337,9 @@ macro_rules! __bitvec_shift {
 		}
 
 		#[doc(hidden)]
-		impl<C, T> core::ops::ShlAssign<$t>
-		for $crate::vec::BitVec<C, T>
-		where C: $crate::order::BitOrder, T: $crate::store::BitStore {
+		impl<O, T> core::ops::ShlAssign<$t>
+		for $crate::vec::BitVec<O, T>
+		where O: $crate::order::BitOrder, T: $crate::store::BitStore {
 			fn shl_assign(&mut self, shamt: $t) {
 				core::ops::ShlAssign::<usize>::shl_assign(
 					self,
@@ -349,9 +349,9 @@ macro_rules! __bitvec_shift {
 		}
 
 		#[doc(hidden)]
-		impl<C, T> core::ops::Shr<$t>
-		for $crate::vec::BitVec<C, T>
-		where C: $crate::order::BitOrder, T: $crate::store::BitStore {
+		impl<O, T> core::ops::Shr<$t>
+		for $crate::vec::BitVec<O, T>
+		where O: $crate::order::BitOrder, T: $crate::store::BitStore {
 			type Output = <Self as core::ops::Shr<usize>>::Output;
 
 			fn shr(self, shamt: $t) -> Self::Output {
@@ -360,9 +360,9 @@ macro_rules! __bitvec_shift {
 		}
 
 		#[doc(hidden)]
-		impl<C, T> core::ops::ShrAssign<$t>
-		for $crate::vec::BitVec<C, T>
-		where C: $crate::order::BitOrder, T: $crate::store::BitStore {
+		impl<O, T> core::ops::ShrAssign<$t>
+		for $crate::vec::BitVec<O, T>
+		where O: $crate::order::BitOrder, T: $crate::store::BitStore {
 			fn shr_assign(&mut self, shamt: $t) {
 				core::ops::ShrAssign::<usize>::shr_assign(
 					self,
