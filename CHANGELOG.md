@@ -23,6 +23,8 @@ This document is written according to the [Keep a Changelog][kac] style.
   expansion), and `bitvec` does not promise to expand support to other names or
   types in the future.
 
+- `usize` implements `BitStore`, and is now the default type argument.
+
 ### Changed
 
 - Rename the `cursor` module to `order`, the `Cursor` trait to `BitOrder`, and
@@ -31,9 +33,13 @@ This document is written according to the [Keep a Changelog][kac] style.
 
 ## Removed
 
-The Rust types `T`, `[T; 0 <= N <= 32]`, and `[T]` for `T: BitStore` no longer
+- The Rust types `T`, `[T; 0 <= N <= 32]`, and `[T]` for `T: BitStore` no longer
 implement `AsRef<BitSlice<_, T>>` or `AsMut<BitSlice<_, T>>`. This decision was
 made due to consideration of [Issue #35], by GitHub user [@Fotosmile].
+
+- The `store::Word` type alias is removed, as it was a patch for `usize`’s
+  absence as a `BitStore` type. All uses of the `Word` alias can be replaced
+  with `usize` without issue.
 
 ## 0.16.2
 

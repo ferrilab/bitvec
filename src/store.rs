@@ -83,8 +83,8 @@ pub trait BitStore:
 	//  them concrete until long after trait expansion, so this enables building
 	//  a concrete Self value from a numeric literal.
 	+ From<u8>
-	//  Permit extending into a `u64`.
-	+ Into<u64>
+	//  Permit extending into a `usize`.
+	+ TryInto<usize>
 	+ LowerHex
 	+ Not<Output = Self>
 	+ Send
@@ -184,7 +184,7 @@ pub trait BitStore:
 
 	/// Counts how many bits in `self` are set to `1`.
 	///
-	/// This zero-extends `self` to `u64`, and uses the [`u64::count_ones`]
+	/// This zero-extends `self` to `usize`, and uses the [`usize::count_ones`]
 	/// inherent method.
 	///
 	/// # Parameters
@@ -211,16 +211,20 @@ pub trait BitStore:
 	/// assert_eq!(BitStore::count_ones(255u8), 8);
 	/// ```
 	///
-	/// [`u64::count_ones`]: https://doc.rust-lang.org/stable/std/primitive.u64.html#method.count_ones
+	/// [`usize::count_ones`]: https://doc.rust-lang.org/stable/std/primitive.usize.html#method.count_ones
 	#[inline(always)]
 	fn count_ones(self) -> usize {
-		Into::<u64>::into(self).count_ones() as usize
+		let extended = self.try_into()
+			.unwrap_or_else(|_| unreachable!("This conversion is infallible"));
+		//  Ensure that this calls the inherent method in `impl usize`, not the
+		//  trait method in `impl BitStore for usize`.
+		usize::count_ones(extended) as usize
 	}
 
 	/// Counts how many bits in `self` are set to `0`.
 	///
 	/// This inverts `self`, so all `0` bits are `1` and all `1` bits are `0`,
-	/// then zero-extends `self` to `u64` and uses the [`u64::count_ones`]
+	/// then zero-extends `self` to `usize` and uses the [`usize::count_ones`]
 	/// inherent method.
 	///
 	/// # Parameters
@@ -247,11 +251,11 @@ pub trait BitStore:
 	/// assert_eq!(BitStore::count_zeros(255u8), 0);
 	/// ```
 	///
-	/// [`u64::count_ones`]: https://doc.rust-lang.org/stable/std/primitive.u64.html#method.count_ones
+	/// [`usize::count_ones`]: https://doc.rust-lang.org/stable/std/primitive.usize.html#method.count_ones
 	#[inline(always)]
 	fn count_zeros(self) -> usize {
 		//  invert (0 becomes 1, 1 becomes 0), zero-extend, count ones
-		Into::<u64>::into(!self).count_ones() as usize
+		<Self as BitStore>::count_ones(!self)
 	}
 
 	/// Interprets a value as a sequence of bytes.
@@ -406,19 +410,40 @@ impl BitStore for u64 {
 	}
 }
 
-/** A default word size for bit sequences.
+impl BitStore for usize {
+	#[cfg(target_pointer_width = "32")]
+	const TYPENAME: &'static str = "u32";
 
-The target has 32-bit CPU words, so `u32` is a good default unit size.
-**/
-#[cfg(target_pointer_width = "32")]
-pub type Word = u32;
+	#[cfg(target_pointer_width = "64")]
+	const TYPENAME: &'static str = "u64";
 
-/** A default word size for bit sequences.
+	const FALSE: Self = 0;
+	const TRUE: Self = !0;
 
-The target has 64-bit CPU words, so `u64` is a good default unit size.
-**/
-#[cfg(target_pointer_width = "64")]
-pub type Word = u64;
+	#[cfg(feature = "atomic")]
+	type Access = atomic::AtomicUsize;
+
+	#[cfg(not(feature = "atomic"))]
+	type Access = Cell<Self>;
+
+	#[inline]
+	fn as_bytes(&self) -> &[u8] {
+		unsafe {
+			slice::from_raw_parts(
+				self as *const Self as *const u8,
+				size_of::<Self>(),
+			)
+		}
+	}
+
+	#[inline]
+	fn from_bytes(bytes: &[u8]) -> Self {
+		bytes
+			.try_into()
+			.map(Self::from_ne_bytes)
+			.expect("<usize as BitStore>::from_bytes requires a slice of its exact width in bytes")
+	}
+}
 
 #[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
 compile_fail!("This architecture is currently not supported. File an issue at https://github.com/myrrlyn/bitvec");
@@ -439,3 +464,5 @@ impl Sealed for u32 {}
 
 #[cfg(target_pointer_width = "64")]
 impl Sealed for u64 {}
+
+impl Sealed for usize {}

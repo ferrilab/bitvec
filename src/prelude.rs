@@ -18,10 +18,7 @@ pub use crate::{
 		BitMut,
 		BitSlice,
 	},
-	store::{
-		BitStore,
-		Word,
-	},
+	store::BitStore,
 };
 
 #[cfg(feature = "alloc")]

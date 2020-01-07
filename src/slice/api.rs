@@ -136,7 +136,7 @@ where O: BitOrder, T: BitStore {
 	/// let bits = 0u8.bits::<Local>();
 	/// assert!(!bits.is_empty());
 	///
-	/// assert!(BitSlice::<Local, Word>::empty().is_empty())
+	/// assert!(BitSlice::<Local, usize>::empty().is_empty())
 	/// ```
 	pub fn is_empty(&self) -> bool {
 		self.bitptr().len() == 0
@@ -151,7 +151,7 @@ where O: BitOrder, T: BitStore {
 	/// let bits = 1u8.bits::<Lsb0>();
 	/// assert_eq!(bits.first(), Some(&true));
 	///
-	/// assert!(BitSlice::<Local, Word>::empty().first().is_none());
+	/// assert!(BitSlice::<Local, usize>::empty().first().is_none());
 	/// ```
 	#[inline]
 	pub fn first(&self) -> Option<&bool> {
@@ -287,7 +287,7 @@ where O: BitOrder, T: BitStore {
 	/// # use bitvec::prelude::*;
 	/// let bits = 1u8.bits::<Msb0>();
 	/// assert_eq!(Some(&true), bits.last());
-	/// assert!(BitSlice::<Local, Word>::empty().last().is_none());
+	/// assert!(BitSlice::<Local, usize>::empty().last().is_none());
 	/// ```
 	#[inline]
 	pub fn last(&self) -> Option<&bool> {
@@ -1101,7 +1101,7 @@ where O: BitOrder, T: BitStore {
 	/// let mut iter = bits.split(|pos, bit| *bit);
 	///
 	/// assert_eq!(iter.next().unwrap(), &bits[0 .. 7]);
-	/// assert_eq!(iter.next().unwrap(), BitSlice::<Local, Word>::empty());
+	/// assert_eq!(iter.next().unwrap(), BitSlice::<Local, usize>::empty());
 	/// assert!(iter.next().is_none());
 	/// ```
 	///
@@ -1115,7 +1115,7 @@ where O: BitOrder, T: BitStore {
 	/// let mut iter = bits.split(|pos, bit| *bit);
 	///
 	/// assert_eq!(iter.next().unwrap(), &bits[0 .. 2]);
-	/// assert_eq!(iter.next().unwrap(), BitSlice::<Local, Word>::empty());
+	/// assert_eq!(iter.next().unwrap(), BitSlice::<Local, usize>::empty());
 	/// assert_eq!(iter.next().unwrap(), &bits[4 .. 8]);
 	/// assert!(iter.next().is_none());
 	/// ```

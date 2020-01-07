@@ -10,25 +10,6 @@ public-API constructor macros.
 
 #![doc(hidden)]
 
-/// Constructs a `BitSlice` over the target’s `Word` type.
-#[doc(hidden)]
-#[macro_export]
-#[cfg(target_pointer_width = "32")]
-macro_rules! __bits_from_words {
-	(Local; $($val:expr),*) => {{
-		static DATA: &[u32] = &$crate::__bits_store_array!(Local, u32; $($val),*);
-		&$crate::slice::BitSlice::<$crate::order::Local, u32>::from_slice(
-			DATA
-		)[.. $crate::__count!($($val),*)]
-	}};
-	($order:tt; $($val:expr),*) => {{
-		static DATA: &[u32] = &$crate::__bits_store_array!(Local, u32; $($val),*);
-		&$crate::slice::BitSlice::<$order, u32>::from_slice(
-			DATA
-		)[.. $crate::__count!($($val),*)]
-	}};
-}
-
 /// Ensures that the ordering tokens map to a known ordering type path.
 #[doc(hidden)]
 #[macro_export]
@@ -56,76 +37,6 @@ macro_rules! __bits_from_slice {
 	};
 }
 
-/// Constructs a `BitSlice` over the target’s `Word` type.
-#[doc(hidden)]
-#[macro_export]
-#[cfg(target_pointer_width = "32")]
-macro_rules! __bits_from_words {
-	(Local; $($val:expr),*) => {{
-		static DATA: &[u32] = &$crate::__bits_store_array!(
-			Local, u32; $($val),*
-		);
-		&$crate::__bits_from_slice!(
-			Local, u32, $crate::__count!($($val),*), DATA
-		)
-	}};
-	($order:tt; $($val:expr),*) => {{
-		static DATA: &[u32] = &$crate::__bits_store_array!(
-			$order, u32; $($val),*
-		);
-		&$crate::__bits_from_slice!(
-			$order, u32, $crate::__count!($($val),*), DATA
-		)
-	}};
-	(Local; $val:expr; $len:expr) => {{
-		static DATA: &[u32] = &[
-			$crate::__extend_bool!($val, u32); $crate::store::elts::<u32>($len)
-		];
-		&$crate::__bits_from_slice!(Local, u32, $len, DATA)
-	}};
-	($order:tt; $val:expr; $len:expr) => {{
-		static DATA: &[u32] = &[
-			$crate::__extend_bool!($val, u32); $crate::store::elts::<u32>($len)
-		];
-		&$crate::__bits_from_slice!($order, u32, $len, DATA)
-	}};
-}
-
-/// Constructs a `BitSlice` over the target’s `Word` type.
-#[doc(hidden)]
-#[macro_export]
-#[cfg(target_pointer_width = "64")]
-macro_rules! __bits_from_words {
-	(Local; $($val:expr),*) => {{
-		static DATA: &[u64] = &$crate::__bits_store_array!(
-			Local, u64; $($val),*
-		);
-		&$crate::__bits_from_slice!(
-			Local, u64, $crate::__count!($($val),*), DATA
-		)
-	}};
-	($order:tt; $($val:expr),*) => {{
-		static DATA: &[u64] = &$crate::__bits_store_array!(
-			$order, u64; $($val),*
-		);
-		&$crate::__bits_from_slice!(
-			$order, u64, $crate::__count!($($val),*), DATA
-		)
-	}};
-	(Local; $val:expr; $len:expr) => {{
-		static DATA: &[u64] = &[
-			$crate::__extend_bool!($val, u64); $crate::store::elts::<u64>($len)
-		];
-		&$crate::__bits_from_slice!(Local, u64, $len, DATA)
-	}};
-	($order:tt; $val:expr; $len:expr) => {{
-		static DATA: &[u64] = &[
-			$crate::__extend_bool!($val, u64); $crate::store::elts::<u64>($len)
-		];
-		&$crate::__bits_from_slice!($order, u64, $len, DATA)
-	}};
-}
-
 /** Accumulates a stream of bit expressions into a compacted array of elements.
 
 This macro constructs a well-ordered `[T; N]` array expression usable in `const`
@@ -135,10 +46,31 @@ construct `bitvec` types.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __bits_store_array {
+	//  Reroute `usize` to the correct concrete type, and mark the alias.
+	//  The `@ usz` causes `as usize` to be appended to exprs as needed.
+	($order:tt, usize; $($val:expr),*) => {{
+		const LEN: usize = $crate::store::elts::<usize>(
+			$crate::__count!($($val),*),
+		);
+
+		//  Attributes are not currently allowed on expressions, only items and
+		//  statements, so the routing here must bind to a name.
+		#[cfg(target_pointer_width = "32")]
+		const OUT: [usize; LEN] = $crate::__bits_store_array!(
+			$order, u32 @ usz; $($val),*
+		);
+
+		#[cfg(target_pointer_width = "64")]
+		const OUT: [usize; LEN] = $crate::__bits_store_array!(
+			$order, u64 @ usz; $($val),*
+		);
+
+		OUT
+	}};
 	// Entry point.
-	($order:tt, $store:ident; $($val:expr),*) => {
+	($order:tt, $store:ident $(@ $usz:ident )?; $($val:expr),*) => {
 		$crate::__bits_store_array!(
-			$order, $store, []; $($val,)*
+			 $order, $store $(@ $usz)?, []; $($val,)*
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 16
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 32
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 48
@@ -146,12 +78,17 @@ macro_rules! __bits_store_array {
 		);
 	};
 
-	/* NOTE: This has to be first. It (ab)uses quirk of `macro_rules!` where
-	`:expr` captures are considered a single `:tt` after being matched. Even if
-	the `:expr` matcher was a literal `0`, after being wrapped by the `:expr`
-	fragment, it is no longer considered to match a literal `0`, so this pattern
-	will only match the extra padding `0`s added at the end.
+	/* NOTE: These have to be first. They (ab)use a quirk of `macro_rules!`
+	where `:expr` captures are considered a single `:tt` after being matched.
+	Even if the `:expr` matcher was a literal `0`, after being wrapped by the
+	`:expr` fragment, it is no longer considered to match a literal `0`, so
+	these patterns will only match the extra padding `0`s added at the end.
 	*/
+	($order:tt, $store:ident @ usz, [$( ($($elt:tt),*) )*]; $(0),*) => {
+		[$(
+			$crate::__elt_from_bits!($order, $store; $($elt),*) as usize
+		),*]
+	};
 	($order:tt, $store:ident, [$( ($($elt:tt),*) )*]; $(0),*) => {
 		[$(
 			$crate::__elt_from_bits!($order, $store; $($elt),*)
@@ -161,25 +98,25 @@ macro_rules! __bits_store_array {
 	// Matchers for each size of word. The end of the word may be padded out
 	// with `0`s.
 	(
-		$order:tt, u8, [$($w:tt)*];
+		$order:tt, u8 $(@ $usz:ident)?, [$($w:tt)*];
 		$a0:tt, $b0:tt, $c0:tt, $d0:tt, $e0:tt, $f0:tt, $g0:tt, $h0:tt
 		$(, $($t:tt)*)?
 	) => {
 		$crate::__bits_store_array!(
-			$order, u8, [$($w)* (
+			$order, u8 $(@ $usz)?, [$($w)* (
 				$a0, $b0, $c0, $d0, $e0, $f0, $g0, $h0
 			)];
 			$($($t)*)?
 		);
 	};
 	(
-		$order:tt, u16, [$($w:tt)*];
+		$order:tt, u16 $(@ $usz:ident)?, [$($w:tt)*];
 		$a0:tt, $b0:tt, $c0:tt, $d0:tt, $e0:tt, $f0:tt, $g0:tt, $h0:tt,
 		$a1:tt, $b1:tt, $c1:tt, $d1:tt, $e1:tt, $f1:tt, $g1:tt, $h1:tt
 		$(, $($t:tt)*)?
 	) => {
 		$crate::__bits_store_array!(
-			$order, u16, [$($w)* (
+			$order, u16 $(@ $usz)?, [$($w)* (
 				$a0, $b0, $c0, $d0, $e0, $f0, $g0, $h0,
 				$a1, $b1, $c1, $d1, $e1, $f1, $g1, $h1
 			)];
@@ -187,7 +124,7 @@ macro_rules! __bits_store_array {
 		);
 	};
 	(
-		$order:tt, u32, [$($w:tt)*];
+		$order:tt, u32 $(@ $usz:ident)?, [$($w:tt)*];
 		$a0:tt, $b0:tt, $c0:tt, $d0:tt, $e0:tt, $f0:tt, $g0:tt, $h0:tt,
 		$a1:tt, $b1:tt, $c1:tt, $d1:tt, $e1:tt, $f1:tt, $g1:tt, $h1:tt,
 		$a2:tt, $b2:tt, $c2:tt, $d2:tt, $e2:tt, $f2:tt, $g2:tt, $h2:tt,
@@ -195,7 +132,7 @@ macro_rules! __bits_store_array {
 		$(, $($t:tt)*)?
 	) => {
 		$crate::__bits_store_array!(
-			$order, u32, [$($w)* (
+			$order, u32 $(@ $usz)?, [$($w)* (
 				$a0, $b0, $c0, $d0, $e0, $f0, $g0, $h0,
 				$a1, $b1, $c1, $d1, $e1, $f1, $g1, $h1,
 				$a2, $b2, $c2, $d2, $e2, $f2, $g2, $h2,
@@ -205,7 +142,7 @@ macro_rules! __bits_store_array {
 		);
 	};
 	(
-		$order:tt, u64, [$($w:tt)*];
+		$order:tt, u64 $(@ $usz:ident)?, [$($w:tt)*];
 		$a0:tt, $b0:tt, $c0:tt, $d0:tt, $e0:tt, $f0:tt, $g0:tt, $h0:tt,
 		$a1:tt, $b1:tt, $c1:tt, $d1:tt, $e1:tt, $f1:tt, $g1:tt, $h1:tt,
 		$a2:tt, $b2:tt, $c2:tt, $d2:tt, $e2:tt, $f2:tt, $g2:tt, $h2:tt,
@@ -217,7 +154,7 @@ macro_rules! __bits_store_array {
 		$(, $($t:tt)*)?
 	) => {
 		$crate::__bits_store_array!(
-			$order, u64, [$($w)* (
+			$order, u64 $(@ $usz)?, [$($w)* (
 				$a0, $b0, $c0, $d0, $e0, $f0, $g0, $h0,
 				$a1, $b1, $c1, $d1, $e1, $f1, $g1, $h1,
 				$a2, $b2, $c2, $d2, $e2, $f2, $g2, $h2,
@@ -464,6 +401,15 @@ macro_rules! __ty_from_bytes {
 	(Local, u64, [$($byte:expr),*]) => {
 		$crate::macros::internal::u64_from_ne_bytes([$($byte),*])
 	};
+	(Msb0, usize, [$($byte:expr),*]) => {
+		$crate::macros::internal::usize_from_be_bytes([$($byte),*])
+	};
+	(Lsb0, usize, [$($byte:expr),*]) => {
+		$crate::macros::internal::usize_from_le_bytes([$($byte),*])
+	};
+	(Local, usize, [$($byte:expr),*]) => {
+		$crate::macros::internal::usize_from_ne_bytes([$($byte),*])
+	};
 }
 
 /// Construct a `u8` from bits applied in Lsb0-order.
@@ -552,6 +498,26 @@ pub const fn u64_from_le_bytes(bytes: [u8; 8]) -> u64 {
 		| u32_from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as u64
 }
 
+#[cfg(target_pointer_width = "32")]
+pub const fn usize_from_be_bytes(bytes: [u8; 4]) -> usize {
+	u32_from_be_bytes(bytes) as usize
+}
+
+#[cfg(target_pointer_width = "32")]
+pub const fn usize_from_le_bytes(bytes: [u8; 4]) -> usize {
+	u32_from_le_bytes(bytes) as usize
+}
+
+#[cfg(target_pointer_width = "64")]
+pub const fn usize_from_be_bytes(bytes: [u8; 8]) -> usize {
+	u64_from_be_bytes(bytes) as usize
+}
+
+#[cfg(target_pointer_width = "64")]
+pub const fn usize_from_le_bytes(bytes: [u8; 8]) -> usize {
+	u64_from_le_bytes(bytes) as usize
+}
+
 #[cfg(target_endian = "big")]
 pub use u8_from_be_bytes as u8_from_ne_bytes;
 
@@ -564,6 +530,9 @@ pub use u32_from_be_bytes as u32_from_ne_bytes;
 #[cfg(target_endian = "big")]
 pub use u64_from_be_bytes as u64_from_ne_bytes;
 
+#[cfg(target_endian = "big")]
+pub use usize_from_be_bytes as usize_from_ne_bytes;
+
 #[cfg(target_endian = "little")]
 pub use u8_from_le_bytes as u8_from_ne_bytes;
 
@@ -575,3 +544,6 @@ pub use u32_from_le_bytes as u32_from_ne_bytes;
 
 #[cfg(target_endian = "little")]
 pub use u64_from_le_bytes as u64_from_ne_bytes;
+
+#[cfg(target_endian = "little")]
+pub use usize_from_le_bytes as usize_from_ne_bytes;

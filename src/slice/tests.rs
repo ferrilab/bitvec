@@ -10,7 +10,7 @@ use crate::{
 
 #[test]
 fn all() {
-	assert!(BitSlice::<Local, Word>::empty().all());
+	assert!(BitSlice::<Local, usize>::empty().all());
 
 	let bits = &(!0u32).bits::<Local>()[2 ..][.. 28];
 	assert!(bits.all());
@@ -38,7 +38,7 @@ fn all() {
 
 #[test]
 fn any() {
-	assert!(!BitSlice::<Local, Word>::empty().any());
+	assert!(!BitSlice::<Local, usize>::empty().any());
 
 	let bits = &(0xA5u8).bits::<Local>()[1 ..][.. 6];
 	assert!(bits.any());
@@ -66,7 +66,7 @@ fn any() {
 
 #[test]
 fn count_ones() {
-	assert_eq!(BitSlice::<Local, Word>::empty().count_ones(), 0);
+	assert_eq!(BitSlice::<Local, usize>::empty().count_ones(), 0);
 	assert_eq!(0xA5u8.bits::<Local>()[1 ..][.. 6].count_ones(), 2);
 	assert_eq!([0x0Fu8, !0, 0xF0].bits::<Local>()[2 ..][.. 20].count_ones(), 12);
 	assert_eq!([0x0Fu8, !0].bits::<Local>()[2 ..].count_ones(), 10);
@@ -76,7 +76,7 @@ fn count_ones() {
 
 #[test]
 fn count_zeros() {
-	assert_eq!(BitSlice::<Local, Word>::empty().count_zeros(), 0);
+	assert_eq!(BitSlice::<Local, usize>::empty().count_zeros(), 0);
 	assert_eq!(0xA5u8.bits::<Local>()[1 ..][.. 6].count_zeros(), 4);
 	assert_eq!([0xF0u8, 0, 0x0F].bits::<Local>()[2 ..][.. 20].count_zeros(), 12);
 	assert_eq!([0xF0u8, 0].bits::<Local>()[2 ..].count_zeros(), 10);

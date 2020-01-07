@@ -47,20 +47,6 @@ bits![Local; 0, 1,];
 macro_rules! bits {
 	//  Sequence syntax `[bit (, bit)*]` or `[(bit ,)*]`
 
-	//  Explicit order, literal `Word` store.
-	($order:ident, Word; $($val:expr),* $(,)?) => {
-		$crate::__bits_from_words!($order; $($val),*)
-	};
-	/* Duplicate arms, differing in `$order:ident` and `$order:path`, force the
-	matcher to wrap a `:path`, which is `[:tt]`, as a single opaque `:tt` for
-	propagation through the macro call. Since the literal `$order` values will
-	match as `:ident`, not `:path`, this will only enter for orderings that the
-	rest of the macros would not be able to inspect and special-case *anyway*.
-	*/
-	($order:path, Word; $($val:expr),* $(,)?) => {
-		$crate::__bits_from_words!($order; $($val),*)
-	};
-
 	//  Explicit order and store.
 	($order:ident, $store:ident; $($val:expr),* $(,)?) => {{
 		static DATA: &[$store] = &$crate::__bits_store_array!(
@@ -70,6 +56,12 @@ macro_rules! bits {
 			$order, $store, $crate::__count!($($val),*), DATA
 		)
 	}};
+	/* Duplicate arms, differing in `$order:ident` and `$order:path`, force the
+	matcher to wrap a `:path`, which is `[:tt]`, as a single opaque `:tt` for
+	propagation through the macro call. Since the literal `$order` values will
+	match as `:ident`, not `:path`, this will only enter for orderings that the
+	rest of the macros would not be able to inspect and special-case *anyway*.
+	*/
 	($order:path, $store:ident; $($val:expr),* $(,)?) => {{
 		static DATA: &[$store] = &$crate::__bits_store_array!(
 			$order, $store; $($val),*
@@ -81,15 +73,15 @@ macro_rules! bits {
 
 	//  Explicit order, default store.
 	($order:ident; $($val:expr),* $(,)?) => {
-		$crate::__bits_from_words!($order; $($val),*)
+		$crate::bits!($order, usize; $($val),*)
 	};
 	($order:path; $($val:expr),* $(,)?) => {
-		$crate::__bits_from_words!($order; $($val),*)
+		$crate::bits!($order, usize; $($val),*)
 	};
 
 	//  Default order and store.
 	($($val:expr),* $(,)?) => {
-		$crate::__bits_from_words!(Local; $($val),*)
+		$crate::bits!(Local, usize; $($val),*)
 	};
 
 	//  Repetition syntax `[bit ; count]`
@@ -113,15 +105,15 @@ macro_rules! bits {
 
 	//  Explicit order, default store.
 	($order:ident; $val:expr; $len:expr) => {
-		$crate::__bits_from_words!($order; $val; $len)
+		$crate::bits!($order, usize; $val; $len)
 	};
 	($order:path; $val:expr; $len:expr) => {
-		$crate::__bits_from_words!($order; $val; $len)
+		$crate::bits!($order, usize; $val; $len)
 	};
 
 	//  Default order and store.
 	($val:expr; $len:expr) => {
-		$crate::bits!(Local; $val; $len)
+		$crate::bits!(Local, usize; $val; $len)
 	};
 }
 
@@ -198,47 +190,35 @@ macro_rules! bitvec {
 	}};
 
 	($order:ident; $($val:expr),* $(,)?) => {{
-		#[cfg(target_pointer_width = "32")]
-		let data = $crate::__bits_store_array!(Local, u32; $($val),*);
-
-		#[cfg(target_pointer_width = "64")]
-		let data = $crate::__bits_store_array!(Local, u64; $($val),*);
+		let data = $crate::__bits_store_array!(Local, usize; $($val),*);
 
 		let vec = data[..].to_owned();
 		let mut out = $crate::vec::BitVec::<
 			$order,
-			$crate::store::Word,
+			usize,
 		>::from_vec(vec);
 		out.truncate($crate::__count!($($val),*));
 		out
 	}};
 	($order:path; $($val:expr),* $(,)?) => {{
-		#[cfg(target_pointer_width = "32")]
-		let data = $crate::__bits_store_array!(Local, u32; $($val),*);
-
-		#[cfg(target_pointer_width = "64")]
-		let data = $crate::__bits_store_array!(Local, u64; $($val),*);
+		let data = $crate::__bits_store_array!(Local, usize; $($val),*);
 
 		let vec = data[..].to_owned();
 		let mut out = $crate::vec::BitVec::<
 			$order,
-			$crate::store::Word,
+			usize,
 		>::from_vec(vec);
 		out.truncate($crate::__count!($($val),*));
 		out
 	}};
 
 	($($val:expr),* $(,)?) => {{
-		#[cfg(target_pointer_width = "32")]
-		let data = $crate::__bits_store_array!(Local, u32; $($val),*);
-
-		#[cfg(target_pointer_width = "64")]
-		let data = $crate::__bits_store_array!(Local, u64; $($val),*);
+		let data = $crate::__bits_store_array!(Local, usize; $($val),*);
 
 		let vec = data[..].to_owned();
 		let mut out = $crate::vec::BitVec::<
 			$crate::order::Local,
-			$crate::store::Word,
+			usize,
 		>::from_vec(vec);
 		out.truncate($crate::__count!($($val),*));
 		out
@@ -256,20 +236,20 @@ macro_rules! bitvec {
 	($order:ident; $val:expr; $len:expr) => {
 		$crate::vec::BitVec::<
 			$order,
-			$crate::store::Word,
+			usize,
 		>::repeat($val != 0, $len)
 	};
 	($order:path; $val:expr; $len:expr) => {
 		$crate::vec::BitVec::<
 			$order,
-			$crate::store::Word,
+			usize,
 		>::repeat($val != 0, $len)
 	};
 
 	($val:expr; $len:expr) => {
 		$crate::vec::BitVec::<
 			$crate::order::Local,
-			$crate::store::Word,
+			usize,
 		>::repeat($val != 0, $len)
 	};
 }

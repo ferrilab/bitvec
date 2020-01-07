@@ -18,10 +18,7 @@ use crate::{
 	},
 	pointer::BitPtr,
 	slice::BitSlice,
-	store::{
-		BitStore,
-		Word,
-	},
+	store::BitStore,
 };
 
 use alloc::{
@@ -248,7 +245,7 @@ is ***extremely binary incompatible*** with them. Attempting to treat
 [`&[]`]: https://doc.rust-lang.org/stable/std/primitive.slice.html
 **/
 #[repr(C)]
-pub struct BitVec<O = Local, T = Word>
+pub struct BitVec<O = Local, T = usize>
 where O: BitOrder, T: BitStore {
 	/// Phantom `BitOrder` member to satisfy the constraint checker.
 	_order: PhantomData<O>,

@@ -31,7 +31,7 @@ where O: BitOrder, T: BitStore {
 	///
 	/// ```rust
 	/// # use bitvec::prelude::*;
-	/// let mut bv: BitVec<Local, Word> = BitVec::new();
+	/// let mut bv: BitVec<Local, usize> = BitVec::new();
 	/// ```
 	#[inline]
 	pub /* const */ fn new() -> Self {
@@ -71,7 +71,7 @@ where O: BitOrder, T: BitStore {
 	///
 	/// ```rust
 	/// # use bitvec::prelude::*;
-	/// let bv: BitVec<Local, Word> = BitVec::with_capacity(100);
+	/// let bv: BitVec<Local, usize> = BitVec::with_capacity(100);
 	/// assert!(bv.capacity() >= 100);
 	#[inline]
 	pub fn capacity(&self) -> usize {
@@ -155,7 +155,7 @@ where O: BitOrder, T: BitStore {
 	///
 	/// ```rust
 	/// # use bitvec::prelude::*;
-	/// let mut bv: BitVec<Local, Word> = BitVec::with_capacity(10);
+	/// let mut bv: BitVec<Local, usize> = BitVec::with_capacity(10);
 	/// bv.extend([true, false, true].iter().copied());
 	/// assert!(bv.capacity() >= 10);
 	/// bv.shrink_to_fit();
@@ -186,12 +186,12 @@ where O: BitOrder, T: BitStore {
 	///
 	/// ```rust
 	/// # use bitvec::prelude::*;
-	/// let mut bv = BitVec::<Local, Word>::with_capacity(100);
+	/// let mut bv = BitVec::<Local, usize>::with_capacity(100);
 	/// bv.extend([true, false, true].iter().copied());
 	///
 	/// assert!(bv.capacity() >= 100);
 	/// let slice = bv.into_boxed_slice();
-	/// let boxed_bitslice = BitBox::<Local, Word>::from_boxed_slice(slice);
+	/// let boxed_bitslice = BitBox::<Local, usize>::from_boxed_slice(slice);
 	/// let bv = BitVec::from_boxed_bitslice(boxed_bitslice);
 	/// assert!(bv.capacity() >= 3);
 	/// ```
@@ -315,7 +315,7 @@ where O: BitOrder, T: BitStore {
 	///
 	/// ```rust
 	/// # use bitvec::prelude::*;
-	/// let mut bv = BitVec::<Local, Word>::with_capacity(17);
+	/// let mut bv = BitVec::<Local, usize>::with_capacity(17);
 	/// assert!(bv.is_empty());
 	/// unsafe { bv.set_len(23) };
 	/// assert_eq!(bv.len(), 23);

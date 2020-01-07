@@ -13,10 +13,7 @@ use crate::{
 	},
 	pointer::BitPtr,
 	slice::BitSlice,
-	store::{
-		BitStore,
-		Word,
-	},
+	store::BitStore,
 	vec::BitVec,
 };
 
@@ -59,7 +56,7 @@ deferring to the `BitSlice` implementation. It also implements conversion traits
 to and from `BitSlice`, and to/from `BitVec`.
 **/
 #[repr(C)]
-pub struct BitBox<O = Local, T = Word>
+pub struct BitBox<O = Local, T = usize>
 where O: BitOrder, T: BitStore {
 	_order: PhantomData<O>,
 	pointer: BitPtr<T>,

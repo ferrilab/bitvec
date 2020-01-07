@@ -45,10 +45,7 @@ use crate::{
 		Msb0,
 	},
 	slice::BitSlice,
-	store::{
-		BitStore,
-		Word,
-	},
+	store::BitStore,
 };
 
 use core::mem;
@@ -299,7 +296,7 @@ where T: BitStore {
 			accumulator.
 			*/
 			Either::Left((head, body, tail)) => {
-				let mut accum: Word = 0;
+				let mut accum = 0usize;
 
 				//  If the tail exists, it contains the most significant chunk
 				//  of the value, on the LSedge side.
@@ -311,7 +308,7 @@ where T: BitStore {
 				//  accumulator.
 				if let Some(elts) = body {
 					for elt in elts.iter().rev() {
-						let val: Word = resize(elt.load());
+						let val: usize = resize(elt.load());
 						accum <<= T::BITS;
 						accum |= val;
 					}
@@ -324,7 +321,7 @@ where T: BitStore {
 					//  Find the region width (MSedge to head).
 					let width = T::BITS - lsedge;
 					//  Load the element, shift down to LSedge, and resize.
-					let val: Word = resize(head.load() >> lsedge);
+					let val: usize = resize(head.load() >> lsedge);
 					accum <<= width;
 					accum |= val;
 				}
@@ -360,7 +357,7 @@ where T: BitStore {
 			accumulator.
 			*/
 			Either::Left((head, body, tail)) => {
-				let mut accum: Word = 0;
+				let mut accum = 0usize;
 
 				//  If the head exists, it contains the most significant chunk
 				//  of the value, on the MSedge side.
@@ -372,7 +369,7 @@ where T: BitStore {
 				//  accumulator.
 				if let Some(elts) = body {
 					for elt in elts.iter() {
-						let val: Word = resize(elt.load());
+						let val: usize = resize(elt.load());
 						accum <<= T::BITS;
 						accum |= val;
 					}
@@ -383,7 +380,7 @@ where T: BitStore {
 					//  Get the live region’s width.
 					let width = *t as usize;
 					//  Load, mask, and resize.
-					let val: Word = resize(tail.load() & mask_for::<T>(width));
+					let val: usize = resize(tail.load() & mask_for::<T>(width));
 					//  Shift the accumulator by the live width, and store.
 					accum <<= width;
 					accum |= val;
@@ -424,7 +421,7 @@ where T: BitStore {
 			memory, then shifts the value right by that width.
 			*/
 			Either::Left((head, body, tail)) => {
-				let mut value: Word = resize(value);
+				let mut value: usize = resize(value);
 
 				//  If the head exists, it contains the least significant chunk
 				//  of the value, on the MSedge side.
@@ -434,11 +431,11 @@ where T: BitStore {
 					//  Find the region width (MSedge to head).
 					let width = T::BITS - lsedge;
 					//  Take the region-width LSedge bits of the value.
-					let val = value & mask_for::<Word>(width as usize);
+					let val = value & mask_for::<usize>(width as usize);
 					//  Erase the region.
 					head.clear_bits(T::TRUE >> width);
 					//  Shift the snippet to fit the region, and write.
-					head.set_bits(resize::<Word, T>(val) << lsedge);
+					head.set_bits(resize::<usize, T>(val) << lsedge);
 					//  Discard the now-written bits from the value.
 					value >>= width;
 				}
@@ -456,7 +453,7 @@ where T: BitStore {
 					//  Get the region width.
 					let width = *t;
 					//  Take the region-width LSedge bits of the value.
-					let val = value & mask_for::<Word>(width as usize);
+					let val = value & mask_for::<usize>(width as usize);
 					//  Erase the region.
 					tail.clear_bits(T::TRUE << width);
 					//  Write the snippet into the region.
@@ -489,7 +486,7 @@ where T: BitStore {
 				elt.set_bits(resize::<U, T>(value) << lsedge);
 			},
 			Either::Left((head, body, tail)) => {
-				let mut value: Word = resize(value);
+				let mut value: usize = resize(value);
 
 				//  If the tail exists, it contains the least significant chunk
 				//  of the value, on the LSedge side.
@@ -497,7 +494,7 @@ where T: BitStore {
 					//  Get the region width.
 					let width = *t;
 					//  Take the region-width LSedge bits of the value.
-					let val = value & mask_for::<Word>(width as usize);
+					let val = value & mask_for::<usize>(width as usize);
 					//  Erase the region.
 					tail.clear_bits(T::TRUE << width);
 					//  Write the snippet into the region.
@@ -521,11 +518,11 @@ where T: BitStore {
 					//  Find the region width (MSedge to head).
 					let width = T::BITS - lsedge;
 					//  Take the region-width LSedge bits of the value.
-					let val = value & mask_for::<Word>(width as usize);
+					let val = value & mask_for::<usize>(width as usize);
 					//  Erase the region.
 					head.clear_bits(T::TRUE >> width);
 					//  Shift the snippet to fit the region, and write.
-					head.set_bits(resize::<Word, T>(val) << lsedge);
+					head.set_bits(resize::<usize, T>(val) << lsedge);
 				}
 			},
 		}
@@ -560,7 +557,7 @@ where T: BitStore {
 			accumulator.
 			*/
 			Either::Left((head, body, tail)) => {
-				let mut accum: Word = 0;
+				let mut accum = 0usize;
 
 				//  If the tail exists, it contains the most significant chunk
 				//  of the value, on the MSedge side.
@@ -574,7 +571,7 @@ where T: BitStore {
 				//  accumulator.
 				if let Some(elts) = body {
 					for elt in elts.iter().rev() {
-						let val: Word = resize(elt.load());
+						let val: usize = resize(elt.load());
 						accum <<= T::BITS;
 						accum |= val;
 					}
@@ -585,7 +582,7 @@ where T: BitStore {
 					//  Find the region width (head to LSedge).
 					let width = (T::BITS - *h) as usize;
 					//  Load the element, mask, and resize.
-					let val: Word = resize(head.load() & mask_for::<T>(width));
+					let val: usize = resize(head.load() & mask_for::<T>(width));
 					accum <<= width;
 					accum |= val;
 				}
@@ -621,7 +618,7 @@ where T: BitStore {
 			accumulator.
 			*/
 			Either::Left((head, body, tail)) => {
-				let mut accum: Word = 0;
+				let mut accum = 0usize;
 
 				//  If the head exists, it contains the most significant chunk
 				//  of the value, on the LSedge side.
@@ -635,7 +632,7 @@ where T: BitStore {
 				//  accumulator.
 				if let Some(elts) = body {
 					for elt in elts.iter() {
-						let val: Word = resize(elt.load());
+						let val: usize = resize(elt.load());
 						accum <<= T::BITS;
 						accum |= val;
 					}
@@ -646,7 +643,7 @@ where T: BitStore {
 					//  Find the live region’s distance from LSedge.
 					let lsedge = T::BITS - *t;
 					//  Load the element, shift down to LSedge, and resize.
-					let val: Word = resize(tail.load() >> lsedge);
+					let val: usize = resize(tail.load() >> lsedge);
 					accum <<= *t;
 					accum |= val;
 				}
@@ -686,7 +683,7 @@ where T: BitStore {
 			memory, then shifts the value right by that width.
 			*/
 			Either::Left((head, body, tail)) => {
-				let mut value: Word = resize(value);
+				let mut value: usize = resize(value);
 
 				//  If the head exists, it contains the least significant chunk
 				//  of the value, on the LSedge side.
@@ -694,7 +691,7 @@ where T: BitStore {
 					//  Get the region width (head to LSedge).
 					let width = T::BITS - *h;
 					//  Take the region-width LSedge bits of the value.
-					let val = value & mask_for::<Word>(width as usize);
+					let val = value & mask_for::<usize>(width as usize);
 					//  Erase the region.
 					head.clear_bits(T::TRUE << width);
 					//  Write the snippet into the region.
@@ -718,11 +715,11 @@ where T: BitStore {
 					//  Find the region distance from the LSedge.
 					let lsedge = T::BITS - width;
 					//  Take the region-width LSedge bits of the value.
-					let val = value & mask_for::<Word>(width as usize);
+					let val = value & mask_for::<usize>(width as usize);
 					//  Erase the region.
 					tail.clear_bits(T::TRUE >> width);
 					//  Shift the snippet to fit the region, and write.
-					tail.set_bits(resize::<Word, T>(val) << lsedge);
+					tail.set_bits(resize::<usize, T>(val) << lsedge);
 				}
 			},
 		}
@@ -758,7 +755,7 @@ where T: BitStore {
 			memory, then shifts the value right by that width.
 			*/
 			Either::Left((head, body, tail)) => {
-				let mut value: Word = resize(value);
+				let mut value: usize = resize(value);
 
 				//  If the tail exists, it contains the least significant chunk
 				//  of the value, on the MSedge side.
@@ -768,11 +765,11 @@ where T: BitStore {
 					//  Find the region distance from the LSedge.
 					let lsedge = T::BITS - width;
 					//  Take the region-width LSedge bits of the value.
-					let val = value & mask_for::<Word>(width as usize);
+					let val = value & mask_for::<usize>(width as usize);
 					//  Erase the region.
 					tail.clear_bits(T::TRUE >> width);
 					//  Shift the snippet to fit the region, and write.
-					tail.set_bits(resize::<Word, T>(val) << lsedge);
+					tail.set_bits(resize::<usize, T>(val) << lsedge);
 					//  Discard the now-written bits from the value.
 					value >>= width;
 				}
@@ -790,7 +787,7 @@ where T: BitStore {
 					//  Find the region width.
 					let width = T::BITS - *h;
 					//  Take the region-width LSedge bits of the value.
-					let val = value & mask_for::<Word>(width as usize);
+					let val = value & mask_for::<usize>(width as usize);
 					//  Erase the region.
 					head.clear_bits(T::TRUE << width);
 					//  Write the snippet into the region.
@@ -882,7 +879,7 @@ where T: BitStore {
 
 /** Resizes a value from one fundamental type to another.
 
-This function uses `Word` as the intermediate type (as it is the largest
+This function uses `usize` as the intermediate type (as it is the largest
 `BitStore` implementor on all supported targets), and either zero-extends or
 truncates the source value to be valid as the destination type. This is
 essentially a generic-aware version of the `as` operator.
@@ -903,7 +900,7 @@ zero-extends; where `U` is narrower, it truncates.
 **/
 fn resize<T, U>(value: T) -> U
 where T: BitStore, U: BitStore {
-	let zero: Word = 0;
+	let zero = 0usize;
 	let mut slab = zero.to_ne_bytes();
 	let start = 0;
 
@@ -912,18 +909,18 @@ where T: BitStore, U: BitStore {
 	The `BitStore::as_bytes` method returns the value as native-endian-order
 	bytes. These bytes are then written into the correct location of the slab
 	(low addresses on little-endian, high addresses on big-endian) to be
-	interpreted as `Word`.
+	interpreted as `usize`.
 	*/
 	match mem::size_of::<T>() {
 		n @ 1 | n @ 2 | n @ 4 | n @ 8 => {
 			#[cfg(target_endian = "big")]
-			let start = mem::size_of::<Word>() - n;
+			let start = mem::size_of::<usize>() - n;
 
 			slab[start ..][.. n].copy_from_slice(value.as_bytes());
 		},
 		_ => unreachable!("BitStore is not implemented on types of this size"),
 	}
-	let mid = Word::from_ne_bytes(slab);
+	let mid = usize::from_ne_bytes(slab);
 	//  Truncate to the correct size, then wrap in `U` through the trait method.
 	match mem::size_of::<U>() {
 		1 => U::from_bytes(&(mid as u8).to_ne_bytes()[..]),

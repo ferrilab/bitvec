@@ -17,10 +17,7 @@ use crate::{
 		Local,
 	},
 	pointer::BitPtr,
-	store::{
-		BitStore,
-		Word,
-	},
+	store::BitStore,
 };
 
 use core::marker::PhantomData;
@@ -98,7 +95,7 @@ is ***catastrophically*** unsafe and unsound.
 [`bitvec!`]: ../macro.bitvec.html
 **/
 #[repr(transparent)]
-pub struct BitSlice<O = Local, T = Word>
+pub struct BitSlice<O = Local, T = usize>
 where O: BitOrder, T: BitStore {
 	/// BitOrder type for selecting bits inside an element.
 	_kind: PhantomData<O>,

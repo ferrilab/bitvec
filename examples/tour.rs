@@ -30,8 +30,8 @@ use std::iter::repeat;
 
 #[cfg(feature = "std")]
 fn main() {
-	let bv = bitvec![Msb0, u8;  //  Default values are `order::Local` and
-		0, 0, 0, 0, 0, 0, 0, 1, //  `store::Word`.
+	let bv = bitvec![Msb0, u8;  //  Default types are `order::Local` and `usize`
+		0, 0, 0, 0, 0, 0, 0, 1,
 		0, 0, 0, 0, 0, 0, 1, 0,
 		0, 0, 0, 0, 0, 1, 0, 0,
 		0, 0, 0, 0, 1, 0, 0, 0,
