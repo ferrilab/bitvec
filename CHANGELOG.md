@@ -4,6 +4,15 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+## 0.16.2
+
+### Fixed
+
+Updated `radium` dependency to `0.3`, which enables it to compile on the
+`thumbv7m-none-eabi` target. This addresses [Issue #36], which noted that
+`bitvec` failed to compile for that target due to reduced support for atomic
+types in `core`. Thanks to GitHub user [@lynaghk] for the report.
+
 ## 0.16.1
 
 This is a hotfix for [Issue #33], filed by GitHub user [@jonas-schievink].
@@ -579,6 +588,7 @@ Initial implementation and release.
 [@geq1t]: https://github.com/geq1t
 [@jonas-schievink]: https://github.com/jonas-schievink
 [@koushiro]: https://github.com/koushiro
+[@lynaghk]: https://github.com/lynaghk
 [@overminder]: https://github.com/overminder
 [@ratorx]: https://github.com/ratorx
 [@schomatis]: https://github.com/schomatis
@@ -592,5 +602,6 @@ Initial implementation and release.
 [Issue #16]: https://github.com/myrrlyn/bitvec/issues/16
 [Issue #28]: https://github.com/myrrlyn/bitvec/issues/28
 [Issue #33]: https://github.com/myrrlyn/bitvec/issues/33
+[Issue #36]: https://github.com/myrrlyn/bitvec/issues/36
 [`Sync`]: https://doc.rust-lang.org/stable/core/marker/trait.Sync.html
 [kac]: https://keepachangelog.com/en/1.0.0/
