@@ -15,6 +15,14 @@ This document is written according to the [Keep a Changelog][kac] style.
 
   See the module and trait documentation for more detail.
 
+- GitHub user [@mystor] provided a `bits!` macro in [Pull Request #34] which
+  enables compile-time construction of `&'static BitSlice<O, T>` regions. This
+  macro is currently limited to working with the literal `BitOrder`
+  implementator names `Local`, `Lsb0`, and `Msb0`. This is a restriction in the
+  Rust language (identifiers are not yet associated with types during macro
+  expansion), and `bitvec` does not promise to expand support to other names or
+  types in the future.
+
 ### Changed
 
 - Rename the `cursor` module to `order`, the `Cursor` trait to `BitOrder`, and
@@ -613,6 +621,7 @@ Initial implementation and release.
 [@jonas-schievink]: https://github.com/jonas-schievink
 [@koushiro]: https://github.com/koushiro
 [@lynaghk]: https://github.com/lynaghk
+[@mystor]: https://github.com/mystor
 [@overminder]: https://github.com/overminder
 [@ratorx]: https://github.com/ratorx
 [@schomatis]: https://github.com/schomatis
@@ -628,5 +637,6 @@ Initial implementation and release.
 [Issue #33]: https://github.com/myrrlyn/bitvec/issues/33
 [Issue #35]: https://github.com/myrrlyn/bitvec/issues/35
 [Issue #36]: https://github.com/myrrlyn/bitvec/issues/36
+[Pull Request #34]: https://github.com/myrrlyn/bitvec/pull/34
 [`Sync`]: https://doc.rust-lang.org/stable/core/marker/trait.Sync.html
 [kac]: https://keepachangelog.com/en/1.0.0/
