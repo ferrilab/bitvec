@@ -14,7 +14,7 @@ significant bit to the most.
 This level of control is not necessary for most use cases where users just want
 to put bits in a sequence, but it is critically important for users making
 packets that leave main memory and hit some external device like a peripheral
-controller or a network socket. In order to provide convencience to users for
+controller or a network socket. In order to provide convenience to users for
 whom the storage details do not matter, `bitvec` types default to using the
 local C bitfield ordering and CPU word size.
 
