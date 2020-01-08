@@ -10,6 +10,7 @@ slice and vector types.
 #![cfg(feature = "alloc")]
 
 use crate::{
+	access::BitAccess,
 	boxed::BitBox,
 	indices::Indexable,
 	order::{
@@ -299,7 +300,9 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	#[inline]
 	pub fn from_element(elt: T) -> Self {
-		Self::from_slice(&[elt])
+		let mut v = Vec::with_capacity(1);
+		v.push(elt);
+		Self::from_vec(v)
 	}
 
 	/// Constructs a `BitVec` from a slice of elements.
@@ -328,7 +331,7 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	#[inline]
 	pub fn from_slice(slice: &[T]) -> Self {
-		BitSlice::<O, T>::from_slice(slice).to_owned()
+		Self::from_vec(slice.to_owned())
 	}
 
 	/// Consumes a `Vec<T>` and creates a `BitVec<C, T>` from it.
@@ -378,9 +381,25 @@ where O: BitOrder, T: BitStore {
 
 	/// Clones a `&BitSlice` into a `BitVec`.
 	///
+	/// This is the only method by which a `BitVec` can be created whose first
+	/// live bit is not at the `0` position. This behavior, though
+	/// unconventional for common uses of `BitVec`, allows for a more efficient
+	/// clone of any `BitSlice` region without shifting each bit in the region
+	/// down to fit the `0` starting position.
+	///
+	/// Misaligned `BitVec`s **do not** have any adverse effect on usage other
+	/// than the in-memory representation.
+	///
+	/// Whenever a `BitVec` is emptied, its head index is always set to `0`, and
+	/// will begin from the aligned position on future refills.
+	///
+	/// The [`::force_align`] method will shift the `BitVec`’s data to begin at
+	/// the `0` index, if you require this property.
+	///
 	/// # Parameters
 	///
-	/// - `slice`
+	/// - `slice`: The source `BitSlice` region. This may have any head index,
+	///   and its memory will be copied element-wise into the new buffer.
 	///
 	/// # Returns
 	///
@@ -396,10 +415,32 @@ where O: BitOrder, T: BitStore {
 	/// assert_eq!(bv.len(), 16);
 	/// assert!(bv.some());
 	/// ```
+	///
+	/// [`::force_align`]: #method.force_align
 	pub fn from_bitslice(slice: &BitSlice<O, T>) -> Self {
-		let mut out = Self::with_capacity(slice.len());
-		out.extend(slice.iter().copied());
-		out
+		let mut pointer = slice.bitptr();
+		let source = pointer.as_access_slice();
+
+		//  Create a blank buffer into which the source will be copied.
+		let mut v = Vec::with_capacity(source.len());
+
+		//  Copy the source into the buffer. This must be done per-element, so
+		//  that atomic systems will correctly synchronize.
+		source.iter().for_each(|elt| v.push(elt.load()));
+
+		/* Target the copied pointer to the buffer’s region, preserving its
+		length and offset information. This enables `BitVec` to efficiently
+		lift from any `&BitSlice`, without having to reälign the source per-bit.
+		*/
+		unsafe { pointer.set_pointer(v.as_ptr() as *const T); }
+
+		let capacity = v.capacity();
+		mem::forget(v);
+		Self {
+			_order: PhantomData,
+			pointer,
+			capacity,
+		}
 	}
 
 	/// Converts a frozen `BitBox` allocation into a growable `BitVec`.
@@ -704,6 +745,52 @@ where O: BitOrder, T: BitStore {
 		};
 		mem::forget(self);
 		out
+	}
+
+	/// Ensures that the live region of the underlying memory begins at the `0`
+	/// bit position.
+	///
+	/// # Notes
+	///
+	/// This method is currently implemented as a linear traversal that moves
+	/// each bit individually from its original index to its final position.
+	/// This is `O(n)` in the bit length of the vector.
+	///
+	/// It is possible to create an optimized rotation behavior that only moves
+	/// a few bits individually, then moves elements in a gallop. The speed
+	/// difference is proportional to the width of the element type.
+	///
+	/// When this behavior is implemented, `force_align` will be rewritten to
+	/// take advantage of it. For now, it remains slow.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let src = &bits![Msb0, u8; 1, 0, 1, 1, 0, 1, 1, 0][1 .. 7];
+	/// assert_eq!(src.len(), 6);
+	/// let mut bv = src.to_owned();
+	/// assert_eq!(bv.len(), 6);
+	/// assert_eq!(bv.as_slice()[0], 0xB6);
+	/// bv.force_align();
+	/// assert_eq!(bv.as_slice()[0], 0x6E);
+	/// ```
+	pub fn force_align(&mut self) {
+		let (_, head, bits) = self.pointer.raw_parts();
+		let head = *head as usize;
+		if head == 0 {
+			return;
+		}
+		let tail = head + bits;
+		unsafe {
+			self.pointer.set_head(0.idx());
+			self.pointer.set_len(tail);
+			for (to, from) in (head .. tail).enumerate() {
+				self.copy_unchecked(from, to);
+			}
+			self.pointer.set_len(bits);
+		}
 	}
 
 	/// Permits a function to modify the `Vec<T>` underneath a `BitVec<_, T>`.

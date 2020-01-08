@@ -1071,7 +1071,7 @@ where O: BitOrder, T: BitStore {
 	/// `from` and `to` must be within the bounds of `self`. This is not
 	/// checked.
 	#[inline]
-	unsafe fn copy_unchecked(&mut self, from: usize, to: usize) {
+	pub(crate) unsafe fn copy_unchecked(&mut self, from: usize, to: usize) {
 		self.set_unchecked(to, *self.get_unchecked(from));
 	}
 }

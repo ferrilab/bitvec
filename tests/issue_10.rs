@@ -27,7 +27,7 @@ use bitvec::prelude::*;
 #[cfg(feature = "alloc")]
 #[test]
 fn issue_10() {
-	let bv = bitvec![
+	let bv = bitvec![Local, u8;
 		0, 0, 0, 0,
 		0, 0, 0, 1,
 		1, 0, 0, 0,
@@ -41,13 +41,14 @@ fn issue_10() {
 	assert!(slice[4]);
 	assert!(!slice[7]);
 
-	let bv2 = slice.to_owned();
+	let mut bv2 = slice.to_owned();
 	assert_eq!(bv2, slice);
 	assert!(!bv2[0]);
 	assert!(bv2[3]);
 	assert!(bv2[4]);
 	assert!(!bv2[7]);
 
+	bv2.force_align();
 	//  These may be removed in the future.
 	assert_eq!(bv2.as_slice().len(), 1);
 	assert_eq!(bv2.as_slice()[0], 0x18);
