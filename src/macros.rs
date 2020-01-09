@@ -151,6 +151,19 @@ bitvec![1; 5];
 #[cfg(feature = "alloc")]
 #[macro_export]
 macro_rules! bitvec {
+	//  First, capture the repetition syntax, as it is permitted to use runtime
+	//  values for the repetition count.
+	($order:ty, $store:ident; $val:expr; $rep:expr) => {
+		$crate::vec::BitVec::<$order, $store>::repeat($val != 0, $rep)
+	};
+	($order:ty; $val:expr; $rep:expr) => {
+		$crate::bitvec!($order, usize; $val; $rep)
+	};
+	($val:expr; $rep:expr) => {
+		$crate::bitvec!($crate::order::Local, usize; $val; $rep)
+	};
+
+	//  Delegate all others to the `bits!` macro.
 	($($arg:tt)*) => {{
 		let bits: &'static $crate::slice::BitSlice::<_, _> = $crate::bits!($($arg)*);
 		$crate::vec::BitVec::from_bitslice(bits)
