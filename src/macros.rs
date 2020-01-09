@@ -132,21 +132,6 @@ matched by the macro system.
 Like `vec!`, `bitvec!` supports bit lists `[0, 1, …]` and repetition markers
 `[1; n]`.
 
-# Notes
-
-The bit list syntax `bitvec![expr, expr, expr...]` currently produces an
-`&[bool]` slice of the initial pattern, which is written into the final
-artifact’s static memory and may consume excessive space.
-
-The repetition syntax `bitec![expr; count]` currently zeros its allocated buffer
-before setting the first `count` bits to `expr`. This may result in a
-performance penalty when using `bitvec![1; N]`, as the allocation will be zeroed
-and then a subset will be set high.
-
-This behavior is currently required to maintain compatibility with `serde`
-expectations that dead bits are zero. As the `serdes` module removes those
-expectations, the repetition syntax implementation may speed up.
-
 # Examples
 
 ```rust
@@ -166,79 +151,10 @@ bitvec![1; 5];
 #[cfg(feature = "alloc")]
 #[macro_export]
 macro_rules! bitvec {
-	/* TODO(myrrlyn): Make this arm viable.
-	($($arg:tt)) => {
-		($crate::bits!($($arg))).to_owned()
-	};
-	*/
-
-	//  Sequence syntax
-	($order:ident, $store:ident; $($val:expr),* $(,)?) => {{
-		let data = $crate::__bits_store_array!($order, $store; $($val),*);
-		let vec = data[..].to_owned();
-		let mut out = $crate::vec::BitVec::<$order, $store>::from_vec(vec);
-		out.truncate($crate::__count!($($val),*));
-		out
+	($($arg:tt)*) => {{
+		let bits: &'static $crate::slice::BitSlice::<_, _> = $crate::bits!($($arg)*);
+		$crate::vec::BitVec::from_bitslice(bits)
 	}};
-	($order:path, $store:ident; $($val:expr),* $(,)?) => {{
-		let data = $crate::__bits_store_array!($order, $store; $($val),*);
-		let vec = data[..].to_owned();
-		let mut out = $crate::vec::BitVec::<$order, $store>::from_vec(vec);
-		out.truncate($crate::__count!($($val),*));
-		out
-	}};
-
-	($order:ident; $($val:expr),* $(,)?) => {{
-		let data = $crate::__bits_store_array!(Local, usize; $($val),*);
-
-		let vec = data[..].to_owned();
-		let mut out = $crate::vec::BitVec::<$order, usize>::from_vec(vec);
-		out.truncate($crate::__count!($($val),*));
-		out
-	}};
-	($order:path; $($val:expr),* $(,)?) => {{
-		let data = $crate::__bits_store_array!(Local, usize; $($val),*);
-
-		let vec = data[..].to_owned();
-		let mut out = $crate::vec::BitVec::<$order, usize>::from_vec(vec);
-		out.truncate($crate::__count!($($val),*));
-		out
-	}};
-
-	($($val:expr),* $(,)?) => {{
-		let data = $crate::__bits_store_array!(Local, usize; $($val),*);
-
-		let vec = data[..].to_owned();
-		let mut out = $crate::vec::BitVec::<
-			$crate::order::Local,
-			usize,
-		>::from_vec(vec);
-		out.truncate($crate::__count!($($val),*));
-		out
-	}};
-
-	//  Repetition syntax
-
-	($order:ident, $bits:ident; $val:expr; $len:expr) => {
-		$crate::vec::BitVec::<$order, $bits>::repeat($val != 0, $len)
-	};
-	($order:path, $bits:ident; $val:expr; $len:expr) => {
-		$crate::vec::BitVec::<$order, $bits>::repeat($val != 0, $len)
-	};
-
-	($order:ident; $val:expr; $len:expr) => {
-		$crate::vec::BitVec::<$order, usize>::repeat($val != 0, $len)
-	};
-	($order:path; $val:expr; $len:expr) => {
-		$crate::vec::BitVec::<$order, usize>::repeat($val != 0, $len)
-	};
-
-	($val:expr; $len:expr) => {
-		$crate::vec::BitVec::<
-			$crate::order::Local,
-			usize,
-		>::repeat($val != 0, $len)
-	};
 }
 
 /** Construct a `BitBox` out of a literal array in source code, like `bitvec!`.

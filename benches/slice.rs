@@ -5,7 +5,10 @@ extern crate test;
 use core::ops::AddAssign;
 
 use bitvec::prelude::*;
-use test::Bencher;
+use test::{
+	Bencher,
+	bench::black_box,
+};
 
 /* `BitSlice::empty` is not benched, because the compiler const-folds it. It
 is not a `const fn`, but it has exactly one function call, which is `const`, and
@@ -81,25 +84,25 @@ fn len(b: &mut Bencher) {
 fn index(b: &mut Bencher) {
 	let bsb08 = [0u8; 16].bits::<Msb0>();
 	let bsl08 = [0u8; 16].bits::<Lsb0>();
-	b.iter(|| bsb08[69]);
-	b.iter(|| bsl08[69]);
+	b.iter(|| assert!(!black_box(bsb08)[black_box(69)]));
+	b.iter(|| assert!(!black_box(bsl08)[black_box(69)]));
 
 	let bsb16 = [0u16; 8].bits::<Msb0>();
 	let bsl16 = [0u16; 8].bits::<Lsb0>();
-	b.iter(|| bsb16[69]);
-	b.iter(|| bsl16[69]);
+	b.iter(|| assert!(!black_box(bsb16)[black_box(69)]));
+	b.iter(|| assert!(!black_box(bsl16)[black_box(69)]));
 
 	let bsb32 = [0u32; 4].bits::<Msb0>();
 	let bsl32 = [0u32; 4].bits::<Lsb0>();
-	b.iter(|| bsb32[69]);
-	b.iter(|| bsl32[69]);
+	b.iter(|| assert!(!black_box(bsb32)[black_box(69)]));
+	b.iter(|| assert!(!black_box(bsl32)[black_box(69)]));
 
 	#[cfg(target_pointer_width = "64")] {
 
 	let bsb64 = [0u64; 2].bits::<Msb0>();
 	let bsl64 = [0u64; 2].bits::<Lsb0>();
-	b.iter(|| bsb64[69]);
-	b.iter(|| bsl64[69]);
+	b.iter(|| assert!(!black_box(bsb64)[black_box(69)]));
+	b.iter(|| assert!(!black_box(bsl64)[black_box(69)]));
 
 	}
 }
