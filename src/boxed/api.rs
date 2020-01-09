@@ -61,12 +61,12 @@ where O: BitOrder, T: BitStore {
 	/// # use bitvec::prelude::*;
 	/// let b = BitBox::new(0u8.bits::<Lsb0>());
 	/// let ptr = BitBox::into_raw(b);
-	/// let b = unsafe { BitBox::<Msb0, _>::from_raw(ptr) };
+	/// let b = unsafe { BitBox::<Lsb0, _>::from_raw(ptr) };
 	/// ```
-	pub unsafe fn from_raw(raw: BitPtr<T>) -> Self {
+	pub unsafe fn from_raw(raw: *mut BitSlice<O, T>) -> Self {
 		Self {
 			_order: PhantomData,
-			pointer: raw,
+			pointer: BitPtr::from_mut_ptr(raw),
 		}
 	}
 
@@ -92,14 +92,14 @@ where O: BitOrder, T: BitStore {
 	///
 	/// ```rust
 	/// # use bitvec::prelude::*;
-	/// let b = BitBox::new(0u64.bits::<Local>());
+	/// let b = BitBox::new(0u64.bits::<Msb0>());
 	/// let ptr = BitBox::into_raw(b);
 	/// let b = unsafe { BitBox::<Msb0, _>::from_raw(ptr) };
 	/// ```
 	///
 	/// [`BitBox::from_raw`]: #fn.from_raw
-	pub fn into_raw(b: Self) -> BitPtr<T> {
-		let out = b.pointer;
+	pub fn into_raw(b: Self) -> *mut BitSlice<O, T> {
+		let out = b.pointer.as_mut_ptr();
 		mem::forget(b);
 		out
 	}

@@ -268,7 +268,7 @@ where O: BitOrder, T: BitStore {
 	where P: BitOrder {
 		let bp = self.bitptr();
 		mem::forget(self);
-		unsafe { BitBox::from_raw(bp) }
+		unsafe { BitBox::from_raw(bp.as_mut_ptr()) }
 	}
 
 	/// Accesses the `BitSlice<O, T>` to which the `BitBox` refers.

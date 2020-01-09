@@ -726,7 +726,7 @@ where O: BitOrder, T: BitStore {
 		let pointer = self.pointer;
 		//  Convert the Vec allocation into a Box<[T]> allocation
 		mem::forget(self.into_boxed_slice());
-		unsafe { BitBox::from_raw(pointer) }
+		unsafe { BitBox::from_raw(pointer.as_mut_ptr()) }
 	}
 
 	/// Degrades a `BitVec` to a standard `Vec`.

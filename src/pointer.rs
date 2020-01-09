@@ -815,6 +815,18 @@ where T: BitStore {
 			) as *mut [()] as *mut BitSlice<O, T>)
 		}
 	}
+
+	/// Cast a `BitPtr<T>` into an equivalent `*mut BitSlice<O, T>`.
+	pub(crate) fn as_mut_ptr<O>(self) -> *mut BitSlice<O, T>
+	where O: BitOrder {
+		self.into_bitslice_mut() as *mut BitSlice<O, T>
+	}
+
+	/// Cast a `*mut BitSlice<O, T>` raw pointer into an equivalent `BitPtr<T>`.
+	pub(crate) fn from_mut_ptr<O>(ptr: *mut BitSlice<O, T>) -> Self
+	where O: BitOrder {
+		unsafe { &*ptr }.bitptr()
+	}
 }
 
 /** Gets write access to all elements in the underlying storage, including the
