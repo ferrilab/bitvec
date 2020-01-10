@@ -45,6 +45,7 @@ use crate::{
 };
 
 use core::{
+	cmp,
 	ops::{
 		Range,
 		RangeFrom,
@@ -1664,7 +1665,7 @@ where O: BitOrder, T: BitStore {
 	/// # Panics
 	///
 	/// This function will panic if `by` is greater than the length of the
-	/// slice. Note that `by == self.len()` does *not* panic and is a no-op
+	/// slice. Note that `by == self.len()` does *not* panic and is a noöp
 	/// rotation.
 	///
 	/// # Complexity
@@ -1690,21 +1691,42 @@ where O: BitOrder, T: BitStore {
 	/// bits[1 .. 5].rotate_left(1);
 	/// assert_eq!(data, 0b1_1101_000);
 	/// ```
-	pub fn rotate_left(&mut self, by: usize) {
+	pub fn rotate_left(&mut self, mut by: usize) {
 		let len = self.len();
 		assert!(by <= len, "Slices cannot be rotated by more than their length");
 		if by == 0 || by == len {
 			return;
 		}
 
-		for _ in 0 .. by {
+		/* Rotation can be accelerated by copying chunks out onto the stack,
+		then moving each bit down by a longer distance. This block collects up
+		to a single `usize`’s worth of bits from the start of the slice, then
+		moves all remaining bits down by the collection amount, then writes the
+		collected bits into the back of the slice. While this is does not affect
+		the length-determined runtime cost, it does reduce the
+		distance-determined cost by a factor of the target word width.
+		*/
+		let mut tmp = 0usize;
+		let bits = BitSlice::<O, _>::from_element_mut(&mut tmp);
+
+		while by > 0 {
+			//  Clamp the collection count by the word size and shift distance.
+			let shamt = cmp::min(usize::BITS as usize, by);
+			//  Bounds checking is already performed. This block erases all
+			//  interior checks in the iteration body.
 			unsafe {
-				let tmp = *self.get_unchecked(0);
-				for n in 1 .. len {
-					self.copy_unchecked(n, n - 1);
+				//  Collect bits from the front of the slice into scratch.
+				bits.get_unchecked_mut(.. shamt)
+					.clone_from_slice(self.get_unchecked(.. shamt));
+				//  Move all remaining bits down to the front of the slice.
+				for (to, from) in (shamt .. len).enumerate() {
+					self.copy_unchecked(from, to);
 				}
-				self.set_unchecked(len - 1, tmp);
+				//  Emit the scratch bits into the back of the slice.
+				self.get_unchecked_mut(len - shamt ..)
+					.clone_from_slice(bits.get_unchecked(.. shamt));
 			}
+			by -= shamt;
 		}
 	}
 
@@ -1716,7 +1738,7 @@ where O: BitOrder, T: BitStore {
 	/// # Panics
 	///
 	/// This function will panic if `by` is greater than the length of the
-	/// slice. Note that `by == self.len()` does *not* panic and is a no-op
+	/// slice. Note that `by == self.len()` does *not* panic and is a noöp
 	/// rotation.
 	///
 	/// # Complexity
@@ -1742,21 +1764,42 @@ where O: BitOrder, T: BitStore {
 	/// bits[1 .. 5].rotate_right(1);
 	/// assert_eq!(data, 0b1_0111_000);
 	/// ```
-	pub fn rotate_right(&mut self, by: usize) {
+	pub fn rotate_right(&mut self, mut by: usize) {
 		let len = self.len();
 		assert!(by <= len, "Slices cannot be rotated by more than their length");
 		if by == 0 || by == len {
 			return;
 		}
 
-		for _ in 0 .. by {
+		/* Rotation can be accelerated by copying chunks out onto the stack,
+		then moving each bit down by a longer distance. This block collects up
+		to a single `usize`’s worth of bits from the end of the slice, then
+		moves all remaining bits up by the collection amount, then writes the
+		collected bits into the front of the slice. While this is does not
+		affect the length-determined runtime cost, it does reduce the
+		distance-determined cost by a factor of the target word width.
+		*/
+		let mut tmp = 0usize;
+		let bits = BitSlice::<O, _>::from_element_mut(&mut tmp);
+
+		while by > 0 {
+			//  Clamp the collection count by the word size and shift distance.
+			let shamt = cmp::min(usize::BITS as usize, by);
+			//  Bounds checking is already performed. This block erases all
+			//  interior checks in the iteration body.
 			unsafe {
-				let tmp = *self.get_unchecked(len - 1);
-				for n in (0 .. len - 1).rev() {
-					self.copy_unchecked(n, n + 1);
+				//  Collect bits from the back of the slice into scratch.
+				bits.get_unchecked_mut(.. shamt)
+					.clone_from_slice(self.get_unchecked(len - shamt ..));
+				//  Move all remaining bits up to the back of the slice.
+				for (from, to) in (shamt .. len).enumerate().rev() {
+					self.copy_unchecked(from, to);
 				}
-				self.set_unchecked(0, tmp);
+				//  Emit the scratch bits into the front of the slice.
+				self.get_unchecked_mut(.. shamt)
+					.clone_from_slice(bits.get_unchecked(.. shamt));
 			}
+			by -= shamt;
 		}
 	}
 
@@ -1812,7 +1855,11 @@ where O: BitOrder, T: BitStore {
 			src.len(),
 			"Cloning from slice requires equal lengths",
 		);
-		self.iter_mut().zip(src.iter()).for_each(|(mut a, b)| *a = *b);
+		for idx in 0 .. self.len() {
+			unsafe {
+				self.set_unchecked(idx, *src.get_unchecked(idx));
+			}
+		}
 	}
 
 	/// Copies the elements from `src` into `self`.
@@ -1862,13 +1909,7 @@ where O: BitOrder, T: BitStore {
 	/// assert_eq!(data, 0x33);
 	/// ```
 	pub fn copy_from_slice(&mut self, src: &Self) {
-		assert_eq!(
-			self.len(),
-			src.len(),
-			"Cloning from slice requires equal lengths",
-		);
-		//  TODO(myrrlyn): implement galloping copy where possible
-		self.iter_mut().zip(src.iter()).for_each(|(mut a, b)| *a = *b);
+		self.clone_from_slice(src)
 	}
 
 	/// Swaps all bits in `self` with those in `other`.
