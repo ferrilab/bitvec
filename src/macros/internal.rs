@@ -470,94 +470,118 @@ pub const fn u8_from_be_bits(
 		| ((a as u8) << 7)
 }
 
+#[doc(hidden)]
 #[cfg(target_endian = "little")]
 pub use self::u8_from_le_bits as u8_from_ne_bits;
 
+#[doc(hidden)]
 #[cfg(target_endian = "big")]
 pub use self::u8_from_be_bits as u8_from_ne_bits;
 
+#[doc(hidden)]
 pub const fn u8_from_be_bytes(bytes: [u8; 1]) -> u8 {
 	bytes[0]
 }
 
+#[doc(hidden)]
 pub const fn u8_from_le_bytes(bytes: [u8; 1]) -> u8 {
 	bytes[0]
 }
 
+#[doc(hidden)]
 pub const fn u16_from_be_bytes(bytes: [u8; 2]) -> u16 {
 	((bytes[0] as u16) << 8) | bytes[1] as u16
 }
 
+#[doc(hidden)]
 pub const fn u16_from_le_bytes(bytes: [u8; 2]) -> u16 {
 	((bytes[1] as u16) << 8) | bytes[0] as u16
 }
 
+#[doc(hidden)]
 pub const fn u32_from_be_bytes(bytes: [u8; 4]) -> u32 {
 	(u16_from_be_bytes([bytes[0], bytes[1]]) as u32) << 16
 		| u16_from_be_bytes([bytes[2], bytes[3]]) as u32
 }
 
+#[doc(hidden)]
 pub const fn u32_from_le_bytes(bytes: [u8; 4]) -> u32 {
 	(u16_from_le_bytes([bytes[2], bytes[3]]) as u32) << 16
 		| u16_from_le_bytes([bytes[0], bytes[1]]) as u32
 }
 
+#[doc(hidden)]
 pub const fn u64_from_be_bytes(bytes: [u8; 8]) -> u64 {
 	(u32_from_be_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]) as u64) << 32
 		| u32_from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as u64
 }
 
+#[doc(hidden)]
 pub const fn u64_from_le_bytes(bytes: [u8; 8]) -> u64 {
 	(u32_from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as u64) << 32
 		| u32_from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as u64
 }
 
+#[doc(hidden)]
 #[cfg(target_pointer_width = "32")]
 pub const fn usize_from_be_bytes(bytes: [u8; 4]) -> usize {
 	u32_from_be_bytes(bytes) as usize
 }
 
+#[doc(hidden)]
 #[cfg(target_pointer_width = "32")]
 pub const fn usize_from_le_bytes(bytes: [u8; 4]) -> usize {
 	u32_from_le_bytes(bytes) as usize
 }
 
+#[doc(hidden)]
 #[cfg(target_pointer_width = "64")]
 pub const fn usize_from_be_bytes(bytes: [u8; 8]) -> usize {
 	u64_from_be_bytes(bytes) as usize
 }
 
+#[doc(hidden)]
 #[cfg(target_pointer_width = "64")]
 pub const fn usize_from_le_bytes(bytes: [u8; 8]) -> usize {
 	u64_from_le_bytes(bytes) as usize
 }
 
+#[doc(hidden)]
 #[cfg(target_endian = "big")]
 pub use u8_from_be_bytes as u8_from_ne_bytes;
 
+#[doc(hidden)]
 #[cfg(target_endian = "big")]
 pub use u16_from_be_bytes as u16_from_ne_bytes;
 
+#[doc(hidden)]
 #[cfg(target_endian = "big")]
 pub use u32_from_be_bytes as u32_from_ne_bytes;
 
+#[doc(hidden)]
 #[cfg(target_endian = "big")]
 pub use u64_from_be_bytes as u64_from_ne_bytes;
 
+#[doc(hidden)]
 #[cfg(target_endian = "big")]
 pub use usize_from_be_bytes as usize_from_ne_bytes;
 
+#[doc(hidden)]
 #[cfg(target_endian = "little")]
 pub use u8_from_le_bytes as u8_from_ne_bytes;
 
+#[doc(hidden)]
 #[cfg(target_endian = "little")]
 pub use u16_from_le_bytes as u16_from_ne_bytes;
 
+#[doc(hidden)]
 #[cfg(target_endian = "little")]
 pub use u32_from_le_bytes as u32_from_ne_bytes;
 
+#[doc(hidden)]
 #[cfg(target_endian = "little")]
 pub use u64_from_le_bytes as u64_from_ne_bytes;
 
+#[doc(hidden)]
 #[cfg(target_endian = "little")]
 pub use usize_from_le_bytes as usize_from_ne_bytes;

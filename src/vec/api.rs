@@ -17,10 +17,7 @@ use core::{
 	cmp,
 	hint::unreachable_unchecked,
 	ops::RangeBounds,
-	ptr::{
-		self,
-		NonNull,
-	},
+	ptr::NonNull,
 };
 
 impl<O, T> BitVec<O, T>
@@ -651,11 +648,7 @@ where O: BitOrder, T: BitStore {
 		let len = self.len();
 		assert!(at <= len, "Index out of bounds: {} is beyond {}", at, len);
 		match at {
-			0 => unsafe {
-				let out = Self::from_raw_parts(self.pointer, self.capacity);
-				ptr::write(self, Self::new());
-				out
-			},
+			0 => mem::replace(self, Self::new()),
 			n if n == len => Self::new(),
 			_ => {
 				let out = self.as_bitslice().iter().skip(at).copied().collect();

@@ -52,6 +52,24 @@ where T: BitStore {
 	///
 	/// # Parameters
 	///
+	/// - `idx`: A semantic index within a `T` memory element.
+	///
+	/// # Returns
+	///
+	/// If `idx` is within the range `0 .. T::BITS`, then this returns the index
+	/// value wrapped in the index type; if `idx` exceeds this range, then this
+	/// returns `None`.
+	pub fn new(idx: u8) -> Option<Self> {
+		if idx >= T::BITS {
+			return None;
+		}
+		Some(unsafe { Self::new_unchecked(idx) })
+	}
+
+	/// Wraps a counter value as a known-good index of the `T` element type.
+	///
+	/// # Parameters
+	///
 	/// - `idx`: A semantic index within a `T` memory element. It must be in the
 	///   range `0 .. T::BITS`.
 	#[doc(hidden)]

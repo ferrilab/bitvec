@@ -1,6 +1,11 @@
 //! Operator trait implementations.
 
-use super::*;
+use crate::{
+	boxed::BitBox,
+	order::BitOrder,
+	slice::BitSlice,
+	store::BitStore,
+};
 
 use core::ops::{
 	Add,

@@ -671,23 +671,6 @@ where T: BitStore {
 		((((tail == 0) as u8) << T::INDX) | tail as u8).tail()
 	}
 
-	/// Checks if the pointer represents the empty slice.
-	///
-	/// All empty slices have `0` `bits` counters.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// Whether the slice is empty or populated.
-	#[cfg(any(test, feature = "alloc"))]
-	#[inline]
-	pub fn is_empty(&self) -> bool {
-		self.len & !Self::LEN_HEAD_MASK == 0
-	}
-
 	/// Accesses the element slice behind the pointer as a Rust slice.
 	///
 	/// # Parameters
@@ -961,7 +944,7 @@ mod tests {
 		//  anything with 0 bits is unconditionally empty
 		let bp = BitPtr::<u8>::new(&data as *const u8, 2u8.idx(), 0);
 
-		assert!(bp.is_empty());
+		assert_eq!(bp.len(), 0);
 		assert_eq!(*bp.head(), 2);
 		assert_eq!(*bp.tail(), 2);
 	}

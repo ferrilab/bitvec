@@ -1,6 +1,15 @@
 //! Iteration processes for `BitBox`.
 
-use super::*;
+use crate::{
+	boxed::BitBox,
+	order::BitOrder,
+	pointer::BitPtr,
+	slice::{
+		BitMut,
+		BitSlice,
+	},
+	store::BitStore,
+};
 
 use core::iter::FusedIterator;
 
@@ -24,6 +33,16 @@ where O: BitOrder, T: 'a + BitStore {
 
 	fn into_iter(self) -> Self::IntoIter {
 		self.as_bitslice().into_iter()
+	}
+}
+
+impl<'a, O, T> IntoIterator for &'a mut BitBox<O, T>
+where O: BitOrder, T: 'a + BitStore {
+	type Item = BitMut<'a, O, T>;
+	type IntoIter = <&'a mut BitSlice<O, T> as IntoIterator>::IntoIter;
+
+	fn into_iter(self) -> Self::IntoIter {
+		self.as_mut_bitslice().into_iter()
 	}
 }
 

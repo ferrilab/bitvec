@@ -1,6 +1,48 @@
-//! Reimplementation of the slice fundamental’s inherent method API.
+/*! Reïmplementation of the `[T]` API.
 
-use super::*;
+This module tracks the [`slice`] primitive and [`core::slice`] module in the
+version of Rust specified in the `rust-toolchain` file. It is required to
+provide an exact or equivalent API surface matching the `Box<[T]>` type, to the
+extent that it is possible in the language. Where differences occur, they must
+be documented in a section called `API Differences`.
+
+[`core::slice`]: https://doc.rust-lang.org/core/slice
+[`slice`]: https://doc.rust-lang.org/std/primitive.slice.html
+!*/
+
+use crate::{
+	access::BitAccess,
+	indices::BitIdx,
+	order::BitOrder,
+	pointer::BitPtr,
+	slice::{
+		BitSlice,
+		iter::{
+			Chunks,
+			ChunksExact,
+			ChunksExactMut,
+			ChunksMut,
+			GenericSplitN,
+			Iter,
+			IterMut,
+			RChunks,
+			RChunksExact,
+			RChunksExactMut,
+			RChunksMut,
+			RSplit,
+			RSplitMut,
+			RSplitN,
+			RSplitNMut,
+			Split,
+			SplitMut,
+			SplitN,
+			SplitNMut,
+			Windows,
+		},
+		proxy::BitMut,
+	},
+	store::BitStore,
+};
 
 use core::{
 	ops::{
@@ -17,15 +59,103 @@ use core::{
 #[cfg(feature = "alloc")]
 use crate::vec::BitVec;
 
-/// Converts a reference to `T` into a bit slice one element long (without
-/// copying).
-pub fn from_ref<O, T>(elt: &T) -> &BitSlice<O, T>
-where O: BitOrder, T: BitStore {
-	BitSlice::from_element(elt)
+/** Forms a `BitSlice` from a pointer, starting position, and length.
+
+The `head` argument is the starting *index*, not the starting *bit position*.
+The `bits` argumnent is the number of **bits**, not the number of elements `T`.
+
+This function is the semantic equivalent to `[T]::from_raw_parts`, in contrast
+to [`from_raw_parts`] which is the API equivalent.
+
+# Safety
+
+This function is unsafe as there is no guarantee that the given pointer is valid
+for the elements required to hold `head + bits` bits, nor whether the lifetime
+inferred is a suitable lifetime for the returned slice.
+
+`data` must be non-null and aligned, even for zero-length slices. This is due to
+requirements in the `bitvec` data structure operations. You can obtain a pointer
+that is usable as `data` for zero-length slices from [`NonNull::dangling()`].
+
+The total size of the bit slice must be no larger than `BitPtr::<T>::MAX_BITS`
+**bits** in memory. See the safety documentation of `BitPtr` (if available).
+
+# Caveat
+
+The lifetime for the returned slice is inferred from its usage. To prevent
+accidental misuse, it’s suggested to tie the lifetime to whichever source
+lifetime is safe in the context, such as by providing a helper function taking
+the lifetime of a host value for the slice, or by explicit annotation.
+
+# Examples
+
+```rust
+use bitvec::{
+    indices::BitIdx,
+    order::Local,
+    slice,
+    slice::BitSlice,
+};
+
+// manifest a slice for a single element
+let x = 42u8;
+let ptr = &x as *const u8;
+let bits: &BitSlice<Local, u8> = unsafe { slice::bits_from_raw_parts(
+    ptr,
+    BitIdx::new(2).unwrap(),
+    5
+) };
+assert_eq!(bits.len(), 5);
+```
+
+[`from_raw_parts`]: #fn.from_raw_parts
+**/
+pub unsafe fn bits_from_raw_parts<'a, O, T>(
+	data: *const T,
+	head: BitIdx<T>,
+	bits: usize,
+) -> &'a BitSlice<O, T>
+where O: BitOrder, T: 'a + BitStore {
+	BitPtr::new(data, head, bits).into_bitslice()
 }
 
-/// Converts a reference to `T` into a bit slice one element long (without
-/// copying).
+/** Performs the same functionality as [`bits_from_raw_parts`], except that a
+mutable slice is returned.
+
+This function is unsafe for the same reasons as [`bits_from_raw_parts`], as well
+as not being able to provide a non-aliasing guarantee of the returned mutable
+slice. `data` must be non-null and aligned even for zero-length slices as with
+[`bits_from_raw_parts`]. The total size of the slice must be no larger than
+`BitPtr::<T>::MAX_ELTS` **elements** `T` in memory.
+
+See the documentation of [`bits_from_raw_parts`] for more details.
+
+# Safety
+
+Beyond the ordinary Rust requirements for aliasing, this function *also*
+requires that the described region, when combined with the `O` [`BitOrder`]
+type parameter, not cause aliasing with another `BitSlice` whose head and `O`
+arguments cause aliasing in the underlying memory positions.
+
+[`BitOrder`]: ../order/trait.BitOrder.html
+[`bits_from_raw_parts`]: #fn.bits_from_raw_parts
+**/
+pub unsafe fn bits_from_raw_parts_mut<'a, O, T>(
+	data: *mut T,
+	head: BitIdx<T>,
+	bits: usize,
+) -> &'a mut BitSlice<O, T>
+where O: BitOrder, T: 'a + BitStore {
+	BitPtr::new(data, head, bits).into_bitslice_mut()
+}
+
+/** Converts a reference to `T` into a `BitSlice` of that element (without
+copying).
+
+# Original
+
+[`core::slice::from_mut`](https://doc.rust-lang.org/core/slice/fn.from_mut.html)
+**/
 pub fn from_mut<O, T>(elt: &mut T) -> &mut BitSlice<O, T>
 where O: BitOrder, T: BitStore {
 	BitSlice::from_element_mut(elt)
@@ -41,11 +171,9 @@ This function is unsafe as there is no guarantee that the given pointer is valid
 for `len` elements, nor whether the lifetime inferred is a suitable lifetime for
 the returned slice.
 
-`data` must be non-null and aligned, even for zero-length slices. One reason for
-this is that enum layout optimizations may rely on references (including bit
-slices of any length) being aligned and non-null to distinguish them from other
-data. You can obtain a pointer that is usable as `data` for zero-length slices
-from [`NonNull::dangling()`].
+`data` must be non-null and aligned, even for zero-length slices. This is due to
+requirements in the `bitvec` data structure operations. You can obtain a pointer
+that is usable as `data` for zero-length slices from [`NonNull::dangling()`].
 
 The total size of the bit slice must be no larger than `BitPtr::<T>::MAX_BITS`
 **bits** in memory. See the safety documentation of `BitPtr` (if available).
@@ -57,13 +185,9 @@ accidental misuse, it’s suggested to tie the lifetime to whichever source
 lifetime is safe in the context, such as by providing a helper function taking
 the lifetime of a host value for the slice, or by explicit annotation.
 
-# `bitvec`-specific notes
+# Original
 
-The Rust standard library `slice::from_raw_parts` function takes the raw
-components of a standard slice. The analagous `bitvec::slice::from_raw_parts`
-function would take the raw components of a bit-slice, which are a custom-built
-mangled pointer. This pointer type is not exposed to the public, and so cannot
-be used in public API functions.
+[`core::slice::from_raw_parts`](https://doc.rust-lang.org/core/slice/fn.from_raw_parts.html)
 
 # Examples
 
@@ -101,6 +225,10 @@ See the documentation of [`from_raw_parts`] for more details.
 
 See `from_raw_parts`.
 
+# Original
+
+[`core::slice::from_raw_parts_mut`](https://doc.rust-lang.org/core/slice/fn.from_raw_parts_mut.html)
+
 [`from_raw_parts`]: #fn.from_raw_parts
 **/
 pub unsafe fn from_raw_parts_mut<'a, O, T>(
@@ -111,10 +239,26 @@ where O: BitOrder, T: 'a + BitStore {
 	BitSlice::from_slice_mut(slice::from_raw_parts_mut(data, len))
 }
 
+/** Converts a reference to `T` into a bit slice one element long (without
+copying).
+
+# Original
+
+[`core::slice::from_ref`](https://doc.rust-lang.org/core/slice/fn.from_ref.html)
+**/
+pub fn from_ref<O, T>(elt: &T) -> &BitSlice<O, T>
+where O: BitOrder, T: BitStore {
+	BitSlice::from_element(elt)
+}
+
 /// Reimplementation of the `[T]` inherent-method API.
 impl<O, T> BitSlice<O, T>
 where O: BitOrder, T: BitStore {
 	/// Returns the number of bits in the slice.
+	///
+	/// # Original
+	///
+	/// [`slice::len`](https://doc.rust-lang.org/std/primitive.slice.html#method.len)
 	///
 	/// # Examples
 	///
@@ -128,6 +272,10 @@ where O: BitOrder, T: BitStore {
 	}
 
 	/// Returns `true` if the slice has a length of 0.
+	///
+	/// # Original
+	///
+	/// [`slice::is_empty`](https://doc.rust-lang.org/std/primitive.slice.html#method.is_empty)
 	///
 	/// # Examples
 	///
@@ -143,6 +291,10 @@ where O: BitOrder, T: BitStore {
 	}
 
 	/// Returns the first bit of the slice, or `None` if it is empty.
+	///
+	/// # Original
+	///
+	/// [`slice::first`](https://doc.rust-lang.org/std/primitive.slice.html#method.first)
 	///
 	/// # Examples
 	///
@@ -160,6 +312,10 @@ where O: BitOrder, T: BitStore {
 
 	/// Returns a mutable pointer to the first bit of the slice, or `None` if it
 	/// is empty.
+	///
+	/// # Original
+	///
+	/// [`slice::first_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.first_mut)
 	///
 	/// # Examples
 	///

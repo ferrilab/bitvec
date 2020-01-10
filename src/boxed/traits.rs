@@ -3,7 +3,14 @@
 The operator traits are defined in the `ops` module.
 !*/
 
-use super::*;
+use crate::{
+	boxed::BitBox,
+	order::BitOrder,
+	pointer::BitPtr,
+	slice::BitSlice,
+	store::BitStore,
+	vec::BitVec,
+};
 
 use alloc::{
 	borrow::{
@@ -29,6 +36,7 @@ use core::{
 		Hasher,
 	},
 	marker::PhantomData,
+	mem,
 };
 
 impl<O, T> Borrow<BitSlice<O, T>> for BitBox<O, T>
