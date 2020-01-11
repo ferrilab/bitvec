@@ -17,6 +17,7 @@ use alloc::{
 		Borrow,
 		BorrowMut,
 	},
+	boxed::Box,
 };
 
 use core::{

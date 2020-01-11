@@ -102,7 +102,7 @@ where O: BitOrder, T: BitStore + Deserialize<'de> {
 			bits,
 		);
 		mem::forget(data);
-		Ok(unsafe { BitBox::from_raw(bitptr) })
+		Ok(unsafe { BitBox::from_raw(bitptr.as_mut_ptr()) })
 	}
 
 	/// Visit a map of named data elements. These may be in any order, and must
@@ -142,7 +142,7 @@ where O: BitOrder, T: BitStore + Deserialize<'de> {
 			cmp::min(bits, data.len() * T::BITS as usize),
 		);
 		mem::forget(data);
-		Ok(unsafe { BitBox::from_raw(bitptr) })
+		Ok(unsafe { BitBox::from_raw(bitptr.as_mut_ptr()) })
 	}
 }
 

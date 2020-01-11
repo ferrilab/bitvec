@@ -7,6 +7,8 @@ use crate::{
 	store::BitStore,
 };
 
+use alloc::vec::Vec;
+
 use core::ops::{
 	Add,
 	AddAssign,

@@ -800,12 +800,14 @@ where T: BitStore {
 	}
 
 	/// Cast a `BitPtr<T>` into an equivalent `*mut BitSlice<O, T>`.
+	#[cfg(feature = "alloc")]
 	pub(crate) fn as_mut_ptr<O>(self) -> *mut BitSlice<O, T>
 	where O: BitOrder {
 		self.into_bitslice_mut() as *mut BitSlice<O, T>
 	}
 
 	/// Cast a `*mut BitSlice<O, T>` raw pointer into an equivalent `BitPtr<T>`.
+	#[cfg(feature = "alloc")]
 	pub(crate) fn from_mut_ptr<O>(ptr: *mut BitSlice<O, T>) -> Self
 	where O: BitOrder {
 		unsafe { &*ptr }.bitptr()
