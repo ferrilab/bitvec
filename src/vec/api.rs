@@ -651,7 +651,7 @@ where O: BitOrder, T: BitStore {
 			0 => mem::replace(self, Self::new()),
 			n if n == len => Self::new(),
 			_ => {
-				let out = self.as_bitslice().iter().skip(at).copied().collect();
+				let out = self[at ..].to_owned();
 				self.truncate(at);
 				out
 			},
