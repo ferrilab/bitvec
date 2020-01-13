@@ -4,7 +4,7 @@
 use super::*;
 
 use crate::{
-	bits::Bits,
+	bits::AsBits,
 	order::Msb0,
 };
 

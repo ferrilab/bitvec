@@ -6,7 +6,7 @@ This collects the general public API into a single spot for inclusion, as
 
 pub use crate::{
 	bits,
-	bits::Bits,
+	bits::AsBits,
 	fields::BitField,
 	order::{
 		BitOrder,
@@ -28,3 +28,6 @@ pub use crate::{
 	boxed::BitBox,
 	vec::BitVec,
 };
+
+#[allow(deprecated)]
+pub use crate::cursor::*;

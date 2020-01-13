@@ -1,6 +1,6 @@
 /*! Permit use of Rust native types as bit collections.
 
-This module exposes a trait, `Bits`, which functions similarly to the `AsRef`
+This module exposes a trait, `AsBits`, which functions similarly to the `AsRef`
 and `AsMut` traits in the standard library. This trait allows an implementor to
 express the means by which it can be interpreted as a collection of bits.
 !*/
@@ -18,7 +18,7 @@ use crate::{
 This trait can only be implemented by contiguous structures: individual
 fundamentals, and sequences (arrays or slices) of them.
 **/
-pub trait Bits {
+pub trait AsBits {
 	/// The underlying fundamental type of the implementor.
 	type Store: BitStore;
 
@@ -49,13 +49,6 @@ pub trait Bits {
 	fn bits<O>(&self) -> &BitSlice<O, Self::Store>
 	where O: BitOrder;
 
-	/// Synonym for [`bits`](#method.bits).
-	#[deprecated(since = "0.16.0", note = "Use `Bits::bits` instead")]
-	fn as_bitslice<O>(&self) -> &BitSlice<O, Self::Store>
-	where O: BitOrder {
-		Bits::bits(self)
-	}
-
 	/// Constructs a mutable `BitSlice` reference over data.
 	///
 	/// # Type Parameters
@@ -84,16 +77,9 @@ pub trait Bits {
 	/// ```
 	fn bits_mut<O>(&mut self) -> &mut BitSlice<O, Self::Store>
 	where O: BitOrder;
-
-	/// Synonym for [`bits_mut`](#method.bits_mut).
-	#[deprecated(since = "0.16.0", note = "Use `Bits::bits_mut` instead")]
-	fn as_mut_bitslice<O>(&mut self) -> &mut BitSlice<O, Self::Store>
-	where O: BitOrder {
-		Bits::bits_mut(self)
-	}
 }
 
-impl<T> Bits for T
+impl<T> AsBits for T
 where T: BitStore {
 	type Store = T;
 	fn bits<O>(&self) -> &BitSlice<O, T>
@@ -107,7 +93,7 @@ where T: BitStore {
 	}
 }
 
-impl<T> Bits for [T]
+impl<T> AsBits for [T]
 where T: BitStore {
 	type Store = T;
 	fn bits<O>(&self) -> &BitSlice<O, T>
@@ -123,7 +109,7 @@ where T: BitStore {
 
 macro_rules! impl_bits_for {
 	($( $n:expr ),* ) => { $(
-		impl<T> Bits for [T; $n]
+		impl<T> AsBits for [T; $n]
 		where T: BitStore {
 			type Store = T;
 			fn bits<O>(&self) -> &BitSlice<O, T>

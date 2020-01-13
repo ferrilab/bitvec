@@ -433,7 +433,7 @@ where O: BitOrder, T: BitStore {}
 #[cfg(all(test, feature = "alloc"))]
 mod tests {
 	use crate::{
-		bits::Bits,
+		bits::AsBits,
 		order::Msb0,
 	};
 

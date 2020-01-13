@@ -4,6 +4,25 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+## 0.17.1
+
+### Added
+
+This patch restores the `cursor` module and its types, as aliases to the `order`
+module and their equivalents, with a deprecation warning. Removing these names
+entirely, without a deprecation redirect, is technically permissible but morally
+in error.
+
+### Changed
+
+In addition, the `Bits` trait has been renamed to `AsBits`, to better reflect
+its behavior and reduce the chances of name collision, as it is a prelude
+export.
+
+### Removed
+
+The `AsBits::as_{mut_,}bitslice` deprecation aliases have been removed.
+
 ## 0.17.0
 
 ### Added
