@@ -111,36 +111,36 @@ fn index(b: &mut Bencher) {
 it. The compiler *should* be able to properly arrange immediate drops, though.
 */
 #[bench]
-fn at(b: &mut Bencher) {
+fn get_mut(b: &mut Bencher) {
 	let mut src = [0u8; 16];
 	let bsb08 = src.bits_mut::<Msb0>();
-	b.iter(|| *bsb08.at(69) = true);
+	b.iter(|| *bsb08.get_mut(69).unwrap() = true);
 	let mut src = [0u8; 16];
 	let bsl08 = src.bits_mut::<Lsb0>();
-	b.iter(|| *bsl08.at(69) = true);
+	b.iter(|| *bsl08.get_mut(69).unwrap() = true);
 
 	let mut src = [0u16; 8];
 	let bsb16 = src.bits_mut::<Msb0>();
-	b.iter(|| *bsb16.at(69) = true);
+	b.iter(|| *bsb16.get_mut(69).unwrap() = true);
 	let mut src = [0u16; 8];
 	let bsl16 = src.bits_mut::<Lsb0>();
-	b.iter(|| *bsl16.at(69) = true);
+	b.iter(|| *bsl16.get_mut(69).unwrap() = true);
 
 	let mut src = [0u32; 4];
 	let bsb32 = src.bits_mut::<Msb0>();
-	b.iter(|| *bsb32.at(69) = true);
+	b.iter(|| *bsb32.get_mut(69).unwrap() = true);
 	let mut src = [0u32; 4];
 	let bsl32 = src.bits_mut::<Lsb0>();
-	b.iter(|| *bsl32.at(69) = true);
+	b.iter(|| *bsl32.get_mut(69).unwrap() = true);
 
 	#[cfg(target_pointer_width = "64")] {
 
 	let mut src = [0u64; 2];
 	let bsb64 = src.bits_mut::<Msb0>();
-	b.iter(|| *bsb64.at(69) = true);
+	b.iter(|| *bsb64.get_mut(69).unwrap() = true);
 	let mut src = [0u64; 2];
 	let bsl64 = src.bits_mut::<Lsb0>();
-	b.iter(|| *bsl64.at(69) = true);
+	b.iter(|| *bsl64.get_mut(69).unwrap() = true);
 
 	}
 }

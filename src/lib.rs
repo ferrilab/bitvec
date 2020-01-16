@@ -49,7 +49,6 @@ extern crate serde_test;
 pub mod macros;
 
 mod access;
-pub mod bits;
 mod domain;
 pub mod indices;
 pub mod fields;

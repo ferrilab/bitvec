@@ -1,11 +1,15 @@
 /*! Unit tests for the `slice` module.
 !*/
 
-use super::*;
-
 use crate::{
-	bits::AsBits,
-	order::Msb0,
+	slice::{
+		AsBits,
+		BitSlice,
+	},
+	order::{
+		Local,
+		Msb0,
+	},
 };
 
 #[test]

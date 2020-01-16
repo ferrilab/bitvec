@@ -3,10 +3,10 @@
 The operator traits are defined in the `ops` module.
 !*/
 
-use super::*;
-
 use crate::{
+	access::BitAccess,
 	order::BitOrder,
+	slice::BitSlice,
 	store::BitStore,
 };
 
@@ -433,8 +433,8 @@ where O: BitOrder, T: BitStore {}
 #[cfg(all(test, feature = "alloc"))]
 mod tests {
 	use crate::{
-		bits::AsBits,
 		order::Msb0,
+		slice::AsBits,
 	};
 
 	#[test]

@@ -437,6 +437,7 @@ where O: BitOrder, T: BitStore {
 	/// [`BitSliceIndex`]: trait.BitSliceIndex.html
 	/// [`::get`]: #method.get
 	/// [`::split_at_mut`]: #method.split_at_mut
+	#[deprecated(since = "0.18.0", note = "Use `.get_mut()` instead")]
 	#[inline]
 	pub fn at<'a, I>(&'a mut self, index: I) -> I::Mut
 	where I: BitSliceIndex<'a, O, T> {
@@ -450,6 +451,7 @@ where O: BitOrder, T: BitStore {
 	/// If `index` is outside the boundaries of `self`, then this function will
 	/// induce safety violations. The caller must ensure that `index` is within
 	/// the boundaries of `self` before calling.
+	#[deprecated(since = "0.18.0", note = "Use `.get_unchecked_mut()` instead")]
 	#[inline]
 	pub unsafe fn at_unchecked<'a, I>(&'a mut self, index: I) -> I::Mut
 	where I: BitSliceIndex<'a, O, T> {
@@ -1075,6 +1077,127 @@ where O: BitOrder, T: BitStore {
 		self.set_unchecked(to, *self.get_unchecked(from));
 	}
 }
+
+/** Allows a type to be used as a sequence of immutable bits.
+
+# Requirements
+
+This trait can only be implemented by contiguous structures: individual
+fundamentals, and sequences (arrays or slices) of them.
+**/
+pub trait AsBits {
+	/// The underlying fundamental type of the implementor.
+	type Store: BitStore;
+
+	/// Constructs a `BitSlice` reference over data.
+	///
+	/// # Type Parameters
+	///
+	/// - `O: BitOrder`: The `BitOrder` type used to index within the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// A `BitSlice` handle over `self`’s data, using the provided `BitOrder`
+	/// type and using `Self::Store` as the data type.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let src = 8u8;
+	/// let bits = src.bits::<Msb0>();
+	/// assert!(bits[4]);
+	/// ```
+	fn bits<O>(&self) -> &BitSlice<O, Self::Store>
+	where O: BitOrder;
+
+	/// Constructs a mutable `BitSlice` reference over data.
+	///
+	/// # Type Parameters
+	///
+	/// - `O: BitOrder`: The `BitOrder` type used to index within the slice.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// A `BitSlice` handle over `self`’s data, using the provided `BitOrder`
+	/// type and using `Self::Store` as the data type.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut src = 8u8;
+	/// let bits = src.bits_mut::<Lsb0>();
+	/// assert!(bits[3]);
+	/// *bits.at(3) = false;
+	/// assert!(!bits[3]);
+	/// ```
+	fn bits_mut<O>(&mut self) -> &mut BitSlice<O, Self::Store>
+	where O: BitOrder;
+}
+
+impl<T> AsBits for T
+where T: BitStore {
+	type Store = T;
+	fn bits<O>(&self) -> &BitSlice<O, T>
+	where O: BitOrder {
+		BitSlice::from_element(self)
+	}
+
+	fn bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
+	where O: BitOrder {
+		BitSlice::from_element_mut(self)
+	}
+}
+
+impl<T> AsBits for [T]
+where T: BitStore {
+	type Store = T;
+	fn bits<O>(&self) -> &BitSlice<O, T>
+	where O: BitOrder {
+		BitSlice::from_slice(self)
+	}
+
+	fn bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
+	where O: BitOrder {
+		BitSlice::from_slice_mut(self)
+	}
+}
+
+macro_rules! impl_bits_for {
+	($( $n:expr ),* ) => { $(
+		impl<T> AsBits for [T; $n]
+		where T: BitStore {
+			type Store = T;
+			fn bits<O>(&self) -> &BitSlice<O, T>
+			where O: BitOrder {
+				BitSlice::from_slice(self)
+			}
+			fn bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
+			where O: BitOrder {
+				BitSlice::from_slice_mut(self)
+			}
+		}
+	)* };
+}
+
+impl_bits_for![
+	0, 1, 2, 3, 4, 5, 6, 7,
+	8, 9, 10, 11, 12, 13, 14, 15,
+	16, 17, 18, 19, 20, 21, 22, 23,
+	24, 25, 26, 27, 28, 29, 30, 31,
+	32
+];
 
 mod api;
 pub(crate) mod iter;

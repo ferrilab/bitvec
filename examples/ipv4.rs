@@ -31,9 +31,9 @@ fn build() -> [u8; 20] {
 	pkt[32 .. 48].store(0xC001u16.to_be());
 
 	//  Set the flags
-	*pkt.at(48) = false;
-	*pkt.at(49) = true;
-	*pkt.at(50) = false;
+	*pkt.get_mut(48).unwrap() = false;
+	*pkt.get_mut(49).unwrap() = true;
+	*pkt.get_mut(50).unwrap() = false;
 
 	/* And the fragment offset. Until `BitField` stabilizes byte-endian APIs,
 	this will remain unpleasant. `0u16` can be stored in `[51 .. 64]` without

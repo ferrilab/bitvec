@@ -6,7 +6,6 @@ This collects the general public API into a single spot for inclusion, as
 
 pub use crate::{
 	bits,
-	bits::AsBits,
 	fields::BitField,
 	order::{
 		BitOrder,
@@ -15,7 +14,7 @@ pub use crate::{
 		Msb0,
 	},
 	slice::{
-		BitMut,
+		AsBits,
 		BitSlice,
 	},
 	store::BitStore,
