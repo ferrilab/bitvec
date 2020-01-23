@@ -16,14 +16,20 @@ used in the `&mut` write reference system, as a good-enough substitute.
 !*/
 
 use crate::{
+	access::BitAccess,
+	indices::BitIdx,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
 };
 
-use core::ops::{
-	Deref,
-	DerefMut,
+use core::{
+	marker::PhantomData,
+	ops::{
+		Deref,
+		DerefMut,
+	},
+	ptr::NonNull,
 };
 
 /** Proxy referential type, equivalent to `&mut bool`.
@@ -41,10 +47,14 @@ reference-like type is as close as Rust will allow.
 **/
 pub struct BitMut<'a, O, T>
 where O: BitOrder, T: 'a + BitStore {
-	/// A reference to a single bit in memory.
-	pub(super) slot: &'a mut BitSlice<O, T>,
+	/// Inform the compiler that this has an exclusive borrow of a `BitSlice`
+	pub(super) _parent: PhantomData<&'a mut BitSlice<O, T>>,
+	/// Typed pointer to the memory element containing the proxied bit.
+	pub(super) data: NonNull<T::Access>,
+	/// Index of the proxied bit inside the targeted memory element.
+	pub(super) head: BitIdx<T>,
 	/// A local cache for `Deref` usage.
-	pub(super) data: bool,
+	pub(super) bit: bool,
 }
 
 impl<O, T> Deref for BitMut<'_, O, T>
@@ -52,20 +62,20 @@ where O: BitOrder, T: BitStore {
 	type Target = bool;
 
 	fn deref(&self) -> &Self::Target {
-		&self.data
+		&self.bit
 	}
 }
 
 impl<O, T> DerefMut for BitMut<'_, O, T>
 where O: BitOrder, T: BitStore {
 	fn deref_mut(&mut self) -> &mut Self::Target {
-		&mut self.data
+		&mut self.bit
 	}
 }
 
 impl<O, T> Drop for BitMut<'_, O, T>
 where O: BitOrder, T: BitStore {
 	fn drop(&mut self) {
-		unsafe { self.slot.set_unchecked(0, self.data) }
+		unsafe { (*self.data.as_ptr()).set::<O>(self.head, self.bit) }
 	}
 }

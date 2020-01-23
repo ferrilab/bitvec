@@ -46,6 +46,7 @@ use crate::{
 
 use core::{
 	cmp,
+	marker::PhantomData,
 	ops::{
 		Range,
 		RangeFrom,
@@ -54,6 +55,7 @@ use core::{
 		RangeTo,
 		RangeToInclusive,
 	},
+	ptr::NonNull,
 	slice,
 };
 
@@ -2252,9 +2254,14 @@ where O: 'a + BitOrder, T: 'a + BitStore {
 		self,
 		slice: &'a mut BitSlice<O, T>,
 	) -> Self::Mut {
+		let bp = slice.bitptr();
+		let (offset, head) = bp.head().offset(self as isize);
+		let ptr = bp.pointer().a().offset(offset);
 		BitMut {
-			data: *slice.get_unchecked(self),
-			slot: slice.get_unchecked_mut(self ..= self),
+			_parent: PhantomData,
+			data: NonNull::new_unchecked(ptr as *mut T::Access),
+			head,
+			bit: (*ptr).get::<O>(head)
 		}
 	}
 
