@@ -4,6 +4,26 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+## 0.17.2
+
+### Fixed
+
+GitHub user [@ImmemorConsultrixContrarie] reported [Issue #40], and provided
+[Pull Request #41]. The defect report was a `STATUS_ILLEGAL_INSTRUCTION` event
+that occurred only under `x86_64-pc-windows-gnu` (running the test under `-msvc`
+failed to reproduce) when using `BitSlice::get_mut` to produce a `BitMut`
+structure.
+
+While PR #41 did not directly resolve the problem, during review, Immemor
+suggested a rewrite of the `BitMut` structure to shrink it from three words to
+two. This rewrite changed the computation of the memory address to modify in a
+manner that resolved the illegal-instruction failure.
+
+This crash is considered a severe bug, as it indicates memory unsafety. Users
+are strongly encouraged to update to `0.17.2` immediately.
+
+Thanks again to [@ImmemorConsultrixContrarie] for the report and solution!
+
 ## 0.17.1
 
 ### Added
@@ -641,6 +661,7 @@ Initial implementation and release.
 
 [@Fotosmile]: https://github.com/Fotosmile
 [@GeorgeGkas]: https://github.com/GeorgeGkas
+[@ImmemorConsultrixContrarie]: https://github.com/ImmemorConsultrixContrarie
 [@caelunshun]: https://github.com/caelunshun
 [@geq1t]: https://github.com/geq1t
 [@jonas-schievink]: https://github.com/jonas-schievink
@@ -662,6 +683,8 @@ Initial implementation and release.
 [Issue #33]: https://github.com/myrrlyn/bitvec/issues/33
 [Issue #35]: https://github.com/myrrlyn/bitvec/issues/35
 [Issue #36]: https://github.com/myrrlyn/bitvec/issues/36
+[Issue #40]: https://github.com/myrrlyn/bitvec/issues/40
 [Pull Request #34]: https://github.com/myrrlyn/bitvec/pull/34
+[Pull Request #41]: https://github.com/myrrlyn/bitvec/pull/41
 [`Sync`]: https://doc.rust-lang.org/stable/core/marker/trait.Sync.html
 [kac]: https://keepachangelog.com/en/1.0.0/
