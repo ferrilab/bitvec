@@ -50,8 +50,8 @@ pub mod macros;
 
 mod access;
 mod domain;
-pub mod indices;
 pub mod fields;
+pub mod indices;
 pub mod order;
 mod pointer;
 pub mod prelude;
@@ -97,27 +97,31 @@ fn rca1(a: bool, b: bool, c: bool) -> (bool, bool) {
 /// Old name of the `order` module.
 #[deprecated(
 	since = "0.17.0",
-	note = "This module was renamed to `order`, and will be removed in the next release."
+	note = "This module was renamed to `order`, and will be removed in the \
+	        next release."
 )]
 pub mod cursor {
 	/// Old name of the `Msb0` type.
 	#[deprecated(
 		since = "0.17.0",
-		note = "This type was renamed to `order::Msb0`, and will be removed in the next release."
+		note = "This type was renamed to `order::Msb0`, and will be removed in \
+		        the next release."
 	)]
 	pub type BigEndian = crate::order::Msb0;
 
 	/// Old name of the `Lsb0` type.
 	#[deprecated(
 		since = "0.17.0",
-		note = "This type was renamed to `order::Lsb0`, and will be removed in the next release."
+		note = "This type was renamed to `order::Lsb0`, and will be removed in \
+		        the next release."
 	)]
 	pub type LittleEndian = crate::order::Lsb0;
 
 	/// Old name of the `BitOrder` trait.
 	#[deprecated(
 		since = "0.17.0",
-		note = "This trait was renaved to `order::BitOrder`, and will be removed in the next release."
+		note = "This trait was renaved to `order::BitOrder`, and will be \
+		        removed in the next release."
 	)]
 	//  Silence the lint, as this is a rename rather than a bare trait object.
 	#[allow(bare_trait_objects)]

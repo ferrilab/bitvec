@@ -14,9 +14,12 @@ use crate::{
 use core::iter::FusedIterator;
 
 impl<O, T> IntoIterator for BitBox<O, T>
-where O: BitOrder, T: BitStore {
-	type Item = bool;
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type IntoIter = IntoIter<O, T>;
+	type Item = bool;
 
 	fn into_iter(self) -> Self::IntoIter {
 		IntoIter {
@@ -27,9 +30,12 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<'a, O, T> IntoIterator for &'a BitBox<O, T>
-where O: BitOrder, T: 'a + BitStore {
-	type Item = &'a bool;
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	type IntoIter = <&'a BitSlice<O, T> as IntoIterator>::IntoIter;
+	type Item = &'a bool;
 
 	fn into_iter(self) -> Self::IntoIter {
 		self.as_bitslice().into_iter()
@@ -37,9 +43,12 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> IntoIterator for &'a mut BitBox<O, T>
-where O: BitOrder, T: 'a + BitStore {
-	type Item = BitMut<'a, O, T>;
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	type IntoIter = <&'a mut BitSlice<O, T> as IntoIterator>::IntoIter;
+	type Item = BitMut<'a, O, T>;
 
 	fn into_iter(self) -> Self::IntoIter {
 		self.as_mut_bitslice().into_iter()
@@ -49,7 +58,10 @@ where O: BitOrder, T: 'a + BitStore {
 /// State keeper for consuming iteration over a `BitBox`.
 #[repr(C)]
 pub struct IntoIter<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Owning pointer to the full slab
 	bitbox: BitBox<O, T>,
 	/// Slice descriptor for the region undergoing iteration.
@@ -57,14 +69,20 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> IntoIter<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn iterator(&self) -> <&BitSlice<O, T> as IntoIterator>::IntoIter {
 		self.region.into_bitslice().into_iter()
 	}
 }
 
 impl<O, T> Iterator for IntoIter<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Item = bool;
 
 	fn next(&mut self) -> Option<Self::Item> {
@@ -95,7 +113,10 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> DoubleEndedIterator for IntoIter<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn next_back(&mut self) -> Option<Self::Item> {
 		let mut slice_iter = self.iterator();
 		let out = slice_iter.next_back().copied();
@@ -105,7 +126,15 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> ExactSizeIterator for IntoIter<O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 impl<O, T> FusedIterator for IntoIter<O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}

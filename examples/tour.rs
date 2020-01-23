@@ -13,17 +13,17 @@ extern crate bitvec;
 use bitvec::prelude::{
 	//  `bitvec!` macro
 	bitvec,
+	//  element-traversal trait (you shouldn’t explicitly need this)
+	BitOrder,
 	//  slice type, analagous to `[u1]`
 	BitSlice,
 	//  trait unifying the primitives (you shouldn’t explicitly need this)
 	BitStore,
 	//  vector type, analagous to `Vec<u1>`
 	BitVec,
-	//  element-traversal trait (you shouldn’t explicitly need this)
-	BitOrder,
+	Lsb0,
 	//  directionality type markers
 	Msb0,
-	Lsb0,
 };
 #[cfg(feature = "std")]
 use std::iter::repeat;
@@ -49,14 +49,17 @@ fn main() {
 		0, 0, 0, 0, 0, 0, 0, 1,
 		1, 0, 1, 0,
 	];
-	println!("A Msb0 BitVec has the same layout in memory as it does \
-		semantically");
+	println!(
+		"A Msb0 BitVec has the same layout in memory as it does semantically"
+	);
 	render(&bv);
 
 	//  BitVec can turn into iterators, and be built from iterators.
 	let bv: BitVec<Lsb0, u8> = bv.into_iter().collect();
-	println!("An Lsb0 BitVec has the opposite layout in memory as it \
-		does semantically");
+	println!(
+		"An Lsb0 BitVec has the opposite layout in memory as it does \
+		 semantically"
+	);
 	render(&bv);
 
 	let bv: BitVec<Msb0, u16> = bv.into_iter().collect();
@@ -73,15 +76,16 @@ fn main() {
 	let bv = !flip;
 	render(&bv);
 
-	println!("\
+	println!(
+		"\
 Bit slice operations will never affect or observe memory outside the domain of
 the slice descriptor. This can result in slow behavior when operations must work
 bit-by-bit on partial outer elements, especially as the slice uses more of the
 outer, but any whole elements in the slice will always use the full-element
 operations. This makes `u8` faster than `u32` in cases where the partially-used
 edge elements dominate, but `u32` faster than `u8` when wholly-used elements
-are dominant.\
-	");
+are dominant."
+	);
 
 	//  Push and pop to the bitvec
 	let mut bv = bv;
@@ -95,8 +99,11 @@ are dominant.\
 
 	println!("End example");
 
-	fn render<C, T>(bs: &BitSlice<C, T>)
-	where C: BitOrder, T: BitStore {
+	fn render<O, T>(bs: &BitSlice<O, T>)
+	where
+		O: BitOrder,
+		T: BitStore,
+	{
 		println!(
 			"Memory information: {} elements, {} bits",
 			bs.as_slice().len(),
@@ -108,7 +115,7 @@ are dominant.\
 		println!("{:?}", bs.as_slice());
 		println!("Show the bits in memory");
 		for elt in bs.as_slice() {
-			println!("{:0w$b} ", elt, w=std::mem::size_of::<T>() * 8);
+			println!("{:0w$b} ", elt, w = std::mem::size_of::<T>() * 8);
 		}
 		println!();
 	}

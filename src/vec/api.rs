@@ -21,7 +21,10 @@ use core::{
 };
 
 impl<O, T> BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Constructs a new, empty `BitVec<C, T>`.
 	///
 	/// The vector will not allocate until elements are pushed onto it.
@@ -31,7 +34,7 @@ where O: BitOrder, T: BitStore {
 	/// let mut bv: BitVec<Local, usize> = BitVec::new();
 	/// ```
 	#[inline]
-	pub /* const */ fn new() -> Self {
+	pub fn new() -> Self {
 		Self::with_capacity(0)
 	}
 
@@ -287,7 +290,8 @@ where O: BitOrder, T: BitStore {
 	/// # }
 	/// ```
 	///
-	/// [`BitSlice::as_mut_slice`]: ../slice/struct.BitSlice.html#method.as_mut_slice
+	/// [`BitSlice::as_mut_slice`]:
+	/// ../slice/struct.BitSlice.html#method.as_mut_slice
 	#[inline]
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
 		self.pointer.as_mut_slice()
@@ -365,7 +369,8 @@ where O: BitOrder, T: BitStore {
 		assert!(len != 0, "Empty vectors cannot remove");
 		assert!(index < len, "Index {} out of bounds: {}", index, len);
 		self.swap(index, len - 1);
-		self.pop().unwrap_or_else(|| unsafe { unreachable_unchecked() })
+		self.pop()
+			.unwrap_or_else(|| unsafe { unreachable_unchecked() })
 	}
 
 	/// Inserts a bit at position `index` within the vector, shifting all bits
@@ -535,7 +540,10 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	#[inline]
 	pub fn append<D, U>(&mut self, other: &mut BitVec<D, U>)
-	where D: BitOrder, U: BitStore {
+	where
+		D: BitOrder,
+		U: BitStore,
+	{
 		self.extend(other.iter().copied());
 		other.clear();
 	}
@@ -574,19 +582,22 @@ where O: BitOrder, T: BitStore {
 		let from = match range.start_bound() {
 			Included(&n) => n,
 			Excluded(&n) => n + 1,
-			Unbounded    => 0,
+			Unbounded => 0,
 		};
 		//  First index beyond the end of the drain.
 		let upto = match range.end_bound() {
 			Included(&n) => n + 1,
 			Excluded(&n) => n,
-			Unbounded    => len,
+			Unbounded => len,
 		};
 		assert!(from <= upto, "The drain start must be below the drain end");
-		assert!(upto <= len, "The drain end must be within the vector bounds");
+		assert!(
+			upto <= len,
+			"The drain end must be within the vector bounds"
+		);
 
 		unsafe {
-			let ranging: &BitSlice<O, T> = self.as_bitslice()[from..upto]
+			let ranging: &BitSlice<O, T> = self.as_bitslice()[from .. upto]
 				//  remove the lifetime and borrow awareness
 				.bitptr()
 				.into_bitslice();
@@ -682,7 +693,10 @@ where O: BitOrder, T: BitStore {
 	///
 	/// let mut bv = bitvec![];
 	/// let mut p = 1;
-	/// bv.resize_with(4, || { p += 1; p % 2 == 0});
+	/// bv.resize_with(4, || {
+	/// 	p += 1;
+	/// 	p % 2 == 0
+	/// 	});
 	/// assert_eq!(bv, bitvec![1, 0, 1, 0]);
 	/// ```
 	///
@@ -729,7 +743,9 @@ where O: BitOrder, T: BitStore {
 			cmp::Ordering::Greater => {
 				let diff = new_len - len;
 				self.reserve(diff);
-				unsafe { self.set_len(new_len); }
+				unsafe {
+					self.set_len(new_len);
+				}
 				self[len ..].set_all(value);
 			},
 			cmp::Ordering::Equal => {},
@@ -757,11 +773,16 @@ where O: BitOrder, T: BitStore {
 	///
 	/// [`extend`]: #method.extend
 	pub fn extend_from_slice<D, U>(&mut self, other: &BitSlice<D, U>)
-	where D: BitOrder, U: BitStore {
+	where
+		D: BitOrder,
+		U: BitStore,
+	{
 		let len = self.len();
 		let olen = other.len();
 		self.reserve(olen);
-		unsafe { self.set_len(len + olen); }
+		unsafe {
+			self.set_len(len + olen);
+		}
 		self[len ..].clone_from_slice(other)
 	}
 
@@ -810,7 +831,10 @@ where O: BitOrder, T: BitStore {
 		range: R,
 		replace_with: I,
 	) -> Splice<O, T, <I as IntoIterator>::IntoIter>
-	where I: IntoIterator<Item=bool>, R: RangeBounds<usize> {
+	where
+		I: IntoIterator<Item = bool>,
+		R: RangeBounds<usize>,
+	{
 		Splice {
 			drain: self.drain(range),
 			splice: replace_with.into_iter(),

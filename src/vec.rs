@@ -136,7 +136,7 @@ a bit slice, use `&`. Example:
 ```rust
 use bitvec::prelude::*;
 fn read_bitslice(slice: &BitSlice) {
-    // use slice
+	// use slice
 }
 
 let bv = bitvec![0, 1];
@@ -247,7 +247,10 @@ is ***extremely binary incompatible*** with them. Attempting to treat
 **/
 #[repr(C)]
 pub struct BitVec<O = Local, T = usize>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Phantom `BitOrder` member to satisfy the constraint checker.
 	_order: PhantomData<O>,
 	/// Slice pointer over the owned memory.
@@ -257,7 +260,10 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Constructs a `BitVec` from a value repeated many times.
 	///
 	/// This function is equivalent to the `bitvec![O, T; bit; len]` macro call,
@@ -273,7 +279,9 @@ where O: BitOrder, T: BitStore {
 	/// A `BitVec` with `len` live bits, all set to `bit`.
 	pub fn repeat(bit: bool, len: usize) -> Self {
 		let mut out = Self::with_capacity(len);
-		unsafe { out.set_len(len); }
+		unsafe {
+			out.set_len(len);
+		}
 		out.set_elements(if bit { T::TRUE } else { T::FALSE });
 		out
 	}
@@ -356,8 +364,8 @@ where O: BitOrder, T: BitStore {
 	///
 	/// let bv = BitVec::<Msb0, u8>::from_vec(vec![1, 2, 4, 8]);
 	/// assert_eq!(
-	///   "[00000001, 00000010, 00000100, 00001000]",
-	///   &format!("{}", bv),
+	///     "[00000001, 00000010, 00000100, 00001000]",
+	///     &format!("{}", bv),
 	/// );
 	/// ```
 	pub fn from_vec(vec: Vec<T>) -> Self {
@@ -432,7 +440,9 @@ where O: BitOrder, T: BitStore {
 		length and offset information. This enables `BitVec` to efficiently
 		lift from any `&BitSlice`, without having to reälign the source per-bit.
 		*/
-		unsafe { pointer.set_pointer(v.as_ptr() as *const T); }
+		unsafe {
+			pointer.set_pointer(v.as_ptr() as *const T);
+		}
 
 		let capacity = v.capacity();
 		mem::forget(v);
@@ -596,7 +606,9 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	#[inline]
 	pub fn set_elements(&mut self, element: T) {
-		self.as_mut_slice().iter_mut().for_each(|elt| *elt = element);
+		self.as_mut_slice()
+			.iter_mut()
+			.for_each(|elt| *elt = element);
 	}
 
 	/// Performs “reverse” addition (left to right instead of right to left).
@@ -633,7 +645,7 @@ where O: BitOrder, T: BitStore {
 	/// assert_eq!(c, bitvec![0, 1, 1, 0, 1]);
 	/// ```
 	pub fn add_reverse<I>(mut self, addend: I) -> Self
-	where I: IntoIterator<Item=bool> {
+	where I: IntoIterator<Item = bool> {
 		self.add_assign_reverse(addend);
 		self
 	}
@@ -668,12 +680,12 @@ where O: BitOrder, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut a = bitvec![0, 1, 0, 1];
-	/// let     b = bitvec![0, 0, 1, 1];
+	/// let b = bitvec![0, 0, 1, 1];
 	/// a.add_assign_reverse(b.iter().copied());
 	/// assert_eq!(a, bitvec![0, 1, 1, 0, 1]);
 	/// ```
 	pub fn add_assign_reverse<I>(&mut self, addend: I)
-	where I: IntoIterator<Item=bool> {
+	where I: IntoIterator<Item = bool> {
 		//  Set up iteration over the addend
 		let mut addend = addend.into_iter().fuse();
 		//  Delegate to the `BitSlice` implementation for the initial addition.
@@ -821,7 +833,9 @@ where O: BitOrder, T: BitStore {
 		//  The only change is that the pointer might relocate. The region data
 		//  will remain untouched. Vec guarantees it will never produce an
 		//  invalid pointer.
-		unsafe { self.pointer.set_pointer(v.as_ptr()); }
+		unsafe {
+			self.pointer.set_pointer(v.as_ptr());
+		}
 		// self.pointer = unsafe { BitPtr::new_unchecked(v.as_ptr(), e, h, t) };
 		self.capacity = v.capacity();
 		mem::forget(v);

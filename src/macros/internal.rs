@@ -15,22 +15,19 @@ public-API constructor macros.
 #[macro_export]
 macro_rules! __bits_from_slice {
 	(Local, $store:ident, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<
-			$crate::order::Local,
-			$store,
-		>::from_slice($slice)[.. $len]
+		$crate::slice::BitSlice::<$crate::order::Local, $store>::from_slice(
+			$slice,
+		)[.. $len]
 	};
 	(Lsb0, $store:ident, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<
-			$crate::order::Lsb0,
-			$store,
-		>::from_slice($slice)[.. $len]
+		$crate::slice::BitSlice::<$crate::order::Lsb0, $store>::from_slice(
+			$slice,
+		)[.. $len]
 	};
 	(Msb0, $store:ident, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<
-			$crate::order::Msb0,
-			$store,
-		>::from_slice($slice)[.. $len]
+		$crate::slice::BitSlice::<$crate::order::Msb0, $store>::from_slice(
+			$slice,
+		)[.. $len]
 	};
 	($order:tt, $store:ident, $len:expr, $slice:ident) => {
 		$crate::slice::BitSlice::<$order, $store>::from_slice($slice)[.. $len]
@@ -436,7 +433,8 @@ pub const fn u8_from_le_bits(
 	f: bool,
 	g: bool,
 	h: bool,
-) -> u8 {
+) -> u8
+{
 	(a as u8)
 		| ((b as u8) << 1)
 		| ((c as u8) << 2)
@@ -459,7 +457,8 @@ pub const fn u8_from_be_bits(
 	f: bool,
 	g: bool,
 	h: bool,
-) -> u8 {
+) -> u8
+{
 	(h as u8)
 		| ((g as u8) << 1)
 		| ((f as u8) << 2)

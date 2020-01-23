@@ -16,7 +16,6 @@ use crate::{
 	order::BitOrder,
 	pointer::BitPtr,
 	slice::{
-		BitSlice,
 		iter::{
 			Chunks,
 			ChunksExact,
@@ -40,6 +39,7 @@ use crate::{
 			Windows,
 		},
 		proxy::BitMut,
+		BitSlice,
 	},
 	store::BitStore,
 };
@@ -94,19 +94,19 @@ the lifetime of a host value for the slice, or by explicit annotation.
 
 ```rust
 use bitvec::{
-    indices::BitIdx,
-    order::Local,
-    slice,
-    slice::BitSlice,
+	indices::BitIdx,
+	order::Local,
+	slice,
+	slice::BitSlice,
 };
 
 // manifest a slice for a single element
 let x = 42u8;
 let ptr = &x as *const u8;
 let bits: &BitSlice<Local, u8> = unsafe { slice::bits_from_raw_parts(
-    ptr,
-    BitIdx::new(2).unwrap(),
-    5
+	ptr,
+	BitIdx::new(2).unwrap(),
+	5
 ) };
 assert_eq!(bits.len(), 5);
 ```
@@ -118,7 +118,10 @@ pub unsafe fn bits_from_raw_parts<'a, O, T>(
 	head: BitIdx<T>,
 	bits: usize,
 ) -> &'a BitSlice<O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	BitPtr::new(data, head, bits).into_bitslice()
 }
 
@@ -148,7 +151,10 @@ pub unsafe fn bits_from_raw_parts_mut<'a, O, T>(
 	head: BitIdx<T>,
 	bits: usize,
 ) -> &'a mut BitSlice<O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	BitPtr::new(data, head, bits).into_bitslice_mut()
 }
 
@@ -160,7 +166,10 @@ copying).
 [`core::slice::from_mut`](https://doc.rust-lang.org/core/slice/fn.from_mut.html)
 **/
 pub fn from_mut<O, T>(elt: &mut T) -> &mut BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	BitSlice::from_element_mut(elt)
 }
 
@@ -209,7 +218,10 @@ pub unsafe fn from_raw_parts<'a, O, T>(
 	data: *const T,
 	len: usize,
 ) -> &'a BitSlice<O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	BitSlice::from_slice(slice::from_raw_parts(data, len))
 }
 
@@ -238,7 +250,10 @@ pub unsafe fn from_raw_parts_mut<'a, O, T>(
 	data: *mut T,
 	len: usize,
 ) -> &'a mut BitSlice<O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	BitSlice::from_slice_mut(slice::from_raw_parts_mut(data, len))
 }
 
@@ -250,13 +265,19 @@ copying).
 [`core::slice::from_ref`](https://doc.rust-lang.org/core/slice/fn.from_ref.html)
 **/
 pub fn from_ref<O, T>(elt: &T) -> &BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	BitSlice::from_element(elt)
 }
 
 /// Reimplementation of the `[T]` inherent-method API.
 impl<O, T> BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Returns the number of bits in the slice.
 	///
 	/// # Original
@@ -371,8 +392,8 @@ where O: BitOrder, T: BitStore {
 	/// let bits = data.bits_mut::<Lsb0>();
 	/// if let Some((mut first, rest)) = bits.split_first_mut() {
 	///     *first = true;
-	///     *rest.at(0) = true;
-	///     *rest.at(1) = true;
+	///     *rest.get_mut(0).unwrap() = true;
+	///     *rest.get_mut(1).unwrap() = true;
 	/// }
 	/// assert_eq!(data, 7);
 	/// ```
@@ -422,8 +443,8 @@ where O: BitOrder, T: BitStore {
 	/// let bits = data.bits_mut::<Msb0>();
 	/// if let Some((mut last, rest)) = bits.split_last_mut() {
 	///     *last = true;
-	///     *rest.at(0) = true;
-	///     *rest.at(1) = true;
+	///     *rest.get_mut(0).unwrap() = true;
+	///     *rest.get_mut(1).unwrap() = true;
 	/// }
 	/// assert_eq!(data, 128 | 64 | 1);
 	/// ```
@@ -624,9 +645,8 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	///
 	/// [`as_mut_ptr`]: #method.as_mut_ptr
-	//  FIXME(myrrlyn, 2019-10-22): Blocked on issue #57563.
 	#[inline]
-	pub /* const */ fn as_ptr(&self) -> *const T {
+	pub fn as_ptr(&self) -> *const T {
 		self.bitptr().pointer().r()
 	}
 
@@ -653,7 +673,9 @@ where O: BitOrder, T: BitStore {
 	/// let bits = data.bits_mut::<Msb0>();
 	/// let (head, rest) = bits.split_at_mut(4);
 	/// assert_eq!(head.as_mut_ptr(), rest.as_mut_ptr());
-	/// unsafe { *head.as_mut_ptr() = 2; }
+	/// unsafe {
+	///     *head.as_mut_ptr() = 2;
+	/// }
 	/// assert!(rest[2]);
 	/// ```
 	#[inline]
@@ -685,7 +707,9 @@ where O: BitOrder, T: BitStore {
 		let len = self.len();
 		assert!(a < len, "Index {} out of bounds: {}", a, len);
 		assert!(b < len, "Index {} out of bounds: {}", b, len);
-		unsafe { self.swap_unchecked(a, b); }
+		unsafe {
+			self.swap_unchecked(a, b);
+		}
 	}
 
 	/// Reverses the order of bits in the slice, in place.
@@ -789,10 +813,7 @@ where O: BitOrder, T: BitStore {
 	/// assert!(iter.next().is_none());
 	pub fn windows(&self, width: usize) -> Windows<O, T> {
 		assert_ne!(width, 0, "Window width cannot be zero");
-		super::Windows {
-			inner: self,
-			width,
-		}
+		super::Windows { inner: self, width }
 	}
 
 	/// Returns an iterator over `chunk_size` bits of the slice at a time,
@@ -961,7 +982,11 @@ where O: BitOrder, T: BitStore {
 	///
 	/// [`chunks_mut`]: #method.chunks_mut
 	/// [`rchunks_exact_mut`]: #method.rchunks_exact_mut
-	pub fn chunks_exact_mut(&mut self, chunk_size: usize) -> ChunksExactMut<O, T> {
+	pub fn chunks_exact_mut(
+		&mut self,
+		chunk_size: usize,
+	) -> ChunksExactMut<O, T>
+	{
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		let len = self.len();
 		let rem = len % chunk_size;
@@ -1083,7 +1108,7 @@ where O: BitOrder, T: BitStore {
 	/// assert_eq!(iter.next().unwrap(), &bits[5 .. 8]);
 	/// assert_eq!(iter.next().unwrap(), &bits[2 .. 5]);
 	/// assert!(iter.next().is_none());
-	/// assert_eq!(iter.remainder(), &bits[0 ..2]);
+	/// assert_eq!(iter.remainder(), &bits[0 .. 2]);
 	/// ```
 	///
 	/// [`chunks`]: #method.chunks
@@ -1140,7 +1165,11 @@ where O: BitOrder, T: BitStore {
 	/// [`chunks_mut`]: #method.chunks_mut
 	/// [`rchunks_mut`]: #method.rchunks_mut
 	/// [`chunks_exact_mut`]: #method.chunks_exact_mut
-	pub fn rchunks_exact_mut(&mut self, chunk_size: usize) -> RChunksExactMut<O, T> {
+	pub fn rchunks_exact_mut(
+		&mut self,
+		chunk_size: usize,
+	) -> RChunksExactMut<O, T>
+	{
 		assert_ne!(chunk_size, 0, "Chunk width cannot be zero");
 		let (extra, inner) = self.split_at_mut(self.len() % chunk_size);
 		RChunksExactMut {
@@ -1167,23 +1196,17 @@ where O: BitOrder, T: BitStore {
 	/// let data = 0x0Fu8;
 	/// let bits = data.bits::<Msb0>();
 	///
-	/// {
-	///     let (left, right) = bits.split_at(0);
-	///     assert!(left.is_empty());
-	///     assert_eq!(right, bits);
-	/// }
+	/// let (left, right) = bits.split_at(0);
+	/// assert!(left.is_empty());
+	/// assert_eq!(right, bits);
 	///
-	/// {
-	///     let (left, right) = bits.split_at(4);
-	///     assert!(left.not_any());
-	///     assert!(right.all());
-	/// }
+	/// let (left, right) = bits.split_at(4);
+	/// assert!(left.not_any());
+	/// assert!(right.all());
 	///
-	/// {
-	///     let (left, right) = bits.split_at(8);
-	///     assert_eq!(left, bits);
-	///     assert!(right.is_empty());
-	/// }
+	/// let (left, right) = bits.split_at(8);
+	/// assert_eq!(left, bits);
+	/// assert!(right.is_empty());
 	/// ```
 	pub fn split_at(&self, mid: usize) -> (&Self, &Self) {
 		let len = self.len();
@@ -1219,7 +1242,10 @@ where O: BitOrder, T: BitStore {
 	#[inline]
 	pub fn split_at_mut(&mut self, mid: usize) -> (&mut Self, &mut Self) {
 		let (head, tail) = self.split_at(mid);
-		(head.bitptr().into_bitslice_mut(), tail.bitptr().into_bitslice_mut())
+		(
+			head.bitptr().into_bitslice_mut(),
+			tail.bitptr().into_bitslice_mut(),
+		)
 	}
 
 	/// Returns an iterator over subslices separated by indexed bits that
@@ -1311,7 +1337,7 @@ where O: BitOrder, T: BitStore {
 	/// let bits = data.bits_mut::<Msb0>();
 	///
 	/// for group in bits.split_mut(|pos, bit| *bit) {
-	///     *group.at(0) = true;
+	///     *group.get_mut(0).unwrap() = true;
 	/// }
 	/// assert_eq!(data, 0b101_1001_1u8);
 	/// ```
@@ -1456,7 +1482,7 @@ where O: BitOrder, T: BitStore {
 			inner: GenericSplitN {
 				inner: self.split(func),
 				count: n,
-			}
+			},
 		}
 	}
 
@@ -1493,13 +1519,19 @@ where O: BitOrder, T: BitStore {
 	///
 	/// [`slice::splitn_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.splitn_mut
 	#[inline]
-	pub fn splitn_mut<F>(&mut self, n: usize, func: F) -> SplitNMut<'_, O, T, F>
-	where F: FnMut(usize, &bool) -> bool {
+	pub fn splitn_mut<F>(
+		&mut self,
+		n: usize,
+		func: F,
+	) -> SplitNMut<'_, O, T, F>
+	where
+		F: FnMut(usize, &bool) -> bool,
+	{
 		SplitNMut {
 			inner: GenericSplitN {
 				inner: self.split_mut(func),
 				count: n,
-			}
+			},
 		}
 	}
 
@@ -1545,7 +1577,7 @@ where O: BitOrder, T: BitStore {
 			inner: GenericSplitN {
 				inner: self.rsplit(func),
 				count: n,
-			}
+			},
 		}
 	}
 
@@ -1583,13 +1615,19 @@ where O: BitOrder, T: BitStore {
 	///
 	/// [`slice::rsplitn_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplitn_mut
 	#[inline]
-	pub fn rsplitn_mut<F>(&mut self, n: usize, func: F) -> RSplitNMut<'_, O, T, F>
-	where F: FnMut(usize, &bool) -> bool {
+	pub fn rsplitn_mut<F>(
+		&mut self,
+		n: usize,
+		func: F,
+	) -> RSplitNMut<'_, O, T, F>
+	where
+		F: FnMut(usize, &bool) -> bool,
+	{
 		RSplitNMut {
 			inner: GenericSplitN {
 				inner: self.rsplit_mut(func),
 				count: n,
-			}
+			},
 		}
 	}
 
@@ -1618,7 +1656,10 @@ where O: BitOrder, T: BitStore {
 	///
 	/// [`slice::contains`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.contains
 	pub fn contains<P, U>(&self, query: &BitSlice<P, U>) -> bool
-	where P: BitOrder, U: BitStore {
+	where
+		P: BitOrder,
+		U: BitStore,
+	{
 		let len = query.len();
 		if len > self.len() {
 			return false;
@@ -1637,7 +1678,10 @@ where O: BitOrder, T: BitStore {
 	/// assert!(bits.starts_with(&data.bits::<Lsb0>()[.. 2]));
 	/// ```
 	pub fn starts_with<P, U>(&self, prefix: &BitSlice<P, U>) -> bool
-	where P: BitOrder, U: BitStore {
+	where
+		P: BitOrder,
+		U: BitStore,
+	{
 		let plen = prefix.len();
 		self.len() >= plen && prefix == unsafe { self.get_unchecked(.. plen) }
 	}
@@ -1653,7 +1697,10 @@ where O: BitOrder, T: BitStore {
 	/// assert!(bits.ends_with(&data.bits::<Lsb0>()[6 ..]));
 	/// ```
 	pub fn ends_with<P, U>(&self, suffix: &BitSlice<P, U>) -> bool
-	where P: BitOrder, U: BitStore, {
+	where
+		P: BitOrder,
+		U: BitStore,
+	{
 		let slen = suffix.len();
 		let len = self.len();
 		len >= slen && suffix == unsafe { self.get_unchecked(len - slen ..) }
@@ -1695,7 +1742,10 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	pub fn rotate_left(&mut self, mut by: usize) {
 		let len = self.len();
-		assert!(by <= len, "Slices cannot be rotated by more than their length");
+		assert!(
+			by <= len,
+			"Slices cannot be rotated by more than their length"
+		);
 		if by == 0 || by == len {
 			return;
 		}
@@ -1768,7 +1818,10 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	pub fn rotate_right(&mut self, mut by: usize) {
 		let len = self.len();
-		assert!(by <= len, "Slices cannot be rotated by more than their length");
+		assert!(
+			by <= len,
+			"Slices cannot be rotated by more than their length"
+		);
 		if by == 0 || by == len {
 			return;
 		}
@@ -1851,7 +1904,10 @@ where O: BitOrder, T: BitStore {
 	/// assert_eq!(data, 0x33);
 	/// ```
 	pub fn clone_from_slice<P, U>(&mut self, src: &BitSlice<P, U>)
-	where P: BitOrder, U: BitStore {
+	where
+		P: BitOrder,
+		U: BitStore,
+	{
 		assert_eq!(
 			self.len(),
 			src.len(),
@@ -1959,25 +2015,28 @@ where O: BitOrder, T: BitStore {
 	/// let mut data = 15u8;
 	/// let bits = data.bits_mut::<Msb0>();
 	///
-	/// {
-	///     let (left, right) = bits.split_at_mut(4);
-	///     left[.. 2].swap_with_slice(&mut right[2 ..]);
-	/// }
+	/// let (left, right) = bits.split_at_mut(4);
+	/// left[.. 2].swap_with_slice(&mut right[2 ..]);
 	///
 	/// assert_eq!(data, 0xCC);
 	/// ```
 	pub fn swap_with_slice<P, U>(&mut self, other: &mut BitSlice<P, U>)
-	where P: BitOrder, U: BitStore {
+	where
+		P: BitOrder,
+		U: BitStore,
+	{
 		assert_eq!(
 			self.len(),
 			other.len(),
 			"Swapping between slices requires equal lengths",
 		);
-		self.iter_mut().zip(other.iter_mut()).for_each(|(mut this, mut that)| {
-			let (a, b) = (*this, *that);
-			*this = b;
-			*that = a;
-		})
+		self.iter_mut()
+			.zip(other.iter_mut())
+			.for_each(|(mut this, mut that)| {
+				let (a, b) = (*this, *that);
+				*this = b;
+				*that = a;
+			})
 	}
 
 	/// Transmute the slice to a slice with a different backing store, ensuring
@@ -2058,11 +2117,9 @@ where O: BitOrder, T: BitStore {
 	/// }
 	/// ```
 	#[inline]
-	pub unsafe fn align_to_mut<U>(&mut self) -> (
-		&mut Self,
-		&mut BitSlice<O, U>,
-		&mut Self,
-	)
+	pub unsafe fn align_to_mut<U>(
+		&mut self,
+	) -> (&mut Self, &mut BitSlice<O, U>, &mut Self)
 	where U: BitStore {
 		let (l, c, r) = self.align_to::<U>();
 		(
@@ -2101,7 +2158,10 @@ There is no tracking issue for `feature(slice_index_methods)`.
 [`slice::SliceIndex`]: https://doc.rust-lang.org/stable/core/slice/trait.SliceIndex.html
 **/
 pub trait BitSliceIndex<'a, O, T>
-where O: 'a + BitOrder, T: 'a + BitStore {
+where
+	O: 'a + BitOrder,
+	T: 'a + BitStore,
+{
 	/// Immutable output type.
 	type Immut;
 
@@ -2214,7 +2274,10 @@ where O: 'a + BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> BitSliceIndex<'a, O, T> for usize
-where O: 'a + BitOrder, T: 'a + BitStore {
+where
+	O: 'a + BitOrder,
+	T: 'a + BitStore,
+{
 	type Immut = &'a bool;
 	type Mut = BitMut<'a, O, T>;
 
@@ -2253,7 +2316,8 @@ where O: 'a + BitOrder, T: 'a + BitStore {
 	unsafe fn get_unchecked_mut(
 		self,
 		slice: &'a mut BitSlice<O, T>,
-	) -> Self::Mut {
+	) -> Self::Mut
+	{
 		let bp = slice.bitptr();
 		let (offset, head) = bp.head().offset(self as isize);
 		let ptr = bp.pointer().a().offset(offset);
@@ -2261,7 +2325,7 @@ where O: 'a + BitOrder, T: 'a + BitStore {
 			_parent: PhantomData,
 			data: NonNull::new_unchecked(ptr as *mut T::Access),
 			head,
-			bit: (*ptr).get::<O>(head)
+			bit: (*ptr).get::<O>(head),
 		}
 	}
 
@@ -2273,9 +2337,8 @@ where O: 'a + BitOrder, T: 'a + BitStore {
 
 	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::Mut {
 		let len = slice.len();
-		self.get_mut(slice).unwrap_or_else(|| {
-			panic!("Index {} out of bounds: {}", self, len)
-		})
+		self.get_mut(slice)
+			.unwrap_or_else(|| panic!("Index {} out of bounds: {}", self, len))
 	}
 }
 
@@ -2446,7 +2509,10 @@ range_impl! {
 
 /// `RangeFull` is the identity function.
 impl<'a, O, T> BitSliceIndex<'a, O, T> for RangeFull
-where O: 'a + BitOrder, T: 'a + BitStore {
+where
+	O: 'a + BitOrder,
+	T: 'a + BitStore,
+{
 	type Immut = &'a BitSlice<O, T>;
 	type Mut = &'a mut BitSlice<O, T>;
 

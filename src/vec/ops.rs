@@ -7,35 +7,33 @@ use crate::{
 	store::BitStore,
 };
 
-use core::{
-	ops::{
-		Add,
-		AddAssign,
-		BitAnd,
-		BitAndAssign,
-		BitOr,
-		BitOrAssign,
-		BitXor,
-		BitXorAssign,
-		Deref,
-		DerefMut,
-		Index,
-		IndexMut,
-		Range,
-		RangeFrom,
-		RangeFull,
-		RangeInclusive,
-		RangeTo,
-		RangeToInclusive,
-		Neg,
-		Not,
-		Shl,
-		ShlAssign,
-		Shr,
-		ShrAssign,
-		Sub,
-		SubAssign,
-	},
+use core::ops::{
+	Add,
+	AddAssign,
+	BitAnd,
+	BitAndAssign,
+	BitOr,
+	BitOrAssign,
+	BitXor,
+	BitXorAssign,
+	Deref,
+	DerefMut,
+	Index,
+	IndexMut,
+	Neg,
+	Not,
+	Range,
+	RangeFrom,
+	RangeFull,
+	RangeInclusive,
+	RangeTo,
+	RangeToInclusive,
+	Shl,
+	ShlAssign,
+	Shr,
+	ShrAssign,
+	Sub,
+	SubAssign,
 };
 
 /** Adds two `BitVec`s together, zero-extending the shorter.
@@ -54,7 +52,10 @@ intended for arithmetic, and `bitvec` makes no guarantees about sustained
 correctness in arithmetic at this time.
 **/
 impl<O, T> Add for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = Self;
 
 	/// Adds two `BitVec`s.
@@ -103,7 +104,10 @@ intended for arithmetic, and `bitvec` makes no guarantees about sustained
 correctness in arithmetic at this time.
 **/
 impl<O, T> AddAssign for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Adds another `BitVec` into `self`.
 	///
 	/// # Examples
@@ -148,7 +152,11 @@ length of the shorter sequence of bits -- if one is longer than the other, the
 extra bits will be ignored.
 **/
 impl<O, T, I> BitAnd<I> for BitVec<O, T>
-where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
+where
+	O: BitOrder,
+	T: BitStore,
+	I: IntoIterator<Item = bool>,
+{
 	type Output = Self;
 
 	/// `AND`s a vector and a bitstream, producing a new vector.
@@ -174,7 +182,11 @@ of `bool` values as the other bit for each operation. If the other stream is
 shorter than `self`, `self` will be truncated when the other stream expires.
 **/
 impl<O, T, I> BitAndAssign<I> for BitVec<O, T>
-where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
+where
+	O: BitOrder,
+	T: BitStore,
+	I: IntoIterator<Item = bool>,
+{
 	/// `AND`s another bitstream into a vector.
 	///
 	/// # Examples
@@ -190,7 +202,9 @@ where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
 		let mut len = 0;
 		for bit in rhs.into_iter().take(self.len()) {
 			let cur = unsafe { *self.get_unchecked(len) };
-			unsafe { self.set_unchecked(len, cur & bit); }
+			unsafe {
+				self.set_unchecked(len, cur & bit);
+			}
 			len += 1;
 		}
 		self.truncate(len);
@@ -204,7 +218,11 @@ length of the shorter sequence of bits -- if one is longer than the other, the
 extra bits will be ignored.
 **/
 impl<O, T, I> BitOr<I> for BitVec<O, T>
-where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
+where
+	O: BitOrder,
+	T: BitStore,
+	I: IntoIterator<Item = bool>,
+{
 	type Output = Self;
 
 	/// `OR`s a vector and a bitstream, producing a new vector.
@@ -216,7 +234,7 @@ where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
 	///
 	/// let lhs = bitvec![0, 1, 0, 1];
 	/// let rhs = bitvec![0, 0, 1, 1];
-	/// let or  = lhs | rhs;
+	/// let or = lhs | rhs;
 	/// assert_eq!("[0111]", &format!("{}", or));
 	/// ```
 	fn bitor(mut self, rhs: I) -> Self::Output {
@@ -230,7 +248,11 @@ of `bool` values as the other bit for each operation. If the other stream is
 shorter than `self`, `self` will be truncated when the other stream expires.
 **/
 impl<O, T, I> BitOrAssign<I> for BitVec<O, T>
-where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
+where
+	O: BitOrder,
+	T: BitStore,
+	I: IntoIterator<Item = bool>,
+{
 	/// `OR`s another bitstream into a vector.
 	///
 	/// # Examples
@@ -246,7 +268,9 @@ where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
 		let mut len = 0;
 		for bit in rhs.into_iter().take(self.len()) {
 			let cur = unsafe { *self.get_unchecked(len) };
-			unsafe { self.set_unchecked(len, cur | bit); }
+			unsafe {
+				self.set_unchecked(len, cur | bit);
+			}
 			len += 1;
 		}
 		self.truncate(len);
@@ -260,7 +284,11 @@ length of the shorter sequence of bits -- if one is longer than the other, the
 extra bits will be ignored.
 **/
 impl<O, T, I> BitXor<I> for BitVec<O, T>
-where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
+where
+	O: BitOrder,
+	T: BitStore,
+	I: IntoIterator<Item = bool>,
+{
 	type Output = Self;
 
 	/// `XOR`s a vector and a bitstream, producing a new vector.
@@ -286,7 +314,11 @@ of `bool` values as the other bit for each operation. If the other stream is
 shorter than `self`, `self` will be truncated when the other stream expires.
 **/
 impl<O, T, I> BitXorAssign<I> for BitVec<O, T>
-where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
+where
+	O: BitOrder,
+	T: BitStore,
+	I: IntoIterator<Item = bool>,
+{
 	/// `XOR`s another bitstream into a vector.
 	///
 	/// # Examples
@@ -302,7 +334,9 @@ where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
 		let mut len = 0;
 		for bit in rhs.into_iter().take(self.len()) {
 			let cur = unsafe { *self.get_unchecked(len) };
-			unsafe { self.set_unchecked(len, cur ^ bit); }
+			unsafe {
+				self.set_unchecked(len, cur ^ bit);
+			}
 			len += 1;
 		}
 		self.truncate(len);
@@ -314,7 +348,10 @@ where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
 This mimics the separation between `Vec<T>` and `[T]`.
 **/
 impl<O, T> Deref for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Target = BitSlice<O, T>;
 
 	/// Dereferences `&BitVec` down to `&BitSlice`.
@@ -338,7 +375,10 @@ where O: BitOrder, T: BitStore {
 This mimics the separation between `Vec<T>` and `[T]`.
 **/
 impl<O, T> DerefMut for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Dereferences `&mut BitVec` down to `&mut BitSlice`.
 	///
 	/// # Examples
@@ -359,7 +399,10 @@ where O: BitOrder, T: BitStore {
 
 /// Readies the underlying storage for Drop.
 impl<O, T> Drop for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Rebuild the interior `Vec` and let it run the deallocator.
 	fn drop(&mut self) {
 		let bp = mem::replace(&mut self.pointer, BitPtr::empty());
@@ -372,7 +415,10 @@ where O: BitOrder, T: BitStore {
 /// Gets the bit at a specific index. The index must be less than the length of
 /// the `BitVec`.
 impl<O, T> Index<usize> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = bool;
 
 	/// Looks up a single bit by semantic count.
@@ -407,7 +453,10 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> Index<Range<usize>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = BitSlice<O, T>;
 
 	fn index(&self, range: Range<usize>) -> &Self::Output {
@@ -416,14 +465,20 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> IndexMut<Range<usize>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn index_mut(&mut self, range: Range<usize>) -> &mut Self::Output {
 		&mut self.as_mut_bitslice()[range]
 	}
 }
 
 impl<O, T> Index<RangeFrom<usize>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = BitSlice<O, T>;
 
 	fn index(&self, range: RangeFrom<usize>) -> &Self::Output {
@@ -432,14 +487,20 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> IndexMut<RangeFrom<usize>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn index_mut(&mut self, range: RangeFrom<usize>) -> &mut Self::Output {
 		&mut self.as_mut_bitslice()[range]
 	}
 }
 
 impl<O, T> Index<RangeFull> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = BitSlice<O, T>;
 
 	fn index(&self, _: RangeFull) -> &Self::Output {
@@ -448,14 +509,20 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> IndexMut<RangeFull> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn index_mut(&mut self, _: RangeFull) -> &mut Self::Output {
 		self.as_mut_bitslice()
 	}
 }
 
 impl<O, T> Index<RangeInclusive<usize>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = BitSlice<O, T>;
 
 	fn index(&self, range: RangeInclusive<usize>) -> &Self::Output {
@@ -464,14 +531,20 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> IndexMut<RangeInclusive<usize>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn index_mut(&mut self, range: RangeInclusive<usize>) -> &mut Self::Output {
 		&mut self.as_mut_bitslice()[range]
 	}
 }
 
 impl<O, T> Index<RangeTo<usize>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = BitSlice<O, T>;
 
 	fn index(&self, range: RangeTo<usize>) -> &Self::Output {
@@ -480,14 +553,20 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> IndexMut<RangeTo<usize>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn index_mut(&mut self, range: RangeTo<usize>) -> &mut Self::Output {
 		&mut self.as_mut_bitslice()[range]
 	}
 }
 
 impl<O, T> Index<RangeToInclusive<usize>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = BitSlice<O, T>;
 
 	fn index(&self, range: RangeToInclusive<usize>) -> &Self::Output {
@@ -496,8 +575,15 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> IndexMut<RangeToInclusive<usize>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
-	fn index_mut(&mut self, range: RangeToInclusive<usize>) -> &mut Self::Output {
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	fn index_mut(
+		&mut self,
+		range: RangeToInclusive<usize>,
+	) -> &mut Self::Output
+	{
 		&mut self.as_mut_bitslice()[range]
 	}
 }
@@ -513,7 +599,10 @@ intended for arithmetic, and `bitvec` makes no guarantees about sustained
 correctness in arithmetic at this time.
 **/
 impl<O, T> Neg for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = Self;
 
 	/// Numerically negates a `BitVec` using 2’s-complement arithmetic.
@@ -543,7 +632,10 @@ where O: BitOrder, T: BitStore {
 
 /// Flips all bits in the vector.
 impl<O, T> Not for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = Self;
 
 	/// Inverts all bits in the vector.
@@ -595,7 +687,10 @@ If the shift amount is greater than the length, the vector calls `clear()` and
 zeroes its memory. This is *not* an error.
 **/
 impl<O, T> Shl<usize> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = Self;
 
 	/// Shifts a `BitVec` to the left, shortening it.
@@ -650,7 +745,10 @@ If the shift amount is greater than the length, the vector calls `clear()` and
 zeroes its memory. This is *not* an error.
 **/
 impl<O, T> ShlAssign<usize> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Shifts a `BitVec` to the left in place, shortening it.
 	///
 	/// # Examples
@@ -716,7 +814,10 @@ If the new length of the vector would overflow, a panic occurs. This *is* an
 error.
 **/
 impl<O, T> Shr<usize> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = Self;
 
 	/// Shifts a `BitVec` to the right, lengthening it and filling the front
@@ -772,7 +873,10 @@ If the new length of the vector would overflow, a panic occurs. This *is* an
 error.
 **/
 impl<O, T> ShrAssign<usize> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Shifts a `BitVec` to the right in place, lengthening it and filling the
 	/// front with 0.
 	///
@@ -834,7 +938,10 @@ intended for arithmetic, and `bitvec` makes no guarantees about sustained
 correctness in arithmetic at this time.
 **/
 impl<O, T> Sub for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = Self;
 
 	/// Subtracts one `BitVec` from another.
@@ -893,7 +1000,10 @@ intended for arithmetic, and `bitvec` makes no guarantees about sustained
 correctness in arithmetic at this time.
 **/
 impl<O, T> SubAssign for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Subtracts another `BitVec` from `self`.
 	///
 	/// # Examples

@@ -28,7 +28,7 @@ fn issue_33() {
 	swdio.resize(64, true);
 
 	let mut seq = 0xE79E; // LSb first
-	for _ in 0..16 {
+	for _ in 0 .. 16 {
 		swdio.push(seq & 0b1 != 0);
 		seq >>= 1;
 	}

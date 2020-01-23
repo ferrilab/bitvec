@@ -42,7 +42,10 @@ use core::{
 
 /// Signifies that `BitSlice` is the borrowed form of `BitVec`.
 impl<O, T> Borrow<BitSlice<O, T>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Borrows the `BitVec` as a `BitSlice`.
 	///
 	/// # Parameters
@@ -70,7 +73,10 @@ where O: BitOrder, T: BitStore {
 
 /// Signifies that `BitSlice` is the borrowed form of `BitVec`.
 impl<O, T> BorrowMut<BitSlice<O, T>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Mutably borrows the `BitVec` as a `BitSlice`.
 	///
 	/// # Parameters
@@ -99,12 +105,17 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> Clone for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn clone(&self) -> Self {
 		let new_vec = self.as_slice().to_owned();
 		let capacity = new_vec.capacity();
 		let mut pointer = self.pointer;
-		unsafe { pointer.set_pointer(new_vec.as_ptr()); }
+		unsafe {
+			pointer.set_pointer(new_vec.as_ptr());
+		}
 		mem::forget(new_vec);
 		Self {
 			_order: PhantomData,
@@ -125,7 +136,9 @@ where O: BitOrder, T: BitStore {
 		//  Copy the other `BitPtr<T>`,
 		let mut pointer = other.pointer;
 		//  Then set it to aim at the copied pointer.
-		unsafe { pointer.set_pointer(ptr); }
+		unsafe {
+			pointer.set_pointer(ptr);
+		}
 		//  And set the new pointer/capacity.
 		self.pointer = pointer;
 		self.capacity = capacity;
@@ -133,10 +146,17 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> Eq for BitVec<O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 impl<O, T> Ord for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn cmp(&self, rhs: &Self) -> Ordering {
 		self.as_bitslice().cmp(rhs.as_bitslice())
 	}
@@ -150,7 +170,12 @@ The equality condition requires that they have the same number of stored bits
 and that each pair of bits in semantic order are identical.
 **/
 impl<A, B, C, D> PartialEq<BitVec<C, D>> for BitVec<A, B>
-where A: BitOrder, B: BitStore, C: BitOrder, D: BitStore {
+where
+	A: BitOrder,
+	B: BitStore,
+	C: BitOrder,
+	D: BitStore,
+{
 	/// Performs a comparison by `==`.
 	///
 	/// # Parameters
@@ -190,21 +215,36 @@ where A: BitOrder, B: BitStore, C: BitOrder, D: BitStore {
 }
 
 impl<A, B, C, D> PartialEq<BitSlice<C, D>> for BitVec<A, B>
-where A: BitOrder, B: BitStore, C: BitOrder, D: BitStore {
+where
+	A: BitOrder,
+	B: BitStore,
+	C: BitOrder,
+	D: BitStore,
+{
 	fn eq(&self, rhs: &BitSlice<C, D>) -> bool {
 		self.as_bitslice().eq(rhs)
 	}
 }
 
 impl<A, B, C, D> PartialEq<BitVec<C, D>> for BitSlice<A, B>
-where A: BitOrder, B: BitStore, C: BitOrder, D: BitStore {
+where
+	A: BitOrder,
+	B: BitStore,
+	C: BitOrder,
+	D: BitStore,
+{
 	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
 		self.eq(rhs.as_bitslice())
 	}
 }
 
 impl<A, B, C, D> PartialEq<&BitSlice<C, D>> for BitVec<A, B>
-where A: BitOrder, B: BitStore, C: BitOrder, D: BitStore {
+where
+	A: BitOrder,
+	B: BitStore,
+	C: BitOrder,
+	D: BitStore,
+{
 	fn eq(&self, rhs: &&BitSlice<C, D>) -> bool {
 		self.as_bitslice().eq(*rhs)
 	}
@@ -218,7 +258,12 @@ where A: BitOrder, B: BitStore, C: BitOrder, D: BitStore {
 // }
 
 impl<A, B, C, D> PartialEq<BitVec<C, D>> for &BitSlice<A, B>
-where A: BitOrder, B: BitStore, C: BitOrder, D: BitStore {
+where
+	A: BitOrder,
+	B: BitStore,
+	C: BitOrder,
+	D: BitStore,
+{
 	fn eq(&self, rhs: &BitVec<C, D>) -> bool {
 		self.eq(rhs.as_bitslice())
 	}
@@ -241,7 +286,12 @@ If one of the vectors is exhausted before they differ, the longer vector is
 greater.
 **/
 impl<A, B, C, D> PartialOrd<BitVec<C, D>> for BitVec<A, B>
-where A: BitOrder, B: BitStore, C: BitOrder, D: BitStore {
+where
+	A: BitOrder,
+	B: BitStore,
+	C: BitOrder,
+	D: BitStore,
+{
 	/// Performs a comparison by `<` or `>`.
 	///
 	/// # Parameters
@@ -270,28 +320,48 @@ where A: BitOrder, B: BitStore, C: BitOrder, D: BitStore {
 }
 
 impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for BitVec<A, B>
-where A: BitOrder, B: BitStore, C: BitOrder, D: BitStore {
+where
+	A: BitOrder,
+	B: BitStore,
+	C: BitOrder,
+	D: BitStore,
+{
 	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<Ordering> {
 		self.as_bitslice().partial_cmp(rhs)
 	}
 }
 
 impl<A, B, C, D> PartialOrd<BitVec<C, D>> for BitSlice<A, B>
-where A: BitOrder, B: BitStore, C: BitOrder, D: BitStore {
+where
+	A: BitOrder,
+	B: BitStore,
+	C: BitOrder,
+	D: BitStore,
+{
 	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<Ordering> {
 		self.partial_cmp(rhs.as_bitslice())
 	}
 }
 
 impl<A, B, C, D> PartialOrd<&BitSlice<C, D>> for BitVec<A, B>
-where A: BitOrder, B: BitStore, C: BitOrder, D: BitStore {
+where
+	A: BitOrder,
+	B: BitStore,
+	C: BitOrder,
+	D: BitStore,
+{
 	fn partial_cmp(&self, rhs: &&BitSlice<C, D>) -> Option<Ordering> {
 		self.as_bitslice().partial_cmp(*rhs)
 	}
 }
 
 impl<A, B, C, D> PartialOrd<BitVec<C, D>> for &BitSlice<A, B>
-where A: BitOrder, B: BitStore, C: BitOrder, D: BitStore {
+where
+	A: BitOrder,
+	B: BitStore,
+	C: BitOrder,
+	D: BitStore,
+{
 	fn partial_cmp(&self, rhs: &BitVec<C, D>) -> Option<Ordering> {
 		self.partial_cmp(rhs.as_bitslice())
 	}
@@ -312,7 +382,10 @@ where A: BitOrder, B: BitStore, C: BitOrder, D: BitStore {
 // }
 
 impl<O, T> AsMut<BitSlice<O, T>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn as_mut(&mut self) -> &mut BitSlice<O, T> {
 		self.as_mut_bitslice()
 	}
@@ -321,14 +394,20 @@ where O: BitOrder, T: BitStore {
 /// Gives write access to all live elements in the underlying storage, including
 /// the partially-filled tail.
 impl<O, T> AsMut<[T]> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn as_mut(&mut self) -> &mut [T] {
 		self.as_mut_slice()
 	}
 }
 
 impl<O, T> AsRef<BitSlice<O, T>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn as_ref(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
 	}
@@ -337,7 +416,10 @@ where O: BitOrder, T: BitStore {
 /// Gives read access to all live elements in the underlying storage, including
 /// the partially-filled tail.
 impl<O, T> AsRef<[T]> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Accesses the underlying store.
 	///
 	/// # Examples
@@ -354,7 +436,10 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> From<&BitSlice<O, T>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn from(src: &BitSlice<O, T>) -> Self {
 		Self::from_bitslice(src)
 	}
@@ -366,35 +451,50 @@ This is primarily for the `bitvec!` macro; it is not recommended for general
 use.
 **/
 impl<O, T> From<&[bool]> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn from(src: &[bool]) -> Self {
 		src.iter().cloned().collect()
 	}
 }
 
 impl<O, T> From<BitBox<O, T>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn from(src: BitBox<O, T>) -> Self {
 		Self::from_boxed_bitslice(src)
 	}
 }
 
 impl<O, T> From<&[T]> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn from(src: &[T]) -> Self {
 		Self::from_slice(src)
 	}
 }
 
 impl<O, T> From<Box<[T]>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn from(src: Box<[T]>) -> Self {
 		Self::from_boxed_bitslice(BitBox::from_boxed_slice(src))
 	}
 }
 
 impl<O, T> Into<Box<[T]>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn into(self) -> Box<[T]> {
 		self.into_boxed_slice()
 	}
@@ -407,28 +507,40 @@ source buffer will be unchanged by this operation, so you don't need to worry
 about using the correct order type.
 **/
 impl<O, T> From<Vec<T>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn from(src: Vec<T>) -> Self {
 		Self::from_vec(src)
 	}
 }
 
 impl<O, T> Into<Vec<T>> for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn into(self) -> Vec<T> {
 		self.into_vec()
 	}
 }
 
 impl<O, T> Default for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn default() -> Self {
 		Self::new()
 	}
 }
 
 impl<O, T> Binary for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(self.as_bitslice(), fmt)
 	}
@@ -446,7 +558,10 @@ The alternate character `{:#?}` prints each element on its own line, rather than
 separated by a space.
 **/
 impl<O, T> Debug for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Renders the `BitVec` type header and contents for debug.
 	///
 	/// # Examples
@@ -484,7 +599,10 @@ To see the in-memory representation, use `AsRef` to get access to the raw
 elements and print that slice instead.
 **/
 impl<O, T> Display for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Renders the `BitVec` contents for display.
 	///
 	/// # Examples
@@ -501,21 +619,30 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> LowerHex for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		LowerHex::fmt(self.as_bitslice(), fmt)
 	}
 }
 
 impl<O, T> Octal for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Octal::fmt(self.as_bitslice(), fmt)
 	}
 }
 
 impl<O, T> UpperHex for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		UpperHex::fmt(self.as_bitslice(), fmt)
 	}
@@ -523,7 +650,10 @@ where O: BitOrder, T: BitStore {
 
 /// Writes the contents of the `BitVec`, in semantic bit order, into a hasher.
 impl<O, T> Hash for BitVec<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Writes each bit of the `BitVec`, as a full `bool`, into the hasher.
 	///
 	/// # Parameters
@@ -537,8 +667,16 @@ where O: BitOrder, T: BitStore {
 
 /// `BitVec` is safe to move across thread boundaries, as is `&mut BitVec`.
 unsafe impl<O, T> Send for BitVec<O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 /// `&BitVec` is safe to move across thread boundaries.
 unsafe impl<O, T> Sync for BitVec<O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}

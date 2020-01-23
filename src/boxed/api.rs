@@ -27,7 +27,10 @@ use core::{
 };
 
 impl<O, T> BitBox<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Allocates memory on the heap and then places `bits` into it.
 	///
 	/// # API Differences
@@ -51,7 +54,10 @@ where O: BitOrder, T: BitStore {
 	///
 	/// `BitSlice` is always `Unpin`, so this has no actual immobility effect.
 	pub fn pin(bits: &BitSlice<O, T>) -> Pin<Self>
-	where O: Unpin, T: Unpin {
+	where
+		O: Unpin,
+		T: Unpin,
+	{
 		Pin::new(Self::new(bits))
 	}
 

@@ -273,7 +273,8 @@ pub trait BitField {
 }
 
 impl<T> BitField for BitSlice<Lsb0, T>
-where T: BitStore {
+where T: BitStore
+{
 	fn load_le<U>(&self) -> U
 	where U: BitStore {
 		let len = self.len();
@@ -288,8 +289,9 @@ where T: BitStore {
 			distance from LSedge to the live region, and mask it for the length
 			of `self`.
 			*/
-			Either::Right((head, elt, _)) =>
-				resize((elt.load() >> *head) & mask_for::<T>(len)),
+			Either::Right((head, elt, _)) => {
+				resize((elt.load() >> *head) & mask_for::<T>(len))
+			},
 			/* The live region touches at least one element edge.
 
 			This block reads chunks from the slice memory into an accumulator,
@@ -349,8 +351,9 @@ where T: BitStore {
 			distance from LSedge to the live region, and mask it for the length
 			of `self`.
 			*/
-			Either::Right((head, elt, _)) =>
-				resize((elt.load() >> *head) & mask_for::<T>(len)),
+			Either::Right((head, elt, _)) => {
+				resize((elt.load() >> *head) & mask_for::<T>(len))
+			},
 			/* The live region touches at least one element edge.
 
 			This block reads chunks from the slice memory into an accumulator,
@@ -534,7 +537,8 @@ where T: BitStore {
 }
 
 impl<T> BitField for BitSlice<Msb0, T>
-where T: BitStore {
+where T: BitStore
+{
 	fn load_le<U>(&self) -> U
 	where U: BitStore {
 		let len = self.len();
@@ -549,8 +553,9 @@ where T: BitStore {
 			distance from LSedge to the live region, and mask it for the length
 			of `self`.
 			*/
-			Either::Right((_, elt, tail)) =>
-				resize((elt.load() >> (T::BITS - *tail)) & mask_for::<T>(len)),
+			Either::Right((_, elt, tail)) => {
+				resize((elt.load() >> (T::BITS - *tail)) & mask_for::<T>(len))
+			},
 			/* The live region touches at least one element edge.
 
 			This block reads chunks from the slice memory into an accumulator,
@@ -610,8 +615,9 @@ where T: BitStore {
 			distance from LSedge to the live region, and mask it for the length
 			of `self`.
 			*/
-			Either::Right((_, elt, tail)) =>
-				resize((elt.load() >> (T::BITS - *tail)) & mask_for::<T>(len)),
+			Either::Right((_, elt, tail)) => {
+				resize((elt.load() >> (T::BITS - *tail)) & mask_for::<T>(len))
+			},
 			/* The live region touches at least one element edge.
 
 			This block reads chunks from the slice memory into an accumulator,
@@ -804,7 +810,11 @@ where T: BitStore {
 
 #[cfg(feature = "alloc")]
 impl<O, T> BitField for BitBox<O, T>
-where O: BitOrder, T: BitStore, BitSlice<O, T>: BitField {
+where
+	O: BitOrder,
+	T: BitStore,
+	BitSlice<O, T>: BitField,
+{
 	fn load_le<U>(&self) -> U
 	where U: BitStore {
 		self.as_bitslice().load_le()
@@ -828,7 +838,11 @@ where O: BitOrder, T: BitStore, BitSlice<O, T>: BitField {
 
 #[cfg(feature = "alloc")]
 impl<O, T> BitField for BitVec<O, T>
-where O: BitOrder, T: BitStore, BitSlice<O, T>: BitField {
+where
+	O: BitOrder,
+	T: BitStore,
+	BitSlice<O, T>: BitField,
+{
 	fn load_le<U>(&self) -> U
 	where U: BitStore {
 		self.as_bitslice().load_le()
@@ -903,7 +917,10 @@ The result of transforming `value as U`. Where `U` is wider than `T`, this
 zero-extends; where `U` is narrower, it truncates.
 **/
 fn resize<T, U>(value: T) -> U
-where T: BitStore, U: BitStore {
+where
+	T: BitStore,
+	U: BitStore,
+{
 	let mut out = U::FALSE;
 	let bytes_t = mem::size_of::<T>();
 	let bytes_u = mem::size_of::<U>();
@@ -1011,11 +1028,17 @@ mod tests {
 
 		ints[1 ..][.. 28].store_le(0x0123_4567u32);
 		assert_eq!(ints[1 ..][.. 28].load_le::<u32>(), 0x0123_4567u32);
-		assert_eq!(ints.as_slice()[0], 0b000_0001_0010_0011_0100_0101_0110_0111_0u32);
+		assert_eq!(
+			ints.as_slice()[0],
+			0b000_0001_0010_0011_0100_0101_0110_0111_0u32
+		);
 
 		ints[1 ..][.. 28].store_be(0x0123_4567u32);
 		assert_eq!(ints[1 ..][.. 28].load_be::<u32>(), 0x0123_4567u32);
-		assert_eq!(ints.as_slice()[0], 0b000_0001_0010_0011_0100_0101_0110_0111_0u32);
+		assert_eq!(
+			ints.as_slice()[0],
+			0b000_0001_0010_0011_0100_0101_0110_0111_0u32
+		);
 
 		/*
 		#[cfg(target_pointer_width = "64")] {
@@ -1079,11 +1102,17 @@ mod tests {
 
 		ints[1 ..][.. 28].store_le(0x0123_4567u32);
 		assert_eq!(ints[1 ..][.. 28].load_le::<u32>(), 0x0123_4567u32);
-		assert_eq!(ints.as_slice()[0], 0b0_0001_0010_0011_0100_0101_0110_0111_000u32);
+		assert_eq!(
+			ints.as_slice()[0],
+			0b0_0001_0010_0011_0100_0101_0110_0111_000u32
+		);
 
 		ints[1 ..][.. 28].store_be(0x0123_4567u32);
 		assert_eq!(ints[1 ..][.. 28].load_be::<u32>(), 0x0123_4567u32);
-		assert_eq!(ints.as_slice()[0], 0b0_0001_0010_0011_0100_0101_0110_0111_000u32);
+		assert_eq!(
+			ints.as_slice()[0],
+			0b0_0001_0010_0011_0100_0101_0110_0111_000u32
+		);
 
 		/*
 		#[cfg(target_pointer_width = "64")] {

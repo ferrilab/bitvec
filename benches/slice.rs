@@ -6,8 +6,8 @@ use core::ops::AddAssign;
 
 use bitvec::prelude::*;
 use test::{
-	Bencher,
 	bench::black_box,
+	Bencher,
 };
 
 /* `BitSlice::empty` is not benched, because the compiler const-folds it. It
@@ -26,11 +26,10 @@ fn element(b: &mut Bencher) {
 	b.iter(|| BitSlice::<Msb0, u32>::from_element(&!0));
 	b.iter(|| BitSlice::<Lsb0, u32>::from_element(&!0));
 
-	#[cfg(target_pointer_width = "64")] {
-
-	b.iter(|| BitSlice::<Msb0, u64>::from_element(&!0));
-	b.iter(|| BitSlice::<Lsb0, u64>::from_element(&!0));
-
+	#[cfg(target_pointer_width = "64")]
+	{
+		b.iter(|| BitSlice::<Msb0, u64>::from_element(&!0));
+		b.iter(|| BitSlice::<Lsb0, u64>::from_element(&!0));
 	}
 }
 
@@ -43,11 +42,10 @@ fn slice(b: &mut Bencher) {
 	b.iter(|| BitSlice::<Msb0, u32>::from_slice(&[0, 1, !0 - 1, !0][..]));
 	b.iter(|| BitSlice::<Lsb0, u32>::from_slice(&[0, 1, !0 - 1, !0][..]));
 
-	#[cfg(target_pointer_width = "64")] {
-
-	b.iter(|| BitSlice::<Msb0, u64>::from_slice(&[0, 1, !0 - 1, !0][..]));
-	b.iter(|| BitSlice::<Lsb0, u64>::from_slice(&[0, 1, !0 - 1, !0][..]));
-
+	#[cfg(target_pointer_width = "64")]
+	{
+		b.iter(|| BitSlice::<Msb0, u64>::from_slice(&[0, 1, !0 - 1, !0][..]));
+		b.iter(|| BitSlice::<Lsb0, u64>::from_slice(&[0, 1, !0 - 1, !0][..]));
 	}
 }
 
@@ -68,13 +66,12 @@ fn len(b: &mut Bencher) {
 	b.iter(|| bsb32.len());
 	b.iter(|| bsl32.len());
 
-	#[cfg(target_pointer_width = "64")] {
-
-	let bsb64 = [0u64; 2].bits::<Msb0>();
-	let bsl64 = [0u64; 2].bits::<Lsb0>();
-	b.iter(|| bsb64.len());
-	b.iter(|| bsl64.len());
-
+	#[cfg(target_pointer_width = "64")]
+	{
+		let bsb64 = [0u64; 2].bits::<Msb0>();
+		let bsl64 = [0u64; 2].bits::<Lsb0>();
+		b.iter(|| bsb64.len());
+		b.iter(|| bsl64.len());
 	}
 }
 
@@ -97,13 +94,12 @@ fn index(b: &mut Bencher) {
 	b.iter(|| assert!(!black_box(bsb32)[black_box(69)]));
 	b.iter(|| assert!(!black_box(bsl32)[black_box(69)]));
 
-	#[cfg(target_pointer_width = "64")] {
-
-	let bsb64 = [0u64; 2].bits::<Msb0>();
-	let bsl64 = [0u64; 2].bits::<Lsb0>();
-	b.iter(|| assert!(!black_box(bsb64)[black_box(69)]));
-	b.iter(|| assert!(!black_box(bsl64)[black_box(69)]));
-
+	#[cfg(target_pointer_width = "64")]
+	{
+		let bsb64 = [0u64; 2].bits::<Msb0>();
+		let bsl64 = [0u64; 2].bits::<Lsb0>();
+		b.iter(|| assert!(!black_box(bsb64)[black_box(69)]));
+		b.iter(|| assert!(!black_box(bsl64)[black_box(69)]));
 	}
 }
 
@@ -133,15 +129,14 @@ fn get_mut(b: &mut Bencher) {
 	let bsl32 = src.bits_mut::<Lsb0>();
 	b.iter(|| *bsl32.get_mut(69).unwrap() = true);
 
-	#[cfg(target_pointer_width = "64")] {
-
-	let mut src = [0u64; 2];
-	let bsb64 = src.bits_mut::<Msb0>();
-	b.iter(|| *bsb64.get_mut(69).unwrap() = true);
-	let mut src = [0u64; 2];
-	let bsl64 = src.bits_mut::<Lsb0>();
-	b.iter(|| *bsl64.get_mut(69).unwrap() = true);
-
+	#[cfg(target_pointer_width = "64")]
+	{
+		let mut src = [0u64; 2];
+		let bsb64 = src.bits_mut::<Msb0>();
+		b.iter(|| *bsb64.get_mut(69).unwrap() = true);
+		let mut src = [0u64; 2];
+		let bsl64 = src.bits_mut::<Lsb0>();
+		b.iter(|| *bsl64.get_mut(69).unwrap() = true);
 	}
 }
 
@@ -174,16 +169,15 @@ fn add_assign(b: &mut Bencher) {
 	b.iter(|| bsb32a.add_assign(bsb32b.iter().copied()));
 	b.iter(|| bsl32a.add_assign(bsl32b.iter().copied()));
 
-	#[cfg(target_pointer_width = "64")] {
-
-	let mut src = [0u64; 2];
-	let bsb64a = src.bits_mut::<Msb0>();
-	let bsb64b = [0u64; 2].bits::<Msb0>();
-	let mut src = [0u64; 2];
-	let bsl64a = src.bits_mut::<Lsb0>();
-	let bsl64b = [0u64; 2].bits::<Lsb0>();
-	b.iter(|| bsb64a.add_assign(bsb64b.iter().copied()));
-	b.iter(|| bsl64a.add_assign(bsl64b.iter().copied()));
-
+	#[cfg(target_pointer_width = "64")]
+	{
+		let mut src = [0u64; 2];
+		let bsb64a = src.bits_mut::<Msb0>();
+		let bsb64b = [0u64; 2].bits::<Msb0>();
+		let mut src = [0u64; 2];
+		let bsl64a = src.bits_mut::<Lsb0>();
+		let bsl64b = [0u64; 2].bits::<Lsb0>();
+		b.iter(|| bsb64a.add_assign(bsb64b.iter().copied()));
+		b.iter(|| bsl64a.add_assign(bsl64b.iter().copied()));
 	}
 }

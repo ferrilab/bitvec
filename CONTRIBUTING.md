@@ -43,3 +43,18 @@ that do not immediately touch the codebase, you can reach me informally to talk
 about them or open an issue.
 
 I will do my best to respond to all contacts in a timely manner.
+
+## Environment
+
+This project is formatted with the following command:
+
+```sh
+cargo +nightly fmt -- --config-path rustfmt-nightly.toml
+```
+
+A smaller `rustfmt.toml` is provided which is capable of being executed by the
+pinned stable `rustfmt`; however, as `rustfmt` is an unstable tool, the nightly
+formatter is used to handle more complex configuration.
+
+Please ensure that you run this formatter before sending in a PR, in order to
+avoid excessive noise.

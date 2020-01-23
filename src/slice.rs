@@ -63,12 +63,10 @@ example, you can mutate bits in the memory to which a mutable `BitSlice` points:
 use bitvec::prelude::*;
 
 let mut base = [0u8, 0, 0, 0];
-{
- let bs: &mut BitSlice<_, _> = base.bits_mut::<Msb0>();
- bs.set(13, true);
- eprintln!("{:?}", bs.as_ref());
- assert!(bs[13]);
-}
+let bs: &mut BitSlice<_, _> = base.bits_mut::<Msb0>();
+bs.set(13, true);
+eprintln!("{:?}", bs.as_ref());
+assert!(bs[13]);
 assert_eq!(base[1], 4);
 ```
 
@@ -96,7 +94,10 @@ is ***catastrophically*** unsafe and unsound.
 **/
 #[repr(transparent)]
 pub struct BitSlice<O = Local, T = usize>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// BitOrder type for selecting bits inside an element.
 	_kind: PhantomData<O>,
 	/// Element type of the slice.
@@ -109,7 +110,10 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Produces the empty slice. This is equivalent to `&[]` for Rust slices.
 	///
 	/// # Returns
@@ -169,9 +173,8 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	#[inline]
 	pub fn from_element(elt: &T) -> &Self {
-		unsafe {
-			BitPtr::new_unchecked(elt, 0u8.idx(), T::BITS as usize)
-		}.into_bitslice()
+		unsafe { BitPtr::new_unchecked(elt, 0u8.idx(), T::BITS as usize) }
+			.into_bitslice()
 	}
 
 	/// Produces a mutable `BitSlice` over a single element.
@@ -197,13 +200,12 @@ where O: BitOrder, T: BitStore {
 	/// ```
 	#[inline]
 	pub fn from_element_mut(elt: &mut T) -> &mut Self {
-		unsafe {
-			BitPtr::new_unchecked(elt, 0u8.idx(), T::BITS as usize)
-		}.into_bitslice_mut()
+		unsafe { BitPtr::new_unchecked(elt, 0u8.idx(), T::BITS as usize) }
+			.into_bitslice_mut()
 	}
 
-	/// Wraps a `&[T: BitStore]` in a `&BitSlice<O: BitOrder, T>`. The order must
-	/// be specified at the call site. The element type cannot be changed.
+	/// Wraps a `&[T: BitStore]` in a `&BitSlice<O: BitOrder, T>`. The order
+	/// must be specified at the call site. The element type cannot be changed.
 	///
 	/// # Parameters
 	///
@@ -227,7 +229,7 @@ where O: BitOrder, T: BitStore {
 	/// let bits = BitSlice::<Msb0, u8>::from_slice(&src[..]);
 	/// assert_eq!(bits.len(), 24);
 	/// assert_eq!(bits.as_ref().len(), 3);
-	/// assert!(bits[7]);  // src[0] == 0b0000_0001
+	/// assert!(bits[7]); // src[0] == 0b0000_0001
 	/// assert!(bits[14]); // src[1] == 0b0000_0010
 	/// assert!(bits[22]); // src[2] == 0b0000_0011
 	/// assert!(bits[23]);
@@ -241,7 +243,8 @@ where O: BitOrder, T: BitStore {
 			"BitSlice cannot address {} elements",
 			len,
 		);
-		let bits = len.checked_mul(T::BITS as usize)
+		let bits = len
+			.checked_mul(T::BITS as usize)
 			.expect("Bit length out of range");
 		BitPtr::new(slice.as_ptr(), 0u8.idx(), bits).into_bitslice()
 	}
@@ -288,8 +291,8 @@ where O: BitOrder, T: BitStore {
 	/// # Parameters
 	///
 	/// - `&mut self`
-	/// - `index`: The bit index to set. It must be in the domain
-	///   `0 .. self.len()`.
+	/// - `index`: The bit index to set. It must be in the domain `0 ..
+	///   self.len()`.
 	/// - `value`: The value to be set, `true` for `1` and `false` for `0`.
 	///
 	/// # Panics
@@ -348,10 +351,10 @@ where O: BitOrder, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = 0u8;
-	/// {
-	///  let bits = &mut src.bits_mut::<Msb0>()[2 .. 4];
-	///  assert_eq!(bits.len(), 2);
-	///  unsafe { bits.set_unchecked(5, true); }
+	/// let bits = &mut src.bits_mut::<Msb0>()[2 .. 4];
+	/// assert_eq!(bits.len(), 2);
+	/// unsafe {
+	///     bits.set_unchecked(5, true);
 	/// }
 	/// assert_eq!(src, 1);
 	/// ```
@@ -419,13 +422,11 @@ where O: BitOrder, T: BitStore {
 	/// let mut src = 0u8;
 	/// let bits = src.bits_mut::<Msb0>();
 	///
-	/// {
-	///  let (mut a, rest) = bits.split_at_mut(2);
-	///  let (mut b, rest) = rest.split_at_mut(3);
-	///  *a.at(0) = true;
-	///  *b.at(0) = true;
-	///  *rest.at(0) = true;
-	/// }
+	/// let (mut a, rest) = bits.split_at_mut(2);
+	/// let (mut b, rest) = rest.split_at_mut(3);
+	/// *a.at(0) = true;
+	/// *b.at(0) = true;
+	/// *rest.at(0) = true;
 	///
 	/// assert_eq!(bits.as_slice()[0], 0b1010_0100);
 	/// //                               a b   rest
@@ -486,9 +487,13 @@ where O: BitOrder, T: BitStore {
 	pub unsafe fn split_at_mut_unchecked(
 		&mut self,
 		mid: usize,
-	) -> (&mut Self, &mut Self) {
+	) -> (&mut Self, &mut Self)
+	{
 		let (head, tail) = self.split_at_unchecked(mid);
-		(head.bitptr().into_bitslice_mut(), tail.bitptr().into_bitslice_mut())
+		(
+			head.bitptr().into_bitslice_mut(),
+			tail.bitptr().into_bitslice_mut(),
+		)
 	}
 
 	/// Version of [`swap`](#method.swap) that does not perform boundary checks.
@@ -758,16 +763,15 @@ where O: BitOrder, T: BitStore {
 						.count();
 				}
 				if let Some(body) = b {
-					out += body.iter()
+					out += body
+						.iter()
 						.map(BitAccess::load)
 						.map(T::count_ones)
 						.sum::<usize>();
 				}
 				if let Some((tail, t)) = t {
 					let elt = tail.load();
-					out += (0 .. *t)
-						.filter(|n| elt.get::<O>(n.idx()))
-						.count();
+					out += (0 .. *t).filter(|n| elt.get::<O>(n.idx())).count();
 				}
 				out
 			},
@@ -864,10 +868,8 @@ where O: BitOrder, T: BitStore {
 	/// use bitvec::prelude::*;
 	///
 	/// let mut src = 0u8;
-	/// {
-	///  let bits = src.bits_mut::<Msb0>();
-	///  bits.for_each(|idx, _bit| idx % 3 == 0);
-	/// }
+	/// let bits = src.bits_mut::<Msb0>();
+	/// bits.for_each(|idx, _bit| idx % 3 == 0);
 	/// assert_eq!(src, 0b1001_0010);
 	/// ```
 	pub fn for_each<F>(&mut self, func: F)
@@ -921,7 +923,7 @@ where O: BitOrder, T: BitStore {
 	/// let     b = 0b0000_1100u8;
 	/// //      s =      1 0110
 	/// let ab = &mut a.bits_mut::<Lsb0>()[.. 4];
-	/// let bb = &    b.bits::<Lsb0>()[.. 4];
+	/// let bb = &b.bits::<Lsb0>()[.. 4];
 	/// let c = ab.add_assign_reverse(bb.iter().copied());
 	/// assert!(c);
 	/// assert_eq!(a, 0b0000_0110u8);
@@ -940,7 +942,7 @@ where O: BitOrder, T: BitStore {
 	///
 	/// [ripple-carry adder]: https://en.wikipedia.org/wiki/Ripple-carry_adder
 	pub fn add_assign_reverse<I>(&mut self, addend: I) -> bool
-	where I: IntoIterator<Item=bool> {
+	where I: IntoIterator<Item = bool> {
 		//  See AddAssign::add_assign for algorithm details
 		let mut c = false;
 		let len = self.len();
@@ -981,21 +983,23 @@ where O: BitOrder, T: BitStore {
 	/// let src = [1u8, 66];
 	/// let bits = src.bits::<Msb0>();
 	///
-	/// let accum = bits.as_slice()
-	///   .iter()
-	///   .map(|elt| elt.count_ones())
-	///   .sum::<u32>();
+	/// let accum = bits
+	///     .as_slice()
+	///     .iter()
+	///     .map(|elt| elt.count_ones())
+	///     .sum::<u32>();
 	/// assert_eq!(accum, 3);
 	/// ```
 	pub fn as_slice(&self) -> &[T] {
-		&* unsafe { BitAccess::as_slice_mut(match self.bitptr().domain() {
-			| BitDomain::Empty
-			| BitDomain::Minor(_, _, _) => &[],
-			| BitDomain::PartialHead(_, _, body)
-			| BitDomain::PartialTail(body, _, _)
-			| BitDomain::Major(_, _, body, _, _)
-			| BitDomain::Spanning(body) => body,
-		}) }
+		unsafe {
+			BitAccess::as_slice_mut(match self.bitptr().domain() {
+				BitDomain::Empty | BitDomain::Minor(..) => &[],
+				BitDomain::PartialHead(_, _, body)
+				| BitDomain::PartialTail(body, ..)
+				| BitDomain::Major(_, _, body, ..)
+				| BitDomain::Spanning(body) => body,
+			})
+		}
 	}
 
 	/// Accesses the underlying store.
@@ -1011,19 +1015,20 @@ where O: BitOrder, T: BitStore {
 	/// let mut src = [1u8, 64];
 	/// let bits = src.bits_mut::<Msb0>();
 	/// for elt in bits.as_mut_slice() {
-	///   *elt |= 2;
+	///     *elt |= 2;
 	/// }
 	/// assert_eq!(&[3, 66], bits.as_slice());
 	/// ```
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
-		unsafe { BitAccess::as_slice_mut(match self.bitptr().domain() {
-			| BitDomain::Empty
-			| BitDomain::Minor(_, _, _) => &[],
-			| BitDomain::PartialHead(_, _, body)
-			| BitDomain::PartialTail(body, _, _)
-			| BitDomain::Major(_, _, body, _, _)
-			| BitDomain::Spanning(body) => body,
-		}) }
+		unsafe {
+			BitAccess::as_slice_mut(match self.bitptr().domain() {
+				BitDomain::Empty | BitDomain::Minor(..) => &[],
+				BitDomain::PartialHead(_, _, body)
+				| BitDomain::PartialTail(body, ..)
+				| BitDomain::Major(_, _, body, ..)
+				| BitDomain::Spanning(body) => body,
+			})
+		}
 	}
 
 	/// Accesses the underlying store, including contended partial elements.
@@ -1147,8 +1152,10 @@ pub trait AsBits {
 }
 
 impl<T> AsBits for T
-where T: BitStore {
+where T: BitStore
+{
 	type Store = T;
+
 	fn bits<O>(&self) -> &BitSlice<O, T>
 	where O: BitOrder {
 		BitSlice::from_element(self)
@@ -1161,8 +1168,10 @@ where T: BitStore {
 }
 
 impl<T> AsBits for [T]
-where T: BitStore {
+where T: BitStore
+{
 	type Store = T;
+
 	fn bits<O>(&self) -> &BitSlice<O, T>
 	where O: BitOrder {
 		BitSlice::from_slice(self)
@@ -1192,11 +1201,8 @@ macro_rules! impl_bits_for {
 }
 
 impl_bits_for![
-	0, 1, 2, 3, 4, 5, 6, 7,
-	8, 9, 10, 11, 12, 13, 14, 15,
-	16, 17, 18, 19, 20, 21, 22, 23,
-	24, 25, 26, 27, 28, 29, 30, 31,
-	32
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+	21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
 ];
 
 mod api;
@@ -1207,9 +1213,11 @@ mod traits;
 
 //  Match the `core::slice` API module topology.
 
-pub use self::api::*;
-pub use self::iter::*;
-pub use self::proxy::*;
+pub use self::{
+	api::*,
+	iter::*,
+	proxy::*,
+};
 
 #[cfg(test)]
 mod tests;

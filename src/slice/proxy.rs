@@ -46,7 +46,10 @@ location into referent memory, is impossible. Short of that, a C++-style thick
 reference-like type is as close as Rust will allow.
 **/
 pub struct BitMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	/// Inform the compiler that this has an exclusive borrow of a `BitSlice`
 	pub(super) _parent: PhantomData<&'a mut BitSlice<O, T>>,
 	/// Typed pointer to the memory element containing the proxied bit.
@@ -58,7 +61,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<O, T> Deref for BitMut<'_, O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Target = bool;
 
 	fn deref(&self) -> &Self::Target {
@@ -67,14 +73,20 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> DerefMut for BitMut<'_, O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		&mut self.bit
 	}
 }
 
 impl<O, T> Drop for BitMut<'_, O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn drop(&mut self) {
 		unsafe { (*self.data.as_ptr()).set::<O>(self.head, self.bit) }
 	}

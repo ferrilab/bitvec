@@ -18,8 +18,8 @@ fn serdes() {
 	let json = serde_json::to_string(&bv).expect("cannot fail to serialize");
 	assert_eq!(json.trim(), r#"{"head":0,"bits":8,"data":[178]}"#);
 
-	let bb: BitBox<Msb0, u8> = serde_json::from_str(&json)
-		.expect("cannot fail to deserialize");
+	let bb: BitBox<Msb0, u8> =
+		serde_json::from_str(&json).expect("cannot fail to deserialize");
 
 	assert!(bb[0]);
 	assert_eq!(bb.as_slice()[0], 178);

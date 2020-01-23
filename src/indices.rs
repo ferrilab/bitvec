@@ -39,7 +39,8 @@ referred by a `BitIdx` value is governed by implementors of `BitOrder`.
 **/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct BitIdx<T>
-where T: BitStore {
+where T: BitStore
+{
 	/// Semantic index within an element. Constrained to `0 .. T::BITS`.
 	idx: u8,
 	/// Marker for the indexed type.
@@ -47,7 +48,8 @@ where T: BitStore {
 }
 
 impl<T> BitIdx<T>
-where T: BitStore {
+where T: BitStore
+{
 	/// Wraps a counter value as a known-good index of the `T` element type.
 	///
 	/// # Parameters
@@ -81,7 +83,10 @@ where T: BitStore {
 			idx,
 			T::BITS,
 		);
-		Self { idx, _ty: PhantomData }
+		Self {
+			idx,
+			_ty: PhantomData,
+		}
 	}
 
 	/// Finds the destination bit a certain distance away from a starting bit.
@@ -188,7 +193,8 @@ where T: BitStore {
 }
 
 impl<T> Deref for BitIdx<T>
-where T: BitStore {
+where T: BitStore
+{
 	type Target = u8;
 
 	fn deref(&self) -> &Self::Target {
@@ -198,12 +204,16 @@ where T: BitStore {
 
 #[cfg(feature = "serde")]
 impl<T> TryFrom<u8> for BitIdx<T>
-where T: BitStore {
+where T: BitStore
+{
 	type Error = &'static str;
 
 	fn try_from(idx: u8) -> Result<Self, Self::Error> {
 		if idx < T::BITS {
-			Ok(Self { idx, _ty: PhantomData })
+			Ok(Self {
+				idx,
+				_ty: PhantomData,
+			})
 		}
 		else {
 			Err("Attempted to construct a `BitIdx` with an index out of range")
@@ -227,7 +237,8 @@ This type has no behavior other than viewing its internal `u8` for arithmetic.
 **/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct BitTail<T>
-where T: BitStore {
+where T: BitStore
+{
 	/// Semantic index *after* an element. Constrained to `0 ..= T::BITS`.
 	end: u8,
 	/// Marker for the tailed type.
@@ -235,7 +246,8 @@ where T: BitStore {
 }
 
 impl<T> BitTail<T>
-where T: BitStore {
+where T: BitStore
+{
 	/// Mark that `end` is a tail index for a type.
 	///
 	/// # Parameters
@@ -248,7 +260,10 @@ where T: BitStore {
 			end,
 			T::BITS,
 		);
-		Self { end, _ty: PhantomData }
+		Self {
+			end,
+			_ty: PhantomData,
+		}
 	}
 
 	pub(crate) fn span(self, len: usize) -> (usize, Self) {
@@ -294,7 +309,8 @@ where T: BitStore {
 }
 
 impl<T> Deref for BitTail<T>
-where T: BitStore {
+where T: BitStore
+{
 	type Target = u8;
 
 	fn deref(&self) -> &Self::Target {
@@ -319,7 +335,8 @@ electrical bit within a memory element, rather than `BitIdx`’s semantic bit.
 **/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct BitPos<T>
-where T: BitStore {
+where T: BitStore
+{
 	/// Electrical position within an element. Constrained to `0 .. T::BITS`.
 	pos: u8,
 	/// Marker for the positioned type.
@@ -327,7 +344,8 @@ where T: BitStore {
 }
 
 impl<T> BitPos<T>
-where T: BitStore {
+where T: BitStore
+{
 	/// Produce a new bit position marker at a valid position value.
 	///
 	/// `BitOrder` implementations should prefer this method, but *may* use
@@ -336,8 +354,8 @@ where T: BitStore {
 	///
 	/// # Parameters
 	///
-	/// - `pos`: The bit position value to encode. It must be in the range
-	///   `0 .. T::BITS`.
+	/// - `pos`: The bit position value to encode. It must be in the range `0 ..
+	///   T::BITS`.
 	///
 	/// # Panics
 	///
@@ -352,7 +370,10 @@ where T: BitStore {
 			pos,
 			T::BITS,
 		);
-		Self { pos, _ty: PhantomData }
+		Self {
+			pos,
+			_ty: PhantomData,
+		}
 	}
 
 	/// Produce a new bit position marker at any position value.
@@ -364,8 +385,8 @@ where T: BitStore {
 	///
 	/// # Parameters
 	///
-	/// - `pos`: The bit position value to encode. This must be in the range
-	///   `0 .. T::BITS`.
+	/// - `pos`: The bit position value to encode. This must be in the range `0
+	///   .. T::BITS`.
 	///
 	/// # Returns
 	///
@@ -386,12 +407,16 @@ where T: BitStore {
 			pos,
 			T::BITS,
 		);
-		Self { pos, _ty: PhantomData }
+		Self {
+			pos,
+			_ty: PhantomData,
+		}
 	}
 }
 
 impl<T> Deref for BitPos<T>
-where T: BitStore {
+where T: BitStore
+{
 	type Target = u8;
 
 	fn deref(&self) -> &Self::Target {
@@ -413,13 +438,15 @@ safely be used as a mask for read/write access to memory.
 **/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct BitMask<T>
-where T: BitStore {
+where T: BitStore
+{
 	/// Mask value.
 	mask: T,
 }
 
 impl<T> BitMask<T>
-where T: BitStore {
+where T: BitStore
+{
 	/// Produce a new bit-mask wrapper around a one-hot mask value.
 	///
 	/// `BitOrder` implementations should prefer this method, but *may* use
@@ -489,7 +516,8 @@ where T: BitStore {
 }
 
 impl<T> Deref for BitMask<T>
-where T: BitStore {
+where T: BitStore
+{
 	type Target = T;
 
 	fn deref(&self) -> &Self::Target {

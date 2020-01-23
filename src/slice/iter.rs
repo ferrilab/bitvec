@@ -1,6 +1,6 @@
 //! Iteration processes for `BitSlice`.
 
-//  TODO(myrrlyn, 2019-10-23): Upgrade to 1.37.0 and add `nth_back` implementations.
+//  TODO(myrrlyn, 2019-10-23): Upgrade to 1.37.0 and add `nth_back` impls.
 
 use super::*;
 
@@ -16,14 +16,15 @@ use core::{
 };
 
 impl<'a, O, T> IntoIterator for &'a BitSlice<O, T>
-where O: BitOrder, T: 'a + BitStore {
-	type Item = &'a bool;
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	type IntoIter = Iter<'a, O, T>;
+	type Item = &'a bool;
 
 	fn into_iter(self) -> Self::IntoIter {
-		Iter {
-			inner: self
-		}
+		Iter { inner: self }
 	}
 }
 
@@ -41,7 +42,7 @@ let data = 5u8;
 let bits = data.bits::<Lsb0>();
 
 for bit in bits[.. 4].iter() {
-    println!("{}", bit);
+	println!("{}", bit);
 }
 ```
 
@@ -50,13 +51,19 @@ for bit in bits[.. 4].iter() {
 **/
 #[derive(Clone, Debug)]
 pub struct Iter<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	/// The `BitSlice` undergoing iteration.
 	pub(super) inner: &'a BitSlice<O, T>,
 }
 
 impl<'a, O, T> Iter<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	/// Views the underlying data as a subslice of the original data.
 	///
 	/// This has the same lifetime as the original slice, and so the iterator
@@ -91,7 +98,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> Iterator for Iter<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	type Item = &'a bool;
 
 	#[inline]
@@ -130,7 +140,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> DoubleEndedIterator for Iter<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.inner.split_last().map(|(b, r)| {
@@ -141,34 +154,49 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<O, T> ExactSizeIterator for Iter<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 impl<O, T> FusedIterator for Iter<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 impl<O, T> AsRef<BitSlice<O, T>> for Iter<'_, O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn as_ref(&self) -> &BitSlice<O, T> {
 		self.inner
 	}
 }
 
 impl<O, T> AsRef<[T]> for Iter<'_, O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn as_ref(&self) -> &[T] {
 		self.inner.as_slice()
 	}
 }
 
 impl<'a, O, T> IntoIterator for &'a mut BitSlice<O, T>
-where O: BitOrder, T: 'a + BitStore {
-	type Item = BitMut<'a, O, T>;
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	type IntoIter = IterMut<'a, O, T>;
+	type Item = BitMut<'a, O, T>;
 
 	fn into_iter(self) -> Self::IntoIter {
-		IterMut {
-			inner: self
-		}
+		IterMut { inner: self }
 	}
 }
 
@@ -186,7 +214,7 @@ let mut data = 0u8;
 let bits = data.bits_mut::<Msb0>();
 assert!(bits.not_any());
 for mut bit in bits.iter_mut() {
-    *bit = true;
+	*bit = true;
 }
 assert!(bits.all());
 ```
@@ -196,13 +224,19 @@ assert!(bits.all());
 **/
 #[derive(Debug)]
 pub struct IterMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	/// The `BitSlice` undergoing iteration.
 	pub(super) inner: &'a mut BitSlice<O, T>,
 }
 
 impl<'a, O, T> IterMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	/// Views the underlying data as a subslice of the original data.
 	///
 	/// To avoid creating `&mut` references that alias, this is forced to
@@ -217,22 +251,19 @@ where O: BitOrder, T: 'a + BitStore {
 	/// let mut data = 0u8;
 	/// let bits = data.bits_mut::<Msb0>();
 	///
-	/// {
-	///     // Get an iterator over the bits:
-	///     let mut iter = bits.iter_mut();
-	///     // Advance to the next bit:
-	///     iter.next();
-	///     // If we print this bitslice, it will be seven bits long.
-	///     println!("{}", iter.into_bitslice());
-	/// }
+	/// // Get an iterator over the bits:
+	/// let mut iter = bits.iter_mut();
+	/// // Advance to the next bit:
+	/// iter.next();
+	/// // If we print this bitslice, it will be seven bits long.
+	/// println!("{}", iter.into_bitslice());
 	///
 	/// // Now let’s modify a bit of the slice:
-	/// {
-	///     // Rebuild the iterator:
-	///     let mut iter = bits.iter_mut();
-	///     // Change the value of the first bit:
-	///     *iter.next().unwrap() = true;
-	/// }
+	/// // Rebuild the iterator:
+	/// let mut iter = bits.iter_mut();
+	/// // Change the value of the first bit:
+	/// *iter.next().unwrap() = true;
+	///
 	/// assert!(bits[0]);
 	/// println!("{}", bits); // [10000000]
 	/// ```
@@ -255,7 +286,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> Iterator for IterMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	type Item = BitMut<'a, O, T>;
 
 	#[inline]
@@ -296,7 +330,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> DoubleEndedIterator for IterMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		mem::replace(&mut self.inner, BitSlice::empty_mut())
@@ -309,10 +346,18 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<O, T> ExactSizeIterator for IterMut<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 impl<O, T> FusedIterator for IterMut<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 /** An iterator over a slice in (non-overlapping) chunks (`width` bits at a
 time), starting at the beginning of the slice.
@@ -327,7 +372,10 @@ This struct is created by the [`chunks`] method on [`BitSlice`]s.
 **/
 #[derive(Clone, Debug)]
 pub struct Chunks<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	/// The `BitSlice` undergoing iteration.
 	pub(super) inner: &'a BitSlice<O, T>,
 	/// The width of the produced chunks.
@@ -335,15 +383,19 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> Iterator for Chunks<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	type Item = &'a BitSlice<O, T>;
 
 	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
 		match self.inner.len() {
 			0 => None,
-			n if n <= self.width =>
-				Some(mem::replace(&mut self.inner, BitSlice::empty())),
+			n if n <= self.width => {
+				Some(mem::replace(&mut self.inner, BitSlice::empty()))
+			},
 			_ => {
 				let (head, rest) = self.inner.split_at(self.width);
 				self.inner = rest;
@@ -388,7 +440,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> DoubleEndedIterator for Chunks<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		match self.inner.len() {
@@ -405,10 +460,18 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<O, T> ExactSizeIterator for Chunks<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 impl<O, T> FusedIterator for Chunks<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 /** An iterator over a slice in (non-overlapping) chunks (`width` bits at a
 time), starting at the beginning of the slice.
@@ -425,7 +488,10 @@ This struct is created by the [`chunks_exact`] method on [`BitSlice`]s.
 **/
 #[derive(Clone, Debug)]
 pub struct ChunksExact<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	/// The `BitSlice` undergoing iteration.
 	pub(super) inner: &'a BitSlice<O, T>,
 	/// Remainder of the original `BitSlice`.
@@ -435,7 +501,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> ChunksExact<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	/// Returns the remainder of the original slice that is not going to be
 	/// returned by the iterator. The returned slice has at most
 	/// `width - 1` bits.
@@ -445,7 +514,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> Iterator for ChunksExact<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	type Item = &'a BitSlice<O, T>;
 
 	#[inline]
@@ -492,7 +564,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> DoubleEndedIterator for ChunksExact<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		match self.inner.len() {
@@ -510,10 +585,18 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<O, T> ExactSizeIterator for ChunksExact<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 impl<O, T> FusedIterator for ChunksExact<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 /** An iterator over a slice in (non-ovelapping) mutable chunks (`width` bits at
 a time), starting at the beginning of the slice.
@@ -530,7 +613,10 @@ This struct is created by the [`chunks_exact_mut`] method on [`BitSlice`]s.
 **/
 #[derive(Debug)]
 pub struct ChunksExactMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	/// The `BitSlice` undergoing iteration.
 	pub(super) inner: &'a mut BitSlice<O, T>,
 	/// Remainder of the original `BitSlice`.
@@ -540,7 +626,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> ChunksExactMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	/// Returns the remainder of the original slice that is not going to be
 	/// returned by the iterator. The returned slice has at most
 	/// `width - 1` bits.
@@ -550,7 +639,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> Iterator for ChunksExactMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	type Item = &'a mut BitSlice<O, T>;
 
 	#[inline]
@@ -595,7 +687,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> DoubleEndedIterator for ChunksExactMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		let slice = mem::replace(&mut self.inner, BitSlice::empty_mut());
@@ -611,10 +706,18 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<O, T> ExactSizeIterator for ChunksExactMut<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 impl<O, T> FusedIterator for ChunksExactMut<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 /** An iterator over a slice in (non-overlapping) mutable chunks (`width` bits
 at a time), starting at the beginning of the slice.
@@ -629,7 +732,10 @@ This struct is created by the [`chunks_mut`] method on [`BitSlice`]s.
 **/
 #[derive(Debug)]
 pub struct ChunksMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	/// The `BitSlice` undergoing iteration.
 	pub(super) inner: &'a mut BitSlice<O, T>,
 	/// The width of the produced chunks.
@@ -637,7 +743,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> Iterator for ChunksMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	type Item = &'a mut BitSlice<O, T>;
 
 	#[inline]
@@ -689,7 +798,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> DoubleEndedIterator for ChunksMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		let slice = mem::replace(&mut self.inner, BitSlice::empty_mut());
@@ -707,10 +819,18 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<O, T> ExactSizeIterator for ChunksMut<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 impl<O, T> FusedIterator for ChunksMut<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 /** An iterator over a slice in (non-overlapping) chunks (`width` bits at a
 time), starting at the end of the slice.
@@ -725,7 +845,10 @@ This struct is created by the [`rchunks`] method on [`BitSlice`]s.
 **/
 #[derive(Clone, Debug)]
 pub struct RChunks<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	/// The `BitSlice` undergoing iteration.
 	pub(super) inner: &'a BitSlice<O, T>,
 	/// The width of the produced chunks.
@@ -733,7 +856,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> Iterator for RChunks<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	type Item = &'a BitSlice<O, T>;
 
 	#[inline]
@@ -786,7 +912,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> DoubleEndedIterator for RChunks<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		match self.inner.len() {
@@ -803,10 +932,18 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<O, T> ExactSizeIterator for RChunks<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 impl<O, T> FusedIterator for RChunks<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 /** An iterator over a slice in (non-overlapping) chunks (`width` bits
 at a time), starting at the end of the slice.
@@ -823,7 +960,10 @@ This struct is created by the [`rchunks_exact`] method on [`BitSlice`]s.
 **/
 #[derive(Clone, Debug)]
 pub struct RChunksExact<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	/// The `BitSlice` undergoing iteration.
 	pub(super) inner: &'a BitSlice<O, T>,
 	/// Remainder of the original `BitSlice`.
@@ -833,7 +973,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> RChunksExact<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	/// Returns the remainder of the original slice that is not going to be
 	/// returned by the iterator. The returned slice has at most
 	/// `width - 1` bits.
@@ -843,7 +986,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> Iterator for RChunksExact<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	type Item = &'a BitSlice<O, T>;
 
 	#[inline]
@@ -891,7 +1037,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> DoubleEndedIterator for RChunksExact<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		match self.inner.len() {
@@ -909,10 +1058,18 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<O, T> ExactSizeIterator for RChunksExact<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 impl<O, T> FusedIterator for RChunksExact<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 /** An iterator over a slice in (non-overlapping) mutable chunks (`width` bits
 at a time), starting at the end of the slice.
@@ -929,7 +1086,10 @@ This struct is created by the [`rchunks_exact_mut`] method on [`BitSlice`]s.
 **/
 #[derive(Debug)]
 pub struct RChunksExactMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	/// The `BitSlice` undergoing iteration.
 	pub(super) inner: &'a mut BitSlice<O, T>,
 	/// Remainder of the original BitSlice`.
@@ -939,7 +1099,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> RChunksExactMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	/// Returns the remainder of the original slice that is not going to be
 	/// returned by the iterator. The returned slice has at most
 	/// `width - 1` bits.
@@ -949,7 +1112,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> Iterator for RChunksExactMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	type Item = &'a mut BitSlice<O, T>;
 
 	#[inline]
@@ -995,7 +1161,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> DoubleEndedIterator for RChunksExactMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		let slice = mem::replace(&mut self.inner, BitSlice::empty_mut());
@@ -1011,10 +1180,18 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<O, T> ExactSizeIterator for RChunksExactMut<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 impl<O, T> FusedIterator for RChunksExactMut<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 /** An iterator over a slice in (non-overlapping) mutable chunks (`width` bits
 at a time), starting at the end of the slice.
@@ -1029,7 +1206,10 @@ This struct is created by the [`rchunks_mut`] method on [`BitSlice`]s.
 **/
 #[derive(Debug)]
 pub struct RChunksMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	/// The `BitSlice` undergoing iteration.
 	pub(super) inner: &'a mut BitSlice<O, T>,
 	/// The width of the produced chunks.
@@ -1037,7 +1217,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> Iterator for RChunksMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	type Item = &'a mut BitSlice<O, T>;
 
 	#[inline]
@@ -1090,7 +1273,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> DoubleEndedIterator for RChunksMut<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		let slice = mem::replace(&mut self.inner, BitSlice::empty_mut());
@@ -1108,10 +1294,18 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<O, T> ExactSizeIterator for RChunksMut<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 impl<O, T> FusedIterator for RChunksMut<'_, O, T>
-where O: BitOrder, T: BitStore {}
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
 
 /** An internal abstraction over the splitting iterators, so that
 `{,r}splitn{,_mut}` can have a single implementation.
@@ -1133,7 +1327,11 @@ This struct is created by the [`split`] method on [`BitSlice`]s.
 **/
 #[derive(Clone)]
 pub struct Split<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	/// The `BitSlice` undergoing iteration.
 	pub(super) inner: &'a BitSlice<O, T>,
 	/// The offset from the original slice to the current `inner`. If `None`,
@@ -1144,7 +1342,11 @@ where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 }
 
 impl<'a, O, T, F> Debug for Split<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		f.debug_struct("Split")
 			.field("inner", &self.inner)
@@ -1154,7 +1356,11 @@ where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 }
 
 impl<'a, O, T, F> SplitIter for Split<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	#[inline]
 	fn finish(&mut self) -> Option<&'a BitSlice<O, T>> {
 		self.place.take().map(|_| self.inner)
@@ -1162,13 +1368,18 @@ where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 }
 
 impl<'a, O, T, F> Iterator for Split<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	type Item = &'a BitSlice<O, T>;
 
 	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
 		let place = self.place?;
-		match self.inner
+		match self
+			.inner
 			.iter()
 			.zip(place ..)
 			.position(|(bit, idx)| (self.func)(place + idx, bit))
@@ -1193,12 +1404,17 @@ where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 }
 
 impl<'a, O, T, F> DoubleEndedIterator for Split<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		let place = self.place?;
 
-		match self.inner
+		match self
+			.inner
 			.iter()
 			.zip(place .. place + self.inner.len())
 			.rposition(|(bit, idx)| (self.func)(place + idx, bit))
@@ -1214,7 +1430,12 @@ where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 }
 
 impl<'a, O, T, F> FusedIterator for Split<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {}
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
+}
 
 /** An iterator over subslices separated by positions that satisfy a predicate
 function.
@@ -1225,7 +1446,11 @@ This struct is created by the [`split_mut`] method on [`BitSlice`]s.
 [`split_mut`]: struct.BitSlice.html#method.split_mut
 **/
 pub struct SplitMut<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	/// The `BitSlice` undergoing iteration.
 	pub(super) inner: &'a mut BitSlice<O, T>,
 	/// The offset from the original slice to the current `inner`. If `None`,
@@ -1236,7 +1461,11 @@ where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 }
 
 impl<'a, O, T, F> Debug for SplitMut<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_struct("SplitMut")
 			.field("inner", &self.inner)
@@ -1246,15 +1475,25 @@ where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 }
 
 impl<'a, O, T, F> SplitIter for SplitMut<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	#[inline]
 	fn finish(&mut self) -> Option<&'a mut BitSlice<O, T>> {
-		self.place.take().map(|_| mem::replace(&mut self.inner, BitSlice::empty_mut()))
+		self.place
+			.take()
+			.map(|_| mem::replace(&mut self.inner, BitSlice::empty_mut()))
 	}
 }
 
 impl<'a, O, T, F> Iterator for SplitMut<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	type Item = &'a mut BitSlice<O, T>;
 
 	#[inline]
@@ -1269,10 +1508,9 @@ where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 		} {
 			None => self.finish(),
 			Some(idx) => unsafe {
-				let (out, rest) = mem::replace(
-					&mut self.inner,
-					BitSlice::empty_mut(),
-				).split_at_mut(idx);
+				let (out, rest) =
+					mem::replace(&mut self.inner, BitSlice::empty_mut())
+						.split_at_mut(idx);
 				self.inner = rest.get_unchecked_mut(1 ..);
 				self.place = Some(place + idx + 1);
 				Some(out)
@@ -1290,7 +1528,11 @@ where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 }
 
 impl<'a, O, T, F> DoubleEndedIterator for SplitMut<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		let place = self.place?;
@@ -1304,10 +1546,9 @@ where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 		} {
 			None => self.finish(),
 			Some(idx) => unsafe {
-				let (rest, out) = mem::replace(
-					&mut self.inner,
-					BitSlice::empty_mut(),
-				).split_at_mut(idx);
+				let (rest, out) =
+					mem::replace(&mut self.inner, BitSlice::empty_mut())
+						.split_at_mut(idx);
 				self.inner = rest;
 				self.place = Some(place + idx + 1);
 				Some(out.get_unchecked_mut(1 ..))
@@ -1317,7 +1558,12 @@ where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 }
 
 impl<'a, O, T, F> FusedIterator for SplitMut<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {}
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
+}
 
 /** An iterator over subslices separated by bits that satisfy a predicate
 function, starting from the end of the slice.
@@ -1329,13 +1575,21 @@ This struct is created by the [`rsplit`] method on [`BitSlice`]s.
 **/
 #[derive(Clone)]
 pub struct RSplit<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	/// This delegates to `Split`, and switches `next` and `next_back`.
 	pub(super) inner: Split<'a, O, T, F>,
 }
 
 impl<'a, O, T, F> Debug for RSplit<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		f.debug_struct("RSplit")
 			.field("inner", &self.inner.inner)
@@ -1345,14 +1599,22 @@ where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 }
 
 impl<'a, O, T, F> SplitIter for RSplit<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	fn finish(&mut self) -> Option<Self::Item> {
 		self.inner.finish()
 	}
 }
 
 impl<'a, O, T, F> Iterator for RSplit<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	type Item = &'a BitSlice<O, T>;
 
 	#[inline]
@@ -1367,7 +1629,11 @@ where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 }
 
 impl<'a, O, T, F> DoubleEndedIterator for RSplit<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.inner.next()
@@ -1375,7 +1641,12 @@ where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 }
 
 impl<'a, O, T, F> FusedIterator for RSplit<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {}
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
+}
 
 /** An iterator over subslices separated by bits that satisfy a predicate
 function, starting from the end of the slice.
@@ -1386,13 +1657,21 @@ This struct is created by the [`rsplit_mut`] method on [`BitSlice`]s.
 [`rsplit_mut`]: struct.BitSlice.html#rsplit_mut
 **/
 pub struct RSplitMut<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	/// This delegates to `SplitMut`, and switches `next` and `next_back`.
 	pub(super) inner: SplitMut<'a, O, T, F>,
 }
 
 impl<'a, O, T, F> Debug for RSplitMut<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		f.debug_struct("RSplitMut")
 			.field("inner", &self.inner.inner)
@@ -1402,14 +1681,22 @@ where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 }
 
 impl<'a, O, T, F> SplitIter for RSplitMut<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	fn finish(&mut self) -> Option<Self::Item> {
 		self.inner.finish()
 	}
 }
 
 impl<'a, O, T, F> Iterator for RSplitMut<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	type Item = &'a mut BitSlice<O, T>;
 
 	#[inline]
@@ -1424,7 +1711,11 @@ where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 }
 
 impl<'a, O, T, F> DoubleEndedIterator for RSplitMut<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.inner.next()
@@ -1432,10 +1723,16 @@ where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 }
 
 impl<'a, O, T, F> FusedIterator for RSplitMut<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {}
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
+}
 
 pub(super) struct GenericSplitN<I>
-where I: SplitIter {
+where I: SplitIter
+{
 	/// Some splitting wrapper.
 	pub(super) inner: I,
 	/// The count of remaining splits that may occur.
@@ -1443,15 +1740,22 @@ where I: SplitIter {
 }
 
 impl<I> Iterator for GenericSplitN<I>
-where I: SplitIter {
+where I: SplitIter
+{
 	type Item = I::Item;
 
 	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
 		match self.count {
 			0 => None,
-			1 => { self.count = 0; self.inner.finish() },
-			_ => { self.count -= 1; self.inner.next() },
+			1 => {
+				self.count = 0;
+				self.inner.finish()
+			},
+			_ => {
+				self.count -= 1;
+				self.inner.next()
+			},
 		}
 	}
 
@@ -1471,13 +1775,21 @@ This struct is created by the [`splitn`] method on [`BitSlice`]s.
 [`splitn`]: struct.BitSlice.html#method.splitn
 **/
 pub struct SplitN<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	/// The interior splitter.
 	pub(super) inner: GenericSplitN<Split<'a, O, T, F>>,
 }
 
 impl<'a, O, T, F> Debug for SplitN<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_struct("SplitN")
 			.field("inner", &self.inner.inner)
@@ -1495,13 +1807,21 @@ This struct is created by the [`splitn_mut`] method on [`BitSlice`]s.
 [`splitn_mut`]: struct.BitSlice.html#method.splitn_mut
 **/
 pub struct SplitNMut<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	/// The interior splitter.
 	pub(super) inner: GenericSplitN<SplitMut<'a, O, T, F>>,
 }
 
 impl<'a, O, T, F> Debug for SplitNMut<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_struct("SplitNMut")
 			.field("inner", &self.inner.inner)
@@ -1520,13 +1840,21 @@ This struct is created by the [`rsplitn`] method on [`BitSlice`]s.
 [`rsplitn`]: struct.BitSlice.html#method.rsplitn
 **/
 pub struct RSplitN<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	/// The interior splitter.
 	pub(super) inner: GenericSplitN<RSplit<'a, O, T, F>>,
 }
 
 impl<'a, O, T, F> Debug for RSplitN<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_struct("RSplitN")
 			.field("inner", &self.inner.inner)
@@ -1545,13 +1873,21 @@ This struct is created by the [`rsplitn_mut`] method on [`BitSlice`]s.
 [`rsplitn_mut`]: struct.BitSlice.html#method.rsplitn_mut
 **/
 pub struct RSplitNMut<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	/// The interior splitter.
 	pub(super) inner: GenericSplitN<RSplitMut<'a, O, T, F>>,
 }
 
 impl<'a, O, T, F> Debug for RSplitNMut<'a, O, T, F>
-where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+	F: FnMut(usize, &bool) -> bool,
+{
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_struct("RSplitNMut")
 			.field("inner", &self.inner.inner)
@@ -1561,9 +1897,13 @@ where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
 }
 
 macro_rules! forward_iterator {
-	( $name:ident ) => {
-		impl<'a, O, T, F> Iterator for $name <'a, O, T, F>
-		where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	($name:ident) => {
+		impl<'a, O, T, F> Iterator for $name<'a, O, T, F>
+		where
+			O: BitOrder,
+			T: 'a + BitStore,
+			F: FnMut(usize, &bool) -> bool,
+		{
 			type Item = &'a BitSlice<O, T>;
 
 			#[inline]
@@ -1577,13 +1917,22 @@ macro_rules! forward_iterator {
 			}
 		}
 
-		impl<'a, O, T, F> FusedIterator for $name <'a, O, T, F>
-		where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {}
+		impl<'a, O, T, F> FusedIterator for $name<'a, O, T, F>
+		where
+			O: BitOrder,
+			T: 'a + BitStore,
+			F: FnMut(usize, &bool) -> bool,
+		{
+		}
 	};
 
-	( $name:ident mut ) => {
-		impl<'a, O, T, F> Iterator for $name <'a, O, T, F>
-		where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {
+	($name:ident mut) => {
+		impl<'a, O, T, F> Iterator for $name<'a, O, T, F>
+		where
+			O: BitOrder,
+			T: 'a + BitStore,
+			F: FnMut(usize, &bool) -> bool,
+		{
 			type Item = &'a mut BitSlice<O, T>;
 
 			#[inline]
@@ -1597,8 +1946,13 @@ macro_rules! forward_iterator {
 			}
 		}
 
-		impl<'a, O, T, F> FusedIterator for $name <'a, O, T, F>
-		where O: BitOrder, T: 'a + BitStore, F: FnMut(usize, &bool) -> bool {}
+		impl<'a, O, T, F> FusedIterator for $name<'a, O, T, F>
+		where
+			O: BitOrder,
+			T: 'a + BitStore,
+			F: FnMut(usize, &bool) -> bool,
+		{
+		}
 	};
 }
 
@@ -1616,7 +1970,10 @@ This struct is created by the [`windows`] method on [`BitSlice`]s.
 **/
 #[derive(Clone, Debug)]
 pub struct Windows<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	/// The `BitSlice` undergoing iteration.
 	pub(super) inner: &'a BitSlice<O, T>,
 	/// The width of the produced windows.
@@ -1624,7 +1981,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> Iterator for Windows<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	type Item = &'a BitSlice<O, T>;
 
 	#[inline]
@@ -1637,7 +1997,7 @@ where O: BitOrder, T: 'a + BitStore {
 			unsafe {
 				let out = self.inner.get_unchecked(.. self.width);
 				self.inner = self.inner.get_unchecked(1 ..);
-			Some(out)
+				Some(out)
 			}
 		}
 	}
@@ -1680,7 +2040,10 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> DoubleEndedIterator for Windows<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		let len = self.inner.len();
@@ -1697,7 +2060,15 @@ where O: BitOrder, T: 'a + BitStore {
 }
 
 impl<'a, O, T> ExactSizeIterator for Windows<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {}
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
+}
 
 impl<'a, O, T> FusedIterator for Windows<'a, O, T>
-where O: BitOrder, T: 'a + BitStore {}
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
+}

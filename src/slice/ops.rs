@@ -34,7 +34,6 @@ use core::{
 	ptr,
 };
 
-
 /** Performs unsigned addition in place on a `BitSlice`.
 
 If the addend bitstream is shorter than `self`, the addend is zero-extended at
@@ -58,8 +57,12 @@ then using addition, or by using `BitVec`s instead of `BitSlice`s.
   in reverse.
 **/
 impl<O, T, I> AddAssign<I> for BitSlice<O, T>
-where O: BitOrder, T: BitStore,
-	I: IntoIterator<Item=bool>, I::IntoIter: DoubleEndedIterator {
+where
+	O: BitOrder,
+	T: BitStore,
+	I: IntoIterator<Item = bool>,
+	I::IntoIter: DoubleEndedIterator,
+{
 	/// Performs unsigned wrapping addition in place.
 	///
 	/// # Examples
@@ -103,7 +106,9 @@ where O: BitOrder, T: BitStore,
 			//  Bounds checks are performed in the loop header.
 			let a = unsafe { *self.get_unchecked(i) };
 			let (y, z) = crate::rca1(a, b, c);
-			unsafe { self.set_unchecked(i, y); }
+			unsafe {
+				self.set_unchecked(i, y);
+			}
 			c = z;
 		}
 	}
@@ -119,7 +124,11 @@ remaining bits of `self` are cleared.
   or some other bit producer as desired.
 **/
 impl<O, T, I> BitAndAssign<I> for BitSlice<O, T>
-where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
+where
+	O: BitOrder,
+	T: BitStore,
+	I: IntoIterator<Item = bool>,
+{
 	/// `AND`s a bitstream into a slice.
 	///
 	/// # Parameters
@@ -162,7 +171,11 @@ bits of `self` are not affected.
   or some other bit producer as desired.
 **/
 impl<O, T, I> BitOrAssign<I> for BitSlice<O, T>
-where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
+where
+	O: BitOrder,
+	T: BitStore,
+	I: IntoIterator<Item = bool>,
+{
 	/// `OR`s a bitstream into a slice.
 	///
 	/// # Parameters
@@ -183,13 +196,12 @@ where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
 	/// assert_eq!(store[0], 0b0111_0100);
 	/// ```
 	fn bitor_assign(&mut self, rhs: I) {
-		rhs.into_iter()
-			.enumerate()
-			.take(self.len())
-			.for_each(|(idx, bit)| unsafe {
+		rhs.into_iter().enumerate().take(self.len()).for_each(
+			|(idx, bit)| unsafe {
 				let val = *self.get_unchecked(idx);
 				self.set_unchecked(idx, val | bit);
-			});
+			},
+		);
 	}
 }
 
@@ -203,7 +215,11 @@ bits of `self` are not affected.
   or some other bit producer as desired.
 **/
 impl<O, T, I> BitXorAssign<I> for BitSlice<O, T>
-where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
+where
+	O: BitOrder,
+	T: BitStore,
+	I: IntoIterator<Item = bool>,
+{
 	/// `XOR`s a bitstream into a slice.
 	///
 	/// # Parameters
@@ -224,18 +240,20 @@ where O: BitOrder, T: BitStore, I: IntoIterator<Item=bool> {
 	/// assert_eq!(store[0], 0b0110_0100);
 	/// ```
 	fn bitxor_assign(&mut self, rhs: I) {
-		rhs.into_iter()
-			.enumerate()
-			.take(self.len())
-			.for_each(|(idx, bit)| unsafe {
+		rhs.into_iter().enumerate().take(self.len()).for_each(
+			|(idx, bit)| unsafe {
 				let val = *self.get_unchecked(idx);
 				self.set_unchecked(idx, val ^ bit);
-			})
+			},
+		)
 	}
 }
 
 impl<O, T> Index<usize> for BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = bool;
 
 	fn index(&self, place: usize) -> &Self::Output {
@@ -244,7 +262,10 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> Index<Range<usize>> for BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = Self;
 
 	fn index(&self, range: Range<usize>) -> &Self {
@@ -253,14 +274,20 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> IndexMut<Range<usize>> for BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn index_mut(&mut self, range: Range<usize>) -> &mut Self {
 		range.index_mut(self)
 	}
 }
 
 impl<O, T> Index<RangeInclusive<usize>> for BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = Self;
 
 	fn index(&self, range: RangeInclusive<usize>) -> &Self {
@@ -269,14 +296,20 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> IndexMut<RangeInclusive<usize>> for BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn index_mut(&mut self, range: RangeInclusive<usize>) -> &mut Self {
 		range.index_mut(self)
 	}
 }
 
 impl<O, T> Index<RangeFrom<usize>> for BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = Self;
 
 	fn index(&self, range: RangeFrom<usize>) -> &Self {
@@ -285,14 +318,20 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> IndexMut<RangeFrom<usize>> for BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn index_mut(&mut self, range: RangeFrom<usize>) -> &mut Self {
 		range.index_mut(self)
 	}
 }
 
 impl<O, T> Index<RangeFull> for BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = Self;
 
 	fn index(&self, _: RangeFull) -> &Self {
@@ -301,14 +340,20 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> IndexMut<RangeFull> for BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn index_mut(&mut self, _: RangeFull) -> &mut Self {
 		self
 	}
 }
 
 impl<O, T> Index<RangeTo<usize>> for BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = Self;
 
 	fn index(&self, range: RangeTo<usize>) -> &Self {
@@ -317,14 +362,20 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> IndexMut<RangeTo<usize>> for BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn index_mut(&mut self, range: RangeTo<usize>) -> &mut Self {
 		range.index_mut(self)
 	}
 }
 
 impl<O, T> Index<RangeToInclusive<usize>> for BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	type Output = Self;
 
 	fn index(&self, range: RangeToInclusive<usize>) -> &Self {
@@ -333,7 +384,10 @@ where O: BitOrder, T: BitStore {
 }
 
 impl<O, T> IndexMut<RangeToInclusive<usize>> for BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	fn index_mut(&mut self, range: RangeToInclusive<usize>) -> &mut Self {
 		range.index_mut(self)
 	}
@@ -360,7 +414,10 @@ at the least unreasonable fallback value, 0.
 Because `BitSlice` cannot move, the negation is performed in place.
 **/
 impl<'a, O, T> Neg for &'a mut BitSlice<O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	type Output = Self;
 
 	/// Perform 2’s-complement fixed-width negation.
@@ -434,11 +491,15 @@ where O: BitOrder, T: 'a + BitStore {
 		if unsafe { *self.get_unchecked(0) } {
 			//  Testing the whole range, rather than [1 ..], is more likely to
 			//  hit the fast path for `not_any`.
-			unsafe { self.set_unchecked(0, false); }
+			unsafe {
+				self.set_unchecked(0, false);
+			}
 			if self.not_any() {
 				return self;
 			}
-			unsafe { self.set_unchecked(0, true); }
+			unsafe {
+				self.set_unchecked(0, true);
+			}
 		}
 		let this = !self;
 		*this += core::iter::once(true);
@@ -448,7 +509,10 @@ where O: BitOrder, T: 'a + BitStore {
 
 /// Flips all bits in the slice, in place.
 impl<'a, O, T> Not for &'a mut BitSlice<O, T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	type Output = Self;
 
 	/// Inverts all bits in the slice.
@@ -474,8 +538,10 @@ where O: BitOrder, T: 'a + BitStore {
 	/// ```
 	fn not(self) -> Self::Output {
 		match self.bitptr().domain().splat() {
-			Either::Right((h, e, t)) => for n in *h .. *t {
-				e.invert_bit::<O>(n.idx());
+			Either::Right((h, e, t)) => {
+				for n in *h .. *t {
+					e.invert_bit::<O>(n.idx());
+				}
 			},
 			Either::Left((h, b, t)) => {
 				if let Some((h, head)) = h {
@@ -531,7 +597,10 @@ error to pass a shift amount greater than the array length.
 A shift amount of zero is a no-op, and returns immediately.
 **/
 impl<O, T> ShlAssign<usize> for BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Shifts a slice left, in place.
 	///
 	/// # Parameters
@@ -599,7 +668,9 @@ where O: BitOrder, T: BitStore {
 		}
 		//  Otherwise, crawl.
 		for (to, from) in (shamt .. len).enumerate() {
-			unsafe { self.copy_unchecked(from, to); }
+			unsafe {
+				self.copy_unchecked(from, to);
+			}
 		}
 		self[len - shamt ..].set_all(false);
 	}
@@ -635,7 +706,10 @@ pass a shift amount greater than the array length.
 A shift amount of zero is a no-op, and returns immediately.
 **/
 impl<O, T> ShrAssign<usize> for BitSlice<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Shifts a slice right, in place.
 	///
 	/// # Parameters
@@ -696,7 +770,9 @@ where O: BitOrder, T: BitStore {
 		}
 		//  Otherwise, crawl.
 		for (from, to) in (shamt .. len).enumerate().rev() {
-			unsafe { self.copy_unchecked(from, to); }
+			unsafe {
+				self.copy_unchecked(from, to);
+			}
 		}
 		self[.. shamt].set_all(false);
 	}

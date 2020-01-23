@@ -25,8 +25,8 @@ use core::{
 };
 
 use radium::{
-	Radium,
 	marker::BitOps,
+	Radium,
 };
 
 /** Access interface for shared/mutable memory access.
@@ -37,7 +37,8 @@ to underlying memory. This trait extends the `Radium` element-wise shared
 mutable access with single-bit operations suited for use by `BitSlice`.
 **/
 pub trait BitAccess<T>: Debug + Radium<T> + Sized
-where T: BitStore + BitOps + Sized {
+where T: BitStore + BitOps + Sized
+{
 	/// Set a single bit in an element low.
 	///
 	/// `BitAccess::set` calls this when its `value` is `false`; it
@@ -140,8 +141,8 @@ where T: BitStore + BitOps + Sized {
 	///
 	/// # Type Parameters
 	///
-	/// - `O`: A `BitOrder` implementation which translates `place` into a usable
-	///   bit-mask.
+	/// - `O`: A `BitOrder` implementation which translates `place` into a
+	///   usable bit-mask.
 	///
 	/// # Parameters
 	///
@@ -196,4 +197,8 @@ where T: BitStore + BitOps + Sized {
 }
 
 impl<T, R> BitAccess<T> for R
-where T: BitStore + BitOps, R: Debug + Radium<T> {}
+where
+	T: BitStore + BitOps,
+	R: Debug + Radium<T>,
+{
+}

@@ -35,16 +35,15 @@ use core::{
 };
 
 use serde::{
-	Serialize,
 	ser::{
-		Serializer,
 		SerializeStruct,
+		Serializer,
 	},
+	Serialize,
 };
 
 #[cfg(feature = "alloc")]
 use serde::{
-	Deserialize,
 	de::{
 		self,
 		Deserializer,
@@ -54,28 +53,41 @@ use serde::{
 		Unexpected,
 		Visitor,
 	},
+	Deserialize,
 };
 
 /// A Serde visitor to pull `BitBox` data out of a serialized stream
 #[cfg(feature = "alloc")]
 #[derive(Clone, Copy, Default, Debug)]
 pub struct BitBoxVisitor<'de, O, T>
-where O: BitOrder, T: BitStore + Deserialize<'de> {
+where
+	O: BitOrder,
+	T: BitStore + Deserialize<'de>,
+{
 	_order: PhantomData<O>,
 	_storage: PhantomData<&'de T>,
 }
 
 #[cfg(feature = "alloc")]
 impl<'de, O, T> BitBoxVisitor<'de, O, T>
-where O: BitOrder, T: BitStore + Deserialize<'de> {
+where
+	O: BitOrder,
+	T: BitStore + Deserialize<'de>,
+{
 	fn new() -> Self {
-		BitBoxVisitor { _order: PhantomData, _storage: PhantomData }
+		BitBoxVisitor {
+			_order: PhantomData,
+			_storage: PhantomData,
+		}
 	}
 }
 
 #[cfg(feature = "alloc")]
 impl<'de, O, T> Visitor<'de> for BitBoxVisitor<'de, O, T>
-where O: BitOrder, T: BitStore + Deserialize<'de> {
+where
+	O: BitOrder,
+	T: BitStore + Deserialize<'de>,
+{
 	type Value = BitBox<O, T>;
 
 	fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -86,19 +98,24 @@ where O: BitOrder, T: BitStore + Deserialize<'de> {
 	/// `usize', `u8`, `u8`, `[T]`.
 	fn visit_seq<V>(self, mut seq: V) -> Result<Self::Value, V::Error>
 	where V: SeqAccess<'de> {
-		let head: u8 = seq.next_element()?
+		let head: u8 = seq
+			.next_element()?
 			.ok_or_else(|| de::Error::invalid_length(0, &self))?;
-		let bits: usize = seq.next_element()?
+		let bits: usize = seq
+			.next_element()?
 			.ok_or_else(|| de::Error::invalid_length(1, &self))?;
-		let data: Box<[T]> = seq.next_element()?
+		let data: Box<[T]> = seq
+			.next_element()?
 			.ok_or_else(|| de::Error::invalid_length(2, &self))?;
 
 		let bitptr = BitPtr::new(
 			data.as_ptr(),
-			head.try_into().map_err(|_| Error::invalid_value(
-				Unexpected::Unsigned(u64::from(head)),
-				&self,
-			))?,
+			head.try_into().map_err(|_| {
+				Error::invalid_value(
+					Unexpected::Unsigned(u64::from(head)),
+					&self,
+				)
+			})?,
 			bits,
 		);
 		mem::forget(data);
@@ -115,18 +132,26 @@ where O: BitOrder, T: BitStore + Deserialize<'de> {
 
 		while let Some(key) = map.next_key()? {
 			match key {
-				"head" => if head.replace(map.next_value()?).is_some() {
-					return Err(de::Error::duplicate_field("head"));
+				"head" => {
+					if head.replace(map.next_value()?).is_some() {
+						return Err(de::Error::duplicate_field("head"));
+					}
 				},
-				"bits" => if bits.replace(map.next_value()?).is_some() {
-					return Err(de::Error::duplicate_field("bits"));
+				"bits" => {
+					if bits.replace(map.next_value()?).is_some() {
+						return Err(de::Error::duplicate_field("bits"));
+					}
 				},
-				"data" => if data.replace(map.next_value()?).is_some() {
-					return Err(de::Error::duplicate_field("data"));
+				"data" => {
+					if data.replace(map.next_value()?).is_some() {
+						return Err(de::Error::duplicate_field("data"));
+					}
 				},
-				f => return Err(de::Error::unknown_field(
-					f, &["head", "bits", "data"]
-				)),
+				f => {
+					return Err(de::Error::unknown_field(f, &[
+						"head", "bits", "data",
+					]));
+				},
 			}
 		}
 		let head = head.ok_or_else(|| de::Error::missing_field("head"))?;
@@ -135,10 +160,12 @@ where O: BitOrder, T: BitStore + Deserialize<'de> {
 
 		let bitptr = BitPtr::new(
 			data.as_ptr(),
-			head.try_into().map_err(|_| Error::invalid_value(
-				Unexpected::Unsigned(u64::from(head)),
-				&self,
-			))?,
+			head.try_into().map_err(|_| {
+				Error::invalid_value(
+					Unexpected::Unsigned(u64::from(head)),
+					&self,
+				)
+			})?,
 			cmp::min(bits, data.len() * T::BITS as usize),
 		);
 		mem::forget(data);
@@ -148,21 +175,26 @@ where O: BitOrder, T: BitStore + Deserialize<'de> {
 
 #[cfg(feature = "alloc")]
 impl<'de, O, T> Deserialize<'de> for BitBox<O, T>
-where O: BitOrder, T: 'de + BitStore + Deserialize<'de> {
+where
+	O: BitOrder,
+	T: 'de + BitStore + Deserialize<'de>,
+{
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
-		deserializer
-			.deserialize_struct(
-				"BitSet",
-				&["head", "bits", "data"],
-				BitBoxVisitor::new(),
-			)
+		deserializer.deserialize_struct(
+			"BitSet",
+			&["head", "bits", "data"],
+			BitBoxVisitor::new(),
+		)
 	}
 }
 
 #[cfg(feature = "alloc")]
 impl<'de, O, T> Deserialize<'de> for BitVec<O, T>
-where O: BitOrder, T: 'de + BitStore + Deserialize<'de> {
+where
+	O: BitOrder,
+	T: 'de + BitStore + Deserialize<'de>,
+{
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		BitBox::deserialize(deserializer).map(Into::into)
@@ -170,7 +202,11 @@ where O: BitOrder, T: 'de + BitStore + Deserialize<'de> {
 }
 
 impl<O, T> Serialize for BitSlice<O, T>
-where O: BitOrder, T: BitStore + Serialize, T::Access: Serialize {
+where
+	O: BitOrder,
+	T: BitStore + Serialize,
+	T::Access: Serialize,
+{
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		let head = self.bitptr().head();
@@ -186,7 +222,11 @@ where O: BitOrder, T: BitStore + Serialize, T::Access: Serialize {
 
 #[cfg(feature = "alloc")]
 impl<O, T> Serialize for BitBox<O, T>
-where O: BitOrder, T: BitStore + Serialize, T::Access: Serialize {
+where
+	O: BitOrder,
+	T: BitStore + Serialize,
+	T::Access: Serialize,
+{
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		BitSlice::serialize(&*self, serializer)
@@ -195,7 +235,11 @@ where O: BitOrder, T: BitStore + Serialize, T::Access: Serialize {
 
 #[cfg(feature = "alloc")]
 impl<O, T> Serialize for BitVec<O, T>
-where O: BitOrder, T: BitStore + Serialize, T::Access: Serialize {
+where
+	O: BitOrder,
+	T: BitStore + Serialize,
+	T::Access: Serialize,
+{
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		BitSlice::serialize(&*self, serializer)
@@ -205,12 +249,12 @@ where O: BitOrder, T: BitStore + Serialize, T::Access: Serialize {
 #[cfg(test)]
 mod tests {
 	use crate::prelude::*;
-	use serde_test::{
-		Token,
-		assert_ser_tokens,
-	};
 	#[cfg(feature = "alloc")]
 	use serde_test::assert_de_tokens;
+	use serde_test::{
+		assert_ser_tokens,
+		Token,
+	};
 
 	macro_rules! bvtok {
 		( s $elts:expr, $head:expr, $bits:expr, $ty:ident $( , $data:expr )* ) => {

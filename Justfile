@@ -20,7 +20,7 @@ check:
 	cargo check --all-features
 
 # Runs all of the recipes necessary for pre-publish.
-checkout: check clippy build doc test package
+checkout: format check lint build doc test package
 
 # Continually runs the development routines.
 ci:
@@ -30,18 +30,22 @@ ci:
 clean:
 	cargo clean
 
-# Runs clippy.
-clippy: check
-	cargo clippy --no-default-features
-	cargo clippy --no-default-features --features alloc
-	cargo clippy --all-features
-
 # Runs the development routines.
-dev: clippy doc test
+dev: format lint doc test
 
 # Builds the crate documentation.
 doc:
 	cargo doc --all-features --document-private-items
+
+# Runs the formatter on all Rust files.
+format:
+	cargo +nightly fmt -- --config-path rustfmt-nightly.toml
+
+# Runs the linter.
+lint: check
+	cargo clippy --no-default-features
+	cargo clippy --no-default-features --features alloc
+	cargo clippy --all-features
 
 # Continually runs some recipe from this file.
 loop action:
@@ -59,7 +63,7 @@ publish: checkout
 	cargo publish
 
 # Runs the test suites.
-test: check clippy
+test: check lint
 	cargo test --no-default-features
 	cargo test --all-features
 	cargo run --all-features --example ipv4

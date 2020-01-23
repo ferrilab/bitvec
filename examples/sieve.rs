@@ -57,9 +57,10 @@ fn main() {
 
 		for n in 2 ..= ((max as f64).sqrt() as usize) {
 			//  Adjust the frequency of log statements vaguely logarithmically.
-			if n <  20_000 && n %  1_000 == 0
-			|| n <  50_000 && n %  5_000 == 0
-			|| n < 100_000 && n % 10_000 == 0 {
+			if n < 20_000 && n % 1_000 == 0
+				|| n < 50_000 && n % 5_000 == 0
+				|| n < 100_000 && n % 10_000 == 0
+			{
 				println!("Calculating {}…", n);
 			}
 			//  If n is prime, mark all multiples as non-prime
@@ -67,8 +68,7 @@ fn main() {
 				if n < 100 {
 					println!("Calculating {}…", n);
 				}
-				'inner:
-				for i in n .. {
+				'inner: for i in n .. {
 					let j = n * i;
 					if j >= max {
 						break 'inner;
@@ -120,10 +120,12 @@ fn main() {
 		.map(|(idx, _)| ((limit - 1 - idx) as f64).log(10.0).ceil() as usize)
 		.expect("Failed to find a prime.");
 
-	println!("There are {} primes and {} non-primes below {}", one, zero, max);
+	println!(
+		"There are {} primes and {} non-primes below {}",
+		one, zero, max
+	);
 	println!("The primes smaller than {} are:", limit);
-	'outer:
-	for i in 0 .. dim {
+	'outer: for i in 0 .. dim {
 		let h = i * dim;
 		if h >= limit {
 			break;

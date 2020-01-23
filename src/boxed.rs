@@ -57,13 +57,19 @@ to and from `BitSlice`, and to/from `BitVec`.
 **/
 #[repr(C)]
 pub struct BitBox<O = Local, T = usize>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	_order: PhantomData<O>,
 	pointer: BitPtr<T>,
 }
 
 impl<O, T> BitBox<O, T>
-where O: BitOrder, T: BitStore {
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	/// Constructs an empty boxed bitslice.
 	///
 	/// # Returns
@@ -230,8 +236,8 @@ where O: BitOrder, T: BitStore {
 	pub fn into_boxed_slice(self) -> Box<[T]> {
 		let slice = self.pointer.as_mut_slice();
 		let (data, elts) = (slice.as_mut_ptr(), slice.len());
-		let out = unsafe { Vec::from_raw_parts(data, elts, elts) }
-			.into_boxed_slice();
+		let out =
+			unsafe { Vec::from_raw_parts(data, elts, elts) }.into_boxed_slice();
 		mem::forget(self);
 		out
 	}
@@ -249,7 +255,7 @@ where O: BitOrder, T: BitStore {
 	///
 	/// The sum of `self` and `addend`.
 	pub fn add_reverse<I>(mut self, addend: I) -> Self
-	where I: IntoIterator<Item=bool> {
+	where I: IntoIterator<Item = bool> {
 		self.add_assign_reverse(addend);
 		self
 	}
@@ -365,9 +371,8 @@ where O: BitOrder, T: BitStore {
 	where F: FnOnce(&Box<[T]>) -> R {
 		let slice = self.pointer.as_mut_slice();
 		let (data, elts) = (slice.as_mut_ptr(), slice.len());
-		let b: Box<[T]> = unsafe {
-			Vec::from_raw_parts(data, elts, elts)
-		}.into_boxed_slice();
+		let b: Box<[T]> =
+			unsafe { Vec::from_raw_parts(data, elts, elts) }.into_boxed_slice();
 		let out = func(&b);
 		mem::forget(b);
 		out

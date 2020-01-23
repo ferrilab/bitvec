@@ -51,7 +51,8 @@ crate ever breaks in the future.
 #[derive(Clone, Copy)]
 #[doc(hidden)]
 pub(crate) union Pointer<T>
-where T: BitStore {
+where T: BitStore
+{
 	/// A shareable pointer to some contended mutable data.
 	a: *const <T as BitStore>::Access,
 	/// A read pointer to some data.
@@ -63,7 +64,8 @@ where T: BitStore {
 }
 
 impl<T> Pointer<T>
-where T: BitStore {
+where T: BitStore
+{
 	/// Accesses the address as a shared mutable pointer.
 	///
 	/// # Parameters
@@ -123,35 +125,40 @@ where T: BitStore {
 }
 
 impl<T> From<&T> for Pointer<T>
-where T: BitStore {
+where T: BitStore
+{
 	fn from(r: &T) -> Self {
 		Self { r }
 	}
 }
 
 impl<T> From<*const T> for Pointer<T>
-where T: BitStore {
+where T: BitStore
+{
 	fn from(r: *const T) -> Self {
 		Self { r }
 	}
 }
 
 impl<T> From<&mut T> for Pointer<T>
-where T: BitStore {
+where T: BitStore
+{
 	fn from(w: &mut T) -> Self {
 		Self { w }
 	}
 }
 
 impl<T> From<*mut T> for Pointer<T>
-where T: BitStore {
+where T: BitStore
+{
 	fn from(w: *mut T) -> Self {
 		Self { w }
 	}
 }
 
 impl<T> From<usize> for Pointer<T>
-where T: BitStore {
+where T: BitStore
+{
 	fn from(u: usize) -> Self {
 		Self { u }
 	}
@@ -170,8 +177,7 @@ syntax, so the below description of the element layout is in C++.
 template <typename T>
 struct BitPtr {
   size_t ptr_head : __builtin_ctzll(alignof(T));
-  size_t ptr_data : sizeof(uintptr_t) * 8
-                  - __builtin_ctzll(alignof(T));
+  size_t ptr_data : sizeof(uintptr_t) * 8 - __builtin_ctzll(alignof(T));
 
   size_t len_head : 3;
   size_t len_bits : sizeof(size_t) * 8 - 3;
@@ -264,7 +270,8 @@ regime.
 #[repr(C)]
 #[derive(Clone, Copy, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct BitPtr<T = u8>
-where T: BitStore {
+where T: BitStore
+{
 	_ty: PhantomData<T>,
 	/// Two-element bitfield structure, holding pointer and head information.
 	///
@@ -292,33 +299,28 @@ where T: BitStore {
 }
 
 impl<T> BitPtr<T>
-where T: BitStore {
-	/// Marks the bits of `self.ptr` that are the `data` section.
-	pub const PTR_DATA_MASK: usize = !Self::PTR_HEAD_MASK;
-
-	/// The number of low bits in `self.ptr` that are the high bits of the head
-	/// `BitIdx` cursor.
-	pub const PTR_HEAD_BITS: usize = T::INDX as usize - Self::LEN_HEAD_BITS;
-
-	/// Marks the bits of `self.ptr` that are the `head` section.
-	pub const PTR_HEAD_MASK: usize = T::MASK as usize >> Self::LEN_HEAD_BITS;
-
+where T: BitStore
+{
 	/// The number of low bits in `self.len` that are the low bits of the head
 	/// `BitIdx` cursor.
 	///
 	/// This is always `3`, until Rust tries to target a machine whose bytes are
 	/// not eight bits wide.
 	pub const LEN_HEAD_BITS: usize = 3;
-
 	/// Marks the bits of `self.len` that are the `head` section.
 	pub const LEN_HEAD_MASK: usize = 0b0111;
-
+	/// The inclusive maximum bit index.
+	pub const MAX_BITS: usize = !0 >> Self::LEN_HEAD_BITS;
 	/// The inclusive maximum number of elements that can be stored in a
 	/// `BitPtr` domain.
 	pub const MAX_ELTS: usize = (Self::MAX_BITS >> 3) + 1;
-
-	/// The inclusive maximum bit index.
-	pub const MAX_BITS: usize = !0 >> Self::LEN_HEAD_BITS;
+	/// Marks the bits of `self.ptr` that are the `data` section.
+	pub const PTR_DATA_MASK: usize = !Self::PTR_HEAD_MASK;
+	/// The number of low bits in `self.ptr` that are the high bits of the head
+	/// `BitIdx` cursor.
+	pub const PTR_HEAD_BITS: usize = T::INDX as usize - Self::LEN_HEAD_BITS;
+	/// Marks the bits of `self.ptr` that are the `head` section.
+	pub const PTR_HEAD_MASK: usize = T::MASK as usize >> Self::LEN_HEAD_BITS;
 
 	/// Produces an empty-slice representation.
 	///
@@ -417,7 +419,8 @@ where T: BitStore {
 		data: impl Into<Pointer<T>>,
 		head: BitIdx<T>,
 		bits: usize,
-	) -> Self {
+	) -> Self
+	{
 		let data = data.into();
 
 		//  Null pointers become the empty slice.
@@ -477,7 +480,8 @@ where T: BitStore {
 		data: impl Into<Pointer<T>>,
 		head: BitIdx<T>,
 		bits: usize,
-	) -> Self {
+	) -> Self
+	{
 		let (data, head) = (data.into(), *head as usize);
 
 		let ptr_data = data.u() & Self::PTR_DATA_MASK;
@@ -758,7 +762,11 @@ where T: BitStore {
 			(p, _) if p.is_null() => unreachable!("Rust forbids null refs"),
 			(p, l) => (unsafe { NonNull::new_unchecked(p) }, l),
 		};
-		Self { ptr, len, _ty: PhantomData }
+		Self {
+			ptr,
+			len,
+			_ty: PhantomData,
+		}
 	}
 
 	/// Converts a `BitPtr` structure into an immutable `BitSlice` handle.
@@ -824,7 +832,8 @@ Mutability is not encoded in the `BitPtr` type system at this time, and thus is
 not enforced by the compiler yet.
 **/
 impl<T> AsMut<[T]> for BitPtr<T>
-where T: BitStore {
+where T: BitStore
+{
 	fn as_mut(&mut self) -> &mut [T] {
 		self.as_mut_slice()
 	}
@@ -833,21 +842,28 @@ where T: BitStore {
 /// Gets read access to all elements in the underlying storage, including the
 /// partial head and tail elements.
 impl<T> AsRef<[T]> for BitPtr<T>
-where T: BitStore {
+where T: BitStore
+{
 	fn as_ref(&self) -> &[T] {
 		self.as_slice()
 	}
 }
 
 impl<'a, O, T> From<&'a BitSlice<O, T>> for BitPtr<T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	fn from(src: &'a BitSlice<O, T>) -> Self {
 		Self::from_bitslice(src)
 	}
 }
 
 impl<'a, O, T> From<&'a mut BitSlice<O, T>> for BitPtr<T>
-where O: BitOrder, T: 'a + BitStore {
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
 	fn from(src: &'a mut BitSlice<O, T>) -> Self {
 		Self::from_bitslice(src)
 	}
@@ -855,7 +871,8 @@ where O: BitOrder, T: 'a + BitStore {
 
 /// Produces the empty-slice representation.
 impl<T> Default for BitPtr<T>
-where T: BitStore {
+where T: BitStore
+{
 	/// Produces an empty-slice representation.
 	///
 	/// The empty slice has no size or cursors, and its pointer is the alignment
@@ -868,7 +885,8 @@ where T: BitStore {
 
 /// Prints the `BitPtr` data structure for debugging.
 impl<T> Debug for BitPtr<T>
-where T: BitStore {
+where T: BitStore
+{
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		struct HexPtr<T: BitStore>(*const T);
 		impl<T: BitStore> Debug for HexPtr<T> {
@@ -955,6 +973,10 @@ mod tests {
 	#[test]
 	#[should_panic]
 	fn overfull() {
-		BitPtr::<u32>::new(8 as *const u32, 1u8.idx(), BitPtr::<u32>::MAX_BITS + 1);
+		BitPtr::<u32>::new(
+			8 as *const u32,
+			1u8.idx(),
+			BitPtr::<u32>::MAX_BITS + 1,
+		);
 	}
 }

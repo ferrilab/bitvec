@@ -35,11 +35,14 @@ element.
 **/
 //  Type bounds in `type` aliases are disallowed, so `T::Access` is not writable
 //  here.
-pub(crate) type Splat<'a, T, A> = Either<(
-	Option<(BitIdx<T>, &'a A)>,
-	Option<&'a [A]>,
-	Option<(&'a A, BitTail<T>)>,
-), (BitIdx<T>, &'a A, BitTail<T>)>;
+pub(crate) type Splat<'a, T, A> = Either<
+	(
+		Option<(BitIdx<T>, &'a A)>,
+		Option<&'a [A]>,
+		Option<(&'a A, BitTail<T>)>,
+	),
+	(BitIdx<T>, &'a A, BitTail<T>),
+>;
 
 /** Representations of the state of the bit domain in its containing elements.
 
@@ -53,7 +56,8 @@ pub(crate) type Splat<'a, T, A> = Either<(
 **/
 #[derive(Debug)]
 pub(crate) enum BitDomain<'a, T>
-where T: 'a + BitStore {
+where T: 'a + BitStore
+{
 	/// Empty domain.
 	Empty,
 	/// Single element domain which does not reach either edge.
@@ -83,10 +87,16 @@ where T: 'a + BitStore {
 	///
 	/// # Behavior
 	///
-	/// This variant is produced when the domain uses at least two elements, and
-	/// reaches neither the head edge of the head element nor the tail edge of
-	/// the tail element.
-	Major(BitIdx<T>, &'a T::Access, &'a [T::Access], &'a T::Access, BitTail<T>),
+	/// This variant is produced when the domain uses at least two elements,
+	/// and reaches neither the head edge of the head element nor the tail edge
+	/// of the tail element.
+	Major(
+		BitIdx<T>,
+		&'a T::Access,
+		&'a [T::Access],
+		&'a T::Access,
+		BitTail<T>,
+	),
 	/// Domain with a partial head cursor and fully extended tail cursor.
 	///
 	/// # Members
@@ -129,7 +139,8 @@ where T: 'a + BitStore {
 }
 
 impl<'a, T> BitDomain<'a, T>
-where T: BitStore {
+where T: BitStore
+{
 	/// Unpacks a domain into components.
 	///
 	/// This is useful for deduplicating code that uses each region component
@@ -147,21 +158,15 @@ where T: BitStore {
 		match self {
 			BitDomain::Empty => Either::Left((None, None, None)),
 			BitDomain::Minor(h, e, t) => Either::Right((h, e, t)),
-			BitDomain::Major(h, head, body, tail, t) => Either::Left((
-				Some((h, head)),
-				Some(body),
-				Some((tail, t)),
-			)),
-			BitDomain::PartialHead(h, head, body) => Either::Left((
-				Some((h, head)),
-				Some(body),
-				None,
-			)),
-			BitDomain::PartialTail(body, tail, t) => Either::Left((
-				None,
-				Some(body),
-				Some((tail, t)),
-			)),
+			BitDomain::Major(h, head, body, tail, t) => {
+				Either::Left((Some((h, head)), Some(body), Some((tail, t))))
+			},
+			BitDomain::PartialHead(h, head, body) => {
+				Either::Left((Some((h, head)), Some(body), None))
+			},
+			BitDomain::PartialTail(body, tail, t) => {
+				Either::Left((None, Some(body), Some((tail, t))))
+			},
 			BitDomain::Spanning(body) => Either::Left((None, Some(body), None)),
 		}
 	}
@@ -212,7 +217,8 @@ where T: BitStore {
 }
 
 impl<'a, T> From<BitPtr<T>> for BitDomain<'a, T>
-where T: 'a + BitStore {
+where T: 'a + BitStore
+{
 	fn from(bitptr: BitPtr<T>) -> Self {
 		let h = bitptr.head();
 		let (e, t) = h.span(bitptr.len());
@@ -221,10 +227,9 @@ where T: 'a + BitStore {
 
 		match (*h, e, *t) {
 			//  Empty.
-			(_, 0, _)           => BitDomain::Empty,
+			(_, 0, _) => BitDomain::Empty,
 			//  Reaches both edges, for any number of elements.
-			(0, _, t) if t == w =>
-				BitDomain::Spanning(data),
+			(0, _, t) if t == w => BitDomain::Spanning(data),
 			//  Reaches only the tail edge, for any number of elements.
 			(_, _, t) if t == w => {
 				let (head, rest) = data
@@ -233,16 +238,15 @@ where T: 'a + BitStore {
 				BitDomain::PartialHead(h, head, rest)
 			},
 			//  Reaches only the head edge, for any number of elements.
-			(0, _, _)           => {
-				let (tail, rest) = data
-					.split_last()
-					.expect("PartialTail cannot fail to split");
+			(0, ..) => {
+				let (tail, rest) =
+					data.split_last().expect("PartialTail cannot fail to split");
 				BitDomain::PartialTail(rest, tail, t)
 			},
 			//  Reaches neither edge, for only one element.
-			(_, 1, _)           => BitDomain::Minor(h, &data[0], t),
+			(_, 1, _) => BitDomain::Minor(h, &data[0], t),
 			//  Reaches neither edge, for multiple elements.
-			(_, _, _)           => {
+			(..) => {
 				let (head, body) = data
 					.split_first()
 					.expect("Major cannot fail to split the head element");

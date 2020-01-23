@@ -53,8 +53,8 @@ pub trait BitOrder {
 	/// # Returns
 	///
 	/// - A concrete position. This value can be used for shifting and masking
-	///   to extract a bit from an element. This must be in the domain
-	///   `0 .. T::BITS`.
+	///   to extract a bit from an element. This must be in the domain `0 ..
+	///   T::BITS`.
 	///
 	/// # Type Parameters
 	///
@@ -116,8 +116,8 @@ pub trait BitOrder {
 	///
 	/// # Returns
 	///
-	/// A one-hot encoding of the provided `BitOrder`’s electrical position in the
-	/// `T` element.
+	/// A one-hot encoding of the provided `BitOrder`’s electrical position in
+	/// the `T` element.
 	///
 	/// # Type Parameters
 	///
