@@ -9,40 +9,20 @@ concrete bits in fundamental elements. They are implementation details, and are
 not exported in the prelude.
 !*/
 
-use crate::{
-	access::BitAccess,
-	indices::BitIdx,
-	order::BitOrder,
-};
+use crate::{access::BitAccess, indices::BitIdx, order::BitOrder};
 
 use core::{
-	convert::TryInto,
-	fmt::{
-		Binary,
-		Debug,
-		Display,
-		LowerHex,
-		UpperHex,
-	},
-	mem::size_of,
-	ops::{
-		BitAnd,
-		BitAndAssign,
-		BitOr,
-		BitOrAssign,
-		Not,
-		Shl,
-		ShlAssign,
-		Shr,
-		ShrAssign,
-	},
-	slice,
+    convert::TryInto,
+    fmt::{Binary, Debug, Display, LowerHex, UpperHex},
+    mem::size_of,
+    ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, Not, Shl, ShlAssign, Shr, ShrAssign},
+    slice,
 };
 
 use radium::marker::BitOps;
 
 #[cfg(feature = "atomic")]
-use core::sync::atomic;
+use core::sync::atomic::{AtomicU16, AtomicU32, AtomicU64, AtomicU8, AtomicUsize};
 
 #[cfg(not(feature = "atomic"))]
 use core::cell::Cell;
@@ -293,149 +273,205 @@ be used in array types `[T; elts(len)]`.
 **/
 #[doc(hidden)]
 pub const fn elts<T>(bits: usize) -> usize {
-	let width: usize = size_of::<T>() * 8;
-	bits / width + (bits % width != 0) as usize
+    let width: usize = size_of::<T>() * 8;
+    bits / width + (bits % width != 0) as usize
 }
 
+macro_rules! bitstore {
+    ($($T:ty => $Size:literal ; $Atom:ty)*) => {
+        $(
+            impl BitStore for $T {
+				const TYPENAME: &'static str = core::stringify!($T);
+
+				const FALSE: Self = 0;
+				const TRUE: Self = !0;
+
+				#[cfg(feature = "atomic")]
+				type Access = $Atom;
+
+				#[cfg(not(feature = "atomic"))]
+				type Access = Cell<Self>;
+
+				#[inline]
+				fn as_bytes(&self) -> &[u8] {
+					unsafe { slice::from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+				}
+
+				#[inline]
+				fn from_bytes(bytes: &[u8]) -> Self {
+					bytes
+					.try_into()
+					.map(Self::from_ne_bytes)
+					.expect(concat!("<", core::stringify!($T), " as BitStore>::from_bytes requires a slice of length ", $Size))
+				}
+
+				#[inline(always)]
+				fn count_ones(self) -> usize {
+					Self::count_ones(self) as usize
+				}
+			}
+        )*
+	};
+
+	(#![$M:meta] $($T:ty => $Size:literal ; $Atom:ty)+) => {
+		$(
+			#[$M]
+			bitstore!($T => $Size ; $Atom);
+		)+
+	};
+}
+
+bitstore! {
+    u8 => 1 ; AtomicU8
+    u16 => 2 ; AtomicU16
+    u32 => 4 ; AtomicU32
+}
+bitstore! {
+    #![cfg(target_pointer_width = "32")]
+    usize => 4 ; AtomicUsize
+}
+bitstore! {
+    #![cfg(target_pointer_width = "64")]
+    u64 => 8 ; AtomicU64
+    usize => 8 ; AtomicUsize
+}
+
+/*
 impl BitStore for u8 {
-	const TYPENAME: &'static str = "u8";
+    const TYPENAME: &'static str = "u8";
 
-	const FALSE: Self = 0;
-	const TRUE: Self = !0;
+    const FALSE: Self = 0;
+    const TRUE: Self = !0;
 
-	#[cfg(feature = "atomic")]
-	type Access = atomic::AtomicU8;
+    #[cfg(feature = "atomic")]
+    type Access = atomic::AtomicU8;
 
-	#[cfg(not(feature = "atomic"))]
-	type Access = Cell<Self>;
+    #[cfg(not(feature = "atomic"))]
+    type Access = Cell<Self>;
 
-	#[inline]
-	fn as_bytes(&self) -> &[u8] {
-		unsafe { slice::from_raw_parts(self as *const Self as *const u8, 1) }
-	}
+    #[inline]
+    fn as_bytes(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(self as *const Self as *const u8, 1) }
+    }
 
-	#[inline]
-	fn from_bytes(bytes: &[u8]) -> Self {
-		bytes
-			.try_into()
-			.map(Self::from_ne_bytes)
-			.expect("<u8 as BitStore>::from_bytes requires a slice of length 1")
-	}
+    #[inline]
+    fn from_bytes(bytes: &[u8]) -> Self {
+        bytes
+            .try_into()
+            .map(Self::from_ne_bytes)
+            .expect("<u8 as BitStore>::from_bytes requires a slice of length 1")
+    }
 }
 
 impl BitStore for u16 {
-	const TYPENAME: &'static str = "u16";
+    const TYPENAME: &'static str = "u16";
 
-	const FALSE: Self = 0;
-	const TRUE: Self = !0;
+    const FALSE: Self = 0;
+    const TRUE: Self = !0;
 
-	#[cfg(feature = "atomic")]
-	type Access = atomic::AtomicU16;
+    #[cfg(feature = "atomic")]
+    type Access = atomic::AtomicU16;
 
-	#[cfg(not(feature = "atomic"))]
-	type Access = Cell<Self>;
+    #[cfg(not(feature = "atomic"))]
+    type Access = Cell<Self>;
 
-	#[inline]
-	fn as_bytes(&self) -> &[u8] {
-		unsafe { slice::from_raw_parts(self as *const Self as *const u8, 2) }
-	}
+    #[inline]
+    fn as_bytes(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(self as *const Self as *const u8, 2) }
+    }
 
-	#[inline]
-	fn from_bytes(bytes: &[u8]) -> Self {
-		bytes
-			.try_into()
-			.map(Self::from_ne_bytes)
-			.expect("<u16 as BitStore>::from_bytes requires a slice of length 2")
-	}
+    #[inline]
+    fn from_bytes(bytes: &[u8]) -> Self {
+        bytes
+            .try_into()
+            .map(Self::from_ne_bytes)
+            .expect("<u16 as BitStore>::from_bytes requires a slice of length 2")
+    }
 }
 
 impl BitStore for u32 {
-	const TYPENAME: &'static str = "u32";
+    const TYPENAME: &'static str = "u32";
 
-	const FALSE: Self = 0;
-	const TRUE: Self = !0;
+    const FALSE: Self = 0;
+    const TRUE: Self = !0;
 
-	#[cfg(feature = "atomic")]
-	type Access = atomic::AtomicU32;
+    #[cfg(feature = "atomic")]
+    type Access = atomic::AtomicU32;
 
-	#[cfg(not(feature = "atomic"))]
-	type Access = Cell<Self>;
+    #[cfg(not(feature = "atomic"))]
+    type Access = Cell<Self>;
 
-	#[inline]
-	fn as_bytes(&self) -> &[u8] {
-		unsafe { slice::from_raw_parts(self as *const Self as *const u8, 4) }
-	}
+    #[inline]
+    fn as_bytes(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(self as *const Self as *const u8, 4) }
+    }
 
-	#[inline]
-	fn from_bytes(bytes: &[u8]) -> Self {
-		bytes
-			.try_into()
-			.map(Self::from_ne_bytes)
-			.expect("<u32 as BitStore>::from_bytes requires a slice of length 4")
-	}
+    #[inline]
+    fn from_bytes(bytes: &[u8]) -> Self {
+        bytes
+            .try_into()
+            .map(Self::from_ne_bytes)
+            .expect("<u32 as BitStore>::from_bytes requires a slice of length 4")
+    }
 }
 
 #[cfg(target_pointer_width = "64")]
 impl BitStore for u64 {
-	const TYPENAME: &'static str = "u64";
+    const TYPENAME: &'static str = "u64";
 
-	const FALSE: Self = 0;
-	const TRUE: Self = !0;
+    const FALSE: Self = 0;
+    const TRUE: Self = !0;
 
-	#[cfg(feature = "atomic")]
-	type Access = atomic::AtomicU64;
+    #[cfg(feature = "atomic")]
+    type Access = atomic::AtomicU64;
 
-	#[cfg(not(feature = "atomic"))]
-	type Access = Cell<Self>;
+    #[cfg(not(feature = "atomic"))]
+    type Access = Cell<Self>;
 
-	#[inline]
-	fn as_bytes(&self) -> &[u8] {
-		unsafe { slice::from_raw_parts(self as *const Self as *const u8, 8) }
-	}
+    #[inline]
+    fn as_bytes(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(self as *const Self as *const u8, 8) }
+    }
 
-	#[inline]
-	fn from_bytes(bytes: &[u8]) -> Self {
-		bytes
-			.try_into()
-			.map(Self::from_ne_bytes)
-			.expect("<u64 as BitStore>::from_bytes requires a slice of length 8")
-	}
+    #[inline]
+    fn from_bytes(bytes: &[u8]) -> Self {
+        bytes
+            .try_into()
+            .map(Self::from_ne_bytes)
+            .expect("<u64 as BitStore>::from_bytes requires a slice of length 8")
+    }
 }
 
 impl BitStore for usize {
-	#[cfg(target_pointer_width = "32")]
-	const TYPENAME: &'static str = "u32";
+    #[cfg(target_pointer_width = "32")]
+    const TYPENAME: &'static str = "u32";
 
-	#[cfg(target_pointer_width = "64")]
-	const TYPENAME: &'static str = "u64";
+    #[cfg(target_pointer_width = "64")]
+    const TYPENAME: &'static str = "u64";
 
-	const FALSE: Self = 0;
-	const TRUE: Self = !0;
+    const FALSE: Self = 0;
+    const TRUE: Self = !0;
 
-	#[cfg(feature = "atomic")]
-	type Access = atomic::AtomicUsize;
+    #[cfg(feature = "atomic")]
+    type Access = atomic::AtomicUsize;
 
-	#[cfg(not(feature = "atomic"))]
-	type Access = Cell<Self>;
+    #[cfg(not(feature = "atomic"))]
+    type Access = Cell<Self>;
 
-	#[inline]
-	fn as_bytes(&self) -> &[u8] {
-		unsafe {
-			slice::from_raw_parts(
-				self as *const Self as *const u8,
-				size_of::<Self>(),
-			)
-		}
-	}
+    #[inline]
+    fn as_bytes(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+    }
 
-	#[inline]
-	fn from_bytes(bytes: &[u8]) -> Self {
-		bytes
-			.try_into()
-			.map(Self::from_ne_bytes)
-			.expect("<usize as BitStore>::from_bytes requires a slice of its exact width in bytes")
-	}
+    #[inline]
+    fn from_bytes(bytes: &[u8]) -> Self {
+        bytes
+            .try_into()
+            .map(Self::from_ne_bytes)
+            .expect("<usize as BitStore>::from_bytes requires a slice of its exact width in bytes")
+    }
 }
+*/
 
 #[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
 compile_fail!("This architecture is currently not supported. File an issue at https://github.com/myrrlyn/bitvec");
@@ -450,6 +486,28 @@ private, this trait effectively forbids downstream implementation of the
 #[doc(hidden)]
 pub trait Sealed {}
 
+macro_rules! seal {
+	($($T:ty)*) => {
+		$(
+			impl Sealed for $T {}
+		)*
+	};
+
+	(#![$M:meta] $($T:ty)+) => {
+		$(
+			#[$M]
+			seal!($T);
+		)+
+	};
+}
+
+seal! {u8 u16 u32 usize}
+seal! {
+	#![cfg(target_pointer_width = "64")]
+	u64
+}
+
+/*
 impl Sealed for u8 {}
 impl Sealed for u16 {}
 impl Sealed for u32 {}
@@ -458,3 +516,4 @@ impl Sealed for u32 {}
 impl Sealed for u64 {}
 
 impl Sealed for usize {}
+*/
