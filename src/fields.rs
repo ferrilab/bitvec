@@ -48,7 +48,11 @@ use crate::{
 	store::BitStore,
 };
 
-use core::mem;
+use core::{
+	cmp,
+	mem,
+	ptr,
+};
 
 use either::Either;
 
@@ -900,36 +904,53 @@ zero-extends; where `U` is narrower, it truncates.
 **/
 fn resize<T, U>(value: T) -> U
 where T: BitStore, U: BitStore {
-	let zero = 0usize;
-	let mut slab = zero.to_ne_bytes();
-	let start = 0;
+	let mut out = U::FALSE;
+	let bytes_t = mem::size_of::<T>();
+	let bytes_u = mem::size_of::<U>();
 
-	/* Copy the source value into the correct region of the intermediate slab.
+	unsafe {
+		/* On big-endian targets, the significant bytes of a value are in the
+		high portion of its memory slot. Truncation reads only from the high
+		bytes; extension writes only into the high bytes.
 
-	The `BitStore::as_bytes` method returns the value as native-endian-order
-	bytes. These bytes are then written into the correct location of the slab
-	(low addresses on little-endian, high addresses on big-endian) to be
-	interpreted as `usize`.
-	*/
-	match mem::size_of::<T>() {
-		n @ 1 | n @ 2 | n @ 4 | n @ 8 => {
-			#[cfg(target_endian = "big")]
-			let start = mem::size_of::<usize>() - n;
-
-			slab[start ..][.. n].copy_from_slice(value.as_bytes());
-		},
-		_ => unreachable!("BitStore is not implemented on types of this size"),
+		Note: attributes are not currently supported on `if`-expressions, so
+		this must use the form `if cfg!` instead. `cfg!` is a compile-time macro
+		that expands to a constant `true` or `false` depending on the flag, so
+		this has the net effect of becoming either `if true {} else {}` or
+		`if false {} else {}`, eliminating the branch from actual codegen.
+		*/
+		if cfg!(target_endian = "big") {
+			//  Truncate by reading the high bytes of `value` into `out`.
+			if bytes_t > bytes_u {
+				ptr::copy_nonoverlapping(
+					(&value as *const T as *const u8).add(bytes_t - bytes_u),
+					&mut out as *mut U as *mut u8,
+					bytes_u,
+				);
+			}
+			//  Extend by writing `value` into the high bytes of `out`.
+			else {
+				ptr::copy_nonoverlapping(
+					&value as *const T as *const u8,
+					(&mut out as *mut U as *mut u8).add(bytes_u - bytes_t),
+					bytes_t,
+				);
+			}
+		}
+		/* On little-endian targets, the significant bytes of a value are in the
+		low portion of its memory slot. Truncation and extension are both plain
+		copies into the start of a zero-buffer, for the smaller width.
+		*/
+		else {
+			ptr::copy_nonoverlapping(
+				&value as *const T as *const u8,
+				&mut out as *mut U as *mut u8,
+				cmp::min(bytes_t, bytes_u),
+			);
+		}
 	}
-	let mid = usize::from_ne_bytes(slab);
-	//  Truncate to the correct size, then wrap in `U` through the trait method.
-	match mem::size_of::<U>() {
-		1 => U::from_bytes(&(mid as u8).to_ne_bytes()[..]),
-		2 => U::from_bytes(&(mid as u16).to_ne_bytes()[..]),
-		4 => U::from_bytes(&(mid as u32).to_ne_bytes()[..]),
-		#[cfg(target_pointer_width = "64")]
-		8 => U::from_bytes(&mid.to_ne_bytes()[..]),
-		_ => unreachable!("BitStore is not implemented on types of this size"),
-	}
+
+	out
 }
 
 #[allow(clippy::inconsistent_digit_grouping)]
