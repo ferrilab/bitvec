@@ -962,7 +962,7 @@ where
                 copy_nonoverlapping(
                     (&value as *const T as *const u8).add(size_of_from - size_of_into),
                     &mut buf as *mut U as *mut u8,
-                    size_of_from,
+                    size_of_into,
                 );
             } else {
                 // U has more bytes, move its pointer to match the length of T.
