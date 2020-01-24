@@ -9,12 +9,65 @@
 language: rust
 sudo: required
 cache: cargo
-rust:
-  - stable
-  - beta
-  - nightly
 
 matrix:
+  include:
+    - rust: stable
+      env: TARGET=x86_64-unknown-linux-gnu
+    - rust: beta
+      env: TARGET=x86_64-unknown-linux-gnu
+    - rust: nightly
+      env: TARGET=x86_64-unknown-linux-gnu
+
+    # Android
+    - env: TARGET=aarch64-linux-android DISABLE_TESTS=1
+    - env: TARGET=arm-linux-androideabi DISABLE_TESTS=1
+    - env: TARGET=armv7-linux-androideabi DISABLE_TESTS=1
+    - env: TARGET=i686-linux-android DISABLE_TESTS=1
+    - env: TARGET=x86_64-linux-android DISABLE_TESTS=1
+
+    # iOS
+    - env: TARGET=aarch64-apple-ios DISABLE_TESTS=1
+      os: osx
+    - env: TARGET=armv7-apple-ios DISABLE_TESTS=1
+      os: osx
+    - env: TARGET=armv7s-apple-ios DISABLE_TESTS=1
+      os: osx
+    - env: TARGET=i386-apple-ios DISABLE_TESTS=1
+      os: osx
+    - env: TARGET=x86_64-apple-ios DISABLE_TESTS=1
+      os: osx
+
+    # Linux
+    - env: TARGET=aarch64-unknown-linux-gnu
+    - env: TARGET=arm-unknown-linux-gnueabi
+    - env: TARGET=armv7-unknown-linux-gnueabihf
+    - env: TARGET=i686-unknown-linux-gnu
+    - env: TARGET=i686-unknown-linux-musl
+    - env: TARGET=mips-unknown-linux-gnu
+    - env: TARGET=mips64-unknown-linux-gnuabi64
+    - env: TARGET=mips64el-unknown-linux-gnuabi64
+    - env: TARGET=mipsel-unknown-linux-gnu
+    - env: TARGET=powerpc-unknown-linux-gnu
+    - env: TARGET=powerpc64-unknown-linux-gnu
+    - env: TARGET=powerpc64le-unknown-linux-gnu
+    - env: TARGET=s390x-unknown-linux-gnu DISABLE_TESTS=1
+    - env: TARGET=x86_64-unknown-linux-gnu
+    - env: TARGET=x86_64-unknown-linux-musl
+
+    # OSX
+    - env: TARGET=i686-apple-darwin
+      os: osx
+    - env: TARGET=x86_64-apple-darwin
+      os: osx
+
+    # *BSD
+    - env: TARGET=i686-unknown-freebsd DISABLE_TESTS=1
+    - env: TARGET=x86_64-unknown-freebsd DISABLE_TESTS=1
+    - env: TARGET=x86_64-unknown-netbsd DISABLE_TESTS=1
+
+    # Windows
+    - env: TARGET=x86_64-pc-windows-gnu
   allow_failures:
     - rust: nightly
 
@@ -25,17 +78,25 @@ addons:
       - libssl-dev
 
 before_cache: |
-  if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
+  if [[ "$TRAVIS_RUST_VERSION" = stable ]] && [[ "$TARGET" = x86_64-unknown-linux-gnu ]]; then
     cargo install cargo-tarpaulin -f
   fi
 
+before_install:
+  - set -e
+  - rustup self update
+
+install:
+  - sh ci/install_rust.sh
+  - source ~/.cargo/env || true
+
 script:
-- cargo clean
-- cargo build --all-features
-- cargo test --all-features
+  - cross clean
+  - cross build --target $TARGET --all-features
+  - if [ -z $DISABLE_TESTS ]; then cross test --target $TARGET --all-features ; fi
 
 after_success: |
-  if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
+  if [[ "$TRAVIS_RUST_VERSION" = stable ]] && [[ "$TARGET" = x86_64-unknown-linux-gnu ]]; then
     # Uncomment the following line for coveralls.io
     # cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
 
