@@ -994,8 +994,7 @@ mod tests {
 		//  expected byte pattern: 0x34 0x12
 		//  bits: 0011_0100 __01_0010
 		//  idx:  7654 3210 fedc ba98
-		let u16b = u16::from_ne_bytes(0x1234u16.to_le_bytes());
-		bytes[5 ..][.. 14].store_le(u16b);
+		bytes[5 ..][.. 14].store_le(0x1234u16);
 		assert_eq!(bytes[5 ..][.. 14].load_le::<u16>(), 0x1234u16);
 		assert_eq!(
 			&bytes.as_slice()[.. 3],
@@ -1004,7 +1003,7 @@ mod tests {
 		);
 		//  the load/store orderings only affect the order of elements, not of
 		//  bits within the element.
-		bytes[5 ..][.. 14].store_be(u16b);
+		bytes[5 ..][.. 14].store_be(0x1234u16);
 		assert_eq!(bytes[5 ..][.. 14].load_be::<u16>(), 0x1234u16);
 		assert_eq!(
 			&bytes.as_slice()[.. 3],
@@ -1068,8 +1067,7 @@ mod tests {
 		//  expected byte pattern: 0x34 0x12
 		//  bits: 0011_0100 __01_0010
 		//  idx:  7654 3210 fedc ba98
-		let u16b = u16::from_ne_bytes(0x1234u16.to_le_bytes());
-		bytes[5 ..][.. 14].store_le(u16b);
+		bytes[5 ..][.. 14].store_le(0x1234u16);
 		assert_eq!(bytes[5 ..][.. 14].load_le::<u16>(), 0x1234u16);
 		assert_eq!(
 			&bytes.as_slice()[.. 3],
@@ -1078,7 +1076,7 @@ mod tests {
 		);
 		//  the load/store orderings only affect the order of elements, not of
 		//  bits within the element.
-		bytes[5 ..][.. 14].store_be(u16b);
+		bytes[5 ..][.. 14].store_be(0x1234u16);
 		assert_eq!(bytes[5 ..][.. 14].load_be::<u16>(), 0x1234u16);
 		assert_eq!(
 			&bytes.as_slice()[.. 3],
