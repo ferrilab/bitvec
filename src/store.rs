@@ -57,7 +57,7 @@ will never be implemented by downstream crates on new types.
 **/
 pub trait BitStore:
 	//  Forbid external implementation
-	Sealed
+	seal::Sealed
 	+ Binary
 	//  Element-wise binary manipulation
 	+ BitAnd<Self, Output = Self>
@@ -312,23 +312,24 @@ bitstore! {
 #[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
 compile_fail!("This architecture is currently not supported. File an issue at https://github.com/myrrlyn/bitvec");
 
-/** Marker trait to seal `BitStore` against downstream implementation.
+mod seal {
+	/// Marker trait to seal `BitStore` against downstream implementation.
+	/// 
+	/// This trait is public in the module, so that other modules in the crate can use
+	/// it, but so long as it is not exported by the crate root and this module is
+	/// private, this trait effectively forbids downstream implementation of the
+	/// `BitStore` trait.
+	#[doc(hidden)]
+	pub trait Sealed {}
 
-This trait is public in the module, so that other modules in the crate can use
-it, but so long as it is not exported by the crate root and this module is
-private, this trait effectively forbids downstream implementation of the
-`BitStore` trait.
-**/
-#[doc(hidden)]
-pub trait Sealed {}
+	macro_rules! seal {
+		($($t:ty),*) => { $(
+			impl Sealed for $t {}
+		)* };
+	}
 
-macro_rules! seal {
-	($($t:ty),*) => { $(
-		impl Sealed for $t {}
-	)* };
+	seal!(u8, u16, u32, usize);
+
+	#[cfg(target_pointer_width = "64")]
+	seal!(u64);
 }
-
-seal!(u8, u16, u32, usize);
-
-#[cfg(target_pointer_width = "64")]
-seal!(u64);
