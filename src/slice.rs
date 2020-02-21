@@ -11,7 +11,7 @@ Rust slices, and must never be interchanged except through the provided APIs.
 use crate::{
 	access::BitAccess,
 	domain::*,
-	indices::Indexable,
+	index::Indexable,
 	order::{
 		BitOrder,
 		Local,

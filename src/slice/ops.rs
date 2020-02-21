@@ -4,7 +4,7 @@ use super::api::BitSliceIndex;
 
 use crate::{
 	access::BitAccess,
-	indices::Indexable,
+	index::Indexable,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,

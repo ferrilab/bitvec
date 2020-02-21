@@ -8,7 +8,7 @@ work.
 
 use crate::{
 	domain::*,
-	indices::{
+	index::{
 		BitIdx,
 		Indexable,
 	},
@@ -30,7 +30,7 @@ use core::{
 };
 
 #[cfg(any(test, feature = "alloc"))]
-use crate::indices::BitTail;
+use crate::index::BitTail;
 
 /// Width in bits of a pointer on the target machine.
 const PTR_BITS: usize = size_of::<*const u8>() * 8;

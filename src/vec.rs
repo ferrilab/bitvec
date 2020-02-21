@@ -12,7 +12,7 @@ slice and vector types.
 use crate::{
 	access::BitAccess,
 	boxed::BitBox,
-	indices::Indexable,
+	index::Indexable,
 	order::{
 		BitOrder,
 		Local,

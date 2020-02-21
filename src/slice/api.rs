@@ -12,7 +12,7 @@ be documented in a section called `API Differences`.
 
 use crate::{
 	access::BitAccess,
-	indices::BitIdx,
+	index::BitIdx,
 	order::BitOrder,
 	pointer::BitPtr,
 	slice::{
@@ -94,7 +94,7 @@ the lifetime of a host value for the slice, or by explicit annotation.
 
 ```rust
 use bitvec::{
-	indices::BitIdx,
+	index::BitIdx,
 	order::Local,
 	slice,
 	slice::BitSlice,

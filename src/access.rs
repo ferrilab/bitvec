@@ -14,7 +14,7 @@ builds, or `AtomicT` in atomic builds.
 !*/
 
 use crate::{
-	indices::BitIdx,
+	index::BitIdx,
 	order::BitOrder,
 	store::BitStore,
 };

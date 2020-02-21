@@ -269,7 +269,7 @@ macro_rules! __elt_from_bits {
 		$(
 			$crate::store::BitStore::set::<$order>(
 				&mut value,
-				unsafe { $crate::indices::BitIdx::new_unchecked(_idx) },
+				unsafe { $crate::index::BitIdx::new_unchecked(_idx) },
 				$a != 0,
 			);
 			_idx += 1;

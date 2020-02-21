@@ -11,7 +11,7 @@ not exported in the prelude.
 
 use crate::{
 	access::BitAccess,
-	indices::BitIdx,
+	index::BitIdx,
 	order::BitOrder,
 };
 

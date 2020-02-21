@@ -15,7 +15,7 @@ Contiguity is not required.
 !*/
 
 use crate::{
-	indices::{
+	index::{
 		BitIdx,
 		BitMask,
 		BitPos,

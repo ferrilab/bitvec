@@ -8,7 +8,7 @@ handle operations.
 !*/
 
 use crate::{
-	indices::{
+	index::{
 		BitIdx,
 		BitTail,
 	},
@@ -262,7 +262,7 @@ where T: 'a + BitStore
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::indices::Indexable;
+	use crate::index::Indexable;
 
 	#[test]
 	fn minor() {

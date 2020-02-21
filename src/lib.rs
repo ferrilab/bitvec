@@ -51,7 +51,7 @@ pub mod macros;
 mod access;
 mod domain;
 pub mod fields;
-pub mod indices;
+pub mod index;
 pub mod mem;
 pub mod order;
 mod pointer;

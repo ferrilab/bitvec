@@ -17,7 +17,7 @@ used in the `&mut` write reference system, as a good-enough substitute.
 
 use crate::{
 	access::BitAccess,
-	indices::BitIdx,
+	index::BitIdx,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
