@@ -46,7 +46,7 @@ macro_rules! __bits_store_array {
 	//  Reroute `usize` to the correct concrete type, and mark the alias.
 	//  The `@ usz` causes `as usize` to be appended to exprs as needed.
 	($order:tt, usize; $($val:expr),*) => {{
-		const LEN: usize = $crate::store::elts::<usize>(
+		const LEN: usize = $crate::mem::elts::<usize>(
 			$crate::__count!($($val),*),
 		);
 

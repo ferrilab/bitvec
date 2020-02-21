@@ -52,6 +52,7 @@ mod access;
 mod domain;
 pub mod fields;
 pub mod indices;
+pub mod mem;
 pub mod order;
 mod pointer;
 pub mod prelude;

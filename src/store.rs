@@ -250,25 +250,6 @@ pub trait BitStore:
 	}
 }
 
-/** Compute the number of elements required to store a number of bits.
-
-# Parameters
-
-- `bits`: The number of bits to store in an element `T` array.
-
-# Returns
-
-The number of elements `T` required to store `bits`.
-
-Because this is a const function, when `bits` is a const-expr, this function can
-be used in array types `[T; elts(len)]`.
-**/
-#[doc(hidden)]
-pub const fn elts<T>(bits: usize) -> usize {
-	let width: usize = size_of::<T>() * 8;
-	bits / width + (bits % width != 0) as usize
-}
-
 /// Batch implementation of `BitStore` for the appropriate fundamental integers.
 macro_rules! bitstore {
 	($($t:ty => $bits:literal , $atom:ty ;)*) => { $(
@@ -314,7 +295,7 @@ compile_fail!("This architecture is currently not supported. File an issue at ht
 
 mod seal {
 	/// Marker trait to seal `BitStore` against downstream implementation.
-	/// 
+	///
 	/// This trait is public in the module, so that other modules in the crate can use
 	/// it, but so long as it is not exported by the crate root and this module is
 	/// private, this trait effectively forbids downstream implementation of the

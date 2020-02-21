@@ -90,14 +90,14 @@ macro_rules! bits {
 	($order:ident, $store:ident; $val:expr; $len:expr) => {{
 		static DATA: &[$store] = &[
 			$crate::__extend_bool!($val, $store);
-			$crate::store::elts::<$store>($len)
+			$crate::mem::elts::<$store>($len)
 		];
 		&$crate::__bits_from_slice!($order, $store, $len, DATA)
 	}};
 	($order:path, $store:ident; $val:expr; $len:expr) => {{
 		static DATA: &[$store] = &[
 			$crate::__extend_bool!($val, $store);
-			$crate::store::elts::<$store>($len)
+			$crate::mem::elts::<$store>($len)
 		];
 		&$crate::__bits_from_slice!($order, $store, $len, DATA)
 	}};
