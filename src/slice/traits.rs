@@ -422,7 +422,7 @@ where
 		fmt.write_str("BitSlice<")?;
 		fmt.write_str(O::TYPENAME)?;
 		fmt.write_str(", ")?;
-		fmt.write_str(T::TYPENAME)?;
+		fmt.write_str(T::Mem::TYPENAME)?;
 		fmt.write_str("> ")?;
 		Binary::fmt(self, fmt)
 	}

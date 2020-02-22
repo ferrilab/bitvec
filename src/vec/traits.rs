@@ -6,6 +6,7 @@ The operator traits are defined in the `ops` module.
 use super::*;
 
 use crate::{
+	mem::BitMemory,
 	order::BitOrder,
 	store::BitStore,
 };
@@ -581,7 +582,7 @@ where
 		f.write_str("BitVec<")?;
 		f.write_str(O::TYPENAME)?;
 		f.write_str(", ")?;
-		f.write_str(T::TYPENAME)?;
+		f.write_str(T::Mem::TYPENAME)?;
 		f.write_str("> ")?;
 		Display::fmt(&**self, f)
 	}

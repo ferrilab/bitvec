@@ -5,6 +5,7 @@ The operator traits are defined in the `ops` module.
 
 use crate::{
 	boxed::BitBox,
+	mem::BitMemory,
 	order::BitOrder,
 	pointer::BitPtr,
 	slice::BitSlice,
@@ -290,7 +291,7 @@ where
 		fmt.write_str("BitBox<")?;
 		fmt.write_str(O::TYPENAME)?;
 		fmt.write_str(", ")?;
-		fmt.write_str(T::TYPENAME)?;
+		fmt.write_str(T::Mem::TYPENAME)?;
 		fmt.write_str("> ")?;
 		Display::fmt(self.as_bitslice(), fmt)
 	}

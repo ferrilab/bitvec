@@ -13,6 +13,7 @@ use crate::{
 	access::BitAccess,
 	boxed::BitBox,
 	index::Indexable,
+	mem::BitMemory,
 	order::{
 		BitOrder,
 		Local,
@@ -282,7 +283,9 @@ where
 		unsafe {
 			out.set_len(len);
 		}
-		out.set_elements(if bit { T::TRUE } else { T::FALSE });
+		out.set_elements(
+			if bit { T::Mem::ALL } else { T::Mem::ZERO }.to_store(),
+		);
 		out
 	}
 

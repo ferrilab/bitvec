@@ -5,6 +5,7 @@ use super::api::BitSliceIndex;
 use crate::{
 	access::BitAccess,
 	index::Indexable,
+	mem::BitMemory,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
@@ -545,7 +546,7 @@ where
 			},
 			Either::Left((h, b, t)) => {
 				if let Some((h, head)) = h {
-					for n in *h .. T::BITS {
+					for n in *h .. T::Mem::BITS {
 						head.invert_bit::<O>(n.idx())
 					}
 				}
@@ -633,7 +634,7 @@ where
 		//  with element-wise `memmove`.
 		if self.bitptr().domain().is_spanning() {
 			//  Compute the shift distance measured in elements.
-			let offset = shamt >> T::INDX;
+			let offset = shamt >> T::Mem::INDX;
 			//  Compute the number of elements that will remain.
 			let rem = self.bitptr().elements() - offset;
 
@@ -663,7 +664,7 @@ where
 			}
 			//  Any remaining shift amount only needs to shift the `after` block
 			//  above.
-			self[.. rem << T::INDX] <<= shamt & T::INDX as usize;
+			self[.. rem << T::Mem::INDX] <<= shamt & T::Mem::INDX as usize;
 			return;
 		}
 		//  Otherwise, crawl.
@@ -742,7 +743,7 @@ where
 		//  with element-wise `memmove`.
 		if self.bitptr().domain().is_spanning() {
 			//  Compute the shift amount measured in elements.
-			let offset = shamt >> T::INDX;
+			let offset = shamt >> T::Mem::INDX;
 			// Compute the number of elements that will remain.
 			let rem = self.bitptr().elements() - offset;
 
@@ -765,7 +766,7 @@ where
 			}
 			//  Any remaining shift amount only needs to shift the `after` block
 			//  above.
-			self[offset << T::INDX ..] >>= shamt & T::INDX as usize;
+			self[offset << T::Mem::INDX ..] >>= shamt & T::Mem::INDX as usize;
 			return;
 		}
 		//  Otherwise, crawl.

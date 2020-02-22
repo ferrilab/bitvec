@@ -12,6 +12,7 @@ use crate::{
 		BitIdx,
 		BitTail,
 	},
+	mem::BitMemory,
 	pointer::BitPtr,
 	store::BitStore,
 };
@@ -222,7 +223,7 @@ where T: 'a + BitStore
 	fn from(bitptr: BitPtr<T>) -> Self {
 		let h = bitptr.head();
 		let (e, t) = h.span(bitptr.len());
-		let w = T::BITS;
+		let w = T::Mem::BITS;
 		let data = bitptr.as_access_slice();
 
 		match (*h, e, *t) {

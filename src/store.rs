@@ -14,30 +14,10 @@ use crate::{
 	mem::BitMemory,
 };
 
-use core::{
-	convert::TryInto,
-	fmt::{
-		Binary,
-		Debug,
-		Display,
-		LowerHex,
-		UpperHex,
-	},
-	mem::size_of,
-	ops::{
-		BitAnd,
-		BitAndAssign,
-		BitOr,
-		BitOrAssign,
-		Not,
-		Shl,
-		ShlAssign,
-		Shr,
-		ShrAssign,
-	},
+use core::fmt::{
+	Binary,
+	Debug,
 };
-
-use radium::marker::BitOps;
 
 #[cfg(feature = "atomic")]
 use core::sync::atomic;
@@ -58,58 +38,13 @@ pub trait BitStore:
 	//  Forbid external implementation
 	seal::Sealed
 	+ Binary
-	//  Element-wise binary manipulation
-	+ BitAnd<Self, Output = Self>
-	+ BitAndAssign<Self>
-	+ BitOr<Self, Output = Self>
-	+ BitOrAssign<Self>
-	//  Permit indexing into a generic array
 	+ Copy
 	+ Debug
-	+ Display
-	//  Permit testing a value against 0 in `get()`.
-	+ Eq
-	//  Rust treats numeric literals in code as vaguely typed and does not make
-	//  them concrete until long after trait expansion, so this enables building
-	//  a concrete Self value from a numeric literal.
-	+ From<u8>
-	//  Permit extending into a `usize`.
-	+ TryInto<usize>
-	+ LowerHex
-	+ Not<Output = Self>
-	+ Send
-	+ Shl<u8, Output = Self>
-	+ ShlAssign<u8>
-	+ Shr<u8, Output = Self>
-	+ ShrAssign<u8>
 	//  Allow direct access to a concrete implementor type.
 	+ Sized
-	+ Sync
-	+ UpperHex
-	+ BitOps
 {
 	/// The register type this store describes.
 	type Mem: BitMemory;
-	/// The width, in bits, of this type.
-	const BITS: u8 = size_of::<Self>() as u8 * 8;
-
-	/// The number of bits required to index a bit inside the type. This is
-	/// always log<sub>2</sub> of the type’s bit width.
-	const INDX: u8 = Self::BITS.trailing_zeros() as u8;
-
-	/// The bitmask to turn an arbitrary number into a bit index. Bit indices
-	/// are always stored in the lowest bits of an index value.
-	const MASK: u8 = Self::BITS - 1;
-
-	/// The value with all bits unset.
-	const FALSE: Self;
-
-	/// The value with all bits set.
-	const TRUE: Self;
-
-	/// Name of the implementing type. This is only necessary until the compiler
-	/// stabilizes `type_name()`.
-	const TYPENAME: &'static str;
 
 	/// Shared/mutable access wrapper.
 	///
@@ -121,92 +56,12 @@ pub trait BitStore:
 	/// use plain accessors.
 	type Access: BitAccess<Self::Mem>;
 
-	/// Counts how many bits in `self` are set to `1`.
-	///
-	/// This zero-extends `self` to `usize`, and uses the [`usize::count_ones`]
-	/// inherent method.
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	///
-	/// # Returns
-	///
-	/// The number of bits in `self` set to `1`. This is a `usize` instead of a
-	/// `u32` in order to ease arithmetic throughout the crate.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::BitStore;
-	/// assert_eq!(BitStore::count_ones(0u8), 0);
-	/// assert_eq!(BitStore::count_ones(128u8), 1);
-	/// assert_eq!(BitStore::count_ones(192u8), 2);
-	/// assert_eq!(BitStore::count_ones(224u8), 3);
-	/// assert_eq!(BitStore::count_ones(240u8), 4);
-	/// assert_eq!(BitStore::count_ones(248u8), 5);
-	/// assert_eq!(BitStore::count_ones(252u8), 6);
-	/// assert_eq!(BitStore::count_ones(254u8), 7);
-	/// assert_eq!(BitStore::count_ones(255u8), 8);
-	/// ```
-	///
-	/// [`usize::count_ones`]: https://doc.rust-lang.org/stable/std/primitive.usize.html#method.count_ones
-	#[inline(always)]
-	fn count_ones(self) -> usize {
-		let extended = self.try_into()
-			.unwrap_or_else(|_| unreachable!("This conversion is infallible"));
-		//  Ensure that this calls the inherent method in `impl usize`, not the
-		//  trait method in `impl BitStore for usize`.
-		usize::count_ones(extended) as usize
-	}
-
-	/// Counts how many bits in `self` are set to `0`.
-	///
-	/// This inverts `self`, so all `0` bits are `1` and all `1` bits are `0`,
-	/// then zero-extends `self` to `usize` and uses the [`usize::count_ones`]
-	/// inherent method.
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	///
-	/// # Returns
-	///
-	/// The number of bits in `self` set to `0`. This is a `usize` instead of a
-	/// `u32` in order to ease arithmetic throughout the crate.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::BitStore;
-	/// assert_eq!(BitStore::count_zeros(0u8), 8);
-	/// assert_eq!(BitStore::count_zeros(1u8), 7);
-	/// assert_eq!(BitStore::count_zeros(3u8), 6);
-	/// assert_eq!(BitStore::count_zeros(7u8), 5);
-	/// assert_eq!(BitStore::count_zeros(15u8), 4);
-	/// assert_eq!(BitStore::count_zeros(31u8), 3);
-	/// assert_eq!(BitStore::count_zeros(63u8), 2);
-	/// assert_eq!(BitStore::count_zeros(127u8), 1);
-	/// assert_eq!(BitStore::count_zeros(255u8), 0);
-	/// ```
-	///
-	/// [`usize::count_ones`]: https://doc.rust-lang.org/stable/std/primitive.usize.html#method.count_ones
-	#[inline(always)]
-	fn count_zeros(self) -> usize {
-		//  invert (0 becomes 1, 1 becomes 0), zero-extend, count ones
-		<Self as BitStore>::count_ones(!self)
-	}
 }
 
 /// Batch implementation of `BitStore` for the appropriate fundamental integers.
 macro_rules! bitstore {
 	($($t:ty => $bits:literal , $atom:ty ;)*) => { $(
 		impl BitStore for $t {
-			const TYPENAME: &'static str = stringify!($t);
-
-			const FALSE: Self = 0;
-			const TRUE: Self = !0;
-
 			type Mem = Self;
 
 			#[cfg(feature = "atomic")]
@@ -214,11 +69,6 @@ macro_rules! bitstore {
 
 			#[cfg(not(feature = "atomic"))]
 			type Access = Cell<Self>;
-
-			#[inline(always)]
-			fn count_ones(self) -> usize {
-				Self::count_ones(self) as usize
-			}
 		}
 	)* };
 }

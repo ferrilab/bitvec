@@ -10,6 +10,7 @@ able to implement `Deserialize` as well.
 #![cfg(all(feature = "serde"))]
 
 use crate::{
+	mem::BitMemory,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
@@ -166,7 +167,7 @@ where
 					&self,
 				)
 			})?,
-			cmp::min(bits, data.len() * T::BITS as usize),
+			cmp::min(bits, data.len() * T::Mem::BITS as usize),
 		);
 		mem::forget(data);
 		Ok(unsafe { BitBox::from_raw(bitptr.as_mut_ptr()) })

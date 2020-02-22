@@ -85,7 +85,7 @@ where
 	#[inline]
 	pub fn capacity(&self) -> usize {
 		self.capacity
-			.checked_mul(T::BITS as usize)
+			.checked_mul(T::Mem::BITS as usize)
 			.expect("Vector capacity overflow")
 	}
 
@@ -493,8 +493,8 @@ where
 		);
 		//  If self is empty *or* tail is at the back edge of an element, push
 		//  an element onto the vector.
-		if self.is_empty() || *self.pointer.tail() == T::BITS {
-			self.with_vec(|v| v.push(T::FALSE));
+		if self.is_empty() || *self.pointer.tail() == T::Mem::BITS {
+			self.with_vec(|v| v.push(T::Mem::ZERO.to_store()));
 		}
 		//  At this point, it is always safe to increment the tail, and then
 		//  write to the newly live bit.

@@ -174,7 +174,7 @@ where
 	/// ```
 	#[inline]
 	pub fn from_element(elt: &T) -> &Self {
-		unsafe { BitPtr::new_unchecked(elt, 0u8.idx(), T::BITS as usize) }
+		unsafe { BitPtr::new_unchecked(elt, 0u8.idx(), T::Mem::BITS as usize) }
 			.into_bitslice()
 	}
 
@@ -201,7 +201,7 @@ where
 	/// ```
 	#[inline]
 	pub fn from_element_mut(elt: &mut T) -> &mut Self {
-		unsafe { BitPtr::new_unchecked(elt, 0u8.idx(), T::BITS as usize) }
+		unsafe { BitPtr::new_unchecked(elt, 0u8.idx(), T::Mem::BITS as usize) }
 			.into_bitslice_mut()
 	}
 
@@ -245,7 +245,7 @@ where
 			len,
 		);
 		let bits = len
-			.checked_mul(T::BITS as usize)
+			.checked_mul(T::Mem::BITS as usize)
 			.expect("Bit length out of range");
 		BitPtr::new(slice.as_ptr(), 0u8.idx(), bits).into_bitslice()
 	}
@@ -549,7 +549,7 @@ where
 			Either::Left((h, b, t)) => {
 				if let Some((h, head)) = h {
 					let elt = head.load();
-					if !(*h .. T::BITS).all(|n| elt.get::<O>(n.idx())) {
+					if !(*h .. T::Mem::BITS).all(|n| elt.get::<O>(n.idx())) {
 						return false;
 					}
 				}
@@ -607,7 +607,7 @@ where
 			Either::Left((h, b, t)) => {
 				if let Some((h, head)) = h {
 					let elt = head.load();
-					if (*h .. T::BITS).any(|n| elt.get::<O>(n.idx())) {
+					if (*h .. T::Mem::BITS).any(|n| elt.get::<O>(n.idx())) {
 						return true;
 					}
 				}
@@ -759,7 +759,7 @@ where
 				let mut out = 0usize;
 				if let Some((h, head)) = h {
 					let elt = head.load();
-					out += (*h .. T::BITS)
+					out += (*h .. T::Mem::BITS)
 						.filter(|n| elt.get::<O>(n.idx()))
 						.count();
 				}
@@ -831,7 +831,7 @@ where
 			},
 			Either::Left((h, b, t)) => {
 				if let Some((h, head)) = h {
-					for n in *h .. T::BITS {
+					for n in *h .. T::Mem::BITS {
 						head.set::<O>(n.idx(), value);
 					}
 				}

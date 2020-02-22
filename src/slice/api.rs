@@ -13,6 +13,7 @@ be documented in a section called `API Differences`.
 use crate::{
 	access::BitAccess,
 	index::BitIdx,
+	mem::BitMemory,
 	order::BitOrder,
 	pointer::BitPtr,
 	slice::{

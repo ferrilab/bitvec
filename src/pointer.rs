@@ -329,9 +329,10 @@ where T: BitStore
 	pub const PTR_DATA_MASK: usize = !Self::PTR_HEAD_MASK;
 	/// The number of low bits in `self.ptr` that are the high bits of the head
 	/// `BitIdx` cursor.
-	pub const PTR_HEAD_BITS: usize = T::INDX as usize - Self::LEN_HEAD_BITS;
+	pub const PTR_HEAD_BITS: usize = T::Mem::INDX as usize - Self::LEN_HEAD_BITS;
 	/// Marks the bits of `self.ptr` that are the `head` section.
-	pub const PTR_HEAD_MASK: usize = T::MASK as usize >> Self::LEN_HEAD_BITS;
+	pub const PTR_HEAD_MASK: usize =
+		T::Mem::MASK as usize >> Self::LEN_HEAD_BITS;
 
 	/// Produces an empty-slice representation.
 	///
@@ -443,7 +444,7 @@ where T: BitStore
 			data.u().trailing_zeros() as usize >= Self::PTR_HEAD_BITS,
 			"BitPtr domain pointer ({:p}) to {} must be aligned to at least {}",
 			data.r(),
-			T::TYPENAME,
+			T::Mem::TYPENAME,
 			Self::PTR_HEAD_BITS,
 		);
 
@@ -911,7 +912,7 @@ where T: BitStore
 			}
 		}
 
-		write!(f, "BitPtr<{}>", T::TYPENAME)?;
+		write!(f, "BitPtr<{}>", T::Mem::TYPENAME)?;
 		f.debug_struct("")
 			.field("data", &Addr(self.pointer()))
 			.field("head", &Head(self.head()))
