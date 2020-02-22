@@ -15,8 +15,8 @@ builds, or `AtomicT` in atomic builds.
 
 use crate::{
 	index::BitIdx,
+	mem::BitMemory,
 	order::BitOrder,
-	store::BitStore,
 };
 
 use core::{
@@ -24,10 +24,7 @@ use core::{
 	sync::atomic::Ordering,
 };
 
-use radium::{
-	marker::BitOps,
-	Radium,
-};
+use radium::Radium;
 
 /** Access interface for shared/mutable memory access.
 
@@ -36,8 +33,8 @@ associated type, which implements this trait, in order to perform *any* access
 to underlying memory. This trait extends the `Radium` element-wise shared
 mutable access with single-bit operations suited for use by `BitSlice`.
 **/
-pub trait BitAccess<T>: Debug + Radium<T> + Sized
-where T: BitStore + BitOps + Sized
+pub trait BitAccess<M>: Debug + Radium<M> + Sized
+where M: BitMemory
 {
 	/// Set a single bit in an element low.
 	///
@@ -55,7 +52,7 @@ where T: BitStore + BitOps + Sized
 	/// - `&self`: A shared reference to underlying memory.
 	/// - `place`: A semantic bit index in the `self` element.
 	#[inline(always)]
-	fn clear_bit<O>(&self, place: BitIdx<T>)
+	fn clear_bit<O>(&self, place: BitIdx<M>)
 	where O: BitOrder {
 		self.fetch_and(!*O::mask(place), Ordering::Relaxed);
 	}
@@ -67,7 +64,7 @@ where T: BitStore + BitOps + Sized
 	/// - `&self`
 	/// - `mask`: Any value. The low bits of the mask will be written into
 	///   `*self`; the high bits will preserve their value in `*self`.
-	fn clear_bits(&self, mask: T) {
+	fn clear_bits(&self, mask: M) {
 		self.fetch_and(mask, Ordering::Relaxed);
 	}
 
@@ -87,7 +84,7 @@ where T: BitStore + BitOps + Sized
 	/// - `&self`: A shared reference to underlying memory.
 	/// - `place`: A semantic bit index in the `self` element.
 	#[inline(always)]
-	fn set_bit<O>(&self, place: BitIdx<T>)
+	fn set_bit<O>(&self, place: BitIdx<M>)
 	where O: BitOrder {
 		self.fetch_or(*O::mask(place), Ordering::Relaxed);
 	}
@@ -99,7 +96,7 @@ where T: BitStore + BitOps + Sized
 	/// - `&self`
 	/// - `mask`: Any value. The high bits of the mask will be written into
 	///   `*self`; the low bits will preserve their value in `*self`.
-	fn set_bits(&self, mask: T) {
+	fn set_bits(&self, mask: M) {
 		self.fetch_or(mask, Ordering::Relaxed);
 	}
 
@@ -115,7 +112,7 @@ where T: BitStore + BitOps + Sized
 	/// - `&self`: A shared reference to underlying memory.
 	/// - `place`: A semantic bit index in the `self` element.
 	#[inline(always)]
-	fn invert_bit<O>(&self, place: BitIdx<T>)
+	fn invert_bit<O>(&self, place: BitIdx<M>)
 	where O: BitOrder {
 		self.fetch_xor(*O::mask(place), Ordering::Relaxed);
 	}
@@ -132,9 +129,9 @@ where T: BitStore + BitOps + Sized
 	/// - `&self`: A shared reference to underlying memory.
 	/// - `place`: A semantic bit index in the `self` element.
 	#[inline]
-	fn get<O>(&self, place: BitIdx<T>) -> bool
+	fn get<O>(&self, place: BitIdx<M>) -> bool
 	where O: BitOrder {
-		<Self as BitAccess<T>>::load(&self) & *O::mask(place) != T::FALSE
+		<Self as BitAccess<M>>::load(&self) & *O::mask(place) != M::ZERO
 	}
 
 	/// Set a single bit in an element to some value.
@@ -151,7 +148,7 @@ where T: BitStore + BitOps + Sized
 	/// - `value`: The value to which the bit controlled by `place` shall be
 	///   set.
 	#[inline]
-	fn set<O>(&self, place: BitIdx<T>, value: bool)
+	fn set<O>(&self, place: BitIdx<M>, value: bool)
 	where O: BitOrder {
 		if value {
 			self.set_bit::<O>(place);
@@ -171,7 +168,7 @@ where T: BitStore + BitOps + Sized
 	///
 	/// The value of `*self`. This value is only useful when access is
 	/// uncontended by multiple `BitSlice` regions.
-	fn load(&self) -> T {
+	fn load(&self) -> M {
 		Radium::load(self, Ordering::Relaxed)
 	}
 
@@ -181,7 +178,7 @@ where T: BitStore + BitOps + Sized
 	///
 	/// - `&self`: A shared reference to underlying memory.
 	/// - `value`: The new value to write into `*self`.
-	fn store(&self, value: T) {
+	fn store(&self, value: M) {
 		Radium::store(self, value, Ordering::Relaxed)
 	}
 
@@ -191,14 +188,14 @@ where T: BitStore + BitOps + Sized
 	///
 	/// This can only be called on wholly owned, uncontended, regions.
 	#[allow(clippy::mut_from_ref)] // I *am* the law, Clippy
-	unsafe fn as_slice_mut(this: &[Self]) -> &mut [T] {
-		&mut *(this as *const [Self] as *const [T] as *mut [T])
+	unsafe fn as_slice_mut(this: &[Self]) -> &mut [M] {
+		&mut *(this as *const [Self] as *const [M] as *mut [M])
 	}
 }
 
-impl<T, R> BitAccess<T> for R
+impl<M, R> BitAccess<M> for R
 where
-	T: BitStore + BitOps,
-	R: Debug + Radium<T>,
+	M: BitMemory,
+	R: Debug + Radium<M>,
 {
 }

@@ -11,8 +11,7 @@ not exported in the prelude.
 
 use crate::{
 	access::BitAccess,
-	index::BitIdx,
-	order::BitOrder,
+	mem::BitMemory,
 };
 
 use core::{
@@ -89,6 +88,8 @@ pub trait BitStore:
 	+ UpperHex
 	+ BitOps
 {
+	/// The register type this store describes.
+	type Mem: BitMemory;
 	/// The width, in bits, of this type.
 	const BITS: u8 = size_of::<Self>() as u8 * 8;
 
@@ -118,60 +119,7 @@ pub trait BitStore:
 	/// ownership of a memory element of `Self`, and no other codepath may
 	/// observe or modify it, then that codepath may skip the `Access` type and
 	/// use plain accessors.
-	type Access: BitAccess<Self>;
-
-	/// Gets a specific bit in an element.
-	///
-	/// # Safety
-	///
-	/// This method cannot be called from within an `&BitSlice` context; it may
-	/// only be called by construction of an `&Self` reference from a `Self`
-	/// element directly.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	/// - `place`: A bit index in the element. The bit under this index, as
-	///   governed by the `O` `BitOrder`, will be retrieved as a `bool`.
-	///
-	/// # Returns
-	///
-	/// The value of the bit under `place`.
-	///
-	/// # Type Parameters
-	///
-	/// - `O`: A `BitOrder` implementation to translate the index into a position.
-	fn get<O>(&self, place: BitIdx<Self>) -> bool
-	where O: BitOrder {
-		*self & *O::mask(place) != Self::FALSE
-	}
-
-	/// Sets a specific bit in an element to a given value.
-	///
-	/// # Safety
-	///
-	/// This method cannot be called from within an `&mut BitSlice` context; it
-	/// may only be called by construction of an `&mut Self` reference from a
-	/// `Self` element directly.
-	///
-	/// # Parameters
-	///
-	/// - `place`: A bit index in the element. The bit under this index, as
-	///   governed by the `O` `BitOrder`, will be set according to `value`.
-	///
-	/// # Type Parameters
-	///
-	/// - `O`: A `BitOrder` implementation to translate the index into a position.
-	fn set<O>(&mut self, place: BitIdx<Self>, value: bool)
-	where O: BitOrder {
-		let mask = *O::mask(place);
-		if value {
-			*self |= mask;
-		}
-		else {
-			*self &= !mask;
-		}
-	}
+	type Access: BitAccess<Self::Mem>;
 
 	/// Counts how many bits in `self` are set to `1`.
 	///
@@ -259,6 +207,8 @@ macro_rules! bitstore {
 			const FALSE: Self = 0;
 			const TRUE: Self = !0;
 
+			type Mem = Self;
+
 			#[cfg(feature = "atomic")]
 			type Access = $atom;
 
@@ -291,15 +241,18 @@ bitstore! {
 }
 
 #[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
-compile_fail!("This architecture is currently not supported. File an issue at https://github.com/myrrlyn/bitvec");
+compile_fail!(concat!(
+	"This architecture is currently not supported. File an issue at ",
+	env!(CARGO_PKG_REPOSITORY)
+));
 
 mod seal {
 	/// Marker trait to seal `BitStore` against downstream implementation.
 	///
-	/// This trait is public in the module, so that other modules in the crate can use
-	/// it, but so long as it is not exported by the crate root and this module is
-	/// private, this trait effectively forbids downstream implementation of the
-	/// `BitStore` trait.
+	/// This trait is public in the module, so that other modules in the crate
+	/// can use it, but so long as it is not exported by the crate root and this
+	/// module is private, this trait effectively forbids downstream
+	/// implementation of the `BitStore` trait.
 	#[doc(hidden)]
 	pub trait Sealed {}
 

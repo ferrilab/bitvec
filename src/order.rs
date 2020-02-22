@@ -17,11 +17,11 @@ Contiguity is not required.
 use crate::{
 	index::{
 		BitIdx,
-		BitMask,
 		BitPos,
+		BitSel,
 		Indexable,
 	},
-	store::BitStore,
+	mem::BitMemory,
 };
 
 /// Traverses an element from `MSbit` to `LSbit`.
@@ -58,26 +58,25 @@ pub trait BitOrder {
 	///
 	/// # Type Parameters
 	///
-	/// - `T: BitStore`: The storage type for which the position will be
-	///   calculated.
+	/// - `M`: The storage type for which the position will be calculated.
 	///
 	/// # Invariants
 	///
-	/// The function **must** be *total* for the domain `.. T::BITS`. All values
+	/// The function **must** be *total* for the domain `.. M::BITS`. All values
 	/// in this domain are valid indices that the library will pass to it, and
 	/// which this function must satisfy.
 	///
-	/// The function **must** be *bijective* over the domain `.. T::BITS`. All
+	/// The function **must** be *bijective* over the domain `.. M::BITS`. All
 	/// input values in this domain must have one and only one correpsonding
 	/// output, which must also be in this domain.
 	///
-	/// The function *may* support input in the domain `T::BITS ..`. The library
+	/// The function *may* support input in the domain `M::BITS ..`. The library
 	/// will not produce any values in this domain as input indices. The
-	/// function **must not** produce output in the domain `T::BITS ..`. It must
-	/// choose between panicking, or producing an output in `.. T::BITS`. The
-	/// reduction in domain from `T::BITS ..` to `.. T::BITS` removes the
-	/// requirement for inputs in `T::BITS ..` to have unique outputs in
-	/// `.. T::BITS`.
+	/// function **must not** produce output in the domain `M::BITS ..`. It must
+	/// choose between panicking, or producing an output in `.. M::BITS`. The
+	/// reduction in domain from `M::BITS ..` to `.. M::BITS` removes the
+	/// requirement for inputs in `M::BITS ..` to have unique outputs in
+	/// `.. M::BITS`.
 	///
 	/// This function **must** be *pure*. Calls which have the same input must
 	/// produce the same output. This invariant is only required to be upheld
@@ -93,11 +92,11 @@ pub trait BitOrder {
 	///
 	/// # Safety
 	///
-	/// This function requires that the output be in the domain `.. T::BITS`.
+	/// This function requires that the output be in the domain `.. M::BITS`.
 	/// Implementors must uphold this themselves. Outputs in the domain
-	/// `T::BITS ..` will induce panics elsewhere in the library.
-	fn at<T>(place: BitIdx<T>) -> BitPos<T>
-	where T: BitStore;
+	/// `M::BITS ..` will induce panics elsewhere in the library.
+	fn at<M>(place: BitIdx<M>) -> BitPos<M>
+	where M: BitMemory;
 
 	/// Translate a semantic bit index into an electrical bit mask.
 	///
@@ -117,12 +116,12 @@ pub trait BitOrder {
 	/// # Returns
 	///
 	/// A one-hot encoding of the provided `BitOrder`’s electrical position in
-	/// the `T` element.
+	/// the `M` element.
 	///
 	/// # Type Parameters
 	///
-	/// - `T`: The storage type for which the mask will be calculated. The mask
-	///   must also be this type, as it will be applied to an element of `T` in
+	/// - `M`: The storage type for which the mask will be calculated. The mask
+	///   must also be this type, as it will be applied to an element of `M` in
 	///   order to set, clear, or test a single bit.
 	///
 	/// # Invariants
@@ -131,23 +130,23 @@ pub trait BitOrder {
 	/// produced value. It must be equivalent to `1 << *Self::at(place)`.
 	///
 	/// As with `at`, this function must produce a unique mapping from each
-	/// legal index in the `T` domain to a one-hot value of `T`.
+	/// legal index in the `M` domain to a one-hot value of `M`.
 	///
 	/// # Safety
 	///
 	/// This function requires that the output is always a one-hot value. It is
 	/// illegal to produce a value with more than one bit set, and doing so will
 	/// cause uncontrolled side effects.
-	fn mask<T>(place: BitIdx<T>) -> BitMask<T>
-	where T: BitStore {
-		let place = Self::at::<T>(place);
+	fn mask<M>(place: BitIdx<M>) -> BitSel<M>
+	where M: BitMemory {
+		let place = Self::at::<M>(place);
 		debug_assert!(
-			*place < T::BITS,
+			*place < M::BITS,
 			"Bit position {} must not exceed the type width {}",
 			*place,
-			T::BITS,
+			M::BITS,
 		);
-		unsafe { BitMask::new_unchecked(T::from(1) << *place) }
+		unsafe { BitSel::new_unchecked(M::ONE << *place) }
 	}
 }
 
@@ -157,18 +156,18 @@ impl BitOrder for Msb0 {
 	/// Maps a semantic count to a concrete position.
 	///
 	/// `Msb0` order moves from `MSbit` first to `LSbit` last.
-	fn at<T>(place: BitIdx<T>) -> BitPos<T>
-	where T: BitStore {
-		(T::MASK - *place).pos()
+	fn at<M>(place: BitIdx<M>) -> BitPos<M>
+	where M: BitMemory {
+		(M::MASK - *place).pos()
 	}
 
-	fn mask<T>(place: BitIdx<T>) -> BitMask<T>
-	where T: BitStore {
+	fn mask<M>(place: BitIdx<M>) -> BitSel<M>
+	where M: BitMemory {
 		//  Set the MSbit, then shift it down. The left expr is const-folded.
 		//  Note: this is not equivalent to `1 << (mask - place)`, because
 		//  that requires a subtraction every time, but the expression below is
 		//  only a single right-shift.
-		unsafe { BitMask::new_unchecked((T::from(1) << T::MASK) >> *place) }
+		unsafe { BitSel::new_unchecked((M::ONE << M::MASK) >> *place) }
 	}
 }
 
@@ -178,15 +177,15 @@ impl BitOrder for Lsb0 {
 	/// Maps a semantic count to a concrete position.
 	///
 	/// `Lsb0` order moves from `LSbit` first to `MSbit` last.
-	fn at<T>(place: BitIdx<T>) -> BitPos<T>
-	where T: BitStore {
+	fn at<M>(place: BitIdx<M>) -> BitPos<M>
+	where M: BitMemory {
 		(*place).pos()
 	}
 
-	fn mask<T>(place: BitIdx<T>) -> BitMask<T>
-	where T: BitStore {
+	fn mask<M>(place: BitIdx<M>) -> BitSel<M>
+	where M: BitMemory {
 		//  Set the LSbit, then shift it up.
-		unsafe { BitMask::new_unchecked(T::from(1) << *place) }
+		unsafe { BitSel::new_unchecked(M::ONE << *place) }
 	}
 }
 
@@ -207,7 +206,10 @@ to little-endian as well, as a convenience. These two orderings are not related.
 pub type Local = Lsb0;
 
 #[cfg(not(any(target_endian = "big", target_endian = "little")))]
-compile_fail!("This architecture is currently not supported. File an issue at https://github.com/myrrlyn/bitvec");
+compile_fail!(concat!(
+	"This architecture is currently not supported. File an issue at ",
+	env!(CARGO_PKG_REPOSITORY)
+));
 
 #[cfg(test)]
 #[allow(clippy::cognitive_complexity)] // Permit large test functions

@@ -35,13 +35,13 @@ element.
 **/
 //  Type bounds in `type` aliases are disallowed, so `T::Access` is not writable
 //  here.
-pub(crate) type Splat<'a, T, A> = Either<
+pub(crate) type Splat<'a, M, A> = Either<
 	(
-		Option<(BitIdx<T>, &'a A)>,
+		Option<(BitIdx<M>, &'a A)>,
 		Option<&'a [A]>,
-		Option<(&'a A, BitTail<T>)>,
+		Option<(&'a A, BitTail<M>)>,
 	),
-	(BitIdx<T>, &'a A, BitTail<T>),
+	(BitIdx<M>, &'a A, BitTail<M>),
 >;
 
 /** Representations of the state of the bit domain in its containing elements.
@@ -72,7 +72,7 @@ where T: 'a + BitStore
 	///
 	/// This variant is produced when the domain is contained entirely inside
 	/// one element, and does not reach to either edge.
-	Minor(BitIdx<T>, &'a T::Access, BitTail<T>),
+	Minor(BitIdx<T::Mem>, &'a T::Access, BitTail<T::Mem>),
 	/// Multpile element domain which does not reach the edge of its edge
 	/// elements.
 	///
@@ -91,11 +91,11 @@ where T: 'a + BitStore
 	/// and reaches neither the head edge of the head element nor the tail edge
 	/// of the tail element.
 	Major(
-		BitIdx<T>,
+		BitIdx<T::Mem>,
 		&'a T::Access,
 		&'a [T::Access],
 		&'a T::Access,
-		BitTail<T>,
+		BitTail<T::Mem>,
 	),
 	/// Domain with a partial head cursor and fully extended tail cursor.
 	///
@@ -110,7 +110,7 @@ where T: 'a + BitStore
 	///
 	/// This variant is produced when the domain’s head cursor is past `0`, and
 	/// its tail cursor is exactly `T::BITS`.
-	PartialHead(BitIdx<T>, &'a T::Access, &'a [T::Access]),
+	PartialHead(BitIdx<T::Mem>, &'a T::Access, &'a [T::Access]),
 	/// Domain with a fully extended head cursor and partial tail cursor.
 	///
 	/// # Members
@@ -124,7 +124,7 @@ where T: 'a + BitStore
 	///
 	/// This variant is produced when the domain’s head cursor is exactly `0`,
 	/// and its tail cursor is less than `T::BITS`.
-	PartialTail(&'a [T::Access], &'a T::Access, BitTail<T>),
+	PartialTail(&'a [T::Access], &'a T::Access, BitTail<T::Mem>),
 	/// Domain which fully spans its containing elements.
 	///
 	/// # Members
@@ -154,7 +154,7 @@ where T: BitStore
 	/// - head element, and start index in that element
 	/// - body slice
 	/// - tail element, and end index in that element
-	pub(crate) fn splat(self) -> Splat<'a, T, T::Access> {
+	pub(crate) fn splat(self) -> Splat<'a, T::Mem, T::Access> {
 		match self {
 			BitDomain::Empty => Either::Left((None, None, None)),
 			BitDomain::Minor(h, e, t) => Either::Right((h, e, t)),

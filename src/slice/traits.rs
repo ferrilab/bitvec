@@ -5,6 +5,7 @@ The operator traits are defined in the `ops` module.
 
 use crate::{
 	access::BitAccess,
+	mem::BitMemory,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
@@ -356,19 +357,25 @@ macro_rules! fmt {
 					Either::Left((h, b, t)) => {
 						if let Some((h, head)) = h {
 							writer(
-								&Self::from_element(&head.load())
-									[*h as usize ..],
+								&Self::from_element(
+									&head.load().to_store::<T>(),
+								)[*h as usize ..],
 							);
 						}
 						if let Some(body) = b {
-							for elt in body.iter().map(BitAccess::load) {
+							for elt in body
+								.iter()
+								.map(BitAccess::load)
+								.map(BitMemory::to_store::<T>)
+							{
 								writer(Self::from_element(&elt));
 							}
 						}
 						if let Some((tail, t)) = t {
 							writer(
-								&Self::from_element(&tail.load())
-									[.. *t as usize],
+								&Self::from_element(
+									&tail.load().to_store::<T>(),
+								)[.. *t as usize],
 							);
 						}
 					},

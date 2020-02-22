@@ -1,19 +1,73 @@
-/*! Element bit indexing.
+/*! Indexing within memory elements.
 
-This module provides strong indexing types to manage the concept of addressing
-bits inside spans of memory elements. The crate needs to have a concept of bit
-positions that exist in memory (`BitIdx`), abstract “dead” bits that mark the
-first bit past the end of a memory region and are not required to exist in
-hardware (`BitTail`), specific bit positions that may be accessed by machine
-instructions (`BitPos`), and element values that mask one or more bits of
-interest (`BitMask`).
+This module provides types which guarantee certain properties about selecting
+bits within a memory element. These types enable their use sites to explicitly
+declare the indexing behavior they require, and move safety checks from runtime
+to compile time.
+
+# Bit Indexing
+
+The [`BitIdx`] type represents the semantic index of a bit within a memory
+element. It does not perform bit positioning, and cannot be used to create a
+shift instruction or mask value. It is transformed into a value which can do
+these things – [`BitPos`] – through the [`BitOrder::at`] function.
+
+# Region End Marker
+
+`bitvec` uses “half-open” ranges, described by a starting point and a count of
+members that are live. This means that the “end” of a range is not the last
+member that is *in*cluded in the range, but rather the first member that is
+*ex*cluded from it.
+
+This requires the [`BitTail` end marker to include in its range the width of the
+element type (`8` for `u8`, etc), in order to mark that a region includes the
+very last bit in the element (index `7` for `u8`, etc`).
+
+The starting number for a dead region cannot be used to perform bit selection,
+but is used to provide range computation, so it is kept distinct from the
+indexing types.
+
+# Bit Positioning
+
+The [`BitPos`] type corresponds directly to a bit position in a memory element.
+Its value can be used to create shift instructions which select part of memory.
+It is only ever created by the `BitOrder::at` function.
+
+# Bit Selection
+
+The [`BitSel`] type is a one-hot mask encoding for a memory element. Unlike the
+previous types, which are range-limited integers, this type is a wrapper over a
+memory element and guarantees that it can be used as a mask value in `&` and `|`
+operations to modify exactly one bit. It is equivalent to `1 << BitPos.value()`.
+
+# Bit Masking
+
+Lastly, the [`BitMask`] type is a bitmask that permits any number of bits to be
+set or cleared. It is provided as a type rather than a bare value in order to
+clearly communicate that there is no restriction on what this mask may affect.
+
+[`BitIdx`]: struct.BitIdx.html
+[`BitMask`]: struct.BitMask.html
+[`BitOrder::at`]: ../order/trait.BitOrder.html#method.at
+[`BitPos`]: struct.BitPos.html
+[`BitSel`]: struct.BitSel.html
+[`BitTail`]: struct.BitTail.html
 !*/
 
-use crate::store::BitStore;
+use crate::mem::BitMemory;
 
 use core::{
+	fmt::{
+		self,
+		Binary,
+		Formatter,
+	},
+	iter::Sum,
 	marker::PhantomData,
-	ops::Deref,
+	ops::{
+		BitOr,
+		Deref,
+	},
 };
 
 #[cfg(feature = "serde")]
@@ -21,67 +75,67 @@ use core::convert::TryFrom;
 
 /** Indicates a semantic index of a bit within a memory element.
 
-This type is consumed by [`BitOrder`] implementors, which use it to produce a
-concrete bit position inside an element.
-
-`BitIdx` is a semantic counter which has a defined, constant, and predictable
-ordering. Values of `BitIdx` refer strictly to an abstract ordering, and not to
-any actual bit positions within a memory element, so `BitIdx::<T>(0)` is always
-the first bit counted within an element, but is not required to be the most or
-least significant bits, or any other particular bits. Which specific bit is
-referred by a `BitIdx` value is governed by implementors of `BitOrder`.
+This is a counter in the domain `0 .. M::BITS`, and marks a semantic position
+in the ordering sequence described by a [`BitOrder`] implementation. It is used
+for both position computation through `BitOrder` and range computation in
+[`BitPtr`].
 
 # Type Parameters
 
-- `T`: The memory element type controlled by this index.
+- `M`: The memory element type controlled by this index.
 
 [`BitOrder`]: ../order/trait.BitOrder.html
+[`BitPtr`]: ../pointer/struct.BitPtr.html
 **/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct BitIdx<T>
-where T: BitStore
+pub struct BitIdx<M>
+where M: BitMemory
 {
-	/// Semantic index within an element. Constrained to `0 .. T::BITS`.
+	/// Semantic index within an element. Constrained to `0 .. M::BITS`.
 	idx: u8,
 	/// Marker for the indexed type.
-	_ty: PhantomData<T>,
+	_ty: PhantomData<M>,
 }
 
-impl<T> BitIdx<T>
-where T: BitStore
+impl<M> BitIdx<M>
+where M: BitMemory
 {
-	/// Wraps a counter value as a known-good index of the `T` element type.
+	/// Wraps a counter value as a known-good index of the `M` element type.
 	///
 	/// # Parameters
 	///
-	/// - `idx`: A semantic index within a `T` memory element.
+	/// - `idx`: A semantic index within a `M` memory element.
 	///
 	/// # Returns
 	///
-	/// If `idx` is within the range `0 .. T::BITS`, then this returns the index
+	/// If `idx` is within the range `0 .. M::BITS`, then this returns the index
 	/// value wrapped in the index type; if `idx` exceeds this range, then this
 	/// returns `None`.
 	pub fn new(idx: u8) -> Option<Self> {
-		if idx >= T::BITS {
+		if idx >= M::BITS {
 			return None;
 		}
 		Some(unsafe { Self::new_unchecked(idx) })
 	}
 
-	/// Wraps a counter value as a known-good index of the `T` element type.
+	/// Wraps a counter value as a known-good index of the `M` element type.
 	///
 	/// # Parameters
 	///
-	/// - `idx`: A semantic index within a `T` memory element. It must be in the
-	///   range `0 .. T::BITS`.
-	#[doc(hidden)]
+	/// - `idx`: A semantic index within a `M` memory element. It must be in the
+	///   range `0 .. M::BITS`.
+	///
+	/// # Safety
+	///
+	/// If `idx` is outside the range, then the produced value will cause errors
+	/// and memory unsafety when used.
 	#[inline]
 	pub unsafe fn new_unchecked(idx: u8) -> Self {
 		debug_assert!(
-			idx < T::BITS,
+			idx < M::BITS,
 			"Bit index {} cannot exceed type width {}",
 			idx,
-			T::BITS,
+			M::BITS,
 		);
 		Self {
 			idx,
@@ -101,9 +155,9 @@ where T: BitStore
 	///   position for the offset calculation.
 	/// - `by`: The number of bits by which to move. Negative values move
 	///   downwards in memory: towards index zero, then counting from index
-	///   `T::MASK` to index zero in the next element lower in memory, repeating
+	///   `M::MASK` to index zero in the next element lower in memory, repeating
 	///   until arrival. Positive values move upwards in memory: towards index
-	///   `T::MASK`, then counting from index zero to index `T::MASK` in the
+	///   `M::MASK`, then counting from index zero to index `M::MASK` in the
 	///   next element higher in memory, repeating until arrival.
 	///
 	/// # Returns
@@ -124,38 +178,40 @@ where T: BitStore
 	pub(crate) fn offset(self, by: isize) -> (isize, Self) {
 		let val = *self;
 
-		//  Signed-add `*self` and the jump distance. Overflowing is the
-		//  unlikely branch. The result is a bit index, and an overflow marker.
-		//  `far` is permitted to be negative; this means that it is lower in
-		//  memory than the origin bit. The number line has its origin at the
-		//  front edge of the origin element, so `-1` is the *last* bit of the
-		//  prior memory element.
+		/* Signed-add `*self` and the jump distance. Overflowing is the unlikely
+		branch. The result is a bit index, and an overflow marker. `far` is
+		permitted to be negative; this means that it is lower in memory than the
+		origin bit. The number line has its origin at the front edge of the
+		origin element, so `-1` is the *last* bit of the prior memory element.
+		*/
 		let (far, ovf) = by.overflowing_add(val as isize);
 		//  If the `isize` addition does not overflow, then the sum can be used
 		//  directly.
 		if !ovf {
 			//  If `far` is in the origin element, then the jump moves zero
 			//  elements and produces `far` as an absolute index directly.
-			if (0 .. T::BITS as isize).contains(&far) {
+			if (0 .. M::BITS as isize).contains(&far) {
 				(0, (far as u8).idx())
 			}
-			//  Otherwise, downshift the bit distance to compute the number of
-			//  elements moved in either direction, and mask to compute the
-			//  absolute bit index in the destination element.
+			/* Otherwise, downshift the bit distance to compute the number of
+			elements moved in either direction, and mask to compute the absolute
+			bit index in the destination element.
+			*/
 			else {
-				(far >> T::INDX, (far as u8 & T::MASK).idx())
+				(far >> M::INDX, (far as u8 & M::MASK).idx())
 			}
 		}
 		else {
-			//  Overflowing `isize` addition happens to produce ordinary `usize`
-			//  addition. In point of fact, `isize` addition and `usize`
-			//  addition are the same machine instruction to perform the sum; it
-			//  is merely the signed interpretation of the sum that differs. The
-			//  sum can be recast back to `usize` without issue.
+			/* Overflowing `isize` addition happens to produce ordinary `usize`
+			addition. In point of fact, `isize` addition and `usize` addition
+			are the same machine instruction to perform the sum; it is merely
+			the signed interpretation of the sum that differs. The sum can be
+			recast back to `usize` without issue.
+			*/
 			let far = far as usize;
 			//  This is really only needed in order to prevent sign-extension of
 			//  the downshift; once shifted, the value can be safely re-signed.
-			((far >> T::INDX) as isize, (far as u8 & T::MASK).idx())
+			((far >> M::INDX) as isize, (far as u8 & M::MASK).idx())
 		}
 	}
 
@@ -170,30 +226,38 @@ where T: BitStore
 	///
 	/// # Returns
 	///
-	/// - `.0`: The number of elements of `T` included in the span. If `len` is
+	/// - `.0`: The number of elements of `M` included in the span. If `len` is
 	///   `0`, this will be `0`; otherwise, it will be at least one.
 	/// - `.1`: The index of the first dead bit *after* the span. If `self` and
 	///   `len` are both `0`, this will be `0`; otherwise, it will be in the
-	///   domain `1 ..= T::BITS`.
+	///   domain `1 ..= M::BITS`.
 	///
 	/// # Notes
 	///
 	/// This defers to [`BitTail::span`], because `BitTail` is a strict superset
-	/// of `BitIdx` (it is `{ BitIdx | T::BITS }`), and spans frequently begin
+	/// of `BitIdx` (it is `{ BitIdx | M::BITS }`), and spans frequently begin
 	/// from the tail of a slice in this crate. The `offset` function is *not*
 	/// implemented on `BitTail`, and remains on `BitIdx` because offsets can
 	/// only be computed from bit addresses that exist. It does not make sense
-	/// to compute the offset from a `T::BITS` tail.
+	/// to compute the offset from a `M::BITS` tail.
 	///
 	/// [`BitTail::span`]: struct.BitTail.html#method.span
 	#[inline]
-	pub(crate) fn span(self, len: usize) -> (usize, BitTail<T>) {
+	pub(crate) fn span(self, len: usize) -> (usize, BitTail<M>) {
 		unsafe { BitTail::new_unchecked(*self) }.span(len)
 	}
 }
 
-impl<T> Deref for BitIdx<T>
-where T: BitStore
+impl<M> Binary for BitIdx<M>
+where M: BitMemory
+{
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		write!(fmt, "0b{:0>1$b}", self.idx, M::INDX as usize)
+	}
+}
+
+impl<M> Deref for BitIdx<M>
+where M: BitMemory
 {
 	type Target = u8;
 
@@ -203,62 +267,56 @@ where T: BitStore
 }
 
 #[cfg(feature = "serde")]
-impl<T> TryFrom<u8> for BitIdx<T>
-where T: BitStore
+impl<M> TryFrom<u8> for BitIdx<M>
+where M: BitMemory
 {
 	type Error = &'static str;
 
 	fn try_from(idx: u8) -> Result<Self, Self::Error> {
-		if idx < T::BITS {
-			Ok(Self {
-				idx,
-				_ty: PhantomData,
-			})
-		}
-		else {
-			Err("Attempted to construct a `BitIdx` with an index out of range")
-		}
+		Self::new(idx).ok_or(
+			"Attempted to construct a `BitIdx` with an index out of range",
+		)
 	}
 }
 
 /** Indicates a semantic index of a dead bit *beyond* a memory element.
 
-This type is equivalent to `BitIdx<T>`, except that it includes `T::BITS` in its
+This type is equivalent to `BitIdx<M>`, except that it includes `M::BITS` in its
 domain. Instances of this type will only ever contain `0` when the span they
 describe is *empty*. Non-empty spans always cycle through the domain
-`1 ..= T::BITS`.
+`1 ..= M::BITS`.
 
-This type cannot be used for indexing, and does not translate to `BitPos<T>`.
+This type cannot be used for indexing, and does not translate to `BitPos<M>`.
 This type has no behavior other than viewing its internal `u8` for arithmetic.
 
 # Type Parameters
 
-- `T`: The memory element type controlled by this tail.
+- `M`: The memory element type controlled by this tail.
 **/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) struct BitTail<T>
-where T: BitStore
+pub(crate) struct BitTail<M>
+where M: BitMemory
 {
-	/// Semantic index *after* an element. Constrained to `0 ..= T::BITS`.
+	/// Semantic index *after* an element. Constrained to `0 ..= M::BITS`.
 	end: u8,
 	/// Marker for the tailed type.
-	_ty: PhantomData<T>,
+	_ty: PhantomData<M>,
 }
 
-impl<T> BitTail<T>
-where T: BitStore
+impl<M> BitTail<M>
+where M: BitMemory
 {
 	/// Mark that `end` is a tail index for a type.
 	///
 	/// # Parameters
 	///
-	/// - `end` must be in the range `0 ..= T::BITS`.
+	/// - `end` must be in the range `0 ..= M::BITS`.
 	pub(crate) unsafe fn new_unchecked(end: u8) -> Self {
 		debug_assert!(
-			end <= T::BITS,
+			end <= M::BITS,
 			"Bit tail {} cannot surpass type width {}",
 			end,
-			T::BITS,
+			M::BITS,
 		);
 		Self {
 			end,
@@ -269,19 +327,19 @@ where T: BitStore
 	pub(crate) fn span(self, len: usize) -> (usize, Self) {
 		let val = *self;
 		debug_assert!(
-			val <= T::BITS,
+			val <= M::BITS,
 			"Tail out of range: {} overflows type width {}",
 			val,
-			T::BITS,
+			M::BITS,
 		);
 
 		if len == 0 {
 			return (0, self);
 		}
 
-		let head = val & T::MASK;
+		let head = val & M::MASK;
 
-		let bits_in_head = (T::BITS - head) as usize;
+		let bits_in_head = (M::BITS - head) as usize;
 
 		if len <= bits_in_head {
 			return (1, (head + len as u8).tail());
@@ -289,17 +347,17 @@ where T: BitStore
 
 		let bits_after_head = len - bits_in_head;
 
-		let elts = bits_after_head >> T::INDX;
-		let tail = bits_after_head as u8 & T::MASK;
+		let elts = bits_after_head >> M::INDX;
+		let tail = bits_after_head as u8 & M::MASK;
 
 		let is_zero = (tail == 0) as u8;
 		let edges = 2 - is_zero as usize;
-		(elts + edges, ((is_zero << T::INDX) | tail).tail())
+		(elts + edges, ((is_zero << M::INDX) | tail).tail())
 
 		/* The above expression is the branchless equivalent of this structure:
 
 		if tail == 0 {
-			(elts + 1, T::BITS.tail())
+			(elts + 1, M::BITS.tail())
 		}
 		else {
 			(elts + 2, tail.tail())
@@ -308,8 +366,8 @@ where T: BitStore
 	}
 }
 
-impl<T> Deref for BitTail<T>
-where T: BitStore
+impl<M> Deref for BitTail<M>
+where M: BitMemory
 {
 	type Target = u8;
 
@@ -321,30 +379,31 @@ where T: BitStore
 /** Indicates a real electrical index within an element.
 
 This type is produced by [`BitOrder`] implementors, and marks a specific
-electrical bit within a memory element, rather than `BitIdx`’s semantic bit.
+electrical bit within a memory element, rather than [`BitIdx`]’s semantic bit.
 
 # Type Parameters
 
-- `T`: A `BitStore` element which provides bounds-checking information. The
-  [`new`] constructor uses [`T::BITS`] to ensure that constructed `BitPos`
-  instances are always valid to use within `T` elements.
+- `M`: A `BitMemory` element which provides bounds-checking information. The
+  [`new`] constructor uses [`M::BITS`] to ensure that constructed `BitPos`
+  instances are always valid to use within `M` elements.
 
+[`BitIdx`]: struct.BitIdx.html
 [`BitOrder`]: ../order/trait.BitOrder.html
-[`T::BITS`]: ../store/trait.BitStore.html#associatedconstant.BITS
+[`M::BITS`]: ../mem/trait.BitMemory.html#associatedconstant.BITS
 [`new`]: #method.new
 **/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct BitPos<T>
-where T: BitStore
+pub struct BitPos<M>
+where M: BitMemory
 {
-	/// Electrical position within an element. Constrained to `0 .. T::BITS`.
+	/// Electrical position within an element. Constrained to `0 .. M::BITS`.
 	pos: u8,
 	/// Marker for the positioned type.
-	_ty: PhantomData<T>,
+	_ty: PhantomData<M>,
 }
 
-impl<T> BitPos<T>
-where T: BitStore
+impl<M> BitPos<M>
+where M: BitMemory
 {
 	/// Produce a new bit position marker at a valid position value.
 	///
@@ -355,20 +414,20 @@ where T: BitStore
 	/// # Parameters
 	///
 	/// - `pos`: The bit position value to encode. It must be in the range `0 ..
-	///   T::BITS`.
+	///   M::BITS`.
 	///
 	/// # Panics
 	///
-	/// This function panics if `pos` is greater than or equal to `T::BITS`.
+	/// This function panics if `pos` is greater than or equal to `M::BITS`.
 	///
 	/// [`::new_unchecked`]: #method.new_unchecked
 	#[inline]
 	pub fn new(pos: u8) -> Self {
 		assert!(
-			pos < T::BITS,
+			pos < M::BITS,
 			"Bit position {} cannot exceed type width {}",
 			pos,
-			T::BITS,
+			M::BITS,
 		);
 		Self {
 			pos,
@@ -380,13 +439,13 @@ where T: BitStore
 	///
 	/// # Safety
 	///
-	/// The caller *must* ensure that `pos` is less than `T::BITS`. `BitOrder`
+	/// The caller *must* ensure that `pos` is less than `M::BITS`. `BitOrder`
 	/// implementations should prefer [`::new`], which panics on range failure.
 	///
 	/// # Parameters
 	///
 	/// - `pos`: The bit position value to encode. This must be in the range `0
-	///   .. T::BITS`.
+	///   .. M::BITS`.
 	///
 	/// # Returns
 	///
@@ -394,28 +453,43 @@ where T: BitStore
 	///
 	/// # Panics
 	///
-	/// This function panics if `pos` is greater than or equal to `T::BITS`, but
+	/// This function panics if `pos` is greater than or equal to `M::BITS`, but
 	/// only in debug builds. It does not inspect `pos` in release builds.
 	///
 	/// [`::new`]: #method.new
-	#[cfg_attr(debug_assertions, inline)]
-	#[cfg_attr(not(debug_assertions), inline(always))]
+	#[inline]
 	pub unsafe fn new_unchecked(pos: u8) -> Self {
 		debug_assert!(
-			pos < T::BITS,
+			pos < M::BITS,
 			"Bit position {} cannot exceed type width {}",
 			pos,
-			T::BITS,
+			M::BITS,
 		);
 		Self {
 			pos,
 			_ty: PhantomData,
 		}
 	}
+
+	/// Produces a one-hot selector mask from a position value.
+	///
+	/// This is equivalent to `1 << *self`.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// A one-hot selector mask with the bit at `*self` set.
+	#[inline]
+	pub fn select(self) -> BitSel<M> {
+		unsafe { BitSel::new_unchecked(M::ONE << *self) }
+	}
 }
 
-impl<T> Deref for BitPos<T>
-where T: BitStore
+impl<M> Deref for BitPos<M>
+where M: BitMemory
 {
 	type Target = u8;
 
@@ -432,20 +506,20 @@ safely be used as a mask for read/write access to memory.
 
 # Type Parameters
 
-- `T`: The storage type being masked.
+- `M`: The storage type being masked.
 
 [`BitOrder`]: ../order/trait.BitOrder.html
 **/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct BitMask<T>
-where T: BitStore
+pub struct BitSel<M>
+where M: BitMemory
 {
 	/// Mask value.
-	mask: T,
+	sel: M,
 }
 
-impl<T> BitMask<T>
-where T: BitStore
+impl<M> BitSel<M>
+where M: BitMemory
 {
 	/// Produce a new bit-mask wrapper around a one-hot mask value.
 	///
@@ -469,14 +543,14 @@ where T: BitStore
 	///
 	/// [`::new_unchecked`]: #method.new_unchecked
 	#[inline]
-	pub fn new(mask: T) -> Self {
+	pub fn new(sel: M) -> Self {
 		assert!(
-			mask.count_ones() == 1,
+			sel.count_ones() == 1,
 			"Masks are required to have exactly one set bit: {:0>1$b}",
-			mask,
-			T::BITS as usize,
+			sel,
+			M::BITS as usize,
 		);
-		Self { mask }
+		Self { sel }
 	}
 
 	/// Produce a new bit-mask wrapper around any value.
@@ -502,23 +576,102 @@ where T: BitStore
 	/// debug builds. It does not inspect `mask` in release builds.
 	///
 	/// [`::new`]: #method.new
-	#[cfg_attr(debug_assertions, inline)]
-	#[cfg_attr(not(debug_assertions), inline(always))]
-	pub unsafe fn new_unchecked(mask: T) -> Self {
+	#[inline]
+	pub unsafe fn new_unchecked(sel: M) -> Self {
 		debug_assert!(
-			mask.count_ones() == 1,
+			sel.count_ones() == 1,
 			"Masks are required to have exactly one set bit: {:0>1$b}",
-			mask,
-			T::BITS as usize,
+			sel,
+			M::BITS as usize,
 		);
-		Self { mask }
+		Self { sel }
 	}
 }
 
-impl<T> Deref for BitMask<T>
-where T: BitStore
+impl<M> Deref for BitSel<M>
+where M: BitMemory
 {
-	type Target = T;
+	type Target = M;
+
+	fn deref(&self) -> &Self::Target {
+		&self.sel
+	}
+}
+
+/** A multi-bit selector mask.
+
+Unlike [`BitSel`], which enforces a strict one-hot mask encoding, this mask type
+permits any number of bits to be set or unset. This is used to combine batch
+operations in an element.
+
+It is only constructed by accumulating [`BitPos`] or [`BitSel`] values. As
+`BitSel` is only constructed from `BitPos`, and `BitPos` is only constructed
+from [`BitIdx`] and [`BitOrder`], this enforces a chain of responsibility to
+prove that a given multimask is safe.
+**/
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct BitMask<M>
+where M: BitMemory
+{
+	/// A mask of any number of bits to modify.
+	mask: M,
+}
+
+impl<M> BitMask<M>
+where M: BitMemory
+{
+	/// A blank mask.
+	pub const ZERO: Self = Self { mask: M::ZERO };
+}
+
+/// Enable accumulation of a multi-bit mask from a sequence of position values.
+impl<M> Sum<BitPos<M>> for BitMask<M>
+where M: BitMemory
+{
+	fn sum<I>(iter: I) -> Self
+	where I: Iterator<Item = BitPos<M>> {
+		iter.fold(Self::ZERO, BitOr::bitor)
+	}
+}
+
+/// Enable accumulation of a multi-bit mask from a sequence of selector masks.
+impl<M> Sum<BitSel<M>> for BitMask<M>
+where M: BitMemory
+{
+	fn sum<I>(iter: I) -> Self
+	where I: Iterator<Item = BitSel<M>> {
+		iter.fold(Self::ZERO, BitOr::bitor)
+	}
+}
+
+/// Insert a position value into a multimask.
+impl<M> BitOr<BitPos<M>> for BitMask<M>
+where M: BitMemory
+{
+	type Output = Self;
+
+	fn bitor(self, rhs: BitPos<M>) -> Self {
+		self | rhs.select()
+	}
+}
+
+/// Insert a single selector into a multimask.
+impl<M> BitOr<BitSel<M>> for BitMask<M>
+where M: BitMemory
+{
+	type Output = Self;
+
+	fn bitor(self, rhs: BitSel<M>) -> Self {
+		Self {
+			mask: self.mask | rhs.sel,
+		}
+	}
+}
+
+impl<M> Deref for BitMask<M>
+where M: BitMemory
+{
+	type Target = M;
 
 	fn deref(&self) -> &Self::Target {
 		&self.mask
@@ -534,33 +687,33 @@ and known-good values in marker types.
 It is only implemented on `u8`.
 **/
 pub(crate) trait Indexable {
-	/// Wraps a value as a `BitIdx<T>`.
-	fn idx<T>(self) -> BitIdx<T>
-	where T: BitStore;
+	/// Wraps a value as a `BitIdx<M>`.
+	fn idx<M>(self) -> BitIdx<M>
+	where M: BitMemory;
 
-	/// Wraps a value as a `BitTail<T>`.
-	fn tail<T>(self) -> BitTail<T>
-	where T: BitStore;
+	/// Wraps a value as a `BitTail<M>`.
+	fn tail<M>(self) -> BitTail<M>
+	where M: BitMemory;
 
-	/// Wraps a value as a `BitPos<T>`.
-	fn pos<T>(self) -> BitPos<T>
-	where T: BitStore;
+	/// Wraps a value as a `BitPos<M>`.
+	fn pos<M>(self) -> BitPos<M>
+	where M: BitMemory;
 }
 
 impl Indexable for u8 {
-	fn idx<T>(self) -> BitIdx<T>
-	where T: BitStore {
-		unsafe { BitIdx::<T>::new_unchecked(self) }
+	fn idx<M>(self) -> BitIdx<M>
+	where M: BitMemory {
+		unsafe { BitIdx::<M>::new_unchecked(self) }
 	}
 
-	fn tail<T>(self) -> BitTail<T>
-	where T: BitStore {
-		unsafe { BitTail::<T>::new_unchecked(self) }
+	fn tail<M>(self) -> BitTail<M>
+	where M: BitMemory {
+		unsafe { BitTail::<M>::new_unchecked(self) }
 	}
 
-	fn pos<T>(self) -> BitPos<T>
-	where T: BitStore {
-		unsafe { BitPos::<T>::new_unchecked(self) }
+	fn pos<M>(self) -> BitPos<M>
+	where M: BitMemory {
+		unsafe { BitPos::<M>::new_unchecked(self) }
 	}
 }
 

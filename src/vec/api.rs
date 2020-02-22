@@ -1,11 +1,18 @@
 //! Reimplementation of the standard library’s `Vec` inherent method API.
 
-use super::*;
-
 use crate::{
+	mem::BitMemory,
 	order::BitOrder,
 	pointer::BitPtr,
+	slice::BitSlice,
 	store::BitStore,
+	vec::{
+		iter::{
+			Drain,
+			Splice,
+		},
+		BitVec,
+	},
 };
 
 use alloc::{
@@ -16,6 +23,8 @@ use alloc::{
 use core::{
 	cmp,
 	hint::unreachable_unchecked,
+	marker::PhantomData,
+	mem,
 	ops::RangeBounds,
 	ptr::NonNull,
 };
@@ -52,7 +61,7 @@ where
 	pub fn with_capacity(capacity: usize) -> Self {
 		//  Get the number of `T` elements needed to store the requested bit
 		//  capacity.
-		let (elts, _) = 0u8.idx::<T>().span(capacity);
+		let elts = T::Mem::elts(capacity);
 		//  Allocate a buffer that can hold that many elements.
 		let v = Vec::with_capacity(elts);
 		let (ptr, cap) = (v.as_ptr(), v.capacity());

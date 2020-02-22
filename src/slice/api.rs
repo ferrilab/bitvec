@@ -115,7 +115,7 @@ assert_eq!(bits.len(), 5);
 **/
 pub unsafe fn bits_from_raw_parts<'a, O, T>(
 	data: *const T,
-	head: BitIdx<T>,
+	head: BitIdx<T::Mem>,
 	bits: usize,
 ) -> &'a BitSlice<O, T>
 where
@@ -148,7 +148,7 @@ arguments cause aliasing in the underlying memory positions.
 **/
 pub unsafe fn bits_from_raw_parts_mut<'a, O, T>(
 	data: *mut T,
-	head: BitIdx<T>,
+	head: BitIdx<T::Mem>,
 	bits: usize,
 ) -> &'a mut BitSlice<O, T>
 where

@@ -78,7 +78,7 @@ where
 	/// This has the same rules as `BitSlice::as_slice`.
 	#[inline]
 	pub fn as_slice(&self) -> &'a [T] {
-		self.inner.as_slice()
+		unsafe { &*(self.inner.as_slice() as *const [_] as *const [_]) }
 	}
 
 	/// Accesses the `BitPtr` representation of the slice.
@@ -183,7 +183,7 @@ where
 	T: BitStore,
 {
 	fn as_ref(&self) -> &[T] {
-		self.inner.as_slice()
+		unsafe { &*(self.inner.as_slice() as *const [_] as *const [_]) }
 	}
 }
 
@@ -276,7 +276,7 @@ where
 	/// To avoid creating `&mut` references that alias, this is forced to
 	/// consume the iterator.
 	pub fn into_slice(self) -> &'a mut [T] {
-		self.inner.as_mut_slice()
+		unsafe { &mut *(self.inner.as_mut_slice() as *mut [_] as *mut [_]) }
 	}
 
 	#[allow(dead_code)]

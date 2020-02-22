@@ -12,6 +12,7 @@ use crate::{
 	access::BitAccess,
 	domain::*,
 	index::Indexable,
+	mem::BitMemory,
 	order::{
 		BitOrder,
 		Local,
@@ -553,7 +554,7 @@ where
 					}
 				}
 				if let Some(body) = b {
-					if !body.iter().all(|e| e.load() == T::TRUE) {
+					if !body.iter().all(|e| e.load() == T::Mem::ALL) {
 						return false;
 					}
 				}
@@ -611,7 +612,7 @@ where
 					}
 				}
 				if let Some(body) = b {
-					if body.iter().any(|elt| elt.load() != T::FALSE) {
+					if body.iter().any(|elt| elt.load() != T::Mem::ZERO) {
 						return true;
 					}
 				}
@@ -766,7 +767,7 @@ where
 					out += body
 						.iter()
 						.map(BitAccess::load)
-						.map(T::count_ones)
+						.map(T::Mem::count_ones)
 						.sum::<usize>();
 				}
 				if let Some((tail, t)) = t {
@@ -836,7 +837,12 @@ where
 				}
 				if let Some(body) = b {
 					for elt in body {
-						elt.store(if value { T::TRUE } else { T::FALSE });
+						elt.store(if value {
+							T::Mem::ALL
+						}
+						else {
+							T::Mem::ZERO
+						});
 					}
 				}
 				if let Some((tail, t)) = t {
@@ -992,13 +998,13 @@ where
 	/// ```
 	pub fn as_slice(&self) -> &[T] {
 		unsafe {
-			BitAccess::as_slice_mut(match self.bitptr().domain() {
+			&*(BitAccess::as_slice_mut(match self.bitptr().domain() {
 				BitDomain::Empty | BitDomain::Minor(..) => &[],
 				BitDomain::PartialHead(_, _, body)
 				| BitDomain::PartialTail(body, ..)
 				| BitDomain::Major(_, _, body, ..)
 				| BitDomain::Spanning(body) => body,
-			})
+			}) as *const [_] as *const [_])
 		}
 	}
 
@@ -1021,13 +1027,13 @@ where
 	/// ```
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
 		unsafe {
-			BitAccess::as_slice_mut(match self.bitptr().domain() {
+			&mut *(BitAccess::as_slice_mut(match self.bitptr().domain() {
 				BitDomain::Empty | BitDomain::Minor(..) => &[],
 				BitDomain::PartialHead(_, _, body)
 				| BitDomain::PartialTail(body, ..)
 				| BitDomain::Major(_, _, body, ..)
 				| BitDomain::Spanning(body) => body,
-			})
+			}) as *mut [_] as *mut [_])
 		}
 	}
 
