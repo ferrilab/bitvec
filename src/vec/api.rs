@@ -16,6 +16,7 @@ use crate::{
 };
 
 use alloc::{
+	borrow::ToOwned,
 	boxed::Box,
 	vec::Vec,
 };
@@ -494,7 +495,7 @@ where
 		//  If self is empty *or* tail is at the back edge of an element, push
 		//  an element onto the vector.
 		if self.is_empty() || *self.pointer.tail() == T::Mem::BITS {
-			self.with_vec(|v| v.push(T::Mem::ZERO.to_store()));
+			self.with_vec(|v| v.push(T::Mem::ZERO.into()));
 		}
 		//  At this point, it is always safe to increment the tail, and then
 		//  write to the newly live bit.

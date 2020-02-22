@@ -5,6 +5,7 @@ The operator traits are defined in the `ops` module.
 
 use crate::{
 	access::BitAccess,
+	domain::Domain,
 	mem::BitMemory,
 	order::BitOrder,
 	slice::BitSlice,
@@ -30,8 +31,6 @@ use core::{
 	hint::unreachable_unchecked,
 	str,
 };
-
-use either::Either;
 
 #[cfg(feature = "alloc")]
 use {
@@ -331,7 +330,7 @@ macro_rules! fmt {
 				let mut dbg = fmt.debug_list();
 				let mut w: [u8; (64 / $blksz) + 2] = [b'0'; (64 / $blksz) + 2];
 				w[1] = $pfx;
-				let mut writer = |bits: &Self| {
+				let mut writer = |bits: &BitSlice<O, T::NoAlias>| {
 					let mut end = 2;
 					for (idx, chunk) in bits.chunks($blksz).enumerate() {
 						let mut val = 0u8;
@@ -350,33 +349,31 @@ macro_rules! fmt {
 						str::from_utf8_unchecked(&w[start .. end])
 					}));
 				};
-				match self.bitptr().domain().splat() {
-					Either::Right(_) => {
-						writer(self);
+				match self.domain() {
+					Domain::Enclave { head, elem, tail } => {
+						writer(unsafe {
+							Self::from_element(&elem.load().into())
+								[*head as usize .. *tail as usize]
+								.noalias()
+						});
 					},
-					Either::Left((h, b, t)) => {
-						if let Some((h, head)) = h {
-							writer(
-								&Self::from_element(
-									&head.load().to_store::<T>(),
-								)[*h as usize ..],
-							);
+					Domain::Region { head, body, tail } => {
+						if let Some((h, head)) = head {
+							writer(unsafe {
+								&Self::from_element(&head.load().into())
+									[*h as usize ..]
+									.noalias()
+							});
 						}
-						if let Some(body) = b {
-							for elt in body
-								.iter()
-								.map(BitAccess::load)
-								.map(BitMemory::to_store::<T>)
-							{
-								writer(Self::from_element(&elt));
-							}
+						for elt in body.iter() {
+							writer(BitSlice::from_element(&elt));
 						}
-						if let Some((tail, t)) = t {
-							writer(
-								&Self::from_element(
-									&tail.load().to_store::<T>(),
-								)[.. *t as usize],
-							);
+						if let Some((tail, t)) = tail {
+							writer(unsafe {
+								&Self::from_element(&tail.load().into())
+									[.. *t as usize]
+									.noalias()
+							});
 						}
 					},
 				}

@@ -368,11 +368,11 @@ where
 	///
 	/// The return value of the provided function.
 	fn do_with_box<F, R>(&self, func: F) -> R
-	where F: FnOnce(&Box<[T]>) -> R {
+	where F: FnOnce(&Box<[T::Mem]>) -> R {
 		let slice = self.pointer.as_mut_slice();
 		let (data, elts) = (slice.as_mut_ptr(), slice.len());
-		let b: Box<[T]> =
-			unsafe { Vec::from_raw_parts(data, elts, elts) }.into_boxed_slice();
+		let b = unsafe { Vec::from_raw_parts(data as *mut T::Mem, elts, elts) }
+			.into_boxed_slice();
 		let out = func(&b);
 		mem::forget(b);
 		out

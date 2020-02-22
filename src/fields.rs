@@ -40,6 +40,7 @@ elements differently, for instance by calling `.to_be_bytes` before store and
 
 use crate::{
 	access::BitAccess,
+	domain::Domain,
 	mem::BitMemory,
 	order::{
 		Lsb0,
@@ -54,8 +55,6 @@ use core::{
 	mem,
 	ptr,
 };
-
-use either::Either;
 
 #[cfg(feature = "alloc")]
 use crate::{
@@ -283,15 +282,15 @@ where T: BitStore
 			panic!("Cannot load {} bits from a {}-bit region", U::BITS, len);
 		}
 
-		match self.bitptr().domain().splat() {
+		match self.domain() {
 			/* The live bits are in the interior of a single element.
 
 			This path only needs to load the element, shift it right by the
 			distance from LSedge to the live region, and mask it for the length
 			of `self`.
 			*/
-			Either::Right((head, elt, _)) => resize::<T::Mem, U>(
-				(elt.load() >> *head) & mask_for::<T::Mem>(len),
+			Domain::Enclave { head, elem, .. } => resize::<T::Mem, U>(
+				(elem.load() >> *head) & mask_for::<T::Mem>(len),
 			),
 			/* The live region touches at least one element edge.
 
@@ -302,7 +301,7 @@ where T: BitStore
 			temporary into the newly-vacated least significant bits of the
 			accumulator.
 			*/
-			Either::Left((head, body, tail)) => {
+			Domain::Region { head, body, tail } => {
 				let mut accum = 0usize;
 
 				//  If the tail exists, it contains the most significant chunk
@@ -314,12 +313,10 @@ where T: BitStore
 				}
 				//  Read the body elements, from high address to low, into the
 				//  accumulator.
-				if let Some(elts) = body {
-					for elt in elts.iter().rev() {
-						let val: usize = resize(elt.load());
-						accum <<= T::Mem::BITS;
-						accum |= val;
-					}
+				for elt in body.iter().rev() {
+					let val: usize = resize(elt.load());
+					accum <<= T::Mem::BITS;
+					accum |= val;
 				}
 				//  If the head exists, it contains the least significant chunk
 				//  of the value, on the MSedge side.
@@ -346,15 +343,15 @@ where T: BitStore
 			panic!("Cannot load {} bits from a {}-bit region", U::BITS, len);
 		}
 
-		match self.bitptr().domain().splat() {
+		match self.domain() {
 			/* The live bits are in the interior of a single element.
 
 			This path only needs to load the element, shift it right by the
 			distance from LSedge to the live region, and mask it for the length
 			of `self`.
 			*/
-			Either::Right((head, elt, _)) => {
-				resize((elt.load() >> *head) & mask_for::<T::Mem>(len))
+			Domain::Enclave { head, elem, .. } => {
+				resize((elem.load() >> *head) & mask_for::<T::Mem>(len))
 			},
 			/* The live region touches at least one element edge.
 
@@ -365,7 +362,7 @@ where T: BitStore
 			temporary into the newly-vacated least significant bits of the
 			accumulator.
 			*/
-			Either::Left((head, body, tail)) => {
+			Domain::Region { head, body, tail } => {
 				let mut accum = 0usize;
 
 				//  If the head exists, it contains the most significant chunk
@@ -376,12 +373,10 @@ where T: BitStore
 				}
 				//  Read the body elements, from low address to high, into the
 				//  accumulator.
-				if let Some(elts) = body {
-					for elt in elts.iter() {
-						let val: usize = resize(elt.load());
-						accum <<= T::Mem::BITS;
-						accum |= val;
-					}
+				for elt in body.iter() {
+					let val: usize = resize(elt.load());
+					accum <<= T::Mem::BITS;
+					accum |= val;
 				}
 				//  If the tail exists, it contains the least significant chunk
 				//  of the value, on the LSedge side.
@@ -409,19 +404,19 @@ where T: BitStore
 		}
 
 		let value = value & mask_for(len);
-		match self.bitptr().domain().splat() {
+		match self.domain() {
 			/* The live region is in the interior of a single element.
 
 			The `value` is shifted left by the region’s distance from the
 			LSedge, then written directly into place.
 			*/
-			Either::Right((head, elt, _)) => {
+			Domain::Enclave { head, elem, .. } => {
 				//  Get the region’s distance from the LSedge.
 				let lsedge = *head;
 				//  Erase the live region.
-				elt.clear_bits(!(mask_for::<T::Mem>(len) << lsedge));
+				elem.clear_bits(!(mask_for::<T::Mem>(len) << lsedge));
 				//  Shift the value to fit the region, and write.
-				elt.set_bits(resize::<U, T::Mem>(value) << lsedge);
+				elem.set_bits(resize::<U, T::Mem>(value) << lsedge);
 			},
 			/* The live region touches at least one element edge.
 
@@ -430,7 +425,7 @@ where T: BitStore
 			a slice chunk’s width of bits from the LSedge of the value into
 			memory, then shifts the value right by that width.
 			*/
-			Either::Left((head, body, tail)) => {
+			Domain::Region { head, body, tail } => {
 				let mut value: usize = resize(value);
 
 				//  If the head exists, it contains the least significant chunk
@@ -451,11 +446,9 @@ where T: BitStore
 				}
 				//  Write into the body elements, from low address to high, from
 				//  the value.
-				if let Some(elts) = body {
-					for elt in elts.iter() {
-						elt.store(resize(value));
-						value >>= T::Mem::BITS;
-					}
+				for elt in body.iter() {
+					elt.store(resize(value));
+					value >>= T::Mem::BITS;
 				}
 				//  If the tail exists, it contains the most significant chunk
 				//  of the value, on the LSedge side.
@@ -481,21 +474,21 @@ where T: BitStore
 		}
 
 		let value = value & mask_for(len);
-		match self.bitptr().domain().splat() {
+		match self.domain() {
 			/* The live region is in the interior of a single element.
 
 			The `value` is shifted left by the region’s distance from the
 			LSedge, then written directly into place.
 			*/
-			Either::Right((head, elt, _)) => {
+			Domain::Enclave { head, elem, .. } => {
 				//  Get the region’s distance from the LSedge.
 				let lsedge = *head;
 				//  Erase the live region.
-				elt.clear_bits(!(mask_for::<T::Mem>(len) << lsedge));
+				elem.clear_bits(!(mask_for::<T::Mem>(len) << lsedge));
 				//  Shift the value to fit the region, and write.
-				elt.set_bits(resize::<U, T::Mem>(value) << lsedge);
+				elem.set_bits(resize::<U, T::Mem>(value) << lsedge);
 			},
-			Either::Left((head, body, tail)) => {
+			Domain::Region { head, body, tail } => {
 				let mut value: usize = resize(value);
 
 				//  If the tail exists, it contains the least significant chunk
@@ -514,11 +507,9 @@ where T: BitStore
 				}
 				//  Write into the body elements, from high address to low, from
 				//  the value.
-				if let Some(elts) = body {
-					for elt in elts.iter().rev() {
-						elt.store(resize(value));
-						value >>= T::Mem::BITS;
-					}
+				for elt in body.iter().rev() {
+					elt.store(resize(value));
+					value >>= T::Mem::BITS;
 				}
 				//  If the head exists, it contains the most significant chunk
 				//  of the value, on the MSedge side.
@@ -549,15 +540,16 @@ where T: BitStore
 			panic!("Cannot load {} bits from a {}-bit region", U::BITS, len);
 		}
 
-		match self.bitptr().domain().splat() {
+		match self.domain() {
 			/* The live bits are in the interior of a single element.
 
 			This path only needs to load the element, shift it right by the
 			distance from LSedge to the live region, and mask it for the length
 			of `self`.
 			*/
-			Either::Right((_, elt, tail)) => resize(
-				(elt.load() >> (T::Mem::BITS - *tail)) & mask_for::<T::Mem>(len),
+			Domain::Enclave { elem, tail, .. } => resize(
+				(elem.load() >> (T::Mem::BITS - *tail))
+					& mask_for::<T::Mem>(len),
 			),
 			/* The live region touches at least one element edge.
 
@@ -568,7 +560,7 @@ where T: BitStore
 			temporary into the newly-vacated least significant bits of the
 			accumulator.
 			*/
-			Either::Left((head, body, tail)) => {
+			Domain::Region { head, body, tail } => {
 				let mut accum = 0usize;
 
 				//  If the tail exists, it contains the most significant chunk
@@ -581,12 +573,10 @@ where T: BitStore
 				}
 				//  Read the body elements, from high address to low, into the
 				//  accumulator.
-				if let Some(elts) = body {
-					for elt in elts.iter().rev() {
-						let val: usize = resize(elt.load());
-						accum <<= T::Mem::BITS;
-						accum |= val;
-					}
+				for elt in body.iter().rev() {
+					let val: usize = resize(elt.load());
+					accum <<= T::Mem::BITS;
+					accum |= val;
 				}
 				//  If the head exists, it contains the least significant chunk
 				//  of the value, on the LSedge side.
@@ -612,15 +602,16 @@ where T: BitStore
 			panic!("Cannot load {} bits from a {}-bit region", U::BITS, len);
 		}
 
-		match self.bitptr().domain().splat() {
+		match self.domain() {
 			/* The live bits are in the interior of a single element.
 
 			This path only needs to load the element, shift it right by the
 			distance from LSedge to the live region, and mask it for the length
 			of `self`.
 			*/
-			Either::Right((_, elt, tail)) => resize(
-				(elt.load() >> (T::Mem::BITS - *tail)) & mask_for::<T::Mem>(len),
+			Domain::Enclave { elem, tail, .. } => resize(
+				(elem.load() >> (T::Mem::BITS - *tail))
+					& mask_for::<T::Mem>(len),
 			),
 			/* The live region touches at least one element edge.
 
@@ -631,7 +622,7 @@ where T: BitStore
 			temporary into the newly-vacated least significant bits of the
 			accumulator.
 			*/
-			Either::Left((head, body, tail)) => {
+			Domain::Region { head, body, tail } => {
 				let mut accum = 0usize;
 
 				//  If the head exists, it contains the most significant chunk
@@ -645,12 +636,10 @@ where T: BitStore
 				}
 				//  Read the body elements, from low address to high, into the
 				//  accumulator.
-				if let Some(elts) = body {
-					for elt in elts.iter() {
-						let val: usize = resize(elt.load());
-						accum <<= T::Mem::BITS;
-						accum |= val;
-					}
+				for elt in body.iter() {
+					let val: usize = resize(elt.load());
+					accum <<= T::Mem::BITS;
+					accum |= val;
 				}
 				//  If the tail exists, it contains the least significant chunk
 				//  of the value, on the MSedge side.
@@ -676,19 +665,19 @@ where T: BitStore
 		}
 
 		let value = value & mask_for(len);
-		match self.bitptr().domain().splat() {
+		match self.domain() {
 			/* The live region is in the interior of a single element.
 
 			The `value` is shifted left by the region’s distance from the
 			LSedge, then written directly into place.
 			*/
-			Either::Right((_, elt, tail)) => {
+			Domain::Enclave { elem, tail, .. } => {
 				//  Get the region’s distance from the LSedge.
 				let lsedge = T::Mem::BITS - *tail;
 				//  Erase the live region.
-				elt.clear_bits(!(mask_for::<T::Mem>(len) << lsedge));
+				elem.clear_bits(!(mask_for::<T::Mem>(len) << lsedge));
 				//  Shift the value to fit the region, and write.
-				elt.set_bits(resize::<U, T::Mem>(value) << lsedge);
+				elem.set_bits(resize::<U, T::Mem>(value) << lsedge);
 			},
 			/* The live region touches at least one element edge.
 
@@ -697,7 +686,7 @@ where T: BitStore
 			slice chunk’s width of bits from the LSedge of the value into
 			memory, then shifts the value right by that width.
 			*/
-			Either::Left((head, body, tail)) => {
+			Domain::Region { head, body, tail } => {
 				let mut value: usize = resize(value);
 
 				//  If the head exists, it contains the least significant chunk
@@ -716,11 +705,9 @@ where T: BitStore
 				}
 				//  Write into the body elements, from low address to high, from
 				//  the value.
-				if let Some(elts) = body {
-					for elt in elts.iter() {
-						elt.store(resize(value));
-						value >>= T::Mem::BITS;
-					}
+				for elt in body.iter() {
+					elt.store(resize(value));
+					value >>= T::Mem::BITS;
 				}
 				//  If the tail exists, it contains the most significant chunk
 				//  of the value, on the MSedge side.
@@ -748,19 +735,19 @@ where T: BitStore
 		}
 
 		let value = value & mask_for(len);
-		match self.bitptr().domain().splat() {
+		match self.domain() {
 			/* The live region is in the interior of a single element.
 
 			The `value` is shifted left by the region’s distance from the
 			LSedge, then written directly into place.
 			*/
-			Either::Right((_, elt, tail)) => {
+			Domain::Enclave { elem, tail, .. } => {
 				//  Get the region’s distance from the LSedge.
 				let lsedge = T::Mem::BITS - *tail;
 				//  Erase the live region.
-				elt.clear_bits(!(mask_for::<T::Mem>(len) << lsedge));
+				elem.clear_bits(!(mask_for::<T::Mem>(len) << lsedge));
 				//  Shift the value to fit the region, and write.
-				elt.set_bits(resize::<U, T::Mem>(value) << lsedge);
+				elem.set_bits(resize::<U, T::Mem>(value) << lsedge);
 			},
 			/* The live region touches at least one element edge.
 
@@ -769,7 +756,7 @@ where T: BitStore
 			slice chunk’s width of bits from the LSedge of the value into
 			memory, then shifts the value right by that width.
 			*/
-			Either::Left((head, body, tail)) => {
+			Domain::Region { head, body, tail } => {
 				let mut value: usize = resize(value);
 
 				//  If the tail exists, it contains the least significant chunk
@@ -790,11 +777,9 @@ where T: BitStore
 				}
 				//  Write into the body elements, from high address to low, from
 				//  the value.
-				if let Some(elts) = body {
-					for elt in elts.iter().rev() {
-						elt.store(resize(value));
-						value >>= T::Mem::BITS;
-					}
+				for elt in body.iter().rev() {
+					elt.store(resize(value));
+					value >>= T::Mem::BITS;
 				}
 				//  If the head exists, it contains the most significant chunk
 				//  of the value, on the LSedge side.

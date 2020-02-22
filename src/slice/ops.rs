@@ -4,14 +4,13 @@ use super::api::BitSliceIndex;
 
 use crate::{
 	access::BitAccess,
+	domain::Domain,
 	index::Indexable,
 	mem::BitMemory,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
 };
-
-use either::Either;
 
 use core::{
 	ops::{
@@ -538,24 +537,22 @@ where
 	/// assert_eq!(src, [0x3F, 0xFC]);
 	/// ```
 	fn not(self) -> Self::Output {
-		match self.bitptr().domain().splat() {
-			Either::Right((h, e, t)) => {
-				for n in *h .. *t {
-					e.invert_bit::<O>(n.idx());
+		match self.domain() {
+			Domain::Enclave { head, elem, tail } => {
+				for n in *head .. *tail {
+					elem.invert_bit::<O>(n.idx());
 				}
 			},
-			Either::Left((h, b, t)) => {
-				if let Some((h, head)) = h {
+			Domain::Region { head, body, tail } => {
+				if let Some((h, head)) = head {
 					for n in *h .. T::Mem::BITS {
 						head.invert_bit::<O>(n.idx())
 					}
 				}
-				if let Some(body) = b {
-					for elt in body {
-						elt.store(!elt.load());
-					}
+				for elt in body {
+					elt.store(!elt.load());
 				}
-				if let Some((tail, t)) = t {
+				if let Some((tail, t)) = tail {
 					for n in 0 .. *t {
 						tail.invert_bit::<O>(n.idx())
 					}
@@ -632,7 +629,7 @@ where
 		}
 		//  If the slice fully owns its memory, then a fast path is available
 		//  with element-wise `memmove`.
-		if self.bitptr().domain().is_spanning() {
+		if self.domain().is_spanning() {
 			//  Compute the shift distance measured in elements.
 			let offset = shamt >> T::Mem::INDX;
 			//  Compute the number of elements that will remain.
@@ -741,7 +738,7 @@ where
 		}
 		//  If the slice fully owns its memory, then a fast path is available
 		//  with element-wise `memmove`.
-		if self.bitptr().domain().is_spanning() {
+		if self.domain().is_spanning() {
 			//  Compute the shift amount measured in elements.
 			let offset = shamt >> T::Mem::INDX;
 			// Compute the number of elements that will remain.

@@ -1,12 +1,8 @@
-/*! Bit management
+/*! Memory management.
 
-The `BitStore` trait defines constants and associated functions suitable for
-managing the bit patterns of a fundamental, and is the constraint for the
-storage type of the data structures of the rest of the crate.
-
-The other types in this module provide stronger rules about how indices map to
-concrete bits in fundamental elements. They are implementation details, and are
-not exported in the prelude.
+The `BitStore` trait defines the types that can be used in `bitvec` data
+structures, and describes how those data structures are allowed to access the
+memory they govern.
 !*/
 
 use crate::{
@@ -14,88 +10,131 @@ use crate::{
 	mem::BitMemory,
 };
 
-use core::fmt::{
-	Binary,
-	Debug,
+use core::{
+	cell::Cell,
+	sync::atomic,
 };
 
-#[cfg(feature = "atomic")]
-use core::sync::atomic;
+/** Generalize over types which may be used to access memory holding bits.
 
-#[cfg(not(feature = "atomic"))]
-use core::cell::Cell;
+This trait is implemented on the fundamental integers, their `Cell<>` wrappers,
+and (if present) their `Atomic` variants. Users provide this type as a parameter
+to their data structures in order to inform the structure of how it may access
+memory.
 
-/** Generalizes over the fundamental types for use in `bitvec` data structures.
+Specifically, this has the advantage that a `BitSlice<_, Cell<_>>` knows that it
+has a view of memory that will not undergo concurrent modification. As such, it
+can skip using atomic accesses, and just use ordinary load/store instructions,
+without fear of causing observable race conditions.
 
-This trait must only be implemented on unsigned integer primitives with full
-alignment. It cannot be implemented on `u128` on any architecture, or on `u64`
-on 32-bit systems.
+The associated types `Mem` and `Alias` allow implementors to know the register
+width of the memory they describe (`Mem`) and to change the aliasing status of
+a slice.
 
-The `Sealed` supertrait ensures that this can only be implemented locally, and
-will never be implemented by downstream crates on new types.
+A universal property of `BitSlice` regions is that for any handle, it may be
+described as a triad of:
+
+- zero or one partially-used, aliased, elements at the head
+- zero or more wholly-used, unaliased, elements in the body
+- zero or one partially-used, aliased, elements at the tail
+
+As such, a `&BitSlice` reference with any aliasing type can be split into its
+`Self::Alias` variant for the edges, and `Cell<Self::Mem>` for the interior,
+without violating memory safety.
 **/
-pub trait BitStore:
-	//  Forbid external implementation
-	seal::Sealed
-	+ Binary
-	+ Copy
-	+ Debug
-	//  Allow direct access to a concrete implementor type.
-	+ Sized
-{
-	/// The register type this store describes.
-	type Mem: BitMemory;
-
-	/// Shared/mutable access wrapper.
-	///
-	/// Within `&BitSlice` and `&mut BitSlice` contexts, the `Access` type
-	/// governs all access to underlying memory that may be contended by
-	/// multiple slices. When a codepath knows that it has full, uncontended
-	/// ownership of a memory element of `Self`, and no other codepath may
-	/// observe or modify it, then that codepath may skip the `Access` type and
-	/// use plain accessors.
-	type Access: BitAccess<Self::Mem>;
-
+pub trait BitStore: seal::Sealed + Sized {
+	/// The fundamental integer type of the governed memory.
+	type Mem: BitMemory + Into<Self>;
+	/// The type used for performing memory accesses.
+	type Access: BitAccess<Self::Mem> + BitStore;
+	/// The destination type when marking a region as known-aliased.
+	type Alias: BitAccess<Self::Mem> + BitStore;
+	/// The destination type when marking a region as known-unaliased.
+	type NoAlias: BitAccess<Self::Mem> + BitStore;
 }
 
-/// Batch implementation of `BitStore` for the appropriate fundamental integers.
+/// Batch implementation of `BitStore` for appropriate types.
 macro_rules! bitstore {
-	($($t:ty => $bits:literal , $atom:ty ;)*) => { $(
+	($($t:ty => $a:ty),* $(,)?) => { $(
+		impl seal::Sealed for $t {}
+
 		impl BitStore for $t {
+			/// Fundamental integers must use the target’s aliased type for safe
+			/// access to memory.
+			type Access = Self::Alias;
+
+			/// Aliases are required to use atomic access, as `BitSlice`s of
+			/// this type are safe to move across threads.
+			#[cfg(feature = "atomic")]
+			type Alias = $a;
+
+			/// Aliases are permitted to use `Cell` wrappers and ordinary
+			/// access, as `BitSlice`s of this type are forbidden from crossing
+			/// threads.
+			#[cfg(not(feature = "atomic"))]
+			type Alias = Cell<Self>;
+
 			type Mem = Self;
 
-			#[cfg(feature = "atomic")]
-			type Access = $atom;
+			type NoAlias = Cell<Self>;
+		}
 
+		#[cfg(feature = "atomic")]
+		impl seal::Sealed for $a {}
+
+		#[cfg(feature = "atomic")]
+		impl BitStore for $a {
+			/// Atomic stores always use atomic accesses.
+			type Access = Self;
+
+			type Alias = Self;
+
+			type Mem = $t;
+
+			type NoAlias=Cell<$t>;
+		}
+
+		impl seal::Sealed for Cell<$t> {}
+
+		impl BitStore for Cell<$t> {
+			/// `Cell`s always use ordinary, unsynchronized, accesses, as the
+			/// type system forbids them from creating memory collisions.
+			type Access = Self;
+
+			/// In atomic builds, splitting a `BitSlice` of this type to produce
+			/// aliases requires reverting to atomic accesses, as `BitSlice`s
+			/// are safe to move across threads.
+			#[cfg(feature = "atomic")]
+			type Alias = $a;
+
+			///
 			#[cfg(not(feature = "atomic"))]
-			type Access = Cell<Self>;
+			type Alias = Self;
+
+			type Mem = $t;
+
+			type NoAlias = Self;
 		}
 	)* };
 }
 
-bitstore! {
-	u8 => 1, atomic::AtomicU8;
-	u16 => 2, atomic::AtomicU16;
-	u32 => 4, atomic::AtomicU32;
-}
-
-#[cfg(target_pointer_width = "32")]
-bitstore! {
-	usize => 4, atomic::AtomicUsize;
-}
+bitstore!(
+	u8 => atomic::AtomicU8,
+	u16 => atomic::AtomicU16,
+	u32 => atomic::AtomicU32,
+	usize => atomic::AtomicUsize,
+);
 
 #[cfg(target_pointer_width = "64")]
-bitstore! {
-	u64 => 8, atomic::AtomicU64;
-	usize => 8, atomic::AtomicUsize;
-}
+bitstore!(u64 => atomic::AtomicU64);
 
 #[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
 compile_fail!(concat!(
 	"This architecture is currently not supported. File an issue at ",
-	env!(CARGO_PKG_REPOSITORY)
+	env!("CARGO_PKG_REPOSITORY")
 ));
 
+/// Enclose the `Sealed` trait against client use.
 mod seal {
 	/// Marker trait to seal `BitStore` against downstream implementation.
 	///
@@ -105,15 +144,4 @@ mod seal {
 	/// implementation of the `BitStore` trait.
 	#[doc(hidden)]
 	pub trait Sealed {}
-
-	macro_rules! seal {
-		($($t:ty),*) => { $(
-			impl Sealed for $t {}
-		)* };
-	}
-
-	seal!(u8, u16, u32, usize);
-
-	#[cfg(target_pointer_width = "64")]
-	seal!(u64);
 }

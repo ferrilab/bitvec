@@ -49,10 +49,6 @@ std = [
 [dependencies]
 radium = "0.3"
 
-[dependencies.either]
-default-features = false
-version = "1.5"
-
 [dependencies.serde]
 default-features = false
 features = [

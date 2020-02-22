@@ -70,7 +70,7 @@ where
 		let new_box = self.do_with_box(Clone::clone);
 		let mut pointer = self.pointer;
 		unsafe {
-			pointer.set_pointer(new_box.as_ptr());
+			pointer.set_pointer(new_box.as_ptr() as *const T);
 		}
 		mem::forget(new_box);
 		Self {

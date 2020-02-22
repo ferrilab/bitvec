@@ -15,7 +15,6 @@ use alloc::{
 	borrow::{
 		Borrow,
 		BorrowMut,
-		ToOwned,
 	},
 	boxed::Box,
 	vec::Vec,
@@ -111,7 +110,9 @@ where
 	T: BitStore,
 {
 	fn clone(&self) -> Self {
-		let new_vec = self.as_slice().to_owned();
+		let src = self.bitptr().aliased_slice();
+		let mut new_vec = Vec::with_capacity(src.len());
+		new_vec.extend(src.iter().map(BitAccess::load).map(Into::into));
 		let capacity = new_vec.capacity();
 		let mut pointer = self.pointer;
 		unsafe {
@@ -126,12 +127,12 @@ where
 	}
 
 	fn clone_from(&mut self, other: &Self) {
-		let slice = other.pointer.as_slice();
+		let slice = other.pointer.aliased_slice();
 		self.clear();
 		//  Copy the other data region into the underlying vector, then grab its
 		//  pointer and capacity values.
 		let (ptr, capacity) = self.with_vec(|v| {
-			v.copy_from_slice(slice);
+			v.extend(slice.iter().map(BitAccess::load).map(Into::into));
 			(v.as_ptr(), v.capacity())
 		});
 		//  Copy the other `BitPtr<T>`,

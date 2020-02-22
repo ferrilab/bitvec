@@ -23,14 +23,12 @@ use crate::{
 	store::BitStore,
 };
 
-use alloc::{
-	borrow::ToOwned,
-	vec::Vec,
-};
+use alloc::vec::Vec;
 
 use core::{
 	marker::PhantomData,
 	mem,
+	ptr,
 };
 
 /** A compact [`Vec`] of bits, whose order and storage type can be customized.
@@ -283,9 +281,7 @@ where
 		unsafe {
 			out.set_len(len);
 		}
-		out.set_elements(
-			if bit { T::Mem::ALL } else { T::Mem::ZERO }.to_store(),
-		);
+		out.set_elements(if bit { T::Mem::ALL } else { T::Mem::ZERO }.into());
 		out
 	}
 
@@ -342,7 +338,13 @@ where
 	/// ```
 	#[inline]
 	pub fn from_slice(slice: &[T]) -> Self {
-		Self::from_vec(slice.to_owned())
+		let mut buf = Vec::with_capacity(slice.len());
+		buf.extend(slice.iter().map(|elt| {
+			unsafe { &*(elt as *const T as *const T::Access) }
+				.load()
+				.into()
+		}));
+		Self::from_vec(buf)
 	}
 
 	/// Consumes a `Vec<T>` and creates a `BitVec<C, T>` from it.
@@ -611,7 +613,7 @@ where
 	pub fn set_elements(&mut self, element: T) {
 		self.as_mut_slice()
 			.iter_mut()
-			.for_each(|elt| *elt = element);
+			.for_each(|elt| *elt = unsafe { ptr::read(&element) });
 	}
 
 	/// Performs “reverse” addition (left to right instead of right to left).

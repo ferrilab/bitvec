@@ -6,10 +6,8 @@ memory is accessed.
 !*/
 
 use crate::{
-	access::BitAccess,
 	index::BitIdx,
 	order::BitOrder,
-	store::BitStore,
 };
 
 use core::{
@@ -137,12 +135,6 @@ pub trait BitMemory:
 	fn elts(bits: usize) -> usize {
 		crate::mem::elts::<Self>(bits)
 	}
-
-	/// Temporary hack while the rewrite takes place.
-	fn to_store<T>(self) -> T
-	where
-		T: BitStore<Mem = Self>,
-		T::Access: BitAccess<Self>;
 }
 
 /** Computes the number of elements required to store a number of bits.
@@ -179,10 +171,6 @@ macro_rules! memory {
 
 			fn count_zeros(self) -> usize {
 				Self::count_zeros(self) as usize
-			}
-
-			fn to_store<T>(self) -> T where T: BitStore<Mem = Self>, T::Access: BitAccess<Self> {
-				unsafe { *(&self as *const Self as *const T) }
 			}
 		}
 	)* };

@@ -294,7 +294,7 @@ This type has no behavior other than viewing its internal `u8` for arithmetic.
 - `M`: The memory element type controlled by this tail.
 **/
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) struct BitTail<M>
+pub struct BitTail<M>
 where M: BitMemory
 {
 	/// Semantic index *after* an element. Constrained to `0 ..= M::BITS`.

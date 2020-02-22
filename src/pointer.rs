@@ -7,7 +7,6 @@ work.
 !*/
 
 use crate::{
-	domain::*,
 	index::{
 		BitIdx,
 		Indexable,
@@ -51,7 +50,6 @@ crate ever breaks in the future.
 
 - `T`: The referent data type.
 **/
-#[derive(Clone, Copy)]
 #[doc(hidden)]
 pub(crate) union Address<T>
 where T: BitStore
@@ -125,6 +123,18 @@ where T: BitStore
 	pub(crate) fn u(self) -> usize {
 		unsafe { self.u }
 	}
+
+	pub(crate) fn to_alias(self) -> *const T::Alias {
+		unsafe { self.r as *const T::Alias }
+	}
+}
+
+impl<T> Clone for Address<T>
+where T: BitStore
+{
+	fn clone(&self) -> Self {
+		Self { u: self.u() }
+	}
 }
 
 impl<T> From<&T> for Address<T>
@@ -173,6 +183,10 @@ where T: BitStore
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "0x{:0>1$X}", self.u(), PTR_BITS >> 2)
 	}
+}
+
+impl<T> Copy for Address<T> where T: BitStore
+{
 }
 
 /** In-memory representation of `&BitSlice` handles.
@@ -279,7 +293,7 @@ pointer and length values will be invalid for the memory model and allocation
 regime.
 **/
 #[repr(C)]
-#[derive(Clone, Copy, Eq, Hash, PartialEq, PartialOrd, Ord)]
+#[derive(Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct BitPtr<T = u8>
 where T: BitStore
 {
@@ -685,6 +699,12 @@ where T: BitStore
 		((((tail == 0) as u8) << T::Mem::INDX) | tail as u8).tail()
 	}
 
+	pub(crate) fn aliased_slice<'a>(&self) -> &'a [T::Alias] {
+		unsafe {
+			slice::from_raw_parts(self.pointer().to_alias(), self.elements())
+		}
+	}
+
 	/// Accesses the element slice behind the pointer as a Rust slice.
 	///
 	/// # Parameters
@@ -717,6 +737,7 @@ where T: BitStore
 	///
 	/// - `'a`: Lifetime for which the data behind the pointer is live.
 	#[inline]
+	#[cfg(feature = "alloc")]
 	pub fn as_mut_slice<'a>(&self) -> &'a mut [T] {
 		unsafe { slice::from_raw_parts_mut(self.pointer().w, self.elements()) }
 	}
@@ -737,21 +758,6 @@ where T: BitStore
 	#[inline]
 	pub fn as_access_slice<'a>(&self) -> &'a [T::Access] {
 		unsafe { slice::from_raw_parts(self.pointer().a, self.elements()) }
-	}
-
-	/// Gets the domain for the region the pointer describes.
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	///
-	/// # Returns
-	///
-	/// An enum containing the logical components of the domain governed by
-	/// `self`.
-	#[inline]
-	pub(crate) fn domain<'a>(self) -> BitDomain<'a, T> {
-		self.into()
 	}
 
 	/// Converts a `BitSlice` handle into its `BitPtr` representation.
@@ -832,30 +838,11 @@ where T: BitStore
 	}
 }
 
-/** Gets write access to all elements in the underlying storage, including the
-partial head and tail elements.
-
-# Safety
-
-This is *unsafe* to use except from known mutable `BitSlice` structures.
-Mutability is not encoded in the `BitPtr` type system at this time, and thus is
-not enforced by the compiler yet.
-**/
-impl<T> AsMut<[T]> for BitPtr<T>
+impl<T> Clone for BitPtr<T>
 where T: BitStore
 {
-	fn as_mut(&mut self) -> &mut [T] {
-		self.as_mut_slice()
-	}
-}
-
-/// Gets read access to all elements in the underlying storage, including the
-/// partial head and tail elements.
-impl<T> AsRef<[T]> for BitPtr<T>
-where T: BitStore
-{
-	fn as_ref(&self) -> &[T] {
-		self.as_slice()
+	fn clone(&self) -> Self {
+		Self { ..*self }
 	}
 }
 
@@ -919,6 +906,10 @@ where T: BitStore
 			.field("bits", &self.len())
 			.finish()
 	}
+}
+
+impl<T> Copy for BitPtr<T> where T: BitStore
+{
 }
 
 #[cfg(test)]
