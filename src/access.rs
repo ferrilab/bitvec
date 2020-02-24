@@ -54,7 +54,7 @@ where M: BitMemory
 	#[inline(always)]
 	fn clear_bit<O>(&self, place: BitIdx<M>)
 	where O: BitOrder {
-		self.fetch_and(!*O::mask(place), Ordering::Relaxed);
+		self.fetch_and(!*O::select(place), Ordering::Relaxed);
 	}
 
 	/// Writes the low bits of the mask into the underlying element.
@@ -86,7 +86,7 @@ where M: BitMemory
 	#[inline(always)]
 	fn set_bit<O>(&self, place: BitIdx<M>)
 	where O: BitOrder {
-		self.fetch_or(*O::mask(place), Ordering::Relaxed);
+		self.fetch_or(*O::select(place), Ordering::Relaxed);
 	}
 
 	/// Writes the high bits of the mask into the underlying element.
@@ -114,7 +114,7 @@ where M: BitMemory
 	#[inline(always)]
 	fn invert_bit<O>(&self, place: BitIdx<M>)
 	where O: BitOrder {
-		self.fetch_xor(*O::mask(place), Ordering::Relaxed);
+		self.fetch_xor(*O::select(place), Ordering::Relaxed);
 	}
 
 	/// Retrieve a single bit from an element.
@@ -131,7 +131,7 @@ where M: BitMemory
 	#[inline]
 	fn get<O>(&self, place: BitIdx<M>) -> bool
 	where O: BitOrder {
-		<Self as BitAccess<M>>::load(&self) & *O::mask(place) != M::ZERO
+		<Self as BitAccess<M>>::load(&self) & *O::select(place) != M::ZERO
 	}
 
 	/// Set a single bit in an element to some value.

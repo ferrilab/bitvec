@@ -17,8 +17,10 @@ Contiguity is not required.
 use crate::{
 	index::{
 		BitIdx,
+		BitMask,
 		BitPos,
 		BitSel,
+		BitTail,
 		Indexable,
 	},
 	mem::BitMemory,
@@ -137,7 +139,7 @@ pub trait BitOrder {
 	/// This function requires that the output is always a one-hot value. It is
 	/// illegal to produce a value with more than one bit set, and doing so will
 	/// cause uncontrolled side effects.
-	fn mask<M>(place: BitIdx<M>) -> BitSel<M>
+	fn select<M>(place: BitIdx<M>) -> BitSel<M>
 	where M: BitMemory {
 		let place = Self::at::<M>(place);
 		debug_assert!(
@@ -147,6 +149,34 @@ pub trait BitOrder {
 			M::BITS,
 		);
 		unsafe { BitSel::new_unchecked(M::ONE << *place) }
+	}
+
+	/// Produce a bitmask with each position in the provided range selected.
+	///
+	/// # Parameters
+	///
+	/// - `from`: An optional starting index in the element. If this is `None`,
+	///   then the range begins at zero.
+	/// - `to`: An optional ending index in the element. If this is `None`, then
+	///   the range ends at `M::BITS`.
+	///
+	/// # Returns
+	///
+	/// A mask with each *position* specified by the input range set high.
+	fn mask<M>(
+		from: impl Into<Option<BitIdx<M>>>,
+		to: impl Into<Option<BitTail<M>>>,
+	) -> BitMask<M>
+	where
+		M: BitMemory,
+	{
+		let (from, to) = match (from.into(), to.into()) {
+			(None, None) => return BitMask::ALL,
+			(Some(from), None) => (*from, *BitTail::<M>::END),
+			(None, Some(to)) => (*BitIdx::<M>::ZERO, *to),
+			(Some(from), Some(to)) => (*from, *to),
+		};
+		(from .. to).map(Indexable::idx).map(Self::select).sum()
 	}
 }
 
@@ -161,13 +191,35 @@ impl BitOrder for Msb0 {
 		(M::MASK - *place).pos()
 	}
 
-	fn mask<M>(place: BitIdx<M>) -> BitSel<M>
+	fn select<M>(place: BitIdx<M>) -> BitSel<M>
 	where M: BitMemory {
-		//  Set the MSbit, then shift it down. The left expr is const-folded.
-		//  Note: this is not equivalent to `1 << (mask - place)`, because
-		//  that requires a subtraction every time, but the expression below is
-		//  only a single right-shift.
+		/* Set the MSbit, then shift it down. The left expr is const-folded.
+		Note: this is not equivalent to `1 << (mask - place)`, because that
+		requires a subtraction every time, but the expression below is only a
+		single right-shift.
+		*/
 		unsafe { BitSel::new_unchecked((M::ONE << M::MASK) >> *place) }
+	}
+
+	fn mask<M>(
+		from: impl Into<Option<BitIdx<M>>>,
+		to: impl Into<Option<BitTail<M>>>,
+	) -> BitMask<M>
+	where
+		M: BitMemory,
+	{
+		let from = *from.into().unwrap_or(BitIdx::ZERO);
+		let to = *to.into().unwrap_or(BitTail::END);
+		assert!(to >= from, "Ranges must run from low index to high");
+		let ct = to - from;
+		if ct == M::BITS {
+			return BitMask::ALL;
+		}
+		//  1. Set all bits high
+		//  2. Shift right by the number of bits in the mask. These are now low.
+		//  3. Invert. The mask bits are high, the rest are low, but at MSedge.
+		//  4. Shift right by the distance from MSedge.
+		BitMask::new(!(M::ALL >> ct) >> from)
 	}
 }
 
@@ -182,10 +234,31 @@ impl BitOrder for Lsb0 {
 		(*place).pos()
 	}
 
-	fn mask<M>(place: BitIdx<M>) -> BitSel<M>
+	fn select<M>(place: BitIdx<M>) -> BitSel<M>
 	where M: BitMemory {
 		//  Set the LSbit, then shift it up.
 		unsafe { BitSel::new_unchecked(M::ONE << *place) }
+	}
+
+	fn mask<M>(
+		from: impl Into<Option<BitIdx<M>>>,
+		to: impl Into<Option<BitTail<M>>>,
+	) -> BitMask<M>
+	where
+		M: BitMemory,
+	{
+		let from = *from.into().unwrap_or(BitIdx::ZERO);
+		let to = *to.into().unwrap_or(BitTail::END);
+		assert!(to >= from, "Ranges must run from low index to high");
+		let ct = to - from;
+		if ct == M::BITS {
+			return BitMask::ALL;
+		}
+		//  1. Set all bits high.
+		//  2. Shift left by the number of bits in the mask. These are now low.
+		//  3. Invert. The mask bits are high, the rest are low, but at LSedge.
+		//  4. Shift right by the distance from LSedge.
+		BitMask::new(!(M::ALL << ct) << from)
 	}
 }
 
@@ -488,5 +561,61 @@ mod tests {
 		assert_eq!(Lsb0::at::<u64>(61u8.idx()), 61u8.pos());
 		assert_eq!(Lsb0::at::<u64>(62u8.idx()), 62u8.pos());
 		assert_eq!(Lsb0::at::<u64>(63u8.idx()), 63u8.pos());
+	}
+
+	#[test]
+	fn lsb0_mask() {
+		assert_eq!(Lsb0::mask(None, None), BitMask::<u8>::ALL);
+		assert_eq!(Lsb0::mask(None, None), BitMask::<u16>::ALL);
+		assert_eq!(Lsb0::mask(None, None), BitMask::<u32>::ALL);
+		assert_eq!(Lsb0::mask(None, None), BitMask::<usize>::ALL);
+
+		#[cfg(target_pointer_width = "64")]
+		assert_eq!(Lsb0::mask(None, None), BitMask::<u64>::ALL);
+
+		assert_eq!(Lsb0::mask(0.idx(), 8.tail()), BitMask::new(0b1111_1111u8));
+		assert_eq!(Lsb0::mask(1.idx(), 8.tail()), BitMask::new(0b1111_1110u8));
+		assert_eq!(Lsb0::mask(2.idx(), 8.tail()), BitMask::new(0b1111_1100u8));
+		assert_eq!(Lsb0::mask(3.idx(), 8.tail()), BitMask::new(0b1111_1000u8));
+		assert_eq!(Lsb0::mask(4.idx(), 8.tail()), BitMask::new(0b1111_0000u8));
+		assert_eq!(Lsb0::mask(5.idx(), 8.tail()), BitMask::new(0b1110_0000u8));
+		assert_eq!(Lsb0::mask(6.idx(), 8.tail()), BitMask::new(0b1100_0000u8));
+		assert_eq!(Lsb0::mask(7.idx(), 8.tail()), BitMask::new(0b1000_0000u8));
+		assert_eq!(Lsb0::mask(0.idx(), 0.tail()), BitMask::new(0b0000_0000u8));
+		assert_eq!(Lsb0::mask(0.idx(), 1.tail()), BitMask::new(0b0000_0001u8));
+		assert_eq!(Lsb0::mask(0.idx(), 2.tail()), BitMask::new(0b0000_0011u8));
+		assert_eq!(Lsb0::mask(0.idx(), 3.tail()), BitMask::new(0b0000_0111u8));
+		assert_eq!(Lsb0::mask(0.idx(), 4.tail()), BitMask::new(0b0000_1111u8));
+		assert_eq!(Lsb0::mask(0.idx(), 5.tail()), BitMask::new(0b0001_1111u8));
+		assert_eq!(Lsb0::mask(0.idx(), 6.tail()), BitMask::new(0b0011_1111u8));
+		assert_eq!(Lsb0::mask(0.idx(), 7.tail()), BitMask::new(0b0111_1111u8));
+	}
+
+	#[test]
+	fn msb0_mask() {
+		assert_eq!(Msb0::mask(None, None), BitMask::<u8>::ALL);
+		assert_eq!(Msb0::mask(None, None), BitMask::<u16>::ALL);
+		assert_eq!(Msb0::mask(None, None), BitMask::<u32>::ALL);
+		assert_eq!(Msb0::mask(None, None), BitMask::<usize>::ALL);
+
+		#[cfg(target_pointer_width = "64")]
+		assert_eq!(Msb0::mask(None, None), BitMask::<u64>::ALL);
+
+		assert_eq!(Msb0::mask(0.idx(), 8.tail()), BitMask::new(0b1111_1111u8));
+		assert_eq!(Msb0::mask(1.idx(), 8.tail()), BitMask::new(0b0111_1111u8));
+		assert_eq!(Msb0::mask(2.idx(), 8.tail()), BitMask::new(0b0011_1111u8));
+		assert_eq!(Msb0::mask(3.idx(), 8.tail()), BitMask::new(0b0001_1111u8));
+		assert_eq!(Msb0::mask(4.idx(), 8.tail()), BitMask::new(0b0000_1111u8));
+		assert_eq!(Msb0::mask(5.idx(), 8.tail()), BitMask::new(0b0000_0111u8));
+		assert_eq!(Msb0::mask(6.idx(), 8.tail()), BitMask::new(0b0000_0011u8));
+		assert_eq!(Msb0::mask(7.idx(), 8.tail()), BitMask::new(0b0000_0001u8));
+		assert_eq!(Msb0::mask(0.idx(), 0.tail()), BitMask::new(0b0000_0000u8));
+		assert_eq!(Msb0::mask(0.idx(), 1.tail()), BitMask::new(0b1000_0000u8));
+		assert_eq!(Msb0::mask(0.idx(), 2.tail()), BitMask::new(0b1100_0000u8));
+		assert_eq!(Msb0::mask(0.idx(), 3.tail()), BitMask::new(0b1110_0000u8));
+		assert_eq!(Msb0::mask(0.idx(), 4.tail()), BitMask::new(0b1111_0000u8));
+		assert_eq!(Msb0::mask(0.idx(), 5.tail()), BitMask::new(0b1111_1000u8));
+		assert_eq!(Msb0::mask(0.idx(), 6.tail()), BitMask::new(0b1111_1100u8));
+		assert_eq!(Msb0::mask(0.idx(), 7.tail()), BitMask::new(0b1111_1110u8));
 	}
 }

@@ -67,6 +67,7 @@ use core::{
 	ops::{
 		BitOr,
 		Deref,
+		Not,
 	},
 };
 
@@ -87,6 +88,10 @@ for both position computation through `BitOrder` and range computation in
 [`BitOrder`]: ../order/trait.BitOrder.html
 [`BitPtr`]: ../pointer/struct.BitPtr.html
 **/
+//  If Rust had user-provided ranged integers, this would be communicable to the
+//  compiler:
+//  #[rustc_layout_scalar_valid_range_end(M::BITS)]
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct BitIdx<M>
 where M: BitMemory
@@ -100,6 +105,12 @@ where M: BitMemory
 impl<M> BitIdx<M>
 where M: BitMemory
 {
+	/// The zero index.
+	pub const ZERO: Self = Self {
+		idx: 0,
+		_ty: PhantomData,
+	};
+
 	/// Wraps a counter value as a known-good index of the `M` element type.
 	///
 	/// # Parameters
@@ -293,6 +304,8 @@ This type has no behavior other than viewing its internal `u8` for arithmetic.
 
 - `M`: The memory element type controlled by this tail.
 **/
+//  #[rustc_layout_scalar_valid_range_end(M::BITS + 1)]
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct BitTail<M>
 where M: BitMemory
@@ -306,6 +319,12 @@ where M: BitMemory
 impl<M> BitTail<M>
 where M: BitMemory
 {
+	/// The termination index.
+	pub const END: Self = Self {
+		end: M::BITS,
+		_ty: PhantomData,
+	};
+
 	/// Mark that `end` is a tail index for a type.
 	///
 	/// # Parameters
@@ -392,6 +411,8 @@ electrical bit within a memory element, rather than [`BitIdx`]’s semantic bit.
 [`M::BITS`]: ../mem/trait.BitMemory.html#associatedconstant.BITS
 [`new`]: #method.new
 **/
+//  #[rustc_layout_scalar_valid_range_end(M::BITS)]
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct BitPos<M>
 where M: BitMemory
@@ -510,6 +531,7 @@ safely be used as a mask for read/write access to memory.
 
 [`BitOrder`]: ../order/trait.BitOrder.html
 **/
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct BitSel<M>
 where M: BitMemory
@@ -609,6 +631,7 @@ It is only constructed by accumulating [`BitPos`] or [`BitSel`] values. As
 from [`BitIdx`] and [`BitOrder`], this enforces a chain of responsibility to
 prove that a given multimask is safe.
 **/
+#[repr(transparent)]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct BitMask<M>
 where M: BitMemory
@@ -620,8 +643,28 @@ where M: BitMemory
 impl<M> BitMask<M>
 where M: BitMemory
 {
-	/// A blank mask.
+	/// A full mask.
+	pub const ALL: Self = Self { mask: M::ALL };
+	/// An empty mask.
 	pub const ZERO: Self = Self { mask: M::ZERO };
+
+	/// Wraps a value as a bitmask.
+	///
+	/// # Safety
+	///
+	/// The caller must ensure that the mask value is correct in the caller’s
+	/// provenance.
+	///
+	/// # Parameters
+	///
+	/// - `mask`: Any integer, to be reïnterpreted as a bitmask.
+	///
+	/// # Returns
+	///
+	/// The `mask` value as a bitmask.
+	pub fn new(mask: M) -> Self {
+		Self { mask }
+	}
 }
 
 /// Enable accumulation of a multi-bit mask from a sequence of position values.
@@ -675,6 +718,16 @@ where M: BitMemory
 
 	fn deref(&self) -> &Self::Target {
 		&self.mask
+	}
+}
+
+impl<M> Not for BitMask<M>
+where M: BitMemory
+{
+	type Output = Self;
+
+	fn not(self) -> Self {
+		Self { mask: !self.mask }
 	}
 }
 

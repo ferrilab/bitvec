@@ -92,7 +92,7 @@ pub trait BitMemory:
 	///   position.
 	fn get<O>(&self, place: BitIdx<Self>) -> bool
 	where O: BitOrder {
-		*self & *O::mask(place) != Self::ZERO
+		*self & *O::select(place) != Self::ZERO
 	}
 
 	/// Sets a specific bit in an element to a given value.
@@ -114,12 +114,12 @@ pub trait BitMemory:
 	///   position.
 	fn set<O>(&mut self, place: BitIdx<Self>, value: bool)
 	where O: BitOrder {
-		let mask = *O::mask(place);
+		let sel = *O::select(place);
 		if value {
-			*self |= mask;
+			*self |= sel;
 		}
 		else {
-			*self &= !mask;
+			*self &= !sel;
 		}
 	}
 
