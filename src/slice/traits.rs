@@ -478,53 +478,21 @@ where
 	}
 }
 
-/** `BitSlice` is safe to move across thread boundaries, when atomic operations
-are enabled.
-
-Consider this (contrived) example:
-
-```rust
-# #[cfg(feature = "std")] {
-use bitvec::prelude::*;
-use std::thread;
-
-static mut SRC: u8 = 0;
-# {
-let bits = unsafe { SRC.bits_mut::<Msb0>() };
-let (l, r) = bits.split_at_mut(4);
-
-let a = thread::spawn(move || l.set(2, true));
-let b = thread::spawn(move || r.set(2, true));
-a.join();
-b.join();
-# }
-
-println!("{:02X}", unsafe { SRC });
-# }
-```
-
-Without atomic operations, this is logically a data race. With atomic
-operations, each read/modify/write cycle is guaranteed to exclude other threads
-from observing the location until the writeback completes.
-**/
-#[cfg(feature = "atomic")]
+/// When a slice’s accessor type is `Send`, the slice is `Send`.
 unsafe impl<O, T> Send for BitSlice<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
+	T::Access: Send,
 {
 }
 
-/** Reading across threads still has synchronization concerns if one thread can
-mutate, so read access across threads requires atomicity in order to ensure that
-write operations from one thread to an element conclude before another thread
-can read from the element, even if the two `BitSlice`s do not collide.
-**/
-#[cfg(feature = "atomic")]
+/// When a slice’s accessor type is `Sync`, the slice is `Sync`.
 unsafe impl<O, T> Sync for BitSlice<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
+	T::Access: Sync,
 {
 }
 

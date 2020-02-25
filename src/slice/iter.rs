@@ -21,7 +21,7 @@ where
 	T: 'a + BitStore,
 {
 	type IntoIter = Iter<'a, O, T>;
-	type Item = &'a bool;
+	type Item = <Self::IntoIter as Iterator>::Item;
 
 	fn into_iter(self) -> Self::IntoIter {
 		Iter { inner: self }
@@ -177,32 +177,29 @@ where
 	}
 }
 
-impl<O, T> AsRef<[T]> for Iter<'_, O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn as_ref(&self) -> &[T] {
-		unsafe { &*(self.inner.as_slice() as *const [_] as *const [_]) }
-	}
-}
-
 impl<'a, O, T> IntoIterator for &'a mut BitSlice<O, T>
 where
 	O: BitOrder,
 	T: 'a + BitStore,
 {
 	type IntoIter = IterMut<'a, O, T>;
-	type Item = BitMut<'a, O, T>;
+	type Item = <Self::IntoIter as Iterator>::Item;
 
 	fn into_iter(self) -> Self::IntoIter {
-		IterMut { inner: self }
+		IterMut {
+			inner: self.alias_mut(),
+		}
 	}
 }
 
 /** Mutable slice iterator.
 
 This struct is created by the [`iter_mut`] method on [`BitSlice`]s.
+
+# API Differences
+
+This is required to return references marked as aliasing, as you are permitted
+to keep the returned references alive in parallel.
 
 # Examples
 
@@ -229,7 +226,7 @@ where
 	T: 'a + BitStore,
 {
 	/// The `BitSlice` undergoing iteration.
-	pub(super) inner: &'a mut BitSlice<O, T>,
+	pub(super) inner: &'a mut BitSlice<O, T::Alias>,
 }
 
 impl<'a, O, T> IterMut<'a, O, T>
@@ -267,20 +264,12 @@ where
 	/// assert!(bits[0]);
 	/// println!("{}", bits); // [10000000]
 	/// ```
-	pub fn into_bitslice(self) -> &'a mut BitSlice<O, T> {
+	pub fn into_bitslice(self) -> &'a mut BitSlice<O, T::Alias> {
 		self.inner
 	}
 
-	/// Views the underlying buffer.
-	///
-	/// To avoid creating `&mut` references that alias, this is forced to
-	/// consume the iterator.
-	pub fn into_slice(self) -> &'a mut [T] {
-		unsafe { &mut *(self.inner.as_mut_slice() as *mut [_] as *mut [_]) }
-	}
-
 	#[allow(dead_code)]
-	pub(crate) fn bitptr(&self) -> BitPtr<T> {
+	pub(crate) fn bitptr(&self) -> BitPtr<T::Alias> {
 		self.inner.bitptr()
 	}
 }
@@ -290,16 +279,21 @@ where
 	O: BitOrder,
 	T: 'a + BitStore,
 {
-	type Item = BitMut<'a, O, T>;
+	type Item = BitMut<'a, O, T::Alias>;
 
 	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
-		mem::replace(&mut self.inner, BitSlice::empty_mut())
-			.split_first_mut()
-			.map(|(b, r)| {
-				self.inner = r;
-				b
-			})
+		unsafe {
+			BitSlice::<O, T>::unalias_mut(mem::replace(
+				&mut self.inner,
+				BitSlice::empty_mut(),
+			))
+		}
+		.split_first_mut()
+		.map(|(b, r)| {
+			self.inner = r;
+			b
+		})
 	}
 
 	#[inline]
@@ -336,12 +330,17 @@ where
 {
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
-		mem::replace(&mut self.inner, BitSlice::empty_mut())
-			.split_last_mut()
-			.map(|(b, r)| {
-				self.inner = r;
-				b
-			})
+		unsafe {
+			BitSlice::<O, T>::unalias_mut(mem::replace(
+				&mut self.inner,
+				BitSlice::empty_mut(),
+			))
+		}
+		.split_last_mut()
+		.map(|(b, r)| {
+			self.inner = r;
+			b
+		})
 	}
 }
 
@@ -607,6 +606,11 @@ When the slice length is not evenly divided by the chunk size, the last up to
 
 This struct is created by the [`chunks_exact_mut`] method on [`BitSlice`]s.
 
+# API Differences
+
+This is required to return references marked as aliasing, as you are permitted
+to keep the returned references alive in parallel.
+
 [`BitSlice`]: struct.BitSlice.html
 [`chunks_exact_mut`]: struct.BitSlice.html#method.chunks_exact_mut
 [`into_remainder`]: #method.into_remainder
@@ -618,9 +622,9 @@ where
 	T: 'a + BitStore,
 {
 	/// The `BitSlice` undergoing iteration.
-	pub(super) inner: &'a mut BitSlice<O, T>,
+	pub(super) inner: &'a mut BitSlice<O, T::Alias>,
 	/// Remainder of the original `BitSlice`.
-	pub(super) extra: &'a mut BitSlice<O, T>,
+	pub(super) extra: &'a mut BitSlice<O, T::Alias>,
 	/// The width of the produced chunks.
 	pub(super) width: usize,
 }
@@ -633,7 +637,7 @@ where
 	/// Returns the remainder of the original slice that is not going to be
 	/// returned by the iterator. The returned slice has at most
 	/// `width - 1` bits.
-	pub fn into_remainder(self) -> &'a mut BitSlice<O, T> {
+	pub fn into_remainder(self) -> &'a mut BitSlice<O, T::Alias> {
 		self.extra
 	}
 }
@@ -643,7 +647,7 @@ where
 	O: BitOrder,
 	T: 'a + BitStore,
 {
-	type Item = &'a mut BitSlice<O, T>;
+	type Item = &'a mut BitSlice<O, T::Alias>;
 
 	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
@@ -651,7 +655,9 @@ where
 		match slice.len() {
 			n if n < self.width => None,
 			_ => {
-				let (head, rest) = slice.split_at_mut(self.width);
+				let (head, rest) =
+					unsafe { BitSlice::<O, T>::unalias_mut(slice) }
+						.split_at_mut(self.width);
 				self.inner = rest;
 				Some(head)
 			},
@@ -697,7 +703,9 @@ where
 		match slice.len() {
 			len if len < self.width => None,
 			len => {
-				let (rest, tail) = slice.split_at_mut(len - self.width);
+				let (rest, tail) =
+					unsafe { BitSlice::<O, T>::unalias_mut(slice) }
+						.split_at_mut(len - self.width);
 				self.inner = rest;
 				Some(tail)
 			},
@@ -727,6 +735,11 @@ the iteration will be the remainder.
 
 This struct is created by the [`chunks_mut`] method on [`BitSlice`]s.
 
+# API Differences
+
+This is required to return references marked as aliasing, as you are permitted
+to keep the returned references alive in parallel.
+
 [`BitSlice`]: struct.BitSlice.html
 [`chunks_mut`]: struct.BitSlice.html#chunks_mut
 **/
@@ -737,7 +750,7 @@ where
 	T: 'a + BitStore,
 {
 	/// The `BitSlice` undergoing iteration.
-	pub(super) inner: &'a mut BitSlice<O, T>,
+	pub(super) inner: &'a mut BitSlice<O, T::Alias>,
 	/// The width of the produced chunks.
 	pub(super) width: usize,
 }
@@ -747,7 +760,7 @@ where
 	O: BitOrder,
 	T: 'a + BitStore,
 {
-	type Item = &'a mut BitSlice<O, T>;
+	type Item = &'a mut BitSlice<O, T::Alias>;
 
 	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
@@ -756,7 +769,9 @@ where
 			0 => None,
 			n if n <= self.width => Some(slice),
 			_ => {
-				let (head, rest) = slice.split_at_mut(self.width);
+				let (head, rest) =
+					unsafe { BitSlice::<O, T>::unalias_mut(slice) }
+						.split_at_mut(self.width);
 				self.inner = rest;
 				Some(head)
 			},
@@ -810,7 +825,9 @@ where
 			len => {
 				let rem = len % self.width;
 				let size = if rem == 0 { self.width } else { rem };
-				let (rest, tail) = slice.split_at_mut(len - size);
+				let (rest, tail) =
+					unsafe { BitSlice::<O, T>::unalias_mut(slice) }
+						.split_at_mut(len - size);
 				self.inner = rest;
 				Some(tail)
 			},
@@ -1080,6 +1097,11 @@ When the slice len is not evenly divided by the chunk size, the last up to
 
 This struct is created by the [`rchunks_exact_mut`] method on [`BitSlice`]s.
 
+# API Differences
+
+This is required to return references marked as aliasing, as you are permitted
+to keep the returned references alive in parallel.
+
 [`BitSlice`]: struct.BitSlice.html
 [`into_remainder`]: #method.into_remainder
 [`rchunks_exact_mut`]: struct.BitSlice.html#rchunks_exact_mut
@@ -1091,9 +1113,9 @@ where
 	T: 'a + BitStore,
 {
 	/// The `BitSlice` undergoing iteration.
-	pub(super) inner: &'a mut BitSlice<O, T>,
+	pub(super) inner: &'a mut BitSlice<O, T::Alias>,
 	/// Remainder of the original BitSlice`.
-	pub(super) extra: &'a mut BitSlice<O, T>,
+	pub(super) extra: &'a mut BitSlice<O, T::Alias>,
 	/// The width of the produced chunks.
 	pub(super) width: usize,
 }
@@ -1106,7 +1128,7 @@ where
 	/// Returns the remainder of the original slice that is not going to be
 	/// returned by the iterator. The returned slice has at most
 	/// `width - 1` bits.
-	pub fn into_remainder(self) -> &'a mut BitSlice<O, T> {
+	pub fn into_remainder(self) -> &'a mut BitSlice<O, T::Alias> {
 		self.extra
 	}
 }
@@ -1116,7 +1138,7 @@ where
 	O: BitOrder,
 	T: 'a + BitStore,
 {
-	type Item = &'a mut BitSlice<O, T>;
+	type Item = &'a mut BitSlice<O, T::Alias>;
 
 	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
@@ -1124,7 +1146,9 @@ where
 		match slice.len() {
 			n if n < self.width => None,
 			n => {
-				let (rest, tail) = slice.split_at_mut(n - self.width);
+				let (rest, tail) =
+					unsafe { BitSlice::<O, T>::unalias_mut(slice) }
+						.split_at_mut(n - self.width);
 				self.inner = rest;
 				Some(tail)
 			},
@@ -1171,7 +1195,9 @@ where
 		match slice.len() {
 			n if n < self.width => None,
 			_ => {
-				let (head, rest) = slice.split_at_mut(self.width);
+				let (head, rest) =
+					unsafe { BitSlice::<O, T>::unalias_mut(slice) }
+						.split_at_mut(self.width);
 				self.inner = rest;
 				Some(head)
 			},
@@ -1201,6 +1227,11 @@ the iteration will be the remainder.
 
 This struct is created by the [`rchunks_mut`] method on [`BitSlice`]s.
 
+# API Differences
+
+This is required to return references marked as aliasing, as you are permitted
+to keep the returned references alive in parallel.
+
 [`BitSlice`]: struct.BitSlice.html
 [`rchunks_mut`]: struct.BitSlice.html#method.rchunks_mut
 **/
@@ -1211,7 +1242,7 @@ where
 	T: 'a + BitStore,
 {
 	/// The `BitSlice` undergoing iteration.
-	pub(super) inner: &'a mut BitSlice<O, T>,
+	pub(super) inner: &'a mut BitSlice<O, T::Alias>,
 	/// The width of the produced chunks.
 	pub(super) width: usize,
 }
@@ -1221,7 +1252,7 @@ where
 	O: BitOrder,
 	T: 'a + BitStore,
 {
-	type Item = &'a mut BitSlice<O, T>;
+	type Item = &'a mut BitSlice<O, T::Alias>;
 
 	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
@@ -1230,7 +1261,9 @@ where
 			0 => None,
 			len => {
 				let mid = cmp::min(len, self.width);
-				let (rest, tail) = slice.split_at_mut(len - mid);
+				let (rest, tail) =
+					unsafe { BitSlice::<O, T>::unalias_mut(slice) }
+						.split_at_mut(len - mid);
 				self.inner = rest;
 				Some(tail)
 			},
@@ -1285,7 +1318,9 @@ where
 			n => {
 				let rem = n % self.width;
 				let len = if rem == 0 { self.width } else { rem };
-				let (head, rest) = slice.split_at_mut(len);
+				let (head, rest) =
+					unsafe { BitSlice::<O, T>::unalias_mut(slice) }
+						.split_at_mut(len);
 				self.inner = rest;
 				Some(head)
 			},
@@ -1362,7 +1397,7 @@ where
 	F: FnMut(usize, &bool) -> bool,
 {
 	#[inline]
-	fn finish(&mut self) -> Option<&'a BitSlice<O, T>> {
+	fn finish(&mut self) -> Option<Self::Item> {
 		self.place.take().map(|_| self.inner)
 	}
 }
@@ -1442,6 +1477,11 @@ function.
 
 This struct is created by the [`split_mut`] method on [`BitSlice`]s.
 
+# API Differences
+
+This is required to return references marked as aliasing, as you are permitted
+to keep the returned references alive in parallel.
+
 [`BitSlice`]: struct.BitSlice.html
 [`split_mut`]: struct.BitSlice.html#method.split_mut
 **/
@@ -1452,7 +1492,7 @@ where
 	F: FnMut(usize, &bool) -> bool,
 {
 	/// The `BitSlice` undergoing iteration.
-	pub(super) inner: &'a mut BitSlice<O, T>,
+	pub(super) inner: &'a mut BitSlice<O, T::Alias>,
 	/// The offset from the original slice to the current `inner`. If `None`,
 	/// the split is done operating.
 	pub(super) place: Option<usize>,
@@ -1481,7 +1521,7 @@ where
 	F: FnMut(usize, &bool) -> bool,
 {
 	#[inline]
-	fn finish(&mut self) -> Option<&'a mut BitSlice<O, T>> {
+	fn finish(&mut self) -> Option<Self::Item> {
 		self.place
 			.take()
 			.map(|_| mem::replace(&mut self.inner, BitSlice::empty_mut()))
@@ -1494,7 +1534,7 @@ where
 	T: 'a + BitStore,
 	F: FnMut(usize, &bool) -> bool,
 {
-	type Item = &'a mut BitSlice<O, T>;
+	type Item = &'a mut BitSlice<O, T::Alias>;
 
 	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
@@ -1508,9 +1548,11 @@ where
 		} {
 			None => self.finish(),
 			Some(idx) => unsafe {
-				let (out, rest) =
-					mem::replace(&mut self.inner, BitSlice::empty_mut())
-						.split_at_mut(idx);
+				let (out, rest) = BitSlice::<O, T>::unalias_mut(mem::replace(
+					&mut self.inner,
+					BitSlice::empty_mut(),
+				))
+				.split_at_mut(idx);
 				self.inner = rest.get_unchecked_mut(1 ..);
 				self.place = Some(place + idx + 1);
 				Some(out)
@@ -1546,9 +1588,11 @@ where
 		} {
 			None => self.finish(),
 			Some(idx) => unsafe {
-				let (rest, out) =
-					mem::replace(&mut self.inner, BitSlice::empty_mut())
-						.split_at_mut(idx);
+				let (rest, out) = BitSlice::<O, T>::unalias_mut(mem::replace(
+					&mut self.inner,
+					BitSlice::empty_mut(),
+				))
+				.split_at_mut(idx);
 				self.inner = rest;
 				self.place = Some(place + idx + 1);
 				Some(out.get_unchecked_mut(1 ..))
@@ -1653,6 +1697,11 @@ function, starting from the end of the slice.
 
 This struct is created by the [`rsplit_mut`] method on [`BitSlice`]s.
 
+# API Differences
+
+This is required to return references marked as aliasing, as you are permitted
+to keep the returned references alive in parallel.
+
 [`BitSlice`]: struct.BitSlice.html
 [`rsplit_mut`]: struct.BitSlice.html#rsplit_mut
 **/
@@ -1697,7 +1746,7 @@ where
 	T: 'a + BitStore,
 	F: FnMut(usize, &bool) -> bool,
 {
-	type Item = &'a mut BitSlice<O, T>;
+	type Item = &'a mut BitSlice<O, T::Alias>;
 
 	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
@@ -1803,6 +1852,11 @@ predicate function, limited to a given number of splits.
 
 This struct is created by the [`splitn_mut`] method on [`BitSlice`]s.
 
+# API Differences
+
+This is required to return references marked as aliasing, as you are permitted
+to keep the returned references alive in parallel.
+
 [`BitSlice`]: struct.BitSlice.html
 [`splitn_mut`]: struct.BitSlice.html#method.splitn_mut
 **/
@@ -1869,6 +1923,11 @@ of the slice.
 
 This struct is created by the [`rsplitn_mut`] method on [`BitSlice`]s.
 
+# API Differences
+
+This is required to return references marked as aliasing, as you are permitted
+to keep the returned references alive in parallel.
+
 [`BitSlice`]: struct.BitSlice.html
 [`rsplitn_mut`]: struct.BitSlice.html#method.rsplitn_mut
 **/
@@ -1933,7 +1992,7 @@ macro_rules! forward_iterator {
 			T: 'a + BitStore,
 			F: FnMut(usize, &bool) -> bool,
 		{
-			type Item = &'a mut BitSlice<O, T>;
+			type Item = &'a mut BitSlice<O, T::Alias>;
 
 			#[inline]
 			fn next(&mut self) -> Option<Self::Item> {

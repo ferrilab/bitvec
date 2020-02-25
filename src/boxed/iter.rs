@@ -4,10 +4,7 @@ use crate::{
 	boxed::BitBox,
 	order::BitOrder,
 	pointer::BitPtr,
-	slice::{
-		BitMut,
-		BitSlice,
-	},
+	slice::BitSlice,
 	store::BitStore,
 };
 
@@ -35,7 +32,7 @@ where
 	T: 'a + BitStore,
 {
 	type IntoIter = <&'a BitSlice<O, T> as IntoIterator>::IntoIter;
-	type Item = &'a bool;
+	type Item = <Self::IntoIter as Iterator>::Item;
 
 	fn into_iter(self) -> Self::IntoIter {
 		self.as_bitslice().into_iter()
@@ -48,7 +45,7 @@ where
 	T: 'a + BitStore,
 {
 	type IntoIter = <&'a mut BitSlice<O, T> as IntoIterator>::IntoIter;
-	type Item = BitMut<'a, O, T>;
+	type Item = <Self::IntoIter as Iterator>::Item;
 
 	fn into_iter(self) -> Self::IntoIter {
 		self.as_mut_bitslice().into_iter()

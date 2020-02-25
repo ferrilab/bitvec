@@ -486,6 +486,12 @@ where
 	/// Version of [`split_at_mut`](#method.split_at_mut) that does not perform
 	/// boundary checking.
 	///
+	/// # Aliasing
+	///
+	/// Mutable splits mark their returned slices as aliased, as it is permitted
+	/// for the split to occur in the middle of a memory element. To undo this
+	/// aliasing, use `.bit_domain_mut()` on the returned slices.
+	///
 	/// # Safety
 	///
 	/// If `mid` is outside the boundaries of `self`, then this function will
@@ -495,9 +501,9 @@ where
 	pub unsafe fn split_at_mut_unchecked(
 		&mut self,
 		mid: usize,
-	) -> (&mut Self, &mut Self)
+	) -> (&mut BitSlice<O, T::Alias>, &mut BitSlice<O, T::Alias>)
 	{
-		let (head, tail) = self.split_at_unchecked(mid);
+		let (head, tail) = self.alias().split_at_unchecked(mid);
 		(
 			head.bitptr().into_bitslice_mut(),
 			tail.bitptr().into_bitslice_mut(),
@@ -1098,12 +1104,46 @@ where
 		self.set_unchecked(to, *self.get_unchecked(from));
 	}
 
+	/// Mark an immutable slice as referring to aliased memory.
+	pub(crate) fn alias(&self) -> &BitSlice<O, T::Alias> {
+		unsafe { &*(self as *const Self as *const BitSlice<O, T::Alias>) }
+	}
+
+	/// Mark a mutable slice as referring to aliased memory.
+	pub(crate) fn alias_mut(&mut self) -> &mut BitSlice<O, T::Alias> {
+		unsafe { &mut *(self as *mut Self as *mut BitSlice<O, T::Alias>) }
+	}
+
+	/// Mark a slice as referring to known-unaliased memory.
+	///
+	/// # Safety
+	///
+	/// This function requires that the unaliasing condition is correct,
+	/// otherwise it will introduce race conditions.
 	pub(crate) unsafe fn noalias(&self) -> &BitSlice<O, T::NoAlias> {
 		&*(self as *const Self as *const BitSlice<O, T::NoAlias>)
 	}
 
+	/// Remove the aliasing marker from a slice.
+	///
+	/// # Safety
+	///
+	/// This may only be done when the slice is known to refer to unaliased
+	/// memory, or when the marker is about to be reäpplied.
 	pub(crate) unsafe fn unalias(this: &BitSlice<O, T::Alias>) -> &Self {
 		&*(this as *const BitSlice<O, T::Alias> as *const Self)
+	}
+
+	/// Remove the aliasing marker from a mutable slice.
+	///
+	/// # Safety
+	///
+	/// This may only be done when the slice is known to refer to unaliased
+	/// memory, or when the marker is about to be reäpplied.
+	pub(crate) unsafe fn unalias_mut(
+		this: &mut BitSlice<O, T::Alias>,
+	) -> &mut Self {
+		&mut *(this as *mut BitSlice<O, T::Alias> as *mut Self)
 	}
 }
 
