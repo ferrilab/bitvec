@@ -62,9 +62,13 @@ use core::{
 		Binary,
 		Formatter,
 	},
-	iter::Sum,
+	iter::{
+		Product,
+		Sum,
+	},
 	marker::PhantomData,
 	ops::{
+		BitAnd,
 		BitOr,
 		Deref,
 		Not,
@@ -667,13 +671,31 @@ where M: BitMemory
 	}
 }
 
+impl<M> Product<BitPos<M>> for BitMask<M>
+where M: BitMemory
+{
+	fn product<I>(iter: I) -> Self
+	where I: Iterator<Item = BitPos<M>> {
+		iter.map(BitPos::select).product()
+	}
+}
+
+impl<M> Product<BitSel<M>> for BitMask<M>
+where M: BitMemory
+{
+	fn product<I>(iter: I) -> Self
+	where I: Iterator<Item = BitSel<M>> {
+		iter.fold(Self::ALL, BitAnd::bitand)
+	}
+}
+
 /// Enable accumulation of a multi-bit mask from a sequence of position values.
 impl<M> Sum<BitPos<M>> for BitMask<M>
 where M: BitMemory
 {
 	fn sum<I>(iter: I) -> Self
 	where I: Iterator<Item = BitPos<M>> {
-		iter.fold(Self::ZERO, BitOr::bitor)
+		iter.map(BitPos::select).sum()
 	}
 }
 
@@ -684,6 +706,52 @@ where M: BitMemory
 	fn sum<I>(iter: I) -> Self
 	where I: Iterator<Item = BitSel<M>> {
 		iter.fold(Self::ZERO, BitOr::bitor)
+	}
+}
+
+impl<M> BitAnd<M> for BitMask<M>
+where M: BitMemory
+{
+	type Output = Self;
+
+	fn bitand(self, rhs: M) -> Self {
+		Self {
+			mask: self.mask & rhs,
+		}
+	}
+}
+
+impl<M> BitAnd<BitPos<M>> for BitMask<M>
+where M: BitMemory
+{
+	type Output = Self;
+
+	fn bitand(self, rhs: BitPos<M>) -> Self {
+		self & rhs.select()
+	}
+}
+
+impl<M> BitAnd<BitSel<M>> for BitMask<M>
+where M: BitMemory
+{
+	type Output = Self;
+
+	fn bitand(self, rhs: BitSel<M>) -> Self {
+		Self {
+			mask: self.mask & rhs.sel,
+		}
+	}
+}
+
+impl<M> BitOr<M> for BitMask<M>
+where M: BitMemory
+{
+	type Output = Self;
+
+	fn bitor(self, rhs: M) -> Self {
+		Self {
+			mask: self.mask | rhs,
+		}
 	}
 }
 

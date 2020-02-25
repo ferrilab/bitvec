@@ -14,7 +14,10 @@ builds, or `AtomicT` in atomic builds.
 !*/
 
 use crate::{
-	index::BitIdx,
+	index::{
+		BitIdx,
+		BitMask,
+	},
 	mem::BitMemory,
 	order::BitOrder,
 };
@@ -51,7 +54,6 @@ where M: BitMemory
 	///
 	/// - `&self`: A shared reference to underlying memory.
 	/// - `place`: A semantic bit index in the `self` element.
-	#[inline(always)]
 	fn clear_bit<O>(&self, place: BitIdx<M>)
 	where O: BitOrder {
 		self.fetch_and(!*O::select(place), Ordering::Relaxed);
@@ -62,10 +64,11 @@ where M: BitMemory
 	/// # Parameters
 	///
 	/// - `&self`
-	/// - `mask`: Any value. The low bits of the mask will be written into
-	///   `*self`; the high bits will preserve their value in `*self`.
-	fn clear_bits(&self, mask: M) {
-		self.fetch_and(mask, Ordering::Relaxed);
+	/// - `mask`: Any value. The **high** bits of the mask will erase their
+	///   corresponding bits in `*self`; the **low** bits will preserve their
+	///   value.
+	fn clear_bits(&self, mask: BitMask<M>) {
+		self.fetch_and(!*mask, Ordering::Relaxed);
 	}
 
 	/// Set a single bit in an element high.
@@ -83,7 +86,6 @@ where M: BitMemory
 	///
 	/// - `&self`: A shared reference to underlying memory.
 	/// - `place`: A semantic bit index in the `self` element.
-	#[inline(always)]
 	fn set_bit<O>(&self, place: BitIdx<M>)
 	where O: BitOrder {
 		self.fetch_or(*O::select(place), Ordering::Relaxed);
@@ -96,8 +98,8 @@ where M: BitMemory
 	/// - `&self`
 	/// - `mask`: Any value. The high bits of the mask will be written into
 	///   `*self`; the low bits will preserve their value in `*self`.
-	fn set_bits(&self, mask: M) {
-		self.fetch_or(mask, Ordering::Relaxed);
+	fn set_bits(&self, mask: BitMask<M>) {
+		self.fetch_or(*mask, Ordering::Relaxed);
 	}
 
 	/// Invert a single bit in an element.
@@ -111,10 +113,20 @@ where M: BitMemory
 	///
 	/// - `&self`: A shared reference to underlying memory.
 	/// - `place`: A semantic bit index in the `self` element.
-	#[inline(always)]
 	fn invert_bit<O>(&self, place: BitIdx<M>)
 	where O: BitOrder {
 		self.fetch_xor(*O::select(place), Ordering::Relaxed);
+	}
+
+	/// Inverts the bits in an element specified by a mask.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `mask`: Any value. The high bits of the mask will invert their
+	///   corresponding bits of `*self`; the low bits will have no effect.
+	fn invert_bits(&self, mask: BitMask<M>) {
+		self.fetch_xor(*mask, Ordering::Relaxed);
 	}
 
 	/// Retrieve a single bit from an element.
@@ -131,7 +143,7 @@ where M: BitMemory
 	#[inline]
 	fn get<O>(&self, place: BitIdx<M>) -> bool
 	where O: BitOrder {
-		<Self as BitAccess<M>>::load(&self) & *O::select(place) != M::ZERO
+		BitAccess::load(self) & *O::select(place) != M::ZERO
 	}
 
 	/// Set a single bit in an element to some value.

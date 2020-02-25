@@ -5,7 +5,6 @@ use super::api::BitSliceIndex;
 use crate::{
 	access::BitAccess,
 	domain::Domain,
-	index::Indexable,
 	mem::BitMemory,
 	order::BitOrder,
 	slice::BitSlice,
@@ -539,23 +538,17 @@ where
 	fn not(self) -> Self::Output {
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
-				for n in *head .. *tail {
-					elem.invert_bit::<O>(n.idx());
-				}
+				elem.invert_bits(O::mask(head, tail));
 			},
 			Domain::Region { head, body, tail } => {
 				if let Some((h, head)) = head {
-					for n in *h .. T::Mem::BITS {
-						head.invert_bit::<O>(n.idx())
-					}
+					head.invert_bits(O::mask(h, None));
 				}
 				for elt in body {
 					elt.store(!elt.load());
 				}
 				if let Some((tail, t)) = tail {
-					for n in 0 .. *t {
-						tail.invert_bit::<O>(n.idx())
-					}
+					tail.invert_bits(O::mask(None, t));
 				}
 			},
 		}

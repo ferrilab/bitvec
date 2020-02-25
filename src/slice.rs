@@ -15,7 +15,10 @@ use crate::{
 		BitDomainMut,
 		Domain,
 	},
-	index::Indexable,
+	index::{
+		BitMask,
+		Indexable,
+	},
 	mem::BitMemory,
 	order::{
 		BitOrder,
@@ -547,26 +550,17 @@ where
 	pub fn all(&self) -> bool {
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
-				let elt = elem.load();
-				(*head .. *tail).all(|n| elt.get::<O>(n.idx()))
+				//  Use the `Mask | M` implementation to bypass the #69441 bug.
+				//  Set dead bits high, then test for low live bits.
+				!O::mask(head, tail) | elem.load() == BitMask::ALL
 			},
 			Domain::Region { head, body, tail } => {
-				if let Some((h, head)) = head {
-					let elt = head.load();
-					if !(*h .. T::Mem::BITS).all(|n| elt.get::<O>(n.idx())) {
-						return false;
-					}
-				}
-				if !body.iter().all(|e| e.load() == T::Mem::ALL) {
-					return false;
-				}
-				if let Some((tail, t)) = tail {
-					let elt = tail.load();
-					if !(0 .. *t).all(|n| elt.get::<O>(n.idx())) {
-						return false;
-					}
-				}
-				true
+				head.map_or(true, |(h, head)| {
+					!O::mask(h, None) | head.load() == BitMask::ALL
+				}) && body.iter().all(|e| e.load() == T::Mem::ALL)
+					&& tail.map_or(true, |(tail, t)| {
+						!O::mask(None, t) | tail.load() == BitMask::ALL
+					})
 			},
 		}
 	}
@@ -603,26 +597,15 @@ where
 	pub fn any(&self) -> bool {
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
-				let elt = elem.load();
-				(*head .. *tail).any(|n| elt.get::<O>(n.idx()))
+				O::mask(head, tail) & elem.load() != BitMask::ZERO
 			},
 			Domain::Region { head, body, tail } => {
-				if let Some((h, head)) = head {
-					let elt = head.load();
-					if (*h .. T::Mem::BITS).any(|n| elt.get::<O>(n.idx())) {
-						return true;
-					}
-				}
-				if body.iter().any(|elt| elt.load() != T::Mem::ZERO) {
-					return true;
-				}
-				if let Some((tail, t)) = tail {
-					let elt = tail.load();
-					if (0 .. *t).any(|n| elt.get::<O>(n.idx())) {
-						return true;
-					}
-				}
-				false
+				head.map_or(false, |(h, head)| {
+					O::mask(h, None) & head.load() != BitMask::ZERO
+				}) || body.iter().any(|elt| elt.load() != T::Mem::ZERO)
+					|| tail.map_or(false, |(tail, t)| {
+						O::mask(None, t) & tail.load() != BitMask::ZERO
+					})
 			},
 		}
 	}
@@ -752,27 +735,17 @@ where
 	pub fn count_ones(&self) -> usize {
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
-				let elt = elem.load();
-				(*head .. *tail).filter(|n| elt.get::<O>(n.idx())).count()
+				(O::mask(head, tail) & elem.load()).count_ones() as usize
 			},
 			Domain::Region { head, body, tail } => {
-				let mut out = 0usize;
-				if let Some((h, head)) = head {
-					let elt = head.load();
-					out += (*h .. T::Mem::BITS)
-						.filter(|n| elt.get::<O>(n.idx()))
-						.count();
-				}
-				out += body
+				head.map_or(0, |(h, head)| {
+					(O::mask(h, None) & head.load()).count_ones() as usize
+				}) + body
 					.iter()
-					.map(BitAccess::load)
-					.map(IsInteger::count_ones)
-					.sum::<u32>() as usize;
-				if let Some((tail, t)) = tail {
-					let elt = tail.load();
-					out += (0 .. *t).filter(|n| elt.get::<O>(n.idx())).count();
-				}
-				out
+					.map(|e| e.load().count_ones() as usize)
+					.sum::<usize>() + tail.map_or(0, |(tail, t)| {
+					(O::mask(None, t) & tail.load()).count_ones() as usize
+				})
 			},
 		}
 	}
@@ -796,7 +769,21 @@ where
 	/// assert_eq!(bits.count_zeros(), 6);
 	/// ```
 	pub fn count_zeros(&self) -> usize {
-		self.len() - self.count_ones()
+		match self.domain() {
+			Domain::Enclave { head, elem, tail } => {
+				(!O::mask(head, tail) | elem.load()).count_zeros() as usize
+			},
+			Domain::Region { head, body, tail } => {
+				head.map_or(0, |(h, head)| {
+					(!O::mask(h, None) | head.load()).count_zeros() as usize
+				}) + body
+					.iter()
+					.map(|e| e.load().count_zeros() as usize)
+					.sum::<usize>() + tail.map_or(0, |(tail, t)| {
+					(!O::mask(None, t) | tail.load()).count_zeros() as usize
+				})
+			},
+		}
 	}
 
 	/// Set all bits in the slice to a value.
@@ -823,23 +810,23 @@ where
 	pub fn set_all(&mut self, value: bool) {
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
-				for n in *head .. *tail {
-					elem.set::<O>(n.idx(), value);
-				}
+				let val = elem.load();
+				let mask = O::mask(head, tail);
+				elem.store(*if value { mask | val } else { !mask & val });
 			},
 			Domain::Region { head, body, tail } => {
 				if let Some((h, head)) = head {
-					for n in *h .. T::Mem::BITS {
-						head.set::<O>(n.idx(), value);
-					}
+					let val = head.load();
+					let mask = O::mask(h, None);
+					head.store(*if value { mask | val } else { !mask & val });
 				}
 				for elt in body {
 					elt.store(if value { T::Mem::ALL } else { T::Mem::ZERO });
 				}
 				if let Some((tail, t)) = tail {
-					for n in 0 .. *t {
-						tail.set::<O>(n.idx(), value);
-					}
+					let val = tail.load();
+					let mask = O::mask(None, t);
+					tail.store(*if value { mask | val } else { !mask & val });
 				}
 			},
 		}
