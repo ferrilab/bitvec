@@ -8,6 +8,7 @@ handle operations.
 !*/
 
 use crate::{
+	access::BitAccess,
 	index::{
 		BitIdx,
 		BitTail,
@@ -16,6 +17,19 @@ use crate::{
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
+};
+
+use core::{
+	fmt::{
+		self,
+		Binary,
+		Debug,
+		Formatter,
+		LowerHex,
+		Octal,
+		UpperHex,
+	},
+	iter::FusedIterator,
 };
 
 /** Representations of the state of the bit domain in its containing elements.
@@ -249,17 +263,50 @@ where
 	}
 }
 
+/** Representations of the raw memory domain for a `BitSlice`.
+
+This structure is produced by [`BitSlice::domain`], and describes the region of
+memory the `BitSlice` covers in terms of its raw memory elements, rather than
+its bits.
+
+The aliased references contained in this structure permit the mutation of memory
+observed by other immutable `&BitSlice` handles. You are responsible for
+maintaining memory correctness by not using mutating methods on these
+references.
+
+# `[T::Mem]` replacement
+
+As it is unsafe to produce a reference to raw memory, due to runtime alias
+conditions, this type also functions as a replacement for a slice view of the
+backing memory. It is capable of iterating over the values of the memory store,
+and implements the [`core::fmt`] traits to render the backing store.
+
+[`BitSlice::domain`]: ../slice/struct.BitSlice.html#method.domain
+[`core::fmt`]: //doc.rust-lang.org/corce/fmt
+**/
 pub enum Domain<'a, T>
 where T: 'a + BitStore
 {
+	/// The source `BitSlice` region is in the interior of one element.
 	Enclave {
+		/// Index, according to the `BitSlice`’s `BitOrder` parameter, at which
+		/// the slice begins.
 		head: BitIdx<T::Mem>,
+		/// The memory address of the element containing the `BitSlice`.
 		elem: &'a T::Alias,
+		/// Index, according to the `BitSlice`’s `BitOrder` parameter, at which
+		/// the slice ends.
 		tail: BitTail<T::Mem>,
 	},
+	/// The source `BitSlice` region touches at least one edge of an element.
 	Region {
+		/// If the first element is partially-filled, its address and starting
+		/// bit index according to the `BitOrder` parameter.
 		head: Option<(BitIdx<T::Mem>, &'a T::Alias)>,
+		/// Any fully-spanned elements in the source `BitSlice`.
 		body: &'a [T::NoAlias],
+		/// If the last element is partially-filled, its address and ending bit
+		/// index according to the `BitOrder` parameter.
 		tail: Option<(&'a T::Alias, BitTail<T::Mem>)>,
 	},
 }
@@ -267,6 +314,22 @@ where T: 'a + BitStore
 impl<'a, T> Domain<'a, T>
 where T: 'a + BitStore
 {
+	/// Produces an iterator over each memory value referenced by the domain.
+	///
+	/// This iterator will perform the appropriate load on each reference
+	/// element, yielding the value of the referenced memory.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// An iterator yielding each referent value.
+	pub fn iter(&self) -> DomainIter<'a, T> {
+		DomainIter { domain: *self }
+	}
+
 	pub(crate) fn is_spanning(&self) -> bool {
 		match self {
 			Domain::Region {
@@ -357,6 +420,25 @@ where T: 'a + BitStore
 	}
 }
 
+impl<T> Clone for Domain<'_, T>
+where T: BitStore
+{
+	fn clone(&self) -> Self {
+		match self {
+			Domain::Enclave { head, elem, tail } => Domain::Enclave {
+				head: *head,
+				elem,
+				tail: *tail,
+			},
+			Domain::Region { head, body, tail } => Domain::Region {
+				head: *head,
+				body,
+				tail: *tail,
+			},
+		}
+	}
+}
+
 impl<'a, O, T> From<&'a BitSlice<O, T::Alias>> for Domain<'a, T>
 where
 	O: BitOrder,
@@ -382,6 +464,203 @@ where
 			(_, 1, _) => Self::minor(h, elts, t),
 			//  Reaches neither edge, for multiple elements.
 			(..) => Self::major(h, elts, t),
+		}
+	}
+}
+
+impl<T> Default for Domain<'_, T>
+where T: BitStore
+{
+	fn default() -> Self {
+		Self::empty()
+	}
+}
+
+impl<T> Binary for Domain<'_, T>
+where
+	T: BitStore,
+	T::Mem: Binary,
+{
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		struct BinVal<M: BitMemory>(M);
+		impl<M: BitMemory> Debug for BinVal<M> {
+			fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+				Binary::fmt(&self.0, fmt)
+			}
+		}
+
+		fmt.debug_list().entries(self.iter().map(BinVal)).finish()
+	}
+}
+
+impl<T> Debug for Domain<'_, T>
+where
+	T: BitStore,
+	T::Mem: Debug,
+{
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		fmt.debug_list().entries(self.iter()).finish()
+	}
+}
+
+impl<T> LowerHex for Domain<'_, T>
+where
+	T: BitStore,
+	T::Mem: LowerHex,
+{
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		struct HexVal<M: BitMemory>(M);
+		impl<M: BitMemory> Debug for HexVal<M> {
+			fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+				LowerHex::fmt(&self.0, fmt)
+			}
+		}
+
+		fmt.debug_list().entries(self.iter().map(HexVal)).finish()
+	}
+}
+
+impl<T> Octal for Domain<'_, T>
+where
+	T: BitStore,
+	T::Mem: Octal,
+{
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		struct OctVal<M: BitMemory>(M);
+		impl<M: BitMemory> Debug for OctVal<M> {
+			fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+				Octal::fmt(&self.0, fmt)
+			}
+		}
+
+		fmt.debug_list().entries(self.iter().map(OctVal)).finish()
+	}
+}
+
+impl<T> UpperHex for Domain<'_, T>
+where
+	T: BitStore,
+	T::Mem: UpperHex,
+{
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		struct HexVal<M: BitMemory>(M);
+		impl<M: BitMemory> Debug for HexVal<M> {
+			fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+				UpperHex::fmt(&self.0, fmt)
+			}
+		}
+
+		fmt.debug_list().entries(self.iter().map(HexVal)).finish()
+	}
+}
+
+impl<'a, T> IntoIterator for Domain<'a, T>
+where T: 'a + BitStore
+{
+	type IntoIter = DomainIter<'a, T>;
+	type Item = <Self::IntoIter as Iterator>::Item;
+
+	fn into_iter(self) -> Self::IntoIter {
+		DomainIter { domain: self }
+	}
+}
+
+impl<T> Copy for Domain<'_, T> where T: BitStore
+{
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct DomainIter<'a, T>
+where T: 'a + BitStore
+{
+	domain: Domain<'a, T>,
+}
+
+impl<'a, T> Iterator for DomainIter<'a, T>
+where T: 'a + BitStore
+{
+	type Item = T::Mem;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		match self.domain {
+			Domain::Enclave { elem, .. } => {
+				let out = elem.load();
+				self.domain = Domain::empty();
+				Some(out)
+			},
+			Domain::Region {
+				ref mut head,
+				ref mut body,
+				ref mut tail,
+			} => {
+				if let Some((_, h)) = head {
+					let out = h.load();
+					*head = None;
+					return Some(out);
+				}
+				if let Some((out, rest)) = body.split_first() {
+					*body = rest;
+					return Some(out.load());
+				}
+				if let Some((t, _)) = tail {
+					let out = t.load();
+					*tail = None;
+					return Some(out);
+				}
+				None
+			},
+		}
+	}
+}
+
+impl<T> ExactSizeIterator for DomainIter<'_, T>
+where T: BitStore
+{
+	fn len(&self) -> usize {
+		match self.domain {
+			Domain::Enclave { .. } => 1,
+			Domain::Region { head, body, tail } => {
+				head.is_some() as usize + body.len() + tail.is_some() as usize
+			},
+		}
+	}
+}
+
+impl<T> FusedIterator for DomainIter<'_, T> where T: BitStore
+{
+}
+
+impl<'a, T> DoubleEndedIterator for DomainIter<'a, T>
+where T: 'a + BitStore
+{
+	fn next_back(&mut self) -> Option<Self::Item> {
+		match self.domain {
+			Domain::Enclave { elem, .. } => {
+				let out = elem.load();
+				self.domain = Domain::empty();
+				Some(out)
+			},
+			Domain::Region {
+				ref mut head,
+				ref mut body,
+				ref mut tail,
+			} => {
+				if let Some((t, _)) = tail {
+					let out = t.load();
+					*tail = None;
+					return Some(out);
+				}
+				if let Some((out, rest)) = body.split_last() {
+					*body = rest;
+					return Some(out.load());
+				}
+				if let Some((_, h)) = head {
+					let out = h.load();
+					*head = None;
+					return Some(out);
+				}
+				None
+			},
 		}
 	}
 }

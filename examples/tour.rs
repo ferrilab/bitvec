@@ -13,6 +13,8 @@ extern crate bitvec;
 use bitvec::prelude::{
 	//  `bitvec!` macro
 	bitvec,
+	//  memory information about the underlying type (for debugging info)
+	BitMemory,
 	//  element-traversal trait (you shouldn’t explicitly need this)
 	BitOrder,
 	//  slice type, analagous to `[u1]`
@@ -112,13 +114,10 @@ are dominant."
 		println!("Print out the semantic contents");
 		println!("{:#?}", bs);
 		println!("Print out the memory contents");
-		println!("{:?}", unsafe {
-			&*(bs.as_slice() as *const [T] as *const [T::Mem])
-		});
+		println!("{:?}", bs.domain());
 		println!("Show the bits in memory");
-		for elt in unsafe { &*(bs.as_slice() as *const [T] as *const [T::Mem]) }
-		{
-			println!("{:0w$b} ", elt, w = std::mem::size_of::<T>() * 8);
+		for elt in bs.domain().iter() {
+			println!("{:0w$b} ", elt, w = T::Mem::BITS as usize);
 		}
 		println!();
 	}

@@ -7,6 +7,7 @@ This collects the general public API into a single spot for inclusion, as
 pub use crate::{
 	bits,
 	fields::BitField,
+	mem::BitMemory,
 	order::{
 		BitOrder,
 		Local,

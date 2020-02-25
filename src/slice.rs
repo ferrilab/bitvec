@@ -958,6 +958,31 @@ where
 		c
 	}
 
+	/// Accesses the total backing stoarge of the `BitSlice`, as a slice of its
+	/// aliased elements.
+	///
+	/// Because `BitSlice` is permitted to create aliasing views to memory at
+	/// runtime, this method is required to mark the entire slice as aliased in
+	/// order to include the maybe-aliased edge elements.
+	///
+	/// You should prefer using [`.domain()`] to produce a fine-grained
+	/// view that only aliases when necessary. This method is only appropriate
+	/// when you require a single, contiguous, slice for some API.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// An aliased view of the entire memory region this slice covers, including
+	/// contended edge elements.
+	///
+	/// [`.domain()`]: #method.domain
+	pub fn as_aliased_slice(&self) -> &[T::Alias] {
+		self.bitptr().aliased_slice()
+	}
+
 	/// Accesses the backing storage of the `BitSlice` as a slice of its
 	/// elements.
 	///
@@ -1020,24 +1045,6 @@ where
 				Domain::Region { body, .. } => body,
 			} as *const [T::NoAlias] as *const [T] as *mut [T])
 		}
-	}
-
-	/// Accesses the underlying store, including contended partial elements.
-	///
-	/// This produces a slice of element wrappers that permit shared mutation,
-	/// rather than a slice of the bare `T` fundamentals.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// A slice of all elements under the bit span, including any
-	/// partially-owned edge elements, wrapped in safe shared-mutation types.
-	#[inline]
-	pub fn as_total_slice(&self) -> &[T::Access] {
-		self.bitptr().as_access_slice()
 	}
 
 	/// Splits the slice into the components of its memory domain.

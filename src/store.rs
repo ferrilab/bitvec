@@ -10,10 +10,10 @@ use crate::{
 	mem::BitMemory,
 };
 
-use core::{
-	cell::Cell,
-	sync::atomic,
-};
+use core::cell::Cell;
+
+#[cfg(feature = "atomic")]
+use core::sync::atomic;
 
 /** Generalize over types which may be used to access memory holding bits.
 

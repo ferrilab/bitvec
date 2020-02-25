@@ -10,6 +10,7 @@ able to implement `Deserialize` as well.
 #![cfg(all(feature = "serde"))]
 
 use crate::{
+	domain::Domain,
 	mem::BitMemory,
 	order::BitOrder,
 	slice::BitSlice,
@@ -37,6 +38,7 @@ use core::{
 
 use serde::{
 	ser::{
+		SerializeSeq,
 		SerializeStruct,
 		Serializer,
 	},
@@ -205,8 +207,8 @@ where
 impl<O, T> Serialize for BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitStore + Serialize,
-	T::Access: Serialize,
+	T: BitStore,
+	T::Mem: Serialize,
 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
@@ -215,7 +217,24 @@ where
 
 		state.serialize_field("head", &*head)?;
 		state.serialize_field("bits", &(self.len() as u64))?;
-		state.serialize_field("data", self.as_total_slice())?;
+		state.serialize_field("data", &self.domain())?;
+
+		state.end()
+	}
+}
+
+impl<T> Serialize for Domain<'_, T>
+where
+	T: BitStore,
+	T::Mem: Serialize,
+{
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where S: Serializer {
+		let iter = self.iter();
+		let mut state = serializer.serialize_seq(Some(iter.len()))?;
+
+		iter.map(|elem| state.serialize_element(&elem))
+			.collect::<Result<_, _>>()?;
 
 		state.end()
 	}
@@ -226,7 +245,7 @@ impl<O, T> Serialize for BitBox<O, T>
 where
 	O: BitOrder,
 	T: BitStore + Serialize,
-	T::Access: Serialize,
+	T::Mem: Serialize,
 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
@@ -239,7 +258,7 @@ impl<O, T> Serialize for BitVec<O, T>
 where
 	O: BitOrder,
 	T: BitStore + Serialize,
-	T::Access: Serialize,
+	T::Mem: Serialize,
 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
