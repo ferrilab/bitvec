@@ -10,19 +10,9 @@ use crate::{
 	order::BitOrder,
 };
 
-use core::{
-	fmt::Binary,
-	mem,
-	ops::{
-		BitAnd,
-		BitAndAssign,
-		BitOr,
-		BitOrAssign,
-		Not,
-		Shl,
-		Shr,
-	},
-};
+use core::mem;
+
+use funty::IsUnsigned;
 
 use radium::marker::BitOps;
 
@@ -31,20 +21,7 @@ use radium::marker::BitOps;
 This trait describes raw memory, without any access modifiers. It provides
 information about the width of a memory element and useful constants.
 **/
-pub trait BitMemory:
-	PartialEq
-	+ Binary
-	+ Copy
-	+ Sized
-	+ BitAnd<Self, Output = Self>
-	+ BitAndAssign<Self>
-	+ BitOr<Self, Output = Self>
-	+ BitOrAssign<Self>
-	+ Not<Output = Self>
-	+ Shl<u8, Output = Self>
-	+ Shr<u8, Output = Self>
-	+ BitOps
-{
+pub trait BitMemory: IsUnsigned + BitOps {
 	/// The width, in bits, of the memory element.
 	const BITS: u8 = mem::size_of::<Self>() as u8 * 8;
 	/// The number of bits required to hold a bit index into the element.
@@ -52,8 +29,6 @@ pub trait BitMemory:
 	/// The maximum value of a bit index for the element.
 	const MASK: u8 = Self::BITS - 1;
 
-	/// The element value with all bits low.
-	const ZERO: Self;
 	/// The element value with only the least significant bit high.
 	const ONE: Self;
 	/// The element value with all bits high.
@@ -61,12 +36,6 @@ pub trait BitMemory:
 
 	/// The element’s name.
 	const TYPENAME: &'static str;
-
-	/// Counts the number of bits in an eleent set to `1`.
-	fn count_ones(self) -> usize;
-
-	/// Counts the number of bits in an element set to `0`.
-	fn count_zeros(self) -> usize;
 
 	/// Gets a specific bit in an element.
 	///
@@ -159,19 +128,10 @@ pub const fn elts<T>(bits: usize) -> usize {
 macro_rules! memory {
 	($($t:ty),* $(,)?) => { $(
 		impl BitMemory for $t {
-			const ZERO: Self = 0;
 			const ONE: Self = 1;
 			const ALL: Self = !0;
 
 			const TYPENAME: &'static str = stringify!($t);
-
-			fn count_ones(self) -> usize {
-				Self::count_ones(self) as usize
-			}
-
-			fn count_zeros(self) -> usize {
-				Self::count_zeros(self) as usize
-			}
 		}
 	)* };
 }

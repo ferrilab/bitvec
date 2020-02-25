@@ -30,6 +30,8 @@ use core::{
 	ptr::NonNull,
 };
 
+use funty::IsInteger;
+
 impl<O, T> BitVec<O, T>
 where
 	O: BitOrder,

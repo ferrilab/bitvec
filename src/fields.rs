@@ -5,9 +5,9 @@ functionality permits the use of `BitSlice` as a library-level implementation of
 the bitfield language feature found in C and C++.
 
 The `BitField` trait is not sealed against client implementation, as there is no
-useful way to automatically use a `Cursor` implementation to provide a universal
-behavior. As such, the trait has some requirements that the compiler cannot
-enforce for client implementations.
+useful way to automatically use a `BitOrder` implementation to provide a
+universal behavior. As such, the trait has some requirements that the compiler
+cannot enforce for client implementations.
 
 # Batch Behavior
 
@@ -35,14 +35,20 @@ constituent bytes is *not* governed by the `BitField` trait method.
 The provided `BitOrder` implementors `Lsb0` and `Msb0` use the local machine’s
 byte ordering. Other cursors *may* implement ordering of bytes within `T`
 elements differently, for instance by calling `.to_be_bytes` before store and
-`from_be_bytes` after load,
+`from_be_bytes` after load.
 !*/
 
 use crate::{
 	access::BitAccess,
 	domain::Domain,
+	index::{
+		BitIdx,
+		BitMask,
+		BitTail,
+	},
 	mem::BitMemory,
 	order::{
+		BitOrder,
 		Lsb0,
 		Msb0,
 	},
@@ -59,7 +65,6 @@ use core::{
 #[cfg(feature = "alloc")]
 use crate::{
 	boxed::BitBox,
-	order::BitOrder,
 	vec::BitVec,
 };
 
@@ -289,9 +294,20 @@ where T: BitStore
 			distance from LSedge to the live region, and mask it for the length
 			of `self`.
 			*/
-			Domain::Enclave { head, elem, .. } => resize::<T::Mem, U>(
-				(elem.load() >> *head) & mask_for::<T::Mem>(len),
-			),
+			Domain::Enclave { head, elem, tail } => {
+				/* `T::Mem` does not correctly project its trait
+				implementations, so this must be a function on `M: BitMemory`
+				directly in order to use them. See Rust issue #69441 for more
+				information.
+				*/
+				//  Mask a loaded memory element for the live region, then shift
+				//  to LSedge.
+				fn get<M>(val: M, h: BitIdx<M>, t: BitTail<M>) -> M
+				where M: BitMemory {
+					(val & *Lsb0::mask(h, t)) >> *h
+				}
+				resize(get(elem.load(), head, tail))
+			},
 			/* The live region touches at least one element edge.
 
 			This block reads chunks from the slice memory into an accumulator,
@@ -307,9 +323,13 @@ where T: BitStore
 				//  If the tail exists, it contains the most significant chunk
 				//  of the value, on the LSedge side.
 				if let Some((tail, t)) = tail {
+					//  Mask a loaded element to the live region at LSedge.
+					fn get<M>(val: M, t: BitTail<M>) -> M
+					where M: BitMemory {
+						val & *Lsb0::mask(None, t)
+					}
 					//  Load, mask, resize, and store. No other data is present.
-					accum =
-						resize(tail.load() & mask_for::<T::Mem>(*t as usize));
+					accum = resize(get(tail.load(), t));
 				}
 				//  Read the body elements, from high address to low, into the
 				//  accumulator.
@@ -321,12 +341,15 @@ where T: BitStore
 				//  If the head exists, it contains the least significant chunk
 				//  of the value, on the MSedge side.
 				if let Some((h, head)) = head {
-					//  Get the live region’s distance from the LSedge.
-					let lsedge = *h;
+					//  Shift a loaded value from MSedge to LSedge
+					fn get<M>(val: M, h: BitIdx<M>) -> M
+					where M: BitMemory {
+						val >> *h
+					}
 					//  Find the region width (MSedge to head).
-					let width = T::Mem::BITS - lsedge;
+					let width = T::Mem::BITS - *h;
 					//  Load the element, shift down to LSedge, and resize.
-					let val: usize = resize(head.load() >> lsedge);
+					let val: usize = resize(get(head.load(), h));
 					accum <<= width;
 					accum |= val;
 				}
@@ -350,8 +373,12 @@ where T: BitStore
 			distance from LSedge to the live region, and mask it for the length
 			of `self`.
 			*/
-			Domain::Enclave { head, elem, .. } => {
-				resize((elem.load() >> *head) & mask_for::<T::Mem>(len))
+			Domain::Enclave { head, elem, tail } => {
+				fn get<M>(val: M, h: BitIdx<M>, t: BitTail<M>) -> M
+				where M: BitMemory {
+					(val & *Lsb0::mask(h, t)) >> *h
+				}
+				resize(get(elem.load(), head, tail))
 			},
 			/* The live region touches at least one element edge.
 
@@ -368,8 +395,12 @@ where T: BitStore
 				//  If the head exists, it contains the most significant chunk
 				//  of the value, on the MSedge side.
 				if let Some((h, head)) = head {
+					fn get<M>(val: M, h: BitIdx<M>) -> M
+					where M: BitMemory {
+						val >> *h
+					}
 					//  Load, move, resize, and store. No other data is present.
-					accum = resize(head.load() >> *h);
+					accum = resize(get(head.load(), h));
 				}
 				//  Read the body elements, from low address to high, into the
 				//  accumulator.
@@ -381,11 +412,14 @@ where T: BitStore
 				//  If the tail exists, it contains the least significant chunk
 				//  of the value, on the LSedge side.
 				if let Some((tail, t)) = tail {
+					fn get<M>(val: M, t: BitTail<M>) -> M
+					where M: BitMemory {
+						val & *Lsb0::mask(None, t)
+					}
 					//  Get the live region’s width.
 					let width = *t as usize;
 					//  Load, mask, and resize.
-					let val: usize =
-						resize(tail.load() & mask_for::<T::Mem>(width));
+					let val: usize = resize(get(tail.load(), t));
 					//  Shift the accumulator by the live width, and store.
 					accum <<= width;
 					accum |= val;
@@ -403,20 +437,23 @@ where T: BitStore
 			panic!("Cannot store {} bits in a {}-bit region", U::BITS, len);
 		}
 
-		let value = value & mask_for(len);
+		let value = value & mask_for::<U>(len);
 		match self.domain() {
 			/* The live region is in the interior of a single element.
 
 			The `value` is shifted left by the region’s distance from the
 			LSedge, then written directly into place.
 			*/
-			Domain::Enclave { head, elem, .. } => {
-				//  Get the region’s distance from the LSedge.
-				let lsedge = *head;
+			Domain::Enclave { head, elem, tail } => {
+				fn set<M>(val: M, h: BitIdx<M>, mask: BitMask<M>) -> M
+				where M: BitMemory {
+					(val << *h) & *mask
+				}
+				let mask = Lsb0::mask(head, tail);
 				//  Erase the live region.
-				elem.clear_bits(!(mask_for::<T::Mem>(len) << lsedge));
+				elem.clear_bits(!*mask);
 				//  Shift the value to fit the region, and write.
-				elem.set_bits(resize::<U, T::Mem>(value) << lsedge);
+				elem.set_bits(set(resize(value), head, mask));
 			},
 			/* The live region touches at least one element edge.
 
@@ -431,16 +468,17 @@ where T: BitStore
 				//  If the head exists, it contains the least significant chunk
 				//  of the value, on the MSedge side.
 				if let Some((h, head)) = head {
-					//  Get the region distance from the LSedge.
-					let lsedge = *h;
+					fn set<M>(val: M, h: BitIdx<M>, mask: BitMask<M>) -> M
+					where M: BitMemory {
+						(val << *h) & *mask
+					}
+					let mask = Lsb0::mask(h, None);
 					//  Find the region width (MSedge to head).
-					let width = T::Mem::BITS - lsedge;
-					//  Take the region-width LSedge bits of the value.
-					let val = value & mask_for::<usize>(width as usize);
+					let width = T::Mem::BITS - *h;
 					//  Erase the region.
-					head.clear_bits(T::Mem::ALL >> width);
+					head.clear_bits(!*mask);
 					//  Shift the snippet to fit the region, and write.
-					head.set_bits(resize::<usize, T::Mem>(val) << lsedge);
+					head.set_bits(set(resize(value), h, mask));
 					//  Discard the now-written bits from the value.
 					value >>= width;
 				}
@@ -453,14 +491,15 @@ where T: BitStore
 				//  If the tail exists, it contains the most significant chunk
 				//  of the value, on the LSedge side.
 				if let Some((tail, t)) = tail {
-					//  Get the region width.
-					let width = *t;
-					//  Take the region-width LSedge bits of the value.
-					let val = value & mask_for::<usize>(width as usize);
+					fn set<M>(val: M, mask: BitMask<M>) -> M
+					where M: BitMemory {
+						val & *mask
+					}
+					let mask = Lsb0::mask(None, t);
 					//  Erase the region.
-					tail.clear_bits(T::Mem::ALL << width);
+					tail.clear_bits(!*mask);
 					//  Write the snippet into the region.
-					tail.set_bits(resize(val));
+					tail.set_bits(set(resize(value), mask));
 				}
 			},
 		}
@@ -473,20 +512,23 @@ where T: BitStore
 			panic!("Cannot store {} bits in a {}-bit region", U::BITS, len);
 		}
 
-		let value = value & mask_for(len);
+		let value = value & mask_for::<U>(len);
 		match self.domain() {
 			/* The live region is in the interior of a single element.
 
 			The `value` is shifted left by the region’s distance from the
 			LSedge, then written directly into place.
 			*/
-			Domain::Enclave { head, elem, .. } => {
-				//  Get the region’s distance from the LSedge.
-				let lsedge = *head;
+			Domain::Enclave { head, elem, tail } => {
+				fn set<M>(val: M, h: BitIdx<M>, mask: BitMask<M>) -> M
+				where M: BitMemory {
+					(val << *h) & *mask
+				}
+				let mask = Lsb0::mask(head, tail);
 				//  Erase the live region.
-				elem.clear_bits(!(mask_for::<T::Mem>(len) << lsedge));
+				elem.clear_bits(!*mask);
 				//  Shift the value to fit the region, and write.
-				elem.set_bits(resize::<U, T::Mem>(value) << lsedge);
+				elem.set_bits(set(resize(value), head, mask));
 			},
 			Domain::Region { head, body, tail } => {
 				let mut value: usize = resize(value);
@@ -494,14 +536,17 @@ where T: BitStore
 				//  If the tail exists, it contains the least significant chunk
 				//  of the value, on the LSedge side.
 				if let Some((tail, t)) = tail {
+					fn set<M>(val: M, mask: BitMask<M>) -> M
+					where M: BitMemory {
+						val & *mask
+					}
+					let mask = Lsb0::mask(None, t);
 					//  Get the region width.
 					let width = *t;
-					//  Take the region-width LSedge bits of the value.
-					let val = value & mask_for::<usize>(width as usize);
 					//  Erase the region.
-					tail.clear_bits(T::Mem::ALL << width);
+					tail.clear_bits(!*mask);
 					//  Write the snippet into the region.
-					tail.set_bits(resize(val));
+					tail.set_bits(set(resize(value), mask));
 					//  Discard the now-written bits from the value.
 					value >>= width;
 				}
@@ -514,16 +559,15 @@ where T: BitStore
 				//  If the head exists, it contains the most significant chunk
 				//  of the value, on the MSedge side.
 				if let Some((h, head)) = head {
-					//  Get the region distance from the LSedge.
-					let lsedge = *h;
-					//  Find the region width (MSedge to head).
-					let width = T::Mem::BITS - lsedge;
-					//  Take the region-width LSedge bits of the value.
-					let val = value & mask_for::<usize>(width as usize);
+					fn set<M>(val: M, h: BitIdx<M>, mask: BitMask<M>) -> M
+					where M: BitMemory {
+						(val << *h) & *mask
+					}
+					let mask = Lsb0::mask(h, None);
 					//  Erase the region.
-					head.clear_bits(T::Mem::ALL >> width);
+					head.clear_bits(!*mask);
 					//  Shift the snippet to fit the region, and write.
-					head.set_bits(resize::<usize, T::Mem>(val) << lsedge);
+					head.set_bits(set(resize(value), h, mask));
 				}
 			},
 		}
@@ -547,10 +591,15 @@ where T: BitStore
 			distance from LSedge to the live region, and mask it for the length
 			of `self`.
 			*/
-			Domain::Enclave { elem, tail, .. } => resize(
-				(elem.load() >> (T::Mem::BITS - *tail))
-					& mask_for::<T::Mem>(len),
-			),
+			Domain::Enclave { head, elem, tail } => {
+				//  In `Msb0`, the tail is on the LSedge side. It must be
+				//  subtracted from the type width to get the shift distance.
+				fn get<M>(val: M, h: BitIdx<M>, t: BitTail<M>) -> M
+				where M: BitMemory {
+					(val & *Msb0::mask(h, t)) >> (M::BITS - *t)
+				}
+				resize::<T::Mem, U>(get(elem.load(), head, tail))
+			},
 			/* The live region touches at least one element edge.
 
 			This block reads chunks from the slice memory into an accumulator,
@@ -566,10 +615,12 @@ where T: BitStore
 				//  If the tail exists, it contains the most significant chunk
 				//  of the value, on the MSedge side.
 				if let Some((tail, t)) = tail {
-					//  Find the live region’s distance from the LSedge.
-					let lsedge = T::Mem::BITS - *t;
+					fn get<M>(val: M, t: BitTail<M>) -> M
+					where M: BitMemory {
+						val >> (M::BITS - *t)
+					}
 					//  Load, move, resize, and store. No other data is present.
-					accum = resize(tail.load() >> lsedge);
+					accum = resize(get(tail.load(), t));
 				}
 				//  Read the body elements, from high address to low, into the
 				//  accumulator.
@@ -581,11 +632,14 @@ where T: BitStore
 				//  If the head exists, it contains the least significant chunk
 				//  of the value, on the LSedge side.
 				if let Some((h, head)) = head {
+					fn get<M>(val: M, h: BitIdx<M>) -> M
+					where M: BitMemory {
+						val & *Msb0::mask(h, None)
+					}
 					//  Find the region width (head to LSedge).
 					let width = (T::Mem::BITS - *h) as usize;
 					//  Load the element, mask, and resize.
-					let val: usize =
-						resize(head.load() & mask_for::<T::Mem>(width));
+					let val: usize = resize(get(head.load(), h));
 					accum <<= width;
 					accum |= val;
 				}
@@ -609,10 +663,13 @@ where T: BitStore
 			distance from LSedge to the live region, and mask it for the length
 			of `self`.
 			*/
-			Domain::Enclave { elem, tail, .. } => resize(
-				(elem.load() >> (T::Mem::BITS - *tail))
-					& mask_for::<T::Mem>(len),
-			),
+			Domain::Enclave { head, elem, tail } => {
+				fn get<M>(val: M, h: BitIdx<M>, t: BitTail<M>) -> M
+				where M: BitMemory {
+					(val & *Msb0::mask(h, t)) >> (M::BITS - *t)
+				}
+				resize(get(elem.load(), head, tail))
+			},
 			/* The live region touches at least one element edge.
 
 			This block reads chunks from the slice memory into an accumulator,
@@ -628,11 +685,12 @@ where T: BitStore
 				//  If the head exists, it contains the most significant chunk
 				//  of the value, on the LSedge side.
 				if let Some((h, head)) = head {
-					//  Find the region width (head to LSedge).
-					let width = T::Mem::BITS - *h;
+					fn get<M>(val: M, h: BitIdx<M>) -> M
+					where M: BitMemory {
+						val & *Msb0::mask(h, None)
+					}
 					//  Load, mask, resize, and store. No other data is present.
-					accum =
-						resize(head.load() & mask_for::<T::Mem>(width as usize));
+					accum = resize(get(head.load(), h));
 				}
 				//  Read the body elements, from low address to high, into the
 				//  accumulator.
@@ -644,10 +702,12 @@ where T: BitStore
 				//  If the tail exists, it contains the least significant chunk
 				//  of the value, on the MSedge side.
 				if let Some((tail, t)) = tail {
-					//  Find the live region’s distance from LSedge.
-					let lsedge = T::Mem::BITS - *t;
+					fn get<M>(val: M, t: BitTail<M>) -> M
+					where M: BitMemory {
+						val >> (M::BITS - *t)
+					}
 					//  Load the element, shift down to LSedge, and resize.
-					let val: usize = resize(tail.load() >> lsedge);
+					let val: usize = resize(get(tail.load(), t));
 					accum <<= *t;
 					accum |= val;
 				}
@@ -664,20 +724,23 @@ where T: BitStore
 			panic!("Cannot store {} bits in a {}-bit region", U::BITS, len);
 		}
 
-		let value = value & mask_for(len);
+		let value = value & mask_for::<U>(len);
 		match self.domain() {
 			/* The live region is in the interior of a single element.
 
 			The `value` is shifted left by the region’s distance from the
 			LSedge, then written directly into place.
 			*/
-			Domain::Enclave { elem, tail, .. } => {
-				//  Get the region’s distance from the LSedge.
-				let lsedge = T::Mem::BITS - *tail;
+			Domain::Enclave { head, elem, tail } => {
+				fn set<M>(val: M, t: BitTail<M>, mask: BitMask<M>) -> M
+				where M: BitMemory {
+					(val << (M::BITS - *t)) & *mask
+				}
+				let mask = Msb0::mask(head, tail);
 				//  Erase the live region.
-				elem.clear_bits(!(mask_for::<T::Mem>(len) << lsedge));
+				elem.clear_bits(!*mask);
 				//  Shift the value to fit the region, and write.
-				elem.set_bits(resize::<U, T::Mem>(value) << lsedge);
+				elem.set_bits(set(resize(value), tail, mask));
 			},
 			/* The live region touches at least one element edge.
 
@@ -692,14 +755,17 @@ where T: BitStore
 				//  If the head exists, it contains the least significant chunk
 				//  of the value, on the LSedge side.
 				if let Some((h, head)) = head {
+					fn set<M>(val: M, mask: BitMask<M>) -> M
+					where M: BitMemory {
+						val & *mask
+					}
+					let mask = Msb0::mask(h, None);
 					//  Get the region width (head to LSedge).
 					let width = T::Mem::BITS - *h;
-					//  Take the region-width LSedge bits of the value.
-					let val = value & mask_for::<usize>(width as usize);
 					//  Erase the region.
-					head.clear_bits(T::Mem::ALL << width);
+					head.clear_bits(!*mask);
 					//  Write the snippet into the region.
-					head.set_bits(resize(val));
+					head.set_bits(set(resize(value), mask));
 					//  Discard the now-written bits from the value.
 					value >>= width;
 				}
@@ -712,16 +778,14 @@ where T: BitStore
 				//  If the tail exists, it contains the most significant chunk
 				//  of the value, on the MSedge side.
 				if let Some((tail, t)) = tail {
-					//  Get the region width.
-					let width = *t;
-					//  Find the region distance from the LSedge.
-					let lsedge = T::Mem::BITS - width;
-					//  Take the region-width LSedge bits of the value.
-					let val = value & mask_for::<usize>(width as usize);
+					fn set<M>(val: M, t: BitTail<M>) -> M
+					where M: BitMemory {
+						val << (M::BITS - *t)
+					}
 					//  Erase the region.
-					tail.clear_bits(T::Mem::ALL >> width);
+					tail.clear_bits(!*Msb0::mask(None, t));
 					//  Shift the snippet to fit the region, and write.
-					tail.set_bits(resize::<usize, T::Mem>(val) << lsedge);
+					tail.set_bits(set(resize(value), t));
 				}
 			},
 		}
@@ -734,20 +798,23 @@ where T: BitStore
 			panic!("Cannot store {} bits in a {}-bit region", U::BITS, len);
 		}
 
-		let value = value & mask_for(len);
+		let value = value & mask_for::<U>(len);
 		match self.domain() {
 			/* The live region is in the interior of a single element.
 
 			The `value` is shifted left by the region’s distance from the
 			LSedge, then written directly into place.
 			*/
-			Domain::Enclave { elem, tail, .. } => {
-				//  Get the region’s distance from the LSedge.
-				let lsedge = T::Mem::BITS - *tail;
+			Domain::Enclave { head, elem, tail } => {
+				fn set<M>(val: M, t: BitTail<M>, mask: BitMask<M>) -> M
+				where M: BitMemory {
+					(val << (M::BITS - *t)) & *mask
+				}
+				let mask = Msb0::mask(head, tail);
 				//  Erase the live region.
-				elem.clear_bits(!(mask_for::<T::Mem>(len) << lsedge));
+				elem.clear_bits(!*mask);
 				//  Shift the value to fit the region, and write.
-				elem.set_bits(resize::<U, T::Mem>(value) << lsedge);
+				elem.set_bits(set(resize(value), tail, mask));
 			},
 			/* The live region touches at least one element edge.
 
@@ -762,18 +829,17 @@ where T: BitStore
 				//  If the tail exists, it contains the least significant chunk
 				//  of the value, on the MSedge side.
 				if let Some((tail, t)) = tail {
-					//  Get the region width (MSedge to tail).
-					let width = *t;
-					//  Find the region distance from the LSedge.
-					let lsedge = T::Mem::BITS - width;
-					//  Take the region-width LSedge bits of the value.
-					let val = value & mask_for::<usize>(width as usize);
+					fn set<M>(val: M, t: BitTail<M>, mask: BitMask<M>) -> M
+					where M: BitMemory {
+						(val << (M::BITS - *t)) & *mask
+					}
+					let mask = Msb0::mask(None, t);
 					//  Erase the region.
-					tail.clear_bits(T::Mem::ALL >> width);
+					tail.clear_bits(!*mask);
 					//  Shift the snippet to fit the region, and write.
-					tail.set_bits(resize::<usize, T::Mem>(val) << lsedge);
+					tail.set_bits(set(resize(value), t, mask));
 					//  Discard the now-written bits from the value.
-					value >>= width;
+					value >>= *t;
 				}
 				//  Write into the body elements, from high address to low, from
 				//  the value.
@@ -784,14 +850,15 @@ where T: BitStore
 				//  If the head exists, it contains the most significant chunk
 				//  of the value, on the LSedge side.
 				if let Some((h, head)) = head {
-					//  Find the region width.
-					let width = T::Mem::BITS - *h;
-					//  Take the region-width LSedge bits of the value.
-					let val = value & mask_for::<usize>(width as usize);
+					fn set<M>(val: M, mask: BitMask<M>) -> M
+					where M: BitMemory {
+						val & *mask
+					}
+					let mask = Msb0::mask(h, None);
 					//  Erase the region.
-					head.clear_bits(T::Mem::ALL << width);
+					head.clear_bits(!*mask);
 					//  Write the snippet into the region.
-					head.set_bits(resize(val));
+					head.set_bits(set(resize(value), mask));
 				}
 			},
 		}

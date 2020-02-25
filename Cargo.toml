@@ -47,6 +47,7 @@ std = [
 ]
 
 [dependencies]
+funty = "1"
 radium = "0.3"
 
 [dependencies.serde]

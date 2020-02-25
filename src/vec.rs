@@ -31,6 +31,8 @@ use core::{
 	ptr,
 };
 
+use funty::IsInteger;
+
 /** A compact [`Vec`] of bits, whose order and storage type can be customized.
 
 `BitVec` is a newtype wrapper over `Vec`, and as such is exactly three words in

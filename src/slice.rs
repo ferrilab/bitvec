@@ -27,6 +27,8 @@ use crate::{
 
 use core::marker::PhantomData;
 
+use funty::IsInteger;
+
 /** A compact slice of bits, whose order and storage types can be customized.
 
 `BitSlice` is a specialized slice type, which can only ever be held by
@@ -764,8 +766,8 @@ where
 				out += body
 					.iter()
 					.map(BitAccess::load)
-					.map(T::Mem::count_ones)
-					.sum::<usize>();
+					.map(IsInteger::count_ones)
+					.sum::<u32>() as usize;
 				if let Some((tail, t)) = tail {
 					let elt = tail.load();
 					out += (0 .. *t).filter(|n| elt.get::<O>(n.idx())).count();
