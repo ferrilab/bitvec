@@ -8,6 +8,7 @@ memory is accessed.
 use crate::{
 	index::BitIdx,
 	order::BitOrder,
+	store::BitStore,
 };
 
 use core::mem;
@@ -103,6 +104,12 @@ pub trait BitMemory: IsUnsigned + BitOps {
 	/// The number of elements of `Self` required to hold the requested bits.
 	fn elts(bits: usize) -> usize {
 		crate::mem::elts::<Self>(bits)
+	}
+
+	#[doc(hidden)]
+	fn retype<T>(self) -> T::Mem
+	where T: BitStore {
+		unsafe { *(&self as *const _ as *const _) }
 	}
 }
 

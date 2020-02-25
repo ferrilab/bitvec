@@ -40,7 +40,10 @@ elements differently, for instance by calling `.to_be_bytes` before store and
 
 use crate::{
 	access::BitAccess,
-	domain::Domain,
+	domain::{
+		Domain,
+		DomainMut,
+	},
 	index::{
 		BitIdx,
 		BitTail,
@@ -332,8 +335,8 @@ where T: BitStore
 				}
 				//  Read the body elements, from high address to low, into the
 				//  accumulator.
-				for elt in body.iter().rev() {
-					let val: usize = resize(elt.load());
+				for elem in body.iter().rev() {
+					let val: usize = resize(elem.get_elem().retype::<T>());
 					accum <<= T::Mem::BITS;
 					accum |= val;
 				}
@@ -403,8 +406,8 @@ where T: BitStore
 				}
 				//  Read the body elements, from low address to high, into the
 				//  accumulator.
-				for elt in body.iter() {
-					let val: usize = resize(elt.load());
+				for elem in body {
+					let val: usize = resize(elem.get_elem().retype::<T>());
 					accum <<= T::Mem::BITS;
 					accum |= val;
 				}
@@ -437,13 +440,13 @@ where T: BitStore
 		}
 
 		let value = value & mask_for::<U>(len);
-		match self.domain() {
+		match self.domain_mut() {
 			/* The live region is in the interior of a single element.
 
 			The `value` is shifted left by the region’s distance from the
 			LSedge, then written directly into place.
 			*/
-			Domain::Enclave { head, elem, tail } => {
+			DomainMut::Enclave { head, elem, tail } => {
 				fn shift<M: BitMemory>(val: M, h: BitIdx<M>) -> M {
 					val << *h
 				}
@@ -460,7 +463,7 @@ where T: BitStore
 			a slice chunk’s width of bits from the LSedge of the value into
 			memory, then shifts the value right by that width.
 			*/
-			Domain::Region { head, body, tail } => {
+			DomainMut::Region { head, body, tail } => {
 				let mut value: usize = resize(value);
 
 				//  If the head exists, it contains the least significant chunk
@@ -481,8 +484,8 @@ where T: BitStore
 				}
 				//  Write into the body elements, from low address to high, from
 				//  the value.
-				for elt in body.iter() {
-					elt.store(resize(value));
+				for elem in body {
+					elem.set_elem(resize(value));
 					value >>= T::Mem::BITS;
 				}
 				//  If the tail exists, it contains the most significant chunk
@@ -506,13 +509,13 @@ where T: BitStore
 		}
 
 		let value = value & mask_for::<U>(len);
-		match self.domain() {
+		match self.domain_mut() {
 			/* The live region is in the interior of a single element.
 
 			The `value` is shifted left by the region’s distance from the
 			LSedge, then written directly into place.
 			*/
-			Domain::Enclave { head, elem, tail } => {
+			DomainMut::Enclave { head, elem, tail } => {
 				fn shift<M>(val: M, h: BitIdx<M>) -> M
 				where M: BitMemory {
 					val << *h
@@ -523,7 +526,7 @@ where T: BitStore
 				//  Shift the value to fit the region, and write.
 				elem.set_bits(mask & shift(resize(value), head));
 			},
-			Domain::Region { head, body, tail } => {
+			DomainMut::Region { head, body, tail } => {
 				let mut value: usize = resize(value);
 
 				//  If the tail exists, it contains the least significant chunk
@@ -541,8 +544,8 @@ where T: BitStore
 				}
 				//  Write into the body elements, from high address to low, from
 				//  the value.
-				for elt in body.iter().rev() {
-					elt.store(resize(value));
+				for elem in body.iter_mut().rev() {
+					elem.set_elem(resize(value));
 					value >>= T::Mem::BITS;
 				}
 				//  If the head exists, it contains the most significant chunk
@@ -613,8 +616,8 @@ where T: BitStore
 				}
 				//  Read the body elements, from high address to low, into the
 				//  accumulator.
-				for elt in body.iter().rev() {
-					let val: usize = resize(elt.load());
+				for elem in body.iter().rev() {
+					let val: usize = resize(elem.get_elem().retype::<T>());
 					accum <<= T::Mem::BITS;
 					accum |= val;
 				}
@@ -683,8 +686,8 @@ where T: BitStore
 				}
 				//  Read the body elements, from low address to high, into the
 				//  accumulator.
-				for elt in body.iter() {
-					let val: usize = resize(elt.load());
+				for elem in body {
+					let val: usize = resize(elem.get_elem().retype::<T>());
 					accum <<= T::Mem::BITS;
 					accum |= val;
 				}
@@ -714,13 +717,13 @@ where T: BitStore
 		}
 
 		let value = value & mask_for::<U>(len);
-		match self.domain() {
+		match self.domain_mut() {
 			/* The live region is in the interior of a single element.
 
 			The `value` is shifted left by the region’s distance from the
 			LSedge, then written directly into place.
 			*/
-			Domain::Enclave { head, elem, tail } => {
+			DomainMut::Enclave { head, elem, tail } => {
 				fn shift<M>(val: M, t: BitTail<M>) -> M
 				where M: BitMemory {
 					val << (M::BITS - *t)
@@ -738,7 +741,7 @@ where T: BitStore
 			slice chunk’s width of bits from the LSedge of the value into
 			memory, then shifts the value right by that width.
 			*/
-			Domain::Region { head, body, tail } => {
+			DomainMut::Region { head, body, tail } => {
 				let mut value: usize = resize(value);
 
 				//  If the head exists, it contains the least significant chunk
@@ -756,8 +759,8 @@ where T: BitStore
 				}
 				//  Write into the body elements, from low address to high, from
 				//  the value.
-				for elt in body.iter() {
-					elt.store(resize(value));
+				for elem in body {
+					elem.set_elem(resize(value));
 					value >>= T::Mem::BITS;
 				}
 				//  If the tail exists, it contains the most significant chunk
@@ -785,13 +788,13 @@ where T: BitStore
 		}
 
 		let value = value & mask_for::<U>(len);
-		match self.domain() {
+		match self.domain_mut() {
 			/* The live region is in the interior of a single element.
 
 			The `value` is shifted left by the region’s distance from the
 			LSedge, then written directly into place.
 			*/
-			Domain::Enclave { head, elem, tail } => {
+			DomainMut::Enclave { head, elem, tail } => {
 				fn shift<M>(val: M, t: BitTail<M>) -> M
 				where M: BitMemory {
 					val << (M::BITS - *t)
@@ -809,7 +812,7 @@ where T: BitStore
 			slice chunk’s width of bits from the LSedge of the value into
 			memory, then shifts the value right by that width.
 			*/
-			Domain::Region { head, body, tail } => {
+			DomainMut::Region { head, body, tail } => {
 				let mut value: usize = resize(value);
 
 				//  If the tail exists, it contains the least significant chunk
@@ -829,8 +832,8 @@ where T: BitStore
 				}
 				//  Write into the body elements, from high address to low, from
 				//  the value.
-				for elt in body.iter().rev() {
-					elt.store(resize(value));
+				for elem in body.iter_mut().rev() {
+					elem.set_elem(resize(value));
 					value >>= T::Mem::BITS;
 				}
 				//  If the head exists, it contains the most significant chunk

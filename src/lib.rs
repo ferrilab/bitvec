@@ -49,7 +49,7 @@ extern crate serde_test;
 pub mod macros;
 
 mod access;
-mod domain;
+pub mod domain;
 pub mod fields;
 pub mod index;
 pub mod mem;

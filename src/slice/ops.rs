@@ -4,7 +4,7 @@ use super::api::BitSliceIndex;
 
 use crate::{
 	access::BitAccess,
-	domain::Domain,
+	domain::DomainMut,
 	mem::BitMemory,
 	order::BitOrder,
 	slice::BitSlice,
@@ -536,16 +536,16 @@ where
 	/// assert_eq!(src, [0x3F, 0xFC]);
 	/// ```
 	fn not(self) -> Self::Output {
-		match self.domain() {
-			Domain::Enclave { head, elem, tail } => {
+		match self.domain_mut() {
+			DomainMut::Enclave { head, elem, tail } => {
 				elem.invert_bits(O::mask(head, tail));
 			},
-			Domain::Region { head, body, tail } => {
+			DomainMut::Region { head, body, tail } => {
 				if let Some((h, head)) = head {
 					head.invert_bits(O::mask(h, None));
 				}
-				for elt in body {
-					elt.store(!elt.load());
+				for elem in body {
+					elem.set_elem(!elem.get_elem());
 				}
 				if let Some((tail, t)) = tail {
 					tail.invert_bits(O::mask(None, t));

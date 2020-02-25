@@ -14,6 +14,7 @@ use crate::{
 		BitDomain,
 		BitDomainMut,
 		Domain,
+		DomainMut,
 	},
 	index::{
 		BitMask,
@@ -498,6 +499,9 @@ where
 	/// induce safety violations. The caller must ensure that `mid` is within
 	/// the boundaries of `self` before calling.
 	#[inline]
+	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
+	//  so this will not be aliased.
+	#[allow(clippy::type_complexity)]
 	pub unsafe fn split_at_mut_unchecked(
 		&mut self,
 		mid: usize,
@@ -563,7 +567,9 @@ where
 			Domain::Region { head, body, tail } => {
 				head.map_or(true, |(h, head)| {
 					!O::mask(h, None) | head.load() == BitMask::ALL
-				}) && body.iter().all(|e| e.load() == T::Mem::ALL)
+				}) && body
+					.iter()
+					.all(|e| e.get_elem().retype::<T>() == T::Mem::ALL)
 					&& tail.map_or(true, |(tail, t)| {
 						!O::mask(None, t) | tail.load() == BitMask::ALL
 					})
@@ -608,7 +614,9 @@ where
 			Domain::Region { head, body, tail } => {
 				head.map_or(false, |(h, head)| {
 					O::mask(h, None) & head.load() != BitMask::ZERO
-				}) || body.iter().any(|elt| elt.load() != T::Mem::ZERO)
+				}) || body
+					.iter()
+					.any(|e| e.get_elem().retype::<T>() != T::Mem::ZERO)
 					|| tail.map_or(false, |(tail, t)| {
 						O::mask(None, t) & tail.load() != BitMask::ZERO
 					})
@@ -748,7 +756,7 @@ where
 					(O::mask(h, None) & head.load()).count_ones() as usize
 				}) + body
 					.iter()
-					.map(|e| e.load().count_ones() as usize)
+					.map(|e| e.get_elem().retype::<T>().count_ones() as usize)
 					.sum::<usize>() + tail.map_or(0, |(tail, t)| {
 					(O::mask(None, t) & tail.load()).count_ones() as usize
 				})
@@ -784,7 +792,7 @@ where
 					(!O::mask(h, None) | head.load()).count_zeros() as usize
 				}) + body
 					.iter()
-					.map(|e| e.load().count_zeros() as usize)
+					.map(|e| e.get_elem().retype::<T>().count_zeros() as usize)
 					.sum::<usize>() + tail.map_or(0, |(tail, t)| {
 					(!O::mask(None, t) | tail.load()).count_zeros() as usize
 				})
@@ -814,20 +822,23 @@ where
 	/// assert_eq!(bits.as_ref(), &[0b1010_0100]);
 	/// ```
 	pub fn set_all(&mut self, value: bool) {
-		match self.domain() {
-			Domain::Enclave { head, elem, tail } => {
+		match self.domain_mut() {
+			DomainMut::Enclave { head, elem, tail } => {
 				let val = elem.load();
 				let mask = O::mask(head, tail);
 				elem.store(*if value { mask | val } else { !mask & val });
 			},
-			Domain::Region { head, body, tail } => {
+			DomainMut::Region { head, body, tail } => {
 				if let Some((h, head)) = head {
 					let val = head.load();
 					let mask = O::mask(h, None);
 					head.store(*if value { mask | val } else { !mask & val });
 				}
-				for elt in body {
-					elt.store(if value { T::Mem::ALL } else { T::Mem::ZERO });
+				for elem in body {
+					elem.set_elem(
+						if value { T::Mem::ALL } else { T::Mem::ZERO }
+							.retype::<T::NoAlias>(),
+					);
 				}
 				if let Some((tail, t)) = tail {
 					let val = tail.load();
@@ -1062,13 +1073,47 @@ where
 	///
 	/// Unlike `.bit_domain()` and `.bit_domain_mut()`, this does not return
 	/// smaller, specialized, `BitSlice` handles, but rather appropriately
-	/// un/aliased references to memory elements. These references allow
-	/// mutation, even when produced through an immutable `BitSlice` handle.
-	/// Such mutation cannot be prevented by this library, so you are
-	/// responsible for not modifying memory outside the boundaries of the
-	/// `self` region.
+	/// un/aliased references to memory elements.
+	///
+	/// The aliased references allow mutation of these elements. You are
+	/// required to not mutate through these references. This function is not
+	/// marked `unsafe`, but this is a contract you must uphold. Use
+	/// [`.domain_mut()`] for mutation.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// A read-only descriptor of the memory elements underneath `*self`.
+	///
+	/// [`.domain_mut()`]: #method.domain_mut
 	pub fn domain(&self) -> Domain<T> {
-		unsafe { &*(self as *const Self as *const BitSlice<O, T::Alias>) }.into()
+		self.into()
+	}
+
+	/// Splits the slice into mutable references to its underlying memory
+	/// elements.
+	///
+	/// Like `.domain()`, this returns appropriately un/aliased references to
+	/// memory elements. These references are all writable.
+	///
+	/// The aliased edge references permit modifying memory beyond their bit
+	/// marker. You are required to only mutate the region of these edge
+	/// elements that you currently govern. This function is not marked
+	/// `unsafe`, but this is a contract you must uphold.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Returns
+	///
+	/// A descriptor of the memory elements underneath `*self`, permitting
+	/// mutation.
+	pub fn domain_mut(&mut self) -> DomainMut<T> {
+		self.into()
 	}
 
 	/// Accesses the underlying pointer structure.
@@ -1122,16 +1167,6 @@ where
 	/// otherwise it will introduce race conditions.
 	pub(crate) unsafe fn noalias(&self) -> &BitSlice<O, T::NoAlias> {
 		&*(self as *const Self as *const BitSlice<O, T::NoAlias>)
-	}
-
-	/// Remove the aliasing marker from a slice.
-	///
-	/// # Safety
-	///
-	/// This may only be done when the slice is known to refer to unaliased
-	/// memory, or when the marker is about to be reäpplied.
-	pub(crate) unsafe fn unalias(this: &BitSlice<O, T::Alias>) -> &Self {
-		&*(this as *const BitSlice<O, T::Alias> as *const Self)
 	}
 
 	/// Remove the aliasing marker from a mutable slice.

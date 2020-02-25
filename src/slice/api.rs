@@ -95,19 +95,19 @@ the lifetime of a host value for the slice, or by explicit annotation.
 
 ```rust
 use bitvec::{
-	index::BitIdx,
-	order::Local,
-	slice,
-	slice::BitSlice,
+  index::BitIdx,
+  order::Local,
+  slice,
+  slice::BitSlice,
 };
 
 // manifest a slice for a single element
 let x = 42u8;
 let ptr = &x as *const u8;
 let bits: &BitSlice<Local, u8> = unsafe { slice::bits_from_raw_parts(
-	ptr,
-	BitIdx::new(2).unwrap(),
-	5
+  ptr,
+  BitIdx::new(2).unwrap(),
+  5
 ) };
 assert_eq!(bits.len(), 5);
 ```
@@ -408,6 +408,9 @@ where
 	/// assert_eq!(data, 7);
 	/// ```
 	#[inline]
+	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
+	//  so this will not be aliased.
+	#[allow(clippy::type_complexity)]
 	pub fn split_first_mut(
 		&mut self,
 	) -> Option<(BitMut<O, T::Alias>, &mut BitSlice<O, T::Alias>)> {
@@ -470,6 +473,9 @@ where
 	/// assert_eq!(data, 128 | 64 | 1);
 	/// ```
 	#[inline]
+	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
+	//  so this will not be aliased.
+	#[allow(clippy::type_complexity)]
 	pub fn split_last_mut(
 		&mut self,
 	) -> Option<(BitMut<O, T::Alias>, &mut BitSlice<O, T::Alias>)> {
@@ -1272,6 +1278,9 @@ where
 	/// assert_eq!(data, 0b0100_1101);
 	/// ```
 	#[inline]
+	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
+	//  so this will not be aliased.
+	#[allow(clippy::type_complexity)]
 	pub fn split_at_mut(
 		&mut self,
 		mid: usize,

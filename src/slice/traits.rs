@@ -478,21 +478,19 @@ where
 	}
 }
 
-/// When a slice’s accessor type is `Send`, the slice is `Send`.
 unsafe impl<O, T> Send for BitSlice<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
-	T::Access: Send,
+	T::Threadsafe: Send,
 {
 }
 
-/// When a slice’s accessor type is `Sync`, the slice is `Sync`.
 unsafe impl<O, T> Sync for BitSlice<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
-	T::Access: Sync,
+	T::Threadsafe: Sync,
 {
 }
 

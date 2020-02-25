@@ -27,6 +27,7 @@ use bitvec::prelude::{
 	//  directionality type markers
 	Msb0,
 };
+
 #[cfg(feature = "std")]
 use std::iter::repeat;
 

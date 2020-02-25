@@ -42,7 +42,7 @@ let data = 5u8;
 let bits = data.bits::<Lsb0>();
 
 for bit in bits[.. 4].iter() {
-	println!("{}", bit);
+  println!("{}", bit);
 }
 ```
 
@@ -211,7 +211,7 @@ let mut data = 0u8;
 let bits = data.bits_mut::<Msb0>();
 assert!(bits.not_any());
 for mut bit in bits.iter_mut() {
-	*bit = true;
+  *bit = true;
 }
 assert!(bits.all());
 ```

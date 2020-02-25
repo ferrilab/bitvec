@@ -706,9 +706,9 @@ where
 	/// let mut bv = bitvec![];
 	/// let mut p = 1;
 	/// bv.resize_with(4, || {
-	/// 	p += 1;
-	/// 	p % 2 == 0
-	/// 	});
+	///   p += 1;
+	///   p % 2 == 0
+	/// });
 	/// assert_eq!(bv, bitvec![1, 0, 1, 0]);
 	/// ```
 	///

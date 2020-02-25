@@ -8,7 +8,6 @@ handle operations.
 !*/
 
 use crate::{
-	access::BitAccess,
 	index::{
 		BitIdx,
 		BitTail,
@@ -20,6 +19,7 @@ use crate::{
 };
 
 use core::{
+	cell::UnsafeCell,
 	fmt::{
 		self,
 		Binary,
@@ -225,19 +225,35 @@ where
 	}
 }
 
+/** Writable version of [`BitDomain`].
+
+[`BitDomain`]: enum.BitDomain.html
+**/
 pub enum BitDomainMut<'a, O, T>
 where
 	O: BitOrder,
 	T: 'a + BitStore,
 {
+	/// Writable version of [`BitDomain::Enclave`].
+	///
+	/// [`BitDomain::Enclave`]: enum.BitDomain.html#variant.Enclave
 	Enclave {
+		/// See `BitDomain::Enclave`.
 		head: BitIdx<T::Mem>,
+		/// See `BitDomain::Enclave`.
 		body: &'a mut BitSlice<O, T::Alias>,
+		/// See `BitDomain::Enclave`.
 		tail: BitTail<T::Mem>,
 	},
+	/// Writable version of [`BitDomain::Region`].
+	///
+	/// [`BitDomain::Region`]: enum.BitDomain.html#variant.Region
 	Region {
+		/// See `BitDomain::Region`.
 		head: &'a mut BitSlice<O, T::Alias>,
+		/// See `BitDomain::Region`.
 		body: &'a mut BitSlice<O, T::NoAlias>,
+		/// See `BitDomain::Region`.
 		tail: &'a mut BitSlice<O, T::Alias>,
 	},
 }
@@ -439,13 +455,13 @@ where T: BitStore
 	}
 }
 
-impl<'a, O, T> From<&'a BitSlice<O, T::Alias>> for Domain<'a, T>
+impl<'a, O, T> From<&'a BitSlice<O, T>> for Domain<'a, T>
 where
 	O: BitOrder,
 	T: 'a + BitStore,
 {
-	fn from(this: &'a BitSlice<O, T::Alias>) -> Self {
-		let bitptr = unsafe { BitSlice::<O, T>::unalias(this) }.bitptr();
+	fn from(this: &'a BitSlice<O, T>) -> Self {
+		let bitptr = this.bitptr();
 		let h = bitptr.head();
 		let (e, t) = h.span(bitptr.len());
 		let w = T::Mem::BITS;
@@ -569,6 +585,67 @@ impl<T> Copy for Domain<'_, T> where T: BitStore
 {
 }
 
+/** Writable version of [`Domain`].
+
+[`Domain`]: enum.Domain.html
+**/
+pub enum DomainMut<'a, T>
+where T: 'a + BitStore
+{
+	/// Writable version of [`Domain::Enclave`].
+	///
+	/// [`Domain::Enclave`]: enum.Domain.html#variant.Enclave
+	Enclave {
+		/// See `Domain::Enclave`.
+		head: BitIdx<T::Mem>,
+		/// See `Domain::Enclave`.
+		elem: &'a T::Alias,
+		/// See `Domain::Enclave`.
+		tail: BitTail<T::Mem>,
+	},
+	/// Writable version of [`Domain::Region`].
+	///
+	/// [`Domain::Region`]: enum.Domain.html#variant.Region
+	Region {
+		/// See `Domain::Region`.
+		head: Option<(BitIdx<T::Mem>, &'a T::Alias)>,
+		/// See `Domain::Region`.
+		body: &'a mut [T::NoAlias],
+		/// See `Domain::Region`.
+		tail: Option<(&'a T::Alias, BitTail<T::Mem>)>,
+	},
+}
+
+impl<'a, O, T> From<&'a mut BitSlice<O, T>> for DomainMut<'a, T>
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
+	fn from(this: &'a mut BitSlice<O, T>) -> Self {
+		match this.domain() {
+			Domain::Enclave { head, elem, tail } => DomainMut::Enclave {
+				head,
+				elem: unsafe {
+					&mut *(&*(elem as *const T::Alias
+						as *const UnsafeCell<T::Alias>))
+						.get()
+				},
+				tail,
+			},
+			Domain::Region { head, body, tail } => DomainMut::Region {
+				head,
+				body: unsafe {
+					&mut *(&*(body as *const [T::NoAlias]
+						as *const UnsafeCell<[T::NoAlias]>))
+						.get()
+				},
+				tail,
+			},
+		}
+	}
+}
+
+/// Element iterator for a `Domain`.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct DomainIter<'a, T>
 where T: 'a + BitStore
@@ -584,7 +661,7 @@ where T: 'a + BitStore
 	fn next(&mut self) -> Option<Self::Item> {
 		match self.domain {
 			Domain::Enclave { elem, .. } => {
-				let out = elem.load();
+				let out = elem.get_elem().retype::<T>();
 				self.domain = Domain::empty();
 				Some(out)
 			},
@@ -594,16 +671,16 @@ where T: 'a + BitStore
 				ref mut tail,
 			} => {
 				if let Some((_, h)) = head {
-					let out = h.load();
+					let out = h.get_elem().retype::<T>();
 					*head = None;
 					return Some(out);
 				}
 				if let Some((out, rest)) = body.split_first() {
 					*body = rest;
-					return Some(out.load());
+					return Some(out.get_elem().retype::<T>());
 				}
 				if let Some((t, _)) = tail {
-					let out = t.load();
+					let out = t.get_elem().retype::<T>();
 					*tail = None;
 					return Some(out);
 				}
@@ -636,7 +713,7 @@ where T: 'a + BitStore
 	fn next_back(&mut self) -> Option<Self::Item> {
 		match self.domain {
 			Domain::Enclave { elem, .. } => {
-				let out = elem.load();
+				let out = elem.get_elem().retype::<T>();
 				self.domain = Domain::empty();
 				Some(out)
 			},
@@ -646,16 +723,16 @@ where T: 'a + BitStore
 				ref mut tail,
 			} => {
 				if let Some((t, _)) = tail {
-					let out = t.load();
+					let out = t.get_elem().retype::<T>();
 					*tail = None;
 					return Some(out);
 				}
 				if let Some((out, rest)) = body.split_last() {
 					*body = rest;
-					return Some(out.load());
+					return Some(out.get_elem().retype::<T>());
 				}
 				if let Some((_, h)) = head {
-					let out = h.load();
+					let out = h.get_elem().retype::<T>();
 					*head = None;
 					return Some(out);
 				}

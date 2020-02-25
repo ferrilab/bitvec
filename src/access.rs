@@ -193,16 +193,6 @@ where M: BitMemory
 	fn store(&self, value: M) {
 		Radium::store(self, value, Ordering::Relaxed)
 	}
-
-	/// Converts a slice of `BitAccess` to a mutable slice of `BitStore`.
-	///
-	/// # Safety
-	///
-	/// This can only be called on wholly owned, uncontended, regions.
-	#[allow(clippy::mut_from_ref)] // I *am* the law, Clippy
-	unsafe fn as_slice_mut(this: &[Self]) -> &mut [M] {
-		&mut *(this as *const [Self] as *const [M] as *mut [M])
-	}
 }
 
 impl<M, R> BitAccess<M> for R
