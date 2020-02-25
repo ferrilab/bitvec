@@ -112,9 +112,12 @@ are dominant."
 		println!("Print out the semantic contents");
 		println!("{:#?}", bs);
 		println!("Print out the memory contents");
-		println!("{:?}", bs.as_slice());
+		println!("{:?}", unsafe {
+			&*(bs.as_slice() as *const [T] as *const [T::Mem])
+		});
 		println!("Show the bits in memory");
-		for elt in bs.as_slice() {
+		for elt in unsafe { &*(bs.as_slice() as *const [T] as *const [T::Mem]) }
+		{
 			println!("{:0w$b} ", elt, w = std::mem::size_of::<T>() * 8);
 		}
 		println!();
