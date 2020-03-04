@@ -52,9 +52,6 @@ radium = "0.3"
 
 [dependencies.serde]
 default-features = false
-features = [
-	"derive",
-]
 optional = true
 version = "1"
 
