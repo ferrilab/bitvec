@@ -207,6 +207,10 @@ mod seal {
 	pub trait Sealed {}
 }
 
+//  This test must be disabled while `static_assertions` has a bug.
+//  Rust doesn’t offer a `cfg(false)`, so this selects a valid key with an
+//  impossible value.
+#[cfg(target_endian = "disabled")]
 #[cfg(test)]
 mod tests {
 	use crate::prelude::*;
