@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 if [[ ! -z $COVERAGE ]]; then
     # Uncomment the following line for coveralls.io
     # cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID

@@ -79,7 +79,7 @@ addons:
       - libssl-dev
 
 before_cache:
-  - bash ci/install_taurpin.sh
+  - bash ci/install_tarpaulin.sh
 
 before_install:
   - set -e
