@@ -511,13 +511,13 @@ pub const fn u32_from_le_bytes(bytes: [u8; 4]) -> u32 {
 
 #[doc(hidden)]
 pub const fn u64_from_be_bytes(bytes: [u8; 8]) -> u64 {
-	(u32_from_be_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]) as u64) << 32
-		| u32_from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as u64
+	(u32_from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as u64) << 32
+		| (u32_from_be_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]) as u64)
 }
 
 #[doc(hidden)]
 pub const fn u64_from_le_bytes(bytes: [u8; 8]) -> u64 {
-	(u32_from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as u64) << 32
+	(u32_from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]) as u64) << 32
 		| u32_from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as u64
 }
 
