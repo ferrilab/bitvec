@@ -4,6 +4,15 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+## 0.17.3
+
+### Fixed <!-- omit in toc -->
+
+GitHub users [@Alexhuszagh] and [@obeah] noted in [Issue #43] that the sequence
+storage constructors used by the `bits!` macro yielded incorrect behavior. The
+error was a copy-paste error in the production of byte reördering functions used
+by the macro.
+
 ## 0.17.2
 
 ### Fixed
@@ -659,6 +668,7 @@ Initial implementation and release.
 - `BitVec` type with basic `Vec` idioms and parallel trait implementations
 - `bitvec!` generator macro
 
+[@Alexhuszagh]: //github.com/Alexhuszagh
 [@Fotosmile]: https://github.com/Fotosmile
 [@GeorgeGkas]: https://github.com/GeorgeGkas
 [@ImmemorConsultrixContrarie]: https://github.com/ImmemorConsultrixContrarie
@@ -668,6 +678,7 @@ Initial implementation and release.
 [@koushiro]: https://github.com/koushiro
 [@lynaghk]: https://github.com/lynaghk
 [@mystor]: https://github.com/mystor
+[@obeah]: //github.com/obeah
 [@overminder]: https://github.com/overminder
 [@ratorx]: https://github.com/ratorx
 [@schomatis]: https://github.com/schomatis
@@ -684,6 +695,7 @@ Initial implementation and release.
 [Issue #35]: https://github.com/myrrlyn/bitvec/issues/35
 [Issue #36]: https://github.com/myrrlyn/bitvec/issues/36
 [Issue #40]: https://github.com/myrrlyn/bitvec/issues/40
+[Issue #43]: https://github.com/myrrlyn/bitvec/issues/43
 [Pull Request #34]: https://github.com/myrrlyn/bitvec/pull/34
 [Pull Request #41]: https://github.com/myrrlyn/bitvec/pull/41
 [`Sync`]: https://doc.rust-lang.org/stable/core/marker/trait.Sync.html
