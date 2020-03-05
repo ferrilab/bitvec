@@ -8,8 +8,6 @@ use crate::{
 };
 
 use core::ops::{
-	Add,
-	AddAssign,
 	BitAnd,
 	BitAndAssign,
 	BitOr,
@@ -20,7 +18,6 @@ use core::ops::{
 	DerefMut,
 	Index,
 	IndexMut,
-	Neg,
 	Not,
 	Range,
 	RangeFrom,
@@ -32,118 +29,7 @@ use core::ops::{
 	ShlAssign,
 	Shr,
 	ShrAssign,
-	Sub,
-	SubAssign,
 };
-
-/** Adds two `BitVec`s together, zero-extending the shorter.
-
-`BitVec` addition works just like adding numbers longhand on paper. The first
-bits in the `BitVec` are the highest, so addition works from right to left, and
-the shorter `BitVec` is assumed to be extended to the left with zero.
-
-The output `BitVec` may be one bit longer than the longer input, if addition
-overflowed.
-
-Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
-computation on variable-length integers should use the `num_bigint` crate
-instead, which is written specifically for that use case. `BitVec`s are not
-intended for arithmetic, and `bitvec` makes no guarantees about sustained
-correctness in arithmetic at this time.
-**/
-impl<O, T> Add for BitVec<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	type Output = Self;
-
-	/// Adds two `BitVec`s.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let a = bitvec![0, 1, 0, 1];
-	/// let b = bitvec![0, 0, 1, 1];
-	/// let s = a + b;
-	/// assert_eq!(bitvec![1, 0, 0, 0], s);
-	/// ```
-	///
-	/// This example demonstrates the addition of differently-sized `BitVec`s,
-	/// and will overflow.
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let a = bitvec![1; 4];
-	/// let b = bitvec![1; 1];
-	/// let s = b + a;
-	/// assert_eq!(bitvec![1, 0, 0, 0, 0], s);
-	/// ```
-	fn add(mut self, addend: Self) -> Self::Output {
-		self += addend;
-		self
-	}
-}
-
-/** Adds another `BitVec` into `self`, zero-extending the shorter.
-
-`BitVec` addition works just like adding numbers longhand on paper. The first
-bits in the `BitVec` are the highest, so addition works from right to left, and
-the shorter `BitVec` is assumed to be extended to the left with zero.
-
-The output `BitVec` may be one bit longer than the longer input, if addition
-overflowed.
-
-Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
-computation on variable-length integers should use the `num_bigint` crate
-instead, which is written specifically for that use case. `BitVec`s are not
-intended for arithmetic, and `bitvec` makes no guarantees about sustained
-correctness in arithmetic at this time.
-**/
-impl<O, T> AddAssign for BitVec<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	/// Adds another `BitVec` into `self`.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let mut a = bitvec![1, 0, 0, 1];
-	/// let b = bitvec![0, 1, 1, 1];
-	/// a += b;
-	/// assert_eq!(a, bitvec![1, 0, 0, 0, 0]);
-	/// ```
-	fn add_assign(&mut self, mut addend: Self) {
-		use core::iter::repeat;
-		//  If the other vec is longer, swap them before continuing.
-		if addend.len() > self.len() {
-			mem::swap(self, &mut addend);
-		}
-		//  Now that self.len() >= addend.len(), proceed with addition.
-		let mut c = false;
-		let mut stack = BitVec::<O, T>::with_capacity(self.len());
-		let addend = addend.into_iter().rev().chain(repeat(false));
-		for (a, b) in self.iter().copied().rev().zip(addend) {
-			let (y, z) = crate::rca1(a, b, c);
-			stack.push(y);
-			c = z;
-		}
-		//  If the carry made it to the end, push it.
-		if c {
-			stack.push(true);
-		}
-		//  Unwind the stack into `self`.
-		self.clear();
-		self.extend(stack.into_iter().rev());
-	}
-}
 
 /** Performs the Boolean `AND` operation between each element of a `BitVec` and
 anything that can provide a stream of `bool` values (such as another `BitVec`,
@@ -588,48 +474,6 @@ where
 	}
 }
 
-/** 2’s-complement negation of a `BitVec`.
-
-In 2’s-complement, negation is defined as bit-inversion followed by adding one.
-
-Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
-computation on variable-length integers should use the `num_bigint` crate
-instead, which is written specifically for that use case. `BitVec`s are not
-intended for arithmetic, and `bitvec` makes no guarantees about sustained
-correctness in arithmetic at this time.
-**/
-impl<O, T> Neg for BitVec<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	type Output = Self;
-
-	/// Numerically negates a `BitVec` using 2’s-complement arithmetic.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bv = bitvec![0, 1, 1];
-	/// let ne = -bv;
-	/// assert_eq!(ne, bitvec![1, 0, 1]);
-	/// ```
-	fn neg(mut self) -> Self::Output {
-		//  An empty vector does nothing.
-		//  Negative zero is zero. Without this check, -[0+] becomes[10+1].
-		if self.is_empty() || self.not_any() {
-			return self;
-		}
-		self = !self;
-		let mut one = Self::new();
-		one.push(true);
-		self += one;
-		self
-	}
-}
-
 /// Flips all bits in the vector.
 impl<O, T> Not for BitVec<O, T>
 where
@@ -905,147 +749,6 @@ where
 		}
 		for idx in 0 .. shamt {
 			self.set(idx, false);
-		}
-	}
-}
-
-/** Subtracts one `BitVec` from another assuming 2’s-complement encoding.
-
-Subtraction is a more complex operation than addition. The bit-level work is
-largely the same, but semantic distinctions must be made. Unlike addition, which
-is commutative and tolerant of switching the order of the addends, subtraction
-cannot swap the minuend (LHS) and subtrahend (RHS).
-
-Because of the properties of 2’s-complement arithmetic, M - S is equivalent to M
-+ (!S + 1). Subtraction therefore bitflips the subtrahend and adds one. This
-may, in a degenerate case, cause the subtrahend to increase in length.
-
-Once the subtrahend is stable, the minuend zero-extends its left side in order
-to match the length of the subtrahend if needed (this is provided by the `>>`
-operator).
-
-When the minuend is stable, the minuend and subtrahend are added together by the
-`<BitVec as Add>` implementation. The output will be encoded in 2’s-complement,
-so a leading one means that the output is considered negative.
-
-Interpreting the contents of a `BitVec` as an integer is beyond the scope of
-this crate.
-
-Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
-computation on variable-length integers should use the `num_bigint` crate
-instead, which is written specifically for that use case. `BitVec`s are not
-intended for arithmetic, and `bitvec` makes no guarantees about sustained
-correctness in arithmetic at this time.
-**/
-impl<O, T> Sub for BitVec<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	type Output = Self;
-
-	/// Subtracts one `BitVec` from another.
-	///
-	/// # Examples
-	///
-	/// Minuend larger than subtrahend, positive difference.
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let a = bitvec![1, 0];
-	/// let b = bitvec![   1];
-	/// let c = a - b;
-	/// assert_eq!(bitvec![0, 1], c);
-	/// ```
-	///
-	/// Minuend smaller than subtrahend, negative difference.
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let a = bitvec![   1];
-	/// let b = bitvec![1, 0];
-	/// let c = a - b;
-	/// assert_eq!(bitvec![1, 1], c);
-	/// ```
-	///
-	/// Subtraction from self is correctly handled.
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let a = bitvec![0, 1, 1, 0];
-	/// let b = a.clone();
-	/// let c = a - b;
-	/// assert!(c.not_any(), "{:?}", c);
-	/// ```
-	fn sub(mut self, subtrahend: Self) -> Self::Output {
-		self -= subtrahend;
-		self
-	}
-}
-
-/** Subtracts another `BitVec` from `self`, assuming 2’s-complement encoding.
-
-The minuend is zero-extended, or the subtrahend sign-extended, as needed to
-ensure that the vectors are the same width before subtraction occurs.
-
-The `Sub` trait has more documentation on the subtraction process.
-
-Numeric arithmetic is provided on `BitVec` as a convenience. Serious numeric
-computation on variable-length integers should use the `num_bigint` crate
-instead, which is written specifically for that use case. `BitVec`s are not
-intended for arithmetic, and `bitvec` makes no guarantees about sustained
-correctness in arithmetic at this time.
-**/
-impl<O, T> SubAssign for BitVec<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	/// Subtracts another `BitVec` from `self`.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let a = bitvec![0, 0, 0, 1];
-	/// let b = bitvec![0, 0, 0, 0];
-	/// let c = a - b;
-	/// assert_eq!(c, bitvec![0, 0, 0, 1]);
-	/// ```
-	//  Note: in `a - b`, `a` is `self` and the minuend, `b` is the subtrahend
-	fn sub_assign(&mut self, mut subtrahend: Self) {
-		//  Test for a zero subtrahend. Subtraction of zero is the identity
-		//  function, and can exit immediately.
-		if subtrahend.not_any() {
-			return;
-		}
-		//  Invert the subtrahend in preparation for addition
-		subtrahend = -subtrahend;
-		let (llen, rlen) = (self.len(), subtrahend.len());
-		//  If the subtrahend is longer than the minuend, 0-extend the minuend.
-		if rlen > llen {
-			let diff = rlen - llen;
-			*self >>= diff;
-		}
-		else {
-			//  If the minuend is longer than the subtrahend, sign-extend the
-			//  subtrahend.
-			if llen > rlen {
-				let diff = llen - rlen;
-				let sign = subtrahend[0];
-				subtrahend >>= diff;
-				subtrahend[.. diff].set_all(sign);
-			}
-		}
-		let old = self.len();
-		*self += subtrahend;
-		//  If the subtraction emitted a carry, remove it.
-		if self.len() > old {
-			*self <<= 1;
 		}
 	}
 }

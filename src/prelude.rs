@@ -32,6 +32,3 @@ pub use crate::{
 	boxed::BitBox,
 	vec::BitVec,
 };
-
-#[allow(deprecated)]
-pub use crate::cursor::*;

@@ -2,8 +2,6 @@
 
 extern crate test;
 
-use core::ops::AddAssign;
-
 use bitvec::prelude::*;
 use test::{
 	bench::black_box,
@@ -137,47 +135,5 @@ fn get_mut(b: &mut Bencher) {
 		let mut src = [0u64; 2];
 		let bsl64 = src.bits_mut::<Lsb0>();
 		b.iter(|| *bsl64.get_mut(69).unwrap() = true);
-	}
-}
-
-#[bench]
-fn add_assign(b: &mut Bencher) {
-	let mut src = [0u8; 16];
-	let bsb08a = src.bits_mut::<Msb0>();
-	let bsb08b = [0u8; 16].bits::<Msb0>();
-	let mut src = [0u8; 16];
-	let bsl08a = src.bits_mut::<Lsb0>();
-	let bsl08b = [0u8; 16].bits::<Lsb0>();
-	b.iter(|| bsb08a.add_assign(bsb08b.iter().copied()));
-	b.iter(|| bsl08a.add_assign(bsl08b.iter().copied()));
-
-	let mut src = [0u16; 8];
-	let bsb16a = src.bits_mut::<Msb0>();
-	let bsb16b = [0u16; 8].bits::<Msb0>();
-	let mut src = [0u16; 8];
-	let bsl16a = src.bits_mut::<Lsb0>();
-	let bsl16b = [0u16; 8].bits::<Lsb0>();
-	b.iter(|| bsb16a.add_assign(bsb16b.iter().copied()));
-	b.iter(|| bsl16a.add_assign(bsl16b.iter().copied()));
-
-	let mut src = [0u32; 4];
-	let bsb32a = src.bits_mut::<Msb0>();
-	let bsb32b = [0u32; 4].bits::<Msb0>();
-	let mut src = [0u32; 4];
-	let bsl32a = src.bits_mut::<Lsb0>();
-	let bsl32b = [0u32; 4].bits::<Lsb0>();
-	b.iter(|| bsb32a.add_assign(bsb32b.iter().copied()));
-	b.iter(|| bsl32a.add_assign(bsl32b.iter().copied()));
-
-	#[cfg(target_pointer_width = "64")]
-	{
-		let mut src = [0u64; 2];
-		let bsb64a = src.bits_mut::<Msb0>();
-		let bsb64b = [0u64; 2].bits::<Msb0>();
-		let mut src = [0u64; 2];
-		let bsl64a = src.bits_mut::<Lsb0>();
-		let bsl64b = [0u64; 2].bits::<Lsb0>();
-		b.iter(|| bsb64a.add_assign(bsb64b.iter().copied()));
-		b.iter(|| bsl64a.add_assign(bsl64b.iter().copied()));
 	}
 }

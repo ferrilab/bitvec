@@ -39,8 +39,6 @@ the elements on the edges are actually aliased! This test demonstrates using
 taint to only the affected addresses.
 !*/
 
-#![cfg(feature = "std")]
-
 #[cfg(feature = "std")]
 extern crate bitvec;
 

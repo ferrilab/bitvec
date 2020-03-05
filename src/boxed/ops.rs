@@ -10,8 +10,6 @@ use crate::{
 use alloc::vec::Vec;
 
 use core::ops::{
-	Add,
-	AddAssign,
 	BitAnd,
 	BitAndAssign,
 	BitOr,
@@ -22,7 +20,6 @@ use core::ops::{
 	DerefMut,
 	Index,
 	IndexMut,
-	Neg,
 	Not,
 	Range,
 	RangeFrom,
@@ -35,30 +32,6 @@ use core::ops::{
 	Shr,
 	ShrAssign,
 };
-
-impl<O, T> Add<Self> for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	type Output = Self;
-
-	fn add(mut self, addend: Self) -> Self::Output {
-		self += addend;
-		self
-	}
-}
-
-impl<O, T> AddAssign for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn add_assign(&mut self, addend: Self) {
-		self.as_mut_bitslice()
-			.add_assign(addend.as_bitslice().iter().copied())
-	}
-}
 
 impl<O, T, I> BitAnd<I> for BitBox<O, T>
 where
@@ -315,19 +288,6 @@ where
 	) -> &mut Self::Output
 	{
 		&mut self.as_mut_bitslice()[range]
-	}
-}
-
-impl<O, T> Neg for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	type Output = Self;
-
-	fn neg(mut self) -> Self::Output {
-		let _ = self.as_mut_bitslice().neg();
-		self
 	}
 }
 

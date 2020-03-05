@@ -349,7 +349,7 @@ where
 		Self::from_vec(buf)
 	}
 
-	/// Consumes a `Vec<T>` and creates a `BitVec<C, T>` from it.
+	/// Consumes a `Vec<T>` and creates a `BitVec<O, T>` from it.
 	///
 	/// # Parameters
 	///
@@ -487,7 +487,7 @@ where
 		unsafe { Self::from_raw_parts(bitptr, bitptr.elements()) }
 	}
 
-	/// Creates a new `BitVec<C, T>` directly from the raw parts of another.
+	/// Creates a new `BitVec<O, T>` directly from the raw parts of another.
 	///
 	/// # Parameters
 	///
@@ -519,7 +519,7 @@ where
 	/// allocation.
 	///
 	/// The ownership of `pointer` is effectively transferred to the
-	/// `BitVec<C, T>` which may then deallocate, reallocate, or modify the
+	/// `BitVec<O, T>` which may then deallocate, reallocate, or modify the
 	/// contents of the referent slice at will. Ensure that nothing else uses
 	/// the pointer after calling this function.
 	#[inline]
@@ -616,99 +616,6 @@ where
 		self.as_mut_slice()
 			.iter_mut()
 			.for_each(|elt| *elt = unsafe { ptr::read(&element) });
-	}
-
-	/// Performs “reverse” addition (left to right instead of right to left).
-	///
-	/// This addition traverses the addends from left to right, performing
-	/// the addition at each index and writing the sum into `self`.
-	///
-	/// If `addend` expires before `self` does, `addend` is zero-extended and
-	/// the carry propagates through the rest of `self`. If `self` expires
-	/// before `addend`, then `self` is zero-extended and the carry propagates
-	/// through the rest of `addend`, growing `self` until `addend` expires.
-	///
-	/// An infinite `addend` will cause unbounded memory growth until the vector
-	/// overflows and panics.
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	/// - `addend: impl IntoIterator<Item=bool>`: A stream of bits to add into
-	///   `self`, from left to right.
-	///
-	/// # Returns
-	///
-	/// The sum vector of `self` and `addend`.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let a = bitvec![0, 1, 0, 1];
-	/// let b = bitvec![0, 0, 1, 1];
-	/// let c = a.add_reverse(b);
-	/// assert_eq!(c, bitvec![0, 1, 1, 0, 1]);
-	/// ```
-	pub fn add_reverse<I>(mut self, addend: I) -> Self
-	where I: IntoIterator<Item = bool> {
-		self.add_assign_reverse(addend);
-		self
-	}
-
-	/// Performs “reverse” addition (left to right instead of right to left).
-	///
-	/// This addition traverses the addends from left to right, performing
-	/// the addition at each index and writing the sum into `self`.
-	///
-	/// If `addend` expires before `self` does, `addend` is zero-extended and
-	/// the carry propagates through the rest of `self`. If `self` expires
-	/// before `addend`, then `self` is zero-extended and the carry propagates
-	/// through the rest of `addend`, growing `self` until `addend` expires.
-	///
-	/// An infinite `addend` will cause unbounded memory growth until the vector
-	/// overflows and panics.
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`
-	/// - `addend: impl IntoIterator<Item=bool>`: A stream of bits to add into
-	///   `self`, from left to right.
-	///
-	/// # Effects
-	///
-	/// `self` may grow as a result of the final carry-out bit being `1` and
-	/// pushed onto the right end.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let mut a = bitvec![0, 1, 0, 1];
-	/// let b = bitvec![0, 0, 1, 1];
-	/// a.add_assign_reverse(b.iter().copied());
-	/// assert_eq!(a, bitvec![0, 1, 1, 0, 1]);
-	/// ```
-	pub fn add_assign_reverse<I>(&mut self, addend: I)
-	where I: IntoIterator<Item = bool> {
-		//  Set up iteration over the addend
-		let mut addend = addend.into_iter().fuse();
-		//  Delegate to the `BitSlice` implementation for the initial addition.
-		//  If `addend` expires first, it zero-extends; if `self` expires first,
-		//  `addend` will still have its remnant for the next stage.
-		let mut c = self.as_mut_bitslice().add_assign_reverse(addend.by_ref());
-		//  If `addend` still has bits to provide, zero-extend `self` and add
-		//  them in.
-		for b in addend {
-			let (y, z) = crate::rca1(false, b, c);
-			self.push(y);
-			c = z;
-		}
-		if c {
-			self.push(true);
-		}
 	}
 
 	/// Changes the order type on the vector handle, without changing its

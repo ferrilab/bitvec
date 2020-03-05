@@ -64,13 +64,6 @@ fn readme() {
 	//  And again
 	bv = !bv;
 
-	//  `BitVec` also has rudimentary `BigInt` capability
-	let one = bitvec![Msb0, u8; 1];
-	bv += one.clone();
-	assert_eq!(bv.as_slice(), &[0b0101_0001, 0b0000_0000],);
-	bv -= one;
-	assert_eq!(bv.as_slice(), &[0b0101_0000, 0b1111_0000],);
-
 	//  It can iterate
 	let mut count = 0;
 	for bit in bv.iter() {

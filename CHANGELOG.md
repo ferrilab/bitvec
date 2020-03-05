@@ -1,12 +1,109 @@
-# Changelog
+# Changelog <!-- omit in toc -->
 
 All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+1. [0.18.0](#0180)
+      1. [Type-Level Alias Detection](#type-level-alias-detection)
+1. [0.17.3](#0173)
+1. [0.17.2](#0172)
+1. [0.17.1](#0171)
+1. [0.17.0](#0170)
+1. [0.16.2](#0162)
+1. [0.16.1](#0161)
+1. [0.16.0](#0160)
+1. [0.15.2](#0152)
+1. [0.15.1](#0151)
+1. [0.15.0](#0150)
+1. [0.14.0](#0140)
+1. [0.13.0](#0130)
+1. [0.12.0](#0120)
+1. [0.11.3](#0113)
+1. [0.11.2](#0112)
+1. [0.11.1](#0111)
+1. [0.11.0](#0110)
+1. [0.10.2](#0102)
+1. [0.10.1](#0101)
+1. [0.10.0](#0100)
+1. [0.9.0](#090)
+1. [0.8.0](#080)
+1. [0.7.0](#070)
+1. [0.6.0](#060)
+1. [0.5.0](#050)
+1. [0.4.0](#040)
+1. [0.3.0](#030)
+1. [0.2.0](#020)
+1. [0.1.0](#010)
+
+## 0.18.0
+
+### Added <!-- omit in toc -->
+
+The CI test harness now covers targets beyond `x86_64-unknown-linux-gnu`, thanks
+to GitHub user [@Alexhuszagh]. `bitvec` guarantees support for all targets
+listed in the CI matrix through at least the next major relase. If your target
+is not in this list, please file an issue for inclusion.
+
+### Changed <!-- omit in toc -->
+
+The implementation of the `BitStore` trait is refactored to fully separate the
+concepts of memory storage and access. This is not a breaking change to the user
+API, as `BitStore` is an opaque trait that can only be used in marker position.
+
+The concrete effect of the `BitStore` internal refactor is that the default case
+of memory access is no longer atomic. Slices that have not called
+`.split_at_mut` are now guaranteed to elide bus locks to memory when they write.
+
+#### Type-Level Alias Detection
+
+There is a user-facing breaking change as a result of this work: all methods
+which transitively call `.split_at_mut` or `.split_at_mut_unchecked` are now
+marked as being of the type `&mut BitSlice<O, T> -> &mut BitSlice<O, T::Alias>`.
+This distinction reënables synchronized access to memory. Slices marked with an
+aliasing storage parameter are subject to atomic locks or `Cell` thread-unsafety
+until the alias mark is removed.
+
+Storage-generic code will need to deal with the `::Alias` markers.
+Concretely-typed code will likely not be affected, unless bindings are
+explicitly typed.
+
+Any `BitSlice` can be broken into a memory domain description that minimizes the
+aliased condition and maximizes the memory that it may access unaliased. The
+four methods `.{bit_,}domain{,_mut}()` produce memory descriptors
+`{Bit,}Domain{,Mut}`, which subslice the memory region into aliased and
+unaliased components.
+
+### Removed <!-- omit in toc -->
+
+- The numeric arithmetic behavior has been fully removed, as per [Issue #17] and
+  [Issue #50], filed by GitHub user [@luojia65]. The reason for this removal is
+  that `BitSlice` implements lexicographic ordering, which differs from the
+  numeric ordering expected by interpreting a `BitSlice` as a variable-length
+  2’s-complement un/signed integer.
+
+  Issue #17 requests that the varint behavior be moved to its own crate. No such
+  crate currently exists, nor do I *immediately* plan to maintain one. If you
+  rely on `bitvec` for a varint implementation, please contact me, and I will
+  work with you to rebuild the removed behavior in an external crate, on
+  wrapping types that erase the purely lexicographic behavior of `BitSlice`.
+
+- `AsRef<[T]>` and `AsMut<[T]>` are removed. Use the domain methods or
+  `.as_slice()`/`.as_mut_slice()` if you require direct access to backing
+  storage.
+
+## 0.17.3
+
+### Fixed <!-- omit in toc -->
+
+GitHub users [@Alexhuszagh] and [@obeah] noted in [Issue #43] that the sequence
+storage constructors used by the `bits!` macro yielded incorrect behavior. The
+error was a copy-paste error in the production of byte reördering functions used
+by the macro.
+
 ## 0.17.2
 
-### Fixed
+### Fixed <!-- omit in toc -->
 
 GitHub user [@ImmemorConsultrixContrarie] reported [Issue #40], and provided
 [Pull Request #41]. The defect report was a `STATUS_ILLEGAL_INSTRUCTION` event
@@ -26,26 +123,26 @@ Thanks again to [@ImmemorConsultrixContrarie] for the report and solution!
 
 ## 0.17.1
 
-### Added
+### Added <!-- omit in toc -->
 
 This patch restores the `cursor` module and its types, as aliases to the `order`
 module and their equivalents, with a deprecation warning. Removing these names
 entirely, without a deprecation redirect, is technically permissible but morally
 in error.
 
-### Changed
+### Changed <!-- omit in toc -->
 
 In addition, the `Bits` trait has been renamed to `AsBits`, to better reflect
 its behavior and reduce the chances of name collision, as it is a prelude
 export.
 
-### Removed
+### Removed <!-- omit in toc -->
 
 The `AsBits::as_{mut_,}bitslice` deprecation aliases have been removed.
 
 ## 0.17.0
 
-### Added
+### Added <!-- omit in toc -->
 
 - `BitField` trait now has `{load,store}_{le,be}` methods for explicitly
   choosing *element* order when performing storage. The `load`/`store` methods
@@ -64,13 +161,13 @@ The `AsBits::as_{mut_,}bitslice` deprecation aliases have been removed.
 
 - `usize` implements `BitStore`, and is now the default type argument.
 
-### Changed
+### Changed <!-- omit in toc -->
 
 - Rename the `cursor` module to `order`, the `Cursor` trait to `BitOrder`, and
   the `BigEndian` and `LittleEndian` types to `Msb0` and `Lsb0`, respectively
 - Fold `BitsMut` into `Bits`
 
-## Removed
+### Removed <!-- omit in toc -->
 
 - The Rust types `T`, `[T; 0 <= N <= 32]`, and `[T]` for `T: BitStore` no longer
 implement `AsRef<BitSlice<_, T>>` or `AsMut<BitSlice<_, T>>`. This decision was
@@ -82,7 +179,7 @@ made due to consideration of [Issue #35], by GitHub user [@Fotosmile].
 
 ## 0.16.2
 
-### Fixed
+### Fixed <!-- omit in toc -->
 
 Updated `radium` dependency to `0.3`, which enables it to compile on the
 `thumbv7m-none-eabi` target. This addresses [Issue #36], which noted that
@@ -99,7 +196,7 @@ it expected to be present.
 
 ## 0.16.0
 
-### Added
+### Added <!-- omit in toc -->
 
 - `Cursor` now provides a `mask` function, which produces a one-hot mask usable
   for direct memory access. Implementors of `Cursor` may use the default, or
@@ -138,7 +235,7 @@ it expected to be present.
   not able to be used as an `&mut bool`, so the API is still not an exact mirror
   of the standard library.
 
-### Changed
+### Changed <!-- omit in toc -->
 
 - The default order and storage type parameters for all type constructors in the
   library have been changed. This means that `BitSlice`, `BitBox`, `BitVec`, and
@@ -167,7 +264,7 @@ it expected to be present.
 - `BitSlice::as_slice` excludes partial edge elements. `BitBox` and `BitVec` do
   not.
 
-### Removed
+### Removed <!-- omit in toc -->
 
 - `BitSlice::change_cursor` and `change_cursor_mut` allow incorrectly aliasing
   memory with different slice handles, because there is no way for them to
@@ -193,7 +290,7 @@ it expected to be present.
 
 ## 0.15.2
 
-### Changed
+### Changed <!-- omit in toc -->
 
 The `bitvec![bit; rep]` construction macro has its implementation rewritten to
 be much faster. This fault was reported by GitHub user [@caelunshun] in
@@ -201,7 +298,7 @@ be much faster. This fault was reported by GitHub user [@caelunshun] in
 
 ## 0.15.1
 
-### Removed
+### Removed <!-- omit in toc -->
 
 The `Send` implementation on `BitSlice` is removed when the `atomic` feature is
 disabled.
@@ -223,7 +320,7 @@ I have decided to make this a patch release rather than bump the minor version.
 
 ## 0.15.0
 
-### Changed
+### Changed <!-- omit in toc -->
 
 The minimum compiler version was increased to `1.36.0`, which stabilized the
 `alloc` crate. As such, the `#![feature(alloc)]` flag has been removed from the
@@ -242,7 +339,7 @@ dependency on `alloc`, and the allocating types. The `std` feature alone now
 
 ## 0.14.0
 
-### Added
+### Added <!-- omit in toc -->
 
 - `add_assign_reverse` on `BitSlice` and `BitVec`, and `add_reverse` on
   `BitBox` and `BitVec`.
@@ -256,7 +353,7 @@ dependency on `alloc`, and the allocating types. The `std` feature alone now
 
 ## 0.13.0
 
-### Changed
+### Changed <!-- omit in toc -->
 
 - The `BitPtr<T>` internal representation replaced the elements/tail tuple with
   a bit-length counter. Most of the changes as a result of this were purely
@@ -265,7 +362,7 @@ dependency on `alloc`, and the allocating types. The `std` feature alone now
 
 ## 0.12.0
 
-### Added
+### Added <!-- omit in toc -->
 
 - `BitSlice::at` simulates a write reference to a single bit. It creates an
   instance of `slice::BitGuard`, which holds a mutable reference to the
@@ -312,7 +409,7 @@ dependency on `alloc`, and the allocating types. The `std` feature alone now
   unsafe, as they are raw memory access with no safeguards to ensure the read or
   write is within bounds.
 
-### Changed
+### Changed <!-- omit in toc -->
 
 - `BitVec::retain` changed its function argument from `(bool) -> bool` to
   `(usize, bool) -> bool`, and passes the index as well as the value.
@@ -336,7 +433,7 @@ GitHub user [@schomatis] for the report.
 
 ## 0.11.2
 
-### Added
+### Added <!-- omit in toc -->
 
 - `BitBox` and `BitVec` implement [`Sync`], as discussion with [@ratorx] and
   more careful reading of the documentation for `Sync` has persuaded me that
@@ -358,7 +455,7 @@ a feature gate, `serde`, which depends on the `alloc` feature.
 `BitSlice`, `BitBox`, and `BitVec` all support serialization, and `BitBox` and
 `BitVec` support deserialization
 
-### Added
+### Added <!-- omit in toc -->
 
 - `serde` feature to serialize `BitSlice`, `BitBox`, and `BitVec`, and
   deserialize `BitBox` and `BitVec`.
@@ -377,7 +474,7 @@ a feature gate, `serde`, which depends on the `alloc` feature.
 - Clippy is now part of the development routine.
 - `bitbox!` macro wraps `bitvec!` to freeze the produced vector.
 
-### Changed
+### Changed <!-- omit in toc -->
 
 - The internal `Bits` trait uses a `const fn` stabilized in `1.33.0` in order to
   compute type information, rather than requiring explicit statements in the
@@ -390,7 +487,7 @@ a feature gate, `serde`, which depends on the `alloc` feature.
   produces `0` when empty, rather than `T::BITS`, allowing for more correct
   values in `serde` de/serialization.
 
-### Removed
+### Removed <!-- omit in toc -->
 
 - `BitPtr::set_head` and `BitPtr::set_tail`: in practice, `::new` and
   `::new_unchecked` were used at all potential use sites for these functions, as
@@ -401,7 +498,7 @@ a feature gate, `serde`, which depends on the `alloc` feature.
 - `BitPtr::is_full`: removed for being never used in the library, and not an
   interesting query.
 
-### Issues Resolved
+### Fixed <!-- omit in toc -->
 
 - [Issue #9] revealed a severe logic error in the construction of bit masks in
   `Bits::set_at`. Thanks to GitHub user [@torce] for the bug report!
@@ -453,7 +550,7 @@ This version was a complete rewrite of the entire crate. The minimum compiler
 version has been upgraded to `1.31.0`. The crate is written against the Rust
 2018 edition of the language. It will be a `1.0` release after polishing.
 
-### Added
+### Added <!-- omit in toc -->
 
 - `BitPtr` custom pointer representation. This is the most important component
   of the rewrite, and what enabled the expanded feature set and API surface.
@@ -470,7 +567,7 @@ version has been upgraded to `1.31.0`. The crate is written against the Rust
 - Range indexing and more powerful iteration. Bit-precision addressing allows
   arbitrary subslices and enables more of the slice API from `core`.
 
-### Changed
+### Changed <!-- omit in toc -->
 
 - Almost everything has been rewritten. The git diff for this version is
   horrifying.
@@ -478,14 +575,14 @@ version has been upgraded to `1.31.0`. The crate is written against the Rust
 - Formatting traits better leverage the builtin printing structures available
   from `core::fmt`, and are made available on `no_std`.
 
-### Removed
+### Removed <!-- omit in toc -->
 
 - `u64` is only usable as the storage type on 64-bit systems; it has 32-bit
   alignment on 32-bit systems and as such is unusable there.
 
 ## 0.9.0
 
-### Changed
+### Changed <!-- omit in toc -->
 
 - The trait `Endian` has been renamed to `Cursor`, and all type variables
   `E: Endian` have been renamed to `C: Cursor`.
@@ -494,7 +591,7 @@ version has been upgraded to `1.31.0`. The crate is written against the Rust
 
 ## 0.8.0
 
-### Added
+### Added <!-- omit in toc -->
 
 - `std` and `alloc` features, which can be disabled for use in `#![no_std]`
   libraries. This was implemented by Robert Habermeier, `rphmeier@gmail.com`.
@@ -503,13 +600,13 @@ version has been upgraded to `1.31.0`. The crate is written against the Rust
   `alloc` feature is not present. They will function normally when `alloc` is
   present but `std` is not.
 
-### Changed
+### Changed <!-- omit in toc -->
 
 - Compute `Bits::WIDTH` as `size_of::<Self>() * 8` instead of `1 << Bits::INDX`.
 
 ## 0.7.0
 
-### Added
+### Added <!-- omit in toc -->
 
 - `examples/readme.rs` tracks the contents of the example code in `README.md`.
   It will continue to do so until the `external_doc` feature stabilizes so that
@@ -521,7 +618,7 @@ version has been upgraded to `1.31.0`. The crate is written against the Rust
 - README sections describe why a user might want this library, and what makes it
   different than `bit-vec`.
 
-### Changed
+### Changed <!-- omit in toc -->
 
 - Update minimum Rust version to `1.30.0`.
 
@@ -539,7 +636,7 @@ version has been upgraded to `1.31.0`. The crate is written against the Rust
 
 ## 0.6.0
 
-### Changed
+### Changed <!-- omit in toc -->
 
 - Update minimum Rust version to `1.25.0` in order to use nested imports.
 - Fix logic in `Endian::prev`, and re-enabled edge tests.
@@ -549,7 +646,7 @@ version has been upgraded to `1.31.0`. The crate is written against the Rust
 
 ## 0.5.0
 
-### Added
+### Added <!-- omit in toc -->
 
 - `BitVec` and `BitSlice` implement `Hash`.
 
@@ -576,7 +673,7 @@ version has been upgraded to `1.31.0`. The crate is written against the Rust
 
 ## 0.4.0
 
-### Added
+### Added <!-- omit in toc -->
 
 `BitSlice::for_each` provides mutable iteration over a slice. It yields each
 successive `(index: usize, bit: bool)` pair to a closure, and stores the return
@@ -603,7 +700,7 @@ is impossible to write, so `BitVec == BitSlice` will be rejected.
 As with many other traits on `BitVec`, the implementations are just a thin
 wrapper over the corresponding `BitSlice` implementations.
 
-### Changed
+### Changed <!-- omit in toc -->
 
 Refine the API documentation. Rust guidelines recommend imperative rather than
 descriptive summaries for function documentation, which largely meant stripping
@@ -614,7 +711,7 @@ function-level documentation, so that it would show up an `type::func` in the
 `rustdoc` output rather than just `type`. This makes it much clearer what is
 being tested.
 
-### Removed
+### Removed <!-- omit in toc -->
 
 `BitVec` methods `iter` and `raw_len` moved to `BitSlice` in `0.3.0` but were
 not removed in that release.
@@ -625,14 +722,14 @@ The remaining debugging `eprintln!` calls have been stripped.
 
 Split `BitVec` off into `BitSlice` wherever possible.
 
-### Added
+### Added <!-- omit in toc -->
 
 - The `BitSlice` type is the `[T]` to `BitVec`'s `Vec<T>`. `BitVec` now `Deref`s
   to it, and has offloaded all the work that does not require managing allocated
   memory.
 - Almost all of the public API on both types has documentation and example code.
 
-### Changed
+### Changed <!-- omit in toc -->
 
 - The implementations of left- ard right- shift are now faster.
 - `BitVec` can `Borrow` and `Deref` down to `BitSlice`, and offloads as much
@@ -643,7 +740,7 @@ Split `BitVec` off into `BitSlice` wherever possible.
 
 Improved the `bitvec!` macro.
 
-### Changed
+### Changed <!-- omit in toc -->
 
 - `bitvec!` takes more syntaxes to better match `vec!`, and has better
   runtime performance. The increased static memory used by `bitvec!` should be
@@ -653,38 +750,44 @@ Improved the `bitvec!` macro.
 
 Initial implementation and release.
 
-### Added
+### Added <!-- omit in toc -->
 
 - `Endian` and `Bits` traits
 - `BitVec` type with basic `Vec` idioms and parallel trait implementations
 - `bitvec!` generator macro
 
-[@Fotosmile]: https://github.com/Fotosmile
-[@GeorgeGkas]: https://github.com/GeorgeGkas
-[@ImmemorConsultrixContrarie]: https://github.com/ImmemorConsultrixContrarie
-[@caelunshun]: https://github.com/caelunshun
-[@geq1t]: https://github.com/geq1t
-[@jonas-schievink]: https://github.com/jonas-schievink
-[@koushiro]: https://github.com/koushiro
-[@lynaghk]: https://github.com/lynaghk
-[@mystor]: https://github.com/mystor
-[@overminder]: https://github.com/overminder
-[@ratorx]: https://github.com/ratorx
-[@schomatis]: https://github.com/schomatis
-[@torce]: https://github.com/torce
-[Issue #7]: https://github.com/myrrlyn/bitvec/issues/7
-[Issue #8]: https://github.com/myrrlyn/bitvec/issues/8
-[Issue #9]: https://github.com/myrrlyn/bitvec/issues/9
-[Issue #10]: https://github.com/myrrlyn/bitvec/issues/10
-[Issue #12]: https://github.com/myrrlyn/bitvec/issues/12
-[Issue #15]: https://github.com/myrrlyn/bitvec/issues/15
-[Issue #16]: https://github.com/myrrlyn/bitvec/issues/16
-[Issue #28]: https://github.com/myrrlyn/bitvec/issues/28
-[Issue #33]: https://github.com/myrrlyn/bitvec/issues/33
-[Issue #35]: https://github.com/myrrlyn/bitvec/issues/35
-[Issue #36]: https://github.com/myrrlyn/bitvec/issues/36
-[Issue #40]: https://github.com/myrrlyn/bitvec/issues/40
-[Pull Request #34]: https://github.com/myrrlyn/bitvec/pull/34
-[Pull Request #41]: https://github.com/myrrlyn/bitvec/pull/41
-[`Sync`]: https://doc.rust-lang.org/stable/core/marker/trait.Sync.html
-[kac]: https://keepachangelog.com/en/1.0.0/
+[@Alexhuszagh]: //github.com/Alexhuszagh
+[@Fotosmile]: //github.com/Fotosmile
+[@GeorgeGkas]: //github.com/GeorgeGkas
+[@ImmemorConsultrixContrarie]: //github.com/ImmemorConsultrixContrarie
+[@caelunshun]: //github.com/caelunshun
+[@geq1t]: //github.com/geq1t
+[@jonas-schievink]: //github.com/jonas-schievink
+[@koushiro]: //github.com/koushiro
+[@luojia65]: //github.com/luojia65
+[@lynaghk]: //github.com/lynaghk
+[@mystor]: //github.com/mystor
+[@obeah]: //github.com/obeah
+[@overminder]: //github.com/overminder
+[@ratorx]: //github.com/ratorx
+[@schomatis]: //github.com/schomatis
+[@torce]: //github.com/torce
+[Issue #7]: //github.com/myrrlyn/bitvec/issues/7
+[Issue #8]: //github.com/myrrlyn/bitvec/issues/8
+[Issue #9]: //github.com/myrrlyn/bitvec/issues/9
+[Issue #10]: //github.com/myrrlyn/bitvec/issues/10
+[Issue #12]: //github.com/myrrlyn/bitvec/issues/12
+[Issue #15]: //github.com/myrrlyn/bitvec/issues/15
+[Issue #16]: //github.com/myrrlyn/bitvec/issues/16
+[Issue #17]: //github.com/myrrlyn/bitvec/issues/17
+[Issue #28]: //github.com/myrrlyn/bitvec/issues/28
+[Issue #33]: //github.com/myrrlyn/bitvec/issues/33
+[Issue #35]: //github.com/myrrlyn/bitvec/issues/35
+[Issue #36]: //github.com/myrrlyn/bitvec/issues/36
+[Issue #40]: //github.com/myrrlyn/bitvec/issues/40
+[Issue #43]: //github.com/myrrlyn/bitvec/issues/43
+[Issue #50]: //github.com/myrrlyn/bitvec/issues/50
+[Pull Request #34]: //github.com/myrrlyn/bitvec/pull/34
+[Pull Request #41]: //github.com/myrrlyn/bitvec/pull/41
+[`Sync`]: //doc.rust-lang.org/stable/core/marker/trait.Sync.html
+[kac]: //keepachangelog.com/en/1.0.0/

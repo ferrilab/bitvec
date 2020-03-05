@@ -74,7 +74,7 @@ use bitvec::prelude::*;
 let mut base = [0u8, 0, 0, 0];
 let bs: &mut BitSlice<_, _> = base.bits_mut::<Msb0>();
 bs.set(13, true);
-eprintln!("{:?}", bs.as_ref());
+eprintln!("{:?}", bs.as_slice());
 assert!(bs[13]);
 assert_eq!(base[1], 4);
 ```
@@ -237,7 +237,7 @@ where
 	/// let src = [1, 2, 3];
 	/// let bits = BitSlice::<Msb0, u8>::from_slice(&src[..]);
 	/// assert_eq!(bits.len(), 24);
-	/// assert_eq!(bits.as_ref().len(), 3);
+	/// assert_eq!(bits.as_slice().len(), 3);
 	/// assert!(bits[7]); // src[0] == 0b0000_0001
 	/// assert!(bits[14]); // src[1] == 0b0000_0010
 	/// assert!(bits[22]); // src[2] == 0b0000_0011
@@ -286,7 +286,7 @@ where
 	/// assert!(bits[0]);
 	/// bits.set(0, false);
 	/// assert!(!bits[0]);
-	/// assert_eq!(bits.as_ref(), &[0, 2, 3]);
+	/// assert_eq!(bits.as_slice(), &[0, 2, 3]);
 	/// ```
 	///
 	/// [`BitPtr`]: ../pointer/struct.BitPtr.html
@@ -445,6 +445,7 @@ where
 	/// and the rest) in order to hold multiple write references into the slice.
 	///
 	/// [`BitSliceIndex`]: trait.BitSliceIndex.html
+	/// [`Index::index`]: https://doc.rust-lang.org/core/ops/trait.Index.html#method.index
 	/// [`::get`]: #method.get
 	/// [`::split_at_mut`]: #method.split_at_mut
 	#[deprecated(since = "0.18.0", note = "Use `.get_mut()` instead")]
@@ -815,11 +816,11 @@ where
 	/// let mut src = 0u8;
 	/// let bits = src.bits_mut::<Msb0>();
 	/// bits[2 .. 6].set_all(true);
-	/// assert_eq!(bits.as_ref(), &[0b0011_1100]);
+	/// assert_eq!(bits.as_slice(), &[0b0011_1100]);
 	/// bits[3 .. 5].set_all(false);
-	/// assert_eq!(bits.as_ref(), &[0b0010_0100]);
+	/// assert_eq!(bits.as_slice(), &[0b0010_0100]);
 	/// bits[.. 1].set_all(true);
-	/// assert_eq!(bits.as_ref(), &[0b1010_0100]);
+	/// assert_eq!(bits.as_slice(), &[0b1010_0100]);
 	/// ```
 	pub fn set_all(&mut self, value: bool) {
 		match self.domain_mut() {
@@ -882,84 +883,6 @@ where
 				self.set_unchecked(idx, new);
 			}
 		}
-	}
-
-	/// Performs “reverse” addition (left to right instead of right to left).
-	///
-	/// This addition interprets the slice, and the other addend, as having its
-	/// least significant bits first in the order and its most significant bits
-	/// last. This is most likely to be numerically useful under a
-	/// `Lsb0` `BitOrder` type.
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`: The addition uses `self` as one addend, and writes the
-	///   sum back into `self`.
-	/// - `addend: impl IntoIterator<Item=bool>`: A stream of bits. When this is
-	///   another `BitSlice`, iteration proceeds from left to right.
-	///
-	/// # Return
-	///
-	/// The final carry bit is returned
-	///
-	/// # Effects
-	///
-	/// Starting from index `0` and proceeding upwards until either `self` or
-	/// `addend` expires, the carry-propagated addition of `self[i]` and
-	/// `addend[i]` is written to `self[i]`.
-	///
-	/// ```text
-	///   101111
-	/// + 0010__ (the two missing bits are logically zero)
-	/// --------
-	///   100000 1 (the carry-out is returned)
-	/// ```
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let mut a = 0b0000_1010u8;
-	/// let     b = 0b0000_1100u8;
-	/// //      s =      1 0110
-	/// let ab = &mut a.bits_mut::<Lsb0>()[.. 4];
-	/// let bb = &b.bits::<Lsb0>()[.. 4];
-	/// let c = ab.add_assign_reverse(bb.iter().copied());
-	/// assert!(c);
-	/// assert_eq!(a, 0b0000_0110u8);
-	/// ```
-	///
-	/// # Performance Notes
-	///
-	/// When using `Lsb0` `BitOrder` types, this can be accelerated by
-	/// delegating the addition to the underlying types. This is a software
-	/// implementation of the [ripple-carry adder], which has `O(n)` runtime in
-	/// the number of bits. The CPU is much faster, as it has access to
-	/// element-wise or vectorized addition operations.
-	///
-	/// If your use case sincerely needs binary-integer arithmetic operations on
-	/// bit sets, please file an issue.
-	///
-	/// [ripple-carry adder]: https://en.wikipedia.org/wiki/Ripple-carry_adder
-	pub fn add_assign_reverse<I>(&mut self, addend: I) -> bool
-	where I: IntoIterator<Item = bool> {
-		//  See AddAssign::add_assign for algorithm details
-		let mut c = false;
-		let len = self.len();
-		let zero = core::iter::repeat(false);
-		for (i, b) in addend.into_iter().chain(zero).enumerate().take(len) {
-			//  The iterator is clamped to the upper bound of `self`.
-			c = unsafe {
-				let a = *self.get_unchecked(i);
-				let (y, z) = crate::rca1(a, b, c);
-				//  Write the sum into `self`
-				self.set_unchecked(i, y);
-				//  Propagate the carry
-				z
-			};
-		}
-		c
 	}
 
 	/// Accesses the total backing stoarge of the `BitSlice`, as a slice of its

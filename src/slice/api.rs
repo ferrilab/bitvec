@@ -1948,6 +1948,8 @@ where
 	/// head.clone_from_slice(tail);
 	/// assert_eq!(data, 0x33);
 	/// ```
+	///
+	/// [`split_at_mut`]: #method.split_at_mut
 	pub fn clone_from_slice<P, U>(&mut self, src: &BitSlice<P, U>)
 	where
 		P: BitOrder,
@@ -2011,6 +2013,8 @@ where
 	/// head.copy_from_slice(tail);
 	/// assert_eq!(data, 0x33);
 	/// ```
+	///
+	/// [`split_at_mut`]: #method.split_at_mut
 	pub fn copy_from_slice(&mut self, src: &Self) {
 		self.clone_from_slice(src)
 	}
@@ -2065,6 +2069,8 @@ where
 	///
 	/// assert_eq!(data, 0xCC);
 	/// ```
+	///
+	/// [`split_at_mut`]: #method.split_at_mut
 	pub fn swap_with_slice<P, U>(&mut self, other: &mut BitSlice<P, U>)
 	where
 		P: BitOrder,

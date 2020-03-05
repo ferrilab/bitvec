@@ -13,13 +13,11 @@ use crate::{
 
 use core::{
 	ops::{
-		AddAssign,
 		BitAndAssign,
 		BitOrAssign,
 		BitXorAssign,
 		Index,
 		IndexMut,
-		Neg,
 		Not,
 		Range,
 		RangeFrom,
@@ -32,86 +30,6 @@ use core::{
 	},
 	ptr,
 };
-
-/** Performs unsigned addition in place on a `BitSlice`.
-
-If the addend bitstream is shorter than `self`, the addend is zero-extended at
-the left (so that its final bit matches with `self`’s final bit). If the addend
-is longer, the excess front length is unused.
-
-Addition proceeds from the right ends of each slice towards the left. Because
-this trait is forbidden from returning anything, the final carry-out bit is
-discarded.
-
-Note that, unlike `BitVec`, there is no subtraction implementation until I find
-a subtraction algorithm that does not require modifying the subtrahend.
-
-Subtraction can be implemented by negating the intended subtrahend yourself and
-then using addition, or by using `BitVec`s instead of `BitSlice`s.
-
-# Type Parameters
-
-- `I: IntoIterator<Item=bool, IntoIter: DoubleEndedIterator>`: The bitstream to
-  add into `self`. It must be finite and double-ended, since addition operates
-  in reverse.
-**/
-impl<O, T, I> AddAssign<I> for BitSlice<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-	I: IntoIterator<Item = bool>,
-	I::IntoIter: DoubleEndedIterator,
-{
-	/// Performs unsigned wrapping addition in place.
-	///
-	/// # Examples
-	///
-	/// This example shows addition of a slice wrapping from max to zero.
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let mut src = [0b1110_1111u8, 0b0000_0001];
-	/// let bits = src.bits_mut::<Msb0>();
-	/// let (nums, one) = bits.split_at_mut(12);
-	/// let (accum, steps) = nums.split_at_mut(4);
-	/// *accum += one.iter().copied();
-	/// assert_eq!(accum, &steps[.. 4]);
-	/// *accum += one.iter().copied();
-	/// assert_eq!(accum, &steps[4 ..]);
-	/// ```
-	//  Clippy doesn’t like single-letter names (which is accurate) but this is
-	//  pretty standard mathematical notation in EE.
-	#[allow(clippy::many_single_char_names)]
-	fn add_assign(&mut self, addend: I) {
-		use core::iter::repeat;
-
-		//  I don't, at this time, want to implement a carry-lookahead adder in
-		//  software, so this is going to be a plain ripple-carry adder with
-		//  O(n) runtime. Furthermore, until I think of an optimization
-		//  strategy, it is going to build up another bitvec to use as a stack.
-		//
-		//  Computers are fast. Whatever.
-		let mut c = false;
-		//  Reverse self, reverse addend and zero-extend, and zip both together.
-		//  This walks both slices from rightmost to leftmost, and considers an
-		//  early expiration of addend to continue with 0 bits.
-		//
-		//  100111
-		// +  0010
-		//  ^^---- semantically zero
-		let addend_iter = addend.into_iter().rev().chain(repeat(false));
-		for (i, b) in (0 .. self.len()).rev().zip(addend_iter) {
-			//  Bounds checks are performed in the loop header.
-			let a = unsafe { *self.get_unchecked(i) };
-			let (y, z) = crate::rca1(a, b, c);
-			unsafe {
-				self.set_unchecked(i, y);
-			}
-			c = z;
-		}
-	}
-}
 
 /** Performs the Boolean `AND` operation against another bitstream and writes
 the result into `self`. If the other bitstream ends before `self,`, the
@@ -389,120 +307,6 @@ where
 {
 	fn index_mut(&mut self, range: RangeToInclusive<usize>) -> &mut Self {
 		range.index_mut(self)
-	}
-}
-
-/** Performs fixed-width 2’s-complement negation of a `BitSlice`.
-
-Unlike the `!` operator (`Not` trait), the unary `-` operator treats the
-`BitSlice` as if it represents a signed 2’s-complement integer of fixed
-width. The negation of a number in 2’s complement is defined as its
-inversion (using `!`) plus one, and on fixed-width numbers has the following
-discontinuities:
-
-- A slice whose bits are all zero is considered to represent the number zero
-  which negates as itself.
-- A slice whose bits are all one is considered to represent the most negative
-  number, which has no correpsonding positive number, and thus negates as zero.
-
-This behavior was chosen so that all possible values would have *some*
-output, and so that repeated application converges at idempotence. The most
-negative input can never be reached by negation, but `--MOST_NEG` converges
-at the least unreasonable fallback value, 0.
-
-Because `BitSlice` cannot move, the negation is performed in place.
-**/
-impl<'a, O, T> Neg for &'a mut BitSlice<O, T>
-where
-	O: BitOrder,
-	T: 'a + BitStore,
-{
-	type Output = Self;
-
-	/// Perform 2’s-complement fixed-width negation.
-	///
-	/// Negation is accomplished by inverting the bits and adding one. This has
-	/// one edge case: `1000…`, the most negative number for its width, will
-	/// negate to zero instead of itself. It thas no corresponding positive
-	/// number to which it can negate.
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	///
-	/// # Examples
-	///
-	/// The contortions shown here are a result of this operator applying to a
-	/// mutable reference, and this example balancing access to the original
-	/// `BitVec` for comparison with aquiring a mutable borrow *as a slice* to
-	/// ensure that the `BitSlice` implementation is used, not the `BitVec`.
-	///
-	/// Negate an arbitrary positive number (first bit unset).
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let mut src = 0b0110_1010u8;
-	/// let bits = src.bits_mut::<Msb0>();
-	/// eprintln!("{:?}", bits.split_at(4));
-	/// let num = &mut bits[.. 4];
-	/// -num;
-	/// eprintln!("{:?}", bits.split_at(4));
-	/// assert_eq!(&bits[.. 4], &bits[4 ..]);
-	/// ```
-	///
-	/// Negate an arbitrary negative number. This example will use the above
-	/// result to demonstrate round-trip correctness.
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let mut src = 0b1010_0110u8;
-	/// let bits = src.bits_mut::<Msb0>();
-	/// let num = &mut bits[.. 4];
-	/// -num;
-	/// assert_eq!(&bits[.. 4], &bits[4 ..]);
-	/// ```
-	///
-	/// Negate the most negative number, which will become zero, and show
-	/// convergence at zero.
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let mut src = 128u8;
-	/// let bits = src.bits_mut::<Msb0>();
-	/// let num = &mut bits[..];
-	/// -num;
-	/// assert!(bits.not_any());
-	/// let num = &mut bits[..];
-	/// -num;
-	/// assert!(bits.not_any());
-	/// ```
-	fn neg(self) -> Self::Output {
-		//  negative zero is zero. The invert-and-add will result in zero, but
-		//  this case can be detected quickly.
-		if self.is_empty() || self.not_any() {
-			return self;
-		}
-		//  The most negative number (leading one, all zeroes else) negates to
-		//  zero.
-		if unsafe { *self.get_unchecked(0) } {
-			//  Testing the whole range, rather than [1 ..], is more likely to
-			//  hit the fast path for `not_any`.
-			unsafe {
-				self.set_unchecked(0, false);
-			}
-			if self.not_any() {
-				return self;
-			}
-			unsafe {
-				self.set_unchecked(0, true);
-			}
-		}
-		let this = !self;
-		*this += core::iter::once(true);
-		this
 	}
 }
 

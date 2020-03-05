@@ -200,30 +200,6 @@ where
 	}
 }
 
-/// Provides write access to all fully-owned elements in the underlying memory
-/// buffer. This excludes the edge elements if they are partially-owned.
-impl<O, T> AsMut<[T]> for BitSlice<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn as_mut(&mut self) -> &mut [T] {
-		self.as_mut_slice()
-	}
-}
-
-/// Provides read-only access to all fully-owned elements in the underlying
-/// memory buffer. This excludes the edge elements if they are partially-owned.
-impl<O, T> AsRef<[T]> for BitSlice<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn as_ref(&self) -> &[T] {
-		self.as_slice()
-	}
-}
-
 impl<'a, O, T> From<&'a T> for &'a BitSlice<O, T>
 where
 	O: BitOrder,

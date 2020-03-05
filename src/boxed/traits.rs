@@ -179,16 +179,6 @@ where
 	}
 }
 
-impl<O, T> AsMut<[T]> for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn as_mut(&mut self) -> &mut [T] {
-		self.as_mut_bitslice().as_mut()
-	}
-}
-
 impl<O, T> AsRef<BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -196,16 +186,6 @@ where
 {
 	fn as_ref(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
-	}
-}
-
-impl<O, T> AsRef<[T]> for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn as_ref(&self) -> &[T] {
-		self.as_bitslice().as_ref()
 	}
 }
 

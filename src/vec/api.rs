@@ -37,7 +37,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// Constructs a new, empty `BitVec<C, T>`.
+	/// Constructs a new, empty `BitVec<O, T>`.
 	///
 	/// The vector will not allocate until elements are pushed onto it.
 	///
@@ -50,7 +50,7 @@ where
 		Self::with_capacity(0)
 	}
 
-	/// Constructs a new, empty `BitVec<C, T>` with the specified capacity.
+	/// Constructs a new, empty `BitVec<O, T>` with the specified capacity.
 	///
 	/// The vector will be able to hold at least `capacity` bits without
 	/// reallocating. If `capacity` is 0, the vector will not allocate.
@@ -93,7 +93,7 @@ where
 	}
 
 	/// Reserves capacity for at least `additional` more bits to be inserted in
-	/// the given `BitVec<C, T>`. The collection may reserve more space to avoid
+	/// the given `BitVec<O, T>`. The collection may reserve more space to avoid
 	/// frequent reallocations. After calling `reserve`, the capacity will be
 	/// greater than or equal to `self.len() + additional`. Does nothing if the
 	/// capacity is already sufficient.
@@ -125,7 +125,7 @@ where
 	}
 
 	/// Reserves the minimum capacity for exactly `additional` more bits to be
-	/// inserted in the given `BitVec<C, T>`. After calling `reserve_exact`,
+	/// inserted in the given `BitVec<O, T>`. After calling `reserve_exact`,
 	/// capacity will be greater than or equal to `self.len() + additional`.
 	/// Does nothing if the capacity is already sufficient.
 	///
@@ -182,7 +182,7 @@ where
 	///
 	/// Note that this will drop any excess capacity.
 	///
-	/// For the vec-to-box equivalent that produces a [`BitBox<C, T>`], see
+	/// For the vec-to-box equivalent that produces a [`BitBox<O, T>`], see
 	/// [`into_boxed_bitslice`].
 	///
 	/// # Examples
@@ -208,7 +208,7 @@ where
 	/// assert!(bv.capacity() >= 3);
 	/// ```
 	///
-	/// [`BitBox<C, T>`]: ../boxed/struct.BitBox.html
+	/// [`BitBox<O, T>`]: ../boxed/struct.BitBox.html
 	/// [`Box<[T]>`]: https://doc.rust-lang.org/std/boxed/struct.Box.html
 	/// [`into_boxed_bitslice`]: #method.into_boxed_bitslice
 	#[inline]
@@ -256,6 +256,9 @@ where
 	/// bv.truncate(0);
 	/// assert!(bv.is_empty());
 	/// ```
+	///
+	/// [`clear`]: #method.clear
+	/// [`drain`]: #method.drain
 	#[inline]
 	pub fn truncate(&mut self, len: usize) {
 		if len < self.len() {
@@ -337,6 +340,12 @@ where
 	/// This example executes correctly, because the allocator can only reserve
 	/// even multiples of bytes, and so rounds up from the `with_capacity`
 	/// argument.
+	///
+	/// [`capacity()`]: #method.capacity
+	/// [`clear`]: #method.clear
+	/// [`extend`]: #method.extend
+	/// [`resize`]: #method.resize
+	/// [`truncate`]: #method.truncate
 	pub unsafe fn set_len(&mut self, new_len: usize) {
 		assert!(
 			new_len <= BitPtr::<T>::MAX_BITS,

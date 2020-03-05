@@ -242,24 +242,6 @@ where
 		out
 	}
 
-	/// Performs “reverse” addition (left to right instead of right to left).
-	///
-	/// This delegates to `BitSlice::add_assign_reverse`.
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	/// - `addend: impl IntoIterator<Item=bool>`: A bitstream to add to `self`.
-	///
-	/// # Returns
-	///
-	/// The sum of `self` and `addend`.
-	pub fn add_reverse<I>(mut self, addend: I) -> Self
-	where I: IntoIterator<Item = bool> {
-		self.add_assign_reverse(addend);
-		self
-	}
-
 	/// Changes the order on a box handle, without changing the data it
 	/// governs.
 	///

@@ -393,18 +393,6 @@ where
 	}
 }
 
-/// Gives write access to all live elements in the underlying storage, including
-/// the partially-filled tail.
-impl<O, T> AsMut<[T]> for BitVec<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn as_mut(&mut self) -> &mut [T] {
-		self.as_mut_slice()
-	}
-}
-
 impl<O, T> AsRef<BitSlice<O, T>> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -412,28 +400,6 @@ where
 {
 	fn as_ref(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
-	}
-}
-
-/// Gives read access to all live elements in the underlying storage, including
-/// the partially-filled tail.
-impl<O, T> AsRef<[T]> for BitVec<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	/// Accesses the underlying store.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bv = bitvec![Msb0, u8; 0, 0, 0, 0, 0, 0, 0, 0, 1];
-	/// assert_eq!(&[0, 0b1000_0000], bv.as_slice());
-	/// ```
-	fn as_ref(&self) -> &[T] {
-		self.as_slice()
 	}
 }
 

@@ -756,6 +756,7 @@ where T: BitStore
 	///
 	/// - `'a`: Lifetime for which the data behind the pointer is live.
 	#[inline]
+	#[cfg(feature = "alloc")]
 	pub fn as_access_slice<'a>(&self) -> &'a [T::Access] {
 		unsafe { slice::from_raw_parts(self.pointer().a, self.elements()) }
 	}
