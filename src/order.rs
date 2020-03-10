@@ -15,14 +15,7 @@ Contiguity is not required.
 !*/
 
 use crate::{
-	index::{
-		BitIdx,
-		BitMask,
-		BitPos,
-		BitSel,
-		BitTail,
-		Indexable,
-	},
+	index::{BitIdx, BitMask, BitPos, BitSel, BitTail, Indexable},
 	mem::BitMemory,
 };
 
@@ -98,7 +91,8 @@ pub trait BitOrder {
 	/// Implementors must uphold this themselves. Outputs in the domain
 	/// `M::BITS ..` will induce panics elsewhere in the library.
 	fn at<M>(place: BitIdx<M>) -> BitPos<M>
-	where M: BitMemory;
+	where
+		M: BitMemory;
 
 	/// Translate a semantic bit index into an electrical bit mask.
 	///
@@ -140,7 +134,9 @@ pub trait BitOrder {
 	/// illegal to produce a value with more than one bit set, and doing so will
 	/// cause uncontrolled side effects.
 	fn select<M>(place: BitIdx<M>) -> BitSel<M>
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		let place = Self::at::<M>(place);
 		debug_assert!(
 			*place < M::BITS,
@@ -176,23 +172,45 @@ pub trait BitOrder {
 			(None, Some(to)) => (*BitIdx::<M>::ZERO, *to),
 			(Some(from), Some(to)) => (*from, *to),
 		};
-		(from .. to).map(Indexable::idx).map(Self::select).sum()
+		(from..to).map(Indexable::idx).map(Self::select).sum()
 	}
+
+	fn rot_forward<M: BitMemory>(sel: BitSel<M>, n: u32) -> BitSel<M>;
+
+	fn rot_backward<M: BitMemory>(sel: BitSel<M>, n: u32) -> BitSel<M>;
+
+	fn idx_from_sel<M: BitMemory>(sel: BitSel<M>) -> BitIdx<M>;
 }
 
 impl BitOrder for Msb0 {
 	const TYPENAME: &'static str = "Msb0";
 
+	fn rot_forward<M: BitMemory>(sel: BitSel<M>, n: u32) -> BitSel<M> {
+		unsafe { BitSel::new_unchecked((*sel).rotate_right(n)) }
+	}
+
+	fn rot_backward<M: BitMemory>(sel: BitSel<M>, n: u32) -> BitSel<M> {
+		unsafe { BitSel::new_unchecked((*sel).rotate_left(n)) }
+	}
+
+	fn idx_from_sel<M: BitMemory>(sel: BitSel<M>) -> BitIdx<M> {
+		unsafe { BitIdx::new_unchecked((*sel).leading_zeros() as _) }
+	}
+
 	/// Maps a semantic count to a concrete position.
 	///
 	/// `Msb0` order moves from `MSbit` first to `LSbit` last.
 	fn at<M>(place: BitIdx<M>) -> BitPos<M>
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		(M::MASK - *place).pos()
 	}
 
 	fn select<M>(place: BitIdx<M>) -> BitSel<M>
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		/* Set the MSbit, then shift it down. The left expr is const-folded.
 		Note: this is not equivalent to `1 << (mask - place)`, because that
 		requires a subtraction every time, but the expression below is only a
@@ -226,16 +244,32 @@ impl BitOrder for Msb0 {
 impl BitOrder for Lsb0 {
 	const TYPENAME: &'static str = "Lsb0";
 
+	fn rot_forward<M: BitMemory>(sel: BitSel<M>, n: u32) -> BitSel<M> {
+		unsafe { BitSel::new_unchecked((*sel).rotate_left(n)) }
+	}
+
+	fn rot_backward<M: BitMemory>(sel: BitSel<M>, n: u32) -> BitSel<M> {
+		unsafe { BitSel::new_unchecked((*sel).rotate_right(n)) }
+	}
+
+	fn idx_from_sel<M: BitMemory>(sel: BitSel<M>) -> BitIdx<M> {
+		unsafe { BitIdx::new_unchecked((*sel).trailing_zeros() as _) }
+	}
+
 	/// Maps a semantic count to a concrete position.
 	///
 	/// `Lsb0` order moves from `LSbit` first to `MSbit` last.
 	fn at<M>(place: BitIdx<M>) -> BitPos<M>
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		(*place).pos()
 	}
 
 	fn select<M>(place: BitIdx<M>) -> BitSel<M>
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		//  Set the LSbit, then shift it up.
 		unsafe { BitSel::new_unchecked(M::ONE << *place) }
 	}
