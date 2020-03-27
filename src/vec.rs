@@ -649,10 +649,15 @@ where
 	///
 	/// Itself, with its size frozen and ungrowable.
 	pub fn into_boxed_bitslice(self) -> BitBox<O, T> {
-		let pointer = self.pointer;
-		//  Convert the Vec allocation into a Box<[T]> allocation
-		mem::forget(self.into_boxed_slice());
-		unsafe { BitBox::from_raw(pointer.as_mut_ptr()) }
+		let (_, head, bits) = self.bitptr().raw_parts();
+		let boxed = self.into_vec().into_boxed_slice();
+		let addr = boxed.as_ptr();
+		mem::forget(boxed);
+		unsafe {
+			BitBox::from_raw(
+				BitPtr::new_unchecked(addr, head, bits).as_mut_ptr(),
+			)
+		}
 	}
 
 	/// Degrades a `BitVec` to a standard `Vec`.
