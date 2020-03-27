@@ -437,6 +437,10 @@ mod tests {
 		slice::AsBits,
 	};
 
+	//  The `format!` macro is not in the `alloc` prelude.
+	#[cfg(not(feature = "std"))]
+	use alloc::format;
+
 	#[test]
 	fn binary() {
 		let data = [0u8, 0x0F, !0];

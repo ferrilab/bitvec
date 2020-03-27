@@ -4,6 +4,31 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+## 0.17.4
+
+### Fixed <!-- omit in toc -->
+
+GitHub user [@kulp] noted in [Issue #55] that an allocator error occurred when
+attempting to free a large `BitBox` on macOS. The underlying cause was found to
+be an improper assembly of a `BitBox` after modifying the underlying allocation.
+Specifically, `BitBox` relied on an incorrect assumption that
+`Vec::into_boxed_slice` never moved the base address during resizing.
+
+### Yanked Versions <!-- omit in toc -->
+
+**This is a severe memory error!** As such, *all* prior versions of `bitvec`
+have been yanked from [crates.io][crate]. Cargo will fetch yanked crates that
+are listed in `Cargo.lock`, but will not use them for resolution of the
+`Cargo.toml` manifest.
+
+If you feel strongly that you cannot upgrade from a prior minor version, please
+file an issue and I will backport this fix and publish a patch on your minor
+series. I will also work with you on an upgrade path.
+
+I have made the decision to yank prior versions as this is now the second memory
+management error in the `0.17` series, and is demonstrated to exist back to
+`0.11`. Versions older than `0.11` are not supported.
+
 ## 0.17.3
 
 ### Fixed <!-- omit in toc -->
@@ -676,6 +701,7 @@ Initial implementation and release.
 [@geq1t]: https://github.com/geq1t
 [@jonas-schievink]: https://github.com/jonas-schievink
 [@koushiro]: https://github.com/koushiro
+[@kulp]: https://github.com/kulp
 [@lynaghk]: https://github.com/lynaghk
 [@mystor]: https://github.com/mystor
 [@obeah]: //github.com/obeah
@@ -696,7 +722,9 @@ Initial implementation and release.
 [Issue #36]: https://github.com/myrrlyn/bitvec/issues/36
 [Issue #40]: https://github.com/myrrlyn/bitvec/issues/40
 [Issue #43]: https://github.com/myrrlyn/bitvec/issues/43
+[Issue #55]: https://github.com/myrrlyn/bitvec/issues/55
 [Pull Request #34]: https://github.com/myrrlyn/bitvec/pull/34
 [Pull Request #41]: https://github.com/myrrlyn/bitvec/pull/41
 [`Sync`]: https://doc.rust-lang.org/stable/core/marker/trait.Sync.html
+[crate]: https://crates.io/crates/bitvec
 [kac]: https://keepachangelog.com/en/1.0.0/

@@ -7,33 +7,36 @@ use crate::{
 	store::BitStore,
 };
 
-use alloc::vec::Vec;
+use alloc::boxed::Box;
 
-use core::ops::{
-	Add,
-	AddAssign,
-	BitAnd,
-	BitAndAssign,
-	BitOr,
-	BitOrAssign,
-	BitXor,
-	BitXorAssign,
-	Deref,
-	DerefMut,
-	Index,
-	IndexMut,
-	Range,
-	RangeFrom,
-	RangeFull,
-	RangeInclusive,
-	RangeTo,
-	RangeToInclusive,
-	Neg,
-	Not,
-	Shl,
-	ShlAssign,
-	Shr,
-	ShrAssign,
+use core::{
+	ops::{
+		Add,
+		AddAssign,
+		BitAnd,
+		BitAndAssign,
+		BitOr,
+		BitOrAssign,
+		BitXor,
+		BitXorAssign,
+		Deref,
+		DerefMut,
+		Index,
+		IndexMut,
+		Range,
+		RangeFrom,
+		RangeFull,
+		RangeInclusive,
+		RangeTo,
+		RangeToInclusive,
+		Neg,
+		Not,
+		Shl,
+		ShlAssign,
+		Shr,
+		ShrAssign,
+	},
+	slice,
 };
 
 impl<O, T> Add<Self> for BitBox<O, T>
@@ -123,10 +126,11 @@ where O: BitOrder, T: BitStore {
 impl<O, T> Drop for BitBox<O, T>
 where O: BitOrder, T: BitStore {
 	fn drop(&mut self) {
-		let ptr = self.as_mut_slice().as_mut_ptr();
-		let len = self.as_slice().len();
-		//  Run the `Box<[T]>` destructor.
-		drop(unsafe { Vec::from_raw_parts(ptr, 0, len) }.into_boxed_slice());
+		let bp = self.bitptr();
+		let ptr = bp.pointer().w();
+		let len = bp.elements();
+		let slice = unsafe { slice::from_raw_parts_mut(ptr, len) };
+		drop(unsafe { Box::from_raw(slice as *mut [_]) })
 	}
 }
 
