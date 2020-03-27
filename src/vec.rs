@@ -670,10 +670,10 @@ where
 	///
 	/// The plain vector underlying the `BitVec`.
 	pub fn into_vec(self) -> Vec<T> {
-		let slice = self.pointer.as_mut_slice();
-		let out = unsafe {
-			Vec::from_raw_parts(slice.as_mut_ptr(), slice.len(), self.capacity)
-		};
+		let bp = self.bitptr();
+		let base = bp.pointer().w();
+		let elts = bp.elements();
+		let out = unsafe { Vec::from_raw_parts(base, elts, self.capacity) };
 		mem::forget(self);
 		out
 	}
