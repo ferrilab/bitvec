@@ -1163,6 +1163,19 @@ mod tests {
 		}
 		*/
 	}
+
+	#[test]
+	#[ignore] // failing
+	fn matched_slice() {
+		// This is a regression test to defend against a case where exact-size slices were produced
+		// as Domain::Region instead of Domain::Enclave.
+		let _: u64 = 0_usize.bits::<Lsb0>().load();
+		let _: u64 = 0_usize.bits::<Msb0>().load();
+		let _: u64 = 0_u64.bits::<Lsb0>().load();
+		let _: u64 = 0_u64.bits::<Msb0>().load();
+		let _: u64 = 0_u32.bits::<Lsb0>().load();
+		let _: u64 = 0_u32.bits::<Msb0>().load();
+	}
 }
 
 #[cfg(test)]
