@@ -470,7 +470,9 @@ where
 		match (*h, e, *t) {
 			//  Empty.
 			(_, 0, _) => Self::empty(),
-			//  Reaches both edges, for any number of elements.
+			//  Exactly consumes one element, touching both edges.
+			(0, 1, r) if r == w => Self::minor(h, elts, t),
+			//  Reaches both edges, for any number of elements greater than 1.
 			(0, _, t) if t == w => Self::spanning(elts),
 			//  Reaches only the tail edge, for any number of elements.
 			(_, _, t) if t == w => Self::partial_head(h, elts),

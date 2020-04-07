@@ -1165,7 +1165,6 @@ mod tests {
 	}
 
 	#[test]
-	#[ignore] // failing
 	fn matched_slice() {
 		// This is a regression test to defend against a case where exact-size slices were produced
 		// as Domain::Region instead of Domain::Enclave.
