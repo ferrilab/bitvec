@@ -270,9 +270,9 @@ where
 {
   Enclave { body: &'a /* mut  */ BitSlice<O, T> },
   Region {
-    head: &'a /* mut  */ BitSlice<O, T>,
-    body: &'a /* mut  */ BitSlice<O, T::NoAlias>,
-    tail: &'a /* mut  */ BitSlice<O, T>,
+    head: &'a /* mut */ BitSlice<O, T>,
+    body: &'a /* mut */ BitSlice<O, T::NoAlias>,
+    tail: &'a /* mut */ BitSlice<O, T>,
   },
 }
 ```
@@ -406,7 +406,7 @@ remain both unstable and `unsafe` until the library is enabled to prevent the
       much luck producing a benchmark that firmly demonstrates that unneeded
       atomic access is a strict performance cost.
 
-[bv_ord]: https://github.com/myrrlyn/bitvec/
+[bv_ord]: https://github.com/myrrlyn/bitvec/blob/HEAD/src/order.rs
 [immortal words]: https://doc.rust-lang.org/stable/nomicon/transmutes.html
 [llvm_atomic]: https://releases.llvm.org/10.0.0/docs/Atomics.html#libcalls-atomic
 [`AtomicT::fetch_and`]: https://doc.rust-lang.org/core/sync/atomic/struct.AtomicUsize.html#method.fetch_and

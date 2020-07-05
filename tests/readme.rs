@@ -6,9 +6,6 @@ samples are modified.
 !*/
 
 #[cfg(feature = "alloc")]
-extern crate bitvec;
-
-#[cfg(feature = "alloc")]
 use bitvec::prelude::*;
 
 #[cfg(feature = "alloc")]

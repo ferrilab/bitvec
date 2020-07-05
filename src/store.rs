@@ -1,182 +1,170 @@
-/*! Memory management.
+/*! Memory modeling.
 
-The `BitStore` trait defines the types that can be used in `bitvec` data
-structures, and describes how those data structures are allowed to access the
-memory they govern.
+This module provides a `BitStore` trait, which mediates how handles access
+memory and perform analysis on the regions they describe.
 !*/
 
 use crate::{
 	access::BitAccess,
-	mem::BitMemory,
+	mem::{
+		self,
+		BitMemory,
+	},
 };
 
-use core::cell::Cell;
+use core::{
+	cell::Cell,
+	fmt::Debug,
+};
+
+use radium::Radium;
 
 #[cfg(feature = "atomic")]
 use core::sync::atomic;
 
-/** Generalize over types which may be used to access memory holding bits.
+/** Common interface for memory regions.
 
-This trait is implemented on the fundamental integers, their `Cell<>` wrappers,
+This trait is implemented on the fundamental integers, their `Cell` wrappers,
 and (if present) their `Atomic` variants. Users provide this type as a parameter
 to their data structures in order to inform the structure of how it may access
-memory.
+the memory it describes.
 
-Specifically, this has the advantage that a `BitSlice<_, Cell<_>>` knows that it
+Specifically, this has the davantage that a `BitSlice<_, Cell<_>>` knows that it
 has a view of memory that will not undergo concurrent modification. As such, it
-can skip using atomic accesses, and just use ordinary load/store instructions,
+can forego atomic accesses, and just use ordinary load/store instructions
 without fear of causing observable race conditions.
 
 The associated types `Mem` and `Alias` allow implementors to know the register
-width of the memory they describe (`Mem`) and to change the aliasing status of
-a slice.
+width of the memory they describe (`Mem`) and to know the aliasing status of the
+region.
 
-A universal property of `BitSlice` regions is that for any handle, it may be
-described as a triad of:
+# Generic Programming
 
-- zero or one partially-used, aliased, elements at the head
-- zero or more wholly-used, unaliased, elements in the body
-- zero or one partially-used, aliased, elements at the tail
+Generic programming with associated types is *hard*, especially when using them,
+as in this trait, to implement a closed graph of relationships between types.
 
-As such, a `&BitSlice` reference with any aliasing type can be split into its
-`Self::Alias` variant for the edges, and `Cell<Self::Mem>` for the interior,
-without violating memory safety.
-**/
-pub trait BitStore: seal::Sealed + Sized {
-	/// The fundamental integer type of the governed memory.
-	type Mem: BitMemory + Into<Self>;
-	/// The type used for performing memory accesses.
-	type Access: BitAccess<Self::Mem> + BitStore;
-	/// The destination type when marking a region as known-aliased.
-	type Alias: BitStore + BitAccess<Self::Mem>;
-	/// The destination type when marking a region as known-unaliased.
-	type NoAlias: BitStore;
+For example, this trait is implemented such that for any given type `T`,
+`T::Alias::Mem` == `T::Mem` == `T::NoAlias::Mem`, `T::Alias::Alias == T::Alias`,
+and `T::NoAlias::NoAlias == T::NoAlias`. Unfortunately, the Rust type system
+does not allow these relationships to be described, so generic programming that
+performs type transitions will *rapidly* become uncomfortable to use.
 
-	/// Mark whether a type is threadsafe when viewed as bits.
+Internally, `bitvec` makes use of type-manipulation functions that are known to
+be correct with respect to the implementations of `BitStore` in order to ease
+implementation of library methods.
+
+You are not expected to do significant programming that is generic over the
+`BitStore` memory parameter. When using a concrete type, the compiler will
+gladly reduce the abstract type associations into their instantiated selections,
+allowing monomorphized code to be *much* more convenient than generic.
+
+If you have a use case that involves generic programming over this trait, and
+you are encountering difficulties dealing with the type associations, please
+file an issue asking for support in this area.
+
+# Supertraits
+
+This trait has trait requirements that better express its behavior:
+
+- `Sealed` prevents it from being implemented by downstream libraries (`Sealed`
+  is a public trait in a private module, that only this crate can name).
+- `Sized` instructs the compiler that values of this type can be used as
+  immediates.
+- `Debug` informs the compiler that other structures using this trait bound can
+  correctly derive `Debug`.
+  **/
+pub trait BitStore: seal::Sealed + Sized + Debug {
+	/// The register type that the implementor describes.
+	type Mem: BitMemory + Into<Self> + BitStore;
+
+	/// The modifier type over `Self::Mem` used to perform memory access.
+	type Access: BitAccess<Self::Mem>;
+
+	/// A sibling `BitStore` implementor that performs alias-aware memory
+	/// access.
 	///
-	/// This is necessary because `Cell<T: Send>` is `Send`, but `Cell` is *not*
-	/// synchronized and thus cannot be used for aliasing, parallel, bit
-	/// manipulation.
+	/// While the associated type always has the same `Mem` concrete type as
+	/// `Self`, attempting to encode this requirement as `<Mem = Self::Mem>
+	/// causes Rust to enter an infinite recursion in the trait solver.
+	///
+	/// Instead, the two `Radium` bounds inform the compiler that the `Alias` is
+	/// irradiant over both the current memory and the destination memory types,
+	/// allowing generic type algebra to resolve correctly even though the fact
+	/// that `Radium` is only implemented once is not guaranteed.
+	type Alias: BitStore
+		+ Radium<Self::Mem>
+		+ Radium<<Self::Alias as BitStore>::Mem>;
+
+	/// Marker for the thread safety of the implementor.
+	///
+	/// This is necessary because `Cell<T: Send>` is `Send`, but `Cell` does not
+	/// use synchronization instructions and thus cannot be used for aliased
+	/// parallelized memory manipulation.
 	#[doc(hidden)]
 	type Threadsafe;
 
-	/* Note: The `NoAlias` type had its `BitAccess` bound removed so that the
-	integers and atoms could form a cycle, rather than trending into `Cell`.
-	This had the unpleasant side effect of making `T::NoAlias` use sites much
-	less pleasant to use in generic contexts, due to the inability of the Rust
-	type system to unwind associated types. This removal necessitated the
-	addition of the `.retype()` method in `BitMemory`, and the `.get_elem()` and
-	`.set_elem()` methods below.
+	/// Require that all implementors are aligned to their width.
+	#[doc(hidden)]
+	const __ALIGNED_TO_SIZE: [(); 0];
 
-	Attempting to do this same `BitAccess` bound removal on `Alias` proved to
-	be *extremely* awful, as the change required adding these new methods
-	throughout the crate. This is needless spaghetti code, required only by the
-	inadequacy of the type system to smoothly handle the graph of associated
-	types used in this crate. It is, to be fair, my fault for attempting to
-	cause cycles, when the type system expects a DAG.
-
-	Long story short: don’t try to remove the bound in the future. It needs to
-	stay off of `NoAlias`, because making a `BitAccess` wrapper type for the
-	integers is profoundly unpleasant. Don’t do that either.
-
-	Hopefully, the aliasing detection work is the last major overhaul of the
-	memory access system, and these modules will be left alone unless
-	demonstrated to be unsound.
-	*/
-
-	/// Gets the memory element behind this reference, mediated through
-	/// `Self::Access`.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// The current value of the referent element.
-	fn get_elem(&self) -> Self::Mem {
-		unsafe { &*(self as *const Self as *const Self::Access) }.load()
-	}
-
-	/// Sets the memory element behind this reference, mediated through
-	/// `Self::Access`.
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`: Even when aliased, you must have exclusive control of the
-	///   referent element to set it to a new value.
-	/// - `value`: The new value to write into the referent element.
-	fn set_elem(&mut self, value: Self::Mem) {
-		unsafe { &*(self as *mut Self as *mut Self::Access) }.store(value);
-	}
+	/// Require that the `::Alias` associated type has the same width and
+	/// alignment as `Self`.
+	#[doc(hidden)]
+	const __ALIAS_WIDTH: [(); 0];
 }
 
 /// Batch implementation of `BitStore` for appropriate types.
 macro_rules! bitstore {
-	($($t:ty => $a:ty),* $(,)?) => { $(
-		impl seal::Sealed for $t {}
-
+	($($t:ty => $a:ty),+ $(,)?) => { $(
 		impl BitStore for $t {
-			/// The unsigned integers are only the `BitStore` parameter for
-			/// unaliased slices.
+			/// The unsigned integers will only be `BitStore` type parameters
+			/// for handles to unaliased memory, following the normal Rust
+			/// reference rules.
 			type Access = Cell<Self>;
 
-			/// Aliases are required to use atomic access, as `BitSlice`s of
-			/// this type are safe to move across threads.
+			/// In atomic builds, use atomic types for aliased access.
 			#[cfg(feature = "atomic")]
 			type Alias = $a;
 
-			/// Aliases are permitted to use `Cell` wrappers and ordinary
-			/// access, as `BitSlice`s of this type are forbidden from crossing
-			/// threads.
+			/// In non-atomic builds, use cell wrappers for aliased access.
 			#[cfg(not(feature = "atomic"))]
 			type Alias = Cell<Self>;
 
 			type Mem = Self;
 
-			type NoAlias = Self;
-
 			#[doc(hidden)]
 			type Threadsafe = Self;
-		}
 
-		#[cfg(feature = "atomic")]
-		impl seal::Sealed for $a {}
+			#[doc(hidden)]
+			const __ALIGNED_TO_SIZE: [(); 0] = [(); mem::aligned_to_size::<Self>()];
+
+			#[doc(hidden)]
+			const __ALIAS_WIDTH: [(); 0] = [(); mem::cmp_layout::<Self::Mem, Self::Alias>()];
+		}
 
 		#[cfg(feature = "atomic")]
 		impl BitStore for $a {
-			/// Atomic stores always use atomic accesses.
 			type Access = Self;
 
 			type Alias = Self;
 
 			type Mem = $t;
-
-			type NoAlias = $t;
 
 			#[doc(hidden)]
 			type Threadsafe = Self;
-		}
 
-		impl seal::Sealed for Cell<$t> {}
-
-		impl BitStore for Cell<$t> {
-			/// `Cell`s always use ordinary, unsynchronized, accesses, as the
-			/// type system forbids them from creating memory collisions.
-			type Access = Self;
-
-			type Alias = Self;
-
-			type Mem = $t;
-
-			type NoAlias = Self;
-
-			/// Raw pointers are never threadsafe, so this prevents
-			/// `BitSlice<_, Cell<_>>` from crossing threads.
 			#[doc(hidden)]
-			type Threadsafe = *const Self;
+			const __ALIGNED_TO_SIZE: [(); 0] = [(); mem::aligned_to_size::<Self>()];
+
+			#[doc(hidden)]
+			const __ALIAS_WIDTH: [(); 0] = [(); mem::cmp_layout::<Self::Mem, Self::Alias>()];
 		}
-	)* };
+
+		impl seal::Sealed for $t {}
+
+		#[cfg(feature = "atomic")]
+		impl seal::Sealed for $a {}
+	)+ };
 }
 
 bitstore!(
@@ -188,6 +176,31 @@ bitstore!(
 
 #[cfg(target_pointer_width = "64")]
 bitstore!(u64 => atomic::AtomicU64);
+
+impl<M> BitStore for Cell<M>
+where
+	Self: Radium<M>,
+	M: BitMemory + BitStore,
+{
+	type Access = Self;
+	type Alias = Self;
+	type Mem = M;
+	/// Raw pointers are never threadsafe, so this prevents handles using
+	/// `Cell<_>` type parameters from crossing thread boundaries.
+	#[doc(hidden)]
+	type Threadsafe = *const Self;
+
+	//  If these are true for `M: BitStore`, then they are true for `Cell<M>`.
+
+	#[doc(hidden)]
+	const __ALIAS_WIDTH: [(); 0] = [];
+	#[doc(hidden)]
+	const __ALIGNED_TO_SIZE: [(); 0] = [];
+}
+
+impl<M> seal::Sealed for Cell<M> where M: BitMemory + BitStore
+{
+}
 
 #[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
 compile_fail!(concat!(
@@ -207,10 +220,6 @@ mod seal {
 	pub trait Sealed {}
 }
 
-//  This test must be disabled while `static_assertions` has a bug.
-//  Rust doesn’t offer a `cfg(false)`, so this selects a valid key with an
-//  impossible value.
-#[cfg(target_endian = "disabled")]
 #[cfg(test)]
 mod tests {
 	use crate::prelude::*;

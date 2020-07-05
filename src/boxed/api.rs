@@ -1,13 +1,4 @@
-/*! Reïmplementation of the `Box<[T]>` API.
-
-This module tracks the [`alloc::boxed::Box`] module in the version of Rust
-specified in the `rust-toolchain` file. It is required to provide an exact or
-equivalent API surface matching the `Box<[T]>` type, to the extent that it is
-possible in the language. Where differences occur, they must be documented in a
-section called `API Differences`.
-
-[`alloc::boxed::Box`]: https://doc.rust-lang.org/alloc/boxed/struct.Boxed.html
-!*/
+//! Port of the `Box<[T]>` function API.
 
 use crate::{
 	boxed::BitBox,
@@ -15,15 +6,21 @@ use crate::{
 	pointer::BitPtr,
 	slice::BitSlice,
 	store::BitStore,
+	vec::BitVec,
 };
 
 use core::{
-	marker::{
-		PhantomData,
-		Unpin,
+	marker::Unpin,
+	mem::{
+		self,
+		ManuallyDrop,
 	},
-	mem,
 	pin::Pin,
+};
+
+use wyz::{
+	pipe::Pipe,
+	tap::Tap,
 };
 
 impl<O, T> BitBox<O, T>
@@ -31,59 +28,69 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// Allocates memory on the heap and then places `bits` into it.
+	/// Allocates memory on the heap and copies `x` into it.
+	///
+	/// This doesn’t actually allocate if `x` is zero-length.
+	///
+	/// # Original
+	///
+	/// [`Box::new`](https://doc.rust-lang.org/alloc/boxed/struct.Box.html#method.new)
 	///
 	/// # API Differences
 	///
-	/// [`Box::new`] takes a `T` by direct value, and is not implemented as a
-	/// means of cloning slices. As `BitSlice` cannot be held by value, this
-	/// function clones the referent slice region into a new fixed-size heap
-	/// buffer.
+	/// `Box::<[T]>::new` does not exist, because `new` cannot take unsized
+	/// types by value. Instead, this takes a slice reference, and boxes the
+	/// referent slice.
 	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # use bitvec::prelude::*;
-	/// let boxed = BitBox::new(0u8.bits::<Lsb0>());
+	/// use bitvec::prelude::*;
+	///
+	/// let boxed = BitBox::new(bits![0; 5]);
 	/// ```
-	pub fn new(bits: &BitSlice<O, T>) -> Self {
-		Self::from_bitslice(bits)
+	#[inline]
+	pub fn new(x: &BitSlice<O, T>) -> Self {
+		x.to_bitvec().into_boxed_bitslice()
 	}
 
 	/// Constructs a new `Pin<BitBox<O, T>>`.
 	///
 	/// `BitSlice` is always `Unpin`, so this has no actual immobility effect.
-	pub fn pin(bits: &BitSlice<O, T>) -> Pin<Self>
+	///
+	/// # Original
+	///
+	/// [`Box::pin`](https://doc.rust-lang.org/alloc/boxed/struct.Box.html#method.pin)
+	///
+	/// # API Differences
+	///
+	/// As with `::new`, this only exists on `Box` when `T` is not unsized. This
+	/// takes a slice reference, and pins the referent slice.
+	#[inline]
+	pub fn pin(x: &BitSlice<O, T>) -> Pin<Self>
 	where
 		O: Unpin,
 		T: Unpin,
 	{
-		Pin::new(Self::new(bits))
+		x.pipe(Self::new).pipe(Pin::new)
 	}
 
-	/// Constructs a bit box from a raw bit pointer.
+	/// Constructs a box from a raw pointer.
 	///
-	/// After calling this function, the raw pointer is owned by the resulting
-	/// `BitBox`. Specifically, the `BitBox` destructor will free the allocated
-	/// memory. For this to be safe, the memory must have been allocated by
-	/// `BitBox` earlier in the program.
+	/// After calling this function, the raw pointer is owned by the
+	/// resulting `BitBox`. Specifically, the `Box` destructor will free the
+	/// allocated memory. For this to be safe, the memory must have been
+	/// allocated in accordance with the [memory layout] used by `Box` .
+	///
+	/// # Original
+	///
+	/// [`Box::from_raw`](https://doc.rust-lang.org/alloc/boxed/struct.Box.html#method.from_raw)
 	///
 	/// # Safety
 	///
-	/// This function is unsafe because improper use may lead to memory
-	/// problems. For example, a double-free may occurr if the function is
-	/// called twice on the same raw pointer.
-	///
-	/// # Notes
-	///
-	/// This function, and `into_raw`, exchange ordinary raw pointers
-	/// `*mut BitSlice<O, T>`. Values of these types can be created from, and
-	/// converted to, other region pointers such as `*mut [T]` through ordinary
-	/// `as`-casting.
-	///
-	/// This is valid in the Rust type system, but is incorrect at runtime. You
-	/// must not, ever, use `as` to cast in either direction to or from a
-	/// `BitSlice` pointer.
+	/// This function is unsafe because improper use may lead to
+	/// memory problems. For example, a double-free may occur if the
+	/// function is called twice on the same raw pointer.
 	///
 	/// # Examples
 	///
@@ -91,18 +98,21 @@ where
 	/// using [`BitBox::into_raw`]:
 	///
 	/// ```rust
-	/// # use bitvec::prelude::*;
-	/// let b = BitBox::new(0u8.bits::<Lsb0>());
-	/// let ptr = BitBox::into_raw(b);
-	/// let b = unsafe { BitBox::<Lsb0, _>::from_raw(ptr) };
+	/// use bitvec::prelude::*;
+	///
+	/// let x = bitbox![0; 10];
+	/// let ptr = BitBox::into_raw(x);
+	/// let x = unsafe { BitBox::from_raw(ptr) };
 	/// ```
 	///
+	/// [memory layout]: https://doc.rust-lang.org/alloc/boxed/index.html#memory-layout
+	/// [`Layout`]: https://doc.rust-lang.org/alloc/struct.Layout.html
 	/// [`BitBox::into_raw`]: #method.into_raw
+	#[inline]
 	pub unsafe fn from_raw(raw: *mut BitSlice<O, T>) -> Self {
-		Self {
-			_order: PhantomData,
-			pointer: BitPtr::from_mut_ptr(raw),
-		}
+		raw.pipe(BitPtr::from_bitslice_ptr_mut)
+			.to_nonnull()
+			.pipe(|pointer| Self { pointer })
 	}
 
 	/// Consumes the `BitBox`, returning a wrapped raw pointer.
@@ -120,11 +130,9 @@ where
 	/// layout with the standard library’s `Box` API; there will never be a name
 	/// conflict with `BitSlice`.
 	///
-	/// # Notes
+	/// # Original
 	///
-	/// As with `::from_raw`, the pointer returned by this function must not
-	/// ever have its type or value changed or inspected in any way. It may only
-	/// be held and then passed into `::from_raw` in the future.
+	/// [`Box::into_raw`](https://doc.rust-lang.org/alloc/boxed/struct.Box.html#method.into_raw)
 	///
 	/// # Examples
 	///
@@ -133,16 +141,15 @@ where
 	///
 	/// ```rust
 	/// # use bitvec::prelude::*;
-	/// let b = BitBox::new(0u64.bits::<Msb0>());
+	/// let b = BitBox::new(bits![Msb0, u32; 0; 32]);
 	/// let ptr = BitBox::into_raw(b);
 	/// let b = unsafe { BitBox::<Msb0, _>::from_raw(ptr) };
 	/// ```
 	///
 	/// [`BitBox::from_raw`]: #method.from_raw
+	#[inline]
 	pub fn into_raw(b: Self) -> *mut BitSlice<O, T> {
-		let out = b.pointer.as_mut_ptr();
-		mem::forget(b);
-		out
+		b.pointer.as_ptr().tap(|_| b.pipe(mem::forget))
 	}
 
 	/// Consumes and leaks the `BitBox`, returning a mutable reference,
@@ -161,22 +168,89 @@ where
 	/// with the standard library’s `Box` API; there will never be a name
 	/// conflict with `BitSlice`.
 	///
+	/// # Original
+	///
+	/// [`Box::leak`](https://doc.rust-lang.org/alloc/boxed/struct.Box.html#method.leak)
+	///
 	/// # Examples
 	///
 	/// Simple usage:
 	///
 	/// ```rust
 	/// # use bitvec::prelude::*;
-	/// let b = BitBox::new(0u64.bits::<Local>());
-	/// let static_ref: &'static mut BitSlice<Local, u64> = BitBox::leak(b);
+	/// let b = BitBox::new(bits![Local, u32; 0; 32]);
+	/// let static_ref: &'static mut BitSlice<Local, u32> = BitBox::leak(b);
 	/// static_ref.set(0, true);
 	/// assert_eq!(static_ref.count_ones(), 1);
 	/// ```
 	///
 	/// [`BitBox::from_raw`]: #method.from_raw
-	pub fn leak<'a>(self) -> &'a mut BitSlice<O, T> {
-		let out = self.bitptr();
-		mem::forget(self);
-		out.into_bitslice_mut()
+	#[inline]
+	pub fn leak<'a>(b: Self) -> &'a mut BitSlice<O, T>
+	where T: 'a {
+		b.bitptr().to_bitslice_mut().tap(|_| b.pipe(mem::forget))
+	}
+
+	/// Converts `self` into a vector without clones or allocation.
+	///
+	/// The resulting vector can be converted back into a box via `BitVec<O,
+	/// T>`’s `into_boxed_bitslice` method.
+	///
+	/// # Original
+	///
+	/// [`slice::into_vec`](https://doc.rust-lang.org/std/primitive.slice.html#method.into_vec)
+	///
+	/// Despite taking a `Box<[T]>` receiver, this function is written in an
+	/// `impl<T> [T]` block.
+	///
+	/// Rust does not allow the text
+	///
+	/// ```rust,ignore
+	/// impl<O, T> BitSlice<O, T> {
+	///   fn into_bitvec(self: BitBox<O, T>);
+	/// }
+	/// ```
+	///
+	/// to be written, so this function must be implemented directly on `BitBox`
+	/// rather than on `BitSlice` with a boxed receiver.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bb = bitbox![0, 1, 0, 1];
+	/// let bv = bb.into_bitvec();
+	///
+	/// assert_eq!(bv, bitvec![0, 1, 0, 1]);
+	/// ```
+	#[inline]
+	pub fn into_bitvec(self) -> BitVec<O, T> {
+		let bitptr = self.bitptr();
+		let raw = self
+			//  Disarm the `self` destructor
+			.pipe(ManuallyDrop::new)
+			//  Extract the `Box<[T]>` handle, invalidating `self`
+			.with_box(|b| unsafe { ManuallyDrop::take(b) })
+			//  The distribution guarantees this to be correct and in-place.
+			.into_vec()
+			//  Disarm the `Vec<T>` destructor *also*.
+			.pipe(ManuallyDrop::new);
+		/* The distribution claims that `[T]::into_vec(Box<[T]>) -> Vec<T>` does
+		not alter the address of the heap allocation, and only modifies the
+		buffer handle. Since the address does not change, the `BitPtr` does not
+		need to be updated; the only change is that buffer capacity is now
+		carried locally, rather than frozen in the allocator’s state.
+
+		Inspection of the distribution’s implementation shows that the
+		conversion from `(buf, len)` to `(buf, cap, len)` is done by using the
+		slice length as the buffer capacity. However, this is *not* a behavior
+		guaranteed by the distribution, and so the pipeline above must remain in
+		place in the event that this behavior ever changes. It should compile
+		away to nothing, as it is almost entirely typesystem manipulation.
+		*/
+		unsafe {
+			BitVec::from_raw_parts(bitptr.to_bitslice_ptr_mut(), raw.capacity())
+		}
 	}
 }

@@ -5,7 +5,9 @@ All notable changes will be documented in this file.
 This document is written according to the [Keep a Changelog][kac] style.
 
 1. [0.18.0](#0180)
+      1. [Bit Arrays in Value Position](#bit-arrays-in-value-position)
       1. [Type-Level Alias Detection](#type-level-alias-detection)
+1. [0.17.4](#0174)
 1. [0.17.3](#0173)
 1. [0.17.2](#0172)
 1. [0.17.1](#0171)
@@ -38,22 +40,60 @@ This document is written according to the [Keep a Changelog][kac] style.
 
 ## 0.18.0
 
+This release was implemented as a total discard and rewrite of the crate. The
+rewrite is *largely* a copy of what was discarded, but the crate has been
+rebuilt from nothing in order to provide more confidence that all parts of it
+were reached. As such, this release has a *lot* of changes.
+
+This release raises the MSRV to `1.44.0`, as [Rust PR #69373] stabilizes the
+integer constructors `from_{b,l,n}e_bytes` and removes the need to reïmplement
+them internally.
+
 ### Added <!-- omit in toc -->
 
-The CI test harness now covers targets beyond `x86_64-unknown-linux-gnu`, thanks
-to GitHub user [@Alexhuszagh]. `bitvec` guarantees support for all targets
-listed in the CI matrix through at least the next major relase. If your target
-is not in this list, please file an issue for inclusion.
+- The CI test harness now covers targets beyond `x86_64-unknown-linux-gnu`,
+  thanks to GitHub user [@Alexhuszagh]. `bitvec` guarantees support for all
+  targets listed in the CI matrix through at least the next major relase. If
+  your target is not in this list, please file an issue for inclusion.
+
+- `BitStore` is implemented on the `AtomicUN` corresponding to each `uN` that
+  implements `BitStore`, as well as on `Cell<uN>`.
+
+#### Bit Arrays in Value Position
+
+The `BitArray<O, V>` type begins support for emulating the C++ `std::bitset<N>`
+type, parameterized over the length in bits. This has been requested in the
+past, such as in GitHub [issue #32], and is still (as of writing) not able to be
+*correctly* implemented. Instead, `BitArray` is parameterized by a scalar or
+array type that is large enough to hold the number of bits that the user wants.
+
+The `bitarr!` macro constructs either values of `BitArray<O, V>` with the same
+syntax as the other three macros, or constructs `BitArary<O, V>` typenames
+suitable for a number of bits in a given order/store array. Invoked as
+`bitarr!(for BITS, in ORDER, STORE)`, it produces a typename that can be used to
+correctly type locations that cannot use inference from a value assigned  into
+them, such as `struct` fields, `static` bindings, and `const` values.
+
+Until type-level integers stabilize, this is the closest solution to the
+`std::bitset<N>` behavior that `bitvec` can provide.
 
 ### Changed <!-- omit in toc -->
 
-The implementation of the `BitStore` trait is refactored to fully separate the
-concepts of memory storage and access. This is not a breaking change to the user
-API, as `BitStore` is an opaque trait that can only be used in marker position.
+- The implementation of the `BitStore` trait is refactored to fully separate the
+  concepts of memory storage and access. This is not a breaking change to the
+  user API, as `BitStore` is an opaque trait that can only be used in marker
+  position.
 
-The concrete effect of the `BitStore` internal refactor is that the default case
-of memory access is no longer atomic. Slices that have not called
-`.split_at_mut` are now guaranteed to elide bus locks to memory when they write.
+- The concrete effect of the `BitStore` internal refactor is that the default
+  case of memory access is no longer atomic. Slices that have not called
+  `.split_at_mut` are now guaranteed to elide bus locks to memory when they
+  write.
+
+- The `AsBits` trait has been relocated to the `view` module, and split into two
+  trait families. The `BitView` trait has methods `.view_bits<O>` and
+  `.view_bits_mut<O>`; the `AsBits<T>` and `AsBitsMut<T>` traits have
+  `.as_bits<O>` and `.as_bits_mut<O>`, and are intended to correspond to the
+  `AsRef<T>` and `AsMut<T>` traits in the standard library.
 
 #### Type-Level Alias Detection
 
@@ -91,6 +131,31 @@ unaliased components.
 - `AsRef<[T]>` and `AsMut<[T]>` are removed. Use the domain methods or
   `.as_slice()`/`.as_mut_slice()` if you require direct access to backing
   storage.
+
+## 0.17.4
+
+### Fixed <!-- omit in toc -->
+
+GitHub user [@kulp] noted in [Issue #55] that an allocator error occurred when
+attempting to free a large `BitBox` on macOS. The underlying cause was found to
+be an improper assembly of a `BitBox` after modifying the underlying allocation.
+Specifically, `BitBox` relied on an incorrect assumption that
+`Vec::into_boxed_slice` never moved the base address during resizing.
+
+### Yanked Versions <!-- omit in toc -->
+
+**This is a severe memory error!** As such, *all* prior versions of `bitvec`
+have been yanked from [crates.io][crate]. Cargo will fetch yanked crates that
+are listed in `Cargo.lock`, but will not use them for resolution of the
+`Cargo.toml` manifest.
+
+If you feel strongly that you cannot upgrade from a prior minor version, please
+file an issue and I will backport this fix and publish a patch on your minor
+series. I will also work with you on an upgrade path.
+
+I have made the decision to yank prior versions as this is now the second memory
+management error in the `0.17` series, and is demonstrated to exist back to
+`0.11`. Versions older than `0.11` are not supported.
 
 ## 0.17.3
 
@@ -756,38 +821,43 @@ Initial implementation and release.
 - `BitVec` type with basic `Vec` idioms and parallel trait implementations
 - `bitvec!` generator macro
 
-[@Alexhuszagh]: //github.com/Alexhuszagh
-[@Fotosmile]: //github.com/Fotosmile
-[@GeorgeGkas]: //github.com/GeorgeGkas
-[@ImmemorConsultrixContrarie]: //github.com/ImmemorConsultrixContrarie
-[@caelunshun]: //github.com/caelunshun
-[@geq1t]: //github.com/geq1t
-[@jonas-schievink]: //github.com/jonas-schievink
-[@koushiro]: //github.com/koushiro
-[@luojia65]: //github.com/luojia65
-[@lynaghk]: //github.com/lynaghk
-[@mystor]: //github.com/mystor
-[@obeah]: //github.com/obeah
-[@overminder]: //github.com/overminder
-[@ratorx]: //github.com/ratorx
-[@schomatis]: //github.com/schomatis
-[@torce]: //github.com/torce
-[Issue #7]: //github.com/myrrlyn/bitvec/issues/7
-[Issue #8]: //github.com/myrrlyn/bitvec/issues/8
-[Issue #9]: //github.com/myrrlyn/bitvec/issues/9
-[Issue #10]: //github.com/myrrlyn/bitvec/issues/10
-[Issue #12]: //github.com/myrrlyn/bitvec/issues/12
-[Issue #15]: //github.com/myrrlyn/bitvec/issues/15
-[Issue #16]: //github.com/myrrlyn/bitvec/issues/16
-[Issue #17]: //github.com/myrrlyn/bitvec/issues/17
-[Issue #28]: //github.com/myrrlyn/bitvec/issues/28
-[Issue #33]: //github.com/myrrlyn/bitvec/issues/33
-[Issue #35]: //github.com/myrrlyn/bitvec/issues/35
-[Issue #36]: //github.com/myrrlyn/bitvec/issues/36
-[Issue #40]: //github.com/myrrlyn/bitvec/issues/40
-[Issue #43]: //github.com/myrrlyn/bitvec/issues/43
-[Issue #50]: //github.com/myrrlyn/bitvec/issues/50
-[Pull Request #34]: //github.com/myrrlyn/bitvec/pull/34
-[Pull Request #41]: //github.com/myrrlyn/bitvec/pull/41
-[`Sync`]: //doc.rust-lang.org/stable/core/marker/trait.Sync.html
-[kac]: //keepachangelog.com/en/1.0.0/
+[@Alexhuszagh]: https://github.com/Alexhuszagh
+[@Fotosmile]: https://github.com/Fotosmile
+[@GeorgeGkas]: https://github.com/GeorgeGkas
+[@ImmemorConsultrixContrarie]: https://github.com/ImmemorConsultrixContrarie
+[@caelunshun]: https://github.com/caelunshun
+[@geq1t]: https://github.com/geq1t
+[@jonas-schievink]: https://github.com/jonas-schievink
+[@koushiro]: https://github.com/koushiro
+[@kulp]: https://github.com/kulp
+[@luojia65]: https://github.com/luojia65
+[@lynaghk]: https://github.com/lynaghk
+[@mystor]: https://github.com/mystor
+[@obeah]: https://github.com/obeah
+[@overminder]: https://github.com/overminder
+[@ratorx]: https://github.com/ratorx
+[@schomatis]: https://github.com/schomatis
+[@torce]: https://github.com/torce
+[Issue #7]: https://github.com/myrrlyn/bitvec/issues/7
+[Issue #8]: https://github.com/myrrlyn/bitvec/issues/8
+[Issue #9]: https://github.com/myrrlyn/bitvec/issues/9
+[Issue #10]: https://github.com/myrrlyn/bitvec/issues/10
+[Issue #12]: https://github.com/myrrlyn/bitvec/issues/12
+[Issue #15]: https://github.com/myrrlyn/bitvec/issues/15
+[Issue #16]: https://github.com/myrrlyn/bitvec/issues/16
+[Issue #17]: https://github.com/myrrlyn/bitvec/issues/17
+[Issue #28]: https://github.com/myrrlyn/bitvec/issues/28
+[Issue #32]: https://github.com/myrrlyn/bitvec/issues/32
+[Issue #33]: https://github.com/myrrlyn/bitvec/issues/33
+[Issue #35]: https://github.com/myrrlyn/bitvec/issues/35
+[Issue #36]: https://github.com/myrrlyn/bitvec/issues/36
+[Issue #40]: https://github.com/myrrlyn/bitvec/issues/40
+[Issue #43]: https://github.com/myrrlyn/bitvec/issues/43
+[Issue #50]: https://github.com/myrrlyn/bitvec/issues/50
+[Issue #55]: https://github.com/myrrlyn/bitvec/issues/55
+[Pull Request #34]: https://github.com/myrrlyn/bitvec/pull/34
+[Pull Request #41]: https://github.com/myrrlyn/bitvec/pull/41
+[Rust PR #69373]: https://github.com/rust-lang/rust/pull/69373/
+[`Sync`]: https://doc.rust-lang.org/stable/core/marker/trait.Sync.html
+[crate]: https://crates.io/crates/bitvec
+[kac]: https://keepachangelog.com/en/1.0.0/

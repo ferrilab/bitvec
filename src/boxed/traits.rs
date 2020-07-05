@@ -1,11 +1,7 @@
-/*! General trait implementations for `BitBox`
-
-The operator traits are defined in the `ops` module.
-!*/
+//! Trait implementations for `BitBox`
 
 use crate::{
 	boxed::BitBox,
-	mem::BitMemory,
 	order::BitOrder,
 	pointer::BitPtr,
 	slice::BitSlice,
@@ -13,16 +9,13 @@ use crate::{
 	vec::BitVec,
 };
 
-use alloc::{
+use core::{
+	any,
 	borrow::{
 		Borrow,
 		BorrowMut,
 	},
-	boxed::Box,
-};
-
-use core::{
-	cmp::Ordering,
+	cmp,
 	fmt::{
 		self,
 		Binary,
@@ -31,21 +24,23 @@ use core::{
 		Formatter,
 		LowerHex,
 		Octal,
+		Pointer,
 		UpperHex,
 	},
 	hash::{
 		Hash,
 		Hasher,
 	},
-	marker::PhantomData,
-	mem,
 };
+
+use wyz::pipe::Pipe;
 
 impl<O, T> Borrow<BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn borrow(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
 	}
@@ -56,6 +51,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn borrow_mut(&mut self) -> &mut BitSlice<O, T> {
 		self.as_mut_bitslice()
 	}
@@ -66,17 +62,9 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn clone(&self) -> Self {
-		let new_box = self.do_with_box(Clone::clone);
-		let mut pointer = self.pointer;
-		unsafe {
-			pointer.set_pointer(new_box.as_ptr() as *const T);
-		}
-		mem::forget(new_box);
-		Self {
-			_order: PhantomData,
-			pointer,
-		}
+		self.as_bitslice().pipe(Self::from_bitslice)
 	}
 }
 
@@ -92,90 +80,57 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	fn cmp(&self, rhs: &Self) -> Ordering {
-		self.as_bitslice().cmp(rhs.as_bitslice())
+	#[inline]
+	fn cmp(&self, other: &Self) -> cmp::Ordering {
+		self.as_bitslice().cmp(other.as_bitslice())
 	}
 }
 
-impl<A, B, C, D> PartialEq<BitBox<C, D>> for BitBox<A, B>
-where
-	A: BitOrder,
-	B: BitStore,
-	C: BitOrder,
-	D: BitStore,
-{
-	fn eq(&self, rhs: &BitBox<C, D>) -> bool {
-		self.as_bitslice().eq(rhs.as_bitslice())
-	}
-}
-
-impl<A, B, C, D> PartialEq<BitSlice<C, D>> for BitBox<A, B>
-where
-	A: BitOrder,
-	B: BitStore,
-	C: BitOrder,
-	D: BitStore,
-{
-	fn eq(&self, rhs: &BitSlice<C, D>) -> bool {
-		self.as_bitslice().eq(rhs)
-	}
-}
-
-impl<A, B, C, D> PartialEq<BitBox<C, D>> for BitSlice<A, B>
-where
-	A: BitOrder,
-	B: BitStore,
-	C: BitOrder,
-	D: BitStore,
-{
-	fn eq(&self, rhs: &BitBox<C, D>) -> bool {
-		self.eq(rhs.as_bitslice())
-	}
-}
-
-impl<A, B, C, D> PartialOrd<BitBox<C, D>> for BitBox<A, B>
-where
-	A: BitOrder,
-	B: BitStore,
-	C: BitOrder,
-	D: BitStore,
-{
-	fn partial_cmp(&self, rhs: &BitBox<C, D>) -> Option<Ordering> {
-		self.as_bitslice().partial_cmp(rhs.as_bitslice())
-	}
-}
-
-impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for BitBox<A, B>
-where
-	A: BitOrder,
-	B: BitStore,
-	C: BitOrder,
-	D: BitStore,
-{
-	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<Ordering> {
-		self.as_bitslice().partial_cmp(rhs)
-	}
-}
-
-impl<A, B, C, D> PartialOrd<BitBox<C, D>> for BitSlice<A, B>
-where
-	A: BitOrder,
-	B: BitStore,
-	C: BitOrder,
-	D: BitStore,
-{
-	fn partial_cmp(&self, rhs: &BitBox<C, D>) -> Option<Ordering> {
-		self.partial_cmp(rhs.as_bitslice())
-	}
-}
-
-impl<O, T> AsMut<BitSlice<O, T>> for BitBox<O, T>
+impl<O, T> PartialEq<BitBox<O, T>> for BitSlice<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	fn as_mut(&mut self) -> &mut BitSlice<O, T> {
-		self.as_mut_bitslice()
+	#[inline]
+	fn eq(&self, other: &BitBox<O, T>) -> bool {
+		self == other.as_bitslice()
+	}
+}
+
+impl<O, T, Rhs> PartialEq<Rhs> for BitBox<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+	Rhs: ?Sized,
+	BitSlice<O, T>: PartialEq<Rhs>,
+{
+	#[inline]
+	fn eq(&self, other: &Rhs) -> bool {
+		self.as_bitslice() == other
+	}
+}
+
+impl<O, T> PartialOrd<BitBox<O, T>> for BitSlice<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline]
+	fn partial_cmp(&self, other: &BitBox<O, T>) -> Option<cmp::Ordering> {
+		self.partial_cmp(other.as_bitslice())
+	}
+}
+
+impl<O, T, Rhs> PartialOrd<Rhs> for BitBox<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+	Rhs: ?Sized,
+	BitSlice<O, T>: PartialOrd<Rhs>,
+{
+	#[inline]
+	fn partial_cmp(&self, other: &Rhs) -> Option<cmp::Ordering> {
+		self.as_bitslice().partial_cmp(other)
 	}
 }
 
@@ -184,28 +139,31 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn as_ref(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
 	}
 }
 
-impl<O, T> From<&BitSlice<O, T>> for BitBox<O, T>
+impl<O, T> AsMut<BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	fn from(src: &BitSlice<O, T>) -> Self {
-		Self::from_bitslice(src)
+	#[inline(always)]
+	fn as_mut(&mut self) -> &mut BitSlice<O, T> {
+		self.as_mut_bitslice()
 	}
 }
 
-impl<O, T> From<&[T]> for BitBox<O, T>
+impl<'a, O, T> From<&'a BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	fn from(src: &[T]) -> Self {
-		Self::from_slice(src)
+	#[inline(always)]
+	fn from(slice: &'a BitSlice<O, T>) -> Self {
+		Self::from_bitslice(slice)
 	}
 }
 
@@ -214,28 +172,9 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	fn from(src: BitVec<O, T>) -> Self {
-		src.into_boxed_bitslice()
-	}
-}
-
-impl<O, T> From<Box<[T]>> for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn from(src: Box<[T]>) -> Self {
-		Self::from_boxed_slice(src)
-	}
-}
-
-impl<O, T> Into<Box<[T]>> for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn into(self) -> Box<[T]> {
-		self.into_boxed_slice()
+	#[inline(always)]
+	fn from(bv: BitVec<O, T>) -> Self {
+		bv.into_boxed_bitslice()
 	}
 }
 
@@ -244,21 +183,11 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn default() -> Self {
 		Self {
-			_order: PhantomData,
-			pointer: BitPtr::default(),
+			pointer: BitPtr::EMPTY.to_nonnull(),
 		}
-	}
-}
-
-impl<O, T> Binary for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		Binary::fmt(self.as_bitslice(), fmt)
 	}
 }
 
@@ -267,12 +196,17 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		fmt.write_str("BitBox<")?;
-		fmt.write_str(O::TYPENAME)?;
-		fmt.write_str(", ")?;
-		fmt.write_str(T::Mem::TYPENAME)?;
-		fmt.write_str("> ")?;
+		if fmt.alternate() {
+			self.bitptr().render(
+				fmt,
+				"Vec",
+				Some(any::type_name::<O>()),
+				None,
+			)?;
+			fmt.write_str(" ")?;
+		}
 		Display::fmt(self.as_bitslice(), fmt)
 	}
 }
@@ -282,8 +216,20 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Display::fmt(self.as_bitslice(), fmt)
+	}
+}
+
+impl<O, T> Binary for BitBox<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline]
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		Binary::fmt(self.as_bitslice(), fmt)
 	}
 }
 
@@ -292,6 +238,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		LowerHex::fmt(self.as_bitslice(), fmt)
 	}
@@ -302,8 +249,21 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Octal::fmt(self.as_bitslice(), fmt)
+	}
+}
+
+impl<O, T> Pointer for BitBox<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline]
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		self.bitptr()
+			.render(fmt, "Box", Some(any::type_name::<O>()), None)
 	}
 }
 
@@ -312,6 +272,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		UpperHex::fmt(self.as_bitslice(), fmt)
 	}
@@ -322,12 +283,13 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	fn hash<H: Hasher>(&self, hasher: &mut H) {
-		self.as_bitslice().hash(hasher)
+	#[inline]
+	fn hash<H>(&self, state: &mut H)
+	where H: Hasher {
+		self.as_bitslice().hash(state)
 	}
 }
 
-/// `BitBox` is safe to move across thread boundaries, as is `&mut BitBox`.
 unsafe impl<O, T> Send for BitBox<O, T>
 where
 	O: BitOrder,
@@ -335,8 +297,14 @@ where
 {
 }
 
-/// `&BitBox` is safe to move across thread boundaries.
 unsafe impl<O, T> Sync for BitBox<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
+
+impl<O, T> Unpin for BitBox<O, T>
 where
 	O: BitOrder,
 	T: BitStore,

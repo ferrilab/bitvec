@@ -1,18 +1,17 @@
-/*! Heavy bit reference.
+/*! Proxy reference for `&mut bool`
 
-Regrettably, while producing a read reference to a bit inside a `BitSlice` is
-relatively easy to do, Rust’s rules make it impossible to produce a write
-reference to one. This is because references must be addresses that the holder
-can derefence without type consideration. Read references inspect the `BitSlice`
-data sequence, and then produce references to static `true` and `false` values
-as appropriate; the returned address does not need to be actually within the
-referent memory region.
+`BitSlice` regions can easily produce *read* references to `bool`s that they
+contain, by testing the bit and producing the appropriate `&'static bool`, but
+Rust’s rules forbid production of a *write* reference to a `bool` stored within
+a `BitSlice` region. This is because references `&mut T` must be dereferencable
+addresses of type `T`, and `&mut BitSlice` is a non-dereferencable encoded
+pointer.
 
-A write reference, however, is required to be the address of a `bool` within the
-`BitSlice`, which can have `0u8` or `1u8` written into it. This rule makes
-production of any `&mut bool` from any `&mut BitSlice` impossible. Instead, the
-`BitMut` structure serves as a heavy-weight referential object, that cannot be
-used in the `&mut` write reference system, as a good-enough substitute.
+As Rust does not permit defining a method on `&mut _` references that can be
+used to store a value into the referenced location, this type must be used
+instead. Rust’s strict use of references, rather than arbitrary referential
+types, makes this the only major API incompatibility with the rest of the
+standard library.
 !*/
 
 use crate::{
@@ -24,6 +23,11 @@ use crate::{
 };
 
 use core::{
+	fmt::{
+		self,
+		Debug,
+		Formatter,
+	},
 	marker::PhantomData,
 	ops::{
 		Deref,
@@ -32,32 +36,91 @@ use core::{
 	ptr::NonNull,
 };
 
-/** Proxy referential type, equivalent to `&mut bool`.
+use wyz::fmt::FmtForward;
 
-This structure is three words wide, and cannot ever fit into the existing Rust
-language and library infrastructure in the way `&BitSlice` does. While `&mut`
-write references are themselves an affine type, with a guaranteed single point
-of destruction and no duplication, the language forbids writing finalization
-logic for them.
+/** Proxy reference type, equivalent to `&mut bool`.
 
-This means that a custom reference type which implements `Deref` and `DerefMut`
-to a location within the canonical handle, and on `Drop` writes the `Deref`
-location into referent memory, is impossible. Short of that, a C++-style thick
-reference-like type is as close as Rust will allow.
+This is a two-word structure capable of correctly referring to a single bit in
+a memory element. Because Rust does not permit reference-like objects in the
+same manner that C++ does – `&T` and `&mut T` values are required to be
+immediately-valid pointers, not objects – `bitvec` cannot manifest encoded
+`&mut Bit` values in the same way that it can manifest `&mut BitSlice`.
+
+Instead, this type implements `Deref` and `DerefMut` to an internal `bool` slot,
+and in `Drop` commits the value of that `bool` to the proxied bit in the source
+`BitSlice` from which the `BitMut` value was created. The combination of Rust’s
+own exclusion rules and the aliasing type system in this library ensure that a
+`BitMut` value has unique access to the bit it proxies, and the memory element
+it uses will not have destructive data races from other views.
+
+# Lifetimes
+
+- `'a`: The lifetime of the source `&'a mut BitSlice` that created the `BitMut`.
+
+# Type Parameters
+
+- `O`: The `BitOrder` type parameter from the source `&mut BitSlice`.
+- `T`: The `BitStore` type parameter from the source `&mut BitSlice`.
 **/
 pub struct BitMut<'a, O, T>
 where
 	O: BitOrder,
 	T: 'a + BitStore,
 {
-	/// Inform the compiler that this has an exclusive borrow of a `BitSlice`
-	pub(super) _parent: PhantomData<&'a mut BitSlice<O, T>>,
-	/// Typed pointer to the memory element containing the proxied bit.
-	pub(super) data: NonNull<T::Access>,
-	/// Index of the proxied bit inside the targeted memory element.
-	pub(super) head: BitIdx<T::Mem>,
+	/// Accessing pointer to the containing element.
+	addr: NonNull<T::Access>,
+	/// Index of the proxied bit within the containing element.
+	head: BitIdx<T::Mem>,
 	/// A local cache for `Deref` usage.
-	pub(super) bit: bool,
+	data: bool,
+	/// This type is semantically equivalent to a mutable slice of length 1.
+	_ref: PhantomData<&'a mut BitSlice<O, T>>,
+}
+
+impl<O, T> BitMut<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	/// Constructs a new proxy from provided element and bit addresses.
+	///
+	/// # Parameters
+	///
+	/// - `addr`: The address of a memory element, correctly typed for access.
+	/// - `head`: The index of a bit within `*addr`.
+	///
+	/// # Safety
+	///
+	/// The caller must produce `addr`’s value from a valid reference, and its
+	/// type from the correct access requirements at time of construction.
+	pub(crate) unsafe fn new_unchecked(
+		addr: *const T::Access,
+		head: BitIdx<T::Mem>,
+	) -> Self
+	{
+		Self {
+			_ref: PhantomData,
+			addr: NonNull::new_unchecked(addr as *mut T::Access),
+			head,
+			data: (&*addr).get_bit::<O>(head),
+		}
+	}
+}
+
+#[cfg_attr(tarpaulin, skip)]
+impl<O, T> Debug for BitMut<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		write!(fmt, "BitMut<{}>", core::any::type_name::<T::Mem>())?;
+		fmt.debug_struct("")
+			.field("addr", &self.addr.as_ptr().fmt_pointer())
+			.field("head", &self.head.fmt_binary())
+			.field("data", &self.data)
+			.finish()
+	}
 }
 
 impl<O, T> Deref for BitMut<'_, O, T>
@@ -68,7 +131,7 @@ where
 	type Target = bool;
 
 	fn deref(&self) -> &Self::Target {
-		&self.bit
+		&self.data
 	}
 }
 
@@ -78,7 +141,7 @@ where
 	T: BitStore,
 {
 	fn deref_mut(&mut self) -> &mut Self::Target {
-		&mut self.bit
+		&mut self.data
 	}
 }
 
@@ -88,6 +151,32 @@ where
 	T: BitStore,
 {
 	fn drop(&mut self) {
-		unsafe { (*self.data.as_ptr()).set::<O>(self.head, self.bit) }
+		unsafe { (&*self.addr.as_ptr()).write_bit::<O>(self.head, self.data) }
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::prelude::*;
+
+	#[test]
+	fn proxy_ref() {
+		let mut data = 0u32;
+		let bits = BitSlice::<Lsb0, _>::from_element_mut(&mut data);
+		assert!(!bits[0]);
+
+		let mut proxy = bits.first_mut().unwrap();
+		*proxy = true;
+
+		//  We can inspect the cache, but `proxy` locks the entire `bits` for
+		//  the duration of its binding, so we cannot observe that the cache is
+		//  not written into the main buffer.
+		assert!(*proxy);
+		drop(proxy);
+
+		//  The proxy commits the cache on drop, releasing its lock on the main
+		//  buffer, permitting us to see that the writeback occurred.
+		assert!(bits[0]);
+		assert_eq!(data, 1);
 	}
 }

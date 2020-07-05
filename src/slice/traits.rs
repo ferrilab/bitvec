@@ -1,19 +1,18 @@
-/*! General trait implementations for `BitSlice`.
-
-The operator traits are defined in the `ops` module.
-!*/
+//! Trait implementations for `BitSlice`
 
 use crate::{
-	access::BitAccess,
+	devel as dvl,
 	domain::Domain,
 	mem::BitMemory,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
+	view::BitView,
 };
 
 use core::{
-	cmp::Ordering,
+	any,
+	cmp,
 	fmt::{
 		self,
 		Binary,
@@ -22,34 +21,23 @@ use core::{
 		Formatter,
 		LowerHex,
 		Octal,
+		Pointer,
 		UpperHex,
 	},
 	hash::{
 		Hash,
 		Hasher,
 	},
-	hint::unreachable_unchecked,
 	str,
 };
 
-#[cfg(feature = "alloc")]
-use {
-	crate::vec::BitVec,
-	alloc::borrow::ToOwned,
-};
+use wyz::pipe::Pipe;
 
 #[cfg(feature = "alloc")]
-impl<O, T> ToOwned for BitSlice<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	type Owned = BitVec<O, T>;
+use crate::vec::BitVec;
 
-	fn to_owned(&self) -> Self::Owned {
-		BitVec::from_bitslice(self)
-	}
-}
+#[cfg(feature = "alloc")]
+use alloc::borrow::ToOwned;
 
 impl<O, T> Eq for BitSlice<O, T>
 where
@@ -63,112 +51,108 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	fn cmp(&self, rhs: &Self) -> Ordering {
+	#[inline]
+	fn cmp(&self, rhs: &Self) -> cmp::Ordering {
 		self.partial_cmp(rhs)
-			//  `BitSlice` has a total ordering, and never returns `None`.
-			.unwrap_or_else(|| unsafe { unreachable_unchecked() })
+			.expect("BitSlice has a total ordering")
 	}
 }
 
 /** Tests if two `BitSlice`s are semantically — not bitwise — equal.
 
-It is valid to compare two slices of different ordering or element types.
+It is valid to compare slices of different ordering or memory types.
 
-The equality condition requires that they have the same number of total bits and
-that each pair of bits in semantic order are identical.
+The equality condition requires that they have the same length and that at each
+index, the two slices have the same bit value.
 **/
-impl<A, B, C, D> PartialEq<BitSlice<C, D>> for BitSlice<A, B>
+impl<O1, O2, T1, T2> PartialEq<BitSlice<O2, T2>> for BitSlice<O1, T1>
 where
-	A: BitOrder,
-	B: BitStore,
-	C: BitOrder,
-	D: BitStore,
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
 {
-	/// Performas a comparison by `==`.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let lsrc = [8u8, 16, 32, 0];
-	/// let rsrc = 0x10_08_04_00u32;
-	/// let lbits = lsrc.bits::<Lsb0>();
-	/// let rbits = rsrc.bits::<Msb0>();
-	///
-	/// assert_eq!(lbits, rbits);
-	/// ```
-	fn eq(&self, rhs: &BitSlice<C, D>) -> bool {
-		if self.len() != rhs.len() {
-			return false;
-		}
-		self.iter().zip(rhs.iter()).all(|(l, r)| l == r)
+	fn eq(&self, rhs: &BitSlice<O2, T2>) -> bool {
+		self.len() == rhs.len()
+			&& self.iter().zip(rhs.iter()).all(|(l, r)| l == r)
 	}
 }
 
-impl<A, B, C, D> PartialEq<BitSlice<C, D>> for &BitSlice<A, B>
+#[cfg_attr(tarpaulin, skip)]
+impl<O1, O2, T1, T2> PartialEq<BitSlice<O2, T2>> for &BitSlice<O1, T1>
 where
-	A: BitOrder,
-	B: BitStore,
-	C: BitOrder,
-	D: BitStore,
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
 {
-	fn eq(&self, rhs: &BitSlice<C, D>) -> bool {
-		(*self).eq(rhs)
+	#[inline]
+	fn eq(&self, rhs: &BitSlice<O2, T2>) -> bool {
+		*self == rhs
 	}
 }
 
-impl<A, B, C, D> PartialEq<&BitSlice<C, D>> for BitSlice<A, B>
+#[cfg_attr(tarpaulin, skip)]
+impl<O1, O2, T1, T2> PartialEq<BitSlice<O2, T2>> for &mut BitSlice<O1, T1>
 where
-	A: BitOrder,
-	B: BitStore,
-	C: BitOrder,
-	D: BitStore,
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
 {
-	fn eq(&self, rhs: &&BitSlice<C, D>) -> bool {
-		self.eq(*rhs)
+	#[inline]
+	fn eq(&self, rhs: &BitSlice<O2, T2>) -> bool {
+		*self == rhs
+	}
+}
+
+#[cfg_attr(tarpaulin, skip)]
+impl<O1, O2, T1, T2> PartialEq<&BitSlice<O2, T2>> for BitSlice<O1, T1>
+where
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
+{
+	#[inline]
+	fn eq(&self, rhs: &&BitSlice<O2, T2>) -> bool {
+		*self == **rhs
+	}
+}
+
+#[cfg_attr(tarpaulin, skip)]
+impl<O1, O2, T1, T2> PartialEq<&mut BitSlice<O2, T2>> for BitSlice<O1, T1>
+where
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
+{
+	#[inline]
+	fn eq(&self, rhs: &&mut BitSlice<O2, T2>) -> bool {
+		*self == **rhs
 	}
 }
 
 /** Compares two `BitSlice`s by semantic — not bitwise — ordering.
 
-The comparison sorts by testing each index for one slice to have a set bit where
-the other has an unset bit. If the slices are different, the slice with the set
-bit sorts greater than the slice with the unset bit.
-
-If one of the slices is exhausted before they differ, the longer slice is
-greater.
+The comparison sorts by testing at each index if one slice has a high bit where
+the other has a low. At the first index where the slices differ, the slice with
+the high bit is greater. If the slices are equal until at least one terminates,
+then they are compared by length.
 **/
-impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for BitSlice<A, B>
+impl<O1, O2, T1, T2> PartialOrd<BitSlice<O2, T2>> for BitSlice<O1, T1>
 where
-	A: BitOrder,
-	B: BitStore,
-	C: BitOrder,
-	D: BitStore,
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
 {
-	/// Performs a comparison by `<` or `>`.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let src = 0x45u8;
-	/// let bits = src.bits::<Msb0>();
-	/// let a = &bits[0 .. 3]; // 010
-	/// let b = &bits[0 .. 4]; // 0100
-	/// let c = &bits[0 .. 5]; // 01000
-	/// let d = &bits[4 .. 8]; // 0101
-	///
-	/// assert!(a < b);
-	/// assert!(b < c);
-	/// assert!(c < d);
-	/// ```
-	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<Ordering> {
+	fn partial_cmp(&self, rhs: &BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		for (l, r) in self.iter().zip(rhs.iter()) {
 			match (l, r) {
-				(true, false) => return Some(Ordering::Greater),
-				(false, true) => return Some(Ordering::Less),
+				(true, false) => return Some(cmp::Ordering::Greater),
+				(false, true) => return Some(cmp::Ordering::Less),
 				_ => continue,
 			}
 		}
@@ -176,180 +160,228 @@ where
 	}
 }
 
-impl<A, B, C, D> PartialOrd<BitSlice<C, D>> for &BitSlice<A, B>
+#[cfg_attr(tarpaulin, skip)]
+impl<O1, O2, T1, T2> PartialOrd<BitSlice<O2, T2>> for &BitSlice<O1, T1>
 where
-	A: BitOrder,
-	B: BitStore,
-	C: BitOrder,
-	D: BitStore,
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
 {
-	fn partial_cmp(&self, rhs: &BitSlice<C, D>) -> Option<Ordering> {
+	#[inline]
+	fn partial_cmp(&self, rhs: &BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		(*self).partial_cmp(rhs)
 	}
 }
 
-impl<A, B, C, D> PartialOrd<&BitSlice<C, D>> for BitSlice<A, B>
+#[cfg_attr(tarpaulin, skip)]
+impl<O1, O2, T1, T2> PartialOrd<&BitSlice<O2, T2>> for BitSlice<O1, T1>
 where
-	A: BitOrder,
-	B: BitStore,
-	C: BitOrder,
-	D: BitStore,
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
 {
-	fn partial_cmp(&self, rhs: &&BitSlice<C, D>) -> Option<Ordering> {
-		self.partial_cmp(*rhs)
+	#[inline]
+	fn partial_cmp(&self, rhs: &&BitSlice<O2, T2>) -> Option<cmp::Ordering> {
+		(*self).partial_cmp(*rhs)
 	}
 }
 
-impl<'a, O, T> From<&'a T> for &'a BitSlice<O, T>
+impl<O, T> Default for &BitSlice<O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
-	fn from(src: &'a T) -> Self {
-		BitSlice::<O, T>::from_element(src)
-	}
-}
-
-impl<'a, O, T> From<&'a [T]> for &'a BitSlice<O, T>
-where
-	O: BitOrder,
-	T: 'a + BitStore,
-{
-	fn from(src: &'a [T]) -> Self {
-		BitSlice::<O, T>::from_slice(src)
-	}
-}
-
-impl<'a, O, T> From<&'a mut T> for &'a mut BitSlice<O, T>
-where
-	O: BitOrder,
-	T: 'a + BitStore,
-{
-	fn from(src: &'a mut T) -> Self {
-		BitSlice::<O, T>::from_element_mut(src)
-	}
-}
-
-impl<'a, O, T> From<&'a mut [T]> for &'a mut BitSlice<O, T>
-where
-	O: BitOrder,
-	T: 'a + BitStore,
-{
-	fn from(src: &'a mut [T]) -> Self {
-		BitSlice::<O, T>::from_slice_mut(src)
-	}
-}
-
-impl<'a, O, T> Default for &'a BitSlice<O, T>
-where
-	O: BitOrder,
-	T: 'a + BitStore,
-{
+	#[inline]
 	fn default() -> Self {
 		BitSlice::empty()
 	}
 }
 
-impl<'a, O, T> Default for &'a mut BitSlice<O, T>
+impl<O, T> Default for &mut BitSlice<O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
+	#[inline]
 	fn default() -> Self {
 		BitSlice::empty_mut()
 	}
 }
 
+#[cfg_attr(tarpaulin, skip)]
+impl<O, T> Debug for BitSlice<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline]
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		if fmt.alternate() {
+			Pointer::fmt(self, fmt)?;
+			fmt.write_str(" ")?;
+		}
+		Binary::fmt(self, fmt)
+	}
+}
+
+#[cfg_attr(tarpaulin, skip)]
+impl<O, T> Display for BitSlice<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline]
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		Binary::fmt(self, fmt)
+	}
+}
+
+/// Renders a `BitSlice` handle as its pointer representation.
+#[cfg_attr(tarpaulin, skip)]
+impl<O, T> Pointer for BitSlice<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline]
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		self.bitptr()
+			.render(fmt, "Slice", Some(any::type_name::<O>()), None)
+	}
+}
+
+/// Constructs numeric formatting implementations.
 macro_rules! fmt {
 	($trait:ident, $base:expr, $pfx:expr, $blksz:expr) => {
-		/// Write out the contents of a `BitSlice` as a numeric format.
+		/// Render the contents of a `BitSlice` in a numeric format.
 		///
-		/// These implementations render the bits of memory governed by a
-		/// `BitSlice` as one of the three numeric bases the Rust format system
-		/// supports:
+		/// These implementations render the bits of memory contained in a
+		/// `BitSlice` as one of the three numeric bases that the Rust format
+		/// system supports:
 		///
 		/// - `Binary` renders each bit individually as `0` or `1`,
 		/// - `Octal` renders clusters of three bits as the numbers `0` through
 		///   `7`,
-		/// - `Hex` renders clusters of four bits as the numbers `[0-9A-F]`.
+		/// - and `UpperHex` and `LowerHex` render clusters of four bits as the
+		///   numbers `0` through `9` and `A` through `F`.
 		///
-		/// The formatters produce a word for each `T` element of memory. The
+		/// The formatters produce a “word” for each element `T` of memory. The
 		/// chunked formats (octal and hexadecimal) operate somewhat peculiarly:
-		/// they show the semantic value of the memory as interpreted by the
-		/// `BitOrder` type parameter’s implementation, and not the raw value of
-		/// the memory as you might observe with a debugger.
+		/// they show the semantic value of the memory, as interpreted by the
+		/// ordering parameter’s implementation rather than the raw value of
+		/// memory you might observe with a debugger. In order to ease the
+		/// process of expanding numbers back into bits, each digit is grouped to
+		/// the right edge of the memory element. So, for example, the byte
+		/// `0xFF` would be rendered in as `0o377` rather than `0o773`.
 		///
-		/// Specifically, the chunked formats read between zero and three
-		/// (octal) or four (hexadecimal) bits in `BitOrder` order out of a
-		/// memory element, store those bits in first-high/last-low order, and
-		/// then interpret that sequence as a number in their respective bases.
-		/// This means that, for instance, the byte `3` (bit pattern
-		/// `0b0000_0011`), read in `Lsb0` order, will produce the numerals
-		/// `"600"` (`110 000 00`) in octal, and `"C0"` (`1100 0000`) in
-		/// hexadecimal.
-		///
-		/// If the memory element is exhausted before a chunk is filled with
-		/// three or four bits, then the number produced will have a lower
-		/// value. The byte `0xFFu8` will always produce the octal numeral
-		/// `"773"` (`111 111 11`).
-		///
-		/// The decision to chunk numeral words by memory element, even though
-		/// it breaks the octal chunking pattern was made so that the rendered
-		/// text will still show memory boundaries for easier inspection.
+		/// Rendered words are chunked by memory elements, rather than by as
+		/// clean as possible a number of digits, in order to aid visualization
+		/// of the slice’s place in memory.
 		impl<O, T> $trait for BitSlice<O, T>
 		where
 			O: BitOrder,
 			T: BitStore,
 		{
 			fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+				/// Renders an accumulated text buffer as UTF-8.
+				struct Seq<'a>(&'a [u8]);
+				impl Debug for Seq<'_> {
+					fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+						fmt.write_str(unsafe {
+							str::from_utf8_unchecked(self.0)
+						})
+					}
+				}
+				//  If the alternate flag is set, include the radix prefix.
 				let start = if fmt.alternate() { 0 } else { 2 };
+				//  Create a list format accumulator.
 				let mut dbg = fmt.debug_list();
-				let mut w: [u8; (64 / $blksz) + 2] = [b'0'; (64 / $blksz) + 2];
+				/* Create a static buffer of the maximum number of UTF-8 bytes
+				needed to render a `usize` in the selected radix. Rust does not
+				yet grant access to trait constants for use in constant
+				expressions within generics.
+				*/
+				let mut w: [u8; (usize::BITS as usize / $blksz) + 2] =
+					[b'0'; (usize::BITS as usize / $blksz) + 2];
+				//  Write the prefix symbol into the buffer.
 				w[1] = $pfx;
-				let mut writer = |bits: &BitSlice<O, T::NoAlias>| {
+				//  This closure does the main work of rendering a bit slice as
+				//  text. It will be called on each memory element of the slice
+				//  undergoing formatting.
+				let mut writer = |bits: &BitSlice<O, T::Mem>| {
+					//  Set the end index of the format buffer.
 					let mut end = 2;
-					for (idx, chunk) in bits.chunks($blksz).enumerate() {
+					/* Taking `rchunks` clusters the bits to the right edge, so
+					that any remainder is in the left-most (first-rendered)
+					digit, in the same manner as how English clusters digits in
+					ordinary writing.
+
+					Since `rchunks` takes from the back, it must be reversed in
+					order to traverse from front to back. The enumeration
+					provides the offset from the buffer start for writing the
+					computed digit into the format buffer.
+					*/
+					for (index, chunk) in bits.rchunks($blksz).rev().enumerate()
+					{
+						//  Accumulate an Lsb0 representation of the slice
+						//  contents.
 						let mut val = 0u8;
 						for bit in chunk {
 							val <<= 1;
 							val |= *bit as u8;
 						}
-						w[2 + idx] = match val {
+						//  Translate the accumulator into ASCII hexadecimal
+						//  glyphs, and write the glyph into the format buffer.
+						w[2 + index] = match val {
 							v @ 0 ..= 9 => b'0' + v,
 							v @ 10 ..= 16 => $base + (v - 10),
-							_ => unsafe { unreachable_unchecked() },
+							_ => unsafe { core::hint::unreachable_unchecked() },
 						};
 						end += 1;
 					}
-					dbg.entry(&RenderPart(unsafe {
-						str::from_utf8_unchecked(&w[start .. end])
-					}));
+					//  View the format buffer as UTF-8 and write it into the
+					//  main formatter.
+					dbg.entry(&Seq(&w[start .. end]));
 				};
+				//  Break the source `BitSlice` into its element-wise components.
 				match self.domain() {
 					Domain::Enclave { head, elem, tail } => {
-						writer(unsafe {
-							Self::from_element(&elem.load().into())
-								[*head as usize .. *tail as usize]
-								.noalias()
-						});
+						//  Load a copy of `*elem` into the stack,
+						let tmp: T::Mem =
+							elem.pipe(dvl::load_aliased_local::<T>);
+						//  View it as a `BitSlice` over the whole element,
+						// narrow it to the live range, and render it.
+						let bits = tmp.view_bits::<O>();
+						unsafe {
+							bits.get_unchecked(
+								head.value() as usize .. tail.value() as usize,
+							)
+						}
+						.pipe(writer);
 					},
+					//  Same process as above, but with different truncations.
 					Domain::Region { head, body, tail } => {
-						if let Some((h, head)) = head {
-							writer(unsafe {
-								&Self::from_element(&head.load().into())
-									[*h as usize ..]
-									.noalias()
-							});
+						if let Some((head, elem)) = head {
+							let tmp = elem.pipe(dvl::load_aliased_local::<T>);
+							let bits = tmp.view_bits::<O>();
+							unsafe {
+								bits.get_unchecked(head.value() as usize ..)
+							}
+							.pipe(&mut writer);
 						}
-						for elt in body.iter() {
-							writer(BitSlice::from_element(&elt));
+						for elem in body.iter() {
+							elem.pipe(BitSlice::<O, T::Mem>::from_element)
+								.pipe(&mut writer);
 						}
-						if let Some((tail, t)) = tail {
-							writer(unsafe {
-								&Self::from_element(&tail.load().into())
-									[.. *t as usize]
-									.noalias()
-							});
+						if let Some((elem, tail)) = tail {
+							let tmp = elem.pipe(dvl::load_aliased_local::<T>);
+							let bits = tmp.view_bits::<O>();
+							unsafe {
+								bits.get_unchecked(.. tail.value() as usize)
+							}
+							.pipe(&mut writer);
 						}
 					},
 				}
@@ -359,93 +391,19 @@ macro_rules! fmt {
 	};
 }
 
-/** Prints the `BitSlice` for debugging.
-
-The output is of the form `BitSlice<O, T> [ELT, *]` where `<O, T>` is the order
-and element type, with square brackets on each end of the bits and all the
-elements of the array printed in binary. The printout is always in semantic
-order, and may not reflect the underlying buffer. To see the underlying buffer,
-use `.as_total_slice()`.
-
-The alternate character `{:#?}` prints each element on its own line, rather than
-having all elements on the same line.
-**/
-impl<O, T> Debug for BitSlice<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	/// Renders the `BitSlice` type header and contents for debug.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// # #[cfg(feature = "alloc")] {
-	/// use bitvec::prelude::*;
-	///
-	/// let src = [0b0101_0000_1111_0101u16, 0b00000000_0000_0010];
-	/// let bits = &src.bits::<Lsb0>()[.. 18];
-	/// assert_eq!(
-	///     "BitSlice<Lsb0, u16> [1010111100001010, 01]",
-	///     &format!("{:?}", bits),
-	/// );
-	/// # }
-	/// ```
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		fmt.write_str("BitSlice<")?;
-		fmt.write_str(O::TYPENAME)?;
-		fmt.write_str(", ")?;
-		fmt.write_str(T::Mem::TYPENAME)?;
-		fmt.write_str("> ")?;
-		Binary::fmt(self, fmt)
-	}
-}
-
-/** Prints the `BitSlice` for displaying.
-
-This prints each element in turn, formatted in binary in semantic order (so the
-first bit seen is printed first and the last bit seen is printed last). Each
-element of storage is separated by a space for ease of reading.
-
-The alternate character `{:#}` prints each element on its own line.
-
-To see the in-memory representation, use `.as_total_slice()` to get access to
-the raw elements and print that slice instead.
-**/
-impl<O, T> Display for BitSlice<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		Binary::fmt(self, fmt)
-	}
-}
-
-fmt![Binary, b'0', b'b', 1];
-fmt![Octal, b'0', b'o', 3];
-fmt![LowerHex, b'a', b'x', 4];
-fmt![UpperHex, b'A', b'x', 4];
-
-/** Wrapper for inserting pre-rendered text into a formatting stream.
-
-The numeric formatters write text into a buffer, which a formatter then reads
-directly. The formatter only takes `&dyn Debug` objects, so this translates the
-text buffer into a compatible trait object.
-**/
-struct RenderPart<'a>(&'a str);
-impl Debug for RenderPart<'_> {
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		fmt.write_str(&self.0)
-	}
-}
+fmt!(Binary, b'0', b'b', 1);
+fmt!(Octal, b'0', b'o', 3);
+fmt!(LowerHex, b'a', b'x', 4);
+fmt!(UpperHex, b'A', b'x', 4);
 
 /// Writes the contents of the `BitSlice`, in semantic bit order, into a hasher.
+#[cfg_attr(tarpaulin, skip)]
 impl<O, T> Hash for BitSlice<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn hash<H>(&self, hasher: &mut H)
 	where H: Hasher {
 		for bit in self {
@@ -470,17 +428,51 @@ where
 {
 }
 
-#[cfg(all(test, feature = "alloc"))]
+#[cfg(feature = "alloc")]
+impl<O, T> ToOwned for BitSlice<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	type Owned = BitVec<O, T>;
+
+	#[inline]
+	fn to_owned(&self) -> Self::Owned {
+		BitVec::from_bitslice(self)
+	}
+}
+
+#[cfg(test)]
 mod tests {
-	use crate::{
-		order::Msb0,
-		slice::AsBits,
-	};
+	use crate::prelude::*;
+
+	#[test]
+	fn cmp() {
+		let data = 0x45u8;
+		let bits = data.view_bits::<Msb0>();
+		let a = &bits[.. 3]; // 010
+		let b = &bits[.. 4]; // 0100
+		let c = &bits[.. 5]; // 01000
+		let d = &bits[4 ..]; // 0101
+
+		assert!(a < b); // by length
+		assert!(b < c); // by length
+		assert!(c < d); // by different bit
+	}
+}
+
+#[cfg(all(test, feature = "alloc"))]
+mod format {
+	use crate::prelude::*;
+
+	//  The `format!` macro is not in the `alloc` prelude.
+	#[cfg(not(feature = "std"))]
+	use alloc::format;
 
 	#[test]
 	fn binary() {
 		let data = [0u8, 0x0F, !0];
-		let bits = data.bits::<Msb0>();
+		let bits = data.view_bits::<Msb0>();
 
 		assert_eq!(format!("{:b}", &bits[.. 0]), "[]");
 		assert_eq!(format!("{:#b}", &bits[.. 0]), "[]");
@@ -537,7 +529,7 @@ mod tests {
 	#[test]
 	fn octal() {
 		let data = [0u8, 0x0F, !0];
-		let bits = data.bits::<Msb0>();
+		let bits = data.view_bits::<Msb0>();
 
 		assert_eq!(format!("{:o}", &bits[.. 0]), "[]");
 		assert_eq!(format!("{:#o}", &bits[.. 0]), "[]");
@@ -550,43 +542,44 @@ mod tests {
 ]"
 		);
 
-		assert_eq!(format!("{:o}", &bits[4 .. 20]), "[00, 033, 71]");
+		//  …0_000 00_001_111 1_111…
+		assert_eq!(format!("{:o}", &bits[4 .. 20]), "[00, 017, 17]");
 		assert_eq!(
 			format!("{:#o}", &bits[4 .. 20]),
 			"[
     0o00,
-    0o033,
-    0o71,
+    0o017,
+    0o17,
 ]"
 		);
 
-		assert_eq!(format!("{:o}", &bits[4 ..]), "[00, 033, 773]");
+		assert_eq!(format!("{:o}", &bits[4 ..]), "[00, 017, 377]");
 		assert_eq!(
 			format!("{:#o}", &bits[4 ..]),
 			"[
     0o00,
-    0o033,
-    0o773,
+    0o017,
+    0o377,
 ]"
 		);
 
-		assert_eq!(format!("{:o}", &bits[.. 20]), "[000, 033, 71]");
+		assert_eq!(format!("{:o}", &bits[.. 20]), "[000, 017, 17]");
 		assert_eq!(
 			format!("{:#o}", &bits[.. 20]),
 			"[
     0o000,
-    0o033,
-    0o71,
+    0o017,
+    0o17,
 ]"
 		);
 
-		assert_eq!(format!("{:o}", bits), "[000, 033, 773]");
+		assert_eq!(format!("{:o}", bits), "[000, 017, 377]");
 		assert_eq!(
 			format!("{:#o}", bits),
 			"[
     0o000,
-    0o033,
-    0o773,
+    0o017,
+    0o377,
 ]"
 		);
 	}
@@ -594,19 +587,21 @@ mod tests {
 	#[test]
 	fn hex_lower() {
 		let data = [0u8, 0x0F, !0];
-		let bits = data.bits::<Msb0>();
+		let bits = data.view_bits::<Msb0>();
 
 		assert_eq!(format!("{:x}", &bits[.. 0]), "[]");
 		assert_eq!(format!("{:#x}", &bits[.. 0]), "[]");
 
-		assert_eq!(format!("{:x}", &bits[9 .. 15]), "[13]");
+		//  …00_0111 …
+		assert_eq!(format!("{:x}", &bits[9 .. 15]), "[07]");
 		assert_eq!(
 			format!("{:#x}", &bits[9 .. 15]),
 			"[
-    0x13,
+    0x07,
 ]"
 		);
 
+		//  …0000 00001111 1111…
 		assert_eq!(format!("{:x}", &bits[4 .. 20]), "[0, 0f, f]");
 		assert_eq!(
 			format!("{:#x}", &bits[4 .. 20]),
@@ -651,16 +646,16 @@ mod tests {
 	#[test]
 	fn hex_upper() {
 		let data = [0u8, 0x0F, !0];
-		let bits = data.bits::<Msb0>();
+		let bits = data.view_bits::<Msb0>();
 
 		assert_eq!(format!("{:X}", &bits[.. 0]), "[]");
 		assert_eq!(format!("{:#X}", &bits[.. 0]), "[]");
 
-		assert_eq!(format!("{:X}", &bits[9 .. 15]), "[13]");
+		assert_eq!(format!("{:X}", &bits[9 .. 15]), "[07]");
 		assert_eq!(
 			format!("{:#X}", &bits[9 .. 15]),
 			"[
-    0x13,
+    0x07,
 ]"
 		);
 

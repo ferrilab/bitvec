@@ -1,10 +1,20 @@
-/*! `BitVec` structure
+/*! A dynamically-allocated buffer containing a `BitSlice<O, T>` region.
 
-This module holds the main working type of the library. Clients can use
-`BitSlice` directly, but `BitVec` is much more useful for most work.
+You can read the standard library’s [`alloc::vec` module documentation][std]
+here.
 
-The `BitSlice` module discusses the design decisions for the separation between
-slice and vector types.
+This module defines the [`BitVec`] buffer, and all of its associated support
+code.
+
+`BitVec` is equivalent to `Vec<bool>`, in its operation and in its relationship
+to the `BitSlice` type. Most of the interesting work to be done on a
+bit-sequence is implemented in `BitSlice`, to which `BitVec` dereferences, and
+the vector container itself only exists to maintain ownership, implement dynamic
+resizing, and provide some specializations that cannot safely be done on
+`BitSlice` alone.
+
+[`BitVec`]: struct.BitVec.html
+[std]: https://doc.rust-lang.org/alloc/vec
 !*/
 
 #![cfg(feature = "alloc")]
@@ -12,7 +22,7 @@ slice and vector types.
 use crate::{
 	access::BitAccess,
 	boxed::BitBox,
-	index::Indexable,
+	index::BitIdx,
 	mem::BitMemory,
 	order::{
 		BitOrder,
@@ -26,225 +36,96 @@ use crate::{
 use alloc::vec::Vec;
 
 use core::{
-	marker::PhantomData,
-	mem,
-	ptr,
+	mem::ManuallyDrop,
+	ptr::NonNull,
+	slice,
 };
 
 use funty::IsInteger;
 
-/** A compact [`Vec`] of bits, whose order and storage type can be customized.
+use wyz::{
+	pipe::Pipe,
+	tap::Tap,
+};
 
-`BitVec` is a newtype wrapper over `Vec`, and as such is exactly three words in
-size on the stack.
+/** A vector of individual bits, allocated on the heap.
 
-# Examples
+This is a managed, heap-allocated, buffer that contains a `BitSlice` region. It
+is analagous to `Vec<bool>`, and is written to be as close as possible to
+drop-in replacabale for it. This type contains little interesting behavior in
+its own right, dereferencing instead to [`BitSlice`] for manipulation of the
+buffer contents, and serves primarily as an interface to the allocator. If you
+require statically-allocated, fixed-size, owned buffers, you should use the
+[`BitArray`] type.
 
-```rust
-use bitvec::prelude::*;
+Because `BitVec` directly owns its memory, and can guarantee that no other
+object in a program has access to its buffers, `BitVec` is able to override some
+behavior from `BitSlice` in more efficient manners.
 
-let mut bv: BitVec = BitVec::new();
-bv.push(false);
-bv.push(true);
+# Documentation
 
-assert_eq!(bv.len(), 2);
-assert_eq!(bv[0], false);
+All APIs that mirror something in the standard library will have an `Original`
+section linking to the corresponding item. All APIs that have a different
+signature or behavior than the original will have an `API Differences` section
+explaining what has changed, and how to adapt your existing code to the change.
 
-assert_eq!(bv.pop(), Some(true));
-assert_eq!(bv.len(), 1);
+These sections look like this:
 
-bv.set(0, true);
-assert_eq!(bv[0], true);
+# Original
 
-bv.extend([0u8, 1, 0].iter().map(|n| *n != 0u8));
-for bit in &*bv {
-  println!("{}", bit);
-}
-assert_eq!(bv, bitvec![1, 0, 1, 0]);
-```
+[`Vec<T>`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html)
 
-The [`bitvec!`] macro is provided to make initialization more convenient.
+# API Differences
 
-```rust
-use bitvec::prelude::*;
+The buffer type `Vec<bool>` has no type parameters. `BitVec<O, T>` has the same
+two type parameters as `BitSlice<O, T>`. Otherwise, `BitVec` is able to
+implement the full API surface of `Vec<bool>`.
 
-let mut bv = bitvec![0, 1, 2, 3];
-bv.push(false);
-assert_eq!(bv, bitvec![0, 1, 1, 1, 0]);
-```
+# Behavior
 
-It can also initialize each element of a `BitVec<_, T>` with a given value. This
-may be more efficient than performing allocation and initialization in separate
-steps, especially when initializing a vector of zeros:
-
-```rust
-use bitvec::prelude::*;
-
-let bv = bitvec![0; 15];
-assert_eq!(bv, bitvec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-
-// The following is equivalent, but potentially slower:
-let mut bv1: BitVec = BitVec::with_capacity(15);
-bv1.resize(15, false);
-```
-
-Use a `BitVec<T>` as an efficient stack:
-
-```rust
-use bitvec::prelude::*;
-let mut stack: BitVec = BitVec::new();
-
-stack.push(false);
-stack.push(true);
-stack.push(true);
-
-while let Some(top) = stack.pop() {
-  //  Prints true, true, false
-  println!("{}", top);
-}
-```
-
-# Indexing
-
-The `BitVec` type allows you to access values by index, because it implements
-the [`Index`] trait. An example will be more explicit:
-
-```rust
-use bitvec::prelude::*;
-
-let bv = bitvec![0, 0, 1, 1];
-println!("{}", bv[1]); // it will display 'false'
-```
-
-However, be careful: if you try to access an index which isn’t in the `BitVec`,
-your software will panic! You cannot do this:
-
-```rust,should_panic
-use bitvec::prelude::*;
-
-let bv = bitvec![0, 1, 0, 1];
-println!("{}", bv[6]); // it will panic!
-```
-
-In conclusion: always check if the index you want to get really exists before
-doing it.
-
-# Slicing
-
-A `BitVec` is growable. A [`BitSlice`], on the other hand, is fixed size. To get
-a bit slice, use `&`. Example:
-
-```rust
-use bitvec::prelude::*;
-fn read_bitslice(slice: &BitSlice) {
-  // use slice
-}
-
-let bv = bitvec![0, 1];
-read_bitslice(&bv);
-
-// … and that’s all!
-// you can also do it like this:
-let bs: &BitSlice = &bv;
-```
-
-In Rust, it’s more common to pass slices as arguments rather than vectors when
-you do not want to grow or shrink it. The same goes for [`Vec`] and [`&[]`], and
-[`String`] and [`&str`].
-
-# Capacity and reallocation
-
-The capacity of a bit vector is the amount of space allocated for any future
-bits that will be added onto the vector. This is not to be confused with the
-*length* of a vector, which specifies the number of live, useful bits within the
-vector. If a vector’s length exceeds its capacity, its capacity will
-automatically be increased, but its storage elements will have to be
-reallocated.
-
-For example, a bit vector with capacity 10 and length 0 would be an allocated,
-but uninhabited, vector, with space for ten more bits. Pushing ten or fewer bits
-onto the vector will not change its capacity or cause reallocation to occur.
-However, if the vector’s length is increased to eleven, it will have to
-reallocate, which can be slow. For this reason, it is recommended to use
-[`BitVec::with_capacity`] whenever possible to specify how big the bit vector is
-expected to get.
-
-# Guarantees
-
-Due to its incredibly fundamental nature, `BitVec` makes a lot of guarantees
-about its design. This ensures that it is as low-overhead as possible in the
-general case, and can be correctly manipulated in fundamental ways by `unsafe`
-code.
-
-Most fundamentally, `BitVec` is and always will be a `([`BitPtr`], capacity)`
-doublet. No more, no less. The order of these fields is unspecified, and you
-should **only** interact with the members through the provided APIs. Note that
-`BitPtr` is ***not directly manipulable***, and must ***never*** be written or
-interpreted as anything but opaque binary data by user code.
-
-When a `BitVec` has allocated memory, then the memory to which it points is on
-the heap (as defined by the allocator Rust is configured to use by default), and
-its pointer points to [`len`] initialized bits in order of the [`BitOrder`] type
-parameter, followed by `capacity - len` logically uninitialized bits.
-
-`BitVec` will never perform a “small optimization” where elements are stored in
-its handle representation, for two reasons:
-
-- It would make it more difficult for user code to correctly manipulate a
-  `BitVec`. The contents of the `BitVec` would not have a stable address if the
-  handle were moved, and it would be more difficult to determine if a `BitVec`
-  had allocated memory.
-
-- It would penalize the general, heap-allocated, case by incurring a branch on
-  every access.
-
-`BitVec` will never automatically shrink itself, even if it is emptied. This
-ensures that no unnecessary allocations or deallocations occur. Emptying a
-`BitVec` and then refilling it to the same length will incur no calls to the
-allocator. If you wish to free up unused memory, use [`shrink_to_fit`].
-
-## Erasure
-
-`BitVec` will not specifically overwrite any data that is removed from it, nor
-will it specifically preserve it. Its uninitialized memory is scratch space that
-may be used however the implementation desires, and must not be relied upon as
-stable. Do not rely on removed data to be erased for security purposes. Even if
-you drop a `BitVec`, its buffer may simply be reused for other data structures
-in your program. Even if you zero a `BitVec`’s memory first, that may not
-actually occur if the optimizer does not consider this an observable side
-effect. There is one case that will never break, however: using `unsafe` to
-construct a `[T]` slice over the `BitVec`’s capacity, and writing to the excess
-space, then increasing the length to match, is always valid.
+Because `BitVec` is a fully-owned buffer, it is able to operate on its memory
+without concern for any other views that may alias. This enables it to
+specialize some `BitSlice` behavior to be faster or more efficient.
 
 # Type Parameters
 
-- `O: BitOrder`: An implementor of the [`BitOrder`] trait. This type is used to
-  convert semantic indices into concrete bit positions in elements, and store or
-  retrieve bit values from the storage type.
-- `T: BitStore`: An implementor of the [`BitStore`] trait: `u8`, `u16`, `u32`,
-  or `u64` (64-bit systems only). This is the actual type in memory that the
-  vector will use to store data.
+This takes the same two type parameters, `O: BitOrder` and `T: BitStore`, as
+`BitSlice`.
 
 # Safety
 
-The `BitVec` handle has the same *size* as standard Rust `Vec` handles, but it
-is ***extremely binary incompatible*** with them. Attempting to treat
-`BitVec<_, T>` as `Vec<T>` in any manner except through the provided APIs is
-***catastrophically*** unsafe and unsound.
+Like `BitSlice`, `BitVec` is exactly equal in size to `Vec`, and is also
+absolutely representation-incompatible with it. You must never attempt to
+type-cast between `Vec<T>` and `BitVec` in any way, nor attempt to modify the
+memory value of a `BitVec` handle. Doing so will cause allocator and memory
+errors in your program, likely inducing a panic.
 
+Everything in the `BitVec` public API, even the `unsafe` parts, are guaranteed
+to have no more unsafety than their equivalent items in the standard library.
+All `unsafe` APIs will have documentation explicitly detailing what the API
+requires you to uphold in order for it to function safely and correctly. All
+safe APIs will do so themselves.
+
+# Performance
+
+The choice of `T: BitStore` type parameter can impact your vector’s performance,
+as the allocator operates in units of `T` rather than in bits. This means that
+larger register types will increase the amount of memory reserved in each call
+to the allocator, meaning fewer calls to `.push()` will actually cause a
+reällocation. In addition, iteration over the vector is governed by the
+`BitSlice` characteristics on the type parameter. You are generally better off
+using larger types when your vector is a data collection rather than a specific
+I/O protocol buffer.
+
+# Macro Construction
+
+Heap allocation can only occur at runtime, but the [`bitvec!`] macro will
+construct an appropriate `BitSlice` buffer at compile-time, and at run-time,
+only copy the buffer into a heap allocation.
+
+[`BitArray`]: ../array/struct.BitArray.html
 [`BitSlice`]: ../slice/struct.BitSlice.html
-[`BitVec::with_capacity`]: #method.with_capacity
-[`BitStore`]: ../store/trait.BitStore.html
-[`BitOrder`]: ../order/trait.BitOrder.html
-[`Index`]: https://doc.rust-lang.org/stable/std/ops/trait.Index.html
-[`String`]: https://doc.rust-lang.org/stable/std/string/struct.String.html
-[`Vec`]: https://doc.rust-lang.org/stable/std/vec/struct.Vec.html
 [`bitvec!`]: ../macro.bitvec.html
-[`clear_on_drop`]: https://docs.rs/clear_on_drop
-[`len`]: #method.len
-[`shrink_to_fit`]: #method.shrink_to_fit
-[`&str`]: https://doc.rust-lang.org/stable/std/primitive.str.html
-[`&[]`]: https://doc.rust-lang.org/stable/std/primitive.slice.html
 **/
 #[repr(C)]
 pub struct BitVec<O = Local, T = usize>
@@ -252,14 +133,13 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// Phantom `BitOrder` member to satisfy the constraint checker.
-	_order: PhantomData<O>,
-	/// Slice pointer over the owned memory.
-	pointer: BitPtr<T>,
-	/// The number of *elements* this vector has allocated.
+	/// Region pointer describing the live portion of the owned buffer.
+	pointer: NonNull<BitSlice<O, T>>,
+	/// Allocated capacity, in elements `T`, of the owned buffer.
 	capacity: usize,
 }
 
+/// Methods specific to `BitVec<_, T>`, and not present on `Vec<T>`.
 impl<O, T> BitVec<O, T>
 where
 	O: BitOrder,
@@ -278,326 +158,74 @@ where
 	/// # Returns
 	///
 	/// A `BitVec` with `len` live bits, all set to `bit`.
+	#[inline]
 	pub fn repeat(bit: bool, len: usize) -> Self {
 		let mut out = Self::with_capacity(len);
 		unsafe {
 			out.set_len(len);
 		}
-		out.set_elements(if bit { T::Mem::ALL } else { T::Mem::ZERO }.into());
+		out.set_elements(if bit { T::Mem::ALL } else { T::Mem::ZERO });
 		out
-	}
-
-	/// Constructs a `BitVec` from a single element.
-	///
-	/// The produced `BitVec` will span the element, and include all bits in it.
-	///
-	/// # Parameters
-	///
-	/// - `elt`: The source element.
-	///
-	/// # Returns
-	///
-	/// A `BitVec` over the provided element.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bv = BitVec::<Msb0, u8>::from_element(5);
-	/// assert_eq!(bv.count_ones(), 2);
-	/// ```
-	#[inline]
-	pub fn from_element(elt: T) -> Self {
-		let mut v = Vec::with_capacity(1);
-		v.push(elt);
-		Self::from_vec(v)
-	}
-
-	/// Constructs a `BitVec` from a slice of elements.
-	///
-	/// The produced `BitVec` will span the provided slice.
-	///
-	/// # Parameters
-	///
-	/// - `slice`: The source elements to copy into the new `BitVec`.
-	///
-	/// # Returns
-	///
-	/// A `BitVec` set to the provided slice values.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let src = [5, 10];
-	/// let bv = BitVec::<Msb0, u8>::from_slice(&src[..]);
-	/// assert!(bv[5]);
-	/// assert!(bv[7]);
-	/// assert!(bv[12]);
-	/// assert!(bv[14]);
-	/// ```
-	#[inline]
-	pub fn from_slice(slice: &[T]) -> Self {
-		let mut buf = Vec::with_capacity(slice.len());
-		buf.extend(slice.iter().map(|elt| {
-			unsafe { &*(elt as *const T as *const T::Access) }
-				.load()
-				.into()
-		}));
-		Self::from_vec(buf)
-	}
-
-	/// Consumes a `Vec<T>` and creates a `BitVec<O, T>` from it.
-	///
-	/// # Parameters
-	///
-	/// - `vec`: The source vector whose memory will be used.
-	///
-	/// # Returns
-	///
-	/// A new `BitVec` using the `vec` `Vec`’s memory.
-	///
-	/// # Panics
-	///
-	/// Panics if the source vector would cause the `BitVec` to overflow
-	/// capacity.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bv = BitVec::<Msb0, u8>::from_vec(vec![1, 2, 4, 8]);
-	/// assert_eq!(
-	///     "[00000001, 00000010, 00000100, 00001000]",
-	///     &format!("{}", bv),
-	/// );
-	/// ```
-	pub fn from_vec(vec: Vec<T>) -> Self {
-		let len = vec.len();
-		assert!(
-			len <= BitPtr::<T>::MAX_ELTS,
-			"Vector length {} overflows {}",
-			len,
-			BitPtr::<T>::MAX_ELTS,
-		);
-		let bs = BitSlice::<O, T>::from_slice(&vec[..]);
-		let pointer = bs.bitptr();
-		let capacity = vec.capacity();
-		mem::forget(vec);
-		Self {
-			_order: PhantomData,
-			pointer,
-			capacity,
-		}
 	}
 
 	/// Clones a `&BitSlice` into a `BitVec`.
 	///
-	/// This is the only method by which a `BitVec` can be created whose first
-	/// live bit is not at the `0` position. This behavior, though
-	/// unconventional for common uses of `BitVec`, allows for a more efficient
-	/// clone of any `BitSlice` region without shifting each bit in the region
-	/// down to fit the `0` starting position.
+	/// # Original
 	///
-	/// Misaligned `BitVec`s **do not** have any adverse effect on usage other
-	/// than the in-memory representation.
+	/// [`<Vec<T: Clone> as Clone>::clone`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#impl-Clone)
 	///
-	/// Whenever a `BitVec` is emptied, its head index is always set to `0`, and
-	/// will begin from the aligned position on future refills.
+	/// # Effects
 	///
-	/// The [`::force_align`] method will shift the `BitVec`’s data to begin at
-	/// the `0` index, if you require this property.
-	///
-	/// # Parameters
-	///
-	/// - `slice`: The source `BitSlice` region. This may have any head index,
-	///   and its memory will be copied element-wise into the new buffer.
-	///
-	/// # Returns
-	///
-	/// A `BitVec` containing the same bits as the source slice.
+	/// This performs a direct element-wise copy from the source slice to the
+	/// newly-allocated buffer, then sets the vector to have the same starting
+	/// bit as the slice did. This allows for faster behavior. If you require
+	/// that the vector start at the leading edge of the first element, use
+	/// [`force_align`] to guarantee this.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bs = [0u8, !0].bits::<Msb0>();
-	/// let bv = BitVec::from_bitslice(bs);
-	/// assert_eq!(bv.len(), 16);
-	/// assert!(bv.some());
+	/// let bits = bits![0, 1, 0, 1, 1, 0, 1, 1];
+	/// let bv = BitVec::from_bitslice(&bits[2 ..]);
+	/// assert_eq!(bv, bits[2 ..]);
 	/// ```
 	///
-	/// [`::force_align`]: #method.force_align
+	/// [`force_align`]: #method.force_align
 	pub fn from_bitslice(slice: &BitSlice<O, T>) -> Self {
-		let mut pointer = slice.bitptr();
-		let source = pointer.as_access_slice();
+		let mut bitptr = slice.bitptr();
+		let (base, elts) = (bitptr.pointer().to_access(), bitptr.elements());
+		let source = unsafe { slice::from_raw_parts(base, elts) };
 
-		//  Create a blank buffer into which the source will be copied.
-		let mut v = Vec::with_capacity(source.len());
+		let mut vec = elts.pipe(Vec::with_capacity).pipe(ManuallyDrop::new);
 
-		//  Copy the source into the buffer. This must be done per-element, so
-		//  that atomic systems will correctly synchronize.
-		source.iter().for_each(|elt| v.push(elt.load()));
+		vec.extend(source.iter().map(BitAccess::load_value));
 
-		/* Target the copied pointer to the buffer’s region, preserving its
-		length and offset information. This enables `BitVec` to efficiently
-		lift from any `&BitSlice`, without having to reälign the source per-bit.
-		*/
 		unsafe {
-			pointer.set_pointer(v.as_ptr() as *const T);
+			bitptr.set_pointer(vec.as_ptr() as *const T);
 		}
 
-		let capacity = v.capacity();
-		mem::forget(v);
+		let capacity = vec.capacity();
 		Self {
-			_order: PhantomData,
-			pointer,
+			pointer: bitptr.to_nonnull(),
 			capacity,
 		}
 	}
 
-	/// Converts a frozen `BitBox` allocation into a growable `BitVec`.
+	/// Writes a value into every element that the vector considers live.
 	///
-	/// This does not copy or reallocate.
+	/// This unconditionally writes `element` into each live location in the
+	/// backing buffer, without altering the `BitVec`’s length or capacity.
 	///
-	/// # Parameters
-	///
-	/// - `slice`: A `BitBox` to be thawed.
-	///
-	/// # Returns
-	///
-	/// A growable collection over the original memory of the slice.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bv = BitVec::from_boxed_bitslice(bitbox![0, 1]);
-	/// assert_eq!(bv.len(), 2);
-	/// assert!(bv.some());
-	/// ```
-	pub fn from_boxed_bitslice(slice: BitBox<O, T>) -> Self {
-		let bitptr = slice.bitptr();
-		mem::forget(slice);
-		unsafe { Self::from_raw_parts(bitptr, bitptr.elements()) }
-	}
-
-	/// Creates a new `BitVec<O, T>` directly from the raw parts of another.
-	///
-	/// # Parameters
-	///
-	/// - `pointer`: The `BitPtr<T>` to use.
-	/// - `capacity`: The number of `T` elements *allocated* in that slab.
-	///
-	/// # Returns
-	///
-	/// A `BitVec` over the given slab of memory.
-	///
-	/// # Safety
-	///
-	/// This is ***highly*** unsafe, due to the number of invariants that aren’t
-	/// checked:
-	///
-	/// - `pointer` needs to have been previously allocated by some allocating
-	///   type.
-	/// - `pointer`’s `T` needs to have the same size ***and alignment*** as it
-	///   was initially allocated.
-	/// - `pointer`’s element count needs to be less than or equal to the
-	///   original allocation capacity.
-	/// - `capacity` needs to be the original allocation capacity for the
-	///   vector. This is *not* the value produced by `.capacity()`.
-	///
-	/// Violating these ***will*** cause problems, like corrupting the handle’s
-	/// concept of memory, the allocator’s internal data structures, and the
-	/// sanity of your program. It is ***absolutely*** not safe to construct a
-	/// `BitVec` whose `T` differs from the type used for the initial
-	/// allocation.
-	///
-	/// The ownership of `pointer` is effectively transferred to the
-	/// `BitVec<O, T>` which may then deallocate, reallocate, or modify the
-	/// contents of the referent slice at will. Ensure that nothing else uses
-	/// the pointer after calling this function.
-	#[inline]
-	pub unsafe fn from_raw_parts(pointer: BitPtr<T>, capacity: usize) -> Self {
-		Self {
-			_order: PhantomData,
-			pointer,
-			capacity,
-		}
-	}
-
-	/// Produces a `BitSlice` containing the entire vector.
-	///
-	/// Equivalent to `&s[..]`.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// A `BitSlice` over the vector.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bv = bitvec![0, 1, 1, 0];
-	/// let bs = bv.as_bitslice();
-	/// ```
-	#[inline]
-	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
-		self.pointer.into_bitslice()
-	}
-
-	/// Produces a mutable `BitSlice` containing the entire vector.
-	///
-	/// Equivalent to `&mut s[..]`.
+	/// It is unspecified what effects this has on the allocated but dead
+	/// elements in the buffer.
 	///
 	/// # Parameters
 	///
 	/// - `&mut self`
-	///
-	/// # Returns
-	///
-	/// A mutable `BitSlice` over the vector.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let mut bv = bitvec![0, 1, 1, 0];
-	/// let bs = bv.as_mut_bitslice();
-	/// ```
-	#[inline]
-	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
-		self.pointer.into_bitslice_mut()
-	}
-
-	/// Sets the backing storage to the provided element.
-	///
-	/// This unconditionally sets each live element in the backing buffer to the
-	/// provided value, without altering the `BitVec` length or capacity. It
-	/// operates on the underlying `Vec`’s memory buffer directly, and ignores
-	/// the `BitVec`’s cursors.
-	///
-	/// It is an implementation detail as to whether this affects the value of
-	/// allocated, but not currently used, elements in the buffer. Behavior of
-	/// this method on elements not visible through `self.as_slice()` is not
-	/// specified.
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`
-	/// - `element`: The value to which each live element in the backing store
-	///   will be set.
+	/// - `element`: The value which will be written to each live location in
+	///   the vector’s buffer.
 	///
 	/// # Examples
 	///
@@ -605,159 +233,306 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![Local, u8; 0; 10];
-	/// //  note: the second element is not required to be zero, only to have
-	/// //  bits `0` and `1` according to `Local` be `0`.
-	/// assert_eq!(bv.as_slice()[0], 0);
+	/// assert_eq!(bv.as_slice(), [0, 0]);
 	/// bv.set_elements(0xA5);
-	/// assert_eq!(bv.as_slice(), &[0xA5, 0xA5]);
+	/// assert_eq!(bv.as_slice(), [0xA5, 0xA5]);
 	/// ```
 	#[inline]
-	pub fn set_elements(&mut self, element: T) {
+	pub fn set_elements(&mut self, element: T::Mem) {
 		self.as_mut_slice()
 			.iter_mut()
-			.for_each(|elt| *elt = unsafe { ptr::read(&element) });
+			.for_each(|elt| *elt = element.into());
 	}
 
-	/// Changes the order type on the vector handle, without changing its
-	/// contents.
+	/// Views the buffer’s contents as a `BitSlice`.
 	///
-	/// # Parameters
+	/// This is equivalent to `&bv[..]`.
 	///
-	/// - `self`
+	/// # Original
 	///
-	/// # Returns
-	///
-	/// An equivalent vector handle with a new order type. The contents of the
-	/// backing storage are unchanged.
-	///
-	/// To reorder the bits in memory, drain this vector into a new handle with
-	/// the desired order type.
-	pub fn change_order<P>(self) -> BitVec<P, T>
-	where P: BitOrder {
-		let (bp, cap) = (self.pointer, self.capacity);
-		mem::forget(self);
-		unsafe { BitVec::from_raw_parts(bp, cap) }
-	}
-
-	/// Degrades a `BitVec` to a `BitBox`, freezing its size.
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	///
-	/// # Returns
-	///
-	/// Itself, with its size frozen and ungrowable.
-	pub fn into_boxed_bitslice(self) -> BitBox<O, T> {
-		let (_, head, bits) = self.bitptr().raw_parts();
-		let boxed = self.into_vec().into_boxed_slice();
-		let addr = boxed.as_ptr();
-		mem::forget(boxed);
-		unsafe {
-			BitBox::from_raw(
-				BitPtr::new_unchecked(addr, head, bits).as_mut_ptr(),
-			)
-		}
-	}
-
-	/// Degrades a `BitVec` to a standard `Vec`.
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	///
-	/// # Returns
-	///
-	/// The plain vector underlying the `BitVec`.
-	pub fn into_vec(self) -> Vec<T> {
-		let bp = self.bitptr();
-		let base = bp.pointer().w();
-		let elts = bp.elements();
-		let out = unsafe { Vec::from_raw_parts(base, elts, self.capacity) };
-		mem::forget(self);
-		out
-	}
-
-	/// Ensures that the live region of the underlying memory begins at the `0`
-	/// bit position.
-	///
-	/// # Notes
-	///
-	/// This method is currently implemented as a linear traversal that moves
-	/// each bit individually from its original index to its final position.
-	/// This is `O(n)` in the bit length of the vector.
-	///
-	/// It is possible to create an optimized rotation behavior that only moves
-	/// a few bits individually, then moves elements in a gallop. The speed
-	/// difference is proportional to the width of the element type.
-	///
-	/// When this behavior is implemented, `force_align` will be rewritten to
-	/// take advantage of it. For now, it remains slow.
+	/// [`Vec::as_slice`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.as_slice)
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let src = &bits![Msb0, u8; 1, 0, 1, 1, 0, 1, 1, 0][1 .. 7];
-	/// assert_eq!(src.len(), 6);
-	/// let mut bv = src.to_owned();
-	/// assert_eq!(bv.len(), 6);
-	/// assert_eq!(bv.as_slice()[0], 0xB6);
-	/// bv.force_align();
-	/// assert_eq!(bv.as_slice()[0], 0x6E);
+	/// let bv = bitvec![0, 1, 1, 0];
+	/// let bits = bv.as_bitslice();
 	/// ```
-	pub fn force_align(&mut self) {
-		let (_, head, bits) = self.pointer.raw_parts();
-		let head = *head as usize;
-		if head == 0 {
-			return;
-		}
-		let tail = head + bits;
-		unsafe {
-			self.pointer.set_head(0.idx());
-			self.pointer.set_len(tail);
-			for (to, from) in (head .. tail).enumerate() {
-				self.copy_unchecked(from, to);
-			}
-			self.pointer.set_len(bits);
-		}
+	#[inline]
+	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
+		unsafe { &*self.pointer.as_ptr() }
 	}
 
-	/// Permits a function to modify the `Vec<T>` underneath a `BitVec<_, T>`.
+	/// Extracts a mutable bit-slice of the entire vector.
 	///
-	/// This produces a `Vec<T>` structure referring to the same data region as
-	/// the `BitVec<_, T>`, allows a function to mutably view it, and then
-	/// forgets the `Vec<T>` after the function concludes.
+	/// Equivalent to `&mut bv[..]`.
+	///
+	/// # Original
+	///
+	/// [`Vec::as_mut_slice`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.as_mut_slice)
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut bv = bitvec![0, 1, 0, 1];
+	/// let bits = bv.as_mut_bitslice();
+	/// bits.set(0, true);
+	/// ```
+	#[inline]
+	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
+		unsafe { &mut *self.pointer.as_ptr() }
+	}
+
+	/// Returns a raw pointer to the vector’s region.
+	///
+	/// The caller must ensure that the vector outlives the pointer this
+	/// function returns, or else it will end up pointing to garbage. Modifying
+	/// the vector may cause its buffer to be reallocated, which would also make
+	/// any pointers to it invalid.
+	///
+	/// The caller must also ensure that the memory the pointer
+	/// (non-transitively) points to is never written to (except inside an
+	/// `UnsafeCell`) using this pointer or any pointer derived from it. If you
+	/// need to mutate the contents of the region, use [`as_mut_bitptr`].
+	///
+	/// This pointer is an opaque crate-internal type. Its in-memory
+	/// representation is unsafe to modify in any way. The only safe action to
+	/// take with this pointer is to pass it, unchanged, back into a `bitvec`
+	/// API.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bv = bitvec![0; 20];
+	/// let ptr = bv.as_bitptr();
+	///
+	/// let bits = unsafe { &*ptr };
+	/// assert_eq!(bv, bits);
+	/// ```
+	///
+	/// [`as_mut_bitptr`]: #method.as_mut_bitptr
+	#[inline]
+	pub fn as_bitptr(&self) -> *const BitSlice<O, T> {
+		self.pointer.as_ptr() as *const BitSlice<O, T>
+	}
+
+	/// Returns an unsafe mutable pointer to the vector’s region.
+	///
+	/// The caller must ensure that the vector outlives the pointer this
+	/// function returns, or else it will end up pointing to garbage. Modifying
+	/// the vector may cause its buffer to be reallocated, which would also make
+	/// any pointers to it invalid.
+	///
+	/// This pointer is an opaque crate-internal type. Its in-memory
+	/// representation is unsafe to modify in any way. The only safe action to
+	/// take with this pointer is to pass it, unchanged, back into a `bitvec`
+	/// API.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut bv = bitvec![0; 20];
+	/// let ptr = bv.as_mut_bitptr();
+	///
+	/// let bits = unsafe { &mut *ptr };
+	/// assert_eq!(bv, bits);
+	/// ```
+	#[inline]
+	pub fn as_mut_bitptr(&mut self) -> *mut BitSlice<O, T> {
+		self.pointer.as_ptr()
+	}
+
+	/// Copies all bits in a `BitSlice` into the `BitVec`.
+	///
+	/// This is provided for API completeness; it has no performance benefits
+	/// compared to use of the [`Extend`] implementation.
 	///
 	/// # Parameters
 	///
 	/// - `&mut self`
-	/// - `func`: A function which receives a mutable borrow to the `Vec<T>`
-	///   underlying the `BitVec<_, T>`.
+	/// - `other`: A `BitSlice` reference of the same type parameters as `self`.
+	///
+	/// # Behavior
+	///
+	/// `self` is extended by the length of `other`, and then the contents of
+	/// `other` are copied into the newly-allocated end of `self`.
+	///
+	/// [`Extend`]: #impl-Extend<%26'a bool>
+	#[inline]
+	pub fn extend_from_bitslice(&mut self, other: &BitSlice<O, T>) {
+		let len = self.len();
+		let olen = other.len();
+		self.reserve(other.len());
+		unsafe {
+			self.set_len(len + olen);
+			self.get_unchecked_mut(len ..)
+		}
+		.clone_from_bitslice(other);
+	}
+
+	/// Gets the number of elements `T` that contain live bits of the vector.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bv = bitvec![Local, u16; 1; 50];
+	/// assert_eq!(bv.elements(), 4);
+	/// ```
+	#[inline]
+	pub fn elements(&self) -> usize {
+		self.bitptr().elements()
+	}
+
+	/// Converts the vector into [`BitBox<O, T>`].
+	///
+	/// Note that this will drop any excess capacity.
+	///
+	/// # Original
+	///
+	/// [`Vec::into_boxed_slice`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.into_boxed_slice)
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut bv = bitvec![1; 50];
+	/// let bb: BitBox = bv.into_boxed_bitslice();
+	/// assert_eq!(bb, bits![1; 50]);
+	/// ```
+	///
+	/// [`BitBox<O, T>`]: ../boxed/struct.BitBox.html
+	pub fn into_boxed_bitslice(self) -> BitBox<O, T> {
+		let mut bitptr = self.bitptr();
+		let boxed = self.into_boxed_slice().pipe(ManuallyDrop::new);
+		unsafe {
+			bitptr.set_pointer(boxed.as_ptr());
+		}
+		unsafe { BitBox::from_raw(bitptr.to_bitslice_ptr_mut::<O>()) }
+	}
+
+	/// Converts the vector back into an ordinary vector of memory elements.
+	///
+	/// This does not affect the vector’s buffer, only the handle used to
+	/// control it.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// An ordinary vector containing all of the bit-vector’s memory buffer.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bv = bitvec![0; 5];
+	/// let vec = bv.into_vec();
+	/// assert_eq!(vec, [0]);
+	/// ```
+	pub fn into_vec(self) -> Vec<T> {
+		let mut this = ManuallyDrop::new(self);
+		let buf = this.as_mut_slice();
+		unsafe {
+			Vec::from_raw_parts(
+				buf.as_mut_ptr() as *mut T,
+				buf.len(),
+				this.capacity,
+			)
+		}
+	}
+
+	/// Ensures that the live region of the vector’s contents begins at the
+	/// leading edge of the buffer.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let data = 0x3Cu8;
+	/// let bits = data.view_bits::<Msb0>();
+	///
+	/// let mut bv = bits[2 .. 6].to_bitvec();
+	/// assert_eq!(bv, bits[2 .. 6]);
+	/// assert_eq!(bv.as_slice()[0], data);
+	///
+	/// bv.force_align();
+	/// assert_eq!(bv, bits[2 .. 6]);
+	/// //  It is not specified what happens to bits that are no longer used.
+	/// assert_eq!(bv.as_slice()[0] & 0xF0, 0xF0);
+	/// ```
+	pub fn force_align(&mut self) {
+		let bitptr = self.bitptr();
+		let head = bitptr.head().value() as usize;
+		if head == 0 {
+			return;
+		}
+		let last = bitptr.len() + head;
+		unsafe {
+			self.pointer =
+				bitptr.tap_mut(|bp| bp.set_head(BitIdx::ZERO)).to_nonnull();
+			self.copy_within_unchecked(head .. last, 0);
+		}
+	}
+
+	#[inline]
+	pub(crate) fn bitptr(&self) -> BitPtr<T> {
+		self.pointer.as_ptr().pipe(BitPtr::from_bitslice_ptr_mut)
+	}
+
+	/// Permits a function to modify the `Vec<T>` backing storage of a
+	/// `BitVec<_, T>`.
+	///
+	/// This produces a temporary `Vec<T::Mem>` structure governing the
+	/// `BitVec`’s buffer and allows a function to view it mutably. After the
+	/// callback returns, the `Vec` is written back into `self` and forgotten.
 	///
 	/// # Type Parameters
 	///
-	/// - `F: FnOnce(&mut Vec<T>) -> R`: Any callable object (function or
-	///   closure) which receives a mutable borrow of a `Vec<T>`.
+	/// - `F`: A function which operates on a mutable borrow of a `Vec<T::Mem>`
+	///   buffer controller.
+	/// - `R`: The return type of the `F` function.
 	///
-	/// - `R`: The return value from the called function or closure.
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `func`: A function which receives a mutable borrow of a `Vec<T::Mem>`
+	///   controlling `self`’s buffer.
+	///
+	/// # Returns
+	///
+	/// The return value of `func`. `func` is forbidden from borrowing any part
+	/// of the `Vec<T::Mem>` temporary view.
 	fn with_vec<F, R>(&mut self, func: F) -> R
-	where F: FnOnce(&mut Vec<T>) -> R {
-		let slice = self.pointer.as_mut_slice();
-		let mut v = unsafe {
-			Vec::from_raw_parts(slice.as_mut_ptr(), slice.len(), self.capacity)
-		};
-		let out = func(&mut v);
-		//  The only change is that the pointer might relocate. The region data
-		//  will remain untouched. Vec guarantees it will never produce an
-		//  invalid pointer.
+	where F: FnOnce(&mut ManuallyDrop<Vec<T::Mem>>) -> R {
+		let cap = self.capacity;
+		let mut bitptr = self.bitptr();
+		let (base, elts) =
+			(bitptr.pointer().to_mut() as *mut T::Mem, bitptr.elements());
+
+		let mut vec = unsafe { Vec::from_raw_parts(base, elts, cap) }
+			.pipe(ManuallyDrop::new);
+		let out = func(&mut vec);
+
 		unsafe {
-			self.pointer.set_pointer(v.as_ptr());
+			bitptr.set_pointer(vec.as_ptr() as *mut T);
 		}
-		// self.pointer = unsafe { BitPtr::new_unchecked(v.as_ptr(), e, h, t) };
-		self.capacity = v.capacity();
-		mem::forget(v);
+		self.pointer = bitptr.to_nonnull();
+		self.capacity = vec.capacity();
 		out
 	}
 }
@@ -767,5 +542,11 @@ mod iter;
 mod ops;
 mod traits;
 
-pub use api::*;
-pub use iter::*;
+pub use iter::{
+	Drain,
+	IntoIter,
+	Splice,
+};
+
+#[cfg(test)]
+mod tests;

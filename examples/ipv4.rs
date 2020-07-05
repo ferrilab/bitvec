@@ -13,7 +13,7 @@ use bitvec::prelude::*;
 
 fn build() -> [u8; 20] {
 	let mut raw_bytes = [0u8; 20];
-	let pkt = raw_bytes.bits_mut::<Msb0>();
+	let pkt = raw_bytes.view_bits_mut::<Msb0>();
 
 	//  Set IPv4
 	pkt[.. 4].store(4u8);
@@ -60,7 +60,7 @@ fn build() -> [u8; 20] {
 
 fn parse(header: [u8; 20]) {
 	assert_eq!(ipv4_csum(&header[..]), 0);
-	let pkt = header.bits::<Msb0>();
+	let pkt = header.view_bits::<Msb0>();
 
 	//  Check that the version field is `4`, by `load`ing it and by direct
 	//  inspection

@@ -4,10 +4,6 @@ The example uses JSON for simplicity of demonstration; it should work with all
 serde-compatible de/ser protocols.
 !*/
 
-extern crate bitvec;
-extern crate serde;
-extern crate serde_json;
-
 #[cfg(all(feature = "alloc", feature = "serde"))]
 use bitvec::prelude::*;
 

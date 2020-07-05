@@ -49,25 +49,25 @@ fn slice(b: &mut Bencher) {
 
 #[bench]
 fn len(b: &mut Bencher) {
-	let bsb08 = [0u8; 16].bits::<Msb0>();
-	let bsl08 = [0u8; 16].bits::<Lsb0>();
+	let bsb08 = [0u8; 16].view_bits::<Msb0>();
+	let bsl08 = [0u8; 16].view_bits::<Lsb0>();
 	b.iter(|| bsb08.len());
 	b.iter(|| bsl08.len());
 
-	let bsb16 = [0u16; 8].bits::<Msb0>();
-	let bsl16 = [0u16; 8].bits::<Lsb0>();
+	let bsb16 = [0u16; 8].view_bits::<Msb0>();
+	let bsl16 = [0u16; 8].view_bits::<Lsb0>();
 	b.iter(|| bsb16.len());
 	b.iter(|| bsl16.len());
 
-	let bsb32 = [0u32; 4].bits::<Msb0>();
-	let bsl32 = [0u32; 4].bits::<Lsb0>();
+	let bsb32 = [0u32; 4].view_bits::<Msb0>();
+	let bsl32 = [0u32; 4].view_bits::<Lsb0>();
 	b.iter(|| bsb32.len());
 	b.iter(|| bsl32.len());
 
 	#[cfg(target_pointer_width = "64")]
 	{
-		let bsb64 = [0u64; 2].bits::<Msb0>();
-		let bsl64 = [0u64; 2].bits::<Lsb0>();
+		let bsb64 = [0u64; 2].view_bits::<Msb0>();
+		let bsl64 = [0u64; 2].view_bits::<Lsb0>();
 		b.iter(|| bsb64.len());
 		b.iter(|| bsl64.len());
 	}
@@ -77,25 +77,25 @@ fn len(b: &mut Bencher) {
 //  hit in `BitIdx::offset`.
 #[bench]
 fn index(b: &mut Bencher) {
-	let bsb08 = [0u8; 16].bits::<Msb0>();
-	let bsl08 = [0u8; 16].bits::<Lsb0>();
+	let bsb08 = [0u8; 16].view_bits::<Msb0>();
+	let bsl08 = [0u8; 16].view_bits::<Lsb0>();
 	b.iter(|| assert!(!black_box(bsb08)[black_box(69)]));
 	b.iter(|| assert!(!black_box(bsl08)[black_box(69)]));
 
-	let bsb16 = [0u16; 8].bits::<Msb0>();
-	let bsl16 = [0u16; 8].bits::<Lsb0>();
+	let bsb16 = [0u16; 8].view_bits::<Msb0>();
+	let bsl16 = [0u16; 8].view_bits::<Lsb0>();
 	b.iter(|| assert!(!black_box(bsb16)[black_box(69)]));
 	b.iter(|| assert!(!black_box(bsl16)[black_box(69)]));
 
-	let bsb32 = [0u32; 4].bits::<Msb0>();
-	let bsl32 = [0u32; 4].bits::<Lsb0>();
+	let bsb32 = [0u32; 4].view_bits::<Msb0>();
+	let bsl32 = [0u32; 4].view_bits::<Lsb0>();
 	b.iter(|| assert!(!black_box(bsb32)[black_box(69)]));
 	b.iter(|| assert!(!black_box(bsl32)[black_box(69)]));
 
 	#[cfg(target_pointer_width = "64")]
 	{
-		let bsb64 = [0u64; 2].bits::<Msb0>();
-		let bsl64 = [0u64; 2].bits::<Lsb0>();
+		let bsb64 = [0u64; 2].view_bits::<Msb0>();
+		let bsl64 = [0u64; 2].view_bits::<Lsb0>();
 		b.iter(|| assert!(!black_box(bsb64)[black_box(69)]));
 		b.iter(|| assert!(!black_box(bsl64)[black_box(69)]));
 	}
@@ -107,33 +107,33 @@ it. The compiler *should* be able to properly arrange immediate drops, though.
 #[bench]
 fn get_mut(b: &mut Bencher) {
 	let mut src = [0u8; 16];
-	let bsb08 = src.bits_mut::<Msb0>();
+	let bsb08 = src.view_bits_mut::<Msb0>();
 	b.iter(|| *bsb08.get_mut(69).unwrap() = true);
 	let mut src = [0u8; 16];
-	let bsl08 = src.bits_mut::<Lsb0>();
+	let bsl08 = src.view_bits_mut::<Lsb0>();
 	b.iter(|| *bsl08.get_mut(69).unwrap() = true);
 
 	let mut src = [0u16; 8];
-	let bsb16 = src.bits_mut::<Msb0>();
+	let bsb16 = src.view_bits_mut::<Msb0>();
 	b.iter(|| *bsb16.get_mut(69).unwrap() = true);
 	let mut src = [0u16; 8];
-	let bsl16 = src.bits_mut::<Lsb0>();
+	let bsl16 = src.view_bits_mut::<Lsb0>();
 	b.iter(|| *bsl16.get_mut(69).unwrap() = true);
 
 	let mut src = [0u32; 4];
-	let bsb32 = src.bits_mut::<Msb0>();
+	let bsb32 = src.view_bits_mut::<Msb0>();
 	b.iter(|| *bsb32.get_mut(69).unwrap() = true);
 	let mut src = [0u32; 4];
-	let bsl32 = src.bits_mut::<Lsb0>();
+	let bsl32 = src.view_bits_mut::<Lsb0>();
 	b.iter(|| *bsl32.get_mut(69).unwrap() = true);
 
 	#[cfg(target_pointer_width = "64")]
 	{
 		let mut src = [0u64; 2];
-		let bsb64 = src.bits_mut::<Msb0>();
+		let bsb64 = src.view_bits_mut::<Msb0>();
 		b.iter(|| *bsb64.get_mut(69).unwrap() = true);
 		let mut src = [0u64; 2];
-		let bsl64 = src.bits_mut::<Lsb0>();
+		let bsl64 = src.view_bits_mut::<Lsb0>();
 		b.iter(|| *bsl64.get_mut(69).unwrap() = true);
 	}
 }

@@ -49,6 +49,7 @@ std = [
 [dependencies]
 funty = "1"
 radium = "0.3"
+wyz = "0.2"
 
 [dependencies.serde]
 default-features = false
@@ -60,6 +61,7 @@ version = "1"
 serde = "1"
 serde_json = "1"
 serde_test = "1"
+static_assertions = "1"
 
 # Indicates the features that docs.rs should enable when building documentation.
 [package.metadata.docs.rs]

@@ -19,9 +19,6 @@ partial heads without loss of pointer information.
 !*/
 
 #[cfg(feature = "alloc")]
-extern crate bitvec;
-
-#[cfg(feature = "alloc")]
 use bitvec::prelude::*;
 
 #[cfg(feature = "alloc")]

@@ -10,8 +10,8 @@ build:
 	cargo build --no-default-features
 	cargo build --no-default-features --features alloc
 	cargo build --all-features
-	cargo build --all-features --example sieve
-	cargo build --all-features --example tour
+	@cargo build --all-features --example sieve
+	@cargo build --all-features --example tour
 
 # Checks the library for syntax and HIR errors.
 check:
@@ -30,16 +30,21 @@ ci:
 clean:
 	cargo clean
 
+cover: test
+	cargo +nightly tarpaulin --all-features -o Html --output-dir target/tarpaulin
+	@cargo +nightly tarpaulin --all-features -o Xml --output-dir target/tarpaulin &>/dev/null
+	@tokei
+
 # Runs the development routines.
-dev: format lint doc test
+dev: format lint doc test cover
 
 # Builds the crate documentation.
 doc:
-	cargo doc --all-features --document-private-items
+	@cargo doc --all-features --document-private-items
 
 # Runs the formatter on all Rust files.
 format:
-	cargo +nightly fmt -- --config-path rustfmt-nightly.toml
+	@cargo +nightly fmt -- --config-path rustfmt-nightly.toml
 
 # Runs the linter.
 lint: check
@@ -49,7 +54,7 @@ lint: check
 
 # Continually runs some recipe from this file.
 loop action:
-	cargo watch -s "just {{action}}"
+	watchexec -w src -- "just {{action}}"
 
 miri:
 	cargo +nightly miri test
@@ -66,6 +71,6 @@ publish: checkout
 test: check lint
 	cargo test --no-default-features
 	cargo test --all-features
-	cargo run --all-features --example ipv4
-	cargo run --all-features --example sieve
-	cargo run --all-features --example tour
+	@cargo run --all-features --example ipv4
+	@cargo run --all-features --example sieve
+	@cargo run --all-features --example tour

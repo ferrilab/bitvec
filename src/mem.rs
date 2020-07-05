@@ -1,15 +1,9 @@
-/*! Memory description.
+/*! Descriptions of register types
 
-This module defines the properties of bare chunks of memory. It deals only with
-register-type widths, and has no information on the means by which addressed
-memory is accessed.
+This module describes the register types used to hold bare data. This module
+governs the way the processor manipulates values held in registers, without
+concern for interaction with memory locations.
 !*/
-
-use crate::{
-	index::BitIdx,
-	order::BitOrder,
-	store::BitStore,
-};
 
 use core::mem;
 
@@ -17,114 +11,56 @@ use funty::IsUnsigned;
 
 use radium::marker::BitOps;
 
-/** Describes properties of register types.
+/** Description of a register type.
 
-This trait describes raw memory, without any access modifiers. It provides
-information about the width of a memory element and useful constants.
+This trait provides information used for the manipulation of values in processor
+registers, and the computation of the state of system memory. It has no bearing
+on the behavior used to perform loads or stores between the processor and the
+memory bus.
+
+This trait cannot be implemented outside this crate.
 **/
-pub trait BitMemory: IsUnsigned + BitOps {
-	/// The width, in bits, of the memory element.
+pub trait BitMemory: IsUnsigned + BitOps + seal::Sealed {
+	/// The bit width of the register element.
+	///
+	/// `mem::size_of` returns the size in bytes, and bytes are always eight
+	/// bits on architectures Rust targets.
 	const BITS: u8 = mem::size_of::<Self>() as u8 * 8;
-	/// The number of bits required to hold a bit index into the element.
+	/// The number of bits required to store an index in the range `0 .. BITS`.
 	const INDX: u8 = Self::BITS.trailing_zeros() as u8;
-	/// The maximum value of a bit index for the element.
+	/// A mask over all bits that can be used as an index within the element.
 	const MASK: u8 = Self::BITS - 1;
 
-	/// The element value with only the least significant bit high.
+	/// The value with only its least significant bit set to `1`.
 	const ONE: Self;
-	/// The element value with all bits high.
+	/// The value with all of its bits set to `1`.
 	const ALL: Self;
-
-	/// The element’s name.
-	const TYPENAME: &'static str;
-
-	/// Gets a specific bit in an element.
-	///
-	/// # Safety
-	///
-	/// This method cannot be called from within an `&BitSlice` context; it may
-	/// only be called by construction of an `&Self` reference from a `Self`
-	/// element directly.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	/// - `place`: A bit index in the element. The bit under this index, as
-	///   governed by the `O` `BitOrder`, will be retrieved as a `bool`.
-	///
-	/// # Returns
-	///
-	/// The value of the bit under `place`.
-	///
-	/// # Type Parameters
-	///
-	/// - `O`: A `BitOrder` implementation to translate the index into a
-	///   position.
-	fn get<O>(&self, place: BitIdx<Self>) -> bool
-	where O: BitOrder {
-		*self & *O::select(place) != Self::ZERO
-	}
-
-	/// Sets a specific bit in an element to a given value.
-	///
-	/// # Safety
-	///
-	/// This method cannot be called from within an `&mut BitSlice` context; it
-	/// may only be called by construction of an `&mut Self` reference from a
-	/// `Self` element directly.
-	///
-	/// # Parameters
-	///
-	/// - `place`: A bit index in the element. The bit under this index, as
-	///   governed by the `O` `BitOrder`, will be set according to `value`.
-	///
-	/// # Type Parameters
-	///
-	/// - `O`: A `BitOrder` implementation to translate the index into a
-	///   position.
-	fn set<O>(&mut self, place: BitIdx<Self>, value: bool)
-	where O: BitOrder {
-		let sel = *O::select(place);
-		if value {
-			*self |= sel;
-		}
-		else {
-			*self &= !sel;
-		}
-	}
-
-	/// Computes the number of elements of `Self` required to hold some bits.
-	///
-	/// # Parameters
-	///
-	/// - `bits`: The number of bits to store in an array of `[Self]`.
-	///
-	/// # Returns
-	///
-	/// The number of elements of `Self` required to hold the requested bits.
-	fn elts(bits: usize) -> usize {
-		crate::mem::elts::<Self>(bits)
-	}
-
-	#[doc(hidden)]
-	fn retype<T>(self) -> T::Mem
-	where T: BitStore {
-		unsafe { *(&self as *const _ as *const _) }
-	}
 }
 
-/** Computes the number of elements required to store a number of bits.
+macro_rules! memory {
+	($($t:ty),+ $(,)?) => { $(
+		impl BitMemory for $t {
+			const ONE: Self = 1;
+			const ALL: Self = !0;
+		}
+		impl seal::Sealed for $t {}
+	)+ };
+}
+
+memory!(u8, u16, u32, u64, usize);
+
+/** Computes the number of elements required to store some number of bits.
 
 # Parameters
 
-- `bits`: The number of bits to store in an element `T` array.
+- `bits`: The number of bits to store in a `[T]` array.
 
 # Returns
 
 The number of elements `T` required to store `bits`.
 
-Because this is a const function, when `bits` is a const-expr, this function can
-be used in array types `[T; elts(len)]`.
+As this is a const function, when `bits` is a constant expression, this can be
+used to compute the size of an array type `[T; elts(bits)]`.
 **/
 #[doc(hidden)]
 pub const fn elts<T>(bits: usize) -> usize {
@@ -132,18 +68,33 @@ pub const fn elts<T>(bits: usize) -> usize {
 	bits / width + (bits % width != 0) as usize
 }
 
-macro_rules! memory {
-	($($t:ty),* $(,)?) => { $(
-		impl BitMemory for $t {
-			const ONE: Self = 1;
-			const ALL: Self = !0;
+/** Tests that a type is aligned to its size.
 
-			const TYPENAME: &'static str = stringify!($t);
-		}
-	)* };
+This property is not necessarily true for all integers; for instance, `u64` on
+32-bit x86 is permitted to be 4-byte-aligned. `bitvec` requires this property to
+hold for the pointer representation to correctly function.
+
+# Type Parameters
+
+- `T`: A type whose alignment and size are to be compared
+
+# Returns
+
+`0` if the alignment matches the size; `1` if they differ
+**/
+#[doc(hidden)]
+pub(crate) const fn aligned_to_size<T>() -> usize {
+	(mem::align_of::<T>() != mem::size_of::<T>()) as usize
 }
 
-memory!(u8, u16, u32, usize);
+#[doc(hidden)]
+pub(crate) const fn cmp_layout<A, B>() -> usize {
+	(mem::align_of::<A>() != mem::align_of::<B>()) as usize
+		+ (mem::size_of::<A>() != mem::size_of::<B>()) as usize
+}
 
-#[cfg(target_pointer_width = "64")]
-memory!(u64);
+#[doc(hidden)]
+mod seal {
+	#[doc(hidden)]
+	pub trait Sealed {}
+}

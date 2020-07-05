@@ -10,27 +10,69 @@ public-API constructor macros.
 
 #![doc(hidden)]
 
-/// Ensures that the ordering tokens map to a known ordering type path.
+/** Ensures that the ordering tokens map to a known ordering type path.
+
+Note: non-`const` constructor expressions cannot be used to initialize `static`
+bindings. Unfortunately, replacing the `from_slice` calls with literal
+construction of the pointer representation, and type-casting it into the correct
+type, is *also* unstable, as it requires dereferencing a raw pointer inside a
+`static` context.
+**/
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __bits_from_slice {
+	(mut Local, $store:ident, $len:expr, $slice:ident) => {
+		$crate::slice::BitSlice::<$crate::order::Local, $store>::from_slice_mut(
+			&mut $slice,
+			)
+		.expect("slice construction exceeded capacity")
+		.get_unchecked_mut(.. $len)
+	};
+	(mut Lsb0, $store:ident, $len:expr, $slice:ident) => {
+		$crate::slice::BitSlice::<$crate::order::Lsb0, $store>::from_slice_mut(
+			&mut $slice,
+			)
+		.expect("slice construction exceeded capacity")
+		.get_unchecked_mut(.. $len)
+	};
+	(mut Msb0, $store:ident, $len:expr, $slice:ident) => {
+		$crate::slice::BitSlice::<$crate::order::Msb0, $store>::from_slice_mut(
+			&mut $slice,
+			)
+		.expect("slice construction exceeded capacity")
+		.get_unchecked_mut(.. $len)
+	};
+	(mut $order:tt, $store:ident, $len:expr, $slice:ident) => {
+		$crate::slice::BitSlice::<$order, $store>::from_slice_mut(&mut $slice)
+			.expect("slice construction exceeded capacity")
+			.get_unchecked_mut(.. $len)
+	};
+
 	(Local, $store:ident, $len:expr, $slice:ident) => {
 		$crate::slice::BitSlice::<$crate::order::Local, $store>::from_slice(
-			$slice,
-		)[.. $len]
+			&$slice,
+			)
+		.expect("slice construction exceeded capacity")
+		.get_unchecked(.. $len)
 	};
 	(Lsb0, $store:ident, $len:expr, $slice:ident) => {
 		$crate::slice::BitSlice::<$crate::order::Lsb0, $store>::from_slice(
-			$slice,
-		)[.. $len]
+			&$slice,
+			)
+		.expect("slice construction exceeded capacity")
+		.get_unchecked(.. $len)
 	};
 	(Msb0, $store:ident, $len:expr, $slice:ident) => {
 		$crate::slice::BitSlice::<$crate::order::Msb0, $store>::from_slice(
-			$slice,
-		)[.. $len]
+			&$slice,
+			)
+		.expect("slice construction exceeded capacity")
+		.get_unchecked(.. $len)
 	};
 	($order:tt, $store:ident, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<$order, $store>::from_slice($slice)[.. $len]
+		$crate::slice::BitSlice::<$order, $store>::from_slice(&$slice)
+			.expect("slice construction exceeded capacity")
+			.get_unchecked(.. $len)
 	};
 }
 
@@ -46,9 +88,7 @@ macro_rules! __bits_store_array {
 	//  Reroute `usize` to the correct concrete type, and mark the alias.
 	//  The `@ usz` causes `as usize` to be appended to exprs as needed.
 	($order:tt, usize; $($val:expr),*) => {{
-		const LEN: usize = $crate::mem::elts::<usize>(
-			$crate::__count!($($val),*),
-		);
+		const LEN: usize = $crate::__count_elts!(usize; $($val),*);
 
 		//  Attributes are not currently allowed on expressions, only items and
 		//  statements, so the routing here must bind to a name.
@@ -174,19 +214,26 @@ macro_rules! __bits_store_array {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __count {
-	(@ $val:expr) => {
-		1
-	};
+	(@ $val:expr) => { 1 };
 	($($val:expr),*) => {{
 		/* Clippy warns that `.. EXPR + 1`, for any value of `EXPR`, should be
 		replaced with `..= EXPR`. This means that `.. $crate::__count!` raises
 		the lint, causing `bits![(val,)…]` to have an unfixable lint warning.
 		By binding to a `const`, then returning the `const`, this syntax
-		construction is avoided as macros only expand to `.. LEN` rather than
-		`.. 0 (+ 1)…`.
+		construction is avoided as macros only expand to
+		`.. { const LEN = …; LEN }` rather than `.. 0 (+ 1)…`.
 		*/
 		const LEN: usize = 0usize $(+ $crate::__count!(@ $val))*;
 		LEN
+	}};
+}
+
+/// Counts the number of elements needed to store a number of bits.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __count_elts {
+	($t:ident; $($val:expr),*) => {{
+		$crate::mem::elts::<$t>($crate::__count!($($val),*))
 	}};
 }
 
@@ -253,7 +300,7 @@ macro_rules! __elt_from_bits {
 		let slab;
 		let bits = {
 			slab = __bits_store_array!($args…);
-			&BitSlice::<$o, $t>::from_slice(&slab)[.. $len];
+			BitSlice::<$o, $t>::from_slice(&slab).get_unchecked(.. $len);
 		};
 		```
 
@@ -287,137 +334,54 @@ macro_rules! __extend_bool {
 	};
 }
 
-/// Implement the shift operators on `BitSlice` with other types than `usize`.
-#[doc(hidden)]
-macro_rules! __bitslice_shift {
-	( $( $t:ty ),+ ) => { $(
-		#[doc(hidden)]
-		impl<O, T> core::ops::ShlAssign<$t>
-		for $crate::prelude::BitSlice<O, T>
-		where O: $crate::order::BitOrder, T: $crate::store::BitStore {
-			fn shl_assign(&mut self, shamt: $t) {
-				core::ops::ShlAssign::<usize>::shl_assign(
-					self,
-					shamt as usize,
-				)
-			}
-		}
-
-		#[doc(hidden)]
-		impl<O, T> core::ops::ShrAssign<$t>
-		for $crate::prelude::BitSlice<O, T>
-		where O: $crate::order::BitOrder, T: $crate::store::BitStore {
-			fn shr_assign(&mut self,shamt: $t){
-				core::ops::ShrAssign::<usize>::shr_assign(
-					self,
-					shamt as usize,
-				)
-			}
-		}
-	)+ };
-}
-
-/// Implement the shift operators on `BitVec` with other types than `usize`.
-#[doc(hidden)]
-#[cfg(feature = "alloc")]
-macro_rules! __bitvec_shift {
-	( $( $t:ty ),+ ) => { $(
-		#[doc(hidden)]
-		impl<O, T> core::ops::Shl<$t>
-		for $crate::vec::BitVec<O, T>
-		where O: $crate::order::BitOrder, T: $crate::store::BitStore {
-			type Output = <Self as core::ops::Shl<usize>>::Output;
-
-			fn shl(self, shamt: $t) -> Self::Output {
-				core::ops::Shl::<usize>::shl(self, shamt as usize)
-			}
-		}
-
-		#[doc(hidden)]
-		impl<O, T> core::ops::ShlAssign<$t>
-		for $crate::vec::BitVec<O, T>
-		where O: $crate::order::BitOrder, T: $crate::store::BitStore {
-			fn shl_assign(&mut self, shamt: $t) {
-				core::ops::ShlAssign::<usize>::shl_assign(
-					self,
-					shamt as usize,
-				)
-			}
-		}
-
-		#[doc(hidden)]
-		impl<O, T> core::ops::Shr<$t>
-		for $crate::vec::BitVec<O, T>
-		where O: $crate::order::BitOrder, T: $crate::store::BitStore {
-			type Output = <Self as core::ops::Shr<usize>>::Output;
-
-			fn shr(self, shamt: $t) -> Self::Output {
-				core::ops::Shr::<usize>::shr(self, shamt as usize)
-			}
-		}
-
-		#[doc(hidden)]
-		impl<O, T> core::ops::ShrAssign<$t>
-		for $crate::vec::BitVec<O, T>
-		where O: $crate::order::BitOrder, T: $crate::store::BitStore {
-			fn shr_assign(&mut self, shamt: $t) {
-				core::ops::ShrAssign::<usize>::shr_assign(
-					self,
-					shamt as usize,
-				)
-			}
-		}
-	)+ };
-}
-
 /// Constructs a fundamental integer from a list of bytes.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __ty_from_bytes {
 	(Msb0, u8, [$($byte:expr),*]) => {
-		$crate::macros::internal::u8_from_be_bytes([$($byte),*])
+		u8::from_be_bytes([$($byte),*])
 	};
 	(Lsb0, u8, [$($byte:expr),*]) => {
-		$crate::macros::internal::u8_from_le_bytes([$($byte),*])
+		u8::from_le_bytes([$($byte),*])
 	};
 	(Local, u8, [$($byte:expr),*]) => {
-		$crate::macros::internal::u8_from_ne_bytes([$($byte),*])
+		u8::from_ne_bytes([$($byte),*])
 	};
 	(Msb0, u16, [$($byte:expr),*]) => {
-		$crate::macros::internal::u16_from_be_bytes([$($byte),*])
+		u16::from_be_bytes([$($byte),*])
 	};
 	(Lsb0, u16, [$($byte:expr),*]) => {
-		$crate::macros::internal::u16_from_le_bytes([$($byte),*])
+		u16::from_le_bytes([$($byte),*])
 	};
 	(Local, u16, [$($byte:expr),*]) => {
-		$crate::macros::internal::u16_from_ne_bytes([$($byte),*])
+		u16::from_ne_bytes([$($byte),*])
 	};
 	(Msb0, u32, [$($byte:expr),*]) => {
-		$crate::macros::internal::u32_from_be_bytes([$($byte),*])
+		u32::from_be_bytes([$($byte),*])
 	};
 	(Lsb0, u32, [$($byte:expr),*]) => {
-		$crate::macros::internal::u32_from_le_bytes([$($byte),*])
+		u32::from_le_bytes([$($byte),*])
 	};
 	(Local, u32, [$($byte:expr),*]) => {
-		$crate::macros::internal::u32_from_ne_bytes([$($byte),*])
+		u32::from_ne_bytes([$($byte),*])
 	};
 	(Msb0, u64, [$($byte:expr),*]) => {
-		$crate::macros::internal::u64_from_be_bytes([$($byte),*])
+		u64::from_be_bytes([$($byte),*])
 	};
 	(Lsb0, u64, [$($byte:expr),*]) => {
-		$crate::macros::internal::u64_from_le_bytes([$($byte),*])
+		u64::from_le_bytes([$($byte),*])
 	};
 	(Local, u64, [$($byte:expr),*]) => {
-		$crate::macros::internal::u64_from_ne_bytes([$($byte),*])
+		u64::from_ne_bytes([$($byte),*])
 	};
 	(Msb0, usize, [$($byte:expr),*]) => {
-		$crate::macros::internal::usize_from_be_bytes([$($byte),*])
+		usize::from_be_bytes([$($byte),*])
 	};
 	(Lsb0, usize, [$($byte:expr),*]) => {
-		$crate::macros::internal::usize_from_le_bytes([$($byte),*])
+		usize::from_le_bytes([$($byte),*])
 	};
 	(Local, usize, [$($byte:expr),*]) => {
-		$crate::macros::internal::usize_from_ne_bytes([$($byte),*])
+		usize::from_ne_bytes([$($byte),*])
 	};
 }
 
@@ -476,111 +440,3 @@ pub use self::u8_from_le_bits as u8_from_ne_bits;
 #[doc(hidden)]
 #[cfg(target_endian = "big")]
 pub use self::u8_from_be_bits as u8_from_ne_bits;
-
-#[doc(hidden)]
-pub const fn u8_from_be_bytes(bytes: [u8; 1]) -> u8 {
-	bytes[0]
-}
-
-#[doc(hidden)]
-pub const fn u8_from_le_bytes(bytes: [u8; 1]) -> u8 {
-	bytes[0]
-}
-
-#[doc(hidden)]
-pub const fn u16_from_be_bytes(bytes: [u8; 2]) -> u16 {
-	((bytes[0] as u16) << 8) | bytes[1] as u16
-}
-
-#[doc(hidden)]
-pub const fn u16_from_le_bytes(bytes: [u8; 2]) -> u16 {
-	((bytes[1] as u16) << 8) | bytes[0] as u16
-}
-
-#[doc(hidden)]
-pub const fn u32_from_be_bytes(bytes: [u8; 4]) -> u32 {
-	(u16_from_be_bytes([bytes[0], bytes[1]]) as u32) << 16
-		| u16_from_be_bytes([bytes[2], bytes[3]]) as u32
-}
-
-#[doc(hidden)]
-pub const fn u32_from_le_bytes(bytes: [u8; 4]) -> u32 {
-	(u16_from_le_bytes([bytes[2], bytes[3]]) as u32) << 16
-		| u16_from_le_bytes([bytes[0], bytes[1]]) as u32
-}
-
-#[doc(hidden)]
-pub const fn u64_from_be_bytes(bytes: [u8; 8]) -> u64 {
-	(u32_from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as u64) << 32
-		| (u32_from_be_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]) as u64)
-}
-
-#[doc(hidden)]
-pub const fn u64_from_le_bytes(bytes: [u8; 8]) -> u64 {
-	(u32_from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]) as u64) << 32
-		| u32_from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as u64
-}
-
-#[doc(hidden)]
-#[cfg(target_pointer_width = "32")]
-pub const fn usize_from_be_bytes(bytes: [u8; 4]) -> usize {
-	u32_from_be_bytes(bytes) as usize
-}
-
-#[doc(hidden)]
-#[cfg(target_pointer_width = "32")]
-pub const fn usize_from_le_bytes(bytes: [u8; 4]) -> usize {
-	u32_from_le_bytes(bytes) as usize
-}
-
-#[doc(hidden)]
-#[cfg(target_pointer_width = "64")]
-pub const fn usize_from_be_bytes(bytes: [u8; 8]) -> usize {
-	u64_from_be_bytes(bytes) as usize
-}
-
-#[doc(hidden)]
-#[cfg(target_pointer_width = "64")]
-pub const fn usize_from_le_bytes(bytes: [u8; 8]) -> usize {
-	u64_from_le_bytes(bytes) as usize
-}
-
-#[doc(hidden)]
-#[cfg(target_endian = "big")]
-pub use u8_from_be_bytes as u8_from_ne_bytes;
-
-#[doc(hidden)]
-#[cfg(target_endian = "big")]
-pub use u16_from_be_bytes as u16_from_ne_bytes;
-
-#[doc(hidden)]
-#[cfg(target_endian = "big")]
-pub use u32_from_be_bytes as u32_from_ne_bytes;
-
-#[doc(hidden)]
-#[cfg(target_endian = "big")]
-pub use u64_from_be_bytes as u64_from_ne_bytes;
-
-#[doc(hidden)]
-#[cfg(target_endian = "big")]
-pub use usize_from_be_bytes as usize_from_ne_bytes;
-
-#[doc(hidden)]
-#[cfg(target_endian = "little")]
-pub use u8_from_le_bytes as u8_from_ne_bytes;
-
-#[doc(hidden)]
-#[cfg(target_endian = "little")]
-pub use u16_from_le_bytes as u16_from_ne_bytes;
-
-#[doc(hidden)]
-#[cfg(target_endian = "little")]
-pub use u32_from_le_bytes as u32_from_ne_bytes;
-
-#[doc(hidden)]
-#[cfg(target_endian = "little")]
-pub use u64_from_le_bytes as u64_from_ne_bytes;
-
-#[doc(hidden)]
-#[cfg(target_endian = "little")]
-pub use usize_from_le_bytes as usize_from_ne_bytes;

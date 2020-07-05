@@ -1,7 +1,29 @@
-/*! `BitBox` structure
+/*! A dynamically-allocated, fixed-size, buffer containing a `BitSlice` region.
 
-This module holds the type for an owned but ungrowable bit sequence. `BitVec` is
-the more appropriate and useful type for most collections.
+You can read the standard library’s [`alloc::boxed` module documentation][std]
+here.
+
+This module defines the [`BitBox`] buffer, and all of its associated support
+code.
+
+`BitBox` is equivalent to `Box<[bool]>`, in its operation and in its
+relationship to the `BitSlice` and [`BitVec`] types. Most of the interesting
+work to be done on a bit-sequence is implemented in `BitSlice`, to which
+`BitBox` dereferences, and the box container itself only exists to maintain
+wonership and provide some specializations that cannot safely be done on
+`BitSlice` alone.
+
+There is almost never a reason to use this type, as it is a mixture of
+[`BitArray`]’s fixed width and [`BitVec`]’s heap allocation. You should only use
+it when you have a bit-sequence whose width is either unknowable at compile-time
+or inexpressable in `BitArray`, and are constructing the sequence in a `BitVec`
+before freezing it.
+
+[`BitArray`]: ../array/struct.BitArray.html
+[`BitBox`]: struct.BitBox.html
+[`BitSlice`]: ../slice/struct.BitSlice.html
+[`BitVec`]: ../vec/struct.BitVec.html
+[std]: https://doc.rust-lang.org/alloc/boxed
 !*/
 
 #![cfg(feature = "alloc")]
@@ -14,357 +36,281 @@ use crate::{
 	pointer::BitPtr,
 	slice::BitSlice,
 	store::BitStore,
-	vec::BitVec,
 };
 
-use alloc::{
-	boxed::Box,
-	vec::Vec,
-};
+use alloc::boxed::Box;
 
 use core::{
-	marker::PhantomData,
-	mem,
+	mem::ManuallyDrop,
+	ptr::NonNull,
+	slice,
 };
 
-/** A pointer type for owned bit sequences.
+use wyz::pipe::Pipe;
 
-This type is essentially a `&BitSlice` that owns its own memory. It can change
-the contents of its domain, but it cannot change its own domain like `BitVec`
-can. It is useful for fixed-size collections without lifetime tracking.
+/** A frozen heap-allocated buffer of individual bits.
+
+This is essentially a [`BitVec`] that has frozen its allocation, and given up
+the ability to change size. It is analagous to `Box<[bool]>`, and is written to
+be as close as possible to drop-in replacable for it. This type contains almost
+no interesting behavior in its own right; it dereferences to [`BitSlice`] to
+manipulate its contents, and it converts to and from `BitVec` for allocation
+control.
+
+If you know the length of your bit sequence at compile-time, and it is
+expressible within the limits of [`BitArray`], you should prefer that type
+instead. Large `BitArray`s can be `Box`ed normally as desired.
+
+# Documentation
+
+All APIs that mirror something in the standard library will have an `Original`
+section linking to the corresponding item. All APIs that have a different
+signature or behavior than the original will have an `API Differences` section
+explaining what has changed, and how to adapt your existing code to the change.
+
+These sections look like this:
+
+# Original
+
+[`Box<[T]>`](https://doc.rust-lang.org/alloc/boxed/struct.Box.html)
+
+# API Differences
+
+The buffer type `Box<[bool]>` has no type parameters. `BitBox<O, T>` has the
+same two type parameters as `BitSlice<O, T>`. Otherwise, `BitBox` is able to
+implement the full API surface of `Box<[bool]>`.
+
+# Behavior
+
+Because `BitBox` is a fully-owned buffer, it is able to operate on its memory
+without concern for any other views that may alias. This enables it to
+specialize some `BitSlice` behavior to be faster or more efficient.
 
 # Type Parameters
 
-- `O: BitOrder`: An implementor of the [`BitOrder`] trait. This type is used to
-  convert semantic indices into concrete bit positions in elements, and store or
-  retrieve bit values from the storage type.
-- `T: BitStore`: An implementor of the [`BitStore`] trait: `u8`, `u16`, `u32`,
-  or `u64` (64-bit systems only). This is the actual type in memory that the box
-  will use to store data.
+This takes the same two type parameters, `O: BitOrder` and `T: BitStore`, as
+`BitSlice`.
 
 # Safety
 
-The `BitBox` handle has the same *size* as standard Rust `Box<[T]>` handles, but
-it is ***extremely binary incompatible*** with them. Attempting to treat
-`BitBox<_, T>` as `Box<[T]>` in any manner except through the provided APIs is
-***catastrophically*** unsafe and unsound.
+Like `BitSlice`, `BitBox` is exactly equal in size to `Box<[bool]>`, and is also
+absolutely representation-incompatible with it. You must never attempt to
+type-cast between `Box<[bool]>` and `BitBox` in any way, nor attempt to modify
+the memory value of a `BitBox` handle. Doing so will cause allocator and memory
+errors in your program, likely inducing a panic.
 
-# Trait Implementations
+Everything in the `BitBox` public API, even the `unsafe` parts, are guaranteed
+to have no more unsafety than their equivalent items in the standard library.
+All `unsafe` APIs will have documentation explicitly detailing what the API
+requires you to uphold in order for it to function safely and correctly. All
+safe APIs will do so themselves.
 
-`BitBox<O, T>` implements all the traits that `BitSlice<O, T>` does, by
-deferring to the `BitSlice` implementation. It also implements conversion traits
-to and from `BitSlice`, and to/from `BitVec`.
+# Performance
+
+Iteration over the buffer is governed by the `BitSlice` characteristics on the
+type parameter. You are generally better off using larger types when your buffer
+is a data collection rather than a specific I/O protocol buffer.
+
+# Macro Construction
+
+Heap allocation can only occur at runtime, but the [`bitbox!`] macro will
+construct an appropriate `BitSlice` buffer at compile-time, and at run-time,
+only copy the buffer into a heap allocation.
+
+[`BitArray`]: ../array/struct.BitArray.html
+[`BitSlice`]: ../slice/struct.BitSlice.html
+[`BitVec`]: ../vec/struct.BitVec.html
+[`bitbox!`]: ../macro.bitbox.html
 **/
-#[repr(C)]
+#[repr(transparent)]
 pub struct BitBox<O = Local, T = usize>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	_order: PhantomData<O>,
-	pointer: BitPtr<T>,
+	pointer: NonNull<BitSlice<O, T>>,
 }
 
+/// Methods specific to `BitBox<_, T>`, and not present on `Box<[T]>`.
 impl<O, T> BitBox<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// Constructs an empty boxed bitslice.
+	/// Clones a `&BitSlice` into a `BitVec`.
 	///
-	/// # Returns
+	/// # Original
 	///
-	/// An empty `BitBox` at an arbitrary location.
+	/// [`<Box<T: Clone> as Clone>::clone`](https://doc.rust-lang.org/alloc/boxed/struct.Box.html#impl-Clone)
 	///
-	/// # Examples
+	/// # Effects
 	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bb: BitBox = BitBox::empty();
-	/// assert!(bb.is_empty());
-	/// ```
-	pub fn empty() -> Self {
-		Self {
-			_order: PhantomData,
-			pointer: BitPtr::empty(),
-		}
-	}
-
-	/// Produces a `BitBox` from a single element.
-	///
-	/// # Parameters
-	///
-	/// - `elt`: The source element from which to make the `BitBox`.
-	///
-	/// # Returns
-	///
-	/// A `BitBox` containing the provided element.
+	/// This performs a direct element-wise copy from the source slice to the
+	/// newly-allocated buffer, then sets the box to have the same starting bit
+	/// as the slice did. This allows for faster behavior.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bb: BitBox<Msb0, u16> = BitBox::from_element(!0);
-	/// assert!(bb.all());
+	/// let bits = bits![0, 1, 0, 1, 1, 0, 1, 1];
+	/// let bb = BitBox::from_bitslice(&bits[2 ..]);
+	/// assert_eq!(bb, bits[2 ..]);
 	/// ```
-	pub fn from_element(elt: T) -> Self {
-		BitSlice::<O, T>::from_element(&elt).into()
-	}
-
-	/// Builds a `BitBox` from a borrowed slice of elements.
-	///
-	/// # Parameters
-	///
-	/// - `slice`: The source slice from which to make the `BitBox`.
-	///
-	/// # Returns
-	///
-	/// A `BitBox` containing the (cloned) provided slice.
-	///
-	/// # Panics
-	///
-	/// This function may panic if the provided slice is longer than the
-	/// `BitBox` can support.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let src = [5, 10];
-	/// let bb: BitBox<Msb0, u8> = BitBox::from_slice(&src[..]);
-	/// assert!(bb[5]);
-	/// assert!(bb[7]);
-	/// assert!(bb[12]);
-	/// assert!(bb[14]);
-	/// ```
-	pub fn from_slice(slice: &[T]) -> Self {
-		BitVec::from_slice(slice).into_boxed_bitslice()
-	}
-
-	/// Clones a `&BitSlice` into a `BitBox`.
-	///
-	/// # Parameters
-	///
-	/// - `slice`: The bit slice to clone into a bit box.
-	///
-	/// # Returns
-	///
-	/// A `BitBox` containing the same bits as the source slice.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let src = [0u8, !0];
-	/// let bb = BitBox::<Msb0, _>::from_bitslice(src.bits());
-	/// assert_eq!(bb.len(), 16);
-	/// assert!(bb.some());
-	/// ```
+	#[inline]
 	pub fn from_bitslice(slice: &BitSlice<O, T>) -> Self {
-		BitVec::from_bitslice(slice).into_boxed_bitslice()
+		slice.to_bitvec().into_boxed_bitslice()
 	}
 
-	/// Produces a `BitBox` from an owned slice of elements.
+	/// Views the buffer’s contents as a `BitSlice`.
 	///
-	/// # Parameters
+	/// This is equivalent to `&bb[..]`.
 	///
-	/// - `slice`: The source boxed slice from which to make the `BitBox`.
+	/// # Original
 	///
-	/// # Returns
-	///
-	/// A `BitBox` governing the same slice that was passed in. This function
-	/// does not reallocate.
-	///
-	/// # Panics
-	///
-	/// This function may panic if the provided slice is longer than the
-	/// `BitBox` can support.
+	/// [`<Box<[T]> as AsRef<[T]>>::as_ref`](https://doc.rust-lang.org/alloc/boxed/struct.Box.html#impl-AsRef%3CT%3E)
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let slice: Box<[u16]> = vec![0, !0].into_boxed_slice();
-	/// let bb = BitBox::<Lsb0, _>::from_boxed_slice(slice);
-	/// assert!(bb.some());
-	/// assert_eq!(bb.len(), 32);
+	/// let bb = bitbox![0, 1, 1, 0];
+	/// let bits = bb.as_bitslice();
 	/// ```
-	pub fn from_boxed_slice(boxed: Box<[T]>) -> Self {
-		let len = boxed.len();
-		assert!(
-			len <= BitPtr::<T>::MAX_ELTS,
-			"BitBox cannot address {} elements",
-			len,
-		);
-
-		let bs = BitSlice::<O, T>::from_slice(&boxed[..]);
-		let pointer = bs.bitptr();
-		let out = Self {
-			_order: PhantomData,
-			pointer,
-		};
-		mem::forget(boxed);
-		out
-	}
-
-	/// Removes the `BitBox` wrapper from a `Box<[T]>`.
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	///
-	/// # Returns
-	///
-	/// The `Box<[T]>` underneath `self`.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let slice: Box<[u16]> = vec![0, !0].into_boxed_slice();
-	/// let bb = BitBox::<Lsb0, _>::from_boxed_slice(slice);
-	/// assert_eq!(bb.len(), 32);
-	/// let slice = bb.into_boxed_slice();
-	/// assert_eq!(slice.len(), 2);
-	/// ```
-	pub fn into_boxed_slice(self) -> Box<[T]> {
-		let slice = self.pointer.as_mut_slice();
-		let (data, elts) = (slice.as_mut_ptr(), slice.len());
-		let out =
-			unsafe { Vec::from_raw_parts(data, elts, elts) }.into_boxed_slice();
-		mem::forget(self);
-		out
-	}
-
-	/// Changes the order on a box handle, without changing the data it
-	/// governs.
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	///
-	/// # Returns
-	///
-	/// An equivalent handle to the same data, with a new order parameter.
-	pub fn change_order<P>(self) -> BitBox<P, T>
-	where P: BitOrder {
-		let bp = self.bitptr();
-		mem::forget(self);
-		unsafe { BitBox::from_raw(bp.as_mut_ptr()) }
-	}
-
-	/// Accesses the `BitSlice<O, T>` to which the `BitBox` refers.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// The slice of bits behind the box.
+	#[inline]
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
-		self.pointer.into_bitslice()
+		self.bitptr().to_bitslice_ref()
 	}
 
-	/// Accesses the `BitSlice<O, T>` to which the `BitBox` refers.
+	/// Extracts a mutable bit-slice of the entire vector.
 	///
-	/// # Parameters
+	/// Equivalent to `&mut bv[..]`.
 	///
-	/// - `&mut self`
+	/// # Original
 	///
-	/// # Returns
+	/// [`<Box<[T]> as AsMut<[T]>>::as_mut`](https://doc.rust-lang.org/alloc/boxed/struct.Box.html#impl-AsMut%3CT%3E)
 	///
-	/// The slice of bits behind the box.
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut bv = bitvec![0, 1, 0, 1];
+	/// let bits = bv.as_mut_bitslice();
+	/// bits.set(0, true);
+	/// ```
+	#[inline]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
-		self.pointer.into_bitslice_mut()
+		self.bitptr().to_bitslice_mut()
 	}
 
-	/// Accesses the vector’s backing store as an element slice.
+	/// Extracts an element slice containing the entire box.
 	///
-	/// Unlike `BitSlice`’s method of the same name, this includes the partial
-	/// edges, as `BitBox` forbids fragmentation that leads to contention.
+	/// # Original
 	///
-	/// # Parameters
+	/// [`<Box<[T]> as AsRef<[T]>>::as_ref`](https://doc.rust-lang.org/alloc/boxed/struct.Box.html#impl-AsRef%3CT%3E)
 	///
-	/// - `&self`
+	/// # Analogue
 	///
-	/// # Returns
+	/// See [`as_bitslice`] for a `&BitBox -> &BitSlice` transform.
 	///
-	/// The slice of all live elements in the backing storage, including the
-	/// partial edges if present.
+	/// # Examples
+	///
+	/// ```rust
+	/// # #[cfg(feature = "std")] {
+	/// use bitvec::prelude::*;
+	/// use std::io::{self, Write};
+	/// let buffer = bitbox![Msb0, u8; 0, 1, 0, 1, 1, 0, 0, 0];
+	/// io::sink().write(buffer.as_slice()).unwrap();
+	/// # }
+	/// ```
+	///
+	/// [`as_bitslice`]: #method.as_bitslice
+	#[inline]
 	pub fn as_slice(&self) -> &[T] {
-		self.bitptr().as_slice()
+		let bitptr = self.bitptr();
+		let (base, elts) = (bitptr.pointer().to_const(), bitptr.elements());
+		unsafe { slice::from_raw_parts(base, elts) }
 	}
 
-	/// Accesses the vector’s backing store as an element slice.
+	/// Extracts a mutable slice of the entire box.
 	///
-	/// Unlike `BitSlice`’s method of the same name, this includes the partial
-	/// edges, as `BitBox` forbids fragmentation that leads to contention.
+	/// # Original
 	///
-	/// # Parameters
+	/// [`<Box<[T]> as AsMut<[T]>>::as_mut`](https://doc.rust-lang.org/alloc/boxed/struct.Box.html#impl-AsMut%3CT%3E)
 	///
-	/// - `&mut self`
+	/// # Analogue
 	///
-	/// # Returns
+	/// See [`as_mut_bitslice`] for a `&mut BitBox -> &mut BitSlice` transform.
 	///
-	/// The slice of all live elements in the backing storage, including the
-	/// partial edges if present.
+	/// # Examples
+	///
+	/// ```rust
+	/// # #[cfg(feature = "std")] {
+	/// use bitvec::prelude::*;
+	/// use std::io::{self, Read};
+	/// let mut buffer = bitbox![Msb0, u8; 0; 24];
+	/// io::repeat(0b101).read_exact(buffer.as_mut_slice()).unwrap();
+	/// # }
+	/// ```
+	///
+	/// [`as_mut_bitslice`]: #method.as_mut_bitslice
+	#[inline]
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
-		self.bitptr().as_mut_slice()
+		let bitptr = self.bitptr();
+		let (base, elts) = (bitptr.pointer().to_mut(), bitptr.elements());
+		unsafe { slice::from_raw_parts_mut(base, elts) }
 	}
 
-	/// Gives read access to the `BitPtr<T>` structure powering the box.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// A copy of the interior `BitPtr<T>`.
+	#[inline]
 	pub(crate) fn bitptr(&self) -> BitPtr<T> {
-		self.pointer
+		self.pointer.as_ptr().pipe(BitPtr::from_bitslice_ptr_mut)
 	}
 
-	/// Allows a function to access the `Box<[T]>` that the `BitBox` is using
-	/// under the hood.
+	/// Permits a function to modify the `Box<[T]>` backing storage of a
+	/// `BitBox<_, T>`.
 	///
-	/// # Parameters
-	///
-	/// - `&self`
-	/// - `func`: A function which works with a borrowed `Box<[T]>` representing
-	///   the actual memory held by the `BitBox`.
+	/// This produces a temporary `Box<[T::Mem]>` structure governing the
+	/// `BitBox`’s buffer and allows a function to view it mutably. After the
+	/// callback returns, the `Box` is written back into `self` and forgotten.
 	///
 	/// # Type Parameters
 	///
-	/// - `F: FnOnce(&Box<[T]>) -> R`: A function which borrows a box.
-	/// - `R`: The return value of the function.
+	/// - `F`: A function which operates on a mutable borrow of a
+	///   `Box<[T::Mem]>` buffer controller.
+	/// - `R`: The return type of the `F` function.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `func`: A function which receives a mutable borrow of a
+	///   `Box<[T::Mem]>` controlling `self`’s buffer.
 	///
 	/// # Returns
 	///
-	/// The return value of the provided function.
-	fn do_with_box<F, R>(&self, func: F) -> R
-	where F: FnOnce(&Box<[T::Mem]>) -> R {
-		let slice = self.pointer.as_mut_slice();
-		let (data, elts) = (slice.as_mut_ptr(), slice.len());
-		let b = unsafe { Vec::from_raw_parts(data as *mut T::Mem, elts, elts) }
-			.into_boxed_slice();
-		let out = func(&b);
-		mem::forget(b);
+	/// The return value of `func`. `func` is forbidden from borrowing any part
+	/// of the `Box<[T::Mem]>` temporary view.
+	fn with_box<F, R>(&mut self, func: F) -> R
+	where F: FnOnce(&mut ManuallyDrop<Box<[T::Mem]>>) -> R {
+		let mut bitptr = self.bitptr();
+
+		let mut boxed = self
+			.as_mut_slice()
+			.pipe(|s| s as *mut [T] as *mut [T::Mem])
+			.pipe(|raw| unsafe { Box::from_raw(raw) })
+			.pipe(ManuallyDrop::new);
+		let out = func(&mut boxed);
+
+		unsafe {
+			bitptr.set_pointer(boxed.as_ptr() as *mut T);
+		}
+		self.pointer = bitptr.to_nonnull();
 		out
 	}
 }
 
 mod api;
-mod iter;
 mod ops;
 mod traits;
-
-pub use api::*;
-pub use iter::*;

@@ -1,16 +1,13 @@
-/*! Governs access to underlying memory.
+/*! Memory access control.
 
-`bitvec` allows the logical capability of a program to produce aliased
-references to memory elements which may have contended mutation. While `bitvec`
-operations are guaranteed to not observe mutation outside the logical borders of
-their domains, the production of aliased mutating access to memory is still
-undefined behavior in the compiler.
+`bitvec` allows a program to produce handles over memory that do not logically
+alias, but may alias in hardware. This module provides a unified interface for
+memory accesses that can be specialized to handle aliased and unaliased access
+events.
 
-As such, the crate must never produce references, either shared or unique,
-references to memory as the bare fundamental types. Instead, this module
-translates references to `BitSlice` into references to shared-mutable types as
-appropriate for the crate build configuration: either `Cell` in non-atomic
-builds, or `AtomicT` in atomic builds.
+The `BitAccess` trait provides capabilities to access bits in memory elements
+through shared references, and its implementations are responsible for
+coördinating synchronization and contention as needed.
 !*/
 
 use crate::{
@@ -29,169 +26,329 @@ use core::{
 
 use radium::Radium;
 
-/** Access interface for shared/mutable memory access.
+/** Access interface to memory locations.
 
-`&BitSlice` and `&mut BitSlice` contexts must route through their `Access`
-associated type, which implements this trait, in order to perform *any* access
-to underlying memory. This trait extends the `Radium` element-wise shared
-mutable access with single-bit operations suited for use by `BitSlice`.
+This trait abstracts over the specific instructions used to perform accesses to
+memory locations, so that use sites elsewhere in the crate can select their
+required behavior without changing the interface.
+
+This is automatically implemented for all types that permit shared/mutable
+memory access to register types through the `radium` crate. Its use is
+constrained in the `store` module.
 **/
 pub trait BitAccess<M>: Debug + Radium<M> + Sized
 where M: BitMemory
 {
-	/// Set a single bit in an element low.
-	///
-	/// `BitAccess::set` calls this when its `value` is `false`; it
-	/// unconditionally writes a `0` bit into the electrical position that
-	/// `place` controls according to the `BitOrder` parameter `O`.
+	/// Sets one bit in a memory element to `0`.
 	///
 	/// # Type Parameters
 	///
-	/// - `O`: A `BitOrder` implementation which translates `place` into a
-	///   usable bit-mask.
-	///
-	/// # Parameters
-	///
-	/// - `&self`: A shared reference to underlying memory.
-	/// - `place`: A semantic bit index in the `self` element.
-	fn clear_bit<O>(&self, place: BitIdx<M>)
-	where O: BitOrder {
-		self.fetch_and(!*O::select(place), Ordering::Relaxed);
-	}
-
-	/// Writes the low bits of the mask into the underlying element.
+	/// - `O`: A bit ordering.
 	///
 	/// # Parameters
 	///
 	/// - `&self`
-	/// - `mask`: Any value. The **high** bits of the mask will erase their
-	///   corresponding bits in `*self`; the **low** bits will preserve their
-	///   value.
+	/// - `index`: The semantic index of the bit in `*self` to be erased.
+	///
+	/// # Effects
+	///
+	/// The memory element at `*self` has the bit corresponding to `index` set
+	/// to `0`, and all other bits are unchanged.
+	#[inline]
+	fn clear_bit<O>(&self, index: BitIdx<M>)
+	where O: BitOrder {
+		self.fetch_and(!index.select::<O>().value(), Ordering::Relaxed);
+	}
+
+	/// Set any number of bits in a memory element to `0`.
+	///
+	/// The mask provided to this method must be constructed from indices that
+	/// are valid in the caller’s context. As the mask is already computed by
+	/// the caller, this does not take an ordering type parameter.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `mask`: A mask of any number of bits. This is a selection mask of bits
+	///   to modify.
+	///
+	/// # Effects
+	///
+	/// All bits in `*self` that are selected (set to `1`) in `mask` will be set
+	/// to `0`, and all bits in `*self` that are not selected (set to `0`) in
+	/// `mask` will be unchanged.
+	///
+	/// Do not invert the mask prior to calling this function in order to save
+	/// the unselected bits and erase the selected bits. `BitMask` is a
+	/// selection type, not a bitwise-operation argument.
+	#[inline]
 	fn clear_bits(&self, mask: BitMask<M>) {
-		self.fetch_and(!*mask, Ordering::Relaxed);
+		self.fetch_and(!mask.value(), Ordering::Relaxed);
 	}
 
-	/// Set a single bit in an element high.
-	///
-	/// `BitAccess::set` calls this when its `value` is `true`; it
-	/// unconditionally writes a `1` bit into the electrical position that
-	/// `place` controls according to the `BitOrder` parameter `O`.
+	/// Sets one bit in a memory element to `1`.
 	///
 	/// # Type Parameters
 	///
-	/// - `O`: A `BitOrder` implementation which translates `place` into a
-	///   usable bit-mask.
-	///
-	/// # Parameters
-	///
-	/// - `&self`: A shared reference to underlying memory.
-	/// - `place`: A semantic bit index in the `self` element.
-	fn set_bit<O>(&self, place: BitIdx<M>)
-	where O: BitOrder {
-		self.fetch_or(*O::select(place), Ordering::Relaxed);
-	}
-
-	/// Writes the high bits of the mask into the underlying element.
+	/// - `O`: A bit ordering.
 	///
 	/// # Parameters
 	///
 	/// - `&self`
-	/// - `mask`: Any value. The high bits of the mask will be written into
-	///   `*self`; the low bits will preserve their value in `*self`.
+	/// - `index`: The semantic index of the bit in `*self` to be written.
+	///
+	/// # Effects
+	///
+	/// The memory element at `*self` has the bit corresponding to `index` set
+	/// to `1`, and all other bits are unchanged.
+	#[inline]
+	fn set_bit<O>(&self, index: BitIdx<M>)
+	where O: BitOrder {
+		self.fetch_or(index.select::<O>().value(), Ordering::Relaxed);
+	}
+
+	/// Sets any number of bits in a memory element to `1`.
+	///
+	/// The mask provided to this method must be constructed from indices that
+	/// are valid in the caller’s context. As the mask is already computed by
+	/// the caller, this does not need to take an ordering type parameter.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `mask`: A mask of any number of bits. This is a selection mask of bits
+	///   to modify.
+	///
+	/// # Effects
+	///
+	/// All bits in `*self` that are selected (set to `1`) in `mask` will be set
+	/// to `1`, and all bits in `*self` that are not selected (set to `0`) in
+	/// `mask` will be unchanged.
+	#[inline]
 	fn set_bits(&self, mask: BitMask<M>) {
-		self.fetch_or(*mask, Ordering::Relaxed);
+		self.fetch_or(mask.value(), Ordering::Relaxed);
 	}
 
-	/// Invert a single bit in an element.
+	/// Inverts the value of one bit in a memory element.
 	///
 	/// # Type Parameters
 	///
-	/// - `O`: A `BitOrder` implementation which translates `place` into a
-	///   usable bit-mask.
-	///
-	/// # Parameters
-	///
-	/// - `&self`: A shared reference to underlying memory.
-	/// - `place`: A semantic bit index in the `self` element.
-	fn invert_bit<O>(&self, place: BitIdx<M>)
-	where O: BitOrder {
-		self.fetch_xor(*O::select(place), Ordering::Relaxed);
-	}
-
-	/// Inverts the bits in an element specified by a mask.
+	/// - `O`: A bit ordering.
 	///
 	/// # Parameters
 	///
 	/// - `&self`
-	/// - `mask`: Any value. The high bits of the mask will invert their
-	///   corresponding bits of `*self`; the low bits will have no effect.
+	/// - `index`: The semantic index of the bit in `*self` to be inverted.
+	///
+	/// # Effects
+	///
+	/// The memory element at `*self` has the bit corresponding to `index` set
+	/// to the opposite of its current value. All other bits are unchanged.
+	#[inline]
+	fn invert_bit<O>(&self, index: BitIdx<M>)
+	where O: BitOrder {
+		self.fetch_xor(index.select::<O>().value(), Ordering::Relaxed);
+	}
+
+	/// Invert any number of bits in a memory element.
+	///
+	/// The mask provided to this method must be constructed from indices that
+	/// are valid in the caller’s context. As the mask is already computed by
+	/// the caller, this does not take an ordering type parameter.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `mask`: A mask of any number of bits. This is a selection mask of bits
+	///   to modify.
+	///
+	/// # Effects
+	///
+	/// All bits in `*self` that are selected (set to `1`) in `mask` will be set
+	/// to the opposite of their current value, and all bits in `*self` that are
+	/// not selected (set to `0`) in `mask` will be unchanged.
+	#[inline]
 	fn invert_bits(&self, mask: BitMask<M>) {
-		self.fetch_xor(*mask, Ordering::Relaxed);
+		self.fetch_xor(mask.value(), Ordering::Relaxed);
 	}
 
-	/// Retrieve a single bit from an element.
+	/// Fetches the value of one bit in a memory element.
 	///
 	/// # Type Parameters
 	///
-	/// - `O`: A `BitOrder` implementation which translates `place` into a
-	///   usable bit-mask.
+	/// - `O`: A bit ordering.
 	///
 	/// # Parameters
 	///
-	/// - `&self`: A shared reference to underlying memory.
-	/// - `place`: A semantic bit index in the `self` element.
-	#[inline]
-	fn get<O>(&self, place: BitIdx<M>) -> bool
-	where O: BitOrder {
-		BitAccess::load(self) & *O::select(place) != M::ZERO
-	}
-
-	/// Set a single bit in an element to some value.
-	///
-	/// # Type Parameters
-	///
-	/// - `O`: A `BitOrder` implementation which translates `place` into a
-	///   usable bit-mask.
-	///
-	/// # Parameters
-	///
-	/// - `&self`: A shared reference to underlying memory.
-	/// - `place`: A semantic bit index in the `self` element.
-	/// - `value`: The value to which the bit controlled by `place` shall be
-	///   set.
-	#[inline]
-	fn set<O>(&self, place: BitIdx<M>, value: bool)
-	where O: BitOrder {
-		if value {
-			self.set_bit::<O>(place);
-		}
-		else {
-			self.clear_bit::<O>(place);
-		}
-	}
-
-	/// Read a value out of a contended memory element and into a local scope.
-	///
-	/// # Parameters
-	///
-	/// - `&self`: A shared reference to underlying memory.
+	/// - `&self`
+	/// - `index`: The semantic index of the bit in `*self` to read.
 	///
 	/// # Returns
 	///
-	/// The value of `*self`. This value is only useful when access is
-	/// uncontended by multiple `BitSlice` regions.
-	fn load(&self) -> M {
-		Radium::load(self, Ordering::Relaxed)
+	/// The value of the bit in `*self` corresponding to `index`.
+	#[inline]
+	fn get_bit<O>(&self, index: BitIdx<M>) -> bool
+	where O: BitOrder {
+		unsafe { BitMask::new(self.load_value()) }.test(index.select::<O>())
 	}
 
-	/// Stores a value into a contended memory element.
+	/// Fetches any number of bits from a memory element.
+	///
+	/// The mask provided to this method must be constructed from indices that
+	/// are valid in the caller’s context. As the mask is already computed by
+	/// the caller, this does not take an ordering type parameter.
 	///
 	/// # Parameters
 	///
-	/// - `&self`: A shared reference to underlying memory.
+	/// - `&self`
+	/// - `mask`: A mask of any number of bits. This is a selection mask of bits
+	///   to read.
+	///
+	/// # Returns
+	///
+	/// A copy of the memory element at `*self`, with all bits not selected (set
+	/// to `0`) in `mask` erased and all bits selected (set to `1`) in `mask`
+	/// preserved.
+	#[inline]
+	fn get_bits(&self, mask: BitMask<M>) -> M {
+		self.load_value() & mask.value()
+	}
+
+	/// Writes a bit to an index within the `self` element.
+	///
+	/// # Type Parameters
+	///
+	/// - `O`: A bit ordering.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `index`: The semantic index of the bit in `*self` to be written.
+	/// - `value`: The bit value to write into `*self` at `index`.
+	///
+	/// # Effects
+	///
+	/// The bit in `*self` at `index` is set to the `value` bit.
+	#[inline]
+	fn write_bit<O>(&self, index: BitIdx<M>, value: bool)
+	where O: BitOrder {
+		if value {
+			self.set_bit::<O>(index);
+		}
+		else {
+			self.clear_bit::<O>(index);
+		}
+	}
+
+	/// Writes a bit value to any number of bits within the `self` element.
+	///
+	/// The mask provided to this method must be constructed from indices that
+	/// are valid in the caller’s context. As the mask is already computed by
+	/// the caller, this does not need to take an ordering type parameter.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `mask`: A mask of any number of bits. This is a selection mask of bits
+	///   to modify.
+	///
+	/// # Effects
+	///
+	/// All bits in `*self` that are selected (set to `1`) in `mask` will be set
+	/// to `value`, and all bits in `*self` that are not selected (set to `0`)
+	/// in `mask` will be unchanged.
+	#[inline]
+	fn write_bits(&self, mask: BitMask<M>, value: bool) {
+		if value {
+			self.set_bits(mask);
+		}
+		else {
+			self.clear_bits(mask);
+		}
+	}
+
+	/// Gets the function that writes `value` to an index.
+	///
+	/// # Type Parameters
+	///
+	/// - `O`: A bit ordering.
+	///
+	/// # Parameters
+	///
+	/// - `value`: The bit that will be directly written by the returned
+	///   function.
+	///
+	/// # Returns
+	///
+	/// A function which, when applied to a reference and an index, will write
+	/// `value` into memory. If `value` is `false`, then this produces
+	/// [`clear_bit`]; if it is `true`, then this produces [`set_bit`].
+	///
+	/// [`clear_bit`]: #method.clear_bit
+	/// [`set_bit`]: #method.set_bit
+	#[inline]
+	fn get_writer<O>(value: bool) -> for<'a> fn(&'a Self, BitIdx<M>)
+	where O: BitOrder {
+		[Self::clear_bit::<O>, Self::set_bit::<O>][value as usize]
+	}
+
+	/// Gets the function that writes `value` into all bits under a mask.
+	///
+	/// # Parameters
+	///
+	/// - `value`: The bit that will be directly written by the returned
+	///   function.
+	///
+	/// # Returns
+	///
+	/// A function which, when applied to a reference and a mask, will write
+	/// `value` into memory. If `value` is `false`, then this produces
+	/// [`clear_bits`]; if it is `true`, then this produces [`set_bits`].
+	///
+	/// [`clear_bits`]: #method.clear_bits
+	/// [`set_bits`]: #method.set_bits
+	#[inline]
+	fn get_writers(value: bool) -> for<'a> fn(&'a Self, BitMask<M>) {
+		[Self::clear_bits, Self::set_bits][value as usize]
+	}
+
+	/// Copies a memory element into the caller’s local context.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// A copy of the value at `*self`.
+	#[inline]
+	fn load_value(&self) -> M {
+		self.load(Ordering::Relaxed)
+	}
+
+	/// Unconditionally writes a value into a memory location.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
 	/// - `value`: The new value to write into `*self`.
-	fn store(&self, value: M) {
-		Radium::store(self, value, Ordering::Relaxed)
+	///
+	/// # Effects
+	///
+	/// The current value at `*self` is replaced with `value`.
+	///
+	/// # Safety
+	///
+	/// The calling context must either have write permissions to the entire
+	/// memory element at `*self`, or construct a `value` that does not modify
+	/// the bits of `*self` that the caller does not currently own.
+	///
+	/// As this directly permits the modification of memory outside the logical
+	/// ownership of the caller, this method risks behavior that violates the
+	/// Rust memory model, even if it may not be technically undefined.
+	#[inline]
+	unsafe fn store_value(&self, value: M) {
+		self.store(value, Ordering::Relaxed)
 	}
 }
 

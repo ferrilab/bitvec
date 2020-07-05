@@ -63,7 +63,7 @@ fn snooze() {
 
 #[cfg(feature = "std")]
 fn main() {
-	let data = BitBox::from_bitslice([0u8; 5].bits::<Local>());
+	let data = BitBox::from_bitslice([0u8; 5].view_bits::<Local>());
 	let bits: &'static mut BitSlice<Local, u8> = BitBox::leak(data);
 
 	//  This slice is all zeros.

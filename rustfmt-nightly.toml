@@ -17,13 +17,11 @@ hard_tabs = true
 max_width = 81
 merge_derives = true
 newline_style = "Unix"
-print_misformatted_file_names = false
 remove_nested_parens = true
 reorder_imports = true
 reorder_modules = true
 tab_spaces = 4
 use_field_init_shorthand = true
-use_small_heuristics = "Default"
 use_try_shorthand = true
 
 # Still unstable
@@ -61,8 +59,6 @@ normalize_comments = false
 normalize_doc_attributes = true
 overflow_delimited_expr = true
 reorder_impl_items = true
-report_fixme = "Unnumbered"
-report_todo = "Unnumbered"
 space_after_colon = true
 space_before_colon = false
 spaces_around_ranges = true
