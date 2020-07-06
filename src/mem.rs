@@ -47,7 +47,10 @@ macro_rules! memory {
 	)+ };
 }
 
-memory!(u8, u16, u32, u64, usize);
+memory!(u8, u16, u32, usize);
+
+#[cfg(target_pointer_width = "64")]
+memory!(u64);
 
 /** Computes the number of elements required to store some number of bits.
 
