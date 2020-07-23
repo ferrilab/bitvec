@@ -358,3 +358,82 @@ where
 	R: Debug + Radium<M>,
 {
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::prelude::*;
+
+	#[test]
+	fn touch_memory() {
+		let mut data = 0u8;
+		let bits = data.view_bits_mut::<Local>();
+		let accessor = unsafe { &*(bits.bitptr().pointer().to_access()) };
+
+		BitAccess::set_bit::<Lsb0>(accessor, BitIdx::ZERO);
+		assert_eq!(accessor.get(), 1);
+
+		BitAccess::set_bits(accessor, BitMask::ALL);
+		assert_eq!(accessor.get(), !0);
+
+		BitAccess::clear_bit::<Lsb0>(accessor, BitIdx::ZERO);
+		assert_eq!(accessor.get(), !1);
+
+		BitAccess::clear_bits(accessor, BitMask::ALL);
+		assert_eq!(accessor.get(), 0);
+
+		BitAccess::invert_bit::<Lsb0>(accessor, BitIdx::ZERO);
+		assert_eq!(accessor.get(), 1);
+		BitAccess::invert_bits(accessor, BitMask::ALL);
+		assert_eq!(accessor.get(), !1);
+
+		assert!(!BitAccess::get_bit::<Lsb0>(accessor, BitIdx::ZERO));
+		assert_eq!(accessor.get(), !1);
+
+		BitAccess::write_bit::<Lsb0>(accessor, BitIdx::new(1).unwrap(), false);
+		assert_eq!(accessor.get(), !3);
+
+		BitAccess::write_bits(accessor, BitMask::ALL, true);
+		assert_eq!(accessor.get(), !0);
+		BitAccess::write_bits(accessor, Lsb0::mask(BitIdx::new(2), None), false);
+		assert_eq!(
+			BitAccess::get_bits(accessor, Lsb0::mask(BitIdx::new(2), None)),
+			0
+		);
+		assert_eq!(accessor.get(), 3);
+
+		BitAccess::get_writer::<Lsb0>(false)(accessor, BitIdx::ZERO);
+		assert_eq!(accessor.get(), 2);
+
+		unsafe {
+			BitAccess::store_value(accessor, !1);
+		}
+		assert_eq!(accessor.get(), !1);
+	}
+
+	#[test]
+	fn sanity_check_prefetch() {
+		use core::cell::Cell;
+
+		assert_eq!(
+			<Cell<u8> as BitAccess::<u8>>::get_writer::<Msb0>(false)
+				as *const (),
+			<Cell<u8> as BitAccess::<u8>>::clear_bit::<Msb0> as *const ()
+		);
+
+		assert_eq!(
+			<Cell<u8> as BitAccess::<u8>>::get_writer::<Msb0>(true) as *const (),
+			<Cell<u8> as BitAccess::<u8>>::set_bit::<Msb0> as *const ()
+		);
+
+		assert_eq!(
+			<Cell<u8> as BitAccess::<u8>>::get_writers(false) as *const (),
+			<Cell<u8> as BitAccess::<u8>>::clear_bits as *const ()
+		);
+
+		assert_eq!(
+			<Cell<u8> as BitAccess::<u8>>::get_writers(true) as *const (),
+			<Cell<u8> as BitAccess::<u8>>::set_bits as *const ()
+		);
+	}
+}

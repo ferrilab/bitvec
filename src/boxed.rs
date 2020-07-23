@@ -159,6 +159,7 @@ where
 	/// assert_eq!(bb, bits[2 ..]);
 	/// ```
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn from_bitslice(slice: &BitSlice<O, T>) -> Self {
 		slice.to_bitvec().into_boxed_bitslice()
 	}
@@ -180,6 +181,7 @@ where
 	/// let bits = bb.as_bitslice();
 	/// ```
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
 		self.bitptr().to_bitslice_ref()
 	}
@@ -202,6 +204,7 @@ where
 	/// bits.set(0, true);
 	/// ```
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
 		self.bitptr().to_bitslice_mut()
 	}

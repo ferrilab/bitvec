@@ -152,7 +152,7 @@ where
 	V: BitView + Sized,
 {
 	/// Constructs a new `BitArray` with zeroed memory.
-	#[inline(always)]
+	#[cfg_attr(not(tarpaulin), inline(always))]
 	pub fn zeroed() -> Self {
 		Self {
 			_ord: PhantomData,
@@ -161,7 +161,13 @@ where
 	}
 
 	/// Constructs a new `BitArray` from a data store.
-	#[inline(always)]
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	/// ```
+	#[cfg_attr(not(tarpaulin), inline(always))]
 	pub fn new(data: V) -> Self {
 		Self {
 			_ord: PhantomData,
@@ -170,27 +176,36 @@ where
 	}
 
 	/// Removes the bit-array wrapper, returning the contained data.
-	#[inline(always)]
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bitarr: BitArray<Local, [usize; 1]> = bitarr![0; 30];
+	/// let native: [usize; 1] = bitarr.unwrap();
+	/// ```
+	#[cfg_attr(not(tarpaulin), inline(always))]
 	pub fn unwrap(self) -> V {
 		self.data
 	}
 
 	/// Views the array as a bit-slice.
 	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &BitSlice<O, V::Store> {
 		self.data.view_bits::<O>()
 	}
 
 	/// Views the array as a mutable bit-slice.
 	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, V::Store> {
 		self.data.view_bits_mut::<O>()
 	}
 }
 
-#[cfg_attr(tarpaulin, skip)]
 mod ops;
-#[cfg_attr(tarpaulin, skip)]
 mod traits;
 
 #[cfg(test)]
@@ -217,5 +232,12 @@ mod tests {
 			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
 			19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
 		);
+	}
+
+	#[test]
+	fn wrap_unwrap() {
+		let data: [u8; 15] = *b"Saluton, mondo!";
+		let bits = BitArray::<Local, _>::new(data);
+		assert_eq!(bits.unwrap(), data);
 	}
 }

@@ -363,6 +363,8 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	fn clone(&self) -> Self {
 		*self
 	}
@@ -620,6 +622,8 @@ domain!(DomainMut => mut);
 impl<T> Clone for Domain<'_, T>
 where T: BitStore
 {
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	fn clone(&self) -> Self {
 		*self
 	}
