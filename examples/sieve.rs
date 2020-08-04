@@ -114,7 +114,7 @@ fn main() {
 		//  stop at the first prime
 		.find(|(_, bit)| *bit)
 		//  ceil(log10) is the number of digits to print
-		.map(|(idx, _)| ((limit - 1 - idx) as f64).log(10.0).ceil() as usize)
+		.map(|(idx, _)| ((limit - 1 - idx) as f64).log10().ceil() as usize)
 		.expect("Failed to find a prime.");
 
 	println!(
