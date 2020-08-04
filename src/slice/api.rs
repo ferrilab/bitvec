@@ -348,7 +348,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::last_mut](https://doc.rust-lang.org/std/primitive.slice.html#method.last_mut)
+	/// [`slice::last_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.last_mut)
 	///
 	/// # API Differences
 	///
