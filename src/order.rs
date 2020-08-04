@@ -370,8 +370,10 @@ where O: BitOrder {
 	verify_for_type::<O, u8>(verbose);
 	verify_for_type::<O, u16>(verbose);
 	verify_for_type::<O, u32>(verbose);
-	verify_for_type::<O, u64>(verbose);
 	verify_for_type::<O, usize>(verbose);
+
+	#[cfg(target_pointer_width = "64")]
+	verify_for_type::<O, u64>(verbose);
 }
 
 /** Verifies a `BitOrder` implementation’s adherence to the stated rules, for

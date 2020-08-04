@@ -30,9 +30,9 @@ ci:
 clean:
 	cargo clean
 
-cover: test
+cover: check lint
+	@cargo +nightly tarpaulin --all-features -o Xml --output-dir target/tarpaulin &>/dev/null &
 	cargo +nightly tarpaulin --all-features -o Html --output-dir target/tarpaulin
-	@cargo +nightly tarpaulin --all-features -o Xml --output-dir target/tarpaulin &>/dev/null
 	@tokei
 
 # Runs the development routines.

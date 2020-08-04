@@ -59,7 +59,6 @@ use crate::{
 };
 
 use core::{
-	cmp,
 	mem,
 	ops::{
 		Shl,
@@ -879,7 +878,7 @@ unsafe fn resize_inner<T, U>(
 	ptr::copy_nonoverlapping(
 		src as *const T as *const u8,
 		dst as *mut U as *mut u8,
-		cmp::min(size_t, size_u),
+		core::cmp::min(size_t, size_u),
 	);
 }
 
