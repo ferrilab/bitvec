@@ -927,7 +927,7 @@ where T: BitStore
 			.field("addr", &self.pointer().fmt_pointer())
 			.field("head", &self.head().fmt_binary())
 			.field("bits", &self.len());
-		for (name, value) in fields.into_iter() {
+		for (name, value) in fields {
 			builder.field(name, value);
 		}
 		builder.finish()
