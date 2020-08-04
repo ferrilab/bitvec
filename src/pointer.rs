@@ -13,6 +13,7 @@ project.
 
 use crate::{
 	access::BitAccess,
+	devel as dvl,
 	index::{
 		BitIdx,
 		BitTail,
@@ -32,7 +33,10 @@ use core::{
 		Pointer,
 	},
 	marker::PhantomData,
-	ptr::NonNull,
+	ptr::{
+		self,
+		NonNull,
+	},
 	slice,
 };
 
@@ -793,14 +797,12 @@ where T: BitStore
 	#[inline]
 	pub(crate) fn from_bitslice_ptr<O>(raw: *const BitSlice<O, T>) -> Self
 	where O: BitOrder {
-		//  Conveniently, this is always safe because references to ZST are
-		//  always valid, as they are impossible to lower to load instructions.
-		let raw = unsafe { &*(raw as *const [()]) };
-		let ptr = match NonNull::new(raw.as_ptr() as *const u8 as *mut u8) {
-			Some(ptr) => ptr,
+		let slice_nn = match NonNull::new(raw as *const [()] as *mut [()]) {
+			Some(r) => r,
 			None => return Self::EMPTY,
 		};
-		let len = raw.len();
+		let ptr = dvl::nonnull_slice_to_base(slice_nn).cast::<u8>();
+		let len = unsafe { slice_nn.as_ref() }.len();
 		Self {
 			ptr,
 			len,
@@ -820,12 +822,10 @@ where T: BitStore
 	#[inline]
 	pub(crate) fn to_bitslice_ptr<O>(self) -> *const BitSlice<O, T>
 	where O: BitOrder {
-		unsafe {
-			slice::from_raw_parts(
-				self.ptr.as_ptr() as *const u8 as *const (),
-				self.len,
-			) as *const [()] as *const BitSlice<O, T>
-		}
+		ptr::slice_from_raw_parts(
+			self.ptr.as_ptr() as *const u8 as *const (),
+			self.len,
+		) as *const BitSlice<O, T>
 	}
 
 	/// Typecasts the pointer structure into a raw mutable-region pointer.

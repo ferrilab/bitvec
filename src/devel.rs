@@ -19,10 +19,16 @@ use crate::{
 	store::BitStore,
 };
 
-use core::ops::{
-	Bound,
-	Range,
-	RangeBounds,
+use core::{
+	ops::{
+		Bound,
+		Range,
+		RangeBounds,
+	},
+	ptr::{
+		self,
+		NonNull,
+	},
 };
 
 use wyz::pipe::Pipe;
@@ -85,6 +91,15 @@ where T: BitStore {
 pub fn remove_bitptr_alias<T>(x: BitPtr<T::Alias>) -> BitPtr<T>
 where T: BitStore {
 	unsafe { *(&x as *const _ as *const _) }
+}
+
+/// Gets a `NonNull<T>` base pointer from a `NonNull<[T]>` slice pointer.
+#[inline(always)]
+#[cfg(not(tarpaulin_include))]
+pub fn nonnull_slice_to_base<T>(mut nn_slice: NonNull<[T]>) -> NonNull<T> {
+	unsafe { nn_slice.as_mut() }
+		.pipe(<[T]>::as_mut_ptr)
+		.pipe(|p| unsafe { NonNull::new_unchecked(p) })
 }
 
 /** Normalizes any range into a basic `Range`.
