@@ -169,7 +169,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`vec::IntoIter::as_slice](https://doc.rust-lang.org/alloc/vec/struct.IntoIter.html#method.as_slice)
+	/// [`vec::IntoIter::as_slice`](https://doc.rust-lang.org/alloc/vec/struct.IntoIter.html#method.as_slice)
 	///
 	/// # Examples
 	///
