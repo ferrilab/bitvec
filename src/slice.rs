@@ -1275,7 +1275,7 @@ where
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_slice(&self) -> &[T::Mem] {
-		self.domain().region().map(|(_, b, _)| b).unwrap_or(&[])
+		self.domain().region().map_or(&[], |(_, b, _)| b)
 	}
 
 	/// Views the wholly-filled elements of the `BitSlice`.
@@ -1319,8 +1319,7 @@ where
 	pub fn as_mut_slice(&mut self) -> &mut [T::Mem] {
 		self.domain_mut()
 			.region()
-			.map(|(_, b, _)| b)
-			.unwrap_or(&mut [])
+			.map_or(&mut [], |(_, b, _)| b)
 	}
 
 	/// Splits the slice into the logical components of its memory domain.
