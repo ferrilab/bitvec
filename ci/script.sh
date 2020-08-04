@@ -8,11 +8,11 @@ if [ -z $CI ] || [ ! -z $DISABLE_CROSS ]; then
     CARGO=cargo
 else
     # On CI, use cross.
-    CARGO=cross
+    CARGO=$HOME/.cargo/bin/cross
     CARGO_TARGET="--target $TARGET"
 fi
 
-$CARGO clean
+# $CARGO clean
 $CARGO build $CARGO_TARGET --all-features
 if [ -z $DISABLE_TESTS ]; then
     $CARGO test $CARGO_TARGET --all-features
