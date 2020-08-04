@@ -372,25 +372,31 @@ where M: BitMemory
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M> Binary for BitIdx<M>
 where M: BitMemory
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "{:0>1$b}", self.idx, M::INDX as usize)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M> Debug for BitIdx<M>
 where M: BitMemory
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitIdx<{}>({})", type_name::<M>(), self.idx)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M> Display for BitIdx<M>
 where M: BitMemory
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Display::fmt(&self.idx, fmt)
 	}
@@ -552,6 +558,7 @@ where M: BitMemory
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M> Debug for BitTail<M>
 where M: BitMemory
 {
@@ -560,6 +567,7 @@ where M: BitMemory
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M> Display for BitTail<M>
 where M: BitMemory
 {
@@ -702,6 +710,7 @@ where M: BitMemory
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M> Debug for BitPos<M>
 where M: BitMemory
 {
@@ -821,6 +830,7 @@ where M: BitMemory
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M> Debug for BitSel<M>
 where M: BitMemory
 {
@@ -831,6 +841,7 @@ where M: BitMemory
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M> Display for BitSel<M>
 where M: BitMemory
 {
@@ -946,6 +957,7 @@ where M: BitMemory
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M> Debug for BitMask<M>
 where M: BitMemory
 {
@@ -956,6 +968,7 @@ where M: BitMemory
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M> Display for BitMask<M>
 where M: BitMemory
 {
@@ -1006,6 +1019,96 @@ where M: BitMemory
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::order::{
+		Lsb0,
+		Msb0,
+	};
+
+	#[test]
+	fn index_fns() {
+		assert!(BitIdx::<u8>::new(8).is_none());
+
+		for n in 0 .. 8 {
+			assert_eq!(
+				BitIdx::<u8>::new(n).unwrap().position::<Lsb0>().value(),
+				n
+			);
+		}
+
+		for n in 0 .. 8 {
+			assert_eq!(
+				BitIdx::<u8>::new(n).unwrap().position::<Msb0>().value(),
+				7 - n
+			);
+		}
+
+		for n in 0 .. 8 {
+			assert_eq!(
+				BitIdx::<u8>::new(n).unwrap().mask::<Lsb0>().value(),
+				1 << n
+			);
+		}
+
+		for n in 0 .. 8 {
+			assert_eq!(
+				BitIdx::<u8>::new(n).unwrap().mask::<Msb0>().value(),
+				128 >> n
+			);
+		}
+
+		for n in 0 .. 8 {
+			assert_eq!(BitIdx::<u8>::new(n).unwrap().value(), n);
+		}
+	}
+
+	#[test]
+	fn tail_fns() {
+		for n in 0 .. 8 {
+			let tail: BitTail<u8> = make!(tail n);
+			assert_eq!(tail.value(), n);
+		}
+	}
+
+	#[test]
+	fn position_fns() {
+		assert!(unsafe { BitPos::<u8>::new(8) }.is_none());
+
+		for n in 0 .. 8 {
+			let pos: BitPos<u8> = make!(pos n);
+			let mask: BitMask<u8> = make!(mask 1 << n);
+			assert_eq!(pos.mask(), mask);
+		}
+	}
+
+	#[test]
+	fn select_fns() {
+		assert!(unsafe { BitSel::<u8>::new(1) }.is_some());
+		assert!(unsafe { BitSel::<u8>::new(3) }.is_none());
+
+		for (n, sel) in BitSel::<u8>::range_all().enumerate() {
+			assert_eq!(sel, make!(sel(1 << n) as u8));
+		}
+	}
+
+	#[test]
+	fn fold_masks() {
+		assert_eq!(
+			BitSel::<u8>::range_all()
+				.map(BitSel::mask)
+				.fold(BitMask::<u8>::ZERO, |accum, mask| accum | mask.value()),
+			BitMask::<u8>::ALL
+		);
+
+		assert_eq!(!BitMask::<u8>::ALL, BitMask::ZERO);
+	}
+
+	#[test]
+	fn offset() {
+		let (elts, idx) =
+			BitIdx::<u32>::new(31).unwrap().offset(isize::max_value());
+		assert_eq!(elts, (isize::max_value() >> 5) + 1);
+		assert_eq!(idx, BitIdx::new(30).unwrap());
+	}
 
 	#[test]
 	fn span() {

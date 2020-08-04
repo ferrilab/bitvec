@@ -67,7 +67,6 @@ The verifier function panics when it detects invalid behavior, with an error
 message intended to clearly indicate the broken requirement.
 
 ```rust
-# extern crate bitvec;
 use bitvec::index::{BitIdx, BitPos};
 use bitvec::mem::BitMemory;
 use bitvec::order::{BitOrder, verify};
@@ -288,13 +287,13 @@ unsafe impl BitOrder for Msb0 {
 pub struct Lsb0;
 
 unsafe impl BitOrder for Lsb0 {
-	#[inline(always)]
+	#[cfg_attr(not(tarpaulin), inline(always))]
 	fn at<M>(index: BitIdx<M>) -> BitPos<M>
 	where M: BitMemory {
 		unsafe { BitPos::new_unchecked(index.value()) }
 	}
 
-	#[inline(always)]
+	#[cfg_attr(not(tarpaulin), inline(always))]
 	fn select<M>(index: BitIdx<M>) -> BitSel<M>
 	where M: BitMemory {
 		unsafe { BitSel::new_unchecked(M::ONE << index.value()) }

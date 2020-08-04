@@ -154,7 +154,7 @@ where
 	#[deprecated(
 		note = "Use `.as_bitslice` on iterators to view the remaining data"
 	)]
-	#[cfg_attr(tarpaulin, skip)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_slice(&self) -> &'a BitSlice<O, T> {
 		self.as_bitslice()
 	}
@@ -202,7 +202,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[cfg_attr(tarpaulin, skip)]
+	#[cfg(not(tarpaulin_include))]
 	fn as_ref(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
 	}
@@ -373,7 +373,7 @@ where
 	#[doc(hidden)]
 	#[deprecated(note = "Use `.into_bitslice` on mutable iterators to view \
 	                     the remaining data")]
-	#[cfg_attr(tarpaulin, skip)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn into_slice(self) -> &'a mut BitSlice<O, T::Alias> {
 		self.into_bitslice()
 	}
@@ -990,7 +990,7 @@ where
 	O: BitOrder,
 	T: 'a + BitStore,
 {
-	#[inline(always)]
+	#[cfg_attr(not(tarpaulin), inline(always))]
 	pub(super) fn new(slice: &'a BitSlice<O, T>, width: usize) -> Self {
 		let len = slice.len();
 		let rem = len % width;
@@ -1111,7 +1111,7 @@ where
 	O: BitOrder,
 	T: 'a + BitStore,
 {
-	#[inline(always)]
+	#[cfg_attr(not(tarpaulin), inline(always))]
 	pub(super) fn new(slice: &'a mut BitSlice<O, T>, width: usize) -> Self {
 		let len = slice.len();
 		let rem = len % width;
@@ -1448,7 +1448,7 @@ where
 	O: BitOrder,
 	T: 'a + BitStore,
 {
-	#[inline(always)]
+	#[cfg_attr(not(tarpaulin), inline(always))]
 	pub(super) fn new(slice: &'a BitSlice<O, T>, width: usize) -> Self {
 		let (extra, slice) =
 			unsafe { slice.split_at_unchecked(slice.len() % width) };
@@ -1570,7 +1570,7 @@ where
 	O: BitOrder,
 	T: 'a + BitStore,
 {
-	#[inline(always)]
+	#[cfg_attr(not(tarpaulin), inline(always))]
 	pub(super) fn new(slice: &'a mut BitSlice<O, T>, width: usize) -> Self {
 		let (extra, slice) =
 			unsafe { slice.split_at_unchecked_mut(slice.len() % width) };
@@ -1667,7 +1667,7 @@ macro_rules! new_group {
 			O: BitOrder,
 			T: BitStore
 		{
-			#[inline(always)]
+			#[cfg_attr(not(tarpaulin), inline(always))]
 			pub(super) fn new(
 				slice: &'a $($m)? BitSlice<O, T>,
 				width: usize,

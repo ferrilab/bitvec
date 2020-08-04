@@ -192,7 +192,7 @@ where
 	#[deprecated(
 		note = "Use `.as_bitslice` on iterators to view the remaining data"
 	)]
-	#[cfg_attr(tarpaulin, skip)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_slice(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
 	}
@@ -226,7 +226,7 @@ where
 	#[deprecated(
 		note = "Use `.as_mut_bitslice` on iterators to view the remaining data"
 	)]
-	#[cfg_attr(tarpaulin, skip)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_slice(&mut self) -> &mut BitSlice<O, T> {
 		self.as_mut_bitslice()
 	}

@@ -125,6 +125,8 @@ pub trait BitField {
 	///
 	/// [`load_be`]: #tymethod.load_be
 	/// [`load_le`]: #tymethod.load_le
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	fn load<M>(&self) -> M
 	where M: BitMemory {
 		#[cfg(target_endian = "little")]
@@ -164,6 +166,8 @@ pub trait BitField {
 	///
 	/// [`store_be`]: #tymethod.store_be
 	/// [`store_le`]: #tymethod.store_le
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	fn store<M>(&mut self, value: M)
 	where M: BitMemory {
 		#[cfg(target_endian = "little")]
@@ -301,7 +305,7 @@ where T: BitStore
 	fn load_le<M>(&self) -> M
 	where M: BitMemory {
 		let len = self.len();
-		check(len, M::BITS, "load");
+		check("load", len, M::BITS);
 
 		match self.domain() {
 			//  In Lsb0, a `head` index counts distance from LSedge, and a
@@ -356,7 +360,7 @@ where T: BitStore
 	fn load_be<M>(&self) -> M
 	where M: BitMemory {
 		let len = self.len();
-		check(len, M::BITS, "load");
+		check("load", len, M::BITS);
 
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
@@ -391,16 +395,16 @@ where T: BitStore
 	fn store_le<M>(&mut self, mut value: M)
 	where M: BitMemory {
 		let len = self.len();
-		check(len, M::BITS, "store");
+		check("store", len, M::BITS);
 
 		match self.domain_mut() {
 			DomainMut::Enclave { head, elem, tail } => {
-				set::<T, M>(elem, Lsb0::mask(head, tail), head.value(), value)
+				set::<T, M>(elem, value, Lsb0::mask(head, tail), head.value())
 			},
 			DomainMut::Region { head, body, tail } => {
 				if let Some((head, elem)) = head {
 					let shamt = head.value();
-					set::<T, M>(elem, Lsb0::mask(head, None), shamt, value);
+					set::<T, M>(elem, value, Lsb0::mask(head, None), shamt);
 					value >>= T::Mem::BITS - shamt;
 				}
 
@@ -412,7 +416,7 @@ where T: BitStore
 				}
 
 				if let Some((elem, tail)) = tail {
-					set::<T, M>(elem, Lsb0::mask(None, tail), 0, value);
+					set::<T, M>(elem, value, Lsb0::mask(None, tail), 0);
 				}
 			},
 		}
@@ -422,15 +426,15 @@ where T: BitStore
 	fn store_be<M>(&mut self, mut value: M)
 	where M: BitMemory {
 		let len = self.len();
-		check(len, M::BITS, "store");
+		check("store", len, M::BITS);
 
 		match self.domain_mut() {
 			DomainMut::Enclave { head, elem, tail } => {
-				set::<T, M>(elem, Lsb0::mask(head, tail), head.value(), value)
+				set::<T, M>(elem, value, Lsb0::mask(head, tail), head.value())
 			},
 			DomainMut::Region { head, body, tail } => {
 				if let Some((elem, tail)) = tail {
-					set::<T, M>(elem, Lsb0::mask(None, tail), 0, value);
+					set::<T, M>(elem, value, Lsb0::mask(None, tail), 0);
 					value >>= tail.value()
 				}
 
@@ -444,9 +448,9 @@ where T: BitStore
 				if let Some((head, elem)) = head {
 					set::<T, M>(
 						elem,
+						value,
 						Lsb0::mask(head, None),
 						head.value(),
-						value,
 					);
 				}
 			},
@@ -461,7 +465,7 @@ where T: BitStore
 	fn load_le<M>(&self) -> M
 	where M: BitMemory {
 		let len = self.len();
-		check(len, M::BITS, "load");
+		check("load", len, M::BITS);
 
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => get::<T, M>(
@@ -501,7 +505,7 @@ where T: BitStore
 	fn load_be<M>(&self) -> M
 	where M: BitMemory {
 		let len = self.len();
-		check(len, M::BITS, "load");
+		check("load", len, M::BITS);
 
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => get::<T, M>(
@@ -542,18 +546,18 @@ where T: BitStore
 	fn store_le<M>(&mut self, mut value: M)
 	where M: BitMemory {
 		let len = self.len();
-		check(len, M::BITS, "store");
+		check("store", len, M::BITS);
 
 		match self.domain_mut() {
 			DomainMut::Enclave { head, elem, tail } => set::<T, M>(
 				elem,
+				value,
 				Msb0::mask(head, tail),
 				T::Mem::BITS - tail.value(),
-				value,
 			),
 			DomainMut::Region { head, body, tail } => {
 				if let Some((head, elem)) = head {
-					set::<T, M>(elem, Msb0::mask(head, None), 0, value);
+					set::<T, M>(elem, value, Msb0::mask(head, None), 0);
 					value >>= T::Mem::BITS - head.value();
 				}
 
@@ -567,9 +571,9 @@ where T: BitStore
 				if let Some((elem, tail)) = tail {
 					set::<T, M>(
 						elem,
+						value,
 						Msb0::mask(None, tail),
 						T::Mem::BITS - tail.value(),
-						value,
 					);
 				}
 			},
@@ -580,22 +584,22 @@ where T: BitStore
 	fn store_be<M>(&mut self, mut value: M)
 	where M: BitMemory {
 		let len = self.len();
-		check(len, M::BITS, "store");
+		check("store", len, M::BITS);
 
 		match self.domain_mut() {
 			DomainMut::Enclave { head, elem, tail } => set::<T, M>(
 				elem,
+				value,
 				Msb0::mask(head, tail),
 				T::Mem::BITS - tail.value(),
-				value,
 			),
 			DomainMut::Region { head, body, tail } => {
 				if let Some((elem, tail)) = tail {
 					set::<T, M>(
 						elem,
+						value,
 						Msb0::mask(None, tail),
 						T::Mem::BITS - tail.value(),
-						value,
 					);
 					value >>= tail.value();
 				}
@@ -608,13 +612,14 @@ where T: BitStore
 				}
 
 				if let Some((head, elem)) = head {
-					set::<T, M>(elem, Msb0::mask(head, None), 0, value);
+					set::<T, M>(elem, value, Msb0::mask(head, None), 0);
 				}
 			},
 		}
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> BitField for BitArray<O, V>
 where
 	O: BitOrder,
@@ -647,6 +652,7 @@ where
 }
 
 #[cfg(feature = "alloc")]
+#[cfg(not(tarpaulin_include))]
 impl<O, T> BitField for BitBox<O, T>
 where
 	O: BitOrder,
@@ -679,6 +685,7 @@ where
 }
 
 #[cfg(feature = "alloc")]
+#[cfg(not(tarpaulin_include))]
 impl<O, T> BitField for BitVec<O, T>
 where
 	O: BitOrder,
@@ -710,8 +717,9 @@ where
 	}
 }
 
+/// Asserts that a slice length is within a memory element width.
 #[inline]
-fn check(len: usize, width: u8, action: &'static str) {
+fn check(action: &'static str, len: usize, width: u8) {
 	if !(1 ..= width as usize).contains(&len) {
 		panic!("Cannot {} {} bits from a {}-bit region", action, width, len);
 	}
@@ -783,18 +791,19 @@ This is the exact inverse of `get`.
 # Parameters
 
 - `elem`: An aliased reference to a single element of a `BitSlice` storage.
+- `value`: The value whose least-significant bits will be written into the
+  subsection of `*elt` covered by `mask`.
 - `mask`: A `BitMask` of the live region of the value at `*elem` to be used as
   a filter on the provided value.
 - `shamt`: The distance of the least significant bit of the mask region from the
   least significant edge of the `T::Mem` destination value.
-- `value`: The value whose least-significant bits will be written into the
-  subsection of `*elt` covered by `mask`.
 
 # Effects
 
 `*elem &= !mask; *elem |= (resize(value) << shamt) & mask;`
 **/
-fn set<T, M>(elem: &T::Alias, mask: BitMask<T::Mem>, shamt: u8, value: M)
+#[inline]
+fn set<T, M>(elem: &T::Alias, value: M, mask: BitMask<T::Mem>, shamt: u8)
 where
 	T: BitStore,
 	M: BitMemory,
@@ -837,6 +846,7 @@ type.
 `value`, either zero-extended if `U` is wider than `T` or truncated if `U` is
 narrower than `T`.
 **/
+#[inline]
 fn resize<T, U>(value: T) -> U
 where
 	T: BitMemory,
@@ -854,6 +864,8 @@ where
 }
 
 /// Performs little-endian byte-order register resizing.
+#[inline(always)]
+#[cfg(not(tarpaulin_include))]
 #[cfg(target_endian = "little")]
 unsafe fn resize_inner<T, U>(
 	src: &T,
@@ -872,7 +884,9 @@ unsafe fn resize_inner<T, U>(
 }
 
 /// Performs big-endian byte-order register resizing.
+#[inline(always)]
 #[cfg(target_endian = "big")]
+#[cfg(not(tarpaulin_include))]
 unsafe fn resize_inner<T, U>(
 	src: &T,
 	dst: &mut U,
@@ -963,7 +977,7 @@ mod tests {
 		if let DomainMut::Enclave { head, elem, tail } =
 			bits[3 .. 6].domain_mut()
 		{
-			set::<u32, u16>(elem, Lsb0::mask(head, tail), 3, 13u16);
+			set::<u32, u16>(elem, 13u16, Lsb0::mask(head, tail), 3);
 		}
 		else {
 			unreachable!("it does");
@@ -975,7 +989,7 @@ mod tests {
 			tail: Some((elem, tail)),
 		} = bits[32 .. 48].domain_mut()
 		{
-			set::<u32, u16>(elem, Lsb0::mask(None, tail), 0, 0x4567u16);
+			set::<u32, u16>(elem, 0x4567u16, Lsb0::mask(None, tail), 0);
 		}
 		else {
 			unreachable!("it does");
@@ -987,7 +1001,7 @@ mod tests {
 			tail: None,
 		} = bits[48 .. 64].domain_mut()
 		{
-			set::<u32, u16>(elem, Lsb0::mask(head, None), 16, 0x0123u16);
+			set::<u32, u16>(elem, 0x0123u16, Lsb0::mask(head, None), 16);
 		}
 		else {
 			unreachable!("it does");
@@ -995,6 +1009,36 @@ mod tests {
 
 		assert_eq!(data[0], 5 << 3);
 		assert_eq!(data[1], 0x01234567u32);
+	}
+
+	#[test]
+	fn byte_fields() {
+		let mut data = [0u8; 3];
+
+		data.view_bits_mut::<Msb0>()[4 .. 20].store_be(0xABCDu16);
+		assert_eq!(data, [0x0A, 0xBC, 0xD0]);
+		assert_eq!(data.view_bits::<Msb0>()[4 .. 20].load_be::<u16>(), 0xABCD);
+
+		data.view_bits_mut::<Msb0>()[2 .. 6].store_be(9u8);
+		assert_eq!(data, [0x26, 0xBC, 0xD0]);
+		assert_eq!(data.view_bits::<Msb0>()[2 .. 6].load_be::<u8>(), 9);
+
+		data = [0; 3];
+
+		data.view_bits_mut::<Lsb0>()[4 .. 20].store_be(0xABCDu16);
+		assert_eq!(data, [0xA0, 0xBC, 0x0D]);
+		assert_eq!(data.view_bits::<Lsb0>()[4 .. 20].load_be::<u16>(), 0xABCD);
+
+		data.view_bits_mut::<Lsb0>()[2 .. 6].store_be(9u8);
+		//  0b1010_0000 | 0b00_1001_00
+		assert_eq!(data, [0xA4, 0xBC, 0x0D]);
+		assert_eq!(data.view_bits::<Lsb0>()[2 .. 6].load_be::<u8>(), 9);
+	}
+
+	#[test]
+	#[should_panic]
+	fn check_panic() {
+		check("fail", 10, 8);
 	}
 }
 

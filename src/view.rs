@@ -22,8 +22,6 @@ generic type system of any library without undue effort.
 [`AsRef`]: https://doc.rust-lang.org/core/convert/trait.AsRef.html
 !*/
 
-#![cfg_attr(tarpaulin, skip)]
-
 use crate::{
 	index::BitIdx,
 	mem::BitMemory,
@@ -46,8 +44,11 @@ If you have a type that contains a bit-storage type that can be viewed with this
 trait, then you can implement this trait by forwarding to the interior view.
 **/
 pub trait BitView {
-	/// The underlying memory type of the storage region.
+	/// The access-control type of the storage region.
 	type Store: BitStore;
+
+	/// The underlying register type of the storage region.
+	type Mem: BitMemory;
 
 	/// Views a memory region as a `BitSlice`.
 	///
@@ -84,12 +85,21 @@ pub trait BitView {
 	/// Produces the number of bits that the implementing type can hold.
 	#[doc(hidden)]
 	fn const_bits() -> usize
+	where Self: Sized {
+		Self::const_elts() << <<Self::Store as BitStore>::Mem as BitMemory>::INDX
+	}
+
+	/// Produces the number of memory elements that the implementing type holds.
+	#[doc(hidden)]
+	fn const_elts() -> usize
 	where Self: Sized;
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> BitView for T
 where T: BitStore
 {
+	type Mem = T::Mem;
 	type Store = Self;
 
 	#[inline(always)]
@@ -104,25 +114,27 @@ where T: BitStore
 		BitSlice::from_element_mut(self)
 	}
 
-	#[inline(always)]
 	#[doc(hidden)]
-	fn const_bits() -> usize {
-		T::Mem::BITS as usize
+	#[inline(always)]
+	fn const_elts() -> usize {
+		1
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> BitView for [T]
 where T: BitStore
 {
+	type Mem = T::Mem;
 	type Store = T;
 
-	#[inline(always)]
+	#[inline]
 	fn view_bits<O>(&self) -> &BitSlice<O, Self::Store>
 	where O: BitOrder {
 		BitSlice::from_slice(self).expect("slice was too long to view as bits")
 	}
 
-	#[inline(always)]
+	#[inline]
 	fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, Self::Store>
 	where O: BitOrder {
 		BitSlice::from_slice_mut(self)
@@ -133,14 +145,16 @@ where T: BitStore
 	#[cold]
 	#[doc(hidden)]
 	#[inline(never)]
-	fn const_bits() -> usize {
+	fn const_elts() -> usize {
 		unreachable!("This cannot be called on unsized slices")
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> BitView for [T; 0]
 where T: BitStore
 {
+	type Mem = T::Mem;
 	type Store = T;
 
 	#[inline(always)]
@@ -157,7 +171,7 @@ where T: BitStore
 
 	#[doc(hidden)]
 	#[inline(always)]
-	fn const_bits() -> usize {
+	fn const_elts() -> usize {
 		0
 	}
 }
@@ -165,9 +179,11 @@ where T: BitStore
 //  Replace with a const-generic once that becomes available.
 macro_rules! view_bits {
 	($($n:expr),+ $(,)?) => { $(
+		#[cfg(not(tarpaulin_include))]
 		impl<T> BitView for [T; $n]
 		where T: BitStore {
 			type Store = T;
+			type Mem = T::Mem;
 
 			#[inline]
 			fn view_bits<O>(&self) -> &BitSlice<O, Self::Store>
@@ -197,8 +213,8 @@ macro_rules! view_bits {
 
 			#[doc(hidden)]
 			#[inline(always)]
-			fn const_bits() -> usize {
-				$n * T::Mem::BITS as usize
+			fn const_elts() -> usize {
+				$n
 			}
 		}
 	)+ };
@@ -206,7 +222,9 @@ macro_rules! view_bits {
 
 view_bits!(
 	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-	22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
+	22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+	41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
+	60, 61, 62, 63, 64
 );
 
 /** Views a region as an immutable bit-slice only.
@@ -301,6 +319,7 @@ where T: BitStore
 	where O: BitOrder;
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<A, T> AsBits<T> for A
 where
 	A: AsRef<[T]>,
@@ -313,6 +332,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<A, T> AsBitsMut<T> for A
 where
 	A: AsMut<[T]>,

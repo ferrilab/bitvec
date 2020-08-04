@@ -39,6 +39,7 @@ use wyz::{
 	tap::Tap,
 };
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Borrow<BitSlice<O, T>> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -50,6 +51,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> BorrowMut<BitSlice<O, T>> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -94,6 +96,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Eq for BitVec<O, T>
 where
 	O: BitOrder,
@@ -101,6 +104,7 @@ where
 {
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Ord for BitVec<O, T>
 where
 	O: BitOrder,
@@ -112,6 +116,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> PartialEq<BitVec<O, T>> for BitSlice<O, T>
 where
 	O: BitOrder,
@@ -123,6 +128,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> PartialEq<Rhs> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -136,6 +142,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> PartialOrd<BitVec<O, T>> for BitSlice<O, T>
 where
 	O: BitOrder,
@@ -147,6 +154,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> PartialOrd<Rhs> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -160,6 +168,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> AsRef<BitSlice<O, T>> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -171,6 +180,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> AsMut<BitSlice<O, T>> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -182,6 +192,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<'a, O, T> From<&'a BitSlice<O, T>> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -193,6 +204,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<'a, O, T> From<&'a mut BitSlice<O, T>> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -204,6 +216,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> From<BitBox<O, T>> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -215,6 +228,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Default for BitVec<O, T>
 where
 	O: BitOrder,
@@ -226,6 +240,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Debug for BitVec<O, T>
 where
 	O: BitOrder,
@@ -241,6 +256,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Display for BitVec<O, T>
 where
 	O: BitOrder,
@@ -252,6 +268,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Binary for BitVec<O, T>
 where
 	O: BitOrder,
@@ -263,6 +280,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> LowerHex for BitVec<O, T>
 where
 	O: BitOrder,
@@ -274,6 +292,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Octal for BitVec<O, T>
 where
 	O: BitOrder,
@@ -285,6 +304,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Pointer for BitVec<O, T>
 where
 	O: BitOrder,
@@ -300,6 +320,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> UpperHex for BitVec<O, T>
 where
 	O: BitOrder,
@@ -311,6 +332,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Hash for BitVec<O, T>
 where
 	O: BitOrder,
@@ -323,6 +345,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 unsafe impl<O, T> Send for BitVec<O, T>
 where
 	O: BitOrder,
@@ -330,6 +353,7 @@ where
 {
 }
 
+#[cfg(not(tarpaulin_include))]
 unsafe impl<O, T> Sync for BitVec<O, T>
 where
 	O: BitOrder,
@@ -337,6 +361,7 @@ where
 {
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Unpin for BitVec<O, T>
 where
 	O: BitOrder,

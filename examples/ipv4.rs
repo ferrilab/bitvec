@@ -23,7 +23,6 @@ type Ipv4Header = BitArray<Msb0, [u8; 20]>;
 
 /// Build up an IPv4 packet
 fn build() -> Ipv4Header {
-	#[allow(unused_variables, unused_mut)]
 	let mut pkt: Ipv4Header = BitArray::zeroed();
 	render("Starting with a blank packet", &pkt, 0 .. 0);
 

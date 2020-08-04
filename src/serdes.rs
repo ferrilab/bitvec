@@ -365,16 +365,16 @@ mod tests {
 		assert_ser_tokens(&bits, bvtok![s 1, 0, 10, U32, 0x00_00_03_FF]);
 	}
 
-	#[cfg(feature = "alloc")]
 	#[test]
+	#[cfg(feature = "alloc")]
 	fn wide() {
 		let src: &[u8] = &[0, !0];
 		let bs = src.view_bits::<Local>();
 		assert_ser_tokens(&(&bs[1 .. 15]), bvtok![s 2, 1, 14, U8, 0, !0]);
 	}
 
-	#[cfg(feature = "alloc")]
 	#[test]
+	#[cfg(feature = "alloc")]
 	fn deser() {
 		let bv = bitvec![Msb0, u8; 0, 1, 1, 0, 1, 0];
 		assert_de_tokens(&bv, bvtok![d 1, 0, 6, U8, 0b0110_1000]);

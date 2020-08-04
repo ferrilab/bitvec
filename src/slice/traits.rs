@@ -78,7 +78,7 @@ where
 	}
 }
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<BitSlice<O2, T2>> for &BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -92,7 +92,7 @@ where
 	}
 }
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<BitSlice<O2, T2>> for &mut BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -106,7 +106,7 @@ where
 	}
 }
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<&BitSlice<O2, T2>> for BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -120,7 +120,7 @@ where
 	}
 }
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<&mut BitSlice<O2, T2>> for BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -160,7 +160,7 @@ where
 	}
 }
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialOrd<BitSlice<O2, T2>> for &BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -174,7 +174,7 @@ where
 	}
 }
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialOrd<&BitSlice<O2, T2>> for BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -210,7 +210,7 @@ where
 	}
 }
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Debug for BitSlice<O, T>
 where
 	O: BitOrder,
@@ -226,7 +226,7 @@ where
 	}
 }
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Display for BitSlice<O, T>
 where
 	O: BitOrder,
@@ -239,7 +239,7 @@ where
 }
 
 /// Renders a `BitSlice` handle as its pointer representation.
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Pointer for BitSlice<O, T>
 where
 	O: BitOrder,
@@ -397,7 +397,7 @@ fmt!(LowerHex, b'a', b'x', 4);
 fmt!(UpperHex, b'A', b'x', 4);
 
 /// Writes the contents of the `BitSlice`, in semantic bit order, into a hasher.
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Hash for BitSlice<O, T>
 where
 	O: BitOrder,

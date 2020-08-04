@@ -1933,7 +1933,7 @@ where
 	#[inline]
 	#[doc(hidden)]
 	#[deprecated(note = "Use `.clone_from_bitslice` to copy between bitslices")]
-	#[cfg_attr(tarpaulin, skip)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn clone_from_slice<O2, T2>(&mut self, src: &BitSlice<O2, T2>)
 	where
 		O2: BitOrder,
@@ -1976,7 +1976,7 @@ where
 	#[inline]
 	#[doc(hidden)]
 	#[deprecated(note = "Use `.copy_from_bitslice` to copy between bitslices")]
-	#[cfg_attr(tarpaulin, skip)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn copy_from_slice(&mut self, src: &Self) {
 		self.copy_from_bitslice(src)
 	}
@@ -2080,7 +2080,7 @@ where
 	#[inline]
 	#[doc(hidden)]
 	#[deprecated(note = "Use `.swap_with_bitslice` to swap between bitslices")]
-	#[cfg_attr(tarpaulin, skip)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn swap_with_slice<O2, T2>(&mut self, other: &mut BitSlice<O2, T2>)
 	where
 		O2: BitOrder,

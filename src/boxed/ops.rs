@@ -106,6 +106,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Deref for BitBox<O, T>
 where
 	O: BitOrder,
@@ -119,6 +120,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> DerefMut for BitBox<O, T>
 where
 	O: BitOrder,
@@ -142,6 +144,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Idx> Index<Idx> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -156,6 +159,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Idx> IndexMut<Idx> for BitBox<O, T>
 where
 	O: BitOrder,

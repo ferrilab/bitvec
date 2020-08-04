@@ -40,9 +40,6 @@ taint to only the affected addresses.
 !*/
 
 #[cfg(feature = "std")]
-extern crate bitvec;
-
-#[cfg(feature = "std")]
 use bitvec::{
 	domain::Domain,
 	prelude::*,

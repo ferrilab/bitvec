@@ -1,7 +1,5 @@
 //! Operator implementations on `BitArray`
 
-#![cfg_attr(tarpaulin, skip)]
-
 use crate::{
 	array::BitArray,
 	order::BitOrder,
@@ -23,6 +21,7 @@ use core::ops::{
 	Not,
 };
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V, Rhs> BitAnd<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -38,6 +37,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V, Rhs> BitAndAssign<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -50,6 +50,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V, Rhs> BitOr<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -65,6 +66,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V, Rhs> BitOrAssign<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -77,6 +79,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V, Rhs> BitXor<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -92,6 +95,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V, Rhs> BitXorAssign<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -104,6 +108,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> Deref for BitArray<O, V>
 where
 	O: BitOrder,
@@ -117,6 +122,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> DerefMut for BitArray<O, V>
 where
 	O: BitOrder,
@@ -128,6 +134,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V, Idx> Index<Idx> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -142,6 +149,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V, Idx> IndexMut<Idx> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -154,6 +162,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> Not for BitArray<O, V>
 where
 	O: BitOrder,

@@ -55,6 +55,7 @@ where T: BitStore
 	_ty: PhantomData<T>,
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> Address<T>
 where T: BitStore
 {
@@ -99,6 +100,7 @@ where T: BitStore
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> Clone for Address<T>
 where T: BitStore
 {
@@ -108,6 +110,7 @@ where T: BitStore
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> From<&T> for Address<T>
 where T: BitStore
 {
@@ -117,6 +120,7 @@ where T: BitStore
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> From<*const T> for Address<T>
 where T: BitStore
 {
@@ -126,6 +130,7 @@ where T: BitStore
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> From<&mut T> for Address<T>
 where T: BitStore
 {
@@ -135,6 +140,7 @@ where T: BitStore
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> From<*mut T> for Address<T>
 where T: BitStore
 {
@@ -144,6 +150,7 @@ where T: BitStore
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> Debug for Address<T>
 where T: BitStore
 {
@@ -153,6 +160,7 @@ where T: BitStore
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> Pointer for Address<T>
 where T: BitStore
 {
@@ -388,8 +396,10 @@ where T: BitStore
 			Self::PTR_HEAD_BITS
 		);
 		Self {
-			ptr: NonNull::new(addr.to_mut() as *mut u8)
-				.unwrap_or_else(NonNull::dangling),
+			ptr: match NonNull::new(addr.to_mut() as *mut u8) {
+				Some(nn) => nn,
+				None => return Self::EMPTY,
+			},
 			len: 0,
 			_ty: PhantomData,
 		}
@@ -780,6 +790,7 @@ where T: BitStore
 	}
 
 	/// Typecasts a raw region pointer into a pointer structure.
+	#[inline]
 	pub(crate) fn from_bitslice_ptr<O>(raw: *const BitSlice<O, T>) -> Self
 	where O: BitOrder {
 		//  Conveniently, this is always safe because references to ZST are
@@ -798,6 +809,7 @@ where T: BitStore
 	}
 
 	/// Typecasts a raw region pointer into a pointer structure.
+	#[inline(always)]
 	#[cfg(feature = "alloc")]
 	pub(crate) fn from_bitslice_ptr_mut<O>(raw: *mut BitSlice<O, T>) -> Self
 	where O: BitOrder {
@@ -805,6 +817,7 @@ where T: BitStore
 	}
 
 	/// Type-casts the pointer structure into a raw region pointer.
+	#[inline]
 	pub(crate) fn to_bitslice_ptr<O>(self) -> *const BitSlice<O, T>
 	where O: BitOrder {
 		unsafe {
@@ -816,6 +829,7 @@ where T: BitStore
 	}
 
 	/// Typecasts the pointer structure into a raw mutable-region pointer.
+	#[inline(always)]
 	pub(crate) fn to_bitslice_ptr_mut<O>(self) -> *mut BitSlice<O, T>
 	where O: BitOrder {
 		self.to_bitslice_ptr::<O>() as *mut BitSlice<O, T>
@@ -920,6 +934,7 @@ where T: BitStore
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> Clone for BitPtr<T>
 where T: BitStore
 {
@@ -945,6 +960,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> Default for BitPtr<T>
 where T: BitStore
 {
@@ -954,6 +970,7 @@ where T: BitStore
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> Debug for BitPtr<T>
 where T: BitStore
 {
@@ -963,6 +980,7 @@ where T: BitStore
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> Pointer for BitPtr<T>
 where T: BitStore
 {
@@ -972,6 +990,7 @@ where T: BitStore
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> Copy for BitPtr<T> where T: BitStore
 {
 }

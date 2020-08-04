@@ -29,9 +29,6 @@ square 25x25.
 //  Heisenbugs are weird.
 
 #[cfg(feature = "std")]
-extern crate bitvec;
-
-#[cfg(feature = "std")]
 use bitvec::prelude::bitvec;
 
 #[cfg(feature = "std")]

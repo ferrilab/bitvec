@@ -7,9 +7,6 @@ This example prints **a lot** of text to the console.
 !*/
 
 #[cfg(feature = "std")]
-extern crate bitvec;
-
-#[cfg(feature = "std")]
 use bitvec::prelude::{
 	//  `bitvec!` macro
 	bitvec,

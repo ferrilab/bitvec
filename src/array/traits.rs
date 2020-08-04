@@ -1,7 +1,5 @@
 //! Trait implementations on `BitArray`
 
-#![cfg_attr(tarpaulin, skip)]
-
 use crate::{
 	array::BitArray,
 	order::BitOrder,
@@ -33,6 +31,7 @@ use core::{
 	},
 };
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> Borrow<BitSlice<O, V::Store>> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -44,6 +43,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> BorrowMut<BitSlice<O, V::Store>> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -62,6 +62,7 @@ where
 {
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> Ord for BitArray<O, V>
 where
 	O: BitOrder,
@@ -73,6 +74,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V, T> PartialEq<BitArray<O, V>> for BitSlice<O, T>
 where
 	O: BitOrder,
@@ -93,11 +95,13 @@ where
 	BitSlice<O, V::Store>: PartialEq<Rhs>,
 {
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	fn eq(&self, other: &Rhs) -> bool {
 		self.as_bitslice() == other
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V, T> PartialOrd<BitArray<O, V>> for BitSlice<O, T>
 where
 	O: BitOrder,
@@ -110,6 +114,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V, Rhs> PartialOrd<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -123,6 +128,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> AsRef<BitSlice<O, V::Store>> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -134,6 +140,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> AsMut<BitSlice<O, V::Store>> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -145,6 +152,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> From<V> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -156,6 +164,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, O2, T, V> TryFrom<&'_ BitSlice<O2, T>> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -176,6 +185,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<'a, O, V> TryFrom<&'a BitSlice<O, V::Store>> for &'a BitArray<O, V>
 where
 	O: BitOrder,
@@ -195,6 +205,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<'a, O, V> TryFrom<&'a mut BitSlice<O, V::Store>> for &'a mut BitArray<O, V>
 where
 	O: BitOrder,
@@ -214,6 +225,19 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
+impl<O, V> Default for BitArray<O, V>
+where
+	O: BitOrder,
+	V: BitView + Sized,
+{
+	#[inline(always)]
+	fn default() -> Self {
+		Self::zeroed()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
 impl<O, V> Binary for BitArray<O, V>
 where
 	O: BitOrder,
@@ -225,6 +249,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> Debug for BitArray<O, V>
 where
 	O: BitOrder,
@@ -244,6 +269,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> Display for BitArray<O, V>
 where
 	O: BitOrder,
@@ -255,6 +281,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> LowerHex for BitArray<O, V>
 where
 	O: BitOrder,
@@ -266,6 +293,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> Octal for BitArray<O, V>
 where
 	O: BitOrder,
@@ -277,6 +305,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> UpperHex for BitArray<O, V>
 where
 	O: BitOrder,
@@ -288,6 +317,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> Hash for BitArray<O, V>
 where
 	O: BitOrder,
@@ -300,6 +330,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<'a, O, V> IntoIterator for &'a BitArray<O, V>
 where
 	O: 'a + BitOrder,
@@ -314,6 +345,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<'a, O, V> IntoIterator for &'a mut BitArray<O, V>
 where
 	O: 'a + BitOrder,
@@ -340,6 +372,7 @@ where
 #[derive(Clone, Copy, Debug)]
 pub struct TryFromBitSliceError;
 
+#[cfg(not(tarpaulin_include))]
 impl TryFromBitSliceError {
 	#[inline]
 	fn err<T>() -> Result<T, Self> {
@@ -347,6 +380,7 @@ impl TryFromBitSliceError {
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl Display for TryFromBitSliceError {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {

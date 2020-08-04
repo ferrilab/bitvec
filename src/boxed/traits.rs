@@ -35,6 +35,7 @@ use core::{
 
 use wyz::pipe::Pipe;
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Borrow<BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -46,6 +47,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> BorrowMut<BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -57,6 +59,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Clone for BitBox<O, T>
 where
 	O: BitOrder,
@@ -68,6 +71,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Eq for BitBox<O, T>
 where
 	O: BitOrder,
@@ -75,6 +79,7 @@ where
 {
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Ord for BitBox<O, T>
 where
 	O: BitOrder,
@@ -86,6 +91,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> PartialEq<BitBox<O, T>> for BitSlice<O, T>
 where
 	O: BitOrder,
@@ -97,6 +103,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> PartialEq<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -110,6 +117,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> PartialOrd<BitBox<O, T>> for BitSlice<O, T>
 where
 	O: BitOrder,
@@ -121,6 +129,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> PartialOrd<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -134,6 +143,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> AsRef<BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -145,6 +155,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> AsMut<BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -156,6 +167,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<'a, O, T> From<&'a BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -167,6 +179,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> From<BitVec<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -178,6 +191,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Default for BitBox<O, T>
 where
 	O: BitOrder,
@@ -191,6 +205,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Debug for BitBox<O, T>
 where
 	O: BitOrder,
@@ -201,7 +216,7 @@ where
 		if fmt.alternate() {
 			self.bitptr().render(
 				fmt,
-				"Vec",
+				"Box",
 				Some(any::type_name::<O>()),
 				None,
 			)?;
@@ -211,6 +226,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Display for BitBox<O, T>
 where
 	O: BitOrder,
@@ -222,6 +238,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Binary for BitBox<O, T>
 where
 	O: BitOrder,
@@ -233,6 +250,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> LowerHex for BitBox<O, T>
 where
 	O: BitOrder,
@@ -244,6 +262,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Octal for BitBox<O, T>
 where
 	O: BitOrder,
@@ -255,6 +274,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Pointer for BitBox<O, T>
 where
 	O: BitOrder,
@@ -267,6 +287,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> UpperHex for BitBox<O, T>
 where
 	O: BitOrder,
@@ -278,6 +299,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Hash for BitBox<O, T>
 where
 	O: BitOrder,
@@ -290,6 +312,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 unsafe impl<O, T> Send for BitBox<O, T>
 where
 	O: BitOrder,
@@ -297,6 +320,7 @@ where
 {
 }
 
+#[cfg(not(tarpaulin_include))]
 unsafe impl<O, T> Sync for BitBox<O, T>
 where
 	O: BitOrder,
@@ -304,6 +328,7 @@ where
 {
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Unpin for BitBox<O, T>
 where
 	O: BitOrder,

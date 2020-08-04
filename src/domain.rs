@@ -239,10 +239,10 @@ macro_rules! bit_domain {
 				match (h.value(), e, t.value()) {
 					(_, 0, _) => Self::empty(),
 					(0, _, t) if t == w => Self::spanning(slice),
-					(_, _, t) if t == w => Self::partial_head(h, slice),
-					(0, ..) => Self::partial_tail(slice, t),
-					(_, 1, _) => Self::minor(h, slice, t),
-					_ => Self::major(h, slice, t),
+					(_, _, t) if t == w => Self::partial_head(slice, h),
+					(0, ..) => Self::partial_tail(slice, h, t),
+					(_, 1, _) => Self::minor(slice, h, t),
+					_ => Self::major(slice, h, t),
 				}
 			}
 
@@ -257,8 +257,8 @@ macro_rules! bit_domain {
 
 			#[inline]
 			fn major(
-				head: BitIdx<T::Mem>,
 				slice: &'a $($m)? BitSlice<O, T>,
+				head: BitIdx<T::Mem>,
 				tail: BitTail<T::Mem>,
 			) -> Self {
 				let (head, rest) = bit_domain!(split $($m)?
@@ -278,8 +278,8 @@ macro_rules! bit_domain {
 
 			#[inline]
 			fn minor(
-				head: BitIdx<T::Mem>,
 				slice: &'a $($m)? BitSlice<O, T>,
+				head: BitIdx<T::Mem>,
 				tail: BitTail<T::Mem>,
 			) -> Self {
 				Self::Enclave {
@@ -291,8 +291,8 @@ macro_rules! bit_domain {
 
 			#[inline]
 			fn partial_head(
-				head: BitIdx<T::Mem>,
 				slice: &'a $($m)? BitSlice<O, T>,
+				head: BitIdx<T::Mem>,
 			) -> Self {
 				let (head, rest) = bit_domain!(split $($m)?
 					slice,
@@ -312,6 +312,12 @@ macro_rules! bit_domain {
 			#[inline]
 			fn partial_tail(
 				slice: &'a $($m)? BitSlice<O, T>,
+				/* This discarded head argument makes all constructor functions
+				have the same register layout for the call, allowing the `::new`
+				function to establish the arguments ahead of time, then select a
+				constructor function to jump into.
+				*/
+				_head: BitIdx<T::Mem>,
 				tail: BitTail<T::Mem>,
 			) -> Self {
 				let (rest, tail) = bit_domain!(split $($m)?
@@ -481,6 +487,7 @@ macro_rules! domain {
 			/// enclave fields, as a tuple. Otherwise, it returns `None`.
 			///
 			/// [`Enclave`]: #variant.Enclave
+			#[inline]
 			pub fn enclave(self) -> Option<(
 				BitIdx<T::Mem>,
 				&'a T::Alias,
@@ -503,6 +510,7 @@ macro_rules! domain {
 			///
 			/// If `self` is the [`Region`] variant, this returns `Some` of the
 			/// region fields, as a tuple. Otherwise, it returns `None`.
+			#[inline]
 			pub fn region(self) -> Option<(
 				Option<(BitIdx<T::Mem>, &'a T::Alias)>,
 				&'a $($m)? [T::Mem],
@@ -516,6 +524,7 @@ macro_rules! domain {
 				}
 			}
 
+			#[inline]
 			pub(crate) fn new<O>(slice: &'a $($m)? BitSlice<O, T>) -> Self
 			where O: BitOrder {
 				let bitptr = slice.bitptr();
@@ -527,13 +536,14 @@ macro_rules! domain {
 				match (head.value(), elts, tail.value()) {
 					(_, 0, _) => Self::empty(),
 					(0, _, t) if t == bits => Self::spanning(base, elts),
-					(_, _, t) if t == bits => Self::partial_head(head, base, elts),
+					(_, _, t) if t == bits => Self::partial_head(base, elts, head),
 					(0, ..) => Self::partial_tail(base, elts, tail),
-					(_, 1, _) => Self::minor(head, base, tail),
-					_ => Self::major(head, base, elts, tail),
+					(_, 1, _) => Self::minor(base, head, tail),
+					_ => Self::major(base, elts, head, tail),
 				}
 			}
 
+			#[inline]
 			fn empty() -> Self {
 				Self::Region {
 					head: None,
@@ -542,10 +552,11 @@ macro_rules! domain {
 				}
 			}
 
+			#[inline]
 			fn major(
-				head: BitIdx<T::Mem>,
 				base: *const T::Alias,
 				elts: usize,
+				head: BitIdx<T::Mem>,
 				tail: BitTail<T::Mem>,
 			) -> Self {
 				let h = unsafe { &*base };
@@ -558,9 +569,10 @@ macro_rules! domain {
 				}
 			}
 
+			#[inline]
 			fn minor(
-				head: BitIdx<T::Mem>,
 				addr: *const T::Alias,
+				head: BitIdx<T::Mem>,
 				tail: BitTail<T::Mem>,
 			) -> Self {
 				Self::Enclave {
@@ -570,10 +582,11 @@ macro_rules! domain {
 				}
 			}
 
+			#[inline]
 			fn partial_head(
-				head: BitIdx<T::Mem>,
 				base: *const T::Alias,
 				elts: usize,
+				head: BitIdx<T::Mem>,
 			) -> Self {
 				let h = unsafe { &*base };
 				let body = domain!(slice $($m)? base.add(1), elts - 1);
@@ -584,6 +597,7 @@ macro_rules! domain {
 				}
 			}
 
+			#[inline]
 			fn partial_tail(
 				base: *const T::Alias,
 				elts: usize,
@@ -598,6 +612,7 @@ macro_rules! domain {
 				}
 			}
 
+			#[inline]
 			fn spanning(base: *const T::Alias, elts: usize) -> Self {
 				Self::Region {
 					head: None,
@@ -634,6 +649,7 @@ where T: 'a + BitStore
 {
 	type Item = T::Mem;
 
+	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
 		match self {
 			Self::Enclave { elem, .. } => (*elem)
@@ -666,6 +682,7 @@ where T: 'a + BitStore
 impl<'a, T> DoubleEndedIterator for Domain<'a, T>
 where T: 'a + BitStore
 {
+	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		match self {
 			Self::Enclave { elem, .. } => (*elem)
@@ -698,6 +715,7 @@ where T: 'a + BitStore
 impl<T> ExactSizeIterator for Domain<'_, T>
 where T: BitStore
 {
+	#[inline]
 	fn len(&self) -> usize {
 		match self {
 			Self::Enclave { .. } => 1,
@@ -721,6 +739,7 @@ macro_rules! fmt {
 		impl<T> $f for Domain<'_, T>
 		where T: BitStore
 		{
+			#[inline]
 			fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 				fmt.debug_list()
 					.entries(self.into_iter().map(FmtForward::$fwd))
@@ -736,3 +755,18 @@ fmt!(
 	Octal => fmt_octal,
 	UpperHex => fmt_upper_hex,
 );
+
+#[cfg(test)]
+mod tests {
+	use crate::prelude::*;
+
+	#[test]
+	fn domain_iter() {
+		let data = [1u32, 2, 3];
+		let bits = &data.view_bits::<Local>()[4 .. 92];
+
+		for (iter, elem) in bits.domain().rev().zip([3, 2, 1].iter().copied()) {
+			assert_eq!(iter, elem);
+		}
+	}
+}

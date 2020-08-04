@@ -29,6 +29,7 @@ use wyz::pipe::Pipe;
 
 /// Views a `BitStore` reference as its accessor.
 #[inline(always)]
+#[cfg(not(tarpaulin_include))]
 pub fn accessor<T>(x: &T) -> &T::Access
 where T: BitStore {
 	unsafe { &*(x as *const T as *const T::Access) }
@@ -36,6 +37,7 @@ where T: BitStore {
 
 /// Inserts an `::Alias` marker into a `BitMask`’s type parameter.
 #[inline(always)]
+#[cfg(not(tarpaulin_include))]
 pub fn alias_mask<T>(
 	x: BitMask<T::Mem>,
 ) -> BitMask<<T::Alias as BitStore>::Mem>
@@ -45,6 +47,7 @@ where T: BitStore {
 
 /// Inserts an `::Alias` marker into a `T::Mem` value’s type.
 #[inline(always)]
+#[cfg(not(tarpaulin_include))]
 pub fn alias_mem<T>(x: T::Mem) -> <T::Alias as BitStore>::Mem
 where T: BitStore {
 	unsafe { *(&x as *const _ as *const _) }
@@ -52,6 +55,7 @@ where T: BitStore {
 
 /// Loads through an aliased reference into an unmarked local.
 #[inline(always)]
+#[cfg(not(tarpaulin_include))]
 pub fn load_aliased_local<T>(x: &T::Alias) -> T::Mem
 where T: BitStore {
 	x.pipe(accessor::<T::Alias>)
@@ -61,6 +65,7 @@ where T: BitStore {
 
 /// Converts a mutable reference into its memory register type.
 #[inline(always)]
+#[cfg(not(tarpaulin_include))]
 pub fn mem_mut<T>(x: &mut T) -> &mut T::Mem
 where T: BitStore {
 	unsafe { &mut *(x as *mut _ as *mut _) }
@@ -68,6 +73,7 @@ where T: BitStore {
 
 /// Removes the `::Alias` marker from a register value’s type.
 #[inline(always)]
+#[cfg(not(tarpaulin_include))]
 pub fn remove_alias<T>(x: <<T as BitStore>::Alias as BitStore>::Mem) -> T::Mem
 where T: BitStore {
 	unsafe { *(&x as *const _ as *const _) }
@@ -75,6 +81,7 @@ where T: BitStore {
 
 /// Removes the `::Alias` marker from a `BitPtr`’s referent type.
 #[inline(always)]
+#[cfg(not(tarpaulin_include))]
 pub fn remove_bitptr_alias<T>(x: BitPtr<T::Alias>) -> BitPtr<T>
 where T: BitStore {
 	unsafe { *(&x as *const _ as *const _) }
@@ -148,5 +155,17 @@ pub fn assert_range(range: Range<usize>, end: impl Into<Option<usize>>) {
 				range.start, range.end, end
 			);
 		}
+	}
+}
+
+#[cfg(all(test, feature = "std"))]
+mod tests {
+	use super::*;
+	use std::panic::catch_unwind;
+
+	#[test]
+	fn check_range_asserts() {
+		assert!(catch_unwind(|| assert_range(7 .. 2, None)).is_err());
+		assert!(catch_unwind(|| assert_range(0 .. 8, 4)).is_err());
 	}
 }

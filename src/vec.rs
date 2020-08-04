@@ -193,6 +193,7 @@ where
 	/// ```
 	///
 	/// [`force_align`]: #method.force_align
+	#[inline]
 	pub fn from_bitslice(slice: &BitSlice<O, T>) -> Self {
 		let mut bitptr = slice.bitptr();
 		let (base, elts) = (bitptr.pointer().to_access(), bitptr.elements());
@@ -261,6 +262,7 @@ where
 	/// let bits = bv.as_bitslice();
 	/// ```
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
 		unsafe { &*self.pointer.as_ptr() }
 	}
@@ -283,6 +285,7 @@ where
 	/// bits.set(0, true);
 	/// ```
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
 		unsafe { &mut *self.pointer.as_ptr() }
 	}
@@ -318,6 +321,7 @@ where
 	///
 	/// [`as_mut_bitptr`]: #method.as_mut_bitptr
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitptr(&self) -> *const BitSlice<O, T> {
 		self.pointer.as_ptr() as *const BitSlice<O, T>
 	}
@@ -346,6 +350,7 @@ where
 	/// assert_eq!(bv, bits);
 	/// ```
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitptr(&mut self) -> *mut BitSlice<O, T> {
 		self.pointer.as_ptr()
 	}

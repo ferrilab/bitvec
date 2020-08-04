@@ -477,6 +477,7 @@ where
 	///
 	/// [`BitView`]: ../view/trait.BitView.html
 	/// [`.view_bits::<O>()`]: ../view/trait.BitView.html#method.view_bits
+	#[inline]
 	pub fn from_element(elem: &T) -> &Self {
 		unsafe {
 			BitPtr::new_unchecked(elem, BitIdx::ZERO, T::Mem::BITS as usize)
@@ -516,6 +517,7 @@ where
 	/// [`BitView`]: ../view/trait.BitView.html
 	/// [`.view_bits_mut::<O>()`]:
 	/// ../view/trait.BitView.html#method.view_bits_mut
+	#[inline]
 	pub fn from_element_mut(elem: &mut T) -> &mut Self {
 		unsafe {
 			BitPtr::new_unchecked(elem, BitIdx::ZERO, T::Mem::BITS as usize)
@@ -570,6 +572,7 @@ where
 	/// [`BitView`]: ../view/trait.BitView.html
 	/// [`MAX_ELTS`]: #associatedconstant.MAX_ELTS
 	/// [`.view_bits::<O>()`]: ../view/trait.BitView.html#method.view_bits
+	#[inline]
 	pub fn from_slice(slice: &[T]) -> Option<&Self> {
 		let elts = slice.len();
 		//  Starting at the zeroth bit makes this counter an exclusive cap, not
@@ -593,6 +596,7 @@ where
 	///
 	/// [`MAX_BITS`]: #associatedconstant.MAX_BITS
 	/// [`from_slice`]: #method.from_slice
+	#[inline]
 	pub unsafe fn from_slice_unchecked(slice: &[T]) -> &Self {
 		//  This branch could be removed by lowering the element ceiling by one,
 		//  but `from_slice` should not be in any tight loops, so it’s fine.
@@ -660,6 +664,7 @@ where
 	/// [`BitView`]: ../view/trait.BitView.html
 	/// [`.view_bits_mut::<O>()`]:
 	/// ../view/trait.BitView.html#method.view_bits_mut
+	#[inline]
 	pub fn from_slice_mut(slice: &mut [T]) -> Option<&mut Self> {
 		let elts = slice.len();
 		if elts >= Self::MAX_ELTS {
@@ -681,6 +686,7 @@ where
 	///
 	/// [`MAX_BITS`]: #associatedconstant.MAX_BITS
 	/// [`from_slice_mut`]: #method.from_slice_mut
+	#[inline]
 	pub unsafe fn from_slice_unchecked_mut(slice: &mut [T]) -> &mut Self {
 		let bits = cmp::min(slice.len() * T::Mem::BITS as usize, Self::MAX_BITS);
 		BitPtr::new_unchecked(slice.as_ptr(), BitIdx::ZERO, bits)
@@ -726,6 +732,7 @@ where
 	/// let bits = BitSlice::<Local, usize>::empty_mut();
 	/// bits.set(0, false);
 	/// ```
+	#[inline]
 	pub fn set(&mut self, index: usize, value: bool) {
 		let len = self.len();
 		assert!(index < len, "Index out of range: {} >= {}", index, len);
@@ -813,6 +820,7 @@ where
 	/// assert!(bits[.. 4].all());
 	/// assert!(!bits[4 ..].all());
 	/// ```
+	#[inline]
 	pub fn all(&self) -> bool {
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
@@ -872,6 +880,7 @@ where
 	/// assert!(bits[.. 4].any());
 	/// assert!(!bits[4 ..].any());
 	/// ```
+	#[inline]
 	pub fn any(&self) -> bool {
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
@@ -1023,6 +1032,7 @@ where
 	/// assert_eq!(bits[.. 4].count_ones(), 4);
 	/// assert_eq!(bits[4 ..].count_ones(), 0);
 	/// ```
+	#[inline]
 	pub fn count_ones(&self) -> usize {
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => (O::mask(head, tail)
@@ -1070,6 +1080,7 @@ where
 	/// assert_eq!(bits[.. 4].count_zeros(), 0);
 	/// assert_eq!(bits[4 ..].count_zeros(), 4);
 	/// ```
+	#[inline]
 	pub fn count_zeros(&self) -> usize {
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => (!O::mask(head, tail)
@@ -1117,6 +1128,7 @@ where
 	/// bits[.. 1].set_all(true);
 	/// assert_eq!(bits.as_slice(), &[0b1010_0100]);
 	/// ```
+	#[inline]
 	pub fn set_all(&mut self, value: bool) {
 		//  Grab the function pointers used to commit bit-masks into memory.
 		let setter = <<T::Alias as BitStore>::Access>::get_writers(value);
@@ -1127,14 +1139,14 @@ where
 					//  Step one: attach an `::Access` marker to the reference
 					dvl::accessor(elem),
 					//  Step two: insert an `::Alias` marker *into the bitmask*
-					dvl::alias_mask::<T>(O::mask(head, tail)),
+					O::mask(head, tail).pipe(dvl::alias_mask::<T>),
 				);
 			},
 			DomainMut::Region { head, body, tail } => {
 				if let Some((head, elem)) = head {
 					setter(
 						dvl::accessor(elem),
-						dvl::alias_mask::<T>(O::mask(head, None)),
+						O::mask(head, None).pipe(dvl::alias_mask::<T>),
 					);
 				}
 				for elem in body {
@@ -1143,7 +1155,7 @@ where
 				if let Some((elem, tail)) = tail {
 					setter(
 						dvl::accessor(elem),
-						dvl::alias_mask::<T>(O::mask(None, tail)),
+						O::mask(None, tail).pipe(dvl::alias_mask::<T>),
 					);
 				}
 			},
@@ -1213,6 +1225,7 @@ where
 	///
 	/// [`.domain`]: #method.domain
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_aliased_slice(&self) -> &[T::Alias] {
 		let bitptr = self.bitptr();
 		let (base, elts) = (bitptr.pointer().to_alias(), bitptr.elements());
@@ -1260,6 +1273,7 @@ where
 	/// [`.as_aliased_slice`]: #method.as_aliased_slice]
 	/// [`.domain`]: #method.domain
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_slice(&self) -> &[T::Mem] {
 		self.domain().region().map(|(_, b, _)| b).unwrap_or(&[])
 	}
@@ -1301,6 +1315,7 @@ where
 	/// [`.as_aliased_slice`]: #method.as_aliased_slice
 	/// [`.domain_mut`]: #method.domain_mut
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_slice(&mut self) -> &mut [T::Mem] {
 		self.domain_mut()
 			.region()
@@ -1390,7 +1405,8 @@ where
 	/// ```
 	///
 	/// [`.set_aliased`]: #method.set_aliased
-	#[inline]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn bit_domain(&self) -> BitDomain<O, T> {
 		BitDomain::new(self)
 	}
@@ -1416,7 +1432,8 @@ where
 	/// As such, this method cannot introduce undefined behavior where a
 	/// reference incorrectly believes that the referent memory region is
 	/// immutable.
-	#[inline]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn bit_domain_mut(&mut self) -> BitDomainMut<O, T> {
 		BitDomainMut::new(self)
 	}
@@ -1458,7 +1475,8 @@ where
 	/// [`.bit_domain`]: #method.bit_domain
 	/// [`.bit_domain_mut`]: #method.bit_domain_mut
 	/// [`.domain_mut`]: #method.domain_mut
-	#[inline]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn domain(&self) -> Domain<T> {
 		Domain::new(self)
 	}
@@ -1737,13 +1755,15 @@ where
 	}
 
 	/// Marks an immutable slice as referring to aliased memory region.
-	#[inline]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn alias(&self) -> &BitSlice<O, T::Alias> {
 		unsafe { &*(self.as_ptr() as *const BitSlice<O, T::Alias>) }
 	}
 
 	/// Marks a mutable slice as describing an aliased memory region.
-	#[inline]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn alias_mut(&mut self) -> &mut BitSlice<O, T::Alias> {
 		unsafe { &mut *(self as *mut Self as *mut BitSlice<O, T::Alias>) }
 	}
@@ -1755,7 +1775,8 @@ where
 	/// This must only be used when the slice is either known to be unaliased,
 	/// or this call is combined with an operation that adds an aliasing marker
 	/// and the total number of aliasing markers must remain unchanged.
-	#[inline]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub(crate) unsafe fn unalias_mut(
 		this: &mut BitSlice<O, T::Alias>,
 	) -> &mut Self {
@@ -1787,6 +1808,8 @@ where
 	///
 	/// [`split_at_mut`]: #method.split_at_mut
 	#[inline]
+	//  `.split_at_mut` is already tested, and `::unalias_mut` is a noöp.
+	#[cfg(not(tarpaulin_include))]
 	pub fn split_at_aliased_mut(
 		&mut self,
 		mid: usize,

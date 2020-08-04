@@ -8,8 +8,6 @@ use crate::{
 	vec::BitVec,
 };
 
-// use alloc::vec::Vec;
-
 use core::{
 	mem::ManuallyDrop,
 	ops::{
@@ -108,6 +106,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Deref for BitVec<O, T>
 where
 	O: BitOrder,
@@ -121,6 +120,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> DerefMut for BitVec<O, T>
 where
 	O: BitOrder,
@@ -146,6 +146,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Idx> Index<Idx> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -160,6 +161,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Idx> IndexMut<Idx> for BitVec<O, T>
 where
 	O: BitOrder,
