@@ -93,6 +93,14 @@ where T: BitStore {
 	unsafe { *(&x as *const _ as *const _) }
 }
 
+/// Removes the `::Mem` marker from a memory value.
+#[inline(always)]
+#[cfg(not(tarpaulin_include))]
+pub fn remove_mem<T>(x: T::Mem) -> T
+where T: BitStore {
+	unsafe { ptr::read(&x as *const T::Mem as *const T) }
+}
+
 /// Gets a `NonNull<T>` base pointer from a `NonNull<[T]>` slice pointer.
 #[inline(always)]
 #[cfg(not(tarpaulin_include))]

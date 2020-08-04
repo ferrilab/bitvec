@@ -22,6 +22,7 @@ use crate::{
 use core::{
 	marker::PhantomData,
 	mem::MaybeUninit,
+	slice,
 };
 
 /* Note on C++ `std::bitset<N>` compatibility:
@@ -202,6 +203,52 @@ where
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, V::Store> {
 		self.data.view_bits_mut::<O>()
+	}
+
+	/// Views the array as a slice of its underlying elements.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	pub fn as_slice(&self) -> &[V::Store] {
+		unsafe {
+			slice::from_raw_parts(
+				&self.data as *const V as *const V::Store,
+				V::const_elts(),
+			)
+		}
+	}
+
+	/// Views the array as a mutable slice of its underlying elements.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	pub fn as_mut_slice(&mut self) -> &mut [V::Store] {
+		unsafe {
+			slice::from_raw_parts_mut(
+				&mut self.data as *mut V as *mut V::Store,
+				V::const_elts(),
+			)
+		}
+	}
+
+	/// Views the array as a slice of its raw underlying memory type.
+	#[inline(always)]
+	pub fn as_raw_slice(&self) -> &[V::Mem] {
+		unsafe {
+			slice::from_raw_parts(
+				&self.data as *const V as *const V::Mem,
+				V::const_elts(),
+			)
+		}
+	}
+
+	/// Views the array as a mutable slice of its raw underlying memory type.
+	#[inline(always)]
+	pub fn as_raw_mut_slice(&mut self) -> &mut [V::Mem] {
+		unsafe {
+			slice::from_raw_parts_mut(
+				&mut self.data as *mut V as *mut V::Mem,
+				V::const_elts(),
+			)
+		}
 	}
 }
 
