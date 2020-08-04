@@ -46,8 +46,6 @@ cross:
 	CI=1 TARGET=mips64el-unknown-linux-gnuabi64 ci/script.sh
 	CI=1 TARGET=mipsel-unknown-linux-gnu ci/script.sh
 	CI=1 TARGET=powerpc-unknown-linux-gnu ci/script.sh
-	# Objcode generation problems
-	# CI=1 TARGET=powerpc64-unknown-linux-gnu ci/script.sh
 	CI=1 TARGET=powerpc64le-unknown-linux-gnu ci/script.sh
 	CI=1 TARGET=x86_64-unknown-linux-musl ci/script.sh
 

@@ -6,11 +6,10 @@
 # coverage report.                                                             #
 ################################################################################
 
+os: linux
 language: rust
-sudo: required
 cache: cargo
-
-matrix:
+jobs:
   include:
     # Disable cross while building coverage, since cross interferes
     # with caching and the current tarpaulin install.
@@ -31,12 +30,6 @@ matrix:
     # iOS
     - env: TARGET=aarch64-apple-ios DISABLE_TESTS=1
       os: osx
-    - env: TARGET=armv7-apple-ios DISABLE_TESTS=1
-      os: osx
-    - env: TARGET=armv7s-apple-ios DISABLE_TESTS=1
-      os: osx
-    - env: TARGET=i386-apple-ios DISABLE_TESTS=1
-      os: osx
     - env: TARGET=x86_64-apple-ios DISABLE_TESTS=1
       os: osx
 
@@ -51,14 +44,11 @@ matrix:
     - env: TARGET=mips64el-unknown-linux-gnuabi64
     - env: TARGET=mipsel-unknown-linux-gnu
     - env: TARGET=powerpc-unknown-linux-gnu
-    - env: TARGET=powerpc64-unknown-linux-gnu
     - env: TARGET=powerpc64le-unknown-linux-gnu
     - env: TARGET=s390x-unknown-linux-gnu DISABLE_TESTS=1
     - env: TARGET=x86_64-unknown-linux-musl
 
     # OSX
-    - env: TARGET=i686-apple-darwin
-      os: osx
     - env: TARGET=x86_64-apple-darwin
       os: osx
 
@@ -71,6 +61,18 @@ matrix:
     - env: TARGET=x86_64-pc-windows-gnu
   allow_failures:
     - rust: nightly
+
+    # Targets not available on current MSRV. Continue testing in the event that
+    # they become available in the future.
+
+    # iOS
+    - env:
+        - TARGET=armv7-apple-ios DISABLE_TESTS=1
+        - TARGET=armv7s-apple-ios DISABLE_TESTS=1
+        - TARGET=i386-apple-ios DISABLE_TESTS=1
+      os: osx
+      rust: stable
+
 
 dist: trusty
 addons:
