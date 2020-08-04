@@ -27,7 +27,7 @@ fn serdes_array() {
 
 #[test]
 #[cfg(all(feature = "alloc", feature = "serde"))]
-fn serdes_bitvec() {
+fn serdes_vector() {
 	let bv = bitvec![Msb0, u8; 1, 0, 1, 1, 0, 0, 1, 0];
 	let json = serde_json::to_string(&bv).expect("cannot fail to serialize");
 	assert_eq!(json.trim(), r#"{"head":0,"bits":8,"data":[178]}"#);
