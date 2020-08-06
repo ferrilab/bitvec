@@ -15,6 +15,8 @@ zeroed.
 [reported]: https://github.com/myrrlyn/bitvec/issues/62
 !*/
 
+#![cfg(feature = "alloc")]
+
 use bitvec::prelude::*;
 
 trait Writer {
@@ -85,43 +87,38 @@ impl Writer for u32 {
 	}
 }
 
-#[cfg(test)]
-mod tests {
-	use super::*;
+#[test]
+fn test_bitvec1() {
+	let data = 0x03ABu32;
+	let mut data_bits = data.write(true, Some(10));
 
-	#[test]
-	fn test_bitvec1() {
-		let data = 0x03ABu32;
-		let mut data_bits = data.write(true, Some(10));
+	assert_eq!(bitvec![Msb0, u8; 1,0,1,0,1,0,1,1, 1,1], data_bits);
+	data_bits.zero_padding();
+	let data_vec = data_bits.into_vec();
 
-		assert_eq!(bitvec![Msb0, u8; 1,0,1,0,1,0,1,1, 1,1], data_bits);
-		data_bits.zero_padding();
-		let data_vec = data_bits.into_vec();
+	assert_eq!(vec![0xAB, 0b11_000000], data_vec);
+}
 
-		assert_eq!(vec![0xAB, 0b11_000000], data_vec);
-	}
+#[test]
+fn test_bitvec2() {
+	let data = 0x03ABu32;
+	let data_bits = data.write(false, Some(10)).into_vec();
 
-	#[test]
-	fn test_bitvec2() {
-		let data = 0x03ABu32;
-		let data_bits = data.write(false, Some(10)).into_vec();
+	assert_eq!(vec![0b11, 0xAB], data_bits);
+}
 
-		assert_eq!(vec![0b11, 0xAB], data_bits);
-	}
+#[test]
+fn test_bitvec3() {
+	let data = 0xDDCCBBAA;
+	let data_bits = data.write(true, None).into_vec();
 
-	#[test]
-	fn test_bitvec3() {
-		let data = 0xDDCCBBAA;
-		let data_bits = data.write(true, None).into_vec();
+	assert_eq!(vec![0xAA, 0xBB, 0xCC, 0xDD], data_bits);
+}
 
-		assert_eq!(vec![0xAA, 0xBB, 0xCC, 0xDD], data_bits);
-	}
+#[test]
+fn test_bitvec4() {
+	let data = 0xDDCCBBAA;
+	let data_bits = data.write(false, None).into_vec();
 
-	#[test]
-	fn test_bitvec4() {
-		let data = 0xDDCCBBAA;
-		let data_bits = data.write(false, None).into_vec();
-
-		assert_eq!(vec![0xDD, 0xCC, 0xBB, 0xAA], data_bits);
-	}
+	assert_eq!(vec![0xDD, 0xCC, 0xBB, 0xAA], data_bits);
 }
