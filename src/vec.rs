@@ -370,7 +370,19 @@ where
 	/// `self` is extended by the length of `other`, and then the contents of
 	/// `other` are copied into the newly-allocated end of `self`.
 	///
+	/// This method may cause reällocation of the buffer in order to grow the
+	/// vector to include `other`. Any bits provided during reällocation that
+	/// are *not* overwritten by `other` retain their uninitialized state, and
+	/// may have either a `0` or a `1` value. The precise value of memory not
+	/// directly written by the vector is unspecified. This may cause unexpected
+	/// memory values when viewing the raw memory.
+	///
+	/// Use [`.zero_padding()`] to ensure that all bits in the allocation other
+	/// than those visible through [`.as_bitslice()`] are zeroed.
+	///
 	/// [`Extend`]: #impl-Extend<%26'a bool>
+	/// [`.as_bitslice()`]: #method.as_bitslice()
+	/// [`.zero_padding()`]: #method.zero_padding
 	#[inline]
 	pub fn extend_from_bitslice(&mut self, other: &BitSlice<O, T>) {
 		let len = self.len();
@@ -381,6 +393,45 @@ where
 			self.get_unchecked_mut(len ..)
 		}
 		.clone_from_bitslice(other);
+	}
+
+	/// Ensures that any dead bits in the buffer are set to zero.
+	///
+	/// This method is necessary because bulk allocations, such as
+	/// [`.extend_from_bitslice()`], may allocate uninitialized memory and not
+	/// fully clobber the values provided by the allocator. This can result in
+	/// unexpected garbage bits when viewing the buffer as memory, rather than
+	/// as bits.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Behavior
+	///
+	/// All bits in the allocated buffer, other than those currently accessible
+	/// through `.as_bitslice()`, are set to zero.
+	///
+	/// [`.as_bitslice()`]: #method.as_bitslice
+	/// [`.extend_from_bitslice()`]: #method.extend_from_bitslice
+	#[inline]
+	pub fn zero_padding(&mut self) {
+		let head = self.bitptr().head().value() as usize;
+		let tail = self.len();
+		self.with_vec(|v| {
+			let base = v.as_ptr();
+			let capa = v.capacity();
+			let full = unsafe {
+				BitPtr::new_unchecked(
+					base,
+					BitIdx::ZERO,
+					capa * T::Mem::BITS as usize,
+				)
+			}
+			.to_bitslice_mut::<O>();
+			full[.. head].set_all(false);
+			full[head + tail ..].set_all(false);
+		});
 	}
 
 	/// Gets the number of elements `T` that contain live bits of the vector.
