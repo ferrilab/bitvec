@@ -66,10 +66,13 @@ jobs:
     # they become available in the future.
 
     # iOS
-    - env:
-        - TARGET=armv7-apple-ios DISABLE_TESTS=1
-        - TARGET=armv7s-apple-ios DISABLE_TESTS=1
-        - TARGET=i386-apple-ios DISABLE_TESTS=1
+    - env: TARGET=armv7-apple-ios DISABLE_TESTS=1
+      os: osx
+      rust: stable
+    - env: TARGET=armv7s-apple-ios DISABLE_TESTS=1
+      os: osx
+      rust: stable
+    - env: TARGET=i386-apple-ios DISABLE_TESTS=1
       os: osx
       rust: stable
 
