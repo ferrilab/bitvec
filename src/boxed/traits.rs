@@ -9,6 +9,8 @@ use crate::{
 	vec::BitVec,
 };
 
+use alloc::boxed::Box;
+
 use core::{
 	any,
 	borrow::{
@@ -16,6 +18,7 @@ use core::{
 		BorrowMut,
 	},
 	cmp,
+	convert::TryFrom,
 	fmt::{
 		self,
 		Binary,
@@ -188,6 +191,32 @@ where
 	#[inline(always)]
 	fn from(bv: BitVec<O, T>) -> Self {
 		bv.into_boxed_bitslice()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<O, T> Into<Box<[T]>> for BitBox<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline(always)]
+	fn into(self) -> Box<[T]> {
+		self.into_boxed_slice()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<O, T> TryFrom<Box<[T]>> for BitBox<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	type Error = Box<[T]>;
+
+	#[inline(always)]
+	fn try_from(boxed: Box<[T]>) -> Result<Self, Self::Error> {
+		Self::try_from_boxed_slice(boxed)
 	}
 }
 

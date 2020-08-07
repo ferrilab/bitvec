@@ -214,6 +214,309 @@ where
 		}
 	}
 
+	/// Converts a `Vec<T>` into a `BitVec<O, T>` without copying its buffer.
+	///
+	/// # Parameters
+	///
+	/// - `vec`: A vector to view as bits.
+	///
+	/// # Returns
+	///
+	/// A `BitVec` over the `vec` buffer.
+	///
+	/// # Panics
+	///
+	/// This panics if `vec` is too long to convert into a `BitVec`. See
+	/// [`BitSlice::MAX_ELTS`].
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let vec = vec![0u8; 4];
+	/// let bv = BitVec::<Local, _>::from_vec(vec);
+	/// assert_eq!(bv, bits![0; 32]);
+	/// ```
+	///
+	/// [`BitSlice::MAX_ELTS`]:
+	/// ../slice/struct.BitSlice.html#associatedconstant.MAX_ELTS
+	#[inline]
+	pub fn from_vec(vec: Vec<T>) -> Self {
+		Self::try_from_vec(vec)
+			.expect("Vector was too long to be converted into a `BitVec`")
+	}
+
+	/// Converts a `Vec<T>` into a `BitVec<O, T>` without copying its buffer.
+	///
+	/// This method takes ownership of a memory buffer and enables it to be used
+	/// as a bit-vector. Because `Vec` can be longer than `BitVec`s, this is a
+	/// fallible method, and the original vector will be returned if it cannot
+	/// be converted.
+	///
+	/// # Parameters
+	///
+	/// - `vec`: Some vector of memory, to be viewed as bits.
+	///
+	/// # Returns
+	///
+	/// If `vec` is short enough to be viewed as a `BitVec`, then this returns
+	/// a `BitVec` over the `vec` buffer. If `vec` is too long, then this
+	/// returns `vec` unmodified.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let vec = vec![0u8; 4];
+	/// let bv = BitVec::<Local, _>::try_from_vec(vec).unwrap();
+	/// assert_eq!(bv, bits![0; 32]);
+	/// ```
+	///
+	/// An example showing this function failing would require an allocation
+	/// exceeding `!0usize >> 3` bytes in size, which is infeasible to produce.
+	#[inline]
+	pub fn try_from_vec(vec: Vec<T>) -> Result<Self, Vec<T>> {
+		let len = vec.len();
+		if len > BitSlice::<O, T>::MAX_ELTS {
+			return Err(vec);
+		}
+
+		let vec = ManuallyDrop::new(vec);
+		let (base, capacity) = (vec.as_ptr(), vec.capacity());
+		Ok(Self {
+			pointer: unsafe {
+				BitPtr::new_unchecked(
+					base,
+					BitIdx::ZERO,
+					len * T::Mem::BITS as usize,
+				)
+			}
+			.to_nonnull(),
+			capacity,
+		})
+	}
+
+	/// Copies all bits in a `BitSlice` into the `BitVec`.
+	///
+	/// This is provided for API completeness; it has no performance benefits
+	/// compared to use of the [`Extend`] implementation.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `other`: A `BitSlice` reference of the same type parameters as `self`.
+	///
+	/// # Behavior
+	///
+	/// `self` is extended by the length of `other`, and then the contents of
+	/// `other` are copied into the newly-allocated end of `self`.
+	///
+	/// This method may cause reällocation of the buffer in order to grow the
+	/// vector to include `other`. Any bits provided during reällocation that
+	/// are *not* overwritten by `other` retain their uninitialized state, and
+	/// may have either a `0` or a `1` value. The precise value of memory not
+	/// directly written by the vector is unspecified. This may cause unexpected
+	/// memory values when viewing the raw memory.
+	///
+	/// Use [`.zero_padding()`] to ensure that all bits in the allocation other
+	/// than those visible through [`.as_bitslice()`] are zeroed.
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut bv = bitvec![0, 1];
+	/// bv.extend_from_bitslice(bits![1, 1, 0, 1]);
+	///
+	/// assert_eq!(bv, bits![0, 1, 1, 1, 0, 1]);
+	/// ```
+	///
+	/// [`Extend`]: #impl-Extend<%26'a bool>
+	/// [`.as_bitslice()`]: #method.as_bitslice()
+	/// [`.zero_padding()`]: #method.zero_padding
+	#[inline]
+	pub fn extend_from_bitslice(&mut self, other: &BitSlice<O, T>) {
+		let len = self.len();
+		let olen = other.len();
+		self.reserve(other.len());
+		unsafe {
+			self.set_len(len + olen);
+			self.get_unchecked_mut(len ..)
+		}
+		.clone_from_bitslice(other);
+	}
+
+	/// Converts the vector into [`BitBox<O, T>`].
+	///
+	/// Note that this will drop any excess capacity.
+	///
+	/// # Original
+	///
+	/// [`Vec::into_boxed_slice`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.into_boxed_slice)
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut bv = bitvec![1; 50];
+	/// let bb: BitBox = bv.into_boxed_bitslice();
+	/// assert_eq!(bb, bits![1; 50]);
+	/// ```
+	///
+	/// [`BitBox<O, T>`]: ../boxed/struct.BitBox.html
+	#[inline]
+	pub fn into_boxed_bitslice(self) -> BitBox<O, T> {
+		let mut bitptr = self.bitptr();
+		let boxed = self.into_boxed_slice().pipe(ManuallyDrop::new);
+		unsafe {
+			bitptr.set_pointer(boxed.as_ptr());
+		}
+		unsafe { BitBox::from_raw(bitptr.to_bitslice_ptr_mut::<O>()) }
+	}
+
+	/// Converts the vector back into an ordinary vector of memory elements.
+	///
+	/// This does not affect the vector’s buffer, only the handle used to
+	/// control it.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// An ordinary vector containing all of the bit-vector’s memory buffer.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bv = bitvec![0; 5];
+	/// let vec = bv.into_vec();
+	/// assert_eq!(vec, [0]);
+	/// ```
+	#[inline]
+	pub fn into_vec(self) -> Vec<T> {
+		let mut this = ManuallyDrop::new(self);
+		let buf = this.as_mut_slice();
+		unsafe {
+			Vec::from_raw_parts(
+				buf.as_mut_ptr() as *mut T,
+				buf.len(),
+				this.capacity,
+			)
+		}
+	}
+
+	/// Gets the number of elements `T` that contain live bits of the vector.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bv = bitvec![Local, u16; 1; 50];
+	/// assert_eq!(bv.elements(), 4);
+	/// ```
+	#[inline]
+	pub fn elements(&self) -> usize {
+		self.bitptr().elements()
+	}
+
+	/// Ensures that any dead bits in the buffer are set to zero.
+	///
+	/// This method is necessary because bulk allocations, such as
+	/// [`.extend_from_bitslice()`], may allocate uninitialized memory and not
+	/// fully clobber the values provided by the allocator. This can result in
+	/// unexpected garbage bits when viewing the buffer as memory, rather than
+	/// as bits.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	///
+	/// # Behavior
+	///
+	/// All bits in the allocated buffer, other than those currently accessible
+	/// through `.as_bitslice()`, are set to zero.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut bv = bitvec![0, 1];
+	/// bv.extend_from_bitslice(bits![0, 0, 1, 0]);
+	///
+	/// // The rest of element `[0]` contains
+	/// // uninitialized bits, which may or
+	/// // may not be zero.
+	/// assert!(bv.as_slice()[0].count_ones() >= 2);
+	///
+	/// bv.zero_padding();
+	/// assert_eq!(bv.as_slice()[0].count_ones(), 2);
+	/// ```
+	///
+	/// [`.as_bitslice()`]: #method.as_bitslice
+	/// [`.extend_from_bitslice()`]: #method.extend_from_bitslice
+	#[inline]
+	pub fn zero_padding(&mut self) {
+		let head = self.bitptr().head().value() as usize;
+		let tail = self.len();
+		self.with_vec(|v| {
+			let base = v.as_ptr();
+			let capa = v.capacity();
+			unsafe {
+				let full = BitPtr::new_unchecked(
+					base,
+					BitIdx::ZERO,
+					capa * T::Mem::BITS as usize,
+				)
+				.to_bitslice_mut::<O>();
+				full.get_unchecked_mut(.. head).set_all(false);
+				full.get_unchecked_mut(head + tail ..).set_all(false);
+			}
+		});
+	}
+
+	/// Ensures that the live region of the vector’s contents begins at the
+	/// leading edge of the buffer.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let data = 0x3Cu8;
+	/// let bits = data.view_bits::<Msb0>();
+	///
+	/// let mut bv = bits[2 .. 6].to_bitvec();
+	/// assert_eq!(bv, bits[2 .. 6]);
+	/// assert_eq!(bv.as_slice()[0], data);
+	///
+	/// bv.force_align();
+	/// assert_eq!(bv, bits[2 .. 6]);
+	/// //  It is not specified what happens to bits that are no longer used.
+	/// assert_eq!(bv.as_slice()[0] & 0xF0, 0xF0);
+	/// ```
+	#[inline]
+	pub fn force_align(&mut self) {
+		let bitptr = self.bitptr();
+		let head = bitptr.head().value() as usize;
+		if head == 0 {
+			return;
+		}
+		let last = bitptr.len() + head;
+		unsafe {
+			self.pointer =
+				bitptr.tap_mut(|bp| bp.set_head(BitIdx::ZERO)).to_nonnull();
+			self.copy_within_unchecked(head .. last, 0);
+		}
+	}
+
 	/// Writes a value into every element that the vector considers live.
 	///
 	/// This unconditionally writes `element` into each live location in the
@@ -353,196 +656,6 @@ where
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitptr(&mut self) -> *mut BitSlice<O, T> {
 		self.pointer.as_ptr()
-	}
-
-	/// Copies all bits in a `BitSlice` into the `BitVec`.
-	///
-	/// This is provided for API completeness; it has no performance benefits
-	/// compared to use of the [`Extend`] implementation.
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`
-	/// - `other`: A `BitSlice` reference of the same type parameters as `self`.
-	///
-	/// # Behavior
-	///
-	/// `self` is extended by the length of `other`, and then the contents of
-	/// `other` are copied into the newly-allocated end of `self`.
-	///
-	/// This method may cause reällocation of the buffer in order to grow the
-	/// vector to include `other`. Any bits provided during reällocation that
-	/// are *not* overwritten by `other` retain their uninitialized state, and
-	/// may have either a `0` or a `1` value. The precise value of memory not
-	/// directly written by the vector is unspecified. This may cause unexpected
-	/// memory values when viewing the raw memory.
-	///
-	/// Use [`.zero_padding()`] to ensure that all bits in the allocation other
-	/// than those visible through [`.as_bitslice()`] are zeroed.
-	///
-	/// [`Extend`]: #impl-Extend<%26'a bool>
-	/// [`.as_bitslice()`]: #method.as_bitslice()
-	/// [`.zero_padding()`]: #method.zero_padding
-	#[inline]
-	pub fn extend_from_bitslice(&mut self, other: &BitSlice<O, T>) {
-		let len = self.len();
-		let olen = other.len();
-		self.reserve(other.len());
-		unsafe {
-			self.set_len(len + olen);
-			self.get_unchecked_mut(len ..)
-		}
-		.clone_from_bitslice(other);
-	}
-
-	/// Ensures that any dead bits in the buffer are set to zero.
-	///
-	/// This method is necessary because bulk allocations, such as
-	/// [`.extend_from_bitslice()`], may allocate uninitialized memory and not
-	/// fully clobber the values provided by the allocator. This can result in
-	/// unexpected garbage bits when viewing the buffer as memory, rather than
-	/// as bits.
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`
-	///
-	/// # Behavior
-	///
-	/// All bits in the allocated buffer, other than those currently accessible
-	/// through `.as_bitslice()`, are set to zero.
-	///
-	/// [`.as_bitslice()`]: #method.as_bitslice
-	/// [`.extend_from_bitslice()`]: #method.extend_from_bitslice
-	#[inline]
-	pub fn zero_padding(&mut self) {
-		let head = self.bitptr().head().value() as usize;
-		let tail = self.len();
-		self.with_vec(|v| {
-			let base = v.as_ptr();
-			let capa = v.capacity();
-			let full = unsafe {
-				BitPtr::new_unchecked(
-					base,
-					BitIdx::ZERO,
-					capa * T::Mem::BITS as usize,
-				)
-			}
-			.to_bitslice_mut::<O>();
-			full[.. head].set_all(false);
-			full[head + tail ..].set_all(false);
-		});
-	}
-
-	/// Gets the number of elements `T` that contain live bits of the vector.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bv = bitvec![Local, u16; 1; 50];
-	/// assert_eq!(bv.elements(), 4);
-	/// ```
-	#[inline]
-	pub fn elements(&self) -> usize {
-		self.bitptr().elements()
-	}
-
-	/// Converts the vector into [`BitBox<O, T>`].
-	///
-	/// Note that this will drop any excess capacity.
-	///
-	/// # Original
-	///
-	/// [`Vec::into_boxed_slice`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.into_boxed_slice)
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let mut bv = bitvec![1; 50];
-	/// let bb: BitBox = bv.into_boxed_bitslice();
-	/// assert_eq!(bb, bits![1; 50]);
-	/// ```
-	///
-	/// [`BitBox<O, T>`]: ../boxed/struct.BitBox.html
-	pub fn into_boxed_bitslice(self) -> BitBox<O, T> {
-		let mut bitptr = self.bitptr();
-		let boxed = self.into_boxed_slice().pipe(ManuallyDrop::new);
-		unsafe {
-			bitptr.set_pointer(boxed.as_ptr());
-		}
-		unsafe { BitBox::from_raw(bitptr.to_bitslice_ptr_mut::<O>()) }
-	}
-
-	/// Converts the vector back into an ordinary vector of memory elements.
-	///
-	/// This does not affect the vector’s buffer, only the handle used to
-	/// control it.
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	///
-	/// # Returns
-	///
-	/// An ordinary vector containing all of the bit-vector’s memory buffer.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bv = bitvec![0; 5];
-	/// let vec = bv.into_vec();
-	/// assert_eq!(vec, [0]);
-	/// ```
-	pub fn into_vec(self) -> Vec<T> {
-		let mut this = ManuallyDrop::new(self);
-		let buf = this.as_mut_slice();
-		unsafe {
-			Vec::from_raw_parts(
-				buf.as_mut_ptr() as *mut T,
-				buf.len(),
-				this.capacity,
-			)
-		}
-	}
-
-	/// Ensures that the live region of the vector’s contents begins at the
-	/// leading edge of the buffer.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let data = 0x3Cu8;
-	/// let bits = data.view_bits::<Msb0>();
-	///
-	/// let mut bv = bits[2 .. 6].to_bitvec();
-	/// assert_eq!(bv, bits[2 .. 6]);
-	/// assert_eq!(bv.as_slice()[0], data);
-	///
-	/// bv.force_align();
-	/// assert_eq!(bv, bits[2 .. 6]);
-	/// //  It is not specified what happens to bits that are no longer used.
-	/// assert_eq!(bv.as_slice()[0] & 0xF0, 0xF0);
-	/// ```
-	pub fn force_align(&mut self) {
-		let bitptr = self.bitptr();
-		let head = bitptr.head().value() as usize;
-		if head == 0 {
-			return;
-		}
-		let last = bitptr.len() + head;
-		unsafe {
-			self.pointer =
-				bitptr.tap_mut(|bp| bp.set_head(BitIdx::ZERO)).to_nonnull();
-			self.copy_within_unchecked(head .. last, 0);
-		}
 	}
 
 	#[inline]

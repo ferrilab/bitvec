@@ -13,6 +13,7 @@ use crate::{
 use core::{
 	any,
 	cmp,
+	convert::TryFrom,
 	fmt::{
 		self,
 		Binary,
@@ -185,6 +186,20 @@ where
 	#[inline]
 	fn partial_cmp(&self, rhs: &&BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		(*self).partial_cmp(*rhs)
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<'a, O, T> TryFrom<&'a [T]> for &'a BitSlice<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	type Error = &'a [T];
+
+	#[inline(always)]
+	fn try_from(slice: &'a [T]) -> Result<Self, Self::Error> {
+		BitSlice::from_slice(slice).ok_or(slice)
 	}
 }
 

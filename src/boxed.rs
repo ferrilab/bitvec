@@ -29,6 +29,8 @@ before freezing it.
 #![cfg(feature = "alloc")]
 
 use crate::{
+	index::BitIdx,
+	mem::BitMemory,
 	order::{
 		BitOrder,
 		Local,
@@ -162,6 +164,114 @@ where
 	#[cfg(not(tarpaulin_include))]
 	pub fn from_bitslice(slice: &BitSlice<O, T>) -> Self {
 		slice.to_bitvec().into_boxed_bitslice()
+	}
+
+	/// Converts a `Box<[T]>` into a `BitBox`<O, T>` without copying its buffer.
+	///
+	/// # Parameters
+	///
+	/// - `boxed`: A boxed slice to view as bits.
+	///
+	/// # Returns
+	///
+	/// A `BitBox` over the `boxed` buffer.
+	///
+	/// # Panics
+	///
+	/// This panics if `boxed` is too long to convert into a `BitBox`. See
+	/// [`BitSlice::MAX_ELTS`].
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let boxed: Box<[u8]> = Box::new([0; 4]);
+	/// let bb = BitBox::<Local, _>::from_boxed_slice(boxed);
+	/// assert_eq!(bb, bits![0; 32]);
+	/// ```
+	///
+	/// [`BitSlice::MAX_ELTS`]:
+	/// ../slice/struct.BitSlice.html#associatedconstant.MAX_ELTS
+	#[inline]
+	pub fn from_boxed_slice(boxed: Box<[T]>) -> Self {
+		Self::try_from_boxed_slice(boxed)
+			.expect("Slice was too long to be converted into a `BitBox`")
+	}
+
+	/// Converts a `Box<[T]>` into a `BitBox<O, T>` without copying its buffer.
+	///
+	/// This method takes ownership of a memory buffer and enables it to be used
+	/// as a bit-box. Because `Box<[T]>` can be longer than `BitBox`es, this is
+	/// a fallible method, and the original box will be returned if it cannot be
+	/// converted.
+	///
+	/// # Parameters
+	///
+	/// - `boxed`: Some boxed slice of memory, to be viewed as bits.
+	///
+	/// # Returns
+	///
+	/// If `boxed` is short enough to be viewed as a `BitBox`, then this returns
+	/// a `BitBox` over the `boxed` buffer. If `boxed` is too long, then this
+	/// returns `boxed` unmodified.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let boxed: Box<[u8]> = Box::new([0; 4]);
+	/// let bb = BitBox::<Local, _>::try_from_boxed_slice(boxed).unwrap();
+	/// assert_eq!(bb[..], bits![0; 32]);
+	/// ```
+	#[inline]
+	pub fn try_from_boxed_slice(boxed: Box<[T]>) -> Result<Self, Box<[T]>> {
+		let len = boxed.len();
+		if len > BitSlice::<O, T>::MAX_ELTS {
+			return Err(boxed);
+		}
+
+		let boxed = ManuallyDrop::new(boxed);
+		let base = boxed.as_ptr();
+		Ok(Self {
+			pointer: unsafe {
+				BitPtr::new_unchecked(
+					base,
+					BitIdx::ZERO,
+					len * T::Mem::BITS as usize,
+				)
+			}
+			.to_nonnull(),
+		})
+	}
+
+	/// Converts the slice back into an ordinary slice of memory elements.
+	///
+	/// This does not affect the slice’s buffer, only the handle used to control
+	/// it.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// An ordinary boxed slice containing all of the bit-slice’s memory buffer.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bb = bitbox![0; 5];
+	/// let boxed = bb.into_boxed_slice();
+	/// assert_eq!(boxed[..], [0][..]);
+	/// ```
+	#[inline]
+	pub fn into_boxed_slice(self) -> Box<[T]> {
+		let mut this = ManuallyDrop::new(self);
+		unsafe { Box::from_raw(this.as_mut_slice()) }
 	}
 
 	/// Views the buffer’s contents as a `BitSlice`.

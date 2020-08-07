@@ -555,19 +555,8 @@ where
 	/// assert!(bits[15]);
 	/// ```
 	///
-	/// This example attempts to construct a `&BitSlice` handle from a slice
-	/// that is too large to index. Either the `vec!` allocation will fail, or
-	/// the bit-slice constructor will fail.
-	///
-	/// ```rust,should_panic
-	/// # #[cfg(feature = "alloc")] {
-	/// use bitvec::prelude::*;
-	///
-	/// let data = vec![0usize; BitSlice::<Local, usize>::MAX_ELTS];
-	/// let bits = BitSlice::<Local, _>::from_slice(&data[..]).unwrap();
-	/// # }
-	/// # #[cfg(not(feature = "alloc"))] panic!("No allocator present");
-	/// ```
+	/// An example showing this function failing would require a slice exceeding
+	/// `!0usize >> 3` bytes in size, which is infeasible to produce.
 	///
 	/// [`BitView`]: ../view/trait.BitView.html
 	/// [`MAX_ELTS`]: #associatedconstant.MAX_ELTS
@@ -1317,9 +1306,7 @@ where
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_slice(&mut self) -> &mut [T::Mem] {
-		self.domain_mut()
-			.region()
-			.map_or(&mut [], |(_, b, _)| b)
+		self.domain_mut().region().map_or(&mut [], |(_, b, _)| b)
 	}
 
 	/// Splits the slice into the logical components of its memory domain.
