@@ -66,6 +66,17 @@ pub trait BitView {
 	fn view_bits<O>(&self) -> &BitSlice<O, Self::Store>
 	where O: BitOrder;
 
+	#[doc(hidden)]
+	#[inline(always)]
+	#[deprecated(
+		since = "0.18.0",
+		note = "The method is renamed to `.view_bits`"
+	)]
+	fn bits<O>(&self) -> &BitSlice<O, Self::Store>
+	where O: BitOrder {
+		self.view_bits::<O>()
+	}
+
 	/// Views a memory region as a mutable `BitSlice`.
 	///
 	/// # Type Parameters
@@ -81,6 +92,17 @@ pub trait BitView {
 	/// A `&mut BitSlice` view over the region at `*self`.
 	fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, Self::Store>
 	where O: BitOrder;
+
+	#[doc(hidden)]
+	#[inline(always)]
+	#[deprecated(
+		since = "0.18.0",
+		note = "The method is renamed to `.view_bits_mut`"
+	)]
+	fn bits_mut<O>(&mut self) -> &BitSlice<O, Self::Store>
+	where O: BitOrder {
+		self.view_bits_mut::<O>()
+	}
 
 	/// Produces the number of bits that the implementing type can hold.
 	#[doc(hidden)]
