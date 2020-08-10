@@ -23,6 +23,11 @@ indent_style = space
 indent_size = 4
 indent_style = tab
 
+# Shell scripts use two-space indentation.
+[*.sh]
+indent_style = 2
+indent_size = space
+
 # TOML files use ␉ indentation, with each tab rendered eight columns wide.
 [*.toml]
 indent_size = 8
