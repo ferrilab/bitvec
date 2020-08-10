@@ -62,6 +62,7 @@ use core::{
 	cmp,
 	marker::PhantomData,
 	ops::RangeBounds,
+	ptr,
 	slice,
 };
 
@@ -1128,6 +1129,7 @@ where
 					//  Step one: attach an `::Access` marker to the reference
 					dvl::accessor(elem),
 					//  Step two: insert an `::Alias` marker *into the bitmask*
+					//  because typechecking is “fun”
 					O::mask(head, tail).pipe(dvl::alias_mask::<T>),
 				);
 			},
@@ -1138,8 +1140,13 @@ where
 						O::mask(head, None).pipe(dvl::alias_mask::<T>),
 					);
 				}
-				for elem in body {
-					*elem = if value { T::Mem::ALL } else { T::Mem::ZERO };
+				//  loop assignment is `memset`’s problem, not ours
+				unsafe {
+					ptr::write_bytes(
+						body.as_mut_ptr(),
+						[0, !0][value as usize],
+						body.len(),
+					);
 				}
 				if let Some((elem, tail)) = tail {
 					setter(

@@ -90,10 +90,9 @@ impl Writer for u32 {
 #[test]
 fn test_bitvec1() {
 	let data = 0x03ABu32;
-	let mut data_bits = data.write(true, Some(10));
+	let data_bits = data.write(true, Some(10));
 
 	assert_eq!(bitvec![Msb0, u8; 1,0,1,0,1,0,1,1, 1,1], data_bits);
-	data_bits.zero_padding();
 	let data_vec = data_bits.into_vec();
 
 	assert_eq!(vec![0xAB, 0b11_000000], data_vec);

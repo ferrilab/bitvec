@@ -313,16 +313,6 @@ where
 	/// `self` is extended by the length of `other`, and then the contents of
 	/// `other` are copied into the newly-allocated end of `self`.
 	///
-	/// This method may cause reällocation of the buffer in order to grow the
-	/// vector to include `other`. Any bits provided during reällocation that
-	/// are *not* overwritten by `other` retain their uninitialized state, and
-	/// may have either a `0` or a `1` value. The precise value of memory not
-	/// directly written by the vector is unspecified. This may cause unexpected
-	/// memory values when viewing the raw memory.
-	///
-	/// Use [`.zero_padding()`] to ensure that all bits in the allocation other
-	/// than those visible through [`.as_bitslice()`] are zeroed.
-	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
@@ -334,17 +324,12 @@ where
 	///
 	/// [`Extend`]: #impl-Extend<%26'a bool>
 	/// [`.as_bitslice()`]: #method.as_bitslice()
-	/// [`.zero_padding()`]: #method.zero_padding
 	#[inline]
 	pub fn extend_from_bitslice(&mut self, other: &BitSlice<O, T>) {
 		let len = self.len();
 		let olen = other.len();
-		self.reserve(other.len());
-		unsafe {
-			self.set_len(len + olen);
-			self.get_unchecked_mut(len ..)
-		}
-		.clone_from_bitslice(other);
+		self.resize(len + olen, false);
+		unsafe { self.get_unchecked_mut(len ..) }.clone_from_bitslice(other);
 	}
 
 	/// Converts the vector into [`BitBox<O, T>`].
@@ -424,62 +409,6 @@ where
 	#[inline]
 	pub fn elements(&self) -> usize {
 		self.bitptr().elements()
-	}
-
-	/// Ensures that any dead bits in the buffer are set to zero.
-	///
-	/// This method is necessary because bulk allocations, such as
-	/// [`.extend_from_bitslice()`], may allocate uninitialized memory and not
-	/// fully clobber the values provided by the allocator. This can result in
-	/// unexpected garbage bits when viewing the buffer as memory, rather than
-	/// as bits.
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`
-	///
-	/// # Behavior
-	///
-	/// All bits in the allocated buffer, other than those currently accessible
-	/// through `.as_bitslice()`, are set to zero.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let mut bv = bitvec![0, 1];
-	/// bv.extend_from_bitslice(bits![0, 0, 1, 0]);
-	///
-	/// // The rest of element `[0]` contains
-	/// // uninitialized bits, which may or
-	/// // may not be zero.
-	/// assert!(bv.as_slice()[0].count_ones() >= 2);
-	///
-	/// bv.zero_padding();
-	/// assert_eq!(bv.as_slice()[0].count_ones(), 2);
-	/// ```
-	///
-	/// [`.as_bitslice()`]: #method.as_bitslice
-	/// [`.extend_from_bitslice()`]: #method.extend_from_bitslice
-	#[inline]
-	pub fn zero_padding(&mut self) {
-		let head = self.bitptr().head().value() as usize;
-		let tail = self.len();
-		self.with_vec(|v| {
-			let base = v.as_ptr();
-			let capa = v.capacity();
-			unsafe {
-				let full = BitPtr::new_unchecked(
-					base,
-					BitIdx::ZERO,
-					capa * T::Mem::BITS as usize,
-				)
-				.to_bitslice_mut::<O>();
-				full.get_unchecked_mut(.. head).set_all(false);
-				full.get_unchecked_mut(head + tail ..).set_all(false);
-			}
-		});
 	}
 
 	/// Ensures that the live region of the vector’s contents begins at the
