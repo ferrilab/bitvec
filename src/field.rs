@@ -1041,6 +1041,8 @@ mod tests {
 	}
 }
 
+// These tests are purely mathematical, and do not need to run more than once.
+#[cfg(all(feature = "std", not(tarpaulin)))]
 mod permutation_tests;
 
 #[cfg(feature = "std")]

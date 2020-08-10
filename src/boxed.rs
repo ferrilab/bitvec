@@ -427,3 +427,6 @@ where
 mod api;
 mod ops;
 mod traits;
+
+#[cfg(test)]
+mod tests;

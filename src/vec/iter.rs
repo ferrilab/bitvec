@@ -21,9 +21,13 @@ use core::{
 		RangeBounds,
 	},
 	ptr::NonNull,
+	slice,
 };
 
-use wyz::tap::TapOption;
+use wyz::{
+	pipe::Pipe,
+	tap::TapOption,
+};
 
 impl<O, T> Extend<bool> for BitVec<O, T>
 where
@@ -33,10 +37,25 @@ where
 	#[inline]
 	fn extend<I>(&mut self, iter: I)
 	where I: IntoIterator<Item = bool> {
-		let iter = iter.into_iter();
+		let mut iter = iter.into_iter();
 		match iter.size_hint() {
 			(n, None) | (_, Some(n)) => {
+				// This body exists to try to accelerate
 				self.reserve(n);
+				let len = self.len();
+				let new_len = len + n;
+				let new = unsafe {
+					self.set_len(new_len);
+					self.get_unchecked_mut(len .. new_len)
+				};
+				let mut pulled = 0;
+				for (slot, bit) in new.iter_mut().zip(iter.by_ref()) {
+					slot.set(bit);
+					pulled += 1;
+				}
+				unsafe {
+					self.set_len(len + pulled);
+				}
 			},
 		}
 		iter.for_each(|bit| self.push(bit));
@@ -67,7 +86,7 @@ where
 		let mut out = match iter.size_hint() {
 			(n, None) | (_, Some(n)) => Self::with_capacity(n),
 		};
-		iter.for_each(|bit| out.push(bit));
+		out.extend(iter);
 		out
 	}
 }
@@ -80,7 +99,7 @@ where
 	#[inline]
 	fn from_iter<I>(iter: I) -> Self
 	where I: IntoIterator<Item = &'a bool> {
-		Self::from_iter(iter.into_iter().copied())
+		iter.into_iter().copied().pipe(Self::from_iter)
 	}
 }
 
@@ -101,6 +120,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<'a, O, T> IntoIterator for &'a BitVec<O, T>
 where
 	O: 'a + BitOrder,
@@ -111,10 +131,11 @@ where
 
 	#[inline]
 	fn into_iter(self) -> Self::IntoIter {
-		<&'a BitSlice<O, T> as IntoIterator>::into_iter(self)
+		self.as_bitslice().into_iter()
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<'a, O, T> IntoIterator for &'a mut BitVec<O, T>
 where
 	O: 'a + BitOrder,
@@ -125,7 +146,7 @@ where
 
 	#[inline]
 	fn into_iter(self) -> Self::IntoIter {
-		<&'a mut BitSlice<O, T> as IntoIterator>::into_iter(self)
+		self.as_mut_bitslice().into_iter()
 	}
 }
 
@@ -183,18 +204,29 @@ where
 	/// assert_eq!(into_iter.as_bitslice(), bits![1, 0, 1]);
 	/// ```
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
 		self.iter.as_bitslice()
 	}
 
+	/// Returns the remaining elements of this iterator as a slice.
+	///
+	/// # Original
+	///
+	/// [`vec::IntoIter::as_slice`](https://doc.rust-lang.org/alloc/vec/struct.IntoIter.html#method.as_slice)
+	///
+	/// # Notes
+	///
+	/// You almost certainly want [`.as_bitslice()`].
+	///
+	/// [`.as_bitslice()`]: #method.as_bitslice
 	#[inline]
-	#[doc(hidden)]
-	#[deprecated(
-		note = "Use `.as_bitslice` on iterators to view the remaining data"
-	)]
 	#[cfg(not(tarpaulin_include))]
-	pub fn as_slice(&self) -> &BitSlice<O, T> {
-		self.as_bitslice()
+	pub fn as_slice(&self) -> &[T] {
+		let bitptr = self.as_bitslice().bitptr();
+		unsafe {
+			slice::from_raw_parts(bitptr.pointer().to_const(), bitptr.elements())
+		}
 	}
 
 	/// Returns the remaining bits of this iterator as a mutable slice.

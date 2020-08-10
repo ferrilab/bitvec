@@ -31,10 +31,7 @@ use funty::IsInteger;
 
 use wyz::{
 	pipe::Pipe,
-	tap::{
-		Tap,
-		TapOption,
-	},
+	tap::Tap,
 };
 
 impl<O, T> BitVec<O, T>
@@ -286,10 +283,10 @@ where
 		let bitptr = self.bitptr();
 		let head = bitptr.head();
 		let elts = bitptr.elements();
-		head.span(new_len)
-			.0
-			.checked_sub(elts)
-			.tap_some(|extra| self.with_vec(|v| v.reserve(*extra)));
+		//  Only reserve if the request needs new elements.
+		if let Some(extra) = head.span(new_len).0.checked_sub(elts) {
+			self.with_vec(|v| v.reserve(extra));
+		}
 	}
 
 	/// Reserves the minimum capacity for exactly `additional` more bits to be
@@ -330,11 +327,13 @@ where
 			new_len,
 			BitSlice::<O, T>::MAX_BITS
 		);
-		let (_, h, e) = self.bitptr().raw_parts();
-		h.span(new_len)
-			.0
-			.checked_sub(e)
-			.tap_some(|extra| self.with_vec(|v| v.reserve_exact(*extra)));
+		let bitptr = self.bitptr();
+		let head = bitptr.head();
+		let elts = bitptr.elements();
+		//  Only reserve if the request needs new elements.
+		if let Some(extra) = head.span(new_len).0.checked_sub(elts) {
+			self.with_vec(|v| v.reserve_exact(extra));
+		}
 	}
 
 	/// Shrinks the capacity of the vector as much as possible.
@@ -359,7 +358,7 @@ where
 	/// ```
 	#[inline]
 	pub fn shrink_to_fit(&mut self) {
-		self.with_vec(|vec| vec.shrink_to_fit());
+		self.with_vec(|v| v.shrink_to_fit());
 	}
 
 	/// Converts the vector into [`Box<[T]>`].
@@ -486,6 +485,7 @@ where
 	///
 	/// [`as_bitslice`]: #method.as_bitslice
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_slice(&self) -> &[T] {
 		let bitptr = self.bitptr();
 		let (base, elts) = (bitptr.pointer().to_const(), bitptr.elements());
@@ -515,6 +515,7 @@ where
 	///
 	/// [`as_mut_bitslice`]: #method.as_mut_bitslice
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
 		let bitptr = self.bitptr();
 		let (base, elts) = (bitptr.pointer().to_mut(), bitptr.elements());
@@ -554,6 +555,7 @@ where
 	/// }
 	/// ```
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_ptr(&self) -> *const T {
 		self.bitptr().pointer().to_const()
 	}
@@ -592,6 +594,7 @@ where
 	///
 	/// [`as_mut_bitptr`]: #method.as_mut_bitptr
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_ptr(&mut self) -> *mut T {
 		self.bitptr().pointer().to_mut()
 	}
@@ -783,7 +786,7 @@ where
 	///
 	/// In other words, remove all bits `b` such that `func(idx(b), &b)` returns
 	/// `false`. This method operates in place, visiting each bit exactly once
-	/// in the original order, and preserves the order of the retained bit.s.
+	/// in the original order, and preserves the order of the retained bits.
 	///
 	/// # Original
 	///
@@ -951,7 +954,8 @@ where
 	/// bv.drain(..);
 	/// assert_eq!(bv, bits![]);
 	/// ```
-	#[inline]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn drain<R>(&mut self, range: R) -> Drain<O, T>
 	where R: RangeBounds<usize> {
 		Drain::new(self, range)
@@ -977,7 +981,7 @@ where
 	///
 	/// assert!(bv.is_empty());
 	/// ```
-	#[inline]
+	#[cfg_attr(not(tarpaulin), inline(always))]
 	pub fn clear(&mut self) {
 		unsafe {
 			self.set_len(0);
@@ -1016,9 +1020,8 @@ where
 			0 => mem::replace(self, Self::with_capacity(self.capacity())),
 			n if n == len => Self::new(),
 			_ => unsafe {
-				self.get_unchecked(at ..)
-					.to_owned()
-					.tap(|_| self.set_len(at))
+				self.set_len(at);
+				self.get_unchecked(at .. len).to_owned()
 			},
 		}
 	}
@@ -1111,8 +1114,19 @@ where
 		if new_len > len {
 			let ext = new_len - len;
 			self.reserve(ext);
+			/* Initialize all of the newly-allocated memory, not just the bits
+			that will become live. This is a requirement for correctness.
+
+			*Strictly speaking*, only `len .. ⌈new_len / bit_width⌉` needs to be
+			initialized, but computing the correct boundary is probably not
+			sufficiently less effort than just initializing the complete
+			allocation to be worth the instructions. If users complain about
+			performance on this method, revisit this decision, but if they don’t
+			then the naïve solution is fine.
+			*/
+			let capa = self.capacity();
 			unsafe {
-				self.get_unchecked_mut(len .. new_len).set_all(value);
+				self.get_unchecked_mut(len .. capa).set_all(value);
 			}
 		}
 		unsafe {
@@ -1149,7 +1163,7 @@ where
 	///
 	/// [`extend`]: #impl-Extend<%26'a bool>
 	/// [`extend_from_bitslice`]: #method.extend_from_bitslice
-	#[inline]
+	#[cfg_attr(not(tarpaulin), inline(always))]
 	pub fn extend_from_slice(&mut self, other: &[bool]) {
 		self.extend(other)
 	}
@@ -1191,6 +1205,7 @@ where
 	/// assert_eq!(old, bits![0, 1]);
 	/// ```
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn splice<R, I>(
 		&mut self,
 		range: R,

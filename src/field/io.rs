@@ -46,7 +46,7 @@ impl<'a, O, T> Read for &'a BitSlice<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
-	Self: BitField,
+	BitSlice<O, T>: BitField,
 {
 	#[inline]
 	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -87,6 +87,7 @@ where
 	}
 
 	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	fn flush(&mut self) -> io::Result<()> {
 		Ok(())
 	}
@@ -114,7 +115,65 @@ where
 	}
 
 	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	fn flush(&mut self) -> io::Result<()> {
 		Ok(())
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::prelude::*;
+
+	#[test]
+	fn read_bits() {
+		let data = [0x136Cu16, 0x8C63];
+		let mut bits = &data.view_bits::<Msb0>()[4 ..];
+		assert_eq!(bits.len(), 28);
+
+		let mut transfer = [0u8; 4];
+		let last_ptr = &mut transfer[3] as *mut _;
+		let mut transfer_handle = &mut transfer[..];
+
+		assert_eq!(io::copy(&mut bits, &mut transfer_handle).unwrap(), 3);
+
+		//  Once a bitslice cannot produce a byte, it stops `Read`ing
+		assert_eq!(bits, data.view_bits::<Msb0>()[28 ..]);
+		//  So the destination slice does not fill up.
+		assert_eq!(transfer_handle.as_mut_ptr() as *mut _, last_ptr);
+
+		if cfg!(target_endian = "little") {
+			assert_eq!(transfer[.. 3], [0x36, 0x8C, 0xC6][..]);
+			/* note the backwards nibbles here! ^^
+
+			When crossing element boundaries, `.load_le()` assumes that the
+			lesser memory address is less significant, and the greater memory
+			address is more significant. The last nibble of the first element
+			is therefore assumed to be numerically less significant than the
+			first nibble of the second word.
+
+			If this behavior surprises users, then an iterative copy may be more
+			appropriate than a `BitField`-based load/store behavior. A bitwise
+			crawl is slower, which is why `BitField` was chosen as the
+			implementation. But “quickly wrong” is worse than “slowly right”.
+			*/
+		}
+	}
+
+	#[test]
+	fn write_bits() {
+		let mut bv = bitvec![Msb0, usize; 0, 0, 0, 0];
+		assert_eq!(
+			3,
+			io::copy(&mut &[0xC3u8, 0xF0, 0x69][..], &mut bv).unwrap()
+		);
+
+		assert_eq!(bv, bits![
+			0, 0, 0, 0, // byte 0
+			1, 1, 0, 0, 0, 0, 1, 1, // byte 1
+			1, 1, 1, 1, 0, 0, 0, 0, // byte 2
+			0, 1, 1, 0, 1, 0, 0, 1,
+		]);
 	}
 }

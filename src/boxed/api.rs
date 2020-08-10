@@ -11,17 +11,11 @@ use crate::{
 
 use core::{
 	marker::Unpin,
-	mem::{
-		self,
-		ManuallyDrop,
-	},
+	mem::ManuallyDrop,
 	pin::Pin,
 };
 
-use wyz::{
-	pipe::Pipe,
-	tap::Tap,
-};
+use wyz::pipe::Pipe;
 
 impl<O, T> BitBox<O, T>
 where
@@ -49,9 +43,10 @@ where
 	///
 	/// let boxed = BitBox::new(bits![0; 5]);
 	/// ```
-	#[inline]
+	#[cfg_attr(not(tarpaulin), inline(always))]
+	#[deprecated(since = "0.18.0", note = "Prefer `::from_bitslice`")]
 	pub fn new(x: &BitSlice<O, T>) -> Self {
-		x.to_bitvec().into_boxed_bitslice()
+		Self::from_bitslice(x)
 	}
 
 	/// Constructs a new `Pin<BitBox<O, T>>`.
@@ -72,7 +67,7 @@ where
 		O: Unpin,
 		T: Unpin,
 	{
-		x.pipe(Self::new).pipe(Pin::new)
+		x.pipe(Self::from_bitslice).pipe(Pin::new)
 	}
 
 	/// Constructs a box from a raw pointer.
@@ -147,9 +142,9 @@ where
 	/// ```
 	///
 	/// [`BitBox::from_raw`]: #method.from_raw
-	#[inline]
+	#[cfg_attr(not(tarpaulin), inline(always))]
 	pub fn into_raw(b: Self) -> *mut BitSlice<O, T> {
-		b.pointer.as_ptr().tap(|_| b.pipe(mem::forget))
+		Self::leak(b)
 	}
 
 	/// Consumes and leaks the `BitBox`, returning a mutable reference,
@@ -188,7 +183,7 @@ where
 	#[inline]
 	pub fn leak<'a>(b: Self) -> &'a mut BitSlice<O, T>
 	where T: 'a {
-		b.bitptr().to_bitslice_mut().tap(|_| b.pipe(mem::forget))
+		b.pipe(ManuallyDrop::new).bitptr().to_bitslice_mut()
 	}
 
 	/// Converts `self` into a vector without clones or allocation.

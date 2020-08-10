@@ -29,6 +29,7 @@ use core::{
 		Formatter,
 	},
 	marker::PhantomData,
+	mem,
 	ops::{
 		Deref,
 		DerefMut,
@@ -61,6 +62,26 @@ it uses will not have destructive data races from other views.
 
 - `O`: The `BitOrder` type parameter from the source `&mut BitSlice`.
 - `T`: The `BitStore` type parameter from the source `&mut BitSlice`.
+
+# Examples
+
+```rust
+use bitvec::prelude::*;
+
+let bits = bits![mut 0; 2];
+
+let (left, right) = bits.split_at_mut(1);
+let mut first = left.get_mut(0).unwrap();
+let second = right.get_mut(0).unwrap();
+
+// Referential behavior
+*first = true;
+// Direct write
+second.set(true);
+
+drop(first); // it’s not a reference!
+assert_eq!(bits, bits![1; 2]);
+```
 **/
 pub struct BitMut<'a, O, T>
 where
@@ -93,6 +114,7 @@ where
 	///
 	/// The caller must produce `addr`’s value from a valid reference, and its
 	/// type from the correct access requirements at time of construction.
+	#[inline]
 	pub(crate) unsafe fn new_unchecked(
 		addr: *const T::Access,
 		head: BitIdx<T::Mem>,
@@ -105,6 +127,32 @@ where
 			data: (&*addr).get_bit::<O>(head),
 		}
 	}
+
+	/// Writes a bit into the proxied location without an intermediate copy.
+	///
+	/// This function writes `value` directly into the proxied location, and
+	/// does not store `value` in the proxy’s internal cache. This should be
+	/// equivalent to the behavior seen when using ordinary `DerefMut` proxying,
+	/// but the latter depends on compiler optimization.
+	///
+	/// # Parameters
+	///
+	/// - `self`: This destroys the proxy, as it becomes invalid when writing
+	///   directly to the location without updating the cache.
+	/// - `value`: The new bit to write into the proxied slot.
+	#[inline]
+	pub fn set(mut self, value: bool) {
+		self.write(value);
+		mem::forget(self);
+	}
+
+	/// Commits a bit into memory.
+	///
+	/// This is the internal function used to drive `.set()` and `.drop()`.
+	#[inline]
+	fn write(&mut self, value: bool) {
+		unsafe { (&*self.addr.as_ptr()).write_bit::<O>(self.head, value) }
+	}
 }
 
 #[cfg(not(tarpaulin_include))]
@@ -113,6 +161,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitMut<{}>", core::any::type_name::<T::Mem>())?;
 		fmt.debug_struct("")
@@ -130,6 +179,7 @@ where
 {
 	type Target = bool;
 
+	#[inline]
 	fn deref(&self) -> &Self::Target {
 		&self.data
 	}
@@ -140,6 +190,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		&mut self.data
 	}
@@ -150,8 +201,10 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn drop(&mut self) {
-		unsafe { (&*self.addr.as_ptr()).write_bit::<O>(self.head, self.data) }
+		let value = self.data;
+		self.write(value);
 	}
 }
 
