@@ -95,14 +95,44 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> PartialEq<BitBox<O, T>> for BitSlice<O, T>
+impl<O1, O2, T1, T2> PartialEq<BitBox<O2, T2>> for BitSlice<O1, T1>
 where
-	O: BitOrder,
-	T: BitStore,
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
 {
 	#[inline]
-	fn eq(&self, other: &BitBox<O, T>) -> bool {
+	fn eq(&self, other: &BitBox<O2, T2>) -> bool {
 		self == other.as_bitslice()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<O1, O2, T1, T2> PartialEq<BitBox<O2, T2>> for &BitSlice<O1, T1>
+where
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
+{
+	#[inline]
+	fn eq(&self, other: &BitBox<O2, T2>) -> bool {
+		*self == other.as_bitslice()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<O1, O2, T1, T2> PartialEq<BitBox<O2, T2>> for &mut BitSlice<O1, T1>
+where
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
+{
+	#[inline]
+	fn eq(&self, other: &BitBox<O2, T2>) -> bool {
+		**self == other.as_bitslice()
 	}
 }
 
@@ -111,12 +141,11 @@ impl<O, T, Rhs> PartialEq<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
-	Rhs: ?Sized,
-	BitSlice<O, T>: PartialEq<Rhs>,
+	Rhs: ?Sized + PartialEq<BitSlice<O, T>>,
 {
 	#[inline]
 	fn eq(&self, other: &Rhs) -> bool {
-		self.as_bitslice() == other
+		other == self.as_bitslice()
 	}
 }
 
@@ -137,12 +166,11 @@ impl<O, T, Rhs> PartialOrd<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
-	Rhs: ?Sized,
-	BitSlice<O, T>: PartialOrd<Rhs>,
+	Rhs: ?Sized + PartialOrd<BitSlice<O, T>>,
 {
 	#[inline]
 	fn partial_cmp(&self, other: &Rhs) -> Option<cmp::Ordering> {
-		self.as_bitslice().partial_cmp(other)
+		other.partial_cmp(self.as_bitslice())
 	}
 }
 

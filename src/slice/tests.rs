@@ -64,6 +64,13 @@ fn get_set() {
 	*bits.first_mut().unwrap() = false;
 	assert_eq!(bits.last(), Some(&true));
 	*bits.last_mut().unwrap() = false;
+
+	let (a, b) = (bits![mut Msb0, u8; 0, 1], bits![mut Lsb0, u16; 1, 0]);
+	assert_eq!(a, bits![0, 1]);
+	assert_eq!(b, bits![1, 0]);
+	a.swap_with_bitslice(b);
+	assert_eq!(a, bits![1, 0]);
+	assert_eq!(b, bits![0, 1]);
 }
 
 #[test]
@@ -83,15 +90,25 @@ fn query() {
 	assert_eq!(bits[1 .. 7].count_zeros(), 3);
 	assert_eq!(bits[.. 24].count_ones(), 16);
 	assert_eq!(bits[16 ..].count_zeros(), 17);
+
+	assert!(!bits![0].contains(bits![0, 1]));
+	assert!(bits![0, 1, 0].contains(bits![1, 0]));
+	assert!(bits![0, 1, 0].starts_with(bits![0, 1]));
+	assert!(bits![0, 1, 0].ends_with(bits![1, 0]));
 }
 
 #[test]
 fn modify() {
 	let mut data = 0b0000_1111u8;
-	let bits = data.view_bits_mut::<Local>();
 
+	let bits = data.view_bits_mut::<Local>();
 	bits.swap(3, 4);
 	assert_eq!(data, 0b0001_0111);
+
+	let bits = data.view_bits_mut::<Lsb0>();
+	bits[1 .. 7].reverse();
+	assert_eq!(data, 0b0110_1001);
+	data.view_bits_mut::<Msb0>()[1 .. 7].reverse();
 
 	let bits = data.view_bits_mut::<Msb0>();
 	bits.copy_within(2 .. 4, 0);
@@ -100,4 +117,141 @@ fn modify() {
 	let bits = data.view_bits_mut::<Msb0>();
 	bits.copy_within(5 .., 2);
 	assert_eq!(data, 0b0111_1111);
+}
+
+#[test]
+fn split() {
+	assert!(BitSlice::<Local, usize>::empty().split_first().is_none());
+	assert_eq!(
+		1u8.view_bits::<Lsb0>().split_first(),
+		Some((&true, bits![Lsb0, u8; 0; 7]))
+	);
+
+	assert!(
+		BitSlice::<Local, usize>::empty_mut()
+			.split_first_mut()
+			.is_none()
+	);
+	let mut data = 0u8;
+	let (head, _) = data.view_bits_mut::<Lsb0>().split_first_mut().unwrap();
+	head.set(true);
+	assert_eq!(data, 1);
+
+	assert!(BitSlice::<Local, usize>::empty().split_last().is_none());
+	assert_eq!(
+		1u8.view_bits::<Msb0>().split_last(),
+		Some((&true, bits![Msb0, u8; 0; 7]))
+	);
+
+	assert!(
+		BitSlice::<Local, usize>::empty_mut()
+			.split_first_mut()
+			.is_none()
+	);
+	let mut data = 0u8;
+	let (head, _) = data.view_bits_mut::<Msb0>().split_last_mut().unwrap();
+	head.set(true);
+	assert_eq!(data, 1);
+
+	let mut data = 0b0000_1111u8;
+
+	let bits = data.view_bits::<Msb0>();
+	let (left, right) = bits.split_at(4);
+	assert!(left.not_any());
+	assert!(right.all());
+
+	let bits = data.view_bits_mut::<Msb0>();
+	let (left, right) = bits.split_at_mut(4);
+	left.set_all(true);
+	right.set_all(false);
+	assert_eq!(data, 0b1111_0000u8);
+}
+
+#[test]
+fn iterators() {
+	0b0100_1000u8
+		.view_bits::<Msb0>()
+		.split(|_, bit| *bit)
+		.zip([1usize, 2, 3].iter())
+		.for_each(|(bits, len)| assert_eq!(bits.len(), *len));
+
+	let mut data = 0b0100_1000u8;
+	data.view_bits_mut::<Msb0>()
+		.split_mut(|_, bit| *bit)
+		.zip([1usize, 2, 3].iter())
+		.for_each(|(bits, len)| {
+			assert_eq!(bits.len(), *len);
+			bits.set_all(true)
+		});
+	assert_eq!(data, !0);
+
+	0b0100_1000u8
+		.view_bits::<Msb0>()
+		.rsplit(|_, bit| *bit)
+		.zip([3usize, 2, 1].iter())
+		.for_each(|(bits, len)| assert_eq!(bits.len(), *len));
+
+	let mut data = 0b0100_1000u8;
+	data.view_bits_mut::<Msb0>()
+		.rsplit_mut(|_, bit| *bit)
+		.zip([3usize, 2, 1].iter())
+		.for_each(|(bits, len)| {
+			assert_eq!(bits.len(), *len);
+			bits.set_all(true)
+		});
+	assert_eq!(data, !0);
+
+	0b0100_1000u8
+		.view_bits::<Msb0>()
+		.splitn(2, |_, bit| *bit)
+		.zip([1usize, 6].iter())
+		.for_each(|(bits, len)| assert_eq!(bits.len(), *len));
+
+	let mut data = 0b0100_1000u8;
+	data.view_bits_mut::<Msb0>()
+		.splitn_mut(2, |_, bit| *bit)
+		.zip([1usize, 6].iter())
+		.for_each(|(bits, len)| {
+			assert_eq!(bits.len(), *len);
+			bits.set_all(true)
+		});
+	assert_eq!(data, !0);
+
+	0b0100_1000u8
+		.view_bits::<Msb0>()
+		.rsplitn(2, |_, bit| *bit)
+		.zip([3usize, 4].iter())
+		.for_each(|(bits, len)| assert_eq!(bits.len(), *len));
+
+	let mut data = 0b0100_1000u8;
+	data.view_bits_mut::<Msb0>()
+		.rsplitn_mut(2, |_, bit| *bit)
+		.zip([3usize, 4].iter())
+		.for_each(|(bits, len)| {
+			assert_eq!(bits.len(), *len);
+			bits.set_all(true)
+		});
+	assert_eq!(data, !0);
+}
+
+#[test]
+fn alignment() {
+	let mut data = [0u16; 5];
+	let addr = &data as *const [u16; 5] as *const u16 as usize;
+	let bits = data.view_bits_mut::<Local>();
+
+	let (head, body, tail) = unsafe { bits[5 .. 75].align_to_mut::<u32>() };
+
+	//  `data` is aligned to the back half of a `u32`
+	if addr % 4 == 2 {
+		assert_eq!(head.len(), 11);
+		assert_eq!(body.len(), 59);
+		assert!(tail.is_empty());
+	}
+	//  `data` is aligned to the front half of a `u32`
+	else {
+		assert!(head.is_empty());
+		assert_eq!(body.len(), 64);
+		assert_eq!(tail.len(), 6);
+	}
 }

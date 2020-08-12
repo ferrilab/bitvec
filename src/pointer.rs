@@ -713,6 +713,7 @@ where T: BitStore
 	///
 	/// Increments `.head` by one. If the increment resulted in a rollover to
 	/// `0`, then the `.addr` field is increased to the next `T::Mem` stepping.
+	#[inline]
 	pub(crate) unsafe fn incr_head(&mut self) {
 		//  Increment the cursor, permitting rollover to `T::Mem::BITS`.
 		let head = self.head().value() as usize + 1;

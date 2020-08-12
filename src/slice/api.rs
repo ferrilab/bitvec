@@ -569,7 +569,8 @@ where
 	/// ```
 	///
 	/// [`as_mut_ptr`]: #method.as_mut_ptr
-	#[inline]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_ptr(&self) -> *const Self {
 		self as *const Self
 	}
@@ -615,7 +616,8 @@ where
 	/// }
 	/// assert_eq!(data, 0b0101_0101_0101_0101);
 	/// ```
-	#[inline]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_ptr(&mut self) -> *mut Self {
 		self as *mut Self
 	}
@@ -1968,7 +1970,8 @@ where
 	/// Copying two bits from a slice into another:
 	///
 	/// [`clone_from_bitslice`]: #method.clone_from_bitslice
-	#[inline]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn copy_from_bitslice(&mut self, src: &Self) {
 		self.clone_from_bitslice(src);
 	}
@@ -2147,13 +2150,21 @@ where
 	pub unsafe fn align_to<U>(&self) -> (&Self, &BitSlice<O, U>, &Self)
 	where U: BitStore {
 		let bitptr = self.bitptr();
+		let bp_len = bitptr.len();
 		let (l, c, r) = bitptr.as_aliased_slice().align_to::<U::Alias>();
 		let l_start = bitptr.head().value() as usize;
-		let l = BitSlice::<O, T::Alias>::from_slice_unchecked(l)
-			.get_unchecked(l_start ..);
-		let c = BitSlice::<O, U::Alias>::from_slice_unchecked(c);
-		let r = BitSlice::<O, T::Alias>::from_slice_unchecked(r)
-			.get_unchecked(.. bitptr.len() - l.len() - c.len());
+		let mut l = BitSlice::<O, T::Alias>::from_slice_unchecked(l);
+		if l.len() > l_start {
+			l = l.get_unchecked(l_start ..);
+		}
+		let mut c = BitSlice::<O, U::Alias>::from_slice_unchecked(c);
+		let c_len = cmp::min(c.len(), bp_len - l.len());
+		c = c.get_unchecked(.. c_len);
+		let mut r = BitSlice::<O, T::Alias>::from_slice_unchecked(r);
+		let r_len = bp_len - l.len() - c.len();
+		if r.len() > r_len {
+			r = r.get_unchecked(.. r_len);
+		}
 		(
 			l.bitptr()
 				.pipe(dvl::remove_bitptr_alias::<T>)
@@ -2216,25 +2227,11 @@ where
 		&mut self,
 	) -> (&mut Self, &mut BitSlice<O, U>, &mut Self)
 	where U: BitStore {
-		let bitptr = self.bitptr();
-		let l_start = bitptr.head().value() as usize;
-		let bp_len = bitptr.len();
-		let (l, c, r) = bitptr.as_aliased_slice().align_to::<U::Alias>();
-		let l = BitSlice::<O, T::Alias>::from_slice_unchecked(l)
-			.get_unchecked(l_start ..);
-		let c = BitSlice::<O, U::Alias>::from_slice_unchecked(c);
-		let r = BitSlice::<O, T::Alias>::from_slice_unchecked(r)
-			.get_unchecked(.. bp_len - l.len() - c.len());
+		let (l, c, r) = self.align_to::<U>();
 		(
-			l.bitptr()
-				.pipe(dvl::remove_bitptr_alias::<T>)
-				.to_bitslice_mut(),
-			c.bitptr()
-				.pipe(dvl::remove_bitptr_alias::<U>)
-				.to_bitslice_mut(),
-			r.bitptr()
-				.pipe(dvl::remove_bitptr_alias::<T>)
-				.to_bitslice_mut(),
+			l.bitptr().to_bitslice_mut(),
+			c.bitptr().to_bitslice_mut(),
+			r.bitptr().to_bitslice_mut(),
 		)
 	}
 }
@@ -2810,6 +2807,7 @@ range_impl! {
 }
 
 /// `RangeFull` is the identity function.
+#[cfg(not(tarpaulin_include))]
 impl<'a, O, T> BitSliceIndex<'a, O, T> for RangeFull
 where
 	O: 'a + BitOrder,

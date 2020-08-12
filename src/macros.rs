@@ -55,7 +55,7 @@ macro_rules! bits {
 			$order, $store; $($val),*
 		);
 		unsafe { $crate::__bits_from_slice!(
-			mut $order, $store, LEN, DATA
+			mut $order, $store, $crate::__count!($($val),*), DATA
 		)}
 	}};
 
@@ -73,7 +73,7 @@ macro_rules! bits {
 			$order, $store; $($val),*
 		);
 		unsafe { $crate::__bits_from_slice!(
-			mut $order, $store, LEN, DATA
+			mut $order, $store, $crate::__count!($($val),*), DATA
 		)}
 	}};
 

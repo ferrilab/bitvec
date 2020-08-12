@@ -12,16 +12,21 @@ use crate::{
 };
 
 use core::{
+	fmt::{
+		self,
+		Debug,
+		Formatter,
+	},
 	iter::{
 		FromIterator,
 		FusedIterator,
 	},
+	mem,
 	ops::{
 		Range,
 		RangeBounds,
 	},
 	ptr::NonNull,
-	slice,
 };
 
 use wyz::{
@@ -40,14 +45,11 @@ where
 		let mut iter = iter.into_iter();
 		match iter.size_hint() {
 			(n, None) | (_, Some(n)) => {
-				// This body exists to try to accelerate
+				// This body exists to try to accelerate the push-per-bit loop.
 				self.reserve(n);
 				let len = self.len();
 				let new_len = len + n;
-				let new = unsafe {
-					self.set_len(new_len);
-					self.get_unchecked_mut(len .. new_len)
-				};
+				let new = unsafe { self.get_unchecked_mut(len .. new_len) };
 				let mut pulled = 0;
 				for (slot, bit) in new.iter_mut().zip(iter.by_ref()) {
 					slot.set(bit);
@@ -209,24 +211,14 @@ where
 		self.iter.as_bitslice()
 	}
 
-	/// Returns the remaining elements of this iterator as a slice.
-	///
-	/// # Original
-	///
-	/// [`vec::IntoIter::as_slice`](https://doc.rust-lang.org/alloc/vec/struct.IntoIter.html#method.as_slice)
-	///
-	/// # Notes
-	///
-	/// You almost certainly want [`.as_bitslice()`].
-	///
-	/// [`.as_bitslice()`]: #method.as_bitslice
-	#[inline]
+	#[doc(hidden)]
+	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	pub fn as_slice(&self) -> &[T] {
-		let bitptr = self.as_bitslice().bitptr();
-		unsafe {
-			slice::from_raw_parts(bitptr.pointer().to_const(), bitptr.elements())
-		}
+	#[deprecated(
+		note = "Use `.as_bitslice()` on iterators to view the remaining data."
+	)]
+	pub fn as_slice(&self) -> &BitSlice<O, T> {
+		self.as_bitslice()
 	}
 
 	/// Returns the remaining bits of this iterator as a mutable slice.
@@ -249,21 +241,22 @@ where
 	/// assert!(into_iter.next().unwrap());
 	/// ```
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
 		self.iter.as_bitslice().bitptr().to_bitslice_mut()
 	}
 
-	#[inline]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	#[doc(hidden)]
-	#[deprecated(
-		note = "Use `.as_mut_bitslice` on iterators to view the remaining data"
-	)]
+	#[deprecated(note = "Use `.as_mut_bitslice()` on iterators to view the \
+	                     remaining data.")]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_slice(&mut self) -> &mut BitSlice<O, T> {
 		self.as_mut_bitslice()
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Iterator for IntoIter<O, T>
 where
 	O: BitOrder,
@@ -271,53 +264,56 @@ where
 {
 	type Item = bool;
 
-	#[inline]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn next(&mut self) -> Option<Self::Item> {
 		self.iter.next().copied()
 	}
 
-	#[inline]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		self.iter.size_hint()
 	}
 
-	#[inline]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn count(self) -> usize {
 		self.len()
 	}
 
-	#[inline]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
 		self.iter.nth(n).copied()
 	}
 
-	#[inline]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn last(mut self) -> Option<Self::Item> {
 		self.next_back()
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> DoubleEndedIterator for IntoIter<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.iter.next_back().copied()
 	}
 
-	#[inline]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
 		self.iter.nth_back(n).copied()
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> ExactSizeIterator for IntoIter<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn len(&self) -> usize {
 		self.iter.len()
 	}
@@ -341,11 +337,10 @@ This `struct` is created by the [`drain`] method on [`BitVec`].
 [`BitVec`]: struct.BitVec.html
 [`drain`]: struct.BitVec.html#method.drain
 **/
-#[derive(Debug)]
 pub struct Drain<'a, O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: 'a + BitStore,
 {
 	/// Exclusive reference to the vector this drains.
 	source: NonNull<BitVec<O, T>>,
@@ -359,125 +354,179 @@ where
 impl<'a, O, T> Drain<'a, O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: 'a + BitStore,
 {
+	#[inline]
 	pub(super) fn new<R>(source: &'a mut BitVec<O, T>, range: R) -> Self
 	where R: RangeBounds<usize> {
+		//  Hold the current vector size for bounds comparison.
 		let len = source.len();
+		//  Normalize the input range and assert that it is within bounds.
 		let drain = dvl::normalize_range(range, len);
 		dvl::assert_range(drain.clone(), len);
 
+		//  The tail region is everything after the drain, before the real end.
 		let tail = drain.end .. len;
+		//  The drain span is an iterator over the provided range.
 		let drain = unsafe {
-			//  Truncate the source vector to the beginning of the drain.
+			//  Set the source vector to end before the drain.
 			source.set_len(drain.start);
+			//  Grab the drain range and produce an iterator over it.
 			source
 				.as_bitslice()
 				.get_unchecked(drain)
-				//  Remove the lifetime and borrow information
+				//  Detach the region from the `source` borrow.
 				.bitptr()
-				.to_bitslice_ref().iter()
+				.to_bitslice_ref()
+				.iter()
 		};
+		let source = source.into();
 		Self {
-			source: source.into(),
+			source,
 			drain,
 			tail,
 		}
 	}
 
-	#[inline]
-	fn tail_len(&self) -> usize {
-		self.tail.end - self.tail.start
+	/// Returns the remaining bits of this iterator as a bit-slice.
+	///
+	/// # Original
+	///
+	/// [`Drain::as_slice`](https://doc.rust-lang.org/alloc/vec/struct.Drain.html#method.as_slice)
+	///
+	/// # API Differences
+	///
+	/// This method is renamed, as it operates on a bit-slice rather than an
+	/// element slice.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	pub fn as_bitslice(&self) -> &'a BitSlice<O, T> {
+		self.drain.as_bitslice()
 	}
 
 	/// Attempts to overwrite the drained region with another iterator.
 	///
 	/// # Type Parameters
 	///
-	/// - `I`: Some source of `bool`s
+	/// - `I`: Some source of `bool`s.
 	///
 	/// # Parameters
 	///
 	/// - `&mut self`
-	/// - `stream`: A source of `bools` with which to overwrite the drained
-	///   span.
+	/// - `iter`: A source of `bool`s with which to overwrite the drained span.
 	///
 	/// # Returns
 	///
-	/// - `true` if the drained span was completely overwritten by `stream`.
-	/// - `false` if the `stream` exhausted early.
+	/// Whether the drained span was completely filled, or if the replacement
+	/// source `iter`ator was exhausted first.
 	///
 	/// # Effects
 	///
-	/// If the drained region is completely filled by the replacement `stream`,
-	/// then the source vector is restored to its original length, and this
-	/// `Drain` has no further work.
-	///
-	/// If the `stream` exhausts before completely filling the drained region,
-	/// then the source vector is extended only to include the portion of the
-	/// drain that was replaced. The tail section is not restored to the vector
-	/// until the destructor runs.
-	fn fill<I>(&mut self, stream: &mut I) -> bool
+	/// The source vector is extended to include all bits filled in from the
+	/// replacement `iter`ator, but is *not* extended to include the tail, even
+	/// if drained region is completely filled. This work is done in the
+	/// destructor.
+	#[inline]
+	fn fill<I>(&mut self, iter: &mut I) -> FillStatus
 	where I: Iterator<Item = bool> {
-		let tail_len = self.tail_len();
-		let bv = unsafe { self.source.as_mut() };
+		let bitvec = unsafe { self.source.as_mut() };
+		//  Get the length of the source vector. This will be grown as `iter`
+		//  writes into the drain span.
+		let mut len = bitvec.len();
+		//  Get the drain span as a bit-slice.
+		let span = unsafe { bitvec.get_unchecked_mut(len .. self.tail.start) };
 
-		//  The entire span between `bv.len()` and `tail.start` is considered
-		//  dead, and should be filled by `stream`.
-		for idx in bv.len() .. self.tail.start {
-			if let Some(bit) = stream.next() {
-				unsafe {
-					bv.set_unchecked(idx, bit);
-				}
+		//  Set the exit flag to assume completion.
+		let mut out = FillStatus::FullSpan;
+		//  Write the `iter` bits into the drain `span`.
+		for slot in span {
+			//  While the `iter` is not exhausted, write it into the span and
+			//  increase the vector length counter.
+			if let Some(bit) = iter.next() {
+				slot.set(bit);
+				len += 1;
 			}
-			//  When the stream exhausts, extend the front region to the loop
-			//  counter and exit. The destructor will finish relocation.
+			//  If the `iter` exhausts before the drain `span` is filled, set
+			//  the exit flag accordingly.
 			else {
-				unsafe {
-					bv.set_len(idx + tail_len);
-				}
-				return false;
+				out = FillStatus::EmptyInput;
+				break;
 			}
 		}
-		//  If the drain region is completely filled, then the vector’s length
-		//  reaches the end of the tail.
+		//  Update the vector length counter to include the bits written by
+		//  `iter`.
 		unsafe {
-			bv.set_len(self.tail.end);
+			bitvec.set_len(len);
 		}
-		//  Prevent the destructor from running by erasing the tail.
-		self.tail = 0 .. 0;
-		true
+		out
 	}
 
-	/// Resizes the middle drain segment to a new width.
+	/// Inserts `additional` capacity between the vector and the tail.
 	///
 	/// # Parameters
 	///
 	/// - `&mut self`
-	/// - `width`: The width, in bits, between the back edge of the head segment
-	///   and the front edge of the tail segment.
+	/// - `additional`: The amount of new bits to reserve between the head and
+	///   tail sections of the vector.
 	///
 	/// # Effects
 	///
 	/// This is permitted to reällocate the buffer in order to grow capacity.
-	/// After completion, the tail segment will be relocated to begin `width`
-	/// bits after the head segment ends. The drain iteration cursor will *not*
-	/// be modified.
-	fn resize_drain(&mut self, width: usize) {
-		let tail_len = self.tail_len();
-		let bv = unsafe { self.source.as_mut() };
-		let base_len = bv.len();
-		let new_tail = base_len + width;
-		let new_end = new_tail + tail_len;
-		//  Ensure capacity for the drain and tail segments.
-		bv.reserve(new_end - base_len);
-		unsafe {
-			bv.copy_within_unchecked(self.tail.clone(), new_tail);
-		}
-		self.tail = new_tail .. new_end;
+	/// After completion, the tail segment will be relocated to begin
+	/// `additional` bits after the head segment ends. The drain iteration
+	/// cursor will not be modified.
+	#[inline]
+	unsafe fn move_tail(&mut self, additional: usize) {
+		let bitvec = self.source.as_mut();
+		let tail_len = self.tail.end - self.tail.start;
+
+		//  Reserve allocation capacity for `additional` and the tail.
+		//  `.reserve()` begins from the `bitvec.len()`, so the tail length must
+		//  still be included.
+		let full_len = additional + tail_len;
+		bitvec.reserve(full_len);
+		let new_tail_start = additional + self.tail.start;
+		let orig_tail = mem::replace(
+			&mut self.tail,
+			new_tail_start .. new_tail_start + tail_len,
+		);
+		//  Temporarily resize the vector to include the full buffer. This is
+		//  necessary until `copy_within_unchecked` stops using `.len()`
+		//  internally.
+		let len = bitvec.len();
+		bitvec.set_len(full_len);
+		bitvec.copy_within_unchecked(orig_tail, new_tail_start);
+		bitvec.set_len(len);
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
+impl<O, T> AsRef<BitSlice<O, T>> for Drain<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline(always)]
+	fn as_ref(&self) -> &BitSlice<O, T> {
+		self.as_bitslice()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<'a, O, T> Debug for Drain<'a, O, T>
+where
+	O: BitOrder,
+	T: 'a + BitStore,
+{
+	#[inline]
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		fmt.debug_tuple("Drain")
+			.field(&self.drain.as_bitslice())
+			.finish()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Iterator for Drain<'_, O, T>
 where
 	O: BitOrder,
@@ -485,54 +534,56 @@ where
 {
 	type Item = bool;
 
-	#[inline]
+	#[inline(always)]
 	fn next(&mut self) -> Option<Self::Item> {
 		self.drain.next().copied()
 	}
 
-	#[inline]
+	#[inline(always)]
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		self.drain.size_hint()
 	}
 
-	#[inline]
+	#[inline(always)]
 	fn count(self) -> usize {
 		self.len()
 	}
 
-	#[inline]
+	#[inline(always)]
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
 		self.drain.nth(n).copied()
 	}
 
-	#[inline]
+	#[inline(always)]
 	fn last(mut self) -> Option<Self::Item> {
 		self.next_back()
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> DoubleEndedIterator for Drain<'_, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
+	#[inline(always)]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.drain.next_back().copied()
 	}
 
-	#[inline]
+	#[inline(always)]
 	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
 		self.drain.nth_back(n).copied()
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> ExactSizeIterator for Drain<'_, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
+	#[inline(always)]
 	fn len(&self) -> usize {
 		self.drain.len()
 	}
@@ -545,25 +596,60 @@ where
 {
 }
 
+unsafe impl<O, T> Send for Drain<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
+
+unsafe impl<O, T> Sync for Drain<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
+
 impl<O, T> Drop for Drain<'_, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn drop(&mut self) {
-		match self.tail_len() {
-			//  If there is no tail segment, there is no finalization work.
-			0 => {},
-			n => unsafe {
-				let bv = self.source.as_mut();
-				let start = bv.len();
-				let new_len = start + n;
-				//  Copy the tail span down to the start of the drained region.
-				bv.copy_within_unchecked(self.tail.clone(), start);
-				bv.set_len(new_len);
-			},
+		//  Grab the tail range descriptor
+		let tail = self.tail.clone();
+		//  And compute its length.
+		let tail_len = tail.end - tail.start;
+		//  If the tail region is empty, then there is no cleanup work to do.
+		if tail_len == 0 {
+			return;
+		}
+		//  Otherwise, access the source vector,
+		let bitvec = unsafe { self.source.as_mut() };
+		//  And grab its current end.
+		let old_len = bitvec.len();
+		let new_len = old_len + tail_len;
+		unsafe {
+			//  Expand the vector to include where the tail bits will be.
+			bitvec.set_len(new_len);
+			//  Then move the tail bits into the new location.
+			bitvec.copy_within_unchecked(tail, old_len);
+			//  This ordering is important! `copy_within_unchecked` uses the
+			//  `len` boundary.
 		}
 	}
+}
+
+/// `std` uses a `bool` flag for done/not done, which is less clear about what
+/// it signals.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum FillStatus {
+	/// The drain span is completely filled.
+	FullSpan   = 0,
+	/// The replacement source is completely emptied.
+	EmptyInput = 1,
 }
 
 /** A splicing iterator for `BitVec`.
@@ -582,30 +668,30 @@ documentation for more.
 pub struct Splice<'a, O, T, I>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: 'a + BitStore,
 	I: Iterator<Item = bool>,
 {
-	/// Drain controller for the region of the vector being spliced.
+	/// The region of the vector being spliced.
 	drain: Drain<'a, O, T>,
-	/// Source of bits written into the drain.
+	/// The bitstream to be written into the drain.
 	splice: I,
 }
 
 impl<'a, O, T, I> Splice<'a, O, T, I>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: 'a + BitStore,
 	I: Iterator<Item = bool>,
 {
+	/// Constructs a splice out of a drain and a replacement.
 	pub(super) fn new<II>(drain: Drain<'a, O, T>, splice: II) -> Self
 	where II: IntoIterator<IntoIter = I, Item = bool> {
-		Self {
-			drain,
-			splice: splice.into_iter(),
-		}
+		let splice = splice.into_iter();
+		Self { drain, splice }
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, I> Iterator for Splice<'_, O, T, I>
 where
 	O: BitOrder,
@@ -614,69 +700,68 @@ where
 {
 	type Item = bool;
 
+	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
 		self.drain.next().tap_some(|_| {
 			/* Attempt to write a bit into the now-vacated slot at the front of
-			the `Drain`. If the `splice` stream produced a bit, then it is
-			written into the end of the `Drain`’s vector handle. This works
-			because `Drain` always truncates its handle to the front edge of the
-			drain region, so `bv.len()` is always the first bit of the `Drain`
-			if the `Drain` is willing to yield.
+			the `Drain`. If the `splice` stream produces a bit, then it is
+			written into the end of the `Drain`’s buffer, extending it by one.
+			This works because `Drain` always truncates its vector to the front
+			edge of the drain region, so `bv.len()` is always the first bit of
+			the `Drain` region if the `Drain` is willing to yield a bit.
 			*/
-			self.splice.next().tap_some(|new| {
+			if let Some(bit) = self.splice.next() {
 				unsafe {
 					let bv = self.drain.source.as_mut();
 					let len = bv.len();
-					//  It is always sound to write directly into the front of a
-					//  `Drain`.
-					/* TODO(myrrlyn): Extend `Iter` to have a `.next_slot`
-					function which permits an `xchg` behavior, to avoid
-					computing the pointer individually for read and write.
+					/* TODO(myrrlyn): Investigate adding functionality to `Iter`
+					that permits an exchange behavior, rather than separated
+					computations of the pointer for read and write access.
 					*/
-					bv.set_unchecked(len, *new);
+					bv.set_unchecked(len, bit);
 					bv.set_len(len + 1);
 				}
-			})
+			}
 		})
 	}
 
-	#[inline]
+	#[inline(always)]
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		self.drain.size_hint()
 	}
 
-	#[inline]
+	#[inline(always)]
 	fn count(self) -> usize {
 		self.drain.len()
 	}
 }
 
-//  Take from the back of the drain, without attempting to fill from the splice.
-//  This makes dead regions that are cleaned up on drop.
+#[cfg(not(tarpaulin_include))]
 impl<O, T, I> DoubleEndedIterator for Splice<'_, O, T, I>
 where
 	O: BitOrder,
 	T: BitStore,
 	I: Iterator<Item = bool>,
 {
-	#[inline]
+	#[inline(always)]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.drain.next_back()
 	}
 
-	#[inline]
+	#[inline(always)]
 	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
 		self.drain.nth_back(n)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, I> ExactSizeIterator for Splice<'_, O, T, I>
 where
 	O: BitOrder,
 	T: BitStore,
 	I: Iterator<Item = bool>,
 {
-	#[inline]
+	#[inline(always)]
 	fn len(&self) -> usize {
 		self.drain.len()
 	}
@@ -696,43 +781,51 @@ where
 	T: BitStore,
 	I: Iterator<Item = bool>,
 {
+	#[inline]
 	fn drop(&mut self) {
-		//  If the drain has no tail segment, copy the splice into the vector.
-		if self.drain.tail_len() == 0 {
-			unsafe { self.drain.source.as_mut() }.extend(self.splice.by_ref());
-			return;
-		}
-		/* Attempt to fill the dead region between the front and back segments
-		the vector with the splice. If the splice exhausts (`return false`),
-		then the `Drain` destructor will handle tail-section cleanup.
-		*/
-		if !self.drain.fill(&mut self.splice) {
-			return;
-		}
+		let tail = self.drain.tail.clone();
+		let tail_len = tail.end - tail.start;
+		let bitvec = unsafe { self.drain.source.as_mut() };
 
-		let (lower, upper) = self.splice.size_hint();
-
-		//  If the splice gives an exact upper bound on its remaining bits, move
-		//  the drain’s tail and fill it. The signal can be safely discarded.
-		if let Some(rem) = upper {
-			//  Relocate the tail section to
-			self.drain.resize_drain(rem);
-			self.drain.fill(&mut self.splice);
+		//  If the `drain` has no tail span, then extend the vector with the
+		//  splice and exit.
+		if tail_len == 0 {
+			bitvec.extend(self.splice.by_ref());
 			return;
 		}
 
-		/* If the slice did not give an upper bound, then it must be collected
-		into a temporary which will either crash the program, or find an exact
-		limit. This temporary can then be used to fill the drain.
-		*/
-		let mut tmp: BitVec = BitVec::with_capacity(lower);
-		tmp.extend(self.splice.by_ref());
-		match tmp.len() {
-			0 => {},
-			n => {
-				self.drain.resize_drain(n);
-				self.drain.fill(&mut tmp.into_iter());
-			},
+		//  Fill the drained range first. If the `splice` exhausts, then the
+		//  `Drain` destructor will handle relocating the vector tail segment.
+		if let FillStatus::EmptyInput = self.drain.fill(&mut self.splice) {
+			return;
+		}
+
+		//  If the `splice` has not yet exhausted, then the `Drain` needs to
+		//  adjust to receive its contents.
+		let len = match self.splice.size_hint() {
+			(n, None) | (_, Some(n)) => n,
+		};
+		unsafe {
+			self.drain.move_tail(len);
+		}
+		//  Now that the tail has been relocated, fill the `splice` into it. If
+		//  this exhausts the `splice`, exit.
+		if let FillStatus::EmptyInput = self.drain.fill(&mut self.splice) {
+			return;
+		}
+
+		//  If the `splice` *still* has bits to provide, then its `.size_hint()`
+		//  is untrustworthy. Collect the `splice` into a vector, then insert
+		//  the vector into the spliced region.
+		let mut collected = self.splice.by_ref().collect::<BitVec>().into_iter();
+		let len = collected.len();
+		if len > 0 {
+			unsafe {
+				self.drain.move_tail(len);
+			}
+			let filled = self.drain.fill(&mut collected);
+			debug_assert_eq!(filled, FillStatus::EmptyInput);
+			debug_assert_eq!(collected.len(), 0);
 		}
 	}
 }

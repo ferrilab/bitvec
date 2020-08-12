@@ -1734,7 +1734,8 @@ where
 	where R: RangeBounds<usize> {
 		let len = self.len();
 		let rev = src.contains(&dest);
-		let iter = dvl::normalize_range(src, len).zip(dest .. len);
+		let source = dvl::normalize_range(src, len);
+		let iter = source.zip(dest .. len);
 		if rev {
 			for (from, to) in iter.rev() {
 				self.copy_unchecked(from, to);

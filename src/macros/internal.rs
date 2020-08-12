@@ -440,3 +440,21 @@ pub use self::u8_from_le_bits as u8_from_ne_bits;
 #[doc(hidden)]
 #[cfg(target_endian = "big")]
 pub use self::u8_from_be_bits as u8_from_ne_bits;
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn byte_assembly() {
+		assert_eq!(
+			u8_from_le_bits(false, false, true, true, false, true, false, true),
+			0b1010_1100
+		);
+
+		assert_eq!(
+			u8_from_be_bits(false, false, true, true, false, true, false, true),
+			0b0011_0101
+		);
+	}
+}

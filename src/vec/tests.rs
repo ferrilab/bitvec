@@ -2,9 +2,19 @@
 
 use crate::prelude::*;
 
-use core::ptr;
+use core::{
+	iter,
+	ptr,
+};
 
 use std::panic::catch_unwind;
+
+#[test]
+fn from_vec() {
+	let bv = BitVec::<Msb0, u8>::from_vec(vec![0, 1, 2, 3]);
+	assert_eq!(bv.len(), 32);
+	assert_eq!(bv.count_ones(), 4);
+}
 
 #[test]
 fn push() {
@@ -119,7 +129,7 @@ fn reservations() {
 #[test]
 fn iterators() {
 	let data = 0x35u8.view_bits::<Msb0>();
-	let bv: BitVec = data.iter().collect();
+	let bv: BitVec<Msb0, u8> = data.iter().collect();
 	assert_eq!(bv.count_ones(), 4);
 
 	for (l, r) in (&bv).into_iter().zip(bits![0, 0, 1, 1, 0, 1, 0, 1]) {
@@ -138,7 +148,20 @@ fn iterators() {
 	let mut iter = bv.clone().into_iter();
 	assert!(!iter.next().unwrap());
 	assert_eq!(iter.as_bitslice(), data[1 ..]);
-	assert_eq!(iter.as_slice(), &[0x35]);
+
+	let mut bv = bitvec![0, 0, 1, 0, 0, 1, 0, 0];
+	let mut splice = bv.splice(2 .. 6, bits![0; 4].iter().copied());
+	assert!(splice.next().unwrap());
+	assert!(splice.next_back().unwrap());
+	assert!(!splice.nth(0).unwrap());
+	assert!(!splice.nth_back(0).unwrap());
+	drop(splice);
+	assert_eq!(bv, bits![0; 8]);
+
+	let mut bv = bitvec![0, 1, 1, 1, 1, 0];
+	let splice = bv.splice(1 .. 5, iter::once(false));
+	drop(splice);
+	assert_eq!(bv, bits![0; 3]);
 }
 
 #[test]
@@ -186,4 +209,14 @@ fn misc() {
 	let mut bv = bitvec![];
 	bv.extend_from_slice(&[false, false, true, true, false, true]);
 	assert_eq!(bv, bits![0, 0, 1, 1, 0, 1]);
+}
+
+#[test]
+fn cloning() {
+	let mut a = bitvec![0];
+	let b = bitvec![1; 20];
+
+	assert_ne!(a, b);
+	a.clone_from(&b);
+	assert_eq!(a, b);
 }

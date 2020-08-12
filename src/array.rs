@@ -231,6 +231,7 @@ where
 
 	/// Views the array as a slice of its raw underlying memory type.
 	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_raw_slice(&self) -> &[V::Mem] {
 		unsafe {
 			slice::from_raw_parts(
@@ -242,6 +243,7 @@ where
 
 	/// Views the array as a mutable slice of its raw underlying memory type.
 	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_raw_mut_slice(&mut self) -> &mut [V::Mem] {
 		unsafe {
 			slice::from_raw_parts_mut(

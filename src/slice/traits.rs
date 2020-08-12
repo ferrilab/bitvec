@@ -79,6 +79,8 @@ where
 	}
 }
 
+//  ref-to-val equality
+
 #[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<BitSlice<O2, T2>> for &BitSlice<O1, T1>
 where
@@ -89,7 +91,7 @@ where
 {
 	#[inline]
 	fn eq(&self, rhs: &BitSlice<O2, T2>) -> bool {
-		*self == rhs
+		**self == rhs
 	}
 }
 
@@ -103,9 +105,11 @@ where
 {
 	#[inline]
 	fn eq(&self, rhs: &BitSlice<O2, T2>) -> bool {
-		*self == rhs
+		**self == rhs
 	}
 }
+
+//  val-to-ref equality
 
 #[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<&BitSlice<O2, T2>> for BitSlice<O1, T1>
@@ -161,7 +165,8 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
+//  ref-to-val ordering
+
 impl<O1, O2, T1, T2> PartialOrd<BitSlice<O2, T2>> for &BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -175,7 +180,21 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
+impl<O1, O2, T1, T2> PartialOrd<BitSlice<O2, T2>> for &mut BitSlice<O1, T1>
+where
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
+{
+	#[inline]
+	fn partial_cmp(&self, rhs: &BitSlice<O2, T2>) -> Option<cmp::Ordering> {
+		(**self).partial_cmp(rhs)
+	}
+}
+
+//  val-to-ref ordering
+
 impl<O1, O2, T1, T2> PartialOrd<&BitSlice<O2, T2>> for BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -185,7 +204,48 @@ where
 {
 	#[inline]
 	fn partial_cmp(&self, rhs: &&BitSlice<O2, T2>) -> Option<cmp::Ordering> {
-		(*self).partial_cmp(*rhs)
+		(*self).partial_cmp(&**rhs)
+	}
+}
+
+impl<O1, O2, T1, T2> PartialOrd<&mut BitSlice<O2, T2>> for BitSlice<O1, T1>
+where
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
+{
+	#[inline]
+	fn partial_cmp(&self, rhs: &&mut BitSlice<O2, T2>) -> Option<cmp::Ordering> {
+		(*self).partial_cmp(&**rhs)
+	}
+}
+
+//  &mut-to-& ordering
+
+impl<O1, O2, T1, T2> PartialOrd<&mut BitSlice<O2, T2>> for &BitSlice<O1, T1>
+where
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
+{
+	#[inline]
+	fn partial_cmp(&self, rhs: &&mut BitSlice<O2, T2>) -> Option<cmp::Ordering> {
+		(**self).partial_cmp(&**rhs)
+	}
+}
+
+impl<O1, O2, T1, T2> PartialOrd<&BitSlice<O2, T2>> for &mut BitSlice<O1, T1>
+where
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
+{
+	#[inline]
+	fn partial_cmp(&self, rhs: &&BitSlice<O2, T2>) -> Option<cmp::Ordering> {
+		(**self).partial_cmp(&**rhs)
 	}
 }
 
@@ -197,7 +257,7 @@ where
 {
 	type Error = &'a [T];
 
-	#[inline(always)]
+	#[inline]
 	fn try_from(slice: &'a [T]) -> Result<Self, Self::Error> {
 		BitSlice::from_slice(slice).ok_or(slice)
 	}
@@ -247,7 +307,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
+	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(self, fmt)
 	}

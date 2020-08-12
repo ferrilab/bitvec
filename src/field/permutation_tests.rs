@@ -4,8 +4,6 @@ This module runs battery tests on implementations of `BitField` to check that
 they behave as expected.
 !*/
 
-#![cfg(test)]
-
 use super::*;
 use crate::prelude::*;
 

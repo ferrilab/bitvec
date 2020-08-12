@@ -25,6 +25,7 @@ use core::{
 	},
 };
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitAnd<Rhs> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -40,6 +41,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitAndAssign<Rhs> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -52,6 +54,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitOr<Rhs> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -67,6 +70,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitOrAssign<Rhs> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -79,6 +83,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitXor<Rhs> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -94,6 +99,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitXorAssign<Rhs> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -174,6 +180,11 @@ where
 	}
 }
 
+/** This implementation inverts all elements in the live buffer. You cannot rely
+on the value of bits in the buffer that are outside the domain of
+`BitVec::as_mit_bitslice`.
+**/
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Not for BitVec<O, T>
 where
 	O: BitOrder,
