@@ -4,7 +4,7 @@
 indexing within a sequence from selecting a bit within a memory element. Users
 are allowed to choose, or even create, a function that transforms an abstract
 index into an actual selection mask. To make matters even more complex, users
-are also allowed to choose which of the fundamental integer types will be used
+are also allowed to choose which of the fundamental register types will be used
 as the base unit of memory, with no intermediate subdivision between that type
 and the individual bits.
 
@@ -17,10 +17,9 @@ from left to right. There is nothing special about this ordering; it is merely
 the custom that the author was taught.
 
 The `L0` and `M0` indicate the `Lsb0` and `Msb0` ordering parameters,
-respectively, and `uXX` indicates that the row matches all integer types. Within
-the table, traversal begins at zero and follows the arrows to each successive
-integer step. Boundaries between integers are marked with a column; boundaries
-between bytes within the same integer are marked with a space.
+respectively, and `uXX` indicates that the row matches all register types.
+Within the table, traversal begins at zero and follows the arrows to each
+successive register step. Boundaries between registers are marked with a column; boundaries between bytes within the same register are marked with a space.
 
 ## Little-Endian Byte-Ordered Machines
 
