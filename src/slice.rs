@@ -414,44 +414,12 @@ where
 	_mem: [()],
 }
 
-/// Methods specific to `BitSlice<_, T>`, and not present on `[T]`.
+/// Constructors are limited to integers only, and not their `Cell`s or atomics.
 impl<O, T> BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitStore + BitMemory,
 {
-	/// Produces the empty slice. This is equivalent to `&[]` for ordinary
-	/// slices.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bits: &BitSlice = BitSlice::empty();
-	/// assert!(bits.is_empty());
-	/// ```
-	#[inline]
-	pub fn empty<'a>() -> &'a Self {
-		BitPtr::EMPTY.to_bitslice_ref()
-	}
-
-	/// Produces the empty mutable slice. This is equivalent to `&mut []` for
-	/// ordinary slices.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bits: &mut BitSlice = BitSlice::empty_mut();
-	/// assert!(bits.is_empty());
-	/// ```
-	#[inline]
-	pub fn empty_mut<'a>() -> &'a mut Self {
-		BitPtr::EMPTY.to_bitslice_mut()
-	}
-
 	/// Constructs a shared `&BitSlice` reference over a shared element.
 	///
 	/// The [`BitView`] trait, implemented on all `T` elements, provides a
@@ -681,6 +649,45 @@ where
 		let bits = cmp::min(slice.len() * T::Mem::BITS as usize, Self::MAX_BITS);
 		BitPtr::new_unchecked(slice.as_ptr(), BitIdx::ZERO, bits)
 			.to_bitslice_mut()
+	}
+}
+
+/// Methods specific to `BitSlice<_, T>`, and not present on `[T]`.
+impl<O, T> BitSlice<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	/// Produces the empty slice. This is equivalent to `&[]` for ordinary
+	/// slices.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bits: &BitSlice = BitSlice::empty();
+	/// assert!(bits.is_empty());
+	/// ```
+	#[inline]
+	pub fn empty<'a>() -> &'a Self {
+		BitPtr::EMPTY.to_bitslice_ref()
+	}
+
+	/// Produces the empty mutable slice. This is equivalent to `&mut []` for
+	/// ordinary slices.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bits: &mut BitSlice = BitSlice::empty_mut();
+	/// assert!(bits.is_empty());
+	/// ```
+	#[inline]
+	pub fn empty_mut<'a>() -> &'a mut Self {
+		BitPtr::EMPTY.to_bitslice_mut()
 	}
 
 	/// Sets the bit value at the given position.
@@ -1790,6 +1797,19 @@ where
 	O: BitOrder,
 	T: BitStore + Radium<<T as BitStore>::Mem>,
 {
+	/// Constructs a `BitSlice` over aliased memory.
+	///
+	/// This is restricted so that it can only be used within the crate.
+	/// Construction of a `BitSlice` over externally-aliased memory is unsound.
+	pub(crate) unsafe fn from_aliased_slice_unchecked(slice: &[T]) -> &Self {
+		BitPtr::new_unchecked(
+			slice.as_ptr(),
+			BitIdx::ZERO,
+			slice.len() * T::Mem::BITS as usize,
+		)
+		.to_bitslice_ref()
+	}
+
 	/// Splits a mutable slice at some mid-point.
 	///
 	/// This method has the same behavior as [`split_at_mut`], except that it
@@ -1926,7 +1946,7 @@ pub unsafe fn bits_from_raw_parts<'a, O, T>(
 ) -> Option<&'a BitSlice<O, T>>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: 'a + BitStore + BitMemory,
 {
 	let head = crate::index::BitIdx::new(head)?;
 	BitPtr::new(addr, head, bits).map(BitPtr::to_bitslice_ref)
@@ -1985,7 +2005,7 @@ pub unsafe fn bits_from_raw_parts_mut<'a, O, T>(
 ) -> Option<&'a mut BitSlice<O, T>>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: 'a + BitStore + BitMemory,
 {
 	let head = crate::index::BitIdx::new(head)?;
 	BitPtr::new(addr, head, bits).map(BitPtr::to_bitslice_mut)

@@ -510,6 +510,8 @@ macro_rules! domain {
 			///
 			/// If `self` is the [`Region`] variant, this returns `Some` of the
 			/// region fields, as a tuple. Otherwise, it returns `None`.
+			///
+			/// [`Region`]: #variant.Region
 			#[inline]
 			pub fn region(self) -> Option<(
 				Option<(BitIdx<T::Mem>, &'a T::Alias)>,

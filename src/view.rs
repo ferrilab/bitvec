@@ -119,7 +119,7 @@ pub trait BitView {
 
 #[cfg(not(tarpaulin_include))]
 impl<T> BitView for T
-where T: BitStore
+where T: BitStore + BitMemory
 {
 	type Mem = T::Mem;
 	type Store = Self;
@@ -145,7 +145,7 @@ where T: BitStore
 
 #[cfg(not(tarpaulin_include))]
 impl<T> BitView for [T]
-where T: BitStore
+where T: BitStore + BitMemory
 {
 	type Mem = T::Mem;
 	type Store = T;
@@ -345,7 +345,7 @@ where T: BitStore
 impl<A, T> AsBits<T> for A
 where
 	A: AsRef<[T]>,
-	T: BitStore,
+	T: BitStore + BitMemory,
 {
 	#[inline]
 	fn as_bits<O>(&self) -> &BitSlice<O, T>
@@ -358,7 +358,7 @@ where
 impl<A, T> AsBitsMut<T> for A
 where
 	A: AsMut<[T]>,
-	T: BitStore,
+	T: BitStore + BitMemory,
 {
 	#[inline]
 	fn as_bits_mut<O>(&mut self) -> &mut BitSlice<O, T>

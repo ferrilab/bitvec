@@ -2112,9 +2112,9 @@ where
 	/// Type `U` is **required** to have the same type family as type `T`.
 	/// Whatever `T` is of the fundamental integers, atomics, or `Cell`
 	/// wrappers, `U` must be a different width in the same family. Changing the
-	/// type family with this method is illegal. Unfortunately, it cannot be
-	/// guaranteed by this function, so you are required to abide by this
-	/// limitation.
+	/// type family with this method is **unsound** and strictly forbidden.
+	/// Unfortunately, it cannot be guaranteed by this function, so you are
+	/// required to abide by this limitation.
 	///
 	/// # Safety
 	///
@@ -2153,14 +2153,14 @@ where
 		let bp_len = bitptr.len();
 		let (l, c, r) = bitptr.as_aliased_slice().align_to::<U::Alias>();
 		let l_start = bitptr.head().value() as usize;
-		let mut l = BitSlice::<O, T::Alias>::from_slice_unchecked(l);
+		let mut l = BitSlice::<O, T::Alias>::from_aliased_slice_unchecked(l);
 		if l.len() > l_start {
 			l = l.get_unchecked(l_start ..);
 		}
-		let mut c = BitSlice::<O, U::Alias>::from_slice_unchecked(c);
+		let mut c = BitSlice::<O, U::Alias>::from_aliased_slice_unchecked(c);
 		let c_len = cmp::min(c.len(), bp_len - l.len());
 		c = c.get_unchecked(.. c_len);
-		let mut r = BitSlice::<O, T::Alias>::from_slice_unchecked(r);
+		let mut r = BitSlice::<O, T::Alias>::from_aliased_slice_unchecked(r);
 		let r_len = bp_len - l.len() - c.len();
 		if r.len() > r_len {
 			r = r.get_unchecked(.. r_len);
@@ -2198,9 +2198,9 @@ where
 	/// Type `U` is **required** to have the same type family as type `T`.
 	/// Whatever `T` is of the fundamental integers, atomics, or `Cell`
 	/// wrappers, `U` must be a different width in the same family. Changing the
-	/// type family with this method is illegal. Unfortunately, it cannot be
-	/// guaranteed by this function, so you are required to abide by this
-	/// limitation.
+	/// type family with this method is **unsound** and strictly forbidden.
+	/// Unfortunately, it cannot be guaranteed by this function, so you are
+	/// required to abide by this limitation.
 	///
 	/// # Safety
 	///
@@ -2330,11 +2330,11 @@ where
 
 [`slice::from_ref`](https://doc.rust-lang.org/core/slice/fn.from_ref.html)
 **/
-#[inline]
+#[inline(always)]
 pub fn from_ref<O, T>(elem: &T) -> &BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitStore + BitMemory,
 {
 	BitSlice::from_element(elem)
 }
@@ -2345,11 +2345,11 @@ where
 
 [`slice::from_mut`](https://doc.rust-lang.org/core/slice/fn.from_mut.html)
 **/
-#[inline]
+#[inline(always)]
 pub fn from_mut<O, T>(elem: &mut T) -> &mut BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitStore + BitMemory,
 {
 	BitSlice::from_element_mut(elem)
 }
@@ -2417,7 +2417,7 @@ pub unsafe fn from_raw_parts<'a, O, T>(
 ) -> &'a BitSlice<O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: 'a + BitStore + BitMemory,
 {
 	super::bits_from_raw_parts(data, 0, len * T::Mem::BITS as usize)
 		.unwrap_or_else(|| {
@@ -2466,7 +2466,7 @@ pub unsafe fn from_raw_parts_mut<'a, O, T>(
 ) -> &'a mut BitSlice<O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: 'a + BitStore + BitMemory,
 {
 	super::bits_from_raw_parts_mut(data, 0, len * T::Mem::BITS as usize)
 		.unwrap_or_else(|| {

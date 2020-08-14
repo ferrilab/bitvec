@@ -149,7 +149,7 @@ where
 impl<'de, O, T> Deserialize<'de> for BitArray<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitStore + BitMemory,
 	T::Mem: Deserialize<'de>,
 {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

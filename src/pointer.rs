@@ -739,6 +739,20 @@ where T: BitStore
 	///
 	/// This view will cause UB if it is used simultaneously with views of the
 	/// referent region that assume full immutability of referent data.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// A slice handle over all memory elements this pointer describes.
+	///
+	/// # Safety
+	///
+	/// `T` will be marked as `::Alias` where necessary by `BitSlice`, and so
+	/// this pointer already contains the aliasing information it needs to be
+	/// safe.
 	#[inline]
 	pub(crate) fn as_aliased_slice<'a>(&self) -> &'a [T::Alias] {
 		unsafe {

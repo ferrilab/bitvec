@@ -253,7 +253,7 @@ where
 impl<'a, O, T> TryFrom<&'a [T]> for &'a BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitStore + BitMemory,
 {
 	type Error = &'a [T];
 
