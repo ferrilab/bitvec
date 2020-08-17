@@ -36,7 +36,9 @@ readme = "README.md"
 repository = "https://github.com/myrrlyn/bitvec"
 
 [features]
-alloc = []
+alloc = [
+    "wyz/alloc",
+]
 atomic = []
 default = [
 	"atomic",
@@ -47,9 +49,9 @@ std = [
 ]
 
 [dependencies]
-funty = "1"
+funty = { version = "1", default-features = false }
 radium = "0.3"
-wyz = "0.2"
+wyz = { version = "0.2", default-features = false }
 
 [dependencies.serde]
 default-features = false
