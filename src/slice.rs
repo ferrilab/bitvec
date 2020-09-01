@@ -1204,15 +1204,13 @@ where
 	}
 
 	/// Accesses the total backing storage of the `BitSlice`, as a slice of its
-	/// aliased elements.
+	/// elements.
 	///
-	/// Because `BitSlice` is permitted to create aliasing views to memory at
-	/// runtime, this method is required to mark the entire slice as aliased in
-	/// order to include the maybe-aliased edge elements.
-	///
-	/// You should prefer using [`.domain`] to produce a fine-grained view that
-	/// only aliases when necessary. This method is only appropriate when you
-	/// require a single, contiguous, slice, for some API.
+	/// This method produces a slice over all the memory elements it touches,
+	/// using the current storage parameter. This is safe to do, as any events
+	/// that would create an aliasing view into the elements covered by the
+	/// returned slice will also have caused the slice to use its alias-aware
+	/// type.
 	///
 	/// # Parameters
 	///
@@ -1220,15 +1218,13 @@ where
 	///
 	/// # Returns
 	///
-	/// An aliased view of the entire memory region this slice covers, including
-	/// contended edge elements.
-	///
-	/// [`.domain`]: #method.domain
+	/// A view of the entire memory region this slice covers, including the edge
+	/// elements.
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
-	pub fn as_aliased_slice(&self) -> &[T::Alias] {
+	pub fn as_slice(&self) -> &[T] {
 		let bitptr = self.bitptr();
-		let (base, elts) = (bitptr.pointer().to_alias(), bitptr.elements());
+		let (base, elts) = (bitptr.pointer().to_const(), bitptr.elements());
 		unsafe { slice::from_raw_parts(base, elts) }
 	}
 
@@ -1238,8 +1234,8 @@ where
 	/// aliased by other handles. To gain access to all elements that the
 	/// `BitSlice` region covers, use one of the following:
 	///
-	/// - [`.as_aliased_slice`] produces a shared slice over all elements,
-	///   marked as aliased to allow for the possibliity of external mutation.
+	/// - [`.as_slice`] produces a shared slice over all elements, marked
+	///   aliased as appropriate.
 	/// - [`.domain`] produces a view describing each component of the region,
 	///   marking only the contended edges as aliased and the uncontended
 	///   interior as unaliased.
@@ -1250,7 +1246,7 @@ where
 	///
 	/// # Returns
 	///
-	/// A slice of all the wholly-utilised elements in the `BitSlice` backing
+	/// A slice of all the wholly-filled elements in the `BitSlice` backing
 	/// storage.
 	///
 	/// # Examples
@@ -1262,7 +1258,7 @@ where
 	/// let bits = data.view_bits::<Msb0>();
 	///
 	/// let accum = bits
-	///   .as_slice()
+	///   .as_raw_slice()
 	///   .iter()
 	///   .copied()
 	///   .map(u8::count_ones)
@@ -1270,11 +1266,11 @@ where
 	/// assert_eq!(accum, 3);
 	/// ```
 	///
-	/// [`.as_aliased_slice`]: #method.as_aliased_slice]
+	/// [`.as_slice`]: #method.as_slice
 	/// [`.domain`]: #method.domain
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
-	pub fn as_slice(&self) -> &[T::Mem] {
+	pub fn as_raw_slice(&self) -> &[T::Mem] {
 		self.domain().region().map_or(&[], |(_, b, _)| b)
 	}
 
@@ -1306,7 +1302,7 @@ where
 	///
 	/// let mut data = [1u8, 64];
 	/// let bits = data.view_bits_mut::<Msb0>();
-	/// for elt in bits.as_mut_slice() {
+	/// for elt in bits.as_raw_slice_mut() {
 	///   *elt |= 2;
 	/// }
 	/// assert_eq!(&[3, 66], bits.as_slice());
@@ -1316,7 +1312,7 @@ where
 	/// [`.domain_mut`]: #method.domain_mut
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
-	pub fn as_mut_slice(&mut self) -> &mut [T::Mem] {
+	pub fn as_raw_slice_mut(&mut self) -> &mut [T::Mem] {
 		self.domain_mut().region().map_or(&mut [], |(_, b, _)| b)
 	}
 
