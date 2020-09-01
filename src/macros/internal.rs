@@ -307,17 +307,14 @@ macro_rules! __elt_from_bits {
 		*/
 		compile_error!("The ordering argument you provided is unrecognized, \
 			and as such cannot be used in const contexts.");
-		let mut value: $store = 0;
+		let mut tmp: $store = 0;
 		let mut _idx = 0u8;
+		let slice = $crate::slice::BitSlice::<$order, _>::from_element_mut(&mut tmp);
 		$(
-			$crate::store::BitStore::set::<$order>(
-				&mut value,
-				unsafe { $crate::index::BitIdx::new_unchecked(_idx) },
-				$a != 0,
-			);
+			slice.set(_idx, $a != 0);
 			_idx += 1;
 		)*
-		value
+		tmp
 	}};
 }
 
