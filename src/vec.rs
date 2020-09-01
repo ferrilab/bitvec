@@ -26,7 +26,7 @@ use crate::{
 	mem::BitMemory,
 	order::{
 		BitOrder,
-		Local,
+		Lsb0,
 	},
 	pointer::BitPtr,
 	slice::BitSlice,
@@ -128,7 +128,7 @@ only copy the buffer into a heap allocation.
 [`bitvec!`]: ../macro.bitvec.html
 **/
 #[repr(C)]
-pub struct BitVec<O = Local, T = usize>
+pub struct BitVec<O = Lsb0, T = usize>
 where
 	O: BitOrder,
 	T: BitStore,

@@ -33,7 +33,7 @@ use crate::{
 	mem::BitMemory,
 	order::{
 		BitOrder,
-		Local,
+		Lsb0,
 	},
 	pointer::BitPtr,
 	slice::BitSlice,
@@ -125,7 +125,7 @@ only copy the buffer into a heap allocation.
 [`bitbox!`]: ../macro.bitbox.html
 **/
 #[repr(transparent)]
-pub struct BitBox<O = Local, T = usize>
+pub struct BitBox<O = Lsb0, T = usize>
 where
 	O: BitOrder,
 	T: BitStore,

@@ -52,7 +52,7 @@ use crate::{
 	mem::BitMemory,
 	order::{
 		BitOrder,
-		Local,
+		Lsb0,
 	},
 	pointer::BitPtr,
 	store::BitStore,
@@ -228,13 +228,10 @@ members on big-endian **byte**-ordered machines.
 
 ### Default Ordering
 
-Because the ordering does not matter to performance, and users who need to
-explicitly control memory representation will provide an order *anyway*, the
-default ordering type follows the C-compiler convention. The ordering that
-matches your target’s C-compiler bitfield layout is reëxported as
-[`bitvec::prelude::Local`], and used as the default argument. If you don’t
-already know that you need a specific ordering, you should use `Local` and not
-worry too much about it.
+The default ordering is `Lsb0`, as it typically produces shorter object code
+than `Msb0` does. If you are implementing a collection, then `Lsb0` is likely
+the more performant ordering; if you are implementing a buffer protocol, then
+your choice of ordering is dictated by the protocol definition.
 
 # Safety
 
@@ -382,7 +379,7 @@ assert_eq!(vec.as_bitslice(), slice[.. 20]);
 [`std::vector<bool>`]: https://en.cppreference.com/w/cpp/container/vector_bool
 **/
 #[repr(transparent)]
-pub struct BitSlice<O = Local, T = usize>
+pub struct BitSlice<O = Lsb0, T = usize>
 where
 	O: BitOrder,
 	T: BitStore,

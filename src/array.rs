@@ -14,7 +14,10 @@ as a type capable of being used in immediate value position, and delegates to
 !*/
 
 use crate::{
-	order::BitOrder,
+	order::{
+		BitOrder,
+		Lsb0,
+	},
 	slice::BitSlice,
 	view::BitView,
 };
@@ -136,7 +139,7 @@ the behavior of ordinary arrays `[T; N]` as they stand today.
 **/
 #[repr(transparent)]
 #[derive(Clone, Copy)]
-pub struct BitArray<O, V>
+pub struct BitArray<O = Lsb0, V = usize>
 where
 	O: BitOrder,
 	V: BitView + Sized,

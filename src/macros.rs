@@ -260,7 +260,7 @@ macro_rules! bitarr {
 	};
 
 	(for $len:literal, in $store:ident) => {
-		$crate::bitarr!(for $len, in $crate::order::Local, usize)
+		$crate::bitarr!(for $len, in $crate::order::Lsb0, usize)
 	};
 
 	(for $len:literal) => {
@@ -366,7 +366,7 @@ macro_rules! bitvec {
 	};
 
 	($val:expr; $rep:expr) => {
-		$crate::vec::BitVec::<$crate::order::Local, usize>::repeat($val != 0, $rep)
+		$crate::vec::BitVec::<$crate::order::Lsb0, usize>::repeat($val != 0, $rep)
 	};
 
 	//  Delegate all others to the `bits!` macro.
