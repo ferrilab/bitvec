@@ -54,7 +54,7 @@ them internally.
 
 - The CI test harness now covers targets beyond `x86_64-unknown-linux-gnu`,
   thanks to GitHub user [@Alexhuszagh]. `bitvec` guarantees support for all
-  targets listed in the CI matrix through at least the next major relase. If
+  targets listed in the CI matrix through at least the next major release. If
   your target is not in this list, please file an issue for inclusion.
 
 - `BitStore` is implemented on the `AtomicUN` corresponding to each `uN` that
@@ -129,7 +129,7 @@ unaliased components.
   numeric ordering expected by interpreting a `BitSlice` as a variable-length
   2’s-complement un/signed integer.
 
-  Issue #17 requests that the varint behavior be moved to its own crate. No such
+  Issue #17 requests that the variant behavior be moved to its own crate. No such
   crate currently exists, nor do I *immediately* plan to maintain one. If you
   rely on `bitvec` for a varint implementation, please contact me, and I will
   work with you to rebuild the removed behavior in an external crate, on
