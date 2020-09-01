@@ -47,7 +47,10 @@ use core::{
 	},
 };
 
-use wyz::pipe::Pipe;
+use wyz::{
+	pipe::Pipe,
+	tap::Tap,
+};
 
 #[cfg(feature = "alloc")]
 use crate::vec::BitVec;
@@ -1934,8 +1937,8 @@ where
 		}
 	}
 
-	#[inline]
 	#[doc(hidden)]
+	#[inline(always)]
 	#[deprecated(note = "Use `.clone_from_bitslice` to copy between bitslices")]
 	#[cfg(not(tarpaulin_include))]
 	pub fn clone_from_slice<O2, T2>(&mut self, src: &BitSlice<O2, T2>)
@@ -1978,8 +1981,8 @@ where
 		self.clone_from_bitslice(src);
 	}
 
-	#[inline]
 	#[doc(hidden)]
+	#[inline(always)]
 	#[deprecated(note = "Use `.copy_from_bitslice` to copy between bitslices")]
 	#[cfg(not(tarpaulin_include))]
 	pub fn copy_from_slice(&mut self, src: &Self) {
@@ -2082,8 +2085,8 @@ where
 		}
 	}
 
-	#[inline]
 	#[doc(hidden)]
+	#[inline(always)]
 	#[deprecated(note = "Use `.swap_with_bitslice` to swap between bitslices")]
 	#[cfg(not(tarpaulin_include))]
 	pub fn swap_with_slice<O2, T2>(&mut self, other: &mut BitSlice<O2, T2>)
@@ -2268,6 +2271,7 @@ where
 	}
 
 	#[doc(hidden)]
+	#[inline(always)]
 	#[deprecated(note = "Use `.to_bitvec` to convert a bit slice into a vector")]
 	pub fn to_vec(&self) -> BitVec<O, T> {
 		self.to_bitvec()
@@ -2319,7 +2323,7 @@ where
 		out
 	}
 
-	/* As of 1.43, the `concat` and `join` methods use still-unstable traits to
+	/* As of 1.44, the `concat` and `join` methods use still-unstable traits to
 	govern the collection of multiple subslices into one vector. These are
 	possible to copy over and redefine locally, but unless a user asks for it,
 	doing so is considered a low priority.
@@ -2790,9 +2794,7 @@ range_impl!(RangeTo<usize> {
 	}
 
 	unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
-		let mut bp = slice.bitptr();
-		bp.set_len(self.end);
-		bp.to_bitslice_ref()
+		slice.bitptr().tap_mut(|bp| bp.set_len(self.end)).to_bitslice_ref()
 	}
 });
 
@@ -2818,32 +2820,32 @@ where
 	type Immut = &'a BitSlice<O, T>;
 	type Mut = &'a mut BitSlice<O, T>;
 
-	#[inline]
+	#[inline(always)]
 	fn get(self, slice: Self::Immut) -> Option<Self::Immut> {
 		Some(slice)
 	}
 
-	#[inline]
+	#[inline(always)]
 	fn get_mut(self, slice: Self::Mut) -> Option<Self::Mut> {
 		Some(slice)
 	}
 
-	#[inline]
+	#[inline(always)]
 	unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
 		slice
 	}
 
-	#[inline]
+	#[inline(always)]
 	unsafe fn get_unchecked_mut(self, slice: Self::Mut) -> Self::Mut {
 		slice
 	}
 
-	#[inline]
+	#[inline(always)]
 	fn index(self, slice: Self::Immut) -> Self::Immut {
 		slice
 	}
 
-	#[inline]
+	#[inline(always)]
 	fn index_mut(self, slice: Self::Mut) -> Self::Mut {
 		slice
 	}
