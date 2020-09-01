@@ -1,17 +1,18 @@
 # Contributing Guide
 
-Contributions are absolutely welcome!
+Contributions, requests, questions, and general contacts are absolutely welcome!
 
 ## Contact Information
 
 In order of likelihood that I will actionably receive your contact, my
 information is:
 
-- [self@myrrlyn.dev](mailto:self@myrrlyn.dev)
-- [@myrrlyn](//github.com/myrrlyn)
-- [@myrrlyn](//twitter.com/myrrlyn)
-- [@myrrlyn@cybre.space](//cybre.space/myrrlyn)
-- [/u/myrrlyn](//reddit.com/u/myrrlyn)
+- Email: [self@myrrlyn.dev](mailto:self@myrrlyn.dev)
+- GitHub: [@myrrlyn](https://github.com/myrrlyn)
+- Twitter: [@bitvec_rs](https://twitter.com/bitvec_rs)
+- Twitter: [@myrrlyn](https://twitter.com/myrrlyn)
+- Mastodon: [@myrrlyn@cybre.space](https://cybre.space/myrrlyn)
+- Reddit: [/u/myrrlyn](https://reddit.com/u/myrrlyn)
 
 I am not active on any IRC channels at this time. I am on Discord in the Rust
 channel, so you may be able to reach me there, but I don’t know offhand how to
