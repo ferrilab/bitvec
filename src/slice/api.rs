@@ -1,6 +1,7 @@
 //! Port of the `[T]` function API.
 
 use crate::{
+	array::BitArray,
 	devel as dvl,
 	mem::BitMemory,
 	order::BitOrder,
@@ -1759,22 +1760,24 @@ where
 		}
 		/* The standard one-element-at-a-time algorithm is necessary for `[T]`
 		rotation, because it must not allocate, but bit slices have an advantage
-		in that placing a single element `T` on the stack as a temporary has
+		in that placing a single processor word on the stack as a temporary has
 		significant logical acceleration.
 
-		Instead, we can move `min(T::Mem::BITS, by)` bits from the front of the
+		Instead, we can move `min(usize::BITS, by)` bits from the front of the
 		slice into the stack, then shunt the rest of the slice downwards, then
 		insert the stack bits into the now-open back, repeating until complete.
+
+		There is no reason to use a stack temporary smaller than a processor
+		word, so this uses `usize` instead of `T` for performance benefits.
 		*/
-		let mut tmp = 0usize;
-		let tmp_bits = BitSlice::<O, _>::from_element_mut(&mut tmp);
+		let mut tmp = BitArray::<O, usize>::new(0);
 		while by > 0 {
 			//  Note: in theory, the "head to tmp" operation could be optimized
 			//  to a single element copy of `head .. BITS`, at the cost of more
 			//  loops.
 			let shamt = cmp::min(usize::BITS as usize, by);
 			unsafe {
-				let tmp_bits = tmp_bits.get_unchecked_mut(.. shamt);
+				let tmp_bits = tmp.get_unchecked_mut(.. shamt);
 				tmp_bits.clone_from_bitslice(self.get_unchecked(.. shamt));
 				self.copy_within_unchecked(shamt .., 0);
 				self.get_unchecked_mut(len - shamt ..)
@@ -1843,13 +1846,12 @@ where
 		if by == 0 || by == len {
 			return;
 		}
-		let mut tmp = 0usize;
-		let tmp_bits = BitSlice::<O, _>::from_element_mut(&mut tmp);
+		let mut tmp = BitArray::<O, usize>::new(0);
 		while by > 0 {
 			let shamt = cmp::min(usize::BITS as usize, by);
 			let mid = len - shamt;
 			unsafe {
-				let tmp_bits = tmp_bits.get_unchecked_mut(.. shamt);
+				let tmp_bits = tmp.get_unchecked_mut(.. shamt);
 				tmp_bits.clone_from_bitslice(self.get_unchecked(mid ..));
 				self.copy_within_unchecked(.. mid, shamt);
 				self.get_unchecked_mut(.. shamt)
