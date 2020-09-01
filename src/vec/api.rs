@@ -270,8 +270,8 @@ where
 	/// ```
 	#[inline]
 	pub fn reserve(&mut self, additional: usize) {
-		let new_len = self
-			.len()
+		let len = self.len();
+		let new_len = len
 			.checked_add(additional)
 			.expect("Vector capacity exceeded");
 		assert!(
@@ -286,6 +286,9 @@ where
 		//  Only reserve if the request needs new elements.
 		if let Some(extra) = head.span(new_len).0.checked_sub(elts) {
 			self.with_vec(|v| v.reserve(extra));
+			let capa = self.capacity();
+			//  Zero the newly-reserved buffer.
+			unsafe { self.get_unchecked_mut(len .. capa) }.set_all(false);
 		}
 	}
 
