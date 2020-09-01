@@ -4,6 +4,7 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+1. [0.18.1](#0181)
 1. [0.18.0](#0180)
       1. [Bit Arrays in Value Position](#bit-arrays-in-value-position)
       1. [Type-Level Alias Detection](#type-level-alias-detection)
