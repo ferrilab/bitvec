@@ -95,6 +95,12 @@ Until type-level integers stabilize, this is the closest solution to the
   `.as_bits<O>` and `.as_bits_mut<O>`, and are intended to correspond to the
   `AsRef<T>` and `AsMut<T>` traits in the standard library.
 
+- The C-compatible ordering alias `Local` is renamed to `LocalBits`, in order to
+  deconflict it with the innumerable other uses of the word.
+
+- The default ordering parameter is `Lsb0`, rather than the `LocalBits` type
+  alias. `Lsb0` offers consistently better codegen, even on big-endian targets.
+
 #### Type-Level Alias Detection
 
 There is a user-facing breaking change as a result of this work: all methods
