@@ -1,3 +1,6 @@
+//! Copy of the example snippet in the README
+
+#![allow(unused_variables, array_into_iter)]
 
 #[cfg(feature = "std")]
 use bitvec::prelude::*;
