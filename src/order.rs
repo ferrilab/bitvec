@@ -67,9 +67,11 @@ The verifier function panics when it detects invalid behavior, with an error
 message intended to clearly indicate the broken requirement.
 
 ```rust
-use bitvec::index::{BitIdx, BitPos};
-use bitvec::mem::BitMemory;
-use bitvec::order::{BitOrder, verify};
+use bitvec::{
+  index::{BitIdx, BitPos},
+  mem::BitMemory,
+  order::{self, BitOrder},
+};
 # use bitvec::{index::*, order::Lsb0};
 
 pub struct Custom;
@@ -80,10 +82,10 @@ unsafe impl BitOrder for Custom {
   }
 }
 
-#[cfg(test)]
 #[test]
+#[cfg(test)]
 fn prove_custom() {
-  verify::<Custom>();
+  order::verify::<Custom>();
 }
 ```
 
@@ -221,6 +223,7 @@ pub unsafe trait BitOrder {
 	///   .map(1 << Self::at::<M>)
 	///   .fold(0, |mask, sel| mask | sel)
 	/// ```
+	#[inline]
 	fn mask<M>(
 		from: impl Into<Option<BitIdx<M>>>,
 		upto: impl Into<Option<BitTail<M>>>,
@@ -243,13 +246,13 @@ pub unsafe trait BitOrder {
 pub struct Msb0;
 
 unsafe impl BitOrder for Msb0 {
-	#[inline]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn at<M>(index: BitIdx<M>) -> BitPos<M>
 	where M: BitMemory {
 		unsafe { BitPos::new_unchecked(M::MASK - index.value()) }
 	}
 
-	#[inline]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn select<M>(index: BitIdx<M>) -> BitSel<M>
 	where M: BitMemory {
 		/* Set the MSbit, then shift it down. The left expr is const-folded.
@@ -260,6 +263,7 @@ unsafe impl BitOrder for Msb0 {
 		unsafe { BitSel::new_unchecked((M::ONE << M::MASK) >> index.value()) }
 	}
 
+	#[inline]
 	fn mask<M>(
 		from: impl Into<Option<BitIdx<M>>>,
 		upto: impl Into<Option<BitTail<M>>>,
@@ -274,9 +278,9 @@ unsafe impl BitOrder for Msb0 {
 		if ct == M::BITS {
 			return BitMask::ALL;
 		}
-		//  1. Set all bits high
+		//  1. Set all bits high.
 		//  2. Shift right by the number of bits in the mask. These are now low.
-		//  3. Invert. The mask bits are high, the rest are low, but at MSedge.
+		//  3. Invert. The mask bits (at MSedge) are high; the rest are low.
 		//  4. Shift right by the distance from MSedge.
 		unsafe { BitMask::new(!(M::ALL >> ct) >> from) }
 	}
@@ -299,6 +303,7 @@ unsafe impl BitOrder for Lsb0 {
 		unsafe { BitSel::new_unchecked(M::ONE << index.value()) }
 	}
 
+	#[inline]
 	fn mask<M>(
 		from: impl Into<Option<BitIdx<M>>>,
 		upto: impl Into<Option<BitTail<M>>>,
@@ -315,7 +320,7 @@ unsafe impl BitOrder for Lsb0 {
 		}
 		//  1. Set all bits high.
 		//  2. Shift left by the number of bits in the mask. These are now low.
-		//  3. Invert. The mask bits are high, the rest are low, but at LSedge.
+		//  3. Invert. The mask bits at LSedge are high; the rest are low.
 		//  4. Shift left by the distance from LSedge.
 		unsafe { BitMask::new(!(M::ALL << ct) << from) }
 	}
@@ -365,6 +370,7 @@ detects.
 This panics if it detects any violation of the `BitOrder` implementation rules
 for `O`.
 **/
+#[cfg(test)]
 pub fn verify<O>(verbose: bool)
 where O: BitOrder {
 	verify_for_type::<O, u8>(verbose);
@@ -399,6 +405,7 @@ know that you will never use it with the types it does not support.
 This panics if it detects any violation of the `BitOrder` implementation rules
 for the combination of input types and index values.
 **/
+#[cfg(test)]
 pub fn verify_for_type<O, M>(verbose: bool)
 where
 	O: BitOrder,

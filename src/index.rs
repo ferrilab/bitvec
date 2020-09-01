@@ -501,6 +501,7 @@ where M: BitMemory
 
 	/// Ranges over all valid tails for a starting index.
 	#[inline]
+	#[cfg(test)]
 	pub(crate) fn range_from(
 		start: BitIdx<M>,
 	) -> impl Iterator<Item = Self>
