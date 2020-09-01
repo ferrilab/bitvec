@@ -4,6 +4,7 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+1. [0.18.1](#0181)
 1. [0.18.0](#0180)
       1. [Bit Arrays in Value Position](#bit-arrays-in-value-position)
       1. [Type-Level Alias Detection](#type-level-alias-detection)
@@ -37,6 +38,10 @@ This document is written according to the [Keep a Changelog][kac] style.
 1. [0.3.0](#030)
 1. [0.2.0](#020)
 1. [0.1.0](#010)
+
+## 0.18.1
+
+This fixes [Issue #69] and adds [Pull Request #68].
 
 ## 0.18.0
 
@@ -861,8 +866,10 @@ Initial implementation and release.
 [Issue #43]: https://github.com/myrrlyn/bitvec/issues/43
 [Issue #50]: https://github.com/myrrlyn/bitvec/issues/50
 [Issue #55]: https://github.com/myrrlyn/bitvec/issues/55
+[Issue #69]: https://github.com/myrrlyn/bitvec/issues/69
 [Pull Request #34]: https://github.com/myrrlyn/bitvec/pull/34
 [Pull Request #41]: https://github.com/myrrlyn/bitvec/pull/41
+[Pull Request #68]: https://github.com/myrrlyn/bitvec/pull/68
 [Rust PR #69373]: https://github.com/rust-lang/rust/pull/69373/
 [`Sync`]: https://doc.rust-lang.org/stable/core/marker/trait.Sync.html
 [crate]: https://crates.io/crates/bitvec
