@@ -367,7 +367,7 @@ mod tests {
 	#[test]
 	fn touch_memory() {
 		let mut data = 0u8;
-		let bits = data.view_bits_mut::<Local>();
+		let bits = data.view_bits_mut::<LocalBits>();
 		let accessor = unsafe { &*(bits.bitptr().pointer().to_access()) };
 
 		BitAccess::set_bit::<Lsb0>(accessor, BitIdx::ZERO);

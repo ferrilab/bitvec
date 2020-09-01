@@ -8,24 +8,24 @@ use crate::prelude::*;
 fn construction() {
 	use core::slice;
 	let data = 0u8;
-	let bits = data.view_bits::<Local>();
+	let bits = data.view_bits::<LocalBits>();
 	assert_eq!(bits.len(), 8);
 
 	assert!(
-		BitSlice::<Local, u8>::from_slice(unsafe {
+		BitSlice::<LocalBits, u8>::from_slice(unsafe {
 			slice::from_raw_parts(
 				1usize as *const _,
-				BitSlice::<Local, u8>::MAX_ELTS,
+				BitSlice::<LocalBits, u8>::MAX_ELTS,
 			)
 		})
 		.is_none()
 	);
 
 	assert!(
-		BitSlice::<Local, u8>::from_slice_mut(unsafe {
+		BitSlice::<LocalBits, u8>::from_slice_mut(unsafe {
 			slice::from_raw_parts_mut(
 				1usize as *mut _,
-				BitSlice::<Local, u8>::MAX_ELTS,
+				BitSlice::<LocalBits, u8>::MAX_ELTS,
 			)
 		})
 		.is_none()
@@ -36,8 +36,10 @@ fn construction() {
 		Some(bits)
 	);
 	assert!(
-		unsafe { crate::slice::bits_from_raw_parts::<Local, _>(&data, 0, !0) }
-			.is_none()
+		unsafe {
+			crate::slice::bits_from_raw_parts::<LocalBits, _>(&data, 0, !0)
+		}
+		.is_none()
 	);
 
 	let mut data = 0u8;
@@ -45,14 +47,14 @@ fn construction() {
 		unsafe {
 			crate::slice::bits_from_raw_parts_mut(&mut data as *mut _, 0, 8)
 		},
-		Some(data.view_bits_mut::<Local>())
+		Some(data.view_bits_mut::<LocalBits>())
 	);
 }
 
 #[test]
 fn get_set() {
 	let mut data = 0u8;
-	let bits = data.view_bits_mut::<Local>();
+	let bits = data.view_bits_mut::<LocalBits>();
 
 	for n in 0 .. 8 {
 		assert!(!bits.get(n).unwrap());
@@ -101,7 +103,7 @@ fn query() {
 fn modify() {
 	let mut data = 0b0000_1111u8;
 
-	let bits = data.view_bits_mut::<Local>();
+	let bits = data.view_bits_mut::<LocalBits>();
 	bits.swap(3, 4);
 	assert_eq!(data, 0b0001_0111);
 
@@ -121,14 +123,18 @@ fn modify() {
 
 #[test]
 fn split() {
-	assert!(BitSlice::<Local, usize>::empty().split_first().is_none());
+	assert!(
+		BitSlice::<LocalBits, usize>::empty()
+			.split_first()
+			.is_none()
+	);
 	assert_eq!(
 		1u8.view_bits::<Lsb0>().split_first(),
 		Some((&true, bits![Lsb0, u8; 0; 7]))
 	);
 
 	assert!(
-		BitSlice::<Local, usize>::empty_mut()
+		BitSlice::<LocalBits, usize>::empty_mut()
 			.split_first_mut()
 			.is_none()
 	);
@@ -137,14 +143,14 @@ fn split() {
 	head.set(true);
 	assert_eq!(data, 1);
 
-	assert!(BitSlice::<Local, usize>::empty().split_last().is_none());
+	assert!(BitSlice::<LocalBits, usize>::empty().split_last().is_none());
 	assert_eq!(
 		1u8.view_bits::<Msb0>().split_last(),
 		Some((&true, bits![Msb0, u8; 0; 7]))
 	);
 
 	assert!(
-		BitSlice::<Local, usize>::empty_mut()
+		BitSlice::<LocalBits, usize>::empty_mut()
 			.split_first_mut()
 			.is_none()
 	);
@@ -238,7 +244,7 @@ fn iterators() {
 fn alignment() {
 	let mut data = [0u16; 5];
 	let addr = &data as *const [u16; 5] as *const u16 as usize;
-	let bits = data.view_bits_mut::<Local>();
+	let bits = data.view_bits_mut::<LocalBits>();
 
 	let (head, body, tail) = unsafe { bits[5 .. 75].align_to_mut::<u32>() };
 

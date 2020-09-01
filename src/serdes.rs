@@ -429,7 +429,7 @@ mod tests {
 		let bits = &bits[.. 12];
 		assert_ser_tokens(&bits, bvtok![s 1, 0, 12, U16, 0b00001111_11111111]);
 
-		let bits = 0b11_11111111u32.view_bits::<Local>();
+		let bits = 0b11_11111111u32.view_bits::<LocalBits>();
 		let bits = &bits[.. 10];
 		assert_ser_tokens(&bits, bvtok![s 1, 0, 10, U32, 0x00_00_03_FF]);
 	}
@@ -438,7 +438,7 @@ mod tests {
 	#[cfg(feature = "alloc")]
 	fn wide() {
 		let src: &[u8] = &[0, !0];
-		let bs = src.view_bits::<Local>();
+		let bs = src.view_bits::<LocalBits>();
 		assert_ser_tokens(&(&bs[1 .. 15]), bvtok![s 2, 1, 14, U8, 0, !0]);
 	}
 

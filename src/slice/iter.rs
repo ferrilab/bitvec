@@ -44,7 +44,7 @@ use bitvec::prelude::*;
 
 // First, we declare a type which has `iter` method to get the `Iter` struct (&BitSlice here):
 let data = 129u8;
-let bits = BitSlice::<Local, _>::from_element(&data);
+let bits = BitSlice::<LocalBits, _>::from_element(&data);
 
 // Then, we iterato over it:
 for bit in bits.iter() {
@@ -2298,7 +2298,7 @@ mod tests {
 	#[test]
 	fn windows() {
 		let data = 0u8;
-		let bits = data.view_bits::<Local>();
+		let bits = data.view_bits::<LocalBits>();
 
 		let mut windows = bits.windows(5);
 		assert_eq!(windows.next().unwrap().bitptr(), bits[.. 5].bitptr());
@@ -2316,7 +2316,7 @@ mod tests {
 	#[test]
 	fn chunks() {
 		let data = 0u16;
-		let bits = data.view_bits::<Local>();
+		let bits = data.view_bits::<LocalBits>();
 
 		let mut chunks = bits.chunks(5);
 		assert_eq!(chunks.next().unwrap().bitptr(), bits[.. 5].bitptr());
@@ -2330,7 +2330,7 @@ mod tests {
 	#[test]
 	fn chunks_mut() {
 		let mut data = 0u16;
-		let bits = data.view_bits_mut::<Local>();
+		let bits = data.view_bits_mut::<LocalBits>();
 		let (one, two, three, four) = (
 			bits[.. 5].bitptr(),
 			bits[15 ..].bitptr(),
@@ -2350,7 +2350,7 @@ mod tests {
 	#[test]
 	fn chunks_exact() {
 		let data = 0u32;
-		let bits = data.view_bits::<Local>();
+		let bits = data.view_bits::<LocalBits>();
 
 		let mut chunks = bits.chunks_exact(5);
 		assert_eq!(chunks.remainder().bitptr(), bits[30 ..].bitptr());
@@ -2374,7 +2374,7 @@ mod tests {
 	#[test]
 	fn chunks_exact_mut() {
 		let mut data = 0u32;
-		let bits = data.view_bits_mut::<Local>();
+		let bits = data.view_bits_mut::<LocalBits>();
 
 		let (one, two, three, four, rest) = (
 			bits[.. 5].bitptr(),
@@ -2401,7 +2401,7 @@ mod tests {
 	#[test]
 	fn rchunks() {
 		let data = 0u16;
-		let bits = data.view_bits::<Local>();
+		let bits = data.view_bits::<LocalBits>();
 
 		let mut rchunks = bits.rchunks(5);
 		assert_eq!(rchunks.next().unwrap().bitptr(), bits[11 ..].bitptr());
@@ -2415,7 +2415,7 @@ mod tests {
 	#[test]
 	fn rchunks_mut() {
 		let mut data = 0u16;
-		let bits = data.view_bits_mut::<Local>();
+		let bits = data.view_bits_mut::<LocalBits>();
 		let (one, two, three, four) = (
 			bits[11 ..].bitptr(),
 			bits[.. 1].bitptr(),
@@ -2435,7 +2435,7 @@ mod tests {
 	#[test]
 	fn rchunks_exact() {
 		let data = 0u32;
-		let bits = data.view_bits::<Local>();
+		let bits = data.view_bits::<LocalBits>();
 
 		let mut rchunks = bits.rchunks_exact(5);
 		assert_eq!(rchunks.remainder().bitptr(), bits[.. 2].bitptr());
@@ -2456,7 +2456,7 @@ mod tests {
 	#[test]
 	fn rchunks_exact_mut() {
 		let mut data = 0u32;
-		let bits = data.view_bits_mut::<Local>();
+		let bits = data.view_bits_mut::<LocalBits>();
 
 		let (rest, one, two, three, four) = (
 			bits[.. 2].bitptr(),

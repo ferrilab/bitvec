@@ -765,7 +765,7 @@ mod tests {
 	#[test]
 	fn domain_iter() {
 		let data = [1u32, 2, 3];
-		let bits = &data.view_bits::<Local>()[4 .. 92];
+		let bits = &data.view_bits::<LocalBits>()[4 .. 92];
 
 		for (iter, elem) in bits.domain().rev().zip([3, 2, 1].iter().copied()) {
 			assert_eq!(iter, elem);

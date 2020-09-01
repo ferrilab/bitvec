@@ -328,7 +328,7 @@ for bitfields. The Msb0 bit ordering and big-endian byte ordering are otherwise
 completely unrelated.
 **/
 #[cfg(target_endian = "big")]
-pub type Local = Msb0;
+pub type LocalBits = Msb0;
 
 /** A default bit ordering.
 
@@ -337,7 +337,7 @@ for bitfields. The Lsb0 bit ordering and little-endian byte ordering are
 otherwise completely unrelated.
 **/
 #[cfg(target_endian = "little")]
-pub type Local = Lsb0;
+pub type LocalBits = Lsb0;
 
 #[cfg(not(any(target_endian = "big", target_endian = "little")))]
 compile_fail!(concat!(

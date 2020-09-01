@@ -173,8 +173,8 @@ where
 	///
 	/// ```rust
 	/// # use bitvec::prelude::*;
-	/// let b = BitBox::new(bits![Local, u32; 0; 32]);
-	/// let static_ref: &'static mut BitSlice<Local, u32> = BitBox::leak(b);
+	/// let b = BitBox::new(bits![LocalBits, u32; 0; 32]);
+	/// let static_ref: &'static mut BitSlice<LocalBits, u32> = BitBox::leak(b);
 	/// static_ref.set(0, true);
 	/// assert_eq!(static_ref.count_ones(), 1);
 	/// ```

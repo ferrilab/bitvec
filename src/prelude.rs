@@ -42,7 +42,7 @@ pub mod base {
 	pub use crate::{
 		array::BitArray,
 		order::{
-			Local,
+			LocalBits,
 			Lsb0,
 			Msb0,
 		},
@@ -98,7 +98,7 @@ pub mod types {
 			BitDomainMut,
 		},
 		order::{
-			Local,
+			LocalBits,
 			Lsb0,
 			Msb0,
 		},

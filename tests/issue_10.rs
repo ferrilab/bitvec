@@ -24,7 +24,7 @@ use bitvec::prelude::*;
 #[cfg(feature = "alloc")]
 #[test]
 fn issue_10() {
-	let bv = bitvec![Local, u8;
+	let bv = bitvec![LocalBits, u8;
 		0, 0, 0, 0,
 		0, 0, 0, 1,
 		1, 0, 0, 0,

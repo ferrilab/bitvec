@@ -348,7 +348,7 @@ the borrowing constructors.
 use bitvec::prelude::*;
 
 let slice = bits![0; 27];
-let array = bitarr![Local, u8; 0; 10];
+let array = bitarr![LocalBits, u8; 0; 10];
 # #[cfg(feature = "alloc")] fn allocs() {
 let boxed = bitbox![0; 10];
 let vec = bitvec![0; 20];
@@ -374,7 +374,7 @@ assert_eq!(vec.as_bitslice(), slice[.. 20]);
 [`Lsb0`]: ../order/struct.Lsb0.html
 [`Msb0`]: ../order/struct.Msb0.html
 [`bits!`]: ../macro.bits.html
-[`bitvec::prelude::Local`]: ../order/struct.Local.html
+[`bitvec::prelude::LocalBits`]: ../order/type.LocalBits.html
 [`std::bitset`]: https://en.cppreference.com/w/cpp/utility/bitset
 [`std::vector<bool>`]: https://en.cppreference.com/w/cpp/container/vector_bool
 **/
@@ -437,7 +437,7 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let elem = 0u8;
-	/// let bits = BitSlice::<Local, _>::from_element(&elem);
+	/// let bits = BitSlice::<LocalBits, _>::from_element(&elem);
 	/// assert_eq!(bits.len(), 8);
 	/// ```
 	///
@@ -610,8 +610,8 @@ where
 	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = vec![0usize; BitSlice::<Local, usize>::MAX_ELTS];
-	/// let bits = BitSlice::<Local, _>::from_slice_mut(&mut data[..]).unwrap();
+	/// let mut data = vec![0usize; BitSlice::<LocalBits, usize>::MAX_ELTS];
+	/// let bits = BitSlice::<LocalBits, _>::from_slice_mut(&mut data[..]).unwrap();
 	/// # }
 	/// # #[cfg(not(feature = "alloc"))] panic!("No allocator present");
 	/// ```
@@ -723,7 +723,7 @@ where
 	/// ```rust,should_panic
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = BitSlice::<Local, usize>::empty_mut();
+	/// let bits = BitSlice::<LocalBits, usize>::empty_mut();
 	/// bits.set(0, false);
 	/// ```
 	#[inline]
@@ -1346,10 +1346,10 @@ where
 	/// # #[cfg(feature = "atomic")] {
 	/// use bitvec::prelude::*;
 	/// use core::sync::atomic::AtomicU8;
-	/// type Bs<T> = BitSlice<Local, T>;
+	/// type Bs<T> = BitSlice<LocalBits, T>;
 	///
 	/// let data = [AtomicU8::new(0), AtomicU8::new(0), AtomicU8::new(0)];
-	/// let bits: &Bs<AtomicU8> = data.view_bits::<Local>();
+	/// let bits: &Bs<AtomicU8> = data.view_bits::<LocalBits>();
 	/// let subslice: &Bs<AtomicU8> = &bits[4 .. 20];
 	///
 	/// let (_, noalias, _): (_, &Bs<u8>, _) =
@@ -1383,10 +1383,10 @@ where
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
-	/// type Bs<T> = BitSlice<Local, T>;
+	/// type Bs<T> = BitSlice<LocalBits, T>;
 	///
 	/// let mut data = [0u8; 3];
-	/// let bits = data.view_bits_mut::<Local>();
+	/// let bits = data.view_bits_mut::<LocalBits>();
 	/// let (a, b): (
 	///   &mut Bs<<u8 as BitStore>::Alias>,
 	///   &mut Bs<<u8 as BitStore>::Alias>,
@@ -1398,7 +1398,7 @@ where
 	/// ) = b.bit_domain().region().unwrap();
 	/// read_from(partial); // uses alias-aware reads
 	/// read_from(full); // uses ordinary reads
-	/// # fn read_from<T: BitStore>(_: &BitSlice<Local, T>) {}
+	/// # fn read_from<T: BitStore>(_: &BitSlice<LocalBits, T>) {}
 	/// ```
 	///
 	/// [`.set_aliased`]: #method.set_aliased

@@ -69,7 +69,7 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let data = 0u32;
-	/// let bits = data.view_bits::<Local>();
+	/// let bits = data.view_bits::<LocalBits>();
 	/// assert_eq!(bits.len(), 32);
 	/// ```
 	#[inline]
@@ -88,8 +88,8 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// assert!(BitSlice::<Local, u8>::empty().is_empty());
-	/// assert!(!(0u32.view_bits::<Local>()).is_empty());
+	/// assert!(BitSlice::<LocalBits, u8>::empty().is_empty());
+	/// assert!(!(0u32.view_bits::<LocalBits>()).is_empty());
 	/// ```
 	#[inline]
 	pub fn is_empty(&self) -> bool {
@@ -118,7 +118,7 @@ where
 	/// let bits = data.view_bits::<Lsb0>();
 	/// assert_eq!(Some(&true), bits.first());
 	///
-	/// let empty = BitSlice::<Local, usize>::empty();
+	/// let empty = BitSlice::<LocalBits, usize>::empty();
 	/// assert_eq!(None, empty.first());
 	/// ```
 	#[inline]
@@ -219,7 +219,7 @@ where
 	/// }
 	/// assert_eq!(data, 5);
 	///
-	/// assert!(BitSlice::<Local, usize>::empty_mut().split_first_mut().is_none());
+	/// assert!(BitSlice::<LocalBits, usize>::empty_mut().split_first_mut().is_none());
 	/// ```
 	#[inline]
 	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
@@ -299,7 +299,7 @@ where
 	/// }
 	/// assert_eq!(data, 5);
 	///
-	/// assert!(BitSlice::<Local, usize>::empty_mut().split_last_mut().is_none());
+	/// assert!(BitSlice::<LocalBits, usize>::empty_mut().split_last_mut().is_none());
 	/// ```
 	#[inline]
 	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
@@ -332,7 +332,7 @@ where
 	/// let bits = data.view_bits::<Msb0>();
 	/// assert_eq!(Some(&true), bits.last());
 	///
-	/// let empty = BitSlice::<Local, usize>::empty();
+	/// let empty = BitSlice::<LocalBits, usize>::empty();
 	/// assert_eq!(None, empty.last());
 	/// ```
 	#[inline]
@@ -785,7 +785,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = BitSlice::<Local, usize>::empty();
+	/// let bits = BitSlice::<LocalBits, usize>::empty();
 	/// let mut iter = bits.windows(1);
 	/// assert!(iter.next().is_none());
 	/// ```
@@ -1166,7 +1166,7 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let data = 0xC3u8;
-	/// let bits = data.view_bits::<Local>();
+	/// let bits = data.view_bits::<LocalBits>();
 	///
 	/// let (left, right) = bits.split_at(0);
 	/// assert!(left.is_empty());
@@ -1646,8 +1646,8 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let empty = BitSlice::<Local, usize>::empty();
-	/// assert!(0u8.view_bits::<Local>().starts_with(empty));
+	/// let empty = BitSlice::<LocalBits, usize>::empty();
+	/// assert!(0u8.view_bits::<LocalBits>().starts_with(empty));
 	/// assert!(empty.starts_with(empty));
 	/// ```
 	#[inline]
@@ -1684,8 +1684,8 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let empty = BitSlice::<Local, usize>::empty();
-	/// assert!(0u8.view_bits::<Local>().ends_with(empty));
+	/// let empty = BitSlice::<LocalBits, usize>::empty();
+	/// assert!(0u8.view_bits::<LocalBits>().ends_with(empty));
 	/// assert!(empty.ends_with(empty));
 	/// ```
 	#[inline]
@@ -2131,7 +2131,7 @@ where
 	///
 	/// unsafe {
 	///   let bytes: [u8; 7] = [1, 2, 3, 4, 5, 6, 7];
-	///   let bits = bytes.view_bits::<Local>();
+	///   let bits = bytes.view_bits::<LocalBits>();
 	///   let (prefix, shorts, suffix) = bits.align_to::<u16>();
 	///   match prefix.len() {
 	///     0 => {
@@ -2217,7 +2217,7 @@ where
 	///
 	/// unsafe {
 	///   let mut bytes: [u8; 7] = [1, 2, 3, 4, 5, 6, 7];
-	///   let bits = bytes.view_bits_mut::<Local>();
+	///   let bits = bytes.view_bits_mut::<LocalBits>();
 	///   let (prefix, shorts, suffix) = bits.align_to_mut::<u16>();
 	///   //  same access and behavior as in `align_to`
 	/// }
@@ -2297,7 +2297,7 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// // this will panic at runtime
-	/// bits![0, 1].repeat(BitSlice::<Local, usize>::MAX_BITS);
+	/// bits![0, 1].repeat(BitSlice::<LocalBits, usize>::MAX_BITS);
 	/// ```
 	#[inline]
 	pub fn repeat(&self, n: usize) -> BitVec<O, T>
@@ -2402,7 +2402,7 @@ in comments. Once `rustfmt` is fixed, revert these to block comments.
 /// let x = 42u8;
 /// let ptr = &x as *const _;
 /// let bits = unsafe {
-///   bv_slice::from_raw_parts::<Local, u8>(ptr, 1)
+///   bv_slice::from_raw_parts::<LocalBits, u8>(ptr, 1)
 /// };
 /// assert_eq!(bits.count_ones(), 3);
 /// ```

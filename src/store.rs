@@ -230,45 +230,45 @@ mod tests {
 	#[test]
 	fn traits() {
 		//  The integers are threadsafe, as they are known to be unaliased.
-		assert_impl_all!(BitSlice<Local, u8>: Send, Sync);
-		assert_impl_all!(BitSlice<Local, u16>: Send, Sync);
-		assert_impl_all!(BitSlice<Local, u32>: Send, Sync);
-		assert_impl_all!(BitSlice<Local, usize>: Send, Sync);
+		assert_impl_all!(BitSlice<LocalBits, u8>: Send, Sync);
+		assert_impl_all!(BitSlice<LocalBits, u16>: Send, Sync);
+		assert_impl_all!(BitSlice<LocalBits, u32>: Send, Sync);
+		assert_impl_all!(BitSlice<LocalBits, usize>: Send, Sync);
 
 		#[cfg(target_pointer_width = "64")]
-		assert_impl_all!(BitSlice<Local, u64>: Send, Sync);
+		assert_impl_all!(BitSlice<LocalBits, u64>: Send, Sync);
 
 		//  The integer alias is threadsafe when atomics are enabled.
 		#[cfg(feature = "atomic")]
 		{
-			assert_impl_all!(BitSlice<Local, <u8 as BitStore>::Alias>: Send, Sync);
-			assert_impl_all!(BitSlice<Local, <u16 as BitStore>::Alias>: Send, Sync);
-			assert_impl_all!(BitSlice<Local, <u32 as BitStore>::Alias>: Send, Sync);
-			assert_impl_all!(BitSlice<Local, <usize as BitStore>::Alias>: Send, Sync);
+			assert_impl_all!(BitSlice<LocalBits, <u8 as BitStore>::Alias>: Send, Sync);
+			assert_impl_all!(BitSlice<LocalBits, <u16 as BitStore>::Alias>: Send, Sync);
+			assert_impl_all!(BitSlice<LocalBits, <u32 as BitStore>::Alias>: Send, Sync);
+			assert_impl_all!(BitSlice<LocalBits, <usize as BitStore>::Alias>: Send, Sync);
 
 			#[cfg(target_pointer_width = "64")]
-			assert_impl_all!(BitSlice<Local, <u64 as BitStore>::Alias>: Send, Sync);
+			assert_impl_all!(BitSlice<LocalBits, <u64 as BitStore>::Alias>: Send, Sync);
 		}
 
 		//  The integer alias is thread unsafe when atomics are disabled.
 		#[cfg(not(feature = "atomic"))]
 		{
-			assert_not_impl_any!(BitSlice<Local, <u8 as BitStore>::Alias>: Send, Sync);
-			assert_not_impl_any!(BitSlice<Local, <u16 as BitStore>::Alias>: Send, Sync);
-			assert_not_impl_any!(BitSlice<Local, <u32 as BitStore>::Alias>: Send, Sync);
-			assert_not_impl_any!(BitSlice<Local, <usize as BitStore>::Alias>: Send, Sync);
+			assert_not_impl_any!(BitSlice<LocalBits, <u8 as BitStore>::Alias>: Send, Sync);
+			assert_not_impl_any!(BitSlice<LocalBits, <u16 as BitStore>::Alias>: Send, Sync);
+			assert_not_impl_any!(BitSlice<LocalBits, <u32 as BitStore>::Alias>: Send, Sync);
+			assert_not_impl_any!(BitSlice<LocalBits, <usize as BitStore>::Alias>: Send, Sync);
 
 			#[cfg(target_pointer_width = "64")]
-			assert_not_impl_any!(BitSlice<Local, <u64 as BitStore>::Alias>: Send, Sync);
+			assert_not_impl_any!(BitSlice<LocalBits, <u64 as BitStore>::Alias>: Send, Sync);
 		}
 
 		//  `Cell`s are never threadsafe.
-		assert_not_impl_any!(BitSlice<Local, Cell<u8>>: Send, Sync);
-		assert_not_impl_any!(BitSlice<Local, Cell<u16>>: Send, Sync);
-		assert_not_impl_any!(BitSlice<Local, Cell<u32>>: Send, Sync);
-		assert_not_impl_any!(BitSlice<Local, Cell<usize>>: Send, Sync);
+		assert_not_impl_any!(BitSlice<LocalBits, Cell<u8>>: Send, Sync);
+		assert_not_impl_any!(BitSlice<LocalBits, Cell<u16>>: Send, Sync);
+		assert_not_impl_any!(BitSlice<LocalBits, Cell<u32>>: Send, Sync);
+		assert_not_impl_any!(BitSlice<LocalBits, Cell<usize>>: Send, Sync);
 
 		#[cfg(target_pointer_width = "64")]
-		assert_not_impl_any!(BitSlice<Local, Cell<u64>>: Send, Sync);
+		assert_not_impl_any!(BitSlice<LocalBits, Cell<u64>>: Send, Sync);
 	}
 }

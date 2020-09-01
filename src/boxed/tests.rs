@@ -6,7 +6,7 @@ use crate::prelude::*;
 #[allow(deprecated)]
 fn api() {
 	let boxed: Box<[u8]> = Box::new([0; 4]);
-	let bb = BitBox::<Local, _>::from_boxed_slice(boxed);
+	let bb = BitBox::<LocalBits, _>::from_boxed_slice(boxed);
 	assert_eq!(bb, bits![0; 32]);
 	let boxed = bb.into_boxed_slice();
 	assert_eq!(boxed[..], [0u8; 4][..]);

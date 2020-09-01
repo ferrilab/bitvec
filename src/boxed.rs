@@ -187,7 +187,7 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let boxed: Box<[u8]> = Box::new([0; 4]);
-	/// let bb = BitBox::<Local, _>::from_boxed_slice(boxed);
+	/// let bb = BitBox::<LocalBits, _>::from_boxed_slice(boxed);
 	/// assert_eq!(bb, bits![0; 32]);
 	/// ```
 	///
@@ -222,7 +222,7 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let boxed: Box<[u8]> = Box::new([0; 4]);
-	/// let bb = BitBox::<Local, _>::try_from_boxed_slice(boxed).unwrap();
+	/// let bb = BitBox::<LocalBits, _>::try_from_boxed_slice(boxed).unwrap();
 	/// assert_eq!(bb[..], bits![0; 32]);
 	/// ```
 	#[inline]

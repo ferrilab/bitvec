@@ -21,56 +21,52 @@ type, is *also* unstable, as it requires dereferencing a raw pointer inside a
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __bits_from_slice {
-	(mut Local, $store:ident, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<$crate::order::Local, $store>::from_slice_mut(
+	(mut LocalBits, $len:expr, $slice:ident) => {
+		$crate::slice::BitSlice::<$crate::order::LocalBits, _>::from_slice_mut(
 			&mut $slice,
 			)
 		.expect("slice construction exceeded capacity")
 		.get_unchecked_mut(.. $len)
 	};
-	(mut Lsb0, $store:ident, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<$crate::order::Lsb0, $store>::from_slice_mut(
+	(mut Lsb0, $len:expr, $slice:ident) => {
+		$crate::slice::BitSlice::<$crate::order::Lsb0, _>::from_slice_mut(
 			&mut $slice,
 			)
 		.expect("slice construction exceeded capacity")
 		.get_unchecked_mut(.. $len)
 	};
-	(mut Msb0, $store:ident, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<$crate::order::Msb0, $store>::from_slice_mut(
+	(mut Msb0, $len:expr, $slice:ident) => {
+		$crate::slice::BitSlice::<$crate::order::Msb0, _>::from_slice_mut(
 			&mut $slice,
 			)
 		.expect("slice construction exceeded capacity")
 		.get_unchecked_mut(.. $len)
 	};
-	(mut $order:tt, $store:ident, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<$order, $store>::from_slice_mut(&mut $slice)
+	(mut $order:tt, $len:expr, $slice:ident) => {
+		$crate::slice::BitSlice::<$order, _>::from_slice_mut(&mut $slice)
 			.expect("slice construction exceeded capacity")
 			.get_unchecked_mut(.. $len)
 	};
 
-	(Local, $store:ident, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<$crate::order::Local, $store>::from_slice(
+	(LocalBits, $len:expr, $slice:ident) => {
+		$crate::slice::BitSlice::<$crate::order::LocalBits, _>::from_slice(
 			&$slice,
 			)
 		.expect("slice construction exceeded capacity")
 		.get_unchecked(.. $len)
 	};
-	(Lsb0, $store:ident, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<$crate::order::Lsb0, $store>::from_slice(
-			&$slice,
-			)
-		.expect("slice construction exceeded capacity")
-		.get_unchecked(.. $len)
+	(Lsb0, $len:expr, $slice:ident) => {
+		$crate::slice::BitSlice::<$crate::order::Lsb0, _>::from_slice(&$slice)
+			.expect("slice construction exceeded capacity")
+			.get_unchecked(.. $len)
 	};
-	(Msb0, $store:ident, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<$crate::order::Msb0, $store>::from_slice(
-			&$slice,
-			)
-		.expect("slice construction exceeded capacity")
-		.get_unchecked(.. $len)
+	(Msb0, $len:expr, $slice:ident) => {
+		$crate::slice::BitSlice::<$crate::order::Msb0, _>::from_slice(&$slice)
+			.expect("slice construction exceeded capacity")
+			.get_unchecked(.. $len)
 	};
-	($order:tt, $store:ident, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<$order, $store>::from_slice(&$slice)
+	($order:tt, $len:expr, $slice:ident) => {
+		$crate::slice::BitSlice::<$order, _>::from_slice(&$slice)
 			.expect("slice construction exceeded capacity")
 			.get_unchecked(.. $len)
 	};
@@ -265,11 +261,11 @@ macro_rules! __elt_from_bits {
 		)
 	};
 	(
-		Local, $store:ident;
+		LocalBits, $store:ident;
 		$($a:tt, $b:tt, $c:tt, $d:tt, $e:tt, $f:tt, $g:tt, $h:tt),*
 	) => {
 		$crate::__ty_from_bytes!(
-			Local, $store, [$($crate::macros::internal::u8_from_ne_bits(
+			LocalBits, $store, [$($crate::macros::internal::u8_from_ne_bits(
 				$a != 0, $b != 0, $c != 0, $d != 0,
 				$e != 0, $f != 0, $g != 0, $h != 0,
 			)),*]
@@ -344,7 +340,7 @@ macro_rules! __ty_from_bytes {
 	(Lsb0, u8, [$($byte:expr),*]) => {
 		u8::from_le_bytes([$($byte),*])
 	};
-	(Local, u8, [$($byte:expr),*]) => {
+	(LocalBits, u8, [$($byte:expr),*]) => {
 		u8::from_ne_bytes([$($byte),*])
 	};
 	(Msb0, u16, [$($byte:expr),*]) => {
@@ -353,7 +349,7 @@ macro_rules! __ty_from_bytes {
 	(Lsb0, u16, [$($byte:expr),*]) => {
 		u16::from_le_bytes([$($byte),*])
 	};
-	(Local, u16, [$($byte:expr),*]) => {
+	(LocalBits, u16, [$($byte:expr),*]) => {
 		u16::from_ne_bytes([$($byte),*])
 	};
 	(Msb0, u32, [$($byte:expr),*]) => {
@@ -362,7 +358,7 @@ macro_rules! __ty_from_bytes {
 	(Lsb0, u32, [$($byte:expr),*]) => {
 		u32::from_le_bytes([$($byte),*])
 	};
-	(Local, u32, [$($byte:expr),*]) => {
+	(LocalBits, u32, [$($byte:expr),*]) => {
 		u32::from_ne_bytes([$($byte),*])
 	};
 	(Msb0, u64, [$($byte:expr),*]) => {
@@ -371,7 +367,7 @@ macro_rules! __ty_from_bytes {
 	(Lsb0, u64, [$($byte:expr),*]) => {
 		u64::from_le_bytes([$($byte),*])
 	};
-	(Local, u64, [$($byte:expr),*]) => {
+	(LocalBits, u64, [$($byte:expr),*]) => {
 		u64::from_ne_bytes([$($byte),*])
 	};
 	(Msb0, usize, [$($byte:expr),*]) => {
@@ -380,7 +376,7 @@ macro_rules! __ty_from_bytes {
 	(Lsb0, usize, [$($byte:expr),*]) => {
 		usize::from_le_bytes([$($byte),*])
 	};
-	(Local, usize, [$($byte:expr),*]) => {
+	(LocalBits, usize, [$($byte:expr),*]) => {
 		usize::from_ne_bytes([$($byte),*])
 	};
 }

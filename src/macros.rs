@@ -40,7 +40,7 @@ bits![0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0];
 bits![Msb0, u8; 1; 5];
 bits![mut Lsb0; 0; 5];
 bits![1; 5];
-bits![mut Local; 0, 1,];
+bits![mut LocalBits; 0, 1,];
 ```
 **/
 #[macro_export]
@@ -55,7 +55,7 @@ macro_rules! bits {
 			$order, $store; $($val),*
 		);
 		unsafe { $crate::__bits_from_slice!(
-			mut $order, $store, $crate::__count!($($val),*), DATA
+			mut $order, $crate::__count!($($val),*), DATA
 		)}
 	}};
 
@@ -73,7 +73,7 @@ macro_rules! bits {
 			$order, $store; $($val),*
 		);
 		unsafe { $crate::__bits_from_slice!(
-			mut $order, $store, $crate::__count!($($val),*), DATA
+			mut $order, $crate::__count!($($val),*), DATA
 		)}
 	}};
 
@@ -90,7 +90,7 @@ macro_rules! bits {
 	//  Default order and store.
 
 	(mut $($val:expr),* $(,)?) => {
-		unsafe { $crate::bits!(mut Local, usize; $($val),*) }
+		unsafe { $crate::bits!(mut LocalBits, usize; $($val),*) }
 	};
 
 	//  Repetition syntax `[bit ; count]`.
@@ -104,7 +104,7 @@ macro_rules! bits {
 			$crate::__extend_bool!($val, $store); ELTS
 		];
 		unsafe { $crate::__bits_from_slice!(
-			mut $order, $store, $len, DATA
+			mut $order, $len, DATA
 		)}
 	}};
 
@@ -114,7 +114,7 @@ macro_rules! bits {
 			$crate::__extend_bool!($val, $store); ELTS
 		];
 		unsafe { $crate::__bits_from_slice!(
-			mut $order, $store, $len, DATA
+			mut $order, $len, DATA
 		)}
 	}};
 
@@ -131,7 +131,7 @@ macro_rules! bits {
 	//  Default order and store.
 
 	(mut $val:expr; $len:expr) => {
-		$crate::bits!(mut Local, usize; $val; $len)
+		$crate::bits!(mut LocalBits, usize; $val; $len)
 	};
 
 	//  Repeat everything from above, but now immutable.
@@ -142,7 +142,7 @@ macro_rules! bits {
 			$order, $store; $($val),*
 		);
 		unsafe { $crate::__bits_from_slice!(
-			$order, $store, $crate::__count!($($val),*), DATA
+			$order, $crate::__count!($($val),*), DATA
 		)}
 	}};
 
@@ -152,7 +152,7 @@ macro_rules! bits {
 			$order, $store; $($val),*
 		);
 		unsafe { $crate::__bits_from_slice!(
-			$order, $store, $crate::__count!($($val),*), DATA
+			$order, $crate::__count!($($val),*), DATA
 		)}
 	}};
 
@@ -165,7 +165,7 @@ macro_rules! bits {
 	};
 
 	($($val:expr),* $(,)?) => {
-		$crate::bits!(Local, usize; $($val),*)
+		$crate::bits!(LocalBits, usize; $($val),*)
 	};
 
 	($order:ident, $store:ident; $val:expr; $len:expr) => {{
@@ -173,7 +173,7 @@ macro_rules! bits {
 		static DATA: [$store; ELTS] = [
 			$crate::__extend_bool!($val, $store); ELTS
 		];
-		unsafe { $crate::__bits_from_slice!($order, $store, $len, DATA) }
+		unsafe { $crate::__bits_from_slice!($order, $len, DATA) }
 	}};
 
 	($order:path, $store:ident; $val:expr; $len:expr) => {{
@@ -181,7 +181,7 @@ macro_rules! bits {
 		static DATA: [$store; ELTS] = [
 			$crate::__extend_bool!($val, $store); ELTS
 		];
-		unsafe { $crate::__bits_from_slice!($order, $store, $len, DATA) }
+		unsafe { $crate::__bits_from_slice!($order, $len, DATA) }
 	}};
 
 	($order:ident; $val:expr; $len:expr) => {
@@ -193,7 +193,7 @@ macro_rules! bits {
 	};
 
 	($val:expr; $len:expr) => {
-		$crate::bits!(Local, usize; $val; $len)
+		$crate::bits!(LocalBits, usize; $val; $len)
 	};
 }
 
@@ -292,7 +292,7 @@ macro_rules! bitarr {
 	};
 
 	($($val:expr),* $(,)?) => {
-		$crate::bitarr!(Local, usize; $($val),*)
+		$crate::bitarr!(LocalBits, usize; $($val),*)
 	};
 
 	($order:ident, $store:ident; $val:expr; $len:expr) => {{
@@ -316,7 +316,7 @@ macro_rules! bitarr {
 	};
 
 	($val:expr; $len:expr) => {
-		$crate::bitarr!(Local, usize; $val; $len)
+		$crate::bitarr!(LocalBits, usize; $val; $len)
 	};
 }
 

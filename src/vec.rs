@@ -235,7 +235,7 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let vec = vec![0u8; 4];
-	/// let bv = BitVec::<Local, _>::from_vec(vec);
+	/// let bv = BitVec::<LocalBits, _>::from_vec(vec);
 	/// assert_eq!(bv, bits![0; 32]);
 	/// ```
 	///
@@ -270,7 +270,7 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let vec = vec![0u8; 4];
-	/// let bv = BitVec::<Local, _>::try_from_vec(vec).unwrap();
+	/// let bv = BitVec::<LocalBits, _>::try_from_vec(vec).unwrap();
 	/// assert_eq!(bv, bits![0; 32]);
 	/// ```
 	///
@@ -403,7 +403,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bv = bitvec![Local, u16; 1; 50];
+	/// let bv = bitvec![LocalBits, u16; 1; 50];
 	/// assert_eq!(bv.elements(), 4);
 	/// ```
 	#[inline]
@@ -465,7 +465,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut bv = bitvec![Local, u8; 0; 10];
+	/// let mut bv = bitvec![LocalBits, u8; 0; 10];
 	/// assert_eq!(bv.as_slice(), [0, 0]);
 	/// bv.set_elements(0xA5);
 	/// assert_eq!(bv.as_slice(), [0xA5, 0xA5]);

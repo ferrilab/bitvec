@@ -36,7 +36,7 @@ fn push() {
 
 #[test]
 fn inspect() {
-	let bv = bitvec![Local, u16; 0; 40];
+	let bv = bitvec![LocalBits, u16; 0; 40];
 	assert_eq!(bv.elements(), 3);
 }
 
@@ -56,8 +56,8 @@ fn force_align() {
 #[test]
 #[should_panic(expected = "Vector capacity exceeded")]
 fn overcommit() {
-	BitVec::<Local, usize>::with_capacity(
-		BitSlice::<Local, usize>::MAX_BITS + 1,
+	BitVec::<LocalBits, usize>::with_capacity(
+		BitSlice::<LocalBits, usize>::MAX_BITS + 1,
 	);
 }
 
@@ -69,7 +69,7 @@ fn from_null() {
 	unsafe {
 		BitVec::from_raw_parts(
 			ptr::slice_from_raw_parts_mut(ptr::null_mut::<u8>(), 64)
-				as *mut BitSlice<Local, usize>,
+				as *mut BitSlice<LocalBits, usize>,
 			0,
 		);
 	}
@@ -97,7 +97,7 @@ fn reservations() {
 	assert!(
 		catch_unwind(|| {
 			let mut bv = bitvec![1; 100];
-			bv.reserve(BitSlice::<Local, usize>::MAX_BITS - 50);
+			bv.reserve(BitSlice::<LocalBits, usize>::MAX_BITS - 50);
 		})
 		.is_err()
 	);
@@ -120,7 +120,7 @@ fn reservations() {
 	assert!(
 		catch_unwind(|| {
 			let mut bv = bitvec![1; 100];
-			bv.reserve_exact(BitSlice::<Local, usize>::MAX_BITS - 50);
+			bv.reserve_exact(BitSlice::<LocalBits, usize>::MAX_BITS - 50);
 		})
 		.is_err()
 	);

@@ -60,8 +60,8 @@ fn snooze() {
 
 #[cfg(feature = "std")]
 fn main() {
-	let data = BitBox::from_bitslice([0u8; 5].view_bits::<Local>());
-	let bits: &'static mut BitSlice<Local, u8> = BitBox::leak(data);
+	let data = BitBox::from_bitslice([0u8; 5].view_bits::<LocalBits>());
+	let bits: &'static mut BitSlice<LocalBits, u8> = BitBox::leak(data);
 
 	//  This slice is all zeros.
 	assert!(bits.not_any());
@@ -72,14 +72,14 @@ fn main() {
 		bits.set_all(true);
 		bits
 	});
-	let bits: &'static mut BitSlice<Local, u8> = handle.join().unwrap();
+	let bits: &'static mut BitSlice<LocalBits, u8> = handle.join().unwrap();
 
 	assert!(bits.all());
 
 	//  Now, like the wise Solomon, we are going to cut this slice in half.
 	let (left, right): (
-		&'static mut BitSlice<Local, AtomicU8>,
-		&'static mut BitSlice<Local, AtomicU8>,
+		&'static mut BitSlice<LocalBits, AtomicU8>,
+		&'static mut BitSlice<LocalBits, AtomicU8>,
 	) = bits.split_at_mut(bits.len() / 2);
 
 	/* If you look at the `.split_at_mut` docs, you’ll see that it returns a
@@ -133,9 +133,9 @@ fn main() {
 			BitDomainMut::Region { head, body, tail } => {
 				//  Bind in reverse order, so that access to the contended
 				//  element is likely simultaneous.
-				let _back: &mut BitSlice<Local, AtomicU8> = !tail;
-				let _middle: &mut BitSlice<Local, u8> = body;
-				let _front: &mut BitSlice<Local, AtomicU8> = head;
+				let _back: &mut BitSlice<LocalBits, AtomicU8> = !tail;
+				let _middle: &mut BitSlice<LocalBits, u8> = body;
+				let _front: &mut BitSlice<LocalBits, AtomicU8> = head;
 			},
 		}
 		left
@@ -149,9 +149,9 @@ fn main() {
 				unreachable!("I have selected the pattern that works")
 			},
 			BitDomainMut::Region { head, body, tail } => {
-				let _front: &mut BitSlice<Local, AtomicU8> = !head;
-				let _middle: &mut BitSlice<Local, u8> = body;
-				let _back: &mut BitSlice<Local, AtomicU8> = tail;
+				let _front: &mut BitSlice<LocalBits, AtomicU8> = !head;
+				let _middle: &mut BitSlice<LocalBits, u8> = body;
+				let _back: &mut BitSlice<LocalBits, AtomicU8> = tail;
 			},
 		}
 		right

@@ -186,7 +186,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bitarr: BitArray<Local, [usize; 1]> = bitarr![0; 30];
+	/// let bitarr: BitArray<LocalBits, [usize; 1]> = bitarr![0; 30];
 	/// let native: [usize; 1] = bitarr.unwrap();
 	/// ```
 	#[cfg_attr(not(tarpaulin), inline(always))]
@@ -269,13 +269,13 @@ mod tests {
 	fn create_arrays() {
 		macro_rules! make {
 			($($elts:literal),+ $(,)?) => { $(
-				let _ = BitArray::<Local, [u8; $elts]>::zeroed();
-				let _ = BitArray::<Local, [u16; $elts]>::zeroed();
-				let _ = BitArray::<Local, [u32; $elts]>::zeroed();
-				let _ = BitArray::<Local, [usize; $elts]>::zeroed();
+				let _ = BitArray::<LocalBits, [u8; $elts]>::zeroed();
+				let _ = BitArray::<LocalBits, [u16; $elts]>::zeroed();
+				let _ = BitArray::<LocalBits, [u32; $elts]>::zeroed();
+				let _ = BitArray::<LocalBits, [usize; $elts]>::zeroed();
 
 				#[cfg(target_pointer_width = "64")] {
-				let _ = BitArray::<Local, [u64; $elts]>::zeroed();
+				let _ = BitArray::<LocalBits, [u64; $elts]>::zeroed();
 				}
 			)+ };
 		}
@@ -289,7 +289,7 @@ mod tests {
 	#[test]
 	fn wrap_unwrap() {
 		let data: [u8; 15] = *b"Saluton, mondo!";
-		let bits = BitArray::<Local, _>::new(data);
+		let bits = BitArray::<LocalBits, _>::new(data);
 		assert_eq!(bits.unwrap(), data);
 	}
 }

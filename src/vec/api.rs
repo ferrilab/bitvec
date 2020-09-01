@@ -52,7 +52,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut bv = BitVec::<Local, usize>::new();
+	/// let mut bv = BitVec::<LocalBits, usize>::new();
 	/// ```
 	#[inline]
 	pub fn new() -> Self {
@@ -85,7 +85,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut bv = BitVec::<Local, usize>::with_capacity(10);
+	/// let mut bv = BitVec::<LocalBits, usize>::with_capacity(10);
 	///
 	/// // The vector contains no items, even though it has capacity for more
 	/// assert_eq!(bv.len(), 0);
@@ -194,7 +194,7 @@ where
 	/// let cap = bv.capacity();
 	///
 	/// unsafe {
-	///   let bits = bv::slice::from_raw_parts_mut::<Local, _>(p, e);
+	///   let bits = bv::slice::from_raw_parts_mut::<LocalBits, _>(p, e);
 	///   let len = bits.len();
 	///
 	///   // Overwrite memory with a new pattern
@@ -231,7 +231,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bv: BitVec<Local, usize> = BitVec::with_capacity(100);
+	/// let bv: BitVec<LocalBits, usize> = BitVec::with_capacity(100);
 	/// assert!(bv.capacity() >= 100);
 	/// ```
 	#[inline]
@@ -350,7 +350,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut bv = BitVec::<Local, usize>::with_capacity(100);
+	/// let mut bv = BitVec::<LocalBits, usize>::with_capacity(100);
 	/// bv.extend([false, true, false].iter().copied());
 	/// assert!(bv.capacity() >= 100);
 	/// bv.shrink_to_fit();
