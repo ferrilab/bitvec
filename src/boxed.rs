@@ -48,7 +48,10 @@ use core::{
 	slice,
 };
 
-use wyz::pipe::Pipe;
+use wyz::pipe::{
+	Pipe,
+	PipeRef,
+};
 
 /** A frozen heap-allocated buffer of individual bits.
 
@@ -407,20 +410,11 @@ where
 	/// of the `Box<[T::Mem]>` temporary view.
 	fn with_box<F, R>(&mut self, func: F) -> R
 	where F: FnOnce(&mut ManuallyDrop<Box<[T::Mem]>>) -> R {
-		let mut bitptr = self.bitptr();
-
-		let mut boxed = self
-			.as_mut_slice()
+		self.as_mut_slice()
 			.pipe(|s| s as *mut [T] as *mut [T::Mem])
 			.pipe(|raw| unsafe { Box::from_raw(raw) })
-			.pipe(ManuallyDrop::new);
-		let out = func(&mut boxed);
-
-		unsafe {
-			bitptr.set_pointer(boxed.as_ptr() as *mut T);
-		}
-		self.pointer = bitptr.to_nonnull();
-		out
+			.pipe(ManuallyDrop::new)
+			.pipe_mut(func)
 	}
 }
 
