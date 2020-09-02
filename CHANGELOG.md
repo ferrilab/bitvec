@@ -4,6 +4,7 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+1. [0.18.2](#0182)
 1. [0.18.1](#0181)
 1. [0.18.0](#0180)
       1. [Bit Arrays in Value Position](#bit-arrays-in-value-position)
@@ -38,6 +39,22 @@ This document is written according to the [Keep a Changelog][kac] style.
 1. [0.3.0](#030)
 1. [0.2.0](#020)
 1. [0.1.0](#010)
+
+## 0.18.2
+
+Commit 6002818 changed the default ordering type-parameter to `Lsb0` instead of
+`LocalBits`, but did not update macro constructors to use `Lsb0` when called
+without an ordering argument. This caused type errors when using macros and
+type declarations in the same slot, such as
+
+```rust
+let bits: &'static BitSlice = bits![0];
+```
+
+The binding was typed as `&'static BitSlice<Lsb0, usize>`, but the macro as
+`&'static BitSlice<LocalBits, usize>`. This is only a problem on big-endian
+targets, where `LocalBits` does not alias to `Lsb0`, but even though there are
+no known users on big-endian targets, this incorrectness warrants a patch.
 
 ## 0.18.1
 
