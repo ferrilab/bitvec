@@ -90,7 +90,7 @@ macro_rules! bits {
 	//  Default order and store.
 
 	(mut $($val:expr),* $(,)?) => {
-		unsafe { $crate::bits!(mut LocalBits, usize; $($val),*) }
+		unsafe { $crate::bits!(mut Lsb0, usize; $($val),*) }
 	};
 
 	//  Repetition syntax `[bit ; count]`.
@@ -131,7 +131,7 @@ macro_rules! bits {
 	//  Default order and store.
 
 	(mut $val:expr; $len:expr) => {
-		$crate::bits!(mut LocalBits, usize; $val; $len)
+		$crate::bits!(mut Lsb0, usize; $val; $len)
 	};
 
 	//  Repeat everything from above, but now immutable.
@@ -165,7 +165,7 @@ macro_rules! bits {
 	};
 
 	($($val:expr),* $(,)?) => {
-		$crate::bits!(LocalBits, usize; $($val),*)
+		$crate::bits!(Lsb0, usize; $($val),*)
 	};
 
 	($order:ident, $store:ident; $val:expr; $len:expr) => {{
@@ -193,7 +193,7 @@ macro_rules! bits {
 	};
 
 	($val:expr; $len:expr) => {
-		$crate::bits!(LocalBits, usize; $val; $len)
+		$crate::bits!(Lsb0, usize; $val; $len)
 	};
 }
 
@@ -292,7 +292,7 @@ macro_rules! bitarr {
 	};
 
 	($($val:expr),* $(,)?) => {
-		$crate::bitarr!(LocalBits, usize; $($val),*)
+		$crate::bitarr!(Lsb0, usize; $($val),*)
 	};
 
 	($order:ident, $store:ident; $val:expr; $len:expr) => {{
@@ -316,7 +316,7 @@ macro_rules! bitarr {
 	};
 
 	($val:expr; $len:expr) => {
-		$crate::bitarr!(LocalBits, usize; $val; $len)
+		$crate::bitarr!(Lsb0, usize; $val; $len)
 	};
 }
 
