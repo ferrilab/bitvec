@@ -41,7 +41,7 @@ fn inspect() {
 }
 
 #[test]
-fn force_align() {
+fn buffer_control() {
 	let data = 0xA5u8;
 	let bits = data.view_bits::<Msb0>();
 
@@ -51,6 +51,13 @@ fn force_align() {
 	assert_eq!(bv.as_slice(), &[0b1001_0101]);
 	bv.force_align();
 	assert_eq!(bv.as_slice(), &[0b1001_0101]);
+
+	bv.truncate(6);
+	bv.set_uninitialized(false);
+	assert_eq!(bv.as_slice(), &[0b1001_0100]);
+	bv.set_uninitialized(true);
+	assert_eq!(bv.as_slice(), &[0b1001_0111]);
+	assert_eq!(bv, bits![1, 0, 0, 1, 0, 1]);
 }
 
 #[test]

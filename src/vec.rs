@@ -411,6 +411,45 @@ where
 		self.bitptr().elements()
 	}
 
+	/// Sets the uninitialized bits of the vector to a fixed value.
+	///
+	/// This method modifies all bits in the allocated buffer that are outside
+	/// the `self.as_bitslice()` view so that they have a consistent value. This
+	/// can be used to zero the uninitialized memory so that when viewed as a
+	/// raw memory slice, bits outside the live region have a predictable value.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut bv = 220u8.view_bits::<Lsb0>().to_bitvec();
+	/// assert_eq!(bv.as_slice(), &[220u8]);
+	/// bv.truncate(4);
+	/// assert_eq!(bv.count_ones(), 2);
+	/// assert_eq!(bv.as_slice(), &[220u8]);
+	///
+	/// bv.set_uninitialized(false);
+	/// assert_eq!(bv.as_slice(), &[12u8]);
+	///
+	/// bv.set_uninitialized(true);
+	/// assert_eq!(bv.as_slice(), &[!3u8]);
+	/// ```
+	#[inline]
+	pub fn set_uninitialized(&mut self, value: bool) {
+		let head = self.bitptr().head().value() as usize;
+		let tail = head + self.len();
+		let capa = self.capacity();
+		let mut bp = self.bitptr();
+		unsafe {
+			bp.set_head(BitIdx::ZERO);
+			bp.set_len(capa);
+			let bits = bp.to_bitslice_mut::<O>();
+			bits.get_unchecked_mut(.. head).set_all(value);
+			bits.get_unchecked_mut(tail ..).set_all(value);
+		}
+	}
+
 	/// Ensures that the live region of the vector’s contents begins at the
 	/// leading edge of the buffer.
 	///

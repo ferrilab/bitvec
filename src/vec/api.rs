@@ -416,7 +416,9 @@ where
 	/// to be returned instead of dropped.
 	///
 	/// Note that this method has no effect on the allocated capacity of the
-	/// vector.
+	/// vector, **nor does it erase truncated memory**. Bits in the allocated
+	/// memory that are outside of the `.as_bitslice()` view always have
+	/// **unspecified** values, and cannot be relied upon to be zero.
 	///
 	/// # Original
 	///
@@ -432,6 +434,7 @@ where
 	/// let mut bv = bitvec![1; 5];
 	/// bv.truncate(2);
 	/// assert_eq!(bv.len(), 2);
+	/// assert!(bv.as_slice()[0].count_ones() >= 5);
 	/// ```
 	///
 	/// No truncation occurs when `len` is greater than the vector’s current
@@ -445,7 +448,7 @@ where
 	/// assert_eq!(bv.len(), 3);
 	/// ```
 	///
-	/// Truncating when `len == 0` is equivalent to calling the [`clean`]
+	/// Truncating when `len == 0` is equivalent to calling the [`clear`]
 	/// method.
 	///
 	/// ```rust

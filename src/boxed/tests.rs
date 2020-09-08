@@ -21,4 +21,13 @@ fn api() {
 	let bv = reboxed.into_bitvec();
 	let bb = bv.into_boxed_bitslice();
 	assert_eq!(bb.bitptr(), bitptr);
+
+	let mut bb = 0b1001_0110u8.view_bits::<Msb0>()[2 .. 6]
+		.to_bitvec()
+		.into_boxed_bitslice();
+	bb.set_uninitialized(false);
+	assert_eq!(bb.as_slice(), &[0b0001_0100]);
+	bb.set_uninitialized(true);
+	assert_eq!(bb.as_slice(), &[0b1101_0111]);
+	assert_eq!(bb, bits![0, 1, 0, 1]);
 }
