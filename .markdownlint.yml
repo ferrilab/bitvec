@@ -1,0 +1,15 @@
+################################################################################
+#                          MarkdownLint Configuration                          #
+#                                                                              #
+# This file controls a Markdown linter used to govern prose in the project.    #
+# See <https://github.com/DavidAnson/vscode-markdownlint> for more details.    #
+################################################################################
+
+MD033:
+  allowed_elements:
+    - math
+    - mi
+    - mn
+    - mo
+    - mrow
+    - msup
