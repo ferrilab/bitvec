@@ -75,7 +75,7 @@ them internally.
 
 - The CI test harness now covers targets beyond `x86_64-unknown-linux-gnu`,
   thanks to GitHub user [@Alexhuszagh]. `bitvec` guarantees support for all
-  targets listed in the CI matrix through at least the next major relase. If
+  targets listed in the CI matrix through at least the next major release. If
   your target is not in this list, please file an issue for inclusion.
 
 - `BitStore` is implemented on the `AtomicUN` corresponding to each `uN` that
