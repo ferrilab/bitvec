@@ -225,7 +225,7 @@ macro_rules! view_bits {
 			where O: BitOrder {
 				unsafe {
 					BitPtr::new_unchecked(
-						self.as_ptr(),
+						self.as_mut_ptr(),
 						BitIdx::ZERO,
 						$n * T::Mem::BITS as usize,
 					)
