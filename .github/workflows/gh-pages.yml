@@ -1,0 +1,32 @@
+################################################################################
+#                       GitHub Action – Pages Deployment                       #
+#                                                                              #
+# This file controls the GitHub Actions pipeline used to deploy static files   #
+# to GitHub Pages for public view.                                             #
+################################################################################
+
+name: GitHub Pages
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  deploy:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup mdbook
+        uses: peaceiris/actions-mdbook@v1
+        with:
+          mdbook-version: "latest"
+
+      - run: mdbook build
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./target/book
