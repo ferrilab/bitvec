@@ -1,0 +1,377 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>BitOrder - A User’s Guide to the `bitvec` Project</title>
+        
+        
+
+
+        <!-- Custom HTML head -->
+        
+
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="A more thorough manual of the `bitvec` project">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        
+        <link rel="icon" href="../favicon.svg">
+        
+        
+        <link rel="shortcut icon" href="../favicon.png">
+        
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        
+        <link rel="stylesheet" href="../fonts/fonts.css">
+        
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+        <!-- MathJax -->
+        <script async type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../dedication.html">Dedication</a></li><li class="chapter-item expanded "><a href="../introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../data-structures.html"><strong aria-hidden="true">2.</strong> Data Structures</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../data-structures/bitslice.html"><strong aria-hidden="true">2.1.</strong> BitSlice</a></li><li class="chapter-item expanded "><a href="../data-structures/bitarray.html"><strong aria-hidden="true">2.2.</strong> BitArray</a></li><li class="chapter-item expanded "><a href="../data-structures/bitvec.html"><strong aria-hidden="true">2.3.</strong> BitVec and BitBox</a></li></ol></li><li class="chapter-item expanded "><a href="../type-parameters.html"><strong aria-hidden="true">3.</strong> Type Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../type-parameters/bitorder.html" class="active"><strong aria-hidden="true">3.1.</strong> BitOrder</a></li><li class="chapter-item expanded "><a href="../type-parameters/bitstore.html"><strong aria-hidden="true">3.2.</strong> BitStore</a></li></ol></li><li class="chapter-item expanded "><a href="../practical-use.html"><strong aria-hidden="true">4.</strong> Practical Use</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../practical-use/collections.html"><strong aria-hidden="true">4.1.</strong> bool Collections</a></li><li class="chapter-item expanded "><a href="../practical-use/bitfields.html"><strong aria-hidden="true">4.2.</strong> C-Style Bitfields</a></li></ol></li><li class="chapter-item expanded "><a href="../memory-model.html"><strong aria-hidden="true">5.</strong> Memory Model</a></li><li class="chapter-item expanded "><a href="../pointer-encoding.html"><strong aria-hidden="true">6.</strong> Pointer Encoding</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
+
+                    <h1 class="menu-title">A User’s Guide to the `bitvec` Project</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1><a class="header" href="#bit-ordering----omit-in-toc---" id="bit-ordering----omit-in-toc---">Bit Ordering <!-- omit in toc --></a></h1>
+<ol>
+<li><a href="#provided-orderings">Provided Orderings</a>
+<ol>
+<li><a href="#lsb0"><code>Lsb0</code></a></li>
+<li><a href="#msb0"><code>Msb0</code></a></li>
+<li><a href="#local"><code>LocalBits</code></a></li>
+<li><a href="#default-ordering-parameter">Default Ordering Parameter</a></li>
+</ol>
+</li>
+<li><a href="#implementing-bitorder">Implementing <code>BitOrder</code></a>
+<ol>
+<li><a href="#support-types">Support Types</a></li>
+</ol>
+</li>
+</ol>
+<p><code>bitvec</code> expects user code to count semantic indices, and hides the actual
+position of a bit within a memory element from users. This allows user code to
+treat indices as a uniform domain of integers in <code>0 ..= !0 &gt;&gt; 3</code>, and not have
+to remember whether <code>place - 1</code> means moving “forward” or “backward” in the
+buffer.</p>
+<p>Internally, each <code>*BitSlice</code> pointer contains an element address and a bit
+index. The pointer uses its <code>BitOrder</code> type parameter to translate the bit index
+into a one-hot selector mask that drives actual memory access.</p>
+<p><code>BitOrder</code> is open to user implementation, and implementations of it are trusted
+to be sound in the <code>bitvec</code> memory model. For this reason, the trait is <code>unsafe</code>
+to implement. Most users will not implement it; almost all users want one of the
+two monotonic orderings provided for you. However, some specialized users may
+have an ordering of their own, and they are still able to encode that ordering
+away from their index logic.</p>
+<h2><a class="header" href="#provided-orderings" id="provided-orderings">Provided Orderings</a></h2>
+<p><code>bitvec</code> provides two orderings: <code>Lsb0</code> and <code>Msb0</code>. These each refer to which
+numeric bit in a register element is considered to be the zero-index.</p>
+<p>You can think of these as corresponding to the little-endian and big-endian
+processor byte orderings if you like, as long as you remember that your choice
+of bit-ordering is not at all related to the byte-ordering of your target
+processor.</p>
+<h3><a class="header" href="#lsb0" id="lsb0"><code>Lsb0</code></a></h3>
+<p>The <code>Lsb0</code> type sets the zero index at the least significant bit of a register
+(numeric value <math><mn>1</mn></math>) and each successive index selects the
+next more significant bit in the register, until the most significant bit is at
+the final index.</p>
+<p>It is the expression <code>mask = 1 &lt;&lt; index;</code>.</p>
+<h3><a class="header" href="#msb0" id="msb0"><code>Msb0</code></a></h3>
+<p>The <code>Msb0</code> type sets the zero index at the most significant bit of a register
+(numeric value
+<math><msup><mn>2</mn><mrow><mi>n</mi><mo>-</mo><mn>1</mn></mrow></msup></math>
+for an <code>n</code>-bit register) and each successive index selects the next less
+significant bit in the register, until the least significant bit is at the final
+index.</p>
+<p>It is the expression <code>mask = (iN::MIN as uN) &gt;&gt; index;</code>.</p>
+<h3><a class="header" href="#localbits" id="localbits"><code>LocalBits</code></a></h3>
+<p>The type alias <code>LocalBits</code> refers to the ordering that your target’s C compiler
+will likely choose for its bitfield direction. This is <code>Lsb0</code> on little-endian
+byte-ordered processors, and <code>Msb0</code> on big-endian byte-ordered processors.
+Remember that the <code>BitOrder</code> implementations and processor byte orderings have
+no relation to each other! This is only a custom, not a requirement of the
+processor architecture.</p>
+<h3><a class="header" href="#default-ordering-parameter" id="default-ordering-parameter">Default Ordering Parameter</a></h3>
+<p><code>Lsb0</code> is the default type parameter used by the sequence types, as it produces
+selection masks using the starting value <code>1</code>, which encodes to smaller
+instructions than the <code>Msb0</code> starting value.</p>
+<p>On AMD64, the pairs <code>&lt;Lsb0, u64&gt;</code> and <code>&lt;Msb0, u64&gt;</code> produce the following object
+code and disassembly:</p>
+<pre><code class="language-text">ba 01 00 00 00  movl $1, %edx
+48 d3 e2        shlq %cl, %rdx
+
+48 ba 00 00 00 00 00 00 00 80  movabsq $-9223372036854775808, %rdx
+48 d3 ea                       shrq    %cl, %rdx
+</code></pre>
+<p>The <code>Msb0</code> load requires an additional four bytes of zeros in its immediate,
+and the 64-bit modifier prefix (<code>0x48</code>), in order to encode <code>movabsq</code> instead of
+<code>movl</code></p>
+<h2><a class="header" href="#implementing-bitorder" id="implementing-bitorder">Implementing <code>BitOrder</code></a></h2>
+<p>As stated above, this is an <code>unsafe trait</code> because <code>bitvec</code> relies on its
+implementations to uphold certain mathematical invariants. Failure will result
+in memory unsafety and/or program crashes.</p>
+<p><code>BitOrder</code> has three functions: <code>at</code>, <code>select</code>, and <code>mask</code>. Implementors are
+required to provide <code>at</code>; <code>select</code> and <code>mask</code> have default implementations that
+rely on it. These functions are all generic over the <code>BitMemory</code> trait; this
+trait describes the register types (unsigned integers) that can be used by
+<code>bitvec</code>. It provides some useful associated constants, and is otherwise
+uninteresting.</p>
+<ul>
+<li>
+<p><a href="https://docs.rs/bitvec/latest/bitvec/order/trait.BitOrder.html#tymethod.at" title="BitOrder::at API documentation"><code>at</code></a> receives the semantic index of a bit within a register type, and must
+produce the concrete position corresponding to the semantic index. The input
+and output are both integers in the domain <code>[0, W)</code> where <code>W</code> is the bit-width
+of the register type being indexed.</p>
+<p><code>at</code> <strong>must</strong> implement an exactly one-to-one mapping from all inputs to all
+outputs in the <code>[0, W)</code> domain. This mapping must never observably change.
+These are strict requirements of the library, and failing to uphold either
+<strong>will</strong> break your program.</p>
+</li>
+<li>
+<p><a href="https://docs.rs/bitvec/latest/bitvec/order/trait.BitOrder.html#method.select" title="BitOrder::select API documentation"><code>select</code></a> receives the semantic index of a bit within a register type, and
+must produce a value of that register type with exactly one bit set. The
+produced value is a mask that selects only the bit specified by the provided
+index, and will be used in Boolean arithmetic to manipulate memory.</p>
+<p>The default implementation is <code>1 &lt;&lt; at(index)</code>. You are required to maintain
+this behavior in your override.</p>
+</li>
+<li>
+<p><code>mask</code> receives an inclusive start index and an exclusive end index, and must
+produce a register value that selects every bit in the indexed range.</p>
+<p>The default implementation is <code>(start .. end).map(select).sum()</code>. You are
+required to maintain this behavior in your override.</p>
+</li>
+</ul>
+<h3><a class="header" href="#support-types" id="support-types">Support Types</a></h3>
+<p>The <code>BitOrder</code> trait APIs use supporting types to enforce requirements on the
+bare numbers being passed through it. These types are documented in the <a href="https://docs.rs/bitvec/latest/bitvec/index/index.html" title="index module documentation"><code>index</code></a>
+module. They all provide a <code>.value()</code> method that removes the wrapper and yields
+the inner number, and a <code>::new()</code> constructor that ensures that values to be
+wrapped uphold the type’s requirements.</p>
+<ul>
+<li><code>at</code> and <code>select</code> receive a <a href="https://docs.rs/bitvec/latest/bitvec/index/struct.BitIdx.html" title="BitIdx API documentation"><code>BitIdx&lt;M&gt;</code></a> argument. This is a wrapper over
+<code>u8</code> that ensures that the contained value is in the domain <code>0 .. M::BITS</code>. It
+serves to indicate that a number is a semantic counter, not an electrical
+position.</li>
+<li><code>at</code> returns a <a href="https://docs.rs/bitvec/latest/bitvec/index/struct.BitPos.html" title="BitPos API documentation"><code>BitPos&lt;M&gt;</code></a> value. This has the same behavior and
+restrictions as <code>BitIdx&lt;M&gt;</code>, and indicates that the number is an electrical
+position within a register.</li>
+<li><code>select</code> returns a <a href="https://docs.rs/bitvec/latest/bitvec/index/struct.BitSel.html" title="BitSel API documentation"><code>BitSel&lt;M&gt;</code></a> value. This wraps an <code>M</code> register value, and
+ensures that the contained number is a power of two – exactly one bit is set,
+and all others are zero. This type indicates that the mask is guaranteed to
+select exactly one bit in a register.</li>
+<li><code>mask</code> receives an inclusive <code>BitIdx&lt;M&gt;</code> and an exclusive <a href="https://docs.rs/bitvec/latest/bitvec/index/struct.BitTail.html" title="BitTail API documentation"><code>BitTail&lt;M&gt;</code></a>
+argument, and returns a <a href="https://docs.rs/bitvec/latest/bitvec/index/struct.BitMask.html" title="BitMask API documentation"><code>BitMask&lt;M&gt;</code></a> value. <code>BitTail&lt;M&gt;</code> ensures that the
+contained number is in the domain <code>0 ..= M::BITS</code>, including the final count,
+and marks a one-past-the-end exclusive boundary. <code>BitMask&lt;M&gt;</code> marks that the
+contained number may select any number of bits in a register.</li>
+</ul>
+<p>New implementors of <code>BitOrder</code> will use these types to satisfy behavior
+requirements individually.</p>
+<p>In addition, implementors’ test suites should call the function
+<code>order::verify_for_type::&lt;O, M&gt;()</code> to check that an implementation <code>O</code> satisfies
+the behavior requirements for a particular register type <code>M</code>, or call
+<code>order::verify::&lt;O&gt;()</code> to check that an implementation satisfies the behavior
+requirements for <em>all</em> supported register types. These functions are conditional
+upon <code>cfg(test)</code>, and accept a <code>verbose: bool</code> parameter that allows the test
+functions to print diagnostics to <code>stdout</code> during evaluation.</p>
+<p>If the verification functions panic, your implementation is incorrect, and
+cannot be safely used in <code>bitvec</code>.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="../type-parameters.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="../type-parameters/bitstore.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a rel="prev" href="../type-parameters.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="../type-parameters/bitstore.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+
+        
+
+        
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>

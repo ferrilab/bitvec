@@ -1,0 +1,555 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>BitSlice - A User’s Guide to the `bitvec` Project</title>
+        
+        
+
+
+        <!-- Custom HTML head -->
+        
+
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="A more thorough manual of the `bitvec` project">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        
+        <link rel="icon" href="../favicon.svg">
+        
+        
+        <link rel="shortcut icon" href="../favicon.png">
+        
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        
+        <link rel="stylesheet" href="../fonts/fonts.css">
+        
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+        <!-- MathJax -->
+        <script async type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../dedication.html">Dedication</a></li><li class="chapter-item expanded "><a href="../introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../data-structures.html"><strong aria-hidden="true">2.</strong> Data Structures</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../data-structures/bitslice.html" class="active"><strong aria-hidden="true">2.1.</strong> BitSlice</a></li><li class="chapter-item expanded "><a href="../data-structures/bitarray.html"><strong aria-hidden="true">2.2.</strong> BitArray</a></li><li class="chapter-item expanded "><a href="../data-structures/bitvec.html"><strong aria-hidden="true">2.3.</strong> BitVec and BitBox</a></li></ol></li><li class="chapter-item expanded "><a href="../type-parameters.html"><strong aria-hidden="true">3.</strong> Type Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../type-parameters/bitorder.html"><strong aria-hidden="true">3.1.</strong> BitOrder</a></li><li class="chapter-item expanded "><a href="../type-parameters/bitstore.html"><strong aria-hidden="true">3.2.</strong> BitStore</a></li></ol></li><li class="chapter-item expanded "><a href="../practical-use.html"><strong aria-hidden="true">4.</strong> Practical Use</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../practical-use/collections.html"><strong aria-hidden="true">4.1.</strong> bool Collections</a></li><li class="chapter-item expanded "><a href="../practical-use/bitfields.html"><strong aria-hidden="true">4.2.</strong> C-Style Bitfields</a></li></ol></li><li class="chapter-item expanded "><a href="../memory-model.html"><strong aria-hidden="true">5.</strong> Memory Model</a></li><li class="chapter-item expanded "><a href="../pointer-encoding.html"><strong aria-hidden="true">6.</strong> Pointer Encoding</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
+
+                    <h1 class="menu-title">A User’s Guide to the `bitvec` Project</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1><a class="header" href="#slices----omit-in-toc---" id="slices----omit-in-toc---">Slices <!-- omit in toc --></a></h1>
+<ol>
+<li><a href="#getting-a-bitslice">Getting a <code>BitSlice</code></a>
+<ol>
+<li><a href="#borrowing-constructors">Borrowing Constructors</a></li>
+<li><a href="#macro-constructor">Macro Constructor</a></li>
+</ol>
+</li>
+<li><a href="#what-bitslice-can-do">What <code>BitSlice</code> Can Do</a>
+<ol>
+<li><a href="#-that-bool-can">… That <code>[bool]</code> Can</a></li>
+<li><a href="#-that-bool-cannot">… That <code>[bool]</code> Cannot</a></li>
+<li><a href="#set-queries">Set Queries</a></li>
+<li><a href="#boolean-arithmetic">Boolean Arithmetic</a></li>
+<li><a href="#writing-to-memory">Writing To Memory</a></li>
+<li><a href="#viewing-the-underlying-memory">Viewing the Underlying Memory</a></li>
+</ol>
+</li>
+<li><a href="#footnotes">Footnotes</a></li>
+</ol>
+<p>The base type of the project is <code>BitSlice</code>. This is a region type, like
+<code>[bool]</code>, and cannot be held directly. Instead, it is accessed by borrowed
+references (<code>&amp;BitSlice</code>, <code>&amp;mut BitSlice</code>) or owning handles (<code>BitArray</code>,
+<code>BitBox</code>, <code>BitVec</code>). The distinction between the handles and the region is the
+same as it is in ordinary Rust types.</p>
+<p>The <code>BitSlice</code> region is able to begin and end at any bit in memory, and is not
+restricted to having one edge aligned to the edge of its initial element. This
+restriction, present in all of its competitors, is removed through the use of a
+special encoding in all pointers to the region, which stores the starting bit of
+the base element in part of the slice pointer that describes the real memory.</p>
+<p>There are eight bits to a byte on all systems Rust targets, and therefore the
+index of a bit within a byte is itself three bits wide. These bits are taken
+from the length counter of a slice pointer, which means that <code>BitSlice</code> is able
+to address only ⅛<sup>th</sup> of the indices that <code>[bool]</code> can.</p>
+<blockquote>
+<p>This is 64 <a href="https://en.wikipedia.org/wiki/Mebibyte" title="Wikipedia: Mebibyte">Mebibytes</a> on a 32-bit system, and 256 <a href="https://en.wikipedia.org/wiki/Pebibyte" title="Wikipedia: Pebibyte">Pebibytes</a> on a 64-bit
+system. You’ll be fine.</p>
+</blockquote>
+<h2><a class="header" href="#getting-a-bitslice" id="getting-a-bitslice">Getting a <code>BitSlice</code></a></h2>
+<p><code>BitSlice</code> is strictly a borrowed region. It can neither be created nor
+destroyed; rather, views to it are aquired from a memory buffer that some other
+binding owns.</p>
+<p>The <a href="../type-parameters/bitstore.html" title="BitStore type parameter"><code>BitStore</code> chapter</a> covers this in more detail, but only sequences of the
+unsigned integers <code>u8</code>, <code>u16</code>, <code>u32</code>, <code>usize</code>, and (on 64-bit targets) <code>u64</code> can
+be used as the source memory for a <code>BitSlice</code>.</p>
+<h3><a class="header" href="#borrowing-constructors" id="borrowing-constructors">Borrowing Constructors</a></h3>
+<p>The simplest way to create a <code>BitSlice</code> reference is to borrow it from ordinary
+Rust data. The <a href="https://docs.rs/bitvec/latest/bitvec/view/trait.BitView.html"><code>BitView</code></a> trait, available in the <a href="https://docs.rs/bitvec/latest/bitvec/prelude">prelude</a>, implements methods
+on the supported unsigned integers, all<sup class="footnote-reference"><a href="#1">1</a></sup> arrays of them, and their slices.</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bitvec::prelude::*;
+
+let byte = 0u8;
+let bits = byte.view_bits::&lt;Local&gt;();
+
+let array = [0u16; 2];
+let bits = array.view_bits::&lt;Lsb0&gt;();
+
+let mut array = [0u32; 3];
+let slice = &amp;mut array[..];
+let bits = slice.view_bits_mut::&lt;Msb0&gt;();
+<span class="boring">}
+</span></code></pre></pre>
+<p>The <code>.view_bits</code> and <code>.view_bits_mut</code> methods take the other type parameter
+<code>bitvec</code> requires. This is the <a href="../type-parameters/bitorder.html" title="BitOrder type parameter"><code>BitOrder</code> chapter</a>. Use <code>LocalBits</code> until you have
+a specific need for a more precise parameter.</p>
+<p>In addition, <code>BitSlice</code> offers constructor functions <code>::from_element</code>,
+<code>::from_slice</code>, and their <code>_mut</code> variants, which borrow elements and slices,
+respectively, and construct <code>&amp;/mut BitSlice</code> references from them. The trait
+methods are generally easier, and certainly shorter to write, but they all do
+the same work.</p>
+<p>Lastly, empty slices can be produced with the <code>::empty</code> or <code>::empty_mut</code>
+functions, since there is no <code>&amp;[]</code> or <code>&amp;mut []</code> literal available.</p>
+<h3><a class="header" href="#macro-constructor" id="macro-constructor">Macro Constructor</a></h3>
+<p>In addition to these method constructors, you may also use the <a href="https://docs.rs/bitvec/latest/bitvec/macro.bits.html"><code>bits!</code></a>
+constructor macro. This macro runs at compile-time to produce a <code>static</code> buffer
+containing the correct data values, then borrows it as a <code>BitSlice</code> reference.
+It is a <code>macro_rules!</code> macro, not a procedural macro, and should not have a
+significant impact on your compilation times.</p>
+<p>The macro syntax extends that of <code>vec!</code>. The simplest invocations are sequences
+or repetitions of expressions, which can optionally be made <code>mut</code>able:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bitvec::prelude::*;
+
+let r = bits![0, 1, 0, 1];
+let w = bits![mut 0, 1, 0, 1];
+
+let r2 = bits![1; 4];
+let w2 = bits![mut 1; 4];
+<span class="boring">}
+</span></code></pre></pre>
+<blockquote>
+<p>You are not required to use the literals <code>0</code> or <code>1</code>; you can use any
+expression  that is <code>const</code>-evaluable and can be placed into the expression
+<code>expr != 0</code>. This means that you cannot use the names of runtime <code>let</code>
+bindings, but can use the names of <code>const</code> bindings, or other literals. You
+probably do not want to do this, but you <em>can</em>.</p>
+</blockquote>
+<p>In addition, you can specify the bit-ordering parameter and the integer storage
+parameter, for even more precise control over the memory layout. If you do not
+specify them, the macro uses the default parameters of <code>LocalBits</code> ordering and
+<code>usize</code> storage.</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bitvec::prelude::*;
+
+let in_bytes = bits![Local, u8; 0, 1, 0, 1];
+let in_shorts = bits![Lsb0, u16; 0, 1, 0, 1];
+let in_ints = bits![mut Msb0, u32; 0; 4];
+
+let in_usize = bits![mut Local; 0; 4];
+<span class="boring">}
+</span></code></pre></pre>
+<p>You can specify the bit-order without the storage, but you cannot specify the
+storage without the bit-order. This is a limitation of the macro matching
+implementation.</p>
+<p>To summarize the macro rules:</p>
+<ul>
+<li>If the first macro argument is <code>mut</code>, then the macro produces <code>&amp;mut BitSlice</code>,
+otherwise it produces <code>&amp;BitSlice</code>. You do not need to bind the name as <code>mut</code>
+unless you want to reässign it to a different slice.</li>
+<li>You may then optionally provide the ordering and storage type parameters,
+followed by a semicolon. If you choose to add type parameters:
+<ul>
+<li>You <em>must</em> provide the bit-ordering parameter.</li>
+<li>You <em>may</em> provide the storage parameter.</li>
+</ul>
+</li>
+<li>The data input to the macro is one of the two <code>vec!</code> token lists:
+<ul>
+<li>One or more expressions that can be placed into <code>$expr != 0</code>, separated by
+commas. A trailing comma is permitted.</li>
+<li>A single expression that can be placed into <code>$expr != 0</code>, followed by a
+semicolon and a repetition counter. The resulting <code>BitSlice</code> will be
+<code>counter</code> bits long, all set to <code>expression</code>.</li>
+</ul>
+</li>
+</ul>
+<p>The <code>&amp;mut BitSlice</code> reference produced by each <code>bits![mut, …]</code> is safe to use
+because, despite borrowing a <code>static mut</code> binding, the produced symbol is not
+accessible anywhere in the program <em>except</em> through the sole reference emitted
+by the macro.</p>
+<blockquote>
+<p>I have not actually tested what happens when you compile a <code>bits!</code> macro call
+on a little-endian host for a big-endian target, and then deploy the artifact
+to the target machine to run it. I hope the compiler inserts the
+endian-flipping methods in its process of assigning to <code>static</code>s, because
+<code>bitvec</code> does not.</p>
+<p>If this is a problem that affects you, please file an issue!</p>
+</blockquote>
+<h2><a class="header" href="#what-bitslice-can-do" id="what-bitslice-can-do">What <code>BitSlice</code> Can Do</a></h2>
+<p>Now that you have acquired a <code>BitSlice</code> reference, either by borrowing memory
+from elsewhere in your program or by creating a secret <code>static</code>, it is time to
+do some actual work with it.</p>
+<h3><a class="header" href="#-that-bool-can" id="-that-bool-can">… That <code>[bool]</code> Can</a></h3>
+<p>Everything<sup class="footnote-reference"><a href="#2">2</a></sup>. I am not going to rewrite the standard library’s slice
+documentation here.</p>
+<h3><a class="header" href="#-that-bool-cannot" id="-that-bool-cannot">… That <code>[bool]</code> Cannot</a></h3>
+<p>In addition to the standard library <code>[bool]</code> API, <code>BitSlice</code> offers some
+inherent methods tailored to its specialization.</p>
+<h3><a class="header" href="#set-queries" id="set-queries">Set Queries</a></h3>
+<p>The five query methods <code>.any()</code>, <code>.all()</code>, <code>.not_any()</code>, <code>.not_all()</code>, and
+<code>.some()</code> test how many bits in a region are set to <code>1</code>. As you can guess from
+the names, these methods have the following truth table:</p>
+<table><thead><tr><th align="center">Slice</th><th align="center"><code>any</code></th><th align="center"><code>all</code></th><th align="center"><code>not_any</code></th><th align="center"><code>not_all</code></th><th align="center"><code>some</code></th></tr></thead><tbody>
+<tr><td align="center"><code>00</code></td><td align="center"><code>false</code></td><td align="center"><code>false</code></td><td align="center"><code>true</code></td><td align="center"><code>true</code></td><td align="center"><code>false</code></td></tr>
+<tr><td align="center"><code>01</code></td><td align="center"><code>true</code></td><td align="center"><code>false</code></td><td align="center"><code>false</code></td><td align="center"><code>true</code></td><td align="center"><code>true</code></td></tr>
+<tr><td align="center"><code>11</code></td><td align="center"><code>true</code></td><td align="center"><code>true</code></td><td align="center"><code>false</code></td><td align="center"><code>false</code></td><td align="center"><code>false</code></td></tr>
+</tbody></table>
+<p><code>any</code> is the Boolean OR operator; <code>all</code> is the Boolean AND operator, and <code>some</code>
+is the Boolean XOR operator.</p>
+<p>In addition, <code>.count_ones</code> and <code>.count_zeros</code> count how many bits of the slice
+are set to one or zero, rather than merely indicating whether any exist. These
+methods are slower than the Boolean queries, which are capable of
+short-circuiting once satisfied.</p>
+<h3><a class="header" href="#boolean-arithmetic" id="boolean-arithmetic">Boolean Arithmetic</a></h3>
+<p><code>BitSlice</code> implements the three Boolean operators <code>|=</code>, <code>&amp;=</code>, and <code>^=</code> against
+any iterator that produces <code>bool</code>s, allowing you to write set-arithmetic
+expressions.</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bitvec::prelude::*;
+
+let mut or  =  bits![mut 0, 0, 1, 1];
+        or |=  bits![    0, 1, 0, 1].iter().copied();
+assert_eq!(or, bits![    0, 1, 1, 1]);
+
+let mut and  =  bits![mut 0, 0, 1, 1];
+        and &amp;=  bits![    0, 1, 0, 1].iter().copied();
+assert_eq!(and, bits![    0, 0, 0, 1]);
+
+let mut xor  =  bits![mut 0, 0, 1, 1];
+        xor ^=  bits![    0, 1, 0, 1].iter().copied();
+assert_eq!(xor, bits![    0, 1, 1, 0]);
+<span class="boring">}
+</span></code></pre></pre>
+<h3><a class="header" href="#writing-to-memory" id="writing-to-memory">Writing To Memory</a></h3>
+<p>You can set all bits in a region to a new value by using the <code>.set_all</code> method,
+or you can set one bit in a region to a new value by using either the <code>.set</code> or
+<code>.get_mut</code> methods. <code>.get_mut</code> produces a proxy type which acts like a <code>bool</code>
+slot.</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bitvec::prelude::*;
+
+let bits = bits![0; 4];
+assert!(bits.not_any());
+
+bits[0 .. 1].set_all(true);
+assert!(bits[0]);
+
+bits.set(1, true);
+assert!(bits[1]);
+
+*bits.get_mut(2).unwrap() = true;
+assert!(bits[2]);
+
+let bit = bits.get_mut(3).unwrap();
+assert!(!bit);
+bit.set(true);
+assert!(bits[3]);
+
+assert!(bits.all());
+<span class="boring">}
+</span></code></pre></pre>
+<p>The proxy type produced by <code>.get_mut</code> implements <code>DerefMut&lt;Target = bool&gt;</code>, so
+you can assign into it and read out of it. However, it does not commit the value
+assigned into it back to its source <code>BitSlice</code> until it <code>Drop</code>s.</p>
+<p>You can force the destruction of a named proxy reference by using <em>its</em> <code>.set</code>
+method, which takes <code>self</code> by value, destroying it and releasing the borrow.</p>
+<p>In addition to direct writes, the <code>.for_each</code> method yields each successive
+index and value pair to a function <code>(usize, bool) -&gt; bool</code>, then writes the
+value this function returns back into the slice. This can be used to rapidly
+rewrite a slice with the contents of a new generator function.</p>
+<h3><a class="header" href="#viewing-the-underlying-memory" id="viewing-the-underlying-memory">Viewing the Underlying Memory</a></h3>
+<p>The slice of memory that any given <code>BitSlice</code> region occupies can be resurfaced
+without releasing the <code>BitSlice</code> borrow. This action is subject to some
+restrictions: while <code>BitSlice</code> can start or end anywhere in an element, ordinary
+slice references cannot.</p>
+<p>As such, <code>.as_mut_slice</code> and <code>.as_raw_slice</code> will exclude the edge elements of a
+<code>BitSlice</code> if the bit-slice only partially uses them, while <code>.as_slice</code> will
+always include them. The <code>.as_slice</code> method does not create an <code>&amp;mut</code> exclusion
+to memory, and permits other handles to reference the memory that it does. It is
+correctly marked as aliased when other handles are capable of writing to the
+edge elements.</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bitvec::prelude::*;
+use std::sync::atomic::{AtomicU8, Ordering};
+
+//  Without aliasing
+let mut data = [0u8; 3];
+let fewer_bits = &amp;mut data.view_bits_mut::&lt;Local&gt;()[2 .. 22];
+
+{
+  let a: &amp;mut [u8] = fewer_bits.as_mut_slice();
+  assert_eq!(a.len(), 1);
+  *a[0] = !0;
+}
+
+{
+  let b: &amp;[u8] = fewer_bits.as_raw_slice();
+  assert_eq!(a.len(), 1);
+  assert_eq!(b[0], !0);
+}
+
+{
+  let c: &amp;[u8] = fewer_bits.as_slice();
+  assert_eq!(c.len(), 3);
+  assert_eq!(c, &amp;[0, !0, 0]);
+}
+
+//  With aliasing
+let mut data = [0u8; 3];
+let (some, rest) = data.view_bits_mut::&lt;Local&gt;().split_at_mut(2);
+
+{
+  let some_bytes: &amp;mut [u8] = some.as_mut_slice();
+  assert!(some.is_empty());
+
+  let rest_bytes: &amp;[u8] = rest.as_raw_slice();
+  assert_eq!(rest.len(), 2);
+}
+
+{
+  let d: &amp;[AtomicU8] = some.as_slice();
+  let e: &amp;[AtomicU8] = rest.as_slice();
+
+  assert_eq!(d.len(), 1);
+  assert_eq!(e.len(), 3);
+
+  assert!(!rest[0]);
+  d[0].store(!0, Ordering::SeqCst);
+  assert_eq!(e[0].load(Ordering::SeqCst), !0);
+  assert!(rest[0]);
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>When a <code>BitSlice</code> is split into mutable slices that overlap in memory elements,
+they switch to using atomics (or <code>Cell</code>s, when atomics are unavailable) for
+memory access, as demonstrated above. <code>.as_slice</code> yields slices of atomics,
+which can correctly cope with mutation of the referent memory outside of their
+control, and <code>.as_mut_slice</code> and <code>.as_raw_slice</code> exclude the aliased memory
+elements from their slices.</p>
+<p>The <a href="../memory-model.html" title="bitvec memory model"><em>Memory Model</em> chapter</a> discusses the type system used to handle aliasing.</p>
+<h2><a class="header" href="#footnotes" id="footnotes">Footnotes</a></h2>
+<div class="footnote-definition" id="1"><sup class="footnote-definition-label">1</sup>
+<p>Currently, <code>0 &lt;= N &lt;= 32</code>; once the type-level-integer feature stabilizes,
+<em>all</em></p>
+</div>
+<div class="footnote-definition" id="2"><sup class="footnote-definition-label">2</sup>
+<p>Except write-assignment through indexing. I am not going to keep
+mentioning this exception.</p>
+</div>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="../data-structures.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="../data-structures/bitarray.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a rel="prev" href="../data-structures.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="../data-structures/bitarray.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+
+        
+
+        
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>

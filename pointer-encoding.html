@@ -1,0 +1,355 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Pointer Encoding - A User’s Guide to the `bitvec` Project</title>
+        
+        
+
+
+        <!-- Custom HTML head -->
+        
+
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="A more thorough manual of the `bitvec` project">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        
+        <link rel="icon" href="favicon.svg">
+        
+        
+        <link rel="shortcut icon" href="favicon.png">
+        
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        
+        <link rel="stylesheet" href="fonts/fonts.css">
+        
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+        <!-- MathJax -->
+        <script async type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="dedication.html">Dedication</a></li><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="data-structures.html"><strong aria-hidden="true">2.</strong> Data Structures</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="data-structures/bitslice.html"><strong aria-hidden="true">2.1.</strong> BitSlice</a></li><li class="chapter-item expanded "><a href="data-structures/bitarray.html"><strong aria-hidden="true">2.2.</strong> BitArray</a></li><li class="chapter-item expanded "><a href="data-structures/bitvec.html"><strong aria-hidden="true">2.3.</strong> BitVec and BitBox</a></li></ol></li><li class="chapter-item expanded "><a href="type-parameters.html"><strong aria-hidden="true">3.</strong> Type Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="type-parameters/bitorder.html"><strong aria-hidden="true">3.1.</strong> BitOrder</a></li><li class="chapter-item expanded "><a href="type-parameters/bitstore.html"><strong aria-hidden="true">3.2.</strong> BitStore</a></li></ol></li><li class="chapter-item expanded "><a href="practical-use.html"><strong aria-hidden="true">4.</strong> Practical Use</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="practical-use/collections.html"><strong aria-hidden="true">4.1.</strong> bool Collections</a></li><li class="chapter-item expanded "><a href="practical-use/bitfields.html"><strong aria-hidden="true">4.2.</strong> C-Style Bitfields</a></li></ol></li><li class="chapter-item expanded "><a href="memory-model.html"><strong aria-hidden="true">5.</strong> Memory Model</a></li><li class="chapter-item expanded "><a href="pointer-encoding.html" class="active"><strong aria-hidden="true">6.</strong> Pointer Encoding</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
+
+                    <h1 class="menu-title">A User’s Guide to the `bitvec` Project</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1><a class="header" href="#bit-slice-pointer-encoding" id="bit-slice-pointer-encoding">Bit Slice Pointer Encoding</a></h1>
+<p><code>bitvec</code>’s core value proposition rests on the fact that it is capable of
+defining an unsized slice type, and controlling references to it. The Rust
+language rests heavily on the two reference types <code>&amp;</code> and <code>&amp;mut</code>, and does not
+ordinarily allow these to be faked or created by anything other than the
+compiler.</p>
+<h2><a class="header" href="#rust-reference-rules" id="rust-reference-rules">Rust Reference Rules</a></h2>
+<p>It so happens that not only does rust strongly guarantee the <a href="https://github.com/rust-lang/rust/blob/8558ccd/src/libcore/ptr/mod.rs#L220-L231">in-memory layout</a>
+of a reference to a slice, it also provides a stable API for
+<a href="https://github.com/rust-lang/rust/blob/8558ccd/src/libcore/slice/mod.rs#L5642-L5739">constructing values</a> of <code>&amp;[T]</code> type without using <code>mem::transmute</code>. Subject to
+certain value requirements imposed by types, slice references can be constructed
+through these functions and the compiler will accept them as valid.</p>
+<p>These requirements traditionally make it difficult to encode non-address
+information into a bare reference, since the compiler has a very firm
+expectation that a reference to a type is immediately dereferencable to a value
+of that type, but if your type happens to be zero-sized, then it can never exist
+in memory, no loads or stores to it can ever be produced, and the compiler no
+longer concerns itself with the actual bit-pattern value of references to it.</p>
+<p>Which is why the definition of <code>BitSlice</code> is</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>//  src/slice.rs
+
+#[repr(transparent)]
+pub struct BitSlice&lt;O, T&gt;
+where
+  O: BitOrder,
+  T: BitStore,
+{
+  _mem: [()],
+  _ord: PhantomData&lt;O&gt;,
+  _typ: PhantomData&lt;T&gt;,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p><code>BitSlice</code> is <code>[()]</code> with some markers that only the type-checker can see.
+<code>&amp;BitSlice</code> is thus <code>&amp;[()]</code>, and <code>&amp;[()]</code> can have any values it wants (except,
+of course, null).</p>
+<h2><a class="header" href="#pointer-encoding" id="pointer-encoding">Pointer Encoding</a></h2>
+<p>Slice references contain two pieces of information: the address of the base
+element, and the number of elements, starting at the base, contained in the
+slice region. Theoretically, bit-slice references have the same pair of
+information: the address of the first bit, and the number of bits in the region.</p>
+<p>However, computers are byte-addressed, not bit-addressed, so we need to store
+three more bits (to select a bit in the base byte) somewhere in the reference.
+Since slice references are defined as <code>{ base: *T, elts: usize }</code>, and there are
+no<sup class="footnote-reference"><a href="#1">1</a></sup> spare bits in <code>*const _</code>, the bits to store the base bit are taken out of
+the length counter.</p>
+<p>Reference address values are also required to be integer multiples of the
+alignment of the referent type <code>T</code>. This alignment is, on all supported targets,
+the width in bytes of the referent type. As a result, there are as many low bits
+in the address of any <code>T</code> that are <em>guaranteed</em> to be the <code>0</code> value, as there
+are bits needed to select a byte within the element. The end result is that the
+length counter must always use three bits to store the starting bit, and the
+base address will be composed of an aligned <code>T</code> address and an index of the
+starting byte within it.</p>
+<p>As Rust does not have bitfield syntax, a definition of the pointer structure in
+C++ looks like this:</p>
+<pre><code class="language-cpp">template &lt;typename T&gt;
+struct BitPtr&lt;T&gt; {
+  static_assert(
+    std::is_unsigned&lt;T&gt;
+    &amp;&amp; sizeof(T) &lt;= sizeof(size_t)
+    &amp;&amp; sizeof(T) &lt;= alignof(T)
+  );
+
+  uintptr_t ptr_head : __builtin_ctzll(alignof(T));
+  uintptr_t ptr_addr : sizeof(uintptr_t) * CHAR_BITS;
+                     - __builtin_tczll(alignof(T));
+
+  size_t len_head : 3;
+  size_t len_bits : sizeof(size_t) * 8 - 3;
+}
+</code></pre>
+<p>In Rust, the structure is declared as</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>//  src/pointer.rs
+
+#[repr(C)]
+pub struct BitPtr&lt;T&gt;
+where T: BitStore {
+  ptr: NonNull&lt;u8&gt;,
+  len: usize,
+  _ty: PhantomData&lt;T&gt;,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>and the logical components must be accessed through get/set functions, rather
+than through compiler-generated field stubs.</p>
+<p>By marking the pointer as <code>NonNull</code>, <code>BitPtr</code> declares that it will never be a
+null pointer and becomes subject to the same peephole optimization that allows
+<code>mem::size_of::&lt;Option&lt;&amp;T&gt;&gt;() == mem::size_of::&lt;&amp;T&gt;()</code>. By marking it as
+unconditionally a pointer to <code>u8</code>, we declare that all low bits of the address
+value are in use, and none can be used as slots for anything else (since our
+encoding is using them to select a byte within the <code>T</code>).</p>
+<h2><a class="header" href="#significant-values" id="significant-values">Significant Values</a></h2>
+<p>The null value, <code>{ ptr: 0, len: 0 }</code>, is not valid in <code>BitPtr&lt;T&gt;</code>, but rather is
+used to mark <code>Option::&lt;BitPtr&lt;T&gt;&gt;::None</code>.</p>
+<h3><a class="header" href="#empty-slices" id="empty-slices">Empty Slices</a></h3>
+<p>All slices with a <code>bits</code> <em>logical</em> field are considered equally empty, and equal
+to each other. The <code>addr</code> and <code>head</code> logical fields can be anything. However,
+they are not required to be clamped to <code>1</code> and <code>0</code>, respectively, because they
+can contain important information about the region.</p>
+<p>Specifically, the <code>BitVec</code> type is an owning type that manages a buffer assigned
+to it by the memory allocator. It is never allowed to forget the address of its
+buffer, even if the user has removed all live bits from the vector.</p>
+<h2><a class="header" href="#summary" id="summary">Summary</a></h2>
+<p>Rust requires that slice references have a specific ABI, but makes no
+requirements about the encoding of values of those references for certain types.
+We can supply our own ABI-equivalent structure, define functions that use the
+structural encoding to compute the information needed to actually interact with
+memory, and convert our structures into Rust-accepted slices through the
+provided compiler API in <code>core</code>.</p>
+<h2><a class="header" href="#footnotes" id="footnotes">Footnotes</a></h2>
+<div class="footnote-definition" id="1"><sup class="footnote-definition-label">1</sup>
+<p>On AMD64, pointers are actually aggregates of <a href="https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details">MMU translation pages</a>, and
+processors only decode the low 48 or 57 bits of them, leaving the high 16
+or 7 bits available for other information not part of the memory
+addressing system. However, these processors also trap when attempting to
+dereference a pointer whose high <code>[48:]</code> or <code>[57:]</code> bits do not have the
+same bit value as bit <code>[47]</code> or <code>[56]</code>, and that bit is typically used to
+differentiate unprivileged user memory from privileged kernel memory.
+Furthermore, this dead region does not exist on 32-bit architectures, x86
+or otherwise, and since <code>bitvec</code> explicitly supports 32-bit systems, the
+use of dead bits only present on a subset of supported targets and subject
+to their own extra rules</p>
+</div>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="memory-model.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a rel="prev" href="memory-model.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+
+        
+
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>
