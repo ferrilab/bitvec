@@ -1,0 +1,16 @@
+[book]
+title = "A User’s Guide to the `bitvec` Project"
+authors = [
+	"myrrlyn <self@myrrlyn.dev>",
+]
+description = "A more thorough manual of the `bitvec` project"
+src = "book"
+
+[build]
+build-dir = "target/book"
+
+[output.html]
+mathjax-support = true
+
+[output.html.playpen]
+line-numbers = true

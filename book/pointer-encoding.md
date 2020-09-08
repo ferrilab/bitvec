@@ -1,4 +1,4 @@
-# Bit Slice Pointer Representation
+# Bit Slice Pointer Encoding
 
 `bitvec`’s core value proposition rests on the fact that it is capable of
 defining an unsized slice type, and controlling references to it. The Rust
@@ -38,8 +38,9 @@ where
 }
 ```
 
-`BitSlice` is `[()]` with some markers that only `typeck` can see. `&BitSlice`
-is thus `&[()]`, and `&[()]` can have any values it wants.
+`BitSlice` is `[()]` with some markers that only the type-checker can see.
+`&BitSlice` is thus `&[()]`, and `&[()]` can have any values it wants (except,
+of course, null).
 
 ## Pointer Encoding
 
@@ -49,10 +50,10 @@ slice region. Theoretically, bit-slice references have the same pair of
 information: the address of the first bit, and the number of bits in the region.
 
 However, computers are byte-addressed, not bit-addressed, so we need to store
-three more bits (to select a bit in the base byte) in the reference somewhere.
-Since slice references are defined as `{ base: *const T, elts: usize }`, and
-there are no[^1] spare bits in `*const _`, the bits to store the base bit are
-taken out of the length counter.
+three more bits (to select a bit in the base byte) somewhere in the reference.
+Since slice references are defined as `{ base: *T, elts: usize }`, and there are
+no[^1] spare bits in `*const _`, the bits to store the base bit are taken out of
+the length counter.
 
 Reference address values are also required to be integer multiples of the
 alignment of the referent type `T`. This alignment is, on all supported targets,
@@ -72,6 +73,7 @@ struct BitPtr<T> {
   static_assert(
     std::is_unsigned<T>
     && sizeof(T) <= sizeof(size_t)
+    && sizeof(T) <= alignof(T)
   );
 
   uintptr_t ptr_head : __builtin_ctzll(alignof(T));
