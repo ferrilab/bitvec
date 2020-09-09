@@ -5,6 +5,8 @@
 # See <https://github.com/DavidAnson/vscode-markdownlint> for more details.    #
 ################################################################################
 
+MD024:
+  siblings_only: true
 MD033:
   allowed_elements:
     - math

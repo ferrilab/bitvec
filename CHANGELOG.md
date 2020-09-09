@@ -4,6 +4,7 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+1. [0.18.3](#0183)
 1. [0.18.2](#0182)
 1. [0.18.1](#0181)
 1. [0.18.0](#0180)
@@ -39,6 +40,15 @@ This document is written according to the [Keep a Changelog][kac] style.
 1. [0.3.0](#030)
 1. [0.2.0](#020)
 1. [0.1.0](#010)
+
+## 0.18.3
+
+Per [Issue #75], the `BitMemory` trait has been loosened to exclusively describe
+integer types, and not be constrained to only the integers that can be used in
+processor registers.
+
+This permits the `BitField` functions to transfer integers of any width,
+regardless of the processor word size.
 
 ## 0.18.2
 
@@ -884,6 +894,7 @@ Initial implementation and release.
 [Issue #50]: https://github.com/myrrlyn/bitvec/issues/50
 [Issue #55]: https://github.com/myrrlyn/bitvec/issues/55
 [Issue #69]: https://github.com/myrrlyn/bitvec/issues/69
+[Issue #75]: https://github.com/myrrlyn/bitvec/issues/75
 [Pull Request #34]: https://github.com/myrrlyn/bitvec/pull/34
 [Pull Request #41]: https://github.com/myrrlyn/bitvec/pull/41
 [Pull Request #68]: https://github.com/myrrlyn/bitvec/pull/68
