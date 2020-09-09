@@ -128,6 +128,14 @@ fn byte_fields() {
 }
 
 #[test]
+fn wide_load() {
+	let mut data = bitarr![Lsb0, u16; 0; 256];
+	assert_eq!(data[16 .. 144].load::<u128>(), 0u128);
+	data[16 .. 144].store(!0u128);
+	assert_eq!(data[16 .. 144].load::<u128>(), !0u128);
+}
+
+#[test]
 #[should_panic]
 fn check_panic() {
 	check("fail", 10, 8);

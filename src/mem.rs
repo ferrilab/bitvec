@@ -1,27 +1,25 @@
-/*! Descriptions of register types
+/*! Descriptions of integer types
 
-This module describes the register types used to hold bare data. This module
-governs the way the processor manipulates values held in registers, without
-concern for interaction with memory locations.
+This module describes the integer types used to hold bare data. This module
+governs the way the processor manipulates integer regions of memory, without
+concern for interaction with specifics of register or bus behavior.
 !*/
 
 use core::mem;
 
 use funty::IsUnsigned;
 
-use radium::marker::BitOps;
+/** Description of an integer type.
 
-/** Description of a register type.
-
-This trait provides information used for the manipulation of values in processor
-registers, and the computation of the state of system memory. It has no bearing
-on the behavior used to perform loads or stores between the processor and the
-memory bus.
+This trait provides information used to describe integer-typed regions of memory
+and enables other parts of the crate to adequately describe the memory bus. This
+trait has **no** bearing on the processor instructions or registers used to
+interact with memory.
 
 This trait cannot be implemented outside this crate.
 **/
-pub trait BitMemory: IsUnsigned + BitOps + seal::Sealed {
-	/// The bit width of the register element.
+pub trait BitMemory: IsUnsigned + seal::Sealed {
+	/// The bit width of the integer.
 	///
 	/// `mem::size_of` returns the size in bytes, and bytes are always eight
 	/// bits on architectures Rust targets.
@@ -47,10 +45,7 @@ macro_rules! memory {
 	)+ };
 }
 
-memory!(u8, u16, u32, usize);
-
-#[cfg(target_pointer_width = "64")]
-memory!(u64);
+memory!(u8, u16, u32, u64, u128, usize);
 
 /** Computes the number of elements required to store some number of bits.
 
@@ -90,6 +85,23 @@ pub(crate) const fn aligned_to_size<T>() -> usize {
 	(mem::align_of::<T>() != mem::size_of::<T>()) as usize
 }
 
+/** Tests whether two types have compatible layouts.
+
+# Type Parameters
+
+- `A`
+- `B`
+
+# Returns
+
+Zero if `A` and `B` have equal alignments and sizes, non-zero if they do not.
+
+# Uses
+
+This function is designed to be used in the expression
+`const CHECK: [(): 0] = [(); cmp_layout::<A, B>()];`. It will cause a compiler
+error if the conditions do not hold.
+**/
 #[doc(hidden)]
 pub(crate) const fn cmp_layout<A, B>() -> usize {
 	(mem::align_of::<A>() != mem::align_of::<B>()) as usize

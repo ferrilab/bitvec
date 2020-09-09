@@ -17,17 +17,26 @@ use core::{
 	fmt::Debug,
 };
 
-use radium::Radium;
+use radium::{
+	marker::BitOps,
+	Radium,
+};
 
 #[cfg(feature = "atomic")]
 use core::sync::atomic;
 
 /** Common interface for memory regions.
 
-This trait is implemented on the fundamental integers, their `Cell` wrappers,
-and (if present) their `Atomic` variants. Users provide this type as a parameter
-to their data structures in order to inform the structure of how it may access
-the memory it describes.
+This trait is implemented on the fundamental integers no wider than the target
+processor word size, their `Cell` wrappers, and (if present) their `Atomic`
+variants. Users provide this type as a parameter to their data structures in
+order to inform the structure of how it may access the memory it describes.
+
+Currently, `bitvec` is only tested on 32- and 64- bit architectures. This means
+that `u8`, `u16`, `u32`, and `usize` unconditionally implement `BitStore`, but
+`u64` will only do so on 64-bit targets, and will be unavailable on 32-bit
+targets. This is a necessary restriction of `bitvec` internals. Please comment
+on [Issue #76](https://github.com/myrrlyn/bitvec/issues/76) if this affects you.
 
 Specifically, this has the davantage that a `BitSlice<_, Cell<_>>` knows that it
 has a view of memory that will not undergo concurrent modification. As such, it
@@ -75,7 +84,7 @@ This trait has trait requirements that better express its behavior:
   **/
 pub trait BitStore: seal::Sealed + Sized + Debug {
 	/// The register type that the implementor describes.
-	type Mem: BitMemory + Into<Self> + BitStore;
+	type Mem: BitMemory + BitOps + BitStore + Into<Self>;
 
 	/// The modifier type over `Self::Mem` used to perform memory access.
 	type Access: BitAccess<Self::Mem>;
@@ -180,7 +189,7 @@ bitstore!(u64 => atomic::AtomicU64);
 impl<M> BitStore for Cell<M>
 where
 	Self: Radium<M>,
-	M: BitMemory + BitStore,
+	M: BitMemory + BitOps + BitStore,
 {
 	type Access = Self;
 	type Alias = Self;

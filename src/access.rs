@@ -24,7 +24,10 @@ use core::{
 	sync::atomic::Ordering,
 };
 
-use radium::Radium;
+use radium::{
+	marker::BitOps,
+	Radium,
+};
 
 /** Access interface to memory locations.
 
@@ -37,7 +40,7 @@ memory access to register types through the `radium` crate. Its use is
 constrained in the `store` module.
 **/
 pub trait BitAccess<M>: Debug + Radium<M> + Sized
-where M: BitMemory
+where M: BitMemory + BitOps
 {
 	/// Sets one bit in a memory element to `0`.
 	///
@@ -354,7 +357,7 @@ where M: BitMemory
 
 impl<M, R> BitAccess<M> for R
 where
-	M: BitMemory,
+	M: BitMemory + BitOps,
 	R: Debug + Radium<M>,
 {
 }
