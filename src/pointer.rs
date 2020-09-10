@@ -803,6 +803,80 @@ where T: BitStore
 		(&*base.offset(elt)).write_bit::<O>(bit, value);
 	}
 
+	/// Produces the distance, in elements and bits, between two bit-pointers.
+	///
+	/// # Undefined Behavior
+	///
+	/// It is undefined to calculate the distance between pointers that are not
+	/// part of the same allocation region. This function is defined only when
+	/// `self` and `other` are produced from the same region.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	/// - `other`: Another `BitPtr<T>`. This function is undefined if it is not
+	///   produced from the same region as `self`.
+	///
+	/// # Returns
+	///
+	/// - `.0`: The distance in elements between the first element of `self` and
+	///   the first element of `other`. Negative if `other` is lower in memory
+	///   than `self`; positive if `other` is higher.
+	/// - `.1`: The distance in bits between the first bit of `self` and the
+	///   first bit of `other`. Negative if `other`’s first bit is lower in its
+	///   element than is `self`’s first bit; positive if `other`’s first bit is
+	///   higher in its element than is `self`’s first bit.
+	///
+	/// # Truth Tables
+	///
+	/// Consider two adjacent bytes in memory. We will define four pairs of
+	/// bit-pointers of width `1` at various points in this span in order to
+	/// demonstrate the four possible states of difference.
+	///
+	/// ```text
+	///    [ 0 1 2 3 4 5 6 7 ] [ 8 9 a b c d e f ]
+	/// 1.       A                       B
+	/// 2.             A             B
+	/// 3.           B           A
+	/// 4.     B                             A
+	/// ```
+	///
+	/// 1.  The pointer `A` is in the lower element and `B` is in the higher.
+	///     The first bit of `A` is lower in its element than the first bit of
+	///     `B` is in its element. `A.ptrdiff(B)` thus produces positive element
+	///     and bit distances: `(1, 2)`.
+	/// 2.  The pointer `A` is in the lower element and `B` is in the higher.
+	///     The first bit of `A` is higher in its element than the first bit of
+	///     `B` is in its element. `A.ptrdiff(B)` thus produces a positive
+	///     element distance and a negative bit distance: `(1, -3)`.
+	/// 3.  The pointer `A` is in the higher element and `B` is in the lower.
+	///     The first bit of `A` is lower in its element than the first bit of
+	///     `B` is in its element. `A.ptrdiff(B)` thus produces a negative
+	///     element distance and a positive bit distance: `(-1, 4)`.
+	/// 4.  The pointer `A` is in the higher element and `B` is in the lower.
+	///     The first bit of `A` is higher in its element than the first bit of
+	///     `B` is in its element. `A.ptrdiff(B)` thus produces negative element
+	///     and bit distances: `(-1, -5)`.
+	pub(crate) unsafe fn ptr_diff(self, other: Self) -> (isize, i8) {
+		let self_ptr = self.pointer();
+		let other_ptr = other.pointer();
+		assert!(
+			self_ptr.value() <= isize::max_value() as usize,
+			"Pointer {:p} is too high in memory",
+			self_ptr,
+		);
+		assert!(
+			other_ptr.value() <= isize::max_value() as usize,
+			"Pointer {:p} is too high in memory",
+			other_ptr,
+		);
+		//  FIXME(myrrlyn): `core::ptr::offset_from` stabilizes in 1.47.
+		//  let elts = other_ptr.to_const().offset_from(self_ptr.to_const());
+		let elts = other_ptr.value() as isize - self_ptr.value() as isize;
+		let bits = other.head().value() as i8 - self.head().value() as i8;
+		(elts, bits)
+	}
+
 	/// Typecasts a raw region pointer into a pointer structure.
 	#[inline]
 	pub(crate) fn from_bitslice_ptr<O>(raw: *const BitSlice<O, T>) -> Self
@@ -1008,15 +1082,16 @@ impl<T> Copy for BitPtr<T> where T: BitStore
 {
 }
 
-#[cfg(all(test, feature = "std"))]
+#[cfg(test)]
 mod tests {
-	#[test]
-	fn render() {
-		use crate::{
-			bits,
-			order::Msb0,
-		};
+	use crate::{
+		bits,
+		order::Msb0,
+	};
 
+	#[test]
+	#[cfg(feature = "alloc")]
+	fn render() {
 		let bits = bits![Msb0, u8; 0, 1, 0, 0];
 
 		let render = format!("{:?}", bits.bitptr());
@@ -1026,5 +1101,26 @@ mod tests {
 		let render = format!("{:#?}", bits);
 		assert!(render.starts_with("BitSlice<bitvec::order::Msb0, u8> {"));
 		assert!(render.ends_with("} [\n    0b0100,\n]"), "{}", render);
+	}
+
+	#[test]
+	fn ptr_diff() {
+		let bits = bits![Msb0, u8; 0; 16];
+
+		let a = bits[2 .. 3].bitptr();
+		let b = bits[12 .. 13].bitptr();
+		assert_eq!(unsafe { a.ptr_diff(b) }, (1, 2));
+
+		let a = bits[5 .. 6].bitptr();
+		let b = bits[10 .. 11].bitptr();
+		assert_eq!(unsafe { a.ptr_diff(b) }, (1, -3));
+
+		let a = bits[8 .. 9].bitptr();
+		let b = bits[4 .. 5].bitptr();
+		assert_eq!(unsafe { a.ptr_diff(b) }, (-1, 4));
+
+		let a = bits[14 .. 15].bitptr();
+		let b = bits[1 .. 2].bitptr();
+		assert_eq!(unsafe { a.ptr_diff(b) }, (-1, -5));
 	}
 }
