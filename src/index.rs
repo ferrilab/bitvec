@@ -191,7 +191,8 @@ where R: BitRegister
 	/// builds, invalid `idx` values cause a panic; release builds do not check
 	/// the input.
 	#[inline]
-	pub(crate) unsafe fn new_unchecked(idx: u8) -> Self {
+	#[doc(hidden)]
+	pub unsafe fn new_unchecked(idx: u8) -> Self {
 		debug_assert!(
 			idx < R::BITS,
 			"Bit index {} cannot exceed type width {}",

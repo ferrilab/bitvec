@@ -273,46 +273,42 @@ macro_rules! __elt_from_bits {
 	};
 
 	//  Unknown orders are currently unsupported in `macro_rules!`.
-	($order:tt, $store:ident; $($a:tt),*) => {{
-		/* Note: they can *become* supported, by adding a `ident <-` argument
-		to `bits!` that allows construction of runtime values into a binding
-		which outlives the returned reference without necessarily being `static`
-		(which requires `const` constructors).
+	(
+		$order:tt, $store:ident;
+		$($a:tt, $b:tt, $c:tt, $d:tt, $e:tt, $f:tt, $g:tt, $h:tt),*
+	) => {{
+		/* Note: they can *become* supported, by adding an `ident <-` argument
+		to the constructor macros that allows construction of runtime non-const
+		values into a binding with a constant initializer. At present, this is
+		not done because the `bitarr!` macro relies on lifetime extension of a
+		borrowed temporary in order to correctly produce a stack object usable
+		even by the `bits!` borrowing constructor. As of this commit, the
+		compiler appears to fail to properly extend the lifetime of a terminal
+		expression of a block, but does extend the lifetime of a free
+		expression. This prevents using a block to construct temporary
+		initializers before collecting them into a `BitArray` which can be
+		lifetime-extended by the caller.
 
-		The call-site syntax
-
-		```rust
-		let slab;
-		let bits = bits![slab <- args…];
-		```
-
-		would construct the array literal into `slab` and then produce a
-		`&BitSlice` reference from `&slab`. This works because Rust allows
-		delayed initialization if there is exactly one initialization point in
-		all program branch pathways. The expansion of `bits!` would be something
-		like
-
-		```rust
-		let slab;
-		let bits = {
-			slab = __bits_store_array!($args…);
-			BitSlice::<$o, $t>::from_slice(&slab).get_unchecked(.. $len);
-		};
-		```
-
-		The `slab` binding outlives the `bits` reference; construction of the
-		`slab` value occurs at runtime in non-`const` contexts.
-
-		This is a deferred item.
+		While these two goals (stack-allocation of macro-constructed buffers, vs
+		accepting any ordering type in the macros) are in contention, stack
+		allocation is going to win. This will be revisited if the compiler
+		improves its lifetime-extension behavior.
 		*/
-		compile_error!("The ordering argument you provided is unrecognized, \
-			and as such cannot be used in const contexts.");
+		compile_error!("The ordering argument you provided is unrecognized, and as such cannot be used in const-initializers.");
 		let mut tmp: $store = 0;
-		let mut _idx = 0u8;
-		let slice = $crate::slice::BitSlice::<$order, _>::from_element_mut(&mut tmp);
+		let mut _idx = 0;
 		$(
-			slice.set(_idx, $a != 0);
-			_idx += 1;
+			tmp = tmp
+			| if $a != 0 { $order::select(unsafe { BitIdx::new_unchecked(_idx + 0) }).value() } else { 0 }
+			| if $b != 0 { $order::select(unsafe { BitIdx::new_unchecked(_idx + 1) }).value() } else { 0 }
+			| if $c != 0 { $order::select(unsafe { BitIdx::new_unchecked(_idx + 2) }).value() } else { 0 }
+			| if $d != 0 { $order::select(unsafe { BitIdx::new_unchecked(_idx + 3) }).value() } else { 0 }
+			| if $e != 0 { $order::select(unsafe { BitIdx::new_unchecked(_idx + 4) }).value() } else { 0 }
+			| if $f != 0 { $order::select(unsafe { BitIdx::new_unchecked(_idx + 5) }).value() } else { 0 }
+			| if $g != 0 { $order::select(unsafe { BitIdx::new_unchecked(_idx + 6) }).value() } else { 0 }
+			| if $h != 0 { $order::select(unsafe { BitIdx::new_unchecked(_idx + 7) }).value() } else { 0 }
+			;
+			_idx += 8;
 		)*
 		tmp
 	}};

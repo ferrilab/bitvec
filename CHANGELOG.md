@@ -5,6 +5,8 @@ All notable changes will be documented in this file.
 This document is written according to the [Keep a Changelog][kac] style.
 
 1. [0.19.0](#0190)
+   1. [Macro Constructor Implementation](#macro-constructor-implementation)
+   1. [`BitRegister` Internal Trait](#bitregister-internal-trait)
 1. [0.18.3](#0183)
 1. [0.18.2](#0182)
 1. [0.18.1](#0181)
@@ -45,7 +47,38 @@ This document is written according to the [Keep a Changelog][kac] style.
 ## 0.19.0
 
 This is a small patch release, but must be upgraded to a minor release because
-of a name change in public API.
+of a name change in public API and implementation change that should not, but
+*may*, affect public API.
+
+### Macro Constructor Implementation
+
+The macros used to construct `bitvec` literals have had their implementation
+changed. The introduction of the `BitArray` type simplifies the construction of
+buffers from token sequences, so `bits!` now produces a `BitArray` on the stack
+rather than a hidden `static`.
+
+Specifically, `bits!` changes its expansion from
+
+```rust
+{
+  static BUFFER: &'static [T; N] = […];
+  &BitSlice::<O, T>::from_slice(&BUFFER)[.. LEN]
+}
+```
+
+to
+
+```rust
+(&BitArray::<O, [T; N]>::new([…])[.. LEN])
+```
+
+The test suite demonstrates that the compiler is able to correctly extend the
+lifetime of the `BitArray` temporary to match the lifetime of the produced
+reference. However, if you run into *any* issue where `bits!` calls that
+previously worked now fail due to an insufficiently-scoped temporary, please
+file an issue.
+
+### `BitRegister` Internal Trait
 
 As `BitMemory` is now able to describe any integer element in memory, but
 `BitOrder` is still able to only operate on processor registers, a new trait

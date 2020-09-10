@@ -157,7 +157,7 @@ fn iterators() {
 	assert_eq!(iter.as_bitslice(), data[1 ..]);
 
 	let mut bv = bitvec![0, 0, 1, 0, 0, 1, 0, 0];
-	let mut splice = bv.splice(2 .. 6, bits![0; 4].iter().copied());
+	let mut splice = bv.splice(2 .. 6, iter::repeat(false).take(4));
 	assert!(splice.next().unwrap());
 	assert!(splice.next_back().unwrap());
 	assert!(!splice.nth(0).unwrap());

@@ -49,15 +49,9 @@ macro_rules! bits {
 
 	//  Explicit order and store.
 
-	(mut $order:ident, $store:ident; $($val:expr),* $(,)?) => {{
-		const LEN: usize = $crate::__count_elts!($store; $($val),*);
-		static mut DATA: [$store; LEN] = $crate::__bits_store_array!(
-			$order, $store; $($val),*
-		);
-		unsafe { $crate::__bits_from_slice!(
-			mut $order, $crate::__count!($($val),*), DATA
-		)}
-	}};
+	(mut $order:ident, $store:ident; $($val:expr),* $(,)?) => {(
+		&mut $crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
+	)};
 
 	/* These arms differ in `$order:ident` and `$order:path` in order to force
 	the matcher to wrap a `:path`, which is `[:tt]`, as a single opaque `:tt`
@@ -67,15 +61,9 @@ macro_rules! bits {
 	*anyway*.
 	*/
 
-	(mut $order:path, $store:ident; $($val:expr),* $(,)?) => {{
-		const LEN: usize = $crate::__count_elts!($store; $($val),*);
-		static mut DATA: [$store; LEN] = $crate::__bits_store_array!(
-			$order, $store; $($val),*
-		);
-		unsafe { $crate::__bits_from_slice!(
-			mut $order, $crate::__count!($($val),*), DATA
-		)}
-	}};
+	(mut $order:path, $store:ident; $($val:expr),* $(,)?) => {(
+		&mut $crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
+	)};
 
 	//  Explicit order, default store.
 
@@ -98,25 +86,13 @@ macro_rules! bits {
 
 	//  Explicit order and store.
 
-	(mut $order:ident, $store:ident; $val:expr; $len:expr) => {{
-		const ELTS: usize = $crate::mem::elts::<$store>($len);
-		static mut DATA: [$store; ELTS] = [
-			$crate::__extend_bool!($val, $store); ELTS
-		];
-		unsafe { $crate::__bits_from_slice!(
-			mut $order, $len, DATA
-		)}
-	}};
+	(mut $order:ident, $store:ident; $val:expr; $len:expr) => {(
+		&mut $crate::bitarr![$order, $store; $val; $len][.. $len]
+	)};
 
-	(mut $order:path, $store:ident; $val:expr; $len:expr) => {{
-		const ELTS: usize = $crate::mem::elts::<$store>($len);
-		static mut DATA: [$store; ELTS] = [
-			$crate::__extend_bool!($val, $store); ELTS
-		];
-		unsafe { $crate::__bits_from_slice!(
-			mut $order, $len, DATA
-		)}
-	}};
+	(mut $order:path, $store:ident; $val:expr; $len:expr) => {(
+		&mut $crate::bitarr![$order, $store; $val; $len][.. $len]
+	)};
 
 	//  Explicit order, default store.
 
@@ -136,25 +112,13 @@ macro_rules! bits {
 
 	//  Repeat everything from above, but now immutable.
 
-	($order:ident, $store:ident; $($val:expr),* $(,)?) => {{
-		const LEN: usize = $crate::__count_elts!($store; $($val),*);
-		static DATA: [$store; LEN] = $crate::__bits_store_array!(
-			$order, $store; $($val),*
-		);
-		unsafe { $crate::__bits_from_slice!(
-			$order, $crate::__count!($($val),*), DATA
-		)}
-	}};
+	($order:ident, $store:ident; $($val:expr),* $(,)?) => {(
+		&$crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
+	)};
 
-	($order:path, $store:ident; $($val:expr),* $(,)?) => {{
-		const LEN: usize = $crate::__count_elts!($store; $($val),*);
-		static DATA: [$store; LEN] = $crate::__bits_store_array!(
-			$order, $store; $($val),*
-		);
-		unsafe { $crate::__bits_from_slice!(
-			$order, $crate::__count!($($val),*), DATA
-		)}
-	}};
+	($order:path, $store:ident; $($val:expr),* $(,)?) => {(
+		&$crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
+	)};
 
 	($order:ident; $($val:expr),* $(,)?) => {
 		$crate::bits!($order, usize; $($val),*)
@@ -168,21 +132,13 @@ macro_rules! bits {
 		$crate::bits!(Lsb0, usize; $($val),*)
 	};
 
-	($order:ident, $store:ident; $val:expr; $len:expr) => {{
-		const ELTS: usize = $crate::mem::elts::<$store>($len);
-		static DATA: [$store; ELTS] = [
-			$crate::__extend_bool!($val, $store); ELTS
-		];
-		unsafe { $crate::__bits_from_slice!($order, $len, DATA) }
-	}};
+	($order:ident, $store:ident; $val:expr; $len:expr) => {(
+		&$crate::bitarr![$order, $store; $val; $len][.. $len]
+	)};
 
-	($order:path, $store:ident; $val:expr; $len:expr) => {{
-		const ELTS: usize = $crate::mem::elts::<$store>($len);
-		static DATA: [$store; ELTS] = [
-			$crate::__extend_bool!($val, $store); ELTS
-		];
-		unsafe { $crate::__bits_from_slice!($order, $len, DATA) }
-	}};
+	($order:path, $store:ident; $val:expr; $len:expr) => {(
+		&$crate::bitarr![$order, $store; $val; $len][.. $len]
+	)};
 
 	($order:ident; $val:expr; $len:expr) => {
 		$crate::bits!($order, usize; $val; $len)
@@ -230,7 +186,7 @@ bitarr![Msb0, u8; 1; 5];
 bitarr![1; 5];
 ```
 
-This example shows how the `for N in O, T` syntax can be used to type locations
+This example shows how the `for N, in O, T` syntax can be used to type locations
 that cannot use inference:
 
 ```rust
@@ -269,19 +225,23 @@ macro_rules! bitarr {
 
 	//  Produces a value expression
 
-	($order:ident, $store:ident; $($val:expr),* $(,)?) => {{
-		const LEN: usize = $crate::__count_elts!($store; $($val),*);
-		$crate::array::BitArray::<$order, [$store; LEN]>::new(
+	($order:ident, $store:ident; $($val:expr),* $(,)?) => {
+		$crate::array::BitArray::<
+			$order,
+			[$store; $crate::__count_elts!($store; $($val),*)],
+		>::new(
 			$crate::__bits_store_array!($order, $store; $($val),*)
 		)
-	}};
+	};
 
-	($order:path, $store:ident; $($val:expr),* $(,)?) => {{
-		const LEN: usize = $crate::__count_elts!($store; $($val),*);
-		$crate::array::BitArray::<$order, [$store; LEN]>::new(
+	($order:path, $store:ident; $($val:expr),* $(,)?) => {
+		$crate::array::BitArray::<
+			$order,
+			[$store; $crate::__count_elts!($store; $($val),*)],
+		>::new(
 			$crate::__bits_store_array!($order, $store; $($val),*)
 		)
-	}};
+	};
 
 	($order:ident; $($val:expr),* $(,)?) => {
 		$crate::bitarr!($order, usize; $($val),*)
@@ -295,17 +255,25 @@ macro_rules! bitarr {
 		$crate::bitarr!(Lsb0, usize; $($val),*)
 	};
 
-	($order:ident, $store:ident; $val:expr; $len:expr) => {{
-		const VAL: $store = $crate::__extend_bool!($val, $store);
-		const LEN: usize = $crate::mem::elts::<$store>($len);
-		$crate::array::BitArray::<$order, [$store; LEN]>::new([VAL; LEN])
-	}};
+	($order:ident, $store:ident; $val:expr; $len:expr) => {
+		$crate::array::BitArray::<
+			$order,
+			[$store; $crate::mem::elts::<$store>($len)],
+		>::new([
+			$crate::__extend_bool!($val, $store);
+			$crate::mem::elts::<$store>($len)
+		])
+	};
 
-	($order:path, $store:ident; $val:expr; $len:expr) => {{
-		const VAL: $store = $crate::__extend_bool!($val, $store);
-		const LEN: usize = $crate::mem::elts::<$store>($len);
-		$crate::array::BitArray::<$order, [$store; LEN]>::new([VAL; LEN])
-	}};
+	($order:path, $store:ident; $val:expr; $len:expr) => {
+		$crate::array::BitArray::<
+			$order,
+			[$store; $crate::mem::elts::<$store>($len)],
+		>::new([
+			$crate::__extend_bool!($val, $store);
+			$crate::mem::elts::<$store>($len)
+		])
+	};
 
 	($order:ident; $val:expr; $len:expr) => {
 		$crate::bitarr!($order, usize; $val; $len)
