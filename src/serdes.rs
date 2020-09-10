@@ -163,7 +163,7 @@ where
 }
 
 macro_rules! deser_array {
-	($($n:expr),* $(,)?) => { $(
+	($($n:expr),+ $(,)?) => { $(
 		impl<'de, O, T> Deserialize<'de> for BitArray<O, [T; $n]>
 		where
 			O: BitOrder,

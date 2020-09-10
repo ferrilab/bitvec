@@ -14,8 +14,8 @@ use crate::{
 	index::{
 		BitIdx,
 		BitMask,
+		BitRegister,
 	},
-	mem::BitMemory,
 	order::BitOrder,
 };
 
@@ -24,10 +24,7 @@ use core::{
 	sync::atomic::Ordering,
 };
 
-use radium::{
-	marker::BitOps,
-	Radium,
-};
+use radium::Radium;
 
 /** Access interface to memory locations.
 
@@ -39,8 +36,8 @@ This is automatically implemented for all types that permit shared/mutable
 memory access to register types through the `radium` crate. Its use is
 constrained in the `store` module.
 **/
-pub trait BitAccess<M>: Debug + Radium<M> + Sized
-where M: BitMemory + BitOps
+pub trait BitAccess<R>: Debug + Radium<R> + Sized
+where R: BitRegister
 {
 	/// Sets one bit in a memory element to `0`.
 	///
@@ -58,7 +55,7 @@ where M: BitMemory + BitOps
 	/// The memory element at `*self` has the bit corresponding to `index` set
 	/// to `0`, and all other bits are unchanged.
 	#[inline]
-	fn clear_bit<O>(&self, index: BitIdx<M>)
+	fn clear_bit<O>(&self, index: BitIdx<R>)
 	where O: BitOrder {
 		self.fetch_and(!index.select::<O>().value(), Ordering::Relaxed);
 	}
@@ -85,7 +82,7 @@ where M: BitMemory + BitOps
 	/// the unselected bits and erase the selected bits. `BitMask` is a
 	/// selection type, not a bitwise-operation argument.
 	#[inline]
-	fn clear_bits(&self, mask: BitMask<M>) {
+	fn clear_bits(&self, mask: BitMask<R>) {
 		self.fetch_and(!mask.value(), Ordering::Relaxed);
 	}
 
@@ -105,7 +102,7 @@ where M: BitMemory + BitOps
 	/// The memory element at `*self` has the bit corresponding to `index` set
 	/// to `1`, and all other bits are unchanged.
 	#[inline]
-	fn set_bit<O>(&self, index: BitIdx<M>)
+	fn set_bit<O>(&self, index: BitIdx<R>)
 	where O: BitOrder {
 		self.fetch_or(index.select::<O>().value(), Ordering::Relaxed);
 	}
@@ -128,7 +125,7 @@ where M: BitMemory + BitOps
 	/// to `1`, and all bits in `*self` that are not selected (set to `0`) in
 	/// `mask` will be unchanged.
 	#[inline]
-	fn set_bits(&self, mask: BitMask<M>) {
+	fn set_bits(&self, mask: BitMask<R>) {
 		self.fetch_or(mask.value(), Ordering::Relaxed);
 	}
 
@@ -148,7 +145,7 @@ where M: BitMemory + BitOps
 	/// The memory element at `*self` has the bit corresponding to `index` set
 	/// to the opposite of its current value. All other bits are unchanged.
 	#[inline]
-	fn invert_bit<O>(&self, index: BitIdx<M>)
+	fn invert_bit<O>(&self, index: BitIdx<R>)
 	where O: BitOrder {
 		self.fetch_xor(index.select::<O>().value(), Ordering::Relaxed);
 	}
@@ -171,7 +168,7 @@ where M: BitMemory + BitOps
 	/// to the opposite of their current value, and all bits in `*self` that are
 	/// not selected (set to `0`) in `mask` will be unchanged.
 	#[inline]
-	fn invert_bits(&self, mask: BitMask<M>) {
+	fn invert_bits(&self, mask: BitMask<R>) {
 		self.fetch_xor(mask.value(), Ordering::Relaxed);
 	}
 
@@ -190,7 +187,7 @@ where M: BitMemory + BitOps
 	///
 	/// The value of the bit in `*self` corresponding to `index`.
 	#[inline]
-	fn get_bit<O>(&self, index: BitIdx<M>) -> bool
+	fn get_bit<O>(&self, index: BitIdx<R>) -> bool
 	where O: BitOrder {
 		unsafe { BitMask::new(self.load_value()) }.test(index.select::<O>())
 	}
@@ -213,7 +210,7 @@ where M: BitMemory + BitOps
 	/// to `0`) in `mask` erased and all bits selected (set to `1`) in `mask`
 	/// preserved.
 	#[inline]
-	fn get_bits(&self, mask: BitMask<M>) -> M {
+	fn get_bits(&self, mask: BitMask<R>) -> R {
 		self.load_value() & mask.value()
 	}
 
@@ -233,7 +230,7 @@ where M: BitMemory + BitOps
 	///
 	/// The bit in `*self` at `index` is set to the `value` bit.
 	#[inline]
-	fn write_bit<O>(&self, index: BitIdx<M>, value: bool)
+	fn write_bit<O>(&self, index: BitIdx<R>, value: bool)
 	where O: BitOrder {
 		if value {
 			self.set_bit::<O>(index);
@@ -261,7 +258,7 @@ where M: BitMemory + BitOps
 	/// to `value`, and all bits in `*self` that are not selected (set to `0`)
 	/// in `mask` will be unchanged.
 	#[inline]
-	fn write_bits(&self, mask: BitMask<M>, value: bool) {
+	fn write_bits(&self, mask: BitMask<R>, value: bool) {
 		if value {
 			self.set_bits(mask);
 		}
@@ -290,7 +287,7 @@ where M: BitMemory + BitOps
 	/// [`clear_bit`]: #method.clear_bit
 	/// [`set_bit`]: #method.set_bit
 	#[inline]
-	fn get_writer<O>(value: bool) -> for<'a> fn(&'a Self, BitIdx<M>)
+	fn get_writer<O>(value: bool) -> for<'a> fn(&'a Self, BitIdx<R>)
 	where O: BitOrder {
 		[Self::clear_bit::<O>, Self::set_bit::<O>][value as usize]
 	}
@@ -311,7 +308,7 @@ where M: BitMemory + BitOps
 	/// [`clear_bits`]: #method.clear_bits
 	/// [`set_bits`]: #method.set_bits
 	#[inline]
-	fn get_writers(value: bool) -> for<'a> fn(&'a Self, BitMask<M>) {
+	fn get_writers(value: bool) -> for<'a> fn(&'a Self, BitMask<R>) {
 		[Self::clear_bits, Self::set_bits][value as usize]
 	}
 
@@ -325,7 +322,7 @@ where M: BitMemory + BitOps
 	///
 	/// A copy of the value at `*self`.
 	#[inline]
-	fn load_value(&self) -> M {
+	fn load_value(&self) -> R {
 		self.load(Ordering::Relaxed)
 	}
 
@@ -350,15 +347,15 @@ where M: BitMemory + BitOps
 	/// ownership of the caller, this method risks behavior that violates the
 	/// Rust memory model, even if it may not be technically undefined.
 	#[inline]
-	unsafe fn store_value(&self, value: M) {
+	unsafe fn store_value(&self, value: R) {
 		self.store(value, Ordering::Relaxed)
 	}
 }
 
-impl<M, R> BitAccess<M> for R
+impl<A, R> BitAccess<R> for A
 where
-	M: BitMemory + BitOps,
-	R: Debug + Radium<M>,
+	A: Debug + Radium<R>,
+	R: BitRegister,
 {
 }
 

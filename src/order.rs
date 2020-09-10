@@ -1,9 +1,9 @@
 /*! Ordering of bits within register elements.
 
-`bitvec` structures are parametric over any ordering of bits within an element.
+`bitvec` structures are parametric over any ordering of bits within a register.
 The `BitOrder` trait maps a cursor position (indicated by the `BitIdx` type) to an
 electrical position (indicated by the `BitPos` type) within that element, and
-also defines the order of traversal over an element.
+also defines the order of traversal over a register.
 
 The only requirement on implementors of `BitOrder` is that the transform function
 from cursor (`BitIdx`) to position (`BitPos`) is *total* (every integer in the
@@ -14,18 +14,16 @@ Contiguity is not required.
 `BitOrder` is a stateless trait, and implementors should be zero-sized types.
 !*/
 
-use crate::{
-	index::{
-		BitIdx,
-		BitMask,
-		BitPos,
-		BitSel,
-		BitTail,
-	},
-	mem::BitMemory,
+use crate::index::{
+	BitIdx,
+	BitMask,
+	BitPos,
+	BitRegister,
+	BitSel,
+	BitTail,
 };
 
-/** An ordering over an element.
+/** An ordering over a register.
 
 # Usage
 
@@ -68,17 +66,16 @@ message intended to clearly indicate the broken requirement.
 
 ```rust
 use bitvec::{
-  index::{BitIdx, BitPos},
-  mem::BitMemory,
+  index::{BitIdx, BitPos, BitRegister},
   order::{self, BitOrder},
 };
 # use bitvec::{index::*, order::Lsb0};
 
 pub struct Custom;
 unsafe impl BitOrder for Custom {
-  fn at<M: BitMemory>(idx: BitIdx<M>) -> BitPos<M> {
+  fn at<R: BitRegister>(idx: BitIdx<R>) -> BitPos<R> {
   // impl
-  # return Lsb0::at::<M>(idx);
+  # return Lsb0::at::<R>(idx);
   }
 }
 
@@ -99,17 +96,17 @@ pub unsafe trait BitOrder {
 	///
 	/// # Parameters
 	///
-	/// - `index`: The semantic index of a bit within an element `M`.
+	/// - `index`: The semantic index of a bit within a register `R`.
 	///
 	/// # Returns
 	///
-	/// The electrical position of the indexed bit within an element `M`. See
+	/// The electrical position of the indexed bit within a register `R`. See
 	/// the `BitPos` documentation for what electrical positions are considered
 	/// to mean.
 	///
 	/// # Type Parameters
 	///
-	/// - `M`: The element type which the index and position describe.
+	/// - `R`: The register type which the index and position describe.
 	///
 	/// # Requirements
 	///
@@ -118,10 +115,10 @@ pub unsafe trait BitOrder {
 	///
 	/// ## Totality
 	///
-	/// This function must be able to accept every input in the `BitIdx<M>`
-	/// value range, and produce a corresponding `BitPos<M>`. It must not abort
-	/// the program or return an invalid `BitPos<M>` for any input value in the
-	/// `BitIdx<M>` range.
+	/// This function must be able to accept every input in the `BitIdx<R>`
+	/// value range, and produce a corresponding `BitPos<R>`. It must not abort
+	/// the program or return an invalid `BitPos<R>` for any input value in the
+	/// `BitIdx<R>` range.
 	///
 	/// ## Bijection
 	///
@@ -139,19 +136,19 @@ pub unsafe trait BitOrder {
 	///
 	/// ## Output Validity
 	///
-	/// The produced `BitPos<M>` must be within the valid range of that type.
+	/// The produced `BitPos<R>` must be within the valid range of that type.
 	/// Call sites of this function will not take any steps to constrain the
 	/// output value. If you use `unsafe` code to produce an invalid
-	/// `BitPos<M>`, the program is permanently incorrect, and will likely
+	/// `BitPos<R>`, the program is permanently incorrect, and will likely
 	/// crash.
 	///
 	/// # Usage
 	///
 	/// This function will only ever be called with input values in the valid
-	/// `BitIdx<M>` range. Implementors are not required to consider any values
+	/// `BitIdx<R>` range. Implementors are not required to consider any values
 	/// outside this range in their function body.
-	fn at<M>(index: BitIdx<M>) -> BitPos<M>
-	where M: BitMemory;
+	fn at<R>(index: BitIdx<R>) -> BitPos<R>
+	where R: BitRegister;
 
 	/// Converts a semantic bit index into a one-hot selector mask.
 	///
@@ -166,7 +163,7 @@ pub unsafe trait BitOrder {
 	///
 	/// # Parameters
 	///
-	/// - `index`: The semantic index of a bit within an element `M`.
+	/// - `index`: The semantic index of a bit within a register `R`.
 	///
 	/// # Returns
 	///
@@ -174,25 +171,25 @@ pub unsafe trait BitOrder {
 	///
 	/// # Type Parameters
 	///
-	/// - `M`: The storage type for which the mask will be calculated. The mask
-	///   must also be this type, as it will be applied to an element of `M` in
+	/// - `R`: The storage type for which the mask will be calculated. The mask
+	///   must also be this type, as it will be applied to a register of `R` in
 	///   order to set, clear, or test a single bit.
 	///
 	/// # Requirements
 	///
 	/// A one-hot encoding means that there is exactly one bit set in the
-	/// produced value. It must be equivalent to `1 << Self::at::<M>(place)`.
+	/// produced value. It must be equivalent to `1 << Self::at::<R>(place)`.
 	///
 	/// As with `at`, this function must produce a unique mapping from each
-	/// legal index in the `M` domain to a one-hot value of `M`.
+	/// legal index in the `R` domain to a one-hot value of `R`.
 	#[inline]
-	fn select<M>(index: BitIdx<M>) -> BitSel<M>
-	where M: BitMemory {
-		Self::at::<M>(index).select()
+	fn select<R>(index: BitIdx<R>) -> BitSel<R>
+	where R: BitRegister {
+		Self::at::<R>(index).select()
 	}
 
 	/// Constructs a multi-bit selector mask for batch operations on a single
-	/// memory element `M`.
+	/// register `R`.
 	///
 	/// The default implementation of this function traverses the index range,
 	/// converting each index into a single-bit selector with `Self::select` and
@@ -210,8 +207,8 @@ pub unsafe trait BitOrder {
 	///
 	/// # Type Parameters
 	///
-	/// - `M`: The storage type for which the mask will be calculated. The mask
-	///   must also be this type, as it will be applied to an element of `M` in
+	/// - `R`: The storage type for which the mask will be calculated. The mask
+	///   must also be this type, as it will be applied to a register of `R` in
 	///   order to set, clear, or test all the selected bits.
 	///
 	/// # Requirements
@@ -220,109 +217,109 @@ pub unsafe trait BitOrder {
 	///
 	/// ```rust,ignore
 	/// (from .. upto)
-	///   .map(1 << Self::at::<M>)
+	///   .map(1 << Self::at::<R>)
 	///   .fold(0, |mask, sel| mask | sel)
 	/// ```
 	#[inline]
-	fn mask<M>(
-		from: impl Into<Option<BitIdx<M>>>,
-		upto: impl Into<Option<BitTail<M>>>,
-	) -> BitMask<M>
+	fn mask<R>(
+		from: impl Into<Option<BitIdx<R>>>,
+		upto: impl Into<Option<BitTail<R>>>,
+	) -> BitMask<R>
 	where
-		M: BitMemory,
+		R: BitRegister,
 	{
 		let (from, upto) = match (from.into(), upto.into()) {
 			(None, None) => return BitMask::ALL,
-			(Some(from), None) => (from, BitTail::<M>::END),
-			(None, Some(upto)) => (BitIdx::<M>::ZERO, upto),
+			(Some(from), None) => (from, BitTail::<R>::END),
+			(None, Some(upto)) => (BitIdx::<R>::ZERO, upto),
 			(Some(from), Some(upto)) => (from, upto),
 		};
-		BitIdx::<M>::range(from, upto).map(Self::select::<M>).sum()
+		BitIdx::<R>::range(from, upto).map(Self::select::<R>).sum()
 	}
 }
 
-/// Traverses an element from `MSbit` to `LSbit`.
+/// Traverses a register from `MSbit` to `LSbit`.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Msb0;
 
 unsafe impl BitOrder for Msb0 {
 	#[cfg_attr(not(tarpaulin_include), inline(always))]
-	fn at<M>(index: BitIdx<M>) -> BitPos<M>
-	where M: BitMemory {
-		unsafe { BitPos::new_unchecked(M::MASK - index.value()) }
+	fn at<R>(index: BitIdx<R>) -> BitPos<R>
+	where R: BitRegister {
+		unsafe { BitPos::new_unchecked(R::MASK - index.value()) }
 	}
 
 	#[cfg_attr(not(tarpaulin_include), inline(always))]
-	fn select<M>(index: BitIdx<M>) -> BitSel<M>
-	where M: BitMemory {
+	fn select<R>(index: BitIdx<R>) -> BitSel<R>
+	where R: BitRegister {
 		/* Set the MSbit, then shift it down. The left expr is const-folded.
 		Note: this is not equivalent to `1 << (mask - index)`, because that
 		requires a runtime subtraction, but the expression below is only a
 		single right-shift.
 		*/
-		unsafe { BitSel::new_unchecked((M::ONE << M::MASK) >> index.value()) }
+		unsafe { BitSel::new_unchecked((R::ONE << R::MASK) >> index.value()) }
 	}
 
 	#[inline]
-	fn mask<M>(
-		from: impl Into<Option<BitIdx<M>>>,
-		upto: impl Into<Option<BitTail<M>>>,
-	) -> BitMask<M>
+	fn mask<R>(
+		from: impl Into<Option<BitIdx<R>>>,
+		upto: impl Into<Option<BitTail<R>>>,
+	) -> BitMask<R>
 	where
-		M: BitMemory,
+		R: BitRegister,
 	{
 		let from = from.into().unwrap_or(BitIdx::ZERO).value();
 		let upto = upto.into().unwrap_or(BitTail::END).value();
 		debug_assert!(upto >= from, "Ranges must run from low index to high");
 		let ct = upto - from;
-		if ct == M::BITS {
+		if ct == R::BITS {
 			return BitMask::ALL;
 		}
 		//  1. Set all bits high.
 		//  2. Shift right by the number of bits in the mask. These are now low.
 		//  3. Invert. The mask bits (at MSedge) are high; the rest are low.
 		//  4. Shift right by the distance from MSedge.
-		unsafe { BitMask::new(!(M::ALL >> ct) >> from) }
+		unsafe { BitMask::new(!(R::ALL >> ct) >> from) }
 	}
 }
 
-/// Traverses an element from `LSbit` to `MSbit`.
+/// Traverses a register from `LSbit` to `MSbit`.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Lsb0;
 
 unsafe impl BitOrder for Lsb0 {
 	#[cfg_attr(not(tarpaulin), inline(always))]
-	fn at<M>(index: BitIdx<M>) -> BitPos<M>
-	where M: BitMemory {
+	fn at<R>(index: BitIdx<R>) -> BitPos<R>
+	where R: BitRegister {
 		unsafe { BitPos::new_unchecked(index.value()) }
 	}
 
 	#[cfg_attr(not(tarpaulin), inline(always))]
-	fn select<M>(index: BitIdx<M>) -> BitSel<M>
-	where M: BitMemory {
-		unsafe { BitSel::new_unchecked(M::ONE << index.value()) }
+	fn select<R>(index: BitIdx<R>) -> BitSel<R>
+	where R: BitRegister {
+		unsafe { BitSel::new_unchecked(R::ONE << index.value()) }
 	}
 
 	#[inline]
-	fn mask<M>(
-		from: impl Into<Option<BitIdx<M>>>,
-		upto: impl Into<Option<BitTail<M>>>,
-	) -> BitMask<M>
+	fn mask<R>(
+		from: impl Into<Option<BitIdx<R>>>,
+		upto: impl Into<Option<BitTail<R>>>,
+	) -> BitMask<R>
 	where
-		M: BitMemory,
+		R: BitRegister,
 	{
 		let from = from.into().unwrap_or(BitIdx::ZERO).value();
 		let upto = upto.into().unwrap_or(BitTail::END).value();
 		debug_assert!(upto >= from, "Ranges must run from low index to high");
 		let ct = upto - from;
-		if ct == M::BITS {
+		if ct == R::BITS {
 			return BitMask::ALL;
 		}
 		//  1. Set all bits high.
 		//  2. Shift left by the number of bits in the mask. These are now low.
 		//  3. Invert. The mask bits at LSedge are high; the rest are low.
 		//  4. Shift left by the distance from LSedge.
-		unsafe { BitMask::new(!(M::ALL << ct) << from) }
+		unsafe { BitMask::new(!(R::ALL << ct) << from) }
 	}
 }
 
@@ -353,8 +350,8 @@ compile_fail!(concat!(
 /** Verifies a `BitOrder` implementation’s adherence to the stated rules.
 
 This function checks some `BitOrder` implementation’s behavior on each of the
-`BitMemory` types it must handle, and reports any violation of the rules that it
-detects.
+`BitRegister` types it must handle, and reports any violation of the rules that
+it detects.
 
 # Type Parameters
 
@@ -386,14 +383,15 @@ where O: BitOrder {
 one register type.
 
 This function checks some `BitOrder` implementation against only one of the
-`BitMemory` types that it will encounter. This is useful if you are implementing
-an ordering that only needs to be concerned with a subset of the types, and you
-know that you will never use it with the types it does not support.
+`BitRegister` types that it will encounter. This is useful if you are
+implementing an ordering that only needs to be concerned with a subset of the
+types, and you know that you will never use it with the types it does not
+support.
 
 # Type Parameters
 
 - `O`: The `BitOrder` implementation to test.
-- `M`: The `BitMemory` type  for which to test `O`.
+- `R`: The `BitRegister` type for which to test `O`.
 
 # Parameters
 
@@ -406,23 +404,23 @@ This panics if it detects any violation of the `BitOrder` implementation rules
 for the combination of input types and index values.
 **/
 #[cfg(test)]
-pub fn verify_for_type<O, M>(verbose: bool)
+pub fn verify_for_type<O, R>(verbose: bool)
 where
 	O: BitOrder,
-	M: BitMemory,
+	R: BitRegister,
 {
 	use core::any::type_name;
-	let mut accum = BitMask::<M>::ZERO;
+	let mut accum = BitMask::<R>::ZERO;
 
 	let oname = type_name::<O>();
-	let mname = type_name::<M>();
+	let mname = type_name::<R>();
 
-	for n in 0 .. M::BITS {
+	for n in 0 .. R::BITS {
 		//  Wrap the counter as an index.
-		let idx = unsafe { BitIdx::<M>::new_unchecked(n) };
+		let idx = unsafe { BitIdx::<R>::new_unchecked(n) };
 
 		//  Compute the bit position for the index.
-		let pos = O::at::<M>(idx);
+		let pos = O::at::<R>(idx);
 		if verbose {
 			#[cfg(feature = "std")]
 			println!(
@@ -436,22 +434,22 @@ where
 
 		//  If the computed position exceeds the valid range, fail.
 		assert!(
-			pos.value() < M::BITS,
+			pos.value() < R::BITS,
 			"Error when verifying the implementation of `BitOrder` for `{}`: \
 			 Index {} produces a bit position ({}) that exceeds the type width \
 			 {}",
 			oname,
 			n,
 			pos.value(),
-			M::BITS,
+			R::BITS,
 		);
 
 		//  Check `O`’s implementation of `select`
-		let sel = O::select::<M>(idx);
+		let sel = O::select::<R>(idx);
 		if verbose {
 			#[cfg(feature = "std")]
 			println!(
-				"`<{} as BitOrder>::select::<{}>({})` produces {}",
+				"`<{} as BitOrder>::select::<{}>({})` produces {:b}",
 				oname, mname, n, sel,
 			);
 		}
@@ -461,7 +459,7 @@ where
 			sel.value().count_ones(),
 			1,
 			"Error when verifying the implementation of `BitOrder` for `{}`: \
-			 Index {} produces a bit selector ({}) that is not a one-hot mask",
+			 Index {} produces a bit selector ({:b}) that is not a one-hot mask",
 			oname,
 			n,
 			sel,
@@ -475,8 +473,8 @@ where
 			sel,
 			shl,
 			"Error when verifying the implementation of `BitOrder` for `{}`: \
-			 Index {} produces a bit selector ({}) that is not equal to `1 << \
-			 {}` ({})",
+			 Index {} produces a bit selector ({:b}) that is not equal to `1 \
+			 << {}` ({:b})",
 			oname,
 			n,
 			sel,
@@ -499,7 +497,7 @@ where
 		if verbose {
 			#[cfg(feature = "std")]
 			println!(
-				"`<{} as BitOrder>::at::<{}>({})` accumulates  {}",
+				"`<{} as BitOrder>::at::<{}>({})` accumulates  {:b}",
 				oname, mname, n, accum,
 			);
 		}
@@ -512,25 +510,25 @@ where
 		"Error when verifying the implementation of `BitOrder` for `{}`: The \
 		 bit positions marked with a `0` here were never produced from an \
 		 index, despite all possible indices being passed in for translation: \
-		 {}",
+		 {:b}",
 		oname,
 		accum,
 	);
 
 	//  Check that `O::mask` is correct for all range combinations.
-	for from in BitIdx::<M>::range_all() {
-		for upto in BitTail::<M>::range_from(from) {
+	for from in BitIdx::<R>::range_all() {
+		for upto in BitTail::<R>::range_from(from) {
 			let mask = O::mask(from, upto);
-			let check = BitIdx::<M>::range(from, upto)
-				.map(O::at::<M>)
-				.map(BitPos::<M>::select)
-				.sum::<BitMask<M>>();
+			let check = BitIdx::<R>::range(from, upto)
+				.map(O::at::<R>)
+				.map(BitPos::<R>::select)
+				.sum::<BitMask<R>>();
 			assert_eq!(
 				mask,
 				check,
 				"Error when verifying the implementation of `BitOrder` for \
-				 `{o}`: `{o}::mask::<{m}>({f}, {u})` produced {bad}, but \
-				 expected {good}",
+				 `{o}`: `{o}::mask::<{m}>({f}, {u})` produced {bad:b}, but \
+				 expected {good:b}",
 				o = oname,
 				m = mname,
 				f = from,
@@ -553,8 +551,8 @@ mod tests {
 
 		struct DefaultImpl;
 		unsafe impl BitOrder for DefaultImpl {
-			fn at<M>(index: BitIdx<M>) -> BitPos<M>
-			where M: BitMemory {
+			fn at<R>(index: BitIdx<R>) -> BitPos<R>
+			where R: BitRegister {
 				unsafe { BitPos::new_unchecked(index.value()) }
 			}
 		}

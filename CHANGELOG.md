@@ -4,6 +4,7 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+1. [0.19.0](#0190)
 1. [0.18.3](#0183)
 1. [0.18.2](#0182)
 1. [0.18.1](#0181)
@@ -40,6 +41,21 @@ This document is written according to the [Keep a Changelog][kac] style.
 1. [0.3.0](#030)
 1. [0.2.0](#020)
 1. [0.1.0](#010)
+
+## 0.19.0
+
+This is a small patch release, but must be upgraded to a minor release because
+of a name change in public API.
+
+As `BitMemory` is now able to describe any integer element in memory, but
+`BitOrder` is still able to only operate on processor registers, a new trait
+`BitRegister` serves to distinguish memory-bus integers from register-integers.
+This trait provides no information other than its presence or absence.
+
+`BitOrder` trait functions are modified to require it as the bound on their type
+parameters, rather than `BitMemory`. This name change is visible to users, and
+thus the reason for the minor release. `BitRegister` is conditionally
+implemented according to the supported registers on the target processor.
 
 ## 0.18.3
 

@@ -6,10 +6,8 @@ memory and perform analysis on the regions they describe.
 
 use crate::{
 	access::BitAccess,
-	mem::{
-		self,
-		BitMemory,
-	},
+	index::BitRegister,
+	mem,
 };
 
 use core::{
@@ -17,10 +15,7 @@ use core::{
 	fmt::Debug,
 };
 
-use radium::{
-	marker::BitOps,
-	Radium,
-};
+use radium::Radium;
 
 #[cfg(feature = "atomic")]
 use core::sync::atomic;
@@ -84,7 +79,7 @@ This trait has trait requirements that better express its behavior:
   **/
 pub trait BitStore: seal::Sealed + Sized + Debug {
 	/// The register type that the implementor describes.
-	type Mem: BitMemory + BitOps + BitStore + Into<Self>;
+	type Mem: BitRegister + Into<Self>;
 
 	/// The modifier type over `Self::Mem` used to perform memory access.
 	type Access: BitAccess<Self::Mem>;
@@ -123,7 +118,7 @@ pub trait BitStore: seal::Sealed + Sized + Debug {
 }
 
 /// Batch implementation of `BitStore` for appropriate types.
-macro_rules! bitstore {
+macro_rules! store {
 	($($t:ty => $a:ty),+ $(,)?) => { $(
 		impl BitStore for $t {
 			/// The unsigned integers will only be `BitStore` type parameters
@@ -176,30 +171,31 @@ macro_rules! bitstore {
 	)+ };
 }
 
-bitstore!(
+store!(
 	u8 => atomic::AtomicU8,
 	u16 => atomic::AtomicU16,
 	u32 => atomic::AtomicU32,
-	usize => atomic::AtomicUsize,
 );
 
 #[cfg(target_pointer_width = "64")]
-bitstore!(u64 => atomic::AtomicU64);
+store!(u64 => atomic::AtomicU64);
 
-impl<M> BitStore for Cell<M>
+store!(usize => atomic::AtomicUsize);
+
+impl<R> BitStore for Cell<R>
 where
-	Self: Radium<M>,
-	M: BitMemory + BitOps + BitStore,
+	Self: Radium<R>,
+	R: BitRegister,
 {
 	type Access = Self;
 	type Alias = Self;
-	type Mem = M;
+	type Mem = R;
 	/// Raw pointers are never threadsafe, so this prevents handles using
 	/// `Cell<_>` type parameters from crossing thread boundaries.
 	#[doc(hidden)]
 	type Threadsafe = *const Self;
 
-	//  If these are true for `M: BitStore`, then they are true for `Cell<M>`.
+	//  If these are true for `R: BitRegister`, then they are true for `Cell<R>`.
 
 	#[doc(hidden)]
 	const __ALIAS_WIDTH: [(); 0] = [];
@@ -207,7 +203,7 @@ where
 	const __ALIGNED_TO_SIZE: [(); 0] = [];
 }
 
-impl<M> seal::Sealed for Cell<M> where M: BitMemory + BitStore
+impl<R> seal::Sealed for Cell<R> where R: BitRegister
 {
 }
 
