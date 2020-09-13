@@ -860,19 +860,9 @@ where T: BitStore
 	pub(crate) unsafe fn ptr_diff(self, other: Self) -> (isize, i8) {
 		let self_ptr = self.pointer();
 		let other_ptr = other.pointer();
-		assert!(
-			self_ptr.value() <= isize::max_value() as usize,
-			"Pointer {:p} is too high in memory",
-			self_ptr,
-		);
-		assert!(
-			other_ptr.value() <= isize::max_value() as usize,
-			"Pointer {:p} is too high in memory",
-			other_ptr,
-		);
 		//  FIXME(myrrlyn): `core::ptr::offset_from` stabilizes in 1.47.
 		//  let elts = other_ptr.to_const().offset_from(self_ptr.to_const());
-		let elts = other_ptr.value() as isize - self_ptr.value() as isize;
+		let elts = other_ptr.value().wrapping_sub(self_ptr.value()) as isize;
 		let bits = other.head().value() as i8 - self.head().value() as i8;
 		(elts, bits)
 	}
