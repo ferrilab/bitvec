@@ -64,7 +64,7 @@ use serde::{
 	},
 };
 
-use wyz::pipe::Pipe;
+use tap::pipe::Pipe;
 
 #[cfg(feature = "alloc")]
 use crate::{

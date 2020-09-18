@@ -48,10 +48,7 @@ use core::{
 	slice,
 };
 
-use wyz::pipe::{
-	Pipe,
-	PipeRef,
-};
+use tap::pipe::Pipe;
 
 /** A frozen heap-allocated buffer of individual bits.
 
@@ -451,7 +448,7 @@ where
 			.pipe(|s| s as *mut [T] as *mut [T::Mem])
 			.pipe(|raw| unsafe { Box::from_raw(raw) })
 			.pipe(ManuallyDrop::new)
-			.pipe_mut(func)
+			.pipe_ref_mut(func)
 	}
 }
 

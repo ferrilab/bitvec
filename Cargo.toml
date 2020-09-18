@@ -51,6 +51,7 @@ std = [
 [dependencies]
 funty = { version = "1", default-features = false }
 radium = "0.3"
+tap = "1"
 wyz = { version = "0.2", default-features = false }
 
 [dependencies.serde]

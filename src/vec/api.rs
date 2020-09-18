@@ -29,7 +29,7 @@ use core::{
 
 use funty::IsInteger;
 
-use wyz::{
+use tap::{
 	pipe::Pipe,
 	tap::Tap,
 };

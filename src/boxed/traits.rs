@@ -36,7 +36,7 @@ use core::{
 	},
 };
 
-use wyz::pipe::Pipe;
+use tap::pipe::Pipe;
 
 #[cfg(not(tarpaulin_include))]
 impl<O, T> Borrow<BitSlice<O, T>> for BitBox<O, T>

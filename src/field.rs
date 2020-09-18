@@ -67,7 +67,7 @@ use core::{
 	ptr,
 };
 
-use wyz::pipe::Pipe;
+use tap::pipe::Pipe;
 
 #[cfg(feature = "alloc")]
 use crate::{

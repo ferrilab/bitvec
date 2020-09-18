@@ -15,7 +15,7 @@ use core::{
 	pin::Pin,
 };
 
-use wyz::pipe::Pipe;
+use tap::pipe::Pipe;
 
 impl<O, T> BitBox<O, T>
 where

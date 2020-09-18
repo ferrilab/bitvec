@@ -32,7 +32,7 @@ use core::{
 	str,
 };
 
-use wyz::pipe::Pipe;
+use tap::pipe::Pipe;
 
 #[cfg(feature = "alloc")]
 use crate::vec::BitVec;

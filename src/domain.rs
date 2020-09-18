@@ -40,11 +40,12 @@ use core::{
 	slice,
 };
 
-use wyz::{
-	fmt::FmtForward,
+use tap::{
 	pipe::Pipe,
 	tap::Tap,
 };
+
+use wyz::fmt::FmtForward;
 
 /* Implementation note:
 

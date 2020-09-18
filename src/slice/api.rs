@@ -47,7 +47,7 @@ use core::{
 	},
 };
 
-use wyz::{
+use tap::{
 	pipe::Pipe,
 	tap::Tap,
 };

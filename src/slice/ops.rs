@@ -27,7 +27,7 @@ use core::ops::{
 	RangeToInclusive,
 };
 
-use wyz::pipe::Pipe;
+use tap::pipe::Pipe;
 
 impl<O, T, Rhs> BitAndAssign<Rhs> for BitSlice<O, T>
 where

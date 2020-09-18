@@ -70,7 +70,7 @@ use funty::IsInteger;
 
 use radium::Radium;
 
-use wyz::pipe::Pipe;
+use tap::pipe::Pipe;
 
 /** A slice of individual bits, anywhere in memory.
 

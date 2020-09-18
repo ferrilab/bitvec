@@ -29,9 +29,9 @@ use core::{
 	ptr::NonNull,
 };
 
-use wyz::{
+use tap::{
 	pipe::Pipe,
-	tap::TapOption,
+	tap::TapOptional,
 };
 
 impl<O, T> Extend<bool> for BitVec<O, T>

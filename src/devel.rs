@@ -31,7 +31,7 @@ use core::{
 	},
 };
 
-use wyz::pipe::Pipe;
+use tap::pipe::Pipe;
 
 /// Views a `BitStore` reference as its accessor.
 #[inline(always)]
