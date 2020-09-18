@@ -779,7 +779,7 @@ where T: BitStore
 	pub(crate) unsafe fn read<O>(&self, index: usize) -> bool
 	where O: BitOrder {
 		let (elt, bit) = self.head().offset(index as isize);
-		let base = self.pointer().to_access();
+		let base = self.pointer().to_const();
 		(&*base.offset(elt)).get_bit::<O>(bit)
 	}
 

@@ -13,7 +13,6 @@ that wish to safely perform generic programming with `bitvec` region types.
 #![cfg_attr(tarpaulin, skip)]
 
 use crate::{
-	access::BitAccess,
 	index::BitMask,
 	pointer::BitPtr,
 	store::BitStore,
@@ -64,9 +63,7 @@ where T: BitStore {
 #[cfg(not(tarpaulin_include))]
 pub fn load_aliased_local<T>(x: &T::Alias) -> T::Mem
 where T: BitStore {
-	x.pipe(accessor::<T::Alias>)
-		.pipe(BitAccess::load_value)
-		.pipe(remove_alias::<T>)
+	x.load_value().pipe(remove_alias::<T>)
 }
 
 /// Converts a mutable reference into its memory register type.

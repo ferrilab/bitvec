@@ -6,8 +6,13 @@ memory and perform analysis on the regions they describe.
 
 use crate::{
 	access::BitAccess,
-	index::BitRegister,
+	index::{
+		BitIdx,
+		BitMask,
+		BitRegister,
+	},
 	mem,
+	order::BitOrder,
 };
 
 use core::{
@@ -115,6 +120,58 @@ pub trait BitStore: seal::Sealed + Sized + Debug {
 	/// alignment as `Self`.
 	#[doc(hidden)]
 	const __ALIAS_WIDTH: [(); 0];
+
+	/// Copies a memory element into the caller’s local context.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	///
+	/// # Returns
+	///
+	/// A copy of the value at `*self`.
+	fn load_value(&self) -> Self::Mem;
+
+	/// Fetches the value of one bit in a memory element.
+	///
+	/// # Type Parameters
+	///
+	/// - `O`: A bit ordering.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `index`: The semantic index of the bit in `*self` to read.
+	///
+	/// # Returns
+	///
+	/// The value of the bit in `*self` corresponding to `index`.
+	fn get_bit<O>(&self, index: BitIdx<Self::Mem>) -> bool
+	where O: BitOrder {
+		unsafe { BitMask::new(self.load_value()) }.test(index.select::<O>())
+	}
+
+	/// Fetches any number of bits from a memory element.
+	///
+	/// The mask provided to this method must be constructed from indices that
+	/// are valid in the caller’s context. As the mask is already computed by
+	/// the caller, this does not take an ordering type parameter.
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `mask`: A mask of any number of bits. This is a selection mask of bits
+	///   to read.
+	///
+	/// # Returns
+	///
+	/// A copy of the memory element at `*self`, with all bits not selected (set
+	/// to `0`) in `mask` erased and all bits selected (set to `1`) in `mask`
+	/// preserved.
+	#[inline]
+	fn get_bits(&self, mask: BitMask<Self::Mem>) -> Self::Mem {
+		self.load_value() & mask.value()
+	}
 }
 
 /// Batch implementation of `BitStore` for appropriate types.
@@ -144,6 +201,11 @@ macro_rules! store {
 
 			#[doc(hidden)]
 			const __ALIAS_WIDTH: [(); 0] = [(); mem::cmp_layout::<Self::Mem, Self::Alias>()];
+
+			#[inline(always)]
+			fn load_value(&self) -> Self::Mem {
+				*self
+			}
 		}
 
 		#[cfg(feature = "atomic")]
@@ -162,6 +224,11 @@ macro_rules! store {
 
 			#[doc(hidden)]
 			const __ALIAS_WIDTH: [(); 0] = [(); mem::cmp_layout::<Self::Mem, Self::Alias>()];
+
+			#[inline(always)]
+			fn load_value(&self) -> Self::Mem {
+				Self::load(self, core::sync::atomic::Ordering::Relaxed)
+			}
 		}
 
 		impl seal::Sealed for $t {}
@@ -201,6 +268,11 @@ where
 	const __ALIAS_WIDTH: [(); 0] = [];
 	#[doc(hidden)]
 	const __ALIGNED_TO_SIZE: [(); 0] = [];
+
+	#[inline(always)]
+	fn load_value(&self) -> Self::Mem {
+		self.get()
+	}
 }
 
 impl<R> seal::Sealed for Cell<R> where R: BitRegister

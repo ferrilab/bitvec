@@ -1,9 +1,7 @@
 //! Trait implementations for `BitVec`.
 
 use crate::{
-	access::BitAccess,
 	boxed::BitBox,
-	devel as dvl,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
@@ -81,13 +79,7 @@ where
 		self.clear();
 		self.reserve(other.len());
 		self.with_vec(|v| {
-			v.extend(
-				other
-					.as_slice()
-					.iter()
-					.map(dvl::accessor)
-					.map(BitAccess::load_value),
-			)
+			v.extend(other.as_slice().iter().map(BitStore::load_value))
 		});
 		unsafe {
 			self.set_len(other.len());

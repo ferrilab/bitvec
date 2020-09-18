@@ -20,7 +20,6 @@ resizing, and provide some specializations that cannot safely be done on
 #![cfg(feature = "alloc")]
 
 use crate::{
-	access::BitAccess,
 	boxed::BitBox,
 	index::BitIdx,
 	mem::BitMemory,
@@ -196,12 +195,12 @@ where
 	#[inline]
 	pub fn from_bitslice(slice: &BitSlice<O, T>) -> Self {
 		let mut bitptr = slice.bitptr();
-		let (base, elts) = (bitptr.pointer().to_access(), bitptr.elements());
+		let (base, elts) = (bitptr.pointer().to_const(), bitptr.elements());
 		let source = unsafe { slice::from_raw_parts(base, elts) };
 
 		let mut vec = elts.pipe(Vec::with_capacity).pipe(ManuallyDrop::new);
 
-		vec.extend(source.iter().map(BitAccess::load_value));
+		vec.extend(source.iter().map(BitStore::load_value));
 
 		unsafe {
 			bitptr.set_pointer(vec.as_ptr() as *const T);

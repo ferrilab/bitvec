@@ -124,7 +124,7 @@ where
 			_ref: PhantomData,
 			addr: NonNull::new_unchecked(addr as *mut T::Access),
 			head,
-			data: (&*addr).get_bit::<O>(head),
+			data: (&*(addr as *const T)).get_bit::<O>(head),
 		}
 	}
 

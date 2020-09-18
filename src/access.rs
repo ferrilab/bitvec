@@ -172,48 +172,6 @@ where R: BitRegister
 		self.fetch_xor(mask.value(), Ordering::Relaxed);
 	}
 
-	/// Fetches the value of one bit in a memory element.
-	///
-	/// # Type Parameters
-	///
-	/// - `O`: A bit ordering.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	/// - `index`: The semantic index of the bit in `*self` to read.
-	///
-	/// # Returns
-	///
-	/// The value of the bit in `*self` corresponding to `index`.
-	#[inline]
-	fn get_bit<O>(&self, index: BitIdx<R>) -> bool
-	where O: BitOrder {
-		unsafe { BitMask::new(self.load_value()) }.test(index.select::<O>())
-	}
-
-	/// Fetches any number of bits from a memory element.
-	///
-	/// The mask provided to this method must be constructed from indices that
-	/// are valid in the caller’s context. As the mask is already computed by
-	/// the caller, this does not take an ordering type parameter.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	/// - `mask`: A mask of any number of bits. This is a selection mask of bits
-	///   to read.
-	///
-	/// # Returns
-	///
-	/// A copy of the memory element at `*self`, with all bits not selected (set
-	/// to `0`) in `mask` erased and all bits selected (set to `1`) in `mask`
-	/// preserved.
-	#[inline]
-	fn get_bits(&self, mask: BitMask<R>) -> R {
-		self.load_value() & mask.value()
-	}
-
 	/// Writes a bit to an index within the `self` element.
 	///
 	/// # Type Parameters
@@ -312,20 +270,6 @@ where R: BitRegister
 		[Self::clear_bits, Self::set_bits][value as usize]
 	}
 
-	/// Copies a memory element into the caller’s local context.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	///
-	/// # Returns
-	///
-	/// A copy of the value at `*self`.
-	#[inline]
-	fn load_value(&self) -> R {
-		self.load(Ordering::Relaxed)
-	}
-
 	/// Unconditionally writes a value into a memory location.
 	///
 	/// # Parameters
@@ -387,7 +331,7 @@ mod tests {
 		BitAccess::invert_bits(accessor, BitMask::ALL);
 		assert_eq!(accessor.get(), !1);
 
-		assert!(!BitAccess::get_bit::<Lsb0>(accessor, BitIdx::ZERO));
+		assert!(!BitStore::get_bit::<Lsb0>(accessor, BitIdx::ZERO));
 		assert_eq!(accessor.get(), !1);
 
 		BitAccess::write_bit::<Lsb0>(accessor, BitIdx::new(1).unwrap(), false);
@@ -397,7 +341,7 @@ mod tests {
 		assert_eq!(accessor.get(), !0);
 		BitAccess::write_bits(accessor, Lsb0::mask(BitIdx::new(2), None), false);
 		assert_eq!(
-			BitAccess::get_bits(accessor, Lsb0::mask(BitIdx::new(2), None)),
+			BitStore::get_bits(accessor, Lsb0::mask(BitIdx::new(2), None)),
 			0
 		);
 		assert_eq!(accessor.get(), 3);
