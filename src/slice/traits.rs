@@ -1,7 +1,6 @@
 //! Trait implementations for `BitSlice`
 
 use crate::{
-	devel as dvl,
 	domain::Domain,
 	mem::BitMemory,
 	order::BitOrder,
@@ -424,8 +423,7 @@ macro_rules! fmt {
 				match self.domain() {
 					Domain::Enclave { head, elem, tail } => {
 						//  Load a copy of `*elem` into the stack,
-						let tmp: T::Mem =
-							elem.pipe(dvl::load_aliased_local::<T>);
+						let tmp = elem.load_value();
 						//  View it as a `BitSlice` over the whole element,
 						// narrow it to the live range, and render it.
 						let bits = tmp.view_bits::<O>();
@@ -439,7 +437,7 @@ macro_rules! fmt {
 					//  Same process as above, but with different truncations.
 					Domain::Region { head, body, tail } => {
 						if let Some((head, elem)) = head {
-							let tmp = elem.pipe(dvl::load_aliased_local::<T>);
+							let tmp = elem.load_value();
 							let bits = tmp.view_bits::<O>();
 							unsafe {
 								bits.get_unchecked(head.value() as usize ..)
@@ -451,7 +449,7 @@ macro_rules! fmt {
 								.pipe(&mut writer);
 						}
 						if let Some((elem, tail)) = tail {
-							let tmp = elem.pipe(dvl::load_aliased_local::<T>);
+							let tmp = elem.load_value();
 							let bits = tmp.view_bits::<O>();
 							unsafe {
 								bits.get_unchecked(.. tail.value() as usize)

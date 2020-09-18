@@ -148,8 +148,14 @@ fn iterators() {
 		and the addresses of their secret statics.
 
 		Switch to a by-value comparison instead of by-ref if this test fails.
+
+		Fun fact: Addresses are not stably observable in Miri.
 		*/
+		#[cfg(not(miri))]
 		assert_eq!(l as *const _, r as *const _);
+
+		#[cfg(miri)]
+		assert_eq!(*l, *r);
 	}
 
 	let mut iter = bv.into_iter();

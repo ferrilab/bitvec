@@ -5,6 +5,8 @@ they behave as expected.
 !*/
 
 use super::*;
+
+#[cfg(not(miri))]
 use crate::prelude::*;
 
 /// Resizing always preserves the LSedge.
@@ -39,6 +41,7 @@ fn check_resize() {
 }
 
 #[test]
+#[cfg(not(miri))]
 fn l08() {
 	let bits = bits![mut Lsb0, u8; 0; 32];
 
@@ -58,6 +61,7 @@ fn l08() {
 }
 
 #[test]
+#[cfg(not(miri))]
 fn m08() {
 	let bits = bits![mut Msb0, u8; 0; 32];
 
@@ -77,6 +81,7 @@ fn m08() {
 }
 
 #[test]
+#[cfg(not(miri))]
 fn l16() {
 	let bits = bits![mut Lsb0, u16; 0; 32];
 
@@ -96,6 +101,7 @@ fn l16() {
 }
 
 #[test]
+#[cfg(not(miri))]
 fn m16() {
 	let bits = bits![mut Msb0, u16; 0; 32];
 

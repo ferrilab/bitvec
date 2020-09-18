@@ -829,17 +829,14 @@ where
 				are at the same position in the bounds chain, making this quite
 				a strange bug.
 				*/
-				!O::mask(head, tail) | dvl::load_aliased_local::<T>(elem)
-					== BitMask::ALL
+				!O::mask(head, tail) | elem.load_value() == BitMask::ALL
 			},
 			Domain::Region { head, body, tail } => {
 				head.map_or(true, |(head, elem)| {
-					!O::mask(head, None) | dvl::load_aliased_local::<T>(elem)
-						== BitMask::ALL
+					!O::mask(head, None) | elem.load_value() == BitMask::ALL
 				}) && body.iter().copied().all(|e| e == T::Mem::ALL)
 					&& tail.map_or(true, |(elem, tail)| {
-						!O::mask(None, tail) | dvl::load_aliased_local::<T>(elem)
-							== BitMask::ALL
+						!O::mask(None, tail) | elem.load_value() == BitMask::ALL
 					})
 			},
 		}
@@ -878,17 +875,14 @@ where
 	pub fn any(&self) -> bool {
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
-				O::mask(head, tail) & dvl::load_aliased_local::<T>(elem)
-					!= BitMask::ZERO
+				O::mask(head, tail) & elem.load_value() != BitMask::ZERO
 			},
 			Domain::Region { head, body, tail } => {
 				head.map_or(false, |(head, elem)| {
-					O::mask(head, None) & dvl::load_aliased_local::<T>(elem)
-						!= BitMask::ZERO
+					O::mask(head, None) & elem.load_value() != BitMask::ZERO
 				}) || body.iter().copied().any(|e| e != T::Mem::ZERO)
 					|| tail.map_or(false, |(elem, tail)| {
-						O::mask(None, tail) & dvl::load_aliased_local::<T>(elem)
-							!= BitMask::ZERO
+						O::mask(None, tail) & elem.load_value() != BitMask::ZERO
 					})
 			},
 		}
@@ -1030,12 +1024,12 @@ where
 	pub fn count_ones(&self) -> usize {
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => (O::mask(head, tail)
-				& dvl::load_aliased_local::<T>(elem))
+				& elem.load_value())
 			.value()
 			.count_ones() as usize,
 			Domain::Region { head, body, tail } => {
 				head.map_or(0, |(head, elem)| {
-					(O::mask(head, None) & dvl::load_aliased_local::<T>(elem))
+					(O::mask(head, None) & elem.load_value())
 						.value()
 						.count_ones() as usize
 				}) + body
@@ -1043,7 +1037,7 @@ where
 					.copied()
 					.map(|e| e.count_ones() as usize)
 					.sum::<usize>() + tail.map_or(0, |(elem, tail)| {
-					(O::mask(None, tail) & dvl::load_aliased_local::<T>(elem))
+					(O::mask(None, tail) & elem.load_value())
 						.value()
 						.count_ones() as usize
 				})
@@ -1078,24 +1072,22 @@ where
 	pub fn count_zeros(&self) -> usize {
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => (!O::mask(head, tail)
-				| dvl::load_aliased_local::<T>(elem))
+				| elem.load_value())
 			.value()
 			.count_zeros() as usize,
 			Domain::Region { head, body, tail } => {
 				head.map_or(0, |(head, elem)| {
-					(!O::mask(head, None)
-						| elem.pipe(dvl::load_aliased_local::<T>))
-					.value()
-					.count_zeros() as usize
+					(!O::mask(head, None) | elem.load_value())
+						.value()
+						.count_zeros() as usize
 				}) + body
 					.iter()
 					.copied()
 					.map(|e| e.count_zeros() as usize)
 					.sum::<usize>() + tail.map_or(0, |(elem, tail)| {
-					(!O::mask(None, tail)
-						| elem.pipe(dvl::load_aliased_local::<T>))
-					.value()
-					.count_zeros() as usize
+					(!O::mask(None, tail) | elem.load_value())
+						.value()
+						.count_zeros() as usize
 				})
 			},
 		}

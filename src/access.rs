@@ -356,6 +356,7 @@ mod tests {
 	}
 
 	#[test]
+	#[cfg(not(miri))]
 	fn sanity_check_prefetch() {
 		use core::cell::Cell;
 

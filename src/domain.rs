@@ -16,7 +16,6 @@ memory access for the duration of its existence.
 !*/
 
 use crate::{
-	devel as dvl,
 	index::{
 		BitIdx,
 		BitTail,
@@ -47,24 +46,6 @@ use tap::{
 
 use wyz::fmt::FmtForward;
 
-/* Implementation note:
-
-Demain views are required to use aliasing types for read-only views to a
-location that may nevertheless receive writes from other views. This is a
-requirement of the Rust memory model, even though views constructed from
-read-only `&BitSlice` references should not allow mutation. The `::Alias` types,
-which implement `Radium`, allow mutation through `&` shared references.
-
-Consider implementing, either locally or in a separate crate, the following:
-
-```rust
-pub struct Immut<R: Radium<T>, T>(R);
-impl<R: Radium<T>, T> Immut<R, T> {
-  //  forward read-only methods to `Radium`
-}
-```
-*/
-
 macro_rules! bit_domain {
 	($t:ident $(=> $m:ident)? $(@ $a:ident)?) => {
 		/// Granular representation of the memory region containing a
@@ -93,6 +74,12 @@ macro_rules! bit_domain {
 		/// - `O`: The ordering type of the source `BitSlice` handle.
 		/// - `T`: The element type of the source `BitSlice` handle, including
 		///   aliasing markers.
+		///
+		/// # Aliasing Awareness
+		///
+		/// This enum does not grant access to memory outside the scope of the
+		/// original `&BitSlice` handle, and so does not need to modfiy any
+		/// aliasing conditions.
 		///
 		/// [`Domain`]: enum.Domain.html
 		/// [`DomainMut`]: enum.DomainMut.html
@@ -140,20 +127,6 @@ macro_rules! bit_domain {
 				/// region it covers. As such, a bitslice that was marked as
 				/// entirely aliased, but contains interior unaliased elements,
 				/// can safely remove its aliasing protections.
-				///
-				/// # Safety Exception
-				///
-				/// `&BitSlice<O, T::Alias>` references have access to a
-				/// `.set_aliased` method, which represents the only means in
-				/// `bitvec` of writing to memory without an exclusive `&mut `
-				/// reference.
-				///
-				/// Construction of two such shared, aliasing, references over
-				/// the same data, then construction of a bit-domain view over
-				/// one of them and simultaneous writing through the other to
-				/// interior elements marked as unaliased, will cause the
-				/// bit-domain view to be undefined behavior. Do not combine
-				/// bit-domain views and `.set_aliased` calls.
 				body: &'a $($m)? BitSlice<O, T::Mem>,
 				/// Any bits that partially fill the last element of the slice
 				/// region.
@@ -164,7 +137,7 @@ macro_rules! bit_domain {
 			},
 		}
 
-		impl<'a, O, T> $t<'a, O, T>
+		impl<'a, O, T> $t <'a, O, T>
 		where
 			O: BitOrder,
 			T: 'a + BitStore,
@@ -385,7 +358,7 @@ where
 }
 
 macro_rules! domain {
-	($t:ident $(=> $m:ident)?) => {
+	($t:ident $(=> $m:ident @ $a:ident)?) => {
 		/// Granular representation of the memory region containing a
 		/// `BitSlice`.
 		///
@@ -428,7 +401,7 @@ macro_rules! domain {
 				///
 				/// This is necessary even on immutable views, because other
 				/// views to the referent element may be permitted to modify it.
-				elem: &'a T::Alias,
+				elem: &'a T $(::$a)?,
 				/// The end index of the `BitSlice`.
 				tail: BitTail<T::Mem>,
 			},
@@ -442,7 +415,7 @@ macro_rules! domain {
 				/// If the `BitSlice` started in the interior of its first
 				/// element, this contains the starting index and the base
 				/// address.
-				head: Option<(BitIdx<T::Mem>, &'a T::Alias)>,
+				head: Option<(BitIdx<T::Mem>, &'a T $(::$a)?)>,
 				/// All fully-spanned, unaliased, elements.
 				///
 				/// This is marked as bare memory without any access
@@ -468,7 +441,7 @@ macro_rules! domain {
 				body: &'a $($m)? [T::Mem],
 				/// If the `BitSlice` ended in the interior of its last element,
 				/// this contains the ending index and the last address.
-				tail: Option<(&'a T::Alias, BitTail<T::Mem>)>,
+				tail: Option<(&'a T $(::$a)?, BitTail<T::Mem>)>,
 			}
 		}
 
@@ -491,7 +464,7 @@ macro_rules! domain {
 			#[inline]
 			pub fn enclave(self) -> Option<(
 				BitIdx<T::Mem>,
-				&'a T::Alias,
+				&'a T $(::$a)?,
 				BitTail<T::Mem>,
 			)> {
 				if let Self::Enclave { head, elem, tail } = self {
@@ -515,9 +488,9 @@ macro_rules! domain {
 			/// [`Region`]: #variant.Region
 			#[inline]
 			pub fn region(self) -> Option<(
-				Option<(BitIdx<T::Mem>, &'a T::Alias)>,
+				Option<(BitIdx<T::Mem>, &'a T $(::$a)?)>,
 				&'a $($m)? [T::Mem],
-				Option<(&'a T::Alias, BitTail<T::Mem>)>,
+				Option<(&'a T $(::$a)?, BitTail<T::Mem>)>,
 			)> {
 				if let Self::Region { head, body, tail } = self {
 					Some((head,body,tail))
@@ -535,7 +508,7 @@ macro_rules! domain {
 				let elts = bitptr.elements();
 				let tail = bitptr.tail();
 				let bits = T::Mem::BITS;
-				let base = bitptr.pointer().to_alias();
+				let base = bitptr.pointer().to_const() as *const _;
 				match (head.value(), elts, tail.value()) {
 					(_, 0, _) => Self::empty(),
 					(0, _, t) if t == bits => Self::spanning(base, elts),
@@ -557,7 +530,7 @@ macro_rules! domain {
 
 			#[inline]
 			fn major(
-				base: *const T::Alias,
+				base: *const T $(::$a)?,
 				elts: usize,
 				head: BitIdx<T::Mem>,
 				tail: BitTail<T::Mem>,
@@ -574,7 +547,7 @@ macro_rules! domain {
 
 			#[inline]
 			fn minor(
-				addr: *const T::Alias,
+				addr: *const T $(::$a)?,
 				head: BitIdx<T::Mem>,
 				tail: BitTail<T::Mem>,
 			) -> Self {
@@ -587,7 +560,7 @@ macro_rules! domain {
 
 			#[inline]
 			fn partial_head(
-				base: *const T::Alias,
+				base: *const T $(::$a)?,
 				elts: usize,
 				head: BitIdx<T::Mem>,
 			) -> Self {
@@ -602,7 +575,7 @@ macro_rules! domain {
 
 			#[inline]
 			fn partial_tail(
-				base: *const T::Alias,
+				base: *const T $(::$a)?,
 				elts: usize,
 				tail: BitTail<T::Mem>,
 			) -> Self {
@@ -616,7 +589,7 @@ macro_rules! domain {
 			}
 
 			#[inline]
-			fn spanning(base: *const T::Alias, elts: usize) -> Self {
+			fn spanning(base: *const T $(::$a)?, elts: usize) -> Self {
 				Self::Region {
 					head: None,
 					body: domain!(slice $($m)? base, elts),
@@ -635,7 +608,7 @@ macro_rules! domain {
 }
 
 domain!(Domain);
-domain!(DomainMut => mut);
+domain!(DomainMut => mut @ Alias);
 
 impl<T> Clone for Domain<'_, T>
 where T: BitStore
@@ -655,26 +628,19 @@ where T: 'a + BitStore
 	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
 		match self {
-			Self::Enclave { elem, .. } => (*elem)
-				.pipe(dvl::load_aliased_local::<T>)
-				.pipe(Some)
-				.tap(|_| *self = Self::empty()),
+			Self::Enclave { elem, .. } => {
+				elem.load_value().pipe(Some).tap(|_| *self = Self::empty())
+			},
 			Self::Region { head, body, tail } => {
 				if let Some((_, elem)) = *head {
-					return elem
-						.pipe(dvl::load_aliased_local::<T>)
-						.pipe(Some)
-						.tap(|_| *head = None);
+					return elem.load_value().pipe(Some).tap(|_| *head = None);
 				}
 				if let Some((elem, rest)) = body.split_first() {
 					*body = rest;
 					return Some(*elem);
 				}
 				if let Some((elem, _)) = *tail {
-					return elem
-						.pipe(dvl::load_aliased_local::<T>)
-						.pipe(Some)
-						.tap(|_| *tail = None);
+					return elem.load_value().pipe(Some).tap(|_| *tail = None);
 				}
 				None
 			},
@@ -688,26 +654,19 @@ where T: 'a + BitStore
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		match self {
-			Self::Enclave { elem, .. } => (*elem)
-				.pipe(dvl::load_aliased_local::<T>)
-				.pipe(Some)
-				.tap(|_| *self = Self::empty()),
+			Self::Enclave { elem, .. } => {
+				elem.load_value().pipe(Some).tap(|_| *self = Self::empty())
+			},
 			Self::Region { head, body, tail } => {
 				if let Some((elem, _)) = *tail {
-					return elem
-						.pipe(dvl::load_aliased_local::<T>)
-						.pipe(Some)
-						.tap(|_| *tail = None);
+					return elem.load_value().pipe(Some).tap(|_| *tail = None);
 				}
 				if let Some((elem, rest)) = body.split_last() {
 					*body = rest;
 					return Some(*elem);
 				}
 				if let Some((_, elem)) = *head {
-					return elem
-						.pipe(dvl::load_aliased_local::<T>)
-						.pipe(Some)
-						.tap(|_| *head = None);
+					return elem.load_value().pipe(Some).tap(|_| *head = None);
 				}
 				None
 			},

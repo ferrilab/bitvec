@@ -757,12 +757,12 @@ This is the exact inverse of `set`.
 `resize((*elem & mask) >> shamt)`
 **/
 #[inline]
-fn get<T, M>(elem: &T::Alias, mask: BitMask<T::Mem>, shamt: u8) -> M
+fn get<T, M>(elem: &T, mask: BitMask<T::Mem>, shamt: u8) -> M
 where
 	T: BitStore,
 	M: BitMemory,
 {
-	elem.pipe(dvl::load_aliased_local::<T>)
+	elem.load_value()
 		.pipe(|val| mask & val)
 		.value()
 		.pipe(|val| Shr::<u8>::shr(val, shamt))

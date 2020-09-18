@@ -6,11 +6,14 @@ use crate::prelude::*;
 
 #[test]
 fn construction() {
+	#[cfg(not(miri))]
 	use core::slice;
+
 	let data = 0u8;
 	let bits = data.view_bits::<LocalBits>();
 	assert_eq!(bits.len(), 8);
 
+	#[cfg(not(miri))]
 	assert!(
 		BitSlice::<LocalBits, u8>::from_slice(unsafe {
 			slice::from_raw_parts(
@@ -21,6 +24,7 @@ fn construction() {
 		.is_none()
 	);
 
+	#[cfg(not(miri))]
 	assert!(
 		BitSlice::<LocalBits, u8>::from_slice_mut(unsafe {
 			slice::from_raw_parts_mut(
