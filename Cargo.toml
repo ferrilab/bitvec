@@ -37,7 +37,7 @@ repository = "https://github.com/myrrlyn/bitvec"
 
 [features]
 alloc = [
-    "wyz/alloc",
+	"wyz/alloc",
 ]
 atomic = []
 default = [

@@ -41,12 +41,15 @@ fn no_alloc() {
 	//  &mut BitSlice as PartialOrd<&mut BitSlice>
 	assert!(b < c);
 
-	//  &BitSlice as PartialOrd<&BitSlice>
-	assert!(&*b < &*c);
-	//  &BitSlice as PartialOrd<&mut BitSlice>
-	assert!(&*b < c);
-	//  &mut BitSlice as PartialOrd<&BitSlice>
-	assert!(b < &*c);
+	#[allow(clippy::op_ref)]
+	{
+		//  &BitSlice as PartialOrd<&BitSlice>
+		assert!(&*b < &*c);
+		//  &BitSlice as PartialOrd<&mut BitSlice>
+		assert!(&*b < c);
+		//  &mut BitSlice as PartialOrd<&BitSlice>
+		assert!(b < &*c);
+	}
 }
 
 #[test]

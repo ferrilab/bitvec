@@ -152,16 +152,16 @@ fn iterators() {
 		assert_eq!(l as *const _, r as *const _);
 	}
 
-	let mut iter = bv.clone().into_iter();
+	let mut iter = bv.into_iter();
 	assert!(!iter.next().unwrap());
 	assert_eq!(iter.as_bitslice(), data[1 ..]);
 
-	let mut bv = bitvec![0, 0, 1, 0, 0, 1, 0, 0];
-	let mut splice = bv.splice(2 .. 6, iter::repeat(false).take(4));
+	let mut bv = bitvec![0, 0, 1, 0, 1, 1, 0, 1, 0, 0];
+	let mut splice = bv.splice(2 .. 8, iter::repeat(false).take(4));
 	assert!(splice.next().unwrap());
 	assert!(splice.next_back().unwrap());
-	assert!(!splice.nth(0).unwrap());
-	assert!(!splice.nth_back(0).unwrap());
+	assert!(splice.nth(1).unwrap());
+	assert!(splice.nth_back(1).unwrap());
 	drop(splice);
 	assert_eq!(bv, bits![0; 8]);
 

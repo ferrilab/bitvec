@@ -1668,6 +1668,7 @@ macro_rules! new_group {
 			T: BitStore
 		{
 			#[cfg_attr(not(tarpaulin), inline(always))]
+			#[allow(clippy::redundant_field_names)]
 			pub(super) fn new(
 				slice: &'a $($m)? BitSlice<O, T>,
 				width: usize,

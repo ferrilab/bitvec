@@ -28,7 +28,7 @@ precise, user-controlled, in-memory layout of data fields.
    1. [User Stories](#user-stories)
       1. [Collections of Bits](#collections-of-bits)
       1. [Bitfield Memory Access](#bitfield-memory-access)
-      1. [Please Just Show Me Some Code](#please-just-show-me-some-code)
+   1. [Please Just Show Me Some Code](#please-just-show-me-some-code)
 1. [Feature Flags](#feature-flags)
    1. [`alloc` Feature](#alloc-feature)
    1. [`atomic` Feature](#atomic-feature)
@@ -228,7 +228,7 @@ scenario. Almost all protocols are byte-oriented.
 You can read a more thorough explanation, and see tables, of the
 ordering/register combinations in the [Bit Ordering] document.
 
-### Please Just Show Me Some Code
+## Please Just Show Me Some Code
 
 Okay! This snippet provides a whirlwind tour of the library. You can see more
 [examples] in the repository, which showcase more specific goals.
@@ -261,9 +261,9 @@ fn main() {
   // `BitVec` implements the entire `Vec` API
   bv.reserve(8);
 
-  // Like `Vec<bool>`, it can be extended by any iterator of `bool`
-  bv.extend([false; 4].into_iter());
-  bv.extend([true; 4].into_iter());
+  // Like `Vec<bool>`, it can be extended by any iterator of `bool` or `&bool`
+  bv.extend([false; 4].iter());
+  bv.extend([true; 4].iter().copied());
 
   // `BitSlice`-owning buffers can be viewed as their raw memory
   assert_eq!(
@@ -494,7 +494,7 @@ of the crate system. This module also contains register types needed to interact
 with the `access` module, if you want to use the memory interface system
 separately from the crate’s data structures.
 
-The `mem` module contains logic for operating on register elements. It is an
+The `mem` module contains logic for operating on integers in memory. It is an
 implementation detail of the memory modeling system.
 
 The `pointer` module implements the pointer encoding used to drive the
@@ -519,7 +519,7 @@ This example demonstrates how `bitvec` produces memory aliases:
 use bitvec::prelude::*;
 
 let mut data = 0u8;
-let bits: &mut BitSlice<_, u8> = data.view_bits_mut::<LocalBits>();
+let bits: &mut BitSlice<_, u8> = data.view_bits_mut::<Lsb0>();
 let (l, r): (
   &mut BitSlice<_, u8::Alias>,
   &mut BitSlice<_, u8::Alias>,
@@ -579,5 +579,6 @@ aliased regions and maximize the size of unaliased.
 [prelude]: https://docs.rs/bitvec/latest/bitvec/prelude
 
 <!-- External References -->
+[`radium`]: https://crates.io/crates/radium
 [`std::bitset<N>`]: https://en.cppreference.com/w/cpp/utility/bitset
 [bitfield]: https://en.cppreference.com/w/cpp/language/bit_field "C++ bitfields"

@@ -33,9 +33,9 @@ fn main() {
 	// `BitVec` implements the entire `Vec` API
 	bv.reserve(8);
 
-	// Like `Vec<bool>`, it can be extended by any iterator of `bool`
-	bv.extend([false; 4].into_iter());
-	bv.extend([true; 4].into_iter());
+	// Like `Vec<bool>`, it can be extended by any iterator of `bool` or `&bool`
+	bv.extend([false; 4].iter());
+	bv.extend([true; 4].iter().copied());
 
 	// `BitSlice`-owning buffers can be viewed as their raw memory
 	assert_eq!(

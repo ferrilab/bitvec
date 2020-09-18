@@ -49,9 +49,9 @@ macro_rules! bits {
 
 	//  Explicit order and store.
 
-	(mut $order:ident, $store:ident; $($val:expr),* $(,)?) => {(
+	(mut $order:ident, $store:ident; $($val:expr),* $(,)?) => {{
 		&mut $crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
-	)};
+	}};
 
 	/* These arms differ in `$order:ident` and `$order:path` in order to force
 	the matcher to wrap a `:path`, which is `[:tt]`, as a single opaque `:tt`
@@ -61,9 +61,9 @@ macro_rules! bits {
 	*anyway*.
 	*/
 
-	(mut $order:path, $store:ident; $($val:expr),* $(,)?) => {(
+	(mut $order:path, $store:ident; $($val:expr),* $(,)?) => {{
 		&mut $crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
-	)};
+	}};
 
 	//  Explicit order, default store.
 
@@ -86,13 +86,13 @@ macro_rules! bits {
 
 	//  Explicit order and store.
 
-	(mut $order:ident, $store:ident; $val:expr; $len:expr) => {(
+	(mut $order:ident, $store:ident; $val:expr; $len:expr) => {{
 		&mut $crate::bitarr![$order, $store; $val; $len][.. $len]
-	)};
+	}};
 
-	(mut $order:path, $store:ident; $val:expr; $len:expr) => {(
+	(mut $order:path, $store:ident; $val:expr; $len:expr) => {{
 		&mut $crate::bitarr![$order, $store; $val; $len][.. $len]
-	)};
+	}};
 
 	//  Explicit order, default store.
 
@@ -112,13 +112,13 @@ macro_rules! bits {
 
 	//  Repeat everything from above, but now immutable.
 
-	($order:ident, $store:ident; $($val:expr),* $(,)?) => {(
+	($order:ident, $store:ident; $($val:expr),* $(,)?) => {{
 		&$crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
-	)};
+	}};
 
-	($order:path, $store:ident; $($val:expr),* $(,)?) => {(
+	($order:path, $store:ident; $($val:expr),* $(,)?) => {{
 		&$crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
-	)};
+	}};
 
 	($order:ident; $($val:expr),* $(,)?) => {
 		$crate::bits!($order, usize; $($val),*)
@@ -132,13 +132,13 @@ macro_rules! bits {
 		$crate::bits!(Lsb0, usize; $($val),*)
 	};
 
-	($order:ident, $store:ident; $val:expr; $len:expr) => {(
+	($order:ident, $store:ident; $val:expr; $len:expr) => {{
 		&$crate::bitarr![$order, $store; $val; $len][.. $len]
-	)};
+	}};
 
-	($order:path, $store:ident; $val:expr; $len:expr) => {(
+	($order:path, $store:ident; $val:expr; $len:expr) => {{
 		&$crate::bitarr![$order, $store; $val; $len][.. $len]
-	)};
+	}};
 
 	($order:ident; $val:expr; $len:expr) => {
 		$crate::bits!($order, usize; $val; $len)
