@@ -372,18 +372,28 @@ an allocator.
 
 ## `atomic` Feature
 
-This feature is only necessary if your target supports some form of concurrent
-multiprocessing (usually threads) and you intend to operate concurrently on
-[`BitSlice`]s. It is a default feature so that `std` targets can parallelize
-`BitSlice` operations; when disabled, it removes the `Send` and `Sync` markers
-on aliased `BitSlice`s.
+This feature attempts to use atomic memory accesses for aliased memory, thus
+allowing safe concurrent multiprocessing. It is a default feature so that
+split [`BitSlice`]s are thread-safe by default, just as split integer slices
+are.
 
-Due to the fact that the distribution does not provide granular information
-about what atomic integers are available on which targets, this is a *very*
-blunt and imprecise feature. You may run into errors when using it on targets
-other than x86 or the most common ARMs. Please file an issue with `bitvec`
-and/or the [`radium`] project so that we can make our atomic-detection more
-precise.
+The `"atomic"` feature does not guarantee atomic memory access; rather, `bitvec`
+uses the [`radium`] project to detect the atomic support of the target
+processor, and fall back to `Cell` where atomic accesses are not available. For
+example, certain RISC-V targets (`riscv32i-*` and `riscv32imc-*`) do not have
+any atomic instructions, and so `bitvec` will fall back to `Cell` when targeting
+them even if this feature is enabled.
+
+Disabling this feature completely removes atomic instructions from the crate,
+even for targets that support them, and strictly uses `Cell` memory access.
+
+`bitvec` is tested to build on all targets listed in its CI manifest. `bitvec`
+will likely work on targets that are not listed, but is not proäctively assured
+to do so. If you are building for a target that `bitvec` does not explicitly
+support, you may encounter `radium` errors that attempt to use certain `AtomicT`
+symbols that do not exist. In this event, please file an issue or a pull request
+with `radium` to update it for your target. I maintain both, and will update
+both `radium` and `bitvec` accordingly.
 
 > Note: see the documentation on [`BitSlice::split_at_mut`] and the [`domain`]
 > module for more information on how `bitvec` detects alias conditions and
@@ -391,9 +401,11 @@ precise.
 
 This is a default feature so that splitting a [`BitSlice`] still results in
 concurrency-safe behavior. If your target does not have atomics, you will need
-to disable it. At present, the standard library does not permit crates to select
-*some* atomic integers; either all integers have atomic support in `bitvec`, or
-none do.
+to disable it. `bitvec` uses `radium`’s best-effort atomic exports, and will
+automatically decay to thread-unsafe `Cell` behavior even when this feature is
+enabled if your target does not support the atomics you attempt to use. The
+presence of the `"atomic"` feature does not guarantee atomicity, but its absence
+does guarantee the use of `Cell` memory access.
 
 ## `serde` Feature
 

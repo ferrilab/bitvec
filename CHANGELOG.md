@@ -4,6 +4,7 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+1. [0.19.1](#0191)
 1. [0.19.0](#0190)
    1. [Macro Constructor Implementation](#macro-constructor-implementation)
    1. [`BitRegister` Internal Trait](#bitregister-internal-trait)
@@ -43,6 +44,20 @@ This document is written according to the [Keep a Changelog][kac] style.
 1. [0.3.0](#030)
 1. [0.2.0](#020)
 1. [0.1.0](#010)
+
+## 0.19.1
+
+This updates the `radium` dependency to `0.4`, and uses its fallback types to
+provide graceful degradation when a target CPU does not support atomic behavior
+for a requested type. The `"atomic"` feature now controls whether the crate will
+*attempt* atomic access in alias conditions, not *guarantee* it. This means that
+`BitSlice<_, u64>` on a target with only 32-bit atomics will use `Cell`
+aliasing, while `BitSlice<_, u32>` on that same target will still be able to use
+atomic aliasing.
+
+As there is no observable API change (targets attempting to declare atomic
+aliasing on processors that did not support them were already a compiler error),
+this is not a significant version increase.
 
 ## 0.19.0
 

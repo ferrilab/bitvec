@@ -22,9 +22,6 @@ use core::{
 
 use radium::Radium;
 
-#[cfg(feature = "atomic")]
-use core::sync::atomic;
-
 /** Common interface for memory regions.
 
 This trait is implemented on the fundamental integers no wider than the target
@@ -183,7 +180,7 @@ macro_rules! store {
 			/// reference rules.
 			type Access = Cell<Self>;
 
-			/// In atomic builds, use atomic types for aliased access.
+			/// In atomic builds, use `radium`’s best-effort atomic export.
 			#[cfg(feature = "atomic")]
 			type Alias = $a;
 
@@ -239,15 +236,15 @@ macro_rules! store {
 }
 
 store!(
-	u8 => atomic::AtomicU8,
-	u16 => atomic::AtomicU16,
-	u32 => atomic::AtomicU32,
+	u8 => radium::types::RadiumU8,
+	u16 => radium::types::RadiumU16,
+	u32 => radium::types::RadiumU32,
 );
 
 #[cfg(target_pointer_width = "64")]
-store!(u64 => atomic::AtomicU64);
+store!(u64 => radium::types::RadiumU64);
 
-store!(usize => atomic::AtomicUsize);
+store!(usize => radium::types::RadiumUsize);
 
 impl<R> BitStore for Cell<R>
 where

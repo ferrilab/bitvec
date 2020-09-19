@@ -6,7 +6,7 @@
 
 [package]
 name = "bitvec"
-version = "0.19.0"
+version = "0.19.1"
 authors = [
 	"myrrlyn <self@myrrlyn.dev>",
 ]
@@ -50,14 +50,17 @@ std = [
 
 [dependencies]
 funty = { version = "1", default-features = false }
-radium = "0.3"
+radium = "0.4"
 tap = "1"
-wyz = { version = "0.2", default-features = false }
 
 [dependencies.serde]
 default-features = false
 optional = true
 version = "1"
+
+[dependencies.wyz]
+version = "0.2"
+default-features = false
 
 # Crates required when running the test suite.
 [dev-dependencies]
