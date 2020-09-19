@@ -122,7 +122,7 @@ To use `bitvec`, depend on it in your Cargo manifest:
 # Cargo.toml
 
 [dependencies]
-bitvec = "0.18"
+bitvec = "0.19"
 ```
 
 and import its prelude into any module that needs it:
@@ -348,7 +348,7 @@ its manifest looks like this:
 # Your Cargo.toml
 
 [dependencies.bitvec]
-version = "0.18"
+version = "0.19"
 features = [
   "alloc",
   "atomic",
@@ -376,6 +376,14 @@ This feature attempts to use atomic memory accesses for aliased memory, thus
 allowing safe concurrent multiprocessing. It is a default feature so that
 split [`BitSlice`]s are thread-safe by default, just as split integer slices
 are.
+
+You **must** disable this feature if your target processor is lacking any atomic
+types not wider than the processor word. For example, 32-bit targets may use the
+`"atomic"` feature even though they do not have `AtomicU64`, but targets such as
+`riscv32imc-unknown-none-elf` must disable it entirely as they do not have
+even `AtomicU8`. To the author’s knowledge, there are no targets that have
+`AtomicU8` but not `AtomicUsize`. If you require more precise atomic control
+than merely “not wider than the processor word”, file an issue.
 
 The `"atomic"` feature does not guarantee atomic memory access; rather, `bitvec`
 uses the [`radium`] project to detect the atomic support of the target
