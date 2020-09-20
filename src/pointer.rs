@@ -841,22 +841,22 @@ where T: BitStore
 	/// 4.     B                             A
 	/// ```
 	///
-	/// 1.  The pointer `A` is in the lower element and `B` is in the higher.
-	///     The first bit of `A` is lower in its element than the first bit of
-	///     `B` is in its element. `A.ptrdiff(B)` thus produces positive element
-	///     and bit distances: `(1, 2)`.
-	/// 2.  The pointer `A` is in the lower element and `B` is in the higher.
-	///     The first bit of `A` is higher in its element than the first bit of
-	///     `B` is in its element. `A.ptrdiff(B)` thus produces a positive
-	///     element distance and a negative bit distance: `(1, -3)`.
-	/// 3.  The pointer `A` is in the higher element and `B` is in the lower.
-	///     The first bit of `A` is lower in its element than the first bit of
-	///     `B` is in its element. `A.ptrdiff(B)` thus produces a negative
-	///     element distance and a positive bit distance: `(-1, 4)`.
-	/// 4.  The pointer `A` is in the higher element and `B` is in the lower.
-	///     The first bit of `A` is higher in its element than the first bit of
-	///     `B` is in its element. `A.ptrdiff(B)` thus produces negative element
-	///     and bit distances: `(-1, -5)`.
+	/// 1. The pointer `A` is in the lower element and `B` is in the higher. The
+	///    first bit of `A` is lower in its element than the first bit of `B` is
+	///    in its element. `A.ptr_diff(B)` thus produces positive element and
+	///    bit distances: `(1, 2)`.
+	/// 2. The pointer `A` is in the lower element and `B` is in the higher. The
+	///    first bit of `A` is higher in its element than the first bit of `B`
+	///    is in its element. `A.ptr_diff(B)` thus produces a positive element
+	///    distance and a negative bit distance: `(1, -3)`.
+	/// 3. The pointer `A` is in the higher element and `B` is in the lower. The
+	///    first bit of `A` is lower in its element than the first bit of `B` is
+	///    in its element. `A.ptr_diff(B)` thus produces a negative element
+	///    distance and a positive bit distance: `(-1, 4)`.
+	/// 4. The pointer `A` is in the higher element and `B` is in the lower. The
+	///    first bit of `A` is higher in its element than the first bit of `B`
+	///    is in its element. `A.ptr_diff(B)` thus produces negative element and
+	///    bit distances: `(-1, -5)`.
 	pub(crate) unsafe fn ptr_diff(self, other: Self) -> (isize, i8) {
 		let self_ptr = self.pointer();
 		let other_ptr = other.pointer();
