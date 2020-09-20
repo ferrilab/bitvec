@@ -295,3 +295,13 @@ fn repetition() {
 	let bv = bits.repeat(2);
 	assert_eq!(bv, bits![0, 0, 1, 1, 0, 0, 1, 1]);
 }
+
+#[test]
+fn pointer_offset() {
+	let data = [0u16; 2];
+	let bits = data.view_bits::<Msb0>();
+
+	let a = &bits[10 .. 11];
+	let b = &bits[20 .. 21];
+	assert_eq!(a.offset_from(b), 10);
+}

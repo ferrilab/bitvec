@@ -1819,7 +1819,10 @@ where
 	///
 	/// # Returns
 	///
-	/// The distance in (semantic) bits betwen the heads of each region.
+	/// The distance in (semantic) bits betwen the heads of each region. The
+	/// value is positive when `other` is higher in the address space than
+	/// `self`, and negative when `other` is lower in the address space than
+	/// `self`.
 	///
 	/// [`::electrical_distance]`: #method.electrical_comparison
 	pub fn offset_from(&self, other: &Self) -> isize {
