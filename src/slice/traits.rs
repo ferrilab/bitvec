@@ -2,6 +2,7 @@
 
 use crate::{
 	domain::Domain,
+	index::BitRegister,
 	mem::BitMemory,
 	order::BitOrder,
 	slice::BitSlice,
@@ -252,7 +253,7 @@ where
 impl<'a, O, T> TryFrom<&'a [T]> for &'a BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitStore + BitMemory,
+	T: BitStore + BitRegister,
 {
 	type Error = &'a [T];
 

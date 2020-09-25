@@ -3,6 +3,7 @@
 use crate::{
 	array::BitArray,
 	devel as dvl,
+	index::BitRegister,
 	mem::BitMemory,
 	order::BitOrder,
 	pointer::BitPtr,
@@ -2158,14 +2159,14 @@ where
 		let bp_len = bitptr.len();
 		let (l, c, r) = bitptr.as_aliased_slice().align_to::<U::Alias>();
 		let l_start = bitptr.head().value() as usize;
-		let mut l = BitSlice::<O, T::Alias>::from_aliased_slice_unchecked(l);
+		let mut l = BitSlice::<O, T>::from_aliased_slice_unchecked(l);
 		if l.len() > l_start {
 			l = l.get_unchecked(l_start ..);
 		}
-		let mut c = BitSlice::<O, U::Alias>::from_aliased_slice_unchecked(c);
+		let mut c = BitSlice::<O, U>::from_aliased_slice_unchecked(c);
 		let c_len = cmp::min(c.len(), bp_len - l.len());
 		c = c.get_unchecked(.. c_len);
-		let mut r = BitSlice::<O, T::Alias>::from_aliased_slice_unchecked(r);
+		let mut r = BitSlice::<O, T>::from_aliased_slice_unchecked(r);
 		let r_len = bp_len - l.len() - c.len();
 		if r.len() > r_len {
 			r = r.get_unchecked(.. r_len);
@@ -2340,7 +2341,7 @@ where
 pub fn from_ref<O, T>(elem: &T) -> &BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitStore + BitMemory,
+	T: BitStore + BitRegister,
 {
 	BitSlice::from_element(elem)
 }
@@ -2355,7 +2356,7 @@ where
 pub fn from_mut<O, T>(elem: &mut T) -> &mut BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitStore + BitMemory,
+	T: BitStore + BitRegister,
 {
 	BitSlice::from_element_mut(elem)
 }

@@ -26,6 +26,7 @@ use crate::{
 	array::BitArray,
 	devel as dvl,
 	domain::Domain,
+	index::BitRegister,
 	mem::BitMemory,
 	order::BitOrder,
 	pointer::BitPtr,
@@ -149,7 +150,7 @@ where
 impl<'de, O, T> Deserialize<'de> for BitArray<O, T>
 where
 	O: BitOrder,
-	T: BitStore + BitMemory,
+	T: BitStore + BitRegister,
 	T::Mem: Deserialize<'de>,
 {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

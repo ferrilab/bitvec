@@ -931,7 +931,7 @@ group!(ChunksMut => &'a mut BitSlice<O, T::Alias> {
 			return None;
 		}
 		let mid = cmp::min(len, self.width);
-		let (out, rest) = unsafe { slice.split_at_aliased_unchecked_mut(mid) };
+		let (out, rest) = unsafe { slice.split_at_unchecked_mut_noalias(mid) };
 		self.slice = rest;
 		Some(out)
 	}
@@ -948,7 +948,7 @@ group!(ChunksMut => &'a mut BitSlice<O, T::Alias> {
 				//  Discard the skipped front chunks,
 				.get_unchecked_mut(start ..)
 				//  then split at the chunk width, or remnant length.
-				.split_at_aliased_unchecked_mut(cmp::min(len, self.width))
+				.split_at_unchecked_mut_noalias(cmp::min(len, self.width))
 		};
 		self.slice = rest;
 		Some(out)
@@ -963,7 +963,7 @@ group!(ChunksMut => &'a mut BitSlice<O, T::Alias> {
 				let rem = len % self.width;
 				let size = if rem == 0 { self.width } else { rem };
 				let (rest, out) =
-					unsafe { slice.split_at_aliased_unchecked_mut(len - size) };
+					unsafe { slice.split_at_unchecked_mut_noalias(len - size) };
 				self.slice = rest;
 				Some(out)
 			},
@@ -983,7 +983,7 @@ group!(ChunksMut => &'a mut BitSlice<O, T::Alias> {
 				//  Truncate to the end of the returned chunk,
 				.get_unchecked_mut(.. start + width)
 				//  then split at the start of the returned chunk.
-				.split_at_aliased_unchecked_mut(start)
+				.split_at_unchecked_mut_noalias(start)
 		};
 		self.slice = rest;
 		Some(out)
@@ -1195,7 +1195,7 @@ group!(ChunksExactMut => &'a mut BitSlice<O, T::Alias> {
 			return None;
 		}
 		let (out, rest) =
-			unsafe { slice.split_at_aliased_unchecked_mut(self.width) };
+			unsafe { slice.split_at_unchecked_mut_noalias(self.width) };
 		self.slice = rest;
 		Some(out)
 	}
@@ -1208,7 +1208,7 @@ group!(ChunksExactMut => &'a mut BitSlice<O, T::Alias> {
 		}
 		let (out, rest) = unsafe {
 			slice.get_unchecked_mut(start ..)
-				.split_at_aliased_unchecked_mut(self.width)
+				.split_at_unchecked_mut_noalias(self.width)
 		};
 		self.slice = rest;
 		Some(out)
@@ -1221,7 +1221,7 @@ group!(ChunksExactMut => &'a mut BitSlice<O, T::Alias> {
 			return None;
 		}
 		let (rest, out) =
-			unsafe { slice.split_at_aliased_unchecked_mut(len - self.width) };
+			unsafe { slice.split_at_unchecked_mut_noalias(len - self.width) };
 		self.slice = rest;
 		Some(out)
 	}
@@ -1235,7 +1235,7 @@ group!(ChunksExactMut => &'a mut BitSlice<O, T::Alias> {
 		let end = (len - n) * self.width;
 		let (rest, out) = unsafe {
 			slice.get_unchecked_mut(.. end)
-				.split_at_aliased_unchecked_mut(end - self.width)
+				.split_at_unchecked_mut_noalias(end - self.width)
 		};
 		self.slice = rest;
 		Some(out)
@@ -1396,7 +1396,7 @@ group!(RChunksMut => &'a mut BitSlice<O, T::Alias> {
 			return None;
 		}
 		let mid = len - cmp::min(len, self.width);
-		let (rest, out) = unsafe { slice.split_at_aliased_unchecked_mut(mid) };
+		let (rest, out) = unsafe { slice.split_at_unchecked_mut_noalias(mid) };
 		self.slice = rest;
 		Some(out)
 	}
@@ -1413,7 +1413,7 @@ group!(RChunksMut => &'a mut BitSlice<O, T::Alias> {
 		let mid = end.saturating_sub(self.width);
 		let (rest, out) = unsafe {
 			slice.get_unchecked_mut(.. end)
-				.split_at_aliased_unchecked_mut(mid)
+				.split_at_unchecked_mut_noalias(mid)
 		};
 		self.slice = rest;
 		Some(out)
@@ -1427,7 +1427,7 @@ group!(RChunksMut => &'a mut BitSlice<O, T::Alias> {
 				let rem = n % self.width;
 				let len = if rem == 0 { self.width } else { rem };
 				let (out, rest) =
-					unsafe { slice.split_at_aliased_unchecked_mut(len) };
+					unsafe { slice.split_at_unchecked_mut_noalias(len) };
 				self.slice = rest;
 				Some(out)
 			},
@@ -1443,7 +1443,7 @@ group!(RChunksMut => &'a mut BitSlice<O, T::Alias> {
 		let from_end = (len - 1 - n) * self.width;
 		let end = slice.len() - from_end;
 		let start = end.saturating_sub(self.width);
-		let (out, rest) = unsafe { slice.split_at_aliased_unchecked_mut(end) };
+		let (out, rest) = unsafe { slice.split_at_unchecked_mut_noalias(end) };
 		self.slice = rest;
 		Some(unsafe { out.get_unchecked_mut(start ..) })
 	}
@@ -1654,7 +1654,7 @@ group!(RChunksExactMut => &'a mut BitSlice<O, T::Alias> {
 			return None;
 		}
 		let (rest, out) =
-			unsafe { slice.split_at_aliased_unchecked_mut(len - self.width) };
+			unsafe { slice.split_at_unchecked_mut_noalias(len - self.width) };
 		self.slice = rest;
 		Some(out)
 	}
@@ -1669,7 +1669,7 @@ group!(RChunksExactMut => &'a mut BitSlice<O, T::Alias> {
 		let end = len - split;
 		let (rest, out) = unsafe {
 			slice.get_unchecked_mut(.. end)
-				.split_at_aliased_unchecked_mut(end - self.width)
+				.split_at_unchecked_mut_noalias(end - self.width)
 		};
 		self.slice = rest;
 		Some(out)
@@ -1681,7 +1681,7 @@ group!(RChunksExactMut => &'a mut BitSlice<O, T::Alias> {
 			return None;
 		}
 		let (out, rest) =
-			unsafe { slice.split_at_aliased_unchecked_mut(self.width) };
+			unsafe { slice.split_at_unchecked_mut_noalias(self.width) };
 		self.slice = rest;
 		Some(out)
 	}
@@ -1696,7 +1696,7 @@ group!(RChunksExactMut => &'a mut BitSlice<O, T::Alias> {
 		//  At this point, `start` is at least `self.width` less than `len`.
 		let (out, rest) = unsafe {
 			slice.get_unchecked_mut(start ..)
-				.split_at_aliased_unchecked_mut(self.width)
+				.split_at_unchecked_mut_noalias(self.width)
 		};
 		self.slice = rest;
 		Some(out)
@@ -1944,7 +1944,7 @@ split!(SplitMut => &'a mut BitSlice<O, T::Alias> {
 			None => self.finish(),
 			Some(idx) => unsafe {
 				let slice = mem::take(&mut self.slice);
-				let (out, rest) = slice.split_at_aliased_unchecked_mut(idx);
+				let (out, rest) = slice.split_at_unchecked_mut_noalias(idx);
 				self.slice = rest.get_unchecked_mut(1 ..);
 				Some(out)
 			},
@@ -1967,7 +1967,7 @@ split!(SplitMut => &'a mut BitSlice<O, T::Alias> {
 			None => self.finish(),
 			Some(idx) => unsafe {
 				let slice = mem::take(&mut self.slice);
-				let (rest, out) = slice.split_at_aliased_unchecked_mut(idx);
+				let (rest, out) = slice.split_at_unchecked_mut_noalias(idx);
 				self.slice = rest;
 				Some(out.get_unchecked_mut(1 ..))
 			},

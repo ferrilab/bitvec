@@ -48,6 +48,7 @@ use crate::{
 	index::{
 		BitIdx,
 		BitMask,
+		BitRegister,
 	},
 	mem::BitMemory,
 	order::{
@@ -415,7 +416,7 @@ where
 impl<O, T> BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitStore + BitMemory,
+	T: BitStore + BitRegister,
 {
 	/// Constructs a shared `&BitSlice` reference over a shared element.
 	///
@@ -1602,6 +1603,31 @@ where
 		}
 	}
 
+	/// Splits a mutable slice at some mid-point, without checking boundary
+	/// conditions or adding an alias marker.
+	///
+	/// This method has the same behavior as [`split_at_unchecked_mut`], except
+	/// that it does not apply an aliasing marker to the partitioned subslices.
+	///
+	/// # Safety
+	///
+	/// See [`split_at_unchecked_mut`] for safety requirements.
+	///
+	/// Additionally, this is only safe when `T` is alias-safe.
+	///
+	/// [`split_at_unchecked_mut`]: #method.split_at_unchecked_mut
+	#[inline]
+	pub(crate) unsafe fn split_at_unchecked_mut_noalias(
+		&mut self,
+		mid: usize,
+	) -> (&mut Self, &mut Self)
+	{
+		//  Split the slice at the requested midpoint, adding an alias layer
+		let (head, tail) = self.split_at_unchecked_mut(mid);
+		//  Remove the new alias layer.
+		(Self::unalias_mut(head), Self::unalias_mut(tail))
+	}
+
 	/// Swaps the bits at two indices without checking boundary conditions.
 	///
 	/// This is generally not recommended; use with caution! For a safe
@@ -1774,19 +1800,14 @@ where
 	pub(crate) fn bitptr(&self) -> BitPtr<T> {
 		BitPtr::from_bitslice_ptr(self.as_ptr())
 	}
-}
 
-/// Methods available only when `T` allows shared mutability.
-impl<O, T> BitSlice<O, T>
-where
-	O: BitOrder,
-	T: BitStore + Radium<<T as BitStore>::Mem>,
-{
 	/// Constructs a `BitSlice` over aliased memory.
 	///
 	/// This is restricted so that it can only be used within the crate.
 	/// Construction of a `BitSlice` over externally-aliased memory is unsound.
-	pub(crate) unsafe fn from_aliased_slice_unchecked(slice: &[T]) -> &Self {
+	pub(crate) unsafe fn from_aliased_slice_unchecked(
+		slice: &[T::Alias],
+	) -> &BitSlice<O, T::Alias> {
 		BitPtr::new_unchecked(
 			slice.as_ptr(),
 			BitIdx::ZERO,
@@ -1794,7 +1815,14 @@ where
 		)
 		.to_bitslice_ref()
 	}
+}
 
+/// Methods available only when `T` allows shared mutability.
+impl<O, T> BitSlice<O, T>
+where
+	O: BitOrder,
+	T: BitStore + Radium<Item = <T as BitStore>::Mem>,
+{
 	/// Splits a mutable slice at some mid-point.
 	///
 	/// This method has the same behavior as [`split_at_mut`], except that it
@@ -1816,32 +1844,6 @@ where
 	{
 		let (head, tail) = self.split_at_mut(mid);
 		unsafe { (Self::unalias_mut(head), Self::unalias_mut(tail)) }
-	}
-
-	/// Splits a mutable slice at some mid-point, without checking boundary
-	/// conditions.
-	///
-	/// This method has the same behavior as [`split_at_unchecked_mut`], except
-	/// that it does not apply an aliasing marker to the partitioned subslices.
-	///
-	/// # Safety
-	///
-	/// See [`split_at_unchecked_mut`] for safety requirements.
-	///
-	/// Because this method is defined only on `BitSlice`s whose `T` type is
-	/// alias-safe, the subslices do not need to be additionally marked.
-	///
-	/// [`split_at_unchecked_mut`]: #method.split_at_unchecked_mut
-	#[inline]
-	pub unsafe fn split_at_aliased_unchecked_mut(
-		&mut self,
-		mid: usize,
-	) -> (&mut Self, &mut Self)
-	{
-		//  Split the slice at the requested midpoint, adding an alias layer
-		let (head, tail) = self.split_at_unchecked_mut(mid);
-		//  Remove the new alias layer.
-		(Self::unalias_mut(head), Self::unalias_mut(tail))
 	}
 }
 

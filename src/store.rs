@@ -84,7 +84,7 @@ pub trait BitStore: seal::Sealed + Sized + Debug {
 	type Mem: BitRegister + Into<Self>;
 
 	/// The modifier type over `Self::Mem` used to perform memory access.
-	type Access: BitAccess<Self::Mem>;
+	type Access: BitAccess<Item = Self::Mem>;
 
 	/// A sibling `BitStore` implementor that performs alias-aware memory
 	/// access.
@@ -97,9 +97,7 @@ pub trait BitStore: seal::Sealed + Sized + Debug {
 	/// irradiant over both the current memory and the destination memory types,
 	/// allowing generic type algebra to resolve correctly even though the fact
 	/// that `Radium` is only implemented once is not guaranteed.
-	type Alias: BitStore
-		+ Radium<Self::Mem>
-		+ Radium<<Self::Alias as BitStore>::Mem>;
+	type Alias: BitStore + Radium<Item = Self::Mem>;
 
 	/// Marker for the thread safety of the implementor.
 	///
@@ -248,7 +246,7 @@ store!(usize => radium::types::RadiumUsize);
 
 impl<R> BitStore for Cell<R>
 where
-	Self: Radium<R>,
+	Self: Radium<Item = R>,
 	R: BitRegister,
 {
 	type Access = Self;

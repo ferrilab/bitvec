@@ -50,7 +50,7 @@ std = [
 
 [dependencies]
 funty = { version = "1", default-features = false }
-radium = "0.4"
+radium = "0.5"
 tap = "1"
 
 [dependencies.serde]

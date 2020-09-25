@@ -36,8 +36,8 @@ This is automatically implemented for all types that permit shared/mutable
 memory access to register types through the `radium` crate. Its use is
 constrained in the `store` module.
 **/
-pub trait BitAccess<R>: Debug + Radium<R> + Sized
-where R: BitRegister
+pub trait BitAccess: Debug + Radium + Sized
+where <Self as Radium>::Item: BitRegister
 {
 	/// Sets one bit in a memory element to `0`.
 	///
@@ -55,7 +55,7 @@ where R: BitRegister
 	/// The memory element at `*self` has the bit corresponding to `index` set
 	/// to `0`, and all other bits are unchanged.
 	#[inline]
-	fn clear_bit<O>(&self, index: BitIdx<R>)
+	fn clear_bit<O>(&self, index: BitIdx<<Self as Radium>::Item>)
 	where O: BitOrder {
 		self.fetch_and(!index.select::<O>().value(), Ordering::Relaxed);
 	}
@@ -82,7 +82,7 @@ where R: BitRegister
 	/// the unselected bits and erase the selected bits. `BitMask` is a
 	/// selection type, not a bitwise-operation argument.
 	#[inline]
-	fn clear_bits(&self, mask: BitMask<R>) {
+	fn clear_bits(&self, mask: BitMask<<Self as Radium>::Item>) {
 		self.fetch_and(!mask.value(), Ordering::Relaxed);
 	}
 
@@ -102,7 +102,7 @@ where R: BitRegister
 	/// The memory element at `*self` has the bit corresponding to `index` set
 	/// to `1`, and all other bits are unchanged.
 	#[inline]
-	fn set_bit<O>(&self, index: BitIdx<R>)
+	fn set_bit<O>(&self, index: BitIdx<<Self as Radium>::Item>)
 	where O: BitOrder {
 		self.fetch_or(index.select::<O>().value(), Ordering::Relaxed);
 	}
@@ -125,7 +125,7 @@ where R: BitRegister
 	/// to `1`, and all bits in `*self` that are not selected (set to `0`) in
 	/// `mask` will be unchanged.
 	#[inline]
-	fn set_bits(&self, mask: BitMask<R>) {
+	fn set_bits(&self, mask: BitMask<<Self as Radium>::Item>) {
 		self.fetch_or(mask.value(), Ordering::Relaxed);
 	}
 
@@ -145,7 +145,7 @@ where R: BitRegister
 	/// The memory element at `*self` has the bit corresponding to `index` set
 	/// to the opposite of its current value. All other bits are unchanged.
 	#[inline]
-	fn invert_bit<O>(&self, index: BitIdx<R>)
+	fn invert_bit<O>(&self, index: BitIdx<<Self as Radium>::Item>)
 	where O: BitOrder {
 		self.fetch_xor(index.select::<O>().value(), Ordering::Relaxed);
 	}
@@ -168,7 +168,7 @@ where R: BitRegister
 	/// to the opposite of their current value, and all bits in `*self` that are
 	/// not selected (set to `0`) in `mask` will be unchanged.
 	#[inline]
-	fn invert_bits(&self, mask: BitMask<R>) {
+	fn invert_bits(&self, mask: BitMask<<Self as Radium>::Item>) {
 		self.fetch_xor(mask.value(), Ordering::Relaxed);
 	}
 
@@ -188,7 +188,7 @@ where R: BitRegister
 	///
 	/// The bit in `*self` at `index` is set to the `value` bit.
 	#[inline]
-	fn write_bit<O>(&self, index: BitIdx<R>, value: bool)
+	fn write_bit<O>(&self, index: BitIdx<<Self as Radium>::Item>, value: bool)
 	where O: BitOrder {
 		if value {
 			self.set_bit::<O>(index);
@@ -216,7 +216,7 @@ where R: BitRegister
 	/// to `value`, and all bits in `*self` that are not selected (set to `0`)
 	/// in `mask` will be unchanged.
 	#[inline]
-	fn write_bits(&self, mask: BitMask<R>, value: bool) {
+	fn write_bits(&self, mask: BitMask<<Self as Radium>::Item>, value: bool) {
 		if value {
 			self.set_bits(mask);
 		}
@@ -245,7 +245,9 @@ where R: BitRegister
 	/// [`clear_bit`]: #method.clear_bit
 	/// [`set_bit`]: #method.set_bit
 	#[inline]
-	fn get_writer<O>(value: bool) -> for<'a> fn(&'a Self, BitIdx<R>)
+	fn get_writer<O>(
+		value: bool,
+	) -> for<'a> fn(&'a Self, BitIdx<<Self as Radium>::Item>)
 	where O: BitOrder {
 		[Self::clear_bit::<O>, Self::set_bit::<O>][value as usize]
 	}
@@ -266,7 +268,9 @@ where R: BitRegister
 	/// [`clear_bits`]: #method.clear_bits
 	/// [`set_bits`]: #method.set_bits
 	#[inline]
-	fn get_writers(value: bool) -> for<'a> fn(&'a Self, BitMask<R>) {
+	fn get_writers(
+		value: bool,
+	) -> for<'a> fn(&'a Self, BitMask<<Self as Radium>::Item>) {
 		[Self::clear_bits, Self::set_bits][value as usize]
 	}
 
@@ -291,15 +295,15 @@ where R: BitRegister
 	/// ownership of the caller, this method risks behavior that violates the
 	/// Rust memory model, even if it may not be technically undefined.
 	#[inline]
-	unsafe fn store_value(&self, value: R) {
+	unsafe fn store_value(&self, value: <Self as Radium>::Item) {
 		self.store(value, Ordering::Relaxed)
 	}
 }
 
-impl<A, R> BitAccess<R> for A
+impl<A> BitAccess for A
 where
-	A: Debug + Radium<R>,
-	R: BitRegister,
+	A: Debug + Radium,
+	<Self as Radium>::Item: BitRegister,
 {
 }
 
@@ -361,24 +365,23 @@ mod tests {
 		use core::cell::Cell;
 
 		assert_eq!(
-			<Cell<u8> as BitAccess::<u8>>::get_writer::<Msb0>(false)
-				as *const (),
-			<Cell<u8> as BitAccess::<u8>>::clear_bit::<Msb0> as *const ()
+			<Cell<u8> as BitAccess>::get_writer::<Msb0>(false) as *const (),
+			<Cell<u8> as BitAccess>::clear_bit::<Msb0> as *const ()
 		);
 
 		assert_eq!(
-			<Cell<u8> as BitAccess::<u8>>::get_writer::<Msb0>(true) as *const (),
-			<Cell<u8> as BitAccess::<u8>>::set_bit::<Msb0> as *const ()
+			<Cell<u8> as BitAccess>::get_writer::<Msb0>(true) as *const (),
+			<Cell<u8> as BitAccess>::set_bit::<Msb0> as *const ()
 		);
 
 		assert_eq!(
-			<Cell<u8> as BitAccess::<u8>>::get_writers(false) as *const (),
-			<Cell<u8> as BitAccess::<u8>>::clear_bits as *const ()
+			<Cell<u8> as BitAccess>::get_writers(false) as *const (),
+			<Cell<u8> as BitAccess>::clear_bits as *const ()
 		);
 
 		assert_eq!(
-			<Cell<u8> as BitAccess::<u8>>::get_writers(true) as *const (),
-			<Cell<u8> as BitAccess::<u8>>::set_bits as *const ()
+			<Cell<u8> as BitAccess>::get_writers(true) as *const (),
+			<Cell<u8> as BitAccess>::set_bits as *const ()
 		);
 	}
 }
