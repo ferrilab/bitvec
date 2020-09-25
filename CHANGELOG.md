@@ -4,6 +4,7 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+1. [0.19.2](#0192)
 1. [0.19.1](#0191)
 1. [0.19.0](#0190)
    1. [Macro Constructor Implementation](#macro-constructor-implementation)
@@ -44,6 +45,11 @@ This document is written according to the [Keep a Changelog][kac] style.
 1. [0.3.0](#030)
 1. [0.2.0](#020)
 1. [0.1.0](#010)
+
+## 0.19.2
+
+Update to `radium 0.5`, which is an internal-only API change. This is not
+observable to users of `bitvec`.
 
 ## 0.19.1
 
