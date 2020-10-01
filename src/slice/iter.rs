@@ -20,6 +20,7 @@ use core::{
 		Debug,
 		Formatter,
 	},
+	iter::FusedIterator,
 	marker::PhantomData,
 	mem,
 	ptr::NonNull,
@@ -144,10 +145,10 @@ where
 	*/
 	#[inline]
 	#[doc(hidden)]
+	#[cfg(not(tarpaulin_include))]
 	#[deprecated(
 		note = "Use `.as_bitslice` on iterators to view the remaining data"
 	)]
-	#[cfg(not(tarpaulin_include))]
 	pub fn as_slice(&self) -> &'a BitSlice<O, T> {
 		self.as_bitslice()
 	}
@@ -176,6 +177,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Clone for Iter<'_, O, T>
 where
 	O: BitOrder,
@@ -186,12 +188,12 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> AsRef<BitSlice<O, T>> for Iter<'_, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[cfg(not(tarpaulin_include))]
 	fn as_ref(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
 	}
@@ -359,9 +361,9 @@ where
 	*/
 	#[inline]
 	#[doc(hidden)]
+	#[cfg(not(tarpaulin_include))]
 	#[deprecated(note = "Use `.into_bitslice` on mutable iterators to view \
 	                     the remaining data")]
-	#[cfg(not(tarpaulin_include))]
 	pub fn into_slice(self) -> &'a mut BitSlice<O, T::Alias> {
 		self.into_bitslice()
 	}
@@ -550,7 +552,7 @@ macro_rules! iter {
 			}
 		}
 
-		impl<'a, O, T> DoubleEndedIterator for $t<'a, O, T>
+		impl<'a, O, T> DoubleEndedIterator for $t <'a, O, T>
 		where
 			O: 'a + BitOrder,
 			T: 'a + BitStore,
@@ -579,7 +581,7 @@ macro_rules! iter {
 			}
 		}
 
-		impl<O, T> ExactSizeIterator for $t<'_, O, T>
+		impl<O, T> ExactSizeIterator for $t <'_, O, T>
 		where
 			O: BitOrder,
 			T: BitStore,
@@ -595,7 +597,8 @@ macro_rules! iter {
 				instruction without overflow.
 				*/
 				last.wrapping_sub(base)
-					.wrapping_shl(T::Mem::INDX as u32)
+					//  Pointers are always byte-stepped, not element-stepped.
+					.wrapping_shl(<u8 as BitMemory>::INDX as u32)
 					//  Now, add the live bits before `self.tail` in `*last`,
 					.wrapping_add(self.tail.value() as usize)
 					//  And remove the dead bits before `self.head` in `*base`.
@@ -603,21 +606,21 @@ macro_rules! iter {
 			}
 		}
 
-		impl<O, T> core::iter::FusedIterator for $t <'_, O, T>
+		impl<O, T> FusedIterator for $t <'_, O, T>
 		where
 			O: BitOrder,
 			T: BitStore
 		{
 		}
 
-		unsafe impl<O, T> Send for $t<'_, O, T>
+		unsafe impl<O, T> Send for $t <'_, O, T>
 		where
 			O: BitOrder,
 			T: BitStore,
 		{
 		}
 
-		unsafe impl<O, T> Sync for $t<'_, O, T>
+		unsafe impl<O, T> Sync for $t <'_, O, T>
 		where
 			O: BitOrder,
 			T: BitStore,
@@ -696,7 +699,7 @@ macro_rules! group {
 			$len
 		}
 
-		impl<O, T> core::iter::FusedIterator for $iter <'_, O, T>
+		impl<O, T> FusedIterator for $iter <'_, O, T>
 		where
 			O: BitOrder,
 			T: BitStore,
