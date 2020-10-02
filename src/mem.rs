@@ -23,6 +23,9 @@ pub trait BitMemory: IsUnsigned + seal::Sealed {
 	///
 	/// `mem::size_of` returns the size in bytes, and bytes are always eight
 	/// bits on architectures Rust targets.
+	///
+	/// Issue #76904 will place this constant on the fundamentals directly, as a
+	/// `u32`.
 	const BITS: u8 = mem::size_of::<Self>() as u8 * 8;
 	/// The number of bits required to store an index in the range `0 .. BITS`.
 	const INDX: u8 = Self::BITS.trailing_zeros() as u8;

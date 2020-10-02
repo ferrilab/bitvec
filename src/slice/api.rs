@@ -1712,7 +1712,7 @@ where
 		*/
 		let mut tmp = BitArray::<O, usize>::new(0);
 		while by > 0 {
-			let shamt = cmp::min(usize::BITS as usize, by);
+			let shamt = cmp::min(<usize as BitMemory>::BITS as usize, by);
 			unsafe {
 				let tmp_bits = tmp.get_unchecked_mut(.. shamt);
 				tmp_bits.clone_from_bitslice(self.get_unchecked(.. shamt));
@@ -1776,7 +1776,7 @@ where
 		}
 		let mut tmp = BitArray::<O, usize>::new(0);
 		while by > 0 {
-			let shamt = cmp::min(usize::BITS as usize, by);
+			let shamt = cmp::min(<usize as BitMemory>::BITS as usize, by);
 			let mid = len - shamt;
 			unsafe {
 				let tmp_bits = tmp.get_unchecked_mut(.. shamt);

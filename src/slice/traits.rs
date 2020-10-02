@@ -382,8 +382,8 @@ macro_rules! fmt {
 				yet grant access to trait constants for use in constant
 				expressions within generics.
 				*/
-				let mut w: [u8; (usize::BITS as usize / $blksz) + 2] =
-					[b'0'; (usize::BITS as usize / $blksz) + 2];
+				const W: usize = <usize as BitMemory>::BITS as usize / $blksz;
+				let mut w: [u8; W + 2] = [b'0'; W + 2];
 				//  Write the prefix symbol into the buffer.
 				w[1] = $pfx;
 				//  This closure does the main work of rendering a bit slice as
