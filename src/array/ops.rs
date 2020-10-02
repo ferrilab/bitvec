@@ -1,4 +1,4 @@
-//! Operator implementations on `BitArray`
+//! Operator implementations on `BitArray`.
 
 use crate::{
 	array::BitArray,
@@ -134,7 +134,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V, Idx> Index<Idx> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -149,7 +148,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V, Idx> IndexMut<Idx> for BitArray<O, V>
 where
 	O: BitOrder,

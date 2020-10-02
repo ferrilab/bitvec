@@ -156,7 +156,8 @@ where
 	V: BitView + Sized,
 {
 	/// Constructs a new `BitArray` with zeroed memory.
-	#[cfg_attr(not(tarpaulin), inline(always))]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn zeroed() -> Self {
 		Self {
 			_ord: PhantomData,
@@ -171,7 +172,8 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	/// ```
-	#[cfg_attr(not(tarpaulin), inline(always))]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn new(data: V) -> Self {
 		Self {
 			_ord: PhantomData,
@@ -189,7 +191,8 @@ where
 	/// let bitarr: BitArray<LocalBits, [usize; 1]> = bitarr![0; 30];
 	/// let native: [usize; 1] = bitarr.unwrap();
 	/// ```
-	#[cfg_attr(not(tarpaulin), inline(always))]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn unwrap(self) -> V {
 		self.data
 	}

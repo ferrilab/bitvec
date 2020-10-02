@@ -444,15 +444,10 @@ where T: BitStore
 	{
 		let addr = addr.into();
 
-		if addr.to_const().is_null() {
-			return None;
-		}
-
-		if (addr.value().trailing_zeros() as usize) < Self::PTR_HEAD_BITS {
-			return None;
-		}
-
-		if bits > Self::REGION_MAX_BITS {
+		if addr.to_const().is_null()
+			|| (addr.value().trailing_zeros() as usize) < Self::PTR_HEAD_BITS
+			|| bits > Self::REGION_MAX_BITS
+		{
 			return None;
 		}
 
@@ -862,6 +857,7 @@ where T: BitStore
 	///
 	/// - `'a`: The minimum lifetime of the referent region, as understood by
 	///   the caller.
+	#[inline(always)]
 	pub(crate) fn to_bitslice_ref<'a, O>(self) -> &'a BitSlice<O, T>
 	where O: BitOrder {
 		unsafe { &*self.to_bitslice_ptr::<O>() }
@@ -879,6 +875,7 @@ where T: BitStore
 	///
 	/// - `'a`: The minimum lifetime of the referent region, as understood by
 	///   the caller.
+	#[inline(always)]
 	pub(crate) fn to_bitslice_mut<'a, O>(self) -> &'a mut BitSlice<O, T>
 	where O: BitOrder {
 		unsafe { &mut *self.to_bitslice_ptr_mut::<O>() }
@@ -888,6 +885,7 @@ where T: BitStore
 	///
 	/// This function is used by the owning indirect handles, and does not yet
 	/// have any purpose in non-`alloc` programs.
+	#[inline]
 	#[cfg(feature = "alloc")]
 	pub(crate) fn to_nonnull<O>(self) -> NonNull<BitSlice<O, T>>
 	where
@@ -924,12 +922,13 @@ where T: BitStore
 	/// Higher types in the crate should use this function to drive their
 	/// `Debug` implementations, and then use `BitSlice`’s list formatters to
 	/// display their contents if appropriate.
+	#[inline]
 	pub(crate) fn render<'a>(
 		&'a self,
 		fmt: &'a mut Formatter,
 		name: &'a str,
 		ord: Option<&'a str>,
-		fields: impl IntoIterator<Item = &'a (&'static str, &'a dyn Debug)>,
+		fields: impl IntoIterator<Item = &'a (&'a str, &'a dyn Debug)>,
 	) -> fmt::Result
 	{
 		write!(fmt, "Bit{}<", name)?;
@@ -1005,7 +1004,27 @@ where T: BitStore
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<T> Copy for BitPtr<T> where T: BitStore
 {
+}
+
+#[cfg(all(test, feature = "std"))]
+mod tests {
+	#[test]
+	fn render() {
+		use crate::{
+			bits,
+			order::Msb0,
+		};
+
+		let bits = bits![Msb0, u8; 0, 1, 0, 0];
+
+		let render = format!("{:?}", bits.bitptr());
+		assert!(render.starts_with("BitPtr<u8> { addr: 0x"));
+		assert!(render.ends_with(", head: 000, bits: 4 }"));
+
+		let render = format!("{:#?}", bits);
+		assert!(render.starts_with("BitSlice<bitvec::order::Msb0, u8> {"));
+		assert!(render.ends_with("} [\n    0b0100,\n]"), "{}", render);
+	}
 }

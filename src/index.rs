@@ -266,6 +266,7 @@ where R: BitRegister
 
 	/// Views the internal index value.
 	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn value(self) -> u8 {
 		self.idx
 	}
@@ -463,7 +464,8 @@ where R: BitRegister
 	}
 }
 
-#[cfg(all(feature = "serde", not(tarpaulin_include)))]
+#[cfg(feature = "serde")]
+#[cfg(not(tarpaulin_include))]
 impl<R> Debug for BitIdxErr<R>
 where R: BitRegister
 {
@@ -475,7 +477,8 @@ where R: BitRegister
 	}
 }
 
-#[cfg(all(feature = "serde", not(tarpaulin_include)))]
+#[cfg(feature = "serde")]
+#[cfg(not(tarpaulin_include))]
 impl<R> Display for BitIdxErr<R>
 where R: BitRegister
 {
@@ -490,7 +493,8 @@ where R: BitRegister
 	}
 }
 
-#[cfg(all(feature = "serde", feature = "std", not(tarpaulin_include)))]
+#[cfg(all(feature = "serde", feature = "std"))]
+#[cfg(not(tarpaulin_include))]
 impl<R> std::error::Error for BitIdxErr<R> where R: BitRegister
 {
 }
@@ -575,6 +579,7 @@ where R: BitRegister
 
 	/// Views the internal tail value.
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn value(self) -> u8 {
 		self.end
 	}

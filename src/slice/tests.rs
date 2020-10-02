@@ -57,8 +57,7 @@ fn construction() {
 
 #[test]
 fn get_set() {
-	let mut data = 0u8;
-	let bits = data.view_bits_mut::<LocalBits>();
+	let bits = bits![mut LocalBits, u8; 0; 8];
 
 	for n in 0 .. 8 {
 		assert!(!bits.get(n).unwrap());
@@ -66,10 +65,20 @@ fn get_set() {
 		assert!(bits.get(n).unwrap());
 	}
 
+	assert!(bits.get(9).is_none());
+	assert!(bits.get_mut(9).is_none());
+	assert!(bits.get(8 .. 10).is_none());
+	assert!(bits.get_mut(8 .. 10).is_none());
+
 	assert_eq!(bits.first(), Some(&true));
 	*bits.first_mut().unwrap() = false;
 	assert_eq!(bits.last(), Some(&true));
 	*bits.last_mut().unwrap() = false;
+
+	*crate::slice::BitSliceIndex::index_mut(1usize, bits) = false;
+	assert_eq!(bits, bits![0, 0, 1, 1, 1, 1, 1, 0]);
+	assert!(bits.get(100 ..).is_none());
+	assert!(bits.get(.. 100).is_none());
 
 	let (a, b) = (bits![mut Msb0, u8; 0, 1], bits![mut Lsb0, u16; 1, 0]);
 	assert_eq!(a, bits![0, 1]);
@@ -77,6 +86,19 @@ fn get_set() {
 	a.swap_with_bitslice(b);
 	assert_eq!(a, bits![1, 0]);
 	assert_eq!(b, bits![0, 1]);
+}
+
+#[test]
+fn memcpy() {
+	let mut dst = bitarr![0; 500];
+	let src = bitarr![1; 500];
+
+	//  Equal heads will fall into the fast path.
+	dst[10 .. 20].copy_from_bitslice(&src[74 .. 84]);
+	dst[100 .. 500].copy_from_bitslice(&src[36 .. 436]);
+
+	//  Unequal heads will trip the slow path.
+	dst[.. 490].copy_from_bitslice(&src[10 .. 500]);
 }
 
 #[test]
@@ -264,4 +286,12 @@ fn alignment() {
 		assert_eq!(body.len(), 64);
 		assert_eq!(tail.len(), 6);
 	}
+}
+
+#[test]
+#[cfg(feature = "alloc")]
+fn repetition() {
+	let bits = bits![0, 0, 1, 1];
+	let bv = bits.repeat(2);
+	assert_eq!(bv, bits![0, 0, 1, 1, 0, 0, 1, 1]);
 }

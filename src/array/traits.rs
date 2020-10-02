@@ -1,7 +1,8 @@
-//! Trait implementations on `BitArray`
+//! Trait implementations on `BitArray`.
 
 use crate::{
 	array::BitArray,
+	index::BitIdx,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
@@ -87,6 +88,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V, Rhs> PartialEq<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -95,7 +97,6 @@ where
 	BitSlice<O, V::Store>: PartialEq<Rhs>,
 {
 	#[inline]
-	#[cfg(not(tarpaulin_include))]
 	fn eq(&self, other: &Rhs) -> bool {
 		self.as_bitslice() == other
 	}
@@ -164,10 +165,9 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, O2, T, V> TryFrom<&'_ BitSlice<O2, T>> for BitArray<O, V>
+impl<O1, O2, T, V> TryFrom<&'_ BitSlice<O2, T>> for BitArray<O1, V>
 where
-	O: BitOrder,
+	O1: BitOrder,
 	O2: BitOrder,
 	T: BitStore,
 	V: BitView + Sized,
@@ -176,16 +176,15 @@ where
 
 	#[inline]
 	fn try_from(src: &BitSlice<O2, T>) -> Result<Self, Self::Error> {
-		let mut out = Self::zeroed();
-		if src.len() != out.len() {
+		if src.len() != V::const_bits() {
 			return Self::Error::err();
 		}
+		let mut out = Self::zeroed();
 		out.clone_from_bitslice(src);
 		Ok(out)
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<'a, O, V> TryFrom<&'a BitSlice<O, V::Store>> for &'a BitArray<O, V>
 where
 	O: BitOrder,
@@ -196,16 +195,15 @@ where
 	#[inline]
 	fn try_from(src: &'a BitSlice<O, V::Store>) -> Result<Self, Self::Error> {
 		let bitptr = src.bitptr();
-		//  This pointer cast can only happen if the slice is exactly as long
-		//  as the array, and is aligned to the front of the element.
-		if src.len() != V::const_bits() || bitptr.head().value() != 0 {
+		//  This pointer cast can only happen if the slice is exactly as long as
+		//  the array, and is aligned to the front of the element.
+		if src.len() != V::const_bits() || bitptr.head() != BitIdx::ZERO {
 			return Self::Error::err();
 		}
 		Ok(unsafe { &*(bitptr.pointer().to_const() as *const BitArray<O, V>) })
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<'a, O, V> TryFrom<&'a mut BitSlice<O, V::Store>> for &'a mut BitArray<O, V>
 where
 	O: BitOrder,
@@ -218,7 +216,7 @@ where
 		src: &'a mut BitSlice<O, V::Store>,
 	) -> Result<Self, Self::Error> {
 		let bitptr = src.bitptr();
-		if src.len() != V::const_bits() || bitptr.head().value() != 0 {
+		if src.len() != V::const_bits() || bitptr.head() != BitIdx::ZERO {
 			return Self::Error::err();
 		}
 		Ok(unsafe { &mut *(bitptr.pointer().to_mut() as *mut BitArray<O, V>) })
@@ -249,7 +247,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> Debug for BitArray<O, V>
 where
 	O: BitOrder,
@@ -264,6 +261,7 @@ where
 				Some(core::any::type_name::<O>()),
 				None,
 			)?;
+			fmt.write_str(" ")?;
 		}
 		Binary::fmt(self, fmt)
 	}
@@ -374,7 +372,7 @@ pub struct TryFromBitSliceError;
 
 #[cfg(not(tarpaulin_include))]
 impl TryFromBitSliceError {
-	#[inline]
+	#[inline(always)]
 	fn err<T>() -> Result<T, Self> {
 		Err(Self)
 	}
@@ -390,4 +388,54 @@ impl Display for TryFromBitSliceError {
 
 #[cfg(feature = "std")]
 impl std::error::Error for TryFromBitSliceError {
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::prelude::*;
+	use core::convert::TryInto;
+
+	#[test]
+	fn convert() {
+		let arr: BitArray<Lsb0, _> = 2u8.into();
+		assert!(arr.any());
+
+		let bits = bits![1; 128];
+		let arr: BitArray<Msb0, [u16; 8]> = bits.try_into().unwrap();
+		assert!(arr.all());
+
+		let bits = bits![Lsb0, u32; 0; 64];
+		let arr: &BitArray<Lsb0, [u32; 2]> = bits.try_into().unwrap();
+		assert!(arr.not_any());
+
+		let bits = bits![mut Msb0, u16; 0; 64];
+		let arr: &mut BitArray<Msb0, [u16; 4]> = bits.try_into().unwrap();
+		assert!(arr.not_any());
+
+		let bits = bits![mut 0; 4];
+		let bit_arr: Result<&BitArray<LocalBits, usize>, _> =
+			(&*bits).try_into();
+		assert!(bit_arr.is_err());
+		let bit_arr: Result<&mut BitArray<LocalBits, usize>, _> =
+			bits.try_into();
+		assert!(bit_arr.is_err());
+	}
+
+	#[test]
+	#[cfg(feature = "std")]
+	fn format() {
+		let render = format!("{:#?}", bitarr![Msb0, u8; 0, 1, 0, 0]);
+		assert!(
+			render.starts_with("BitArray<bitvec::order::Msb0, u8> {"),
+			"{}",
+			render
+		);
+		assert!(
+			render.ends_with(
+				"    head: 000,\n    bits: 8,\n} [\n    0b01000000,\n]"
+			),
+			"{}",
+			render
+		);
+	}
 }

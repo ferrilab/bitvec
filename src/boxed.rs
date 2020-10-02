@@ -161,7 +161,6 @@ where
 	/// assert_eq!(bb, bits[2 ..]);
 	/// ```
 	#[inline]
-	#[cfg(not(tarpaulin_include))]
 	pub fn from_bitslice(slice: &BitSlice<O, T>) -> Self {
 		slice.to_bitvec().into_boxed_bitslice()
 	}

@@ -5,6 +5,8 @@ combinations of equality and comparison are correctly present.
 
 use bitvec::prelude::*;
 
+use core::cmp::Ordering;
+
 #[test]
 fn no_alloc() {
 	let a = bits![mut Msb0, u8; 0, 1];
@@ -12,44 +14,90 @@ fn no_alloc() {
 	let c = bits![mut 1, 0];
 
 	//  BitSlice as PartialEq<BitSlice>
-	assert_eq!(*a, *b);
+	assert!(<BitSlice<_, _> as PartialEq<BitSlice<_, _>>>::eq(&*a, &*b));
 	//  BitSlice as PartialEq<&mut BitSlice>
-	assert_eq!(*a, b);
+	assert!(<BitSlice<_, _> as PartialEq<&mut BitSlice<_, _>>>::eq(
+		&*a, &b
+	));
 	//  &mut BitSlice as PartialEq<BitSlice>
-	assert_eq!(a, *b);
+	assert!(<&mut BitSlice<_, _> as PartialEq<BitSlice<_, _>>>::eq(
+		&a, &*b
+	));
 	//  &mut BitSlice as PartialEq<&mut BitSlice>
-	assert_eq!(a, b);
+	assert!(<&mut BitSlice<_, _> as PartialEq<&mut BitSlice<_, _>>>::eq(
+		&a, &b
+	));
 
 	//  &BitSlice as PartialEq<&BitSlice>
-	assert_eq!(&*a, &*b);
+	assert!(<&BitSlice<_, _> as PartialEq<&BitSlice<_, _>>>::eq(
+		&&*a, &&*b
+	));
 	//  &BitSlice as PartialEq<BitSlice>
-	assert_eq!(&*a, *b);
+	assert!(<&BitSlice<_, _> as PartialEq<BitSlice<_, _>>>::eq(
+		&&*a, &*b
+	));
 	//  BitSlice as PartialEq<&BitSlice>
-	assert_eq!(*a, &*b);
+	assert!(<BitSlice<_, _> as PartialEq<&BitSlice<_, _>>>::eq(
+		&*a, &&*b
+	));
 
 	//  &mut BitSlice as PartialEq<&BitSlice>
-	assert_eq!(a, &*b);
+	assert!(<&mut BitSlice<_, _> as PartialEq<&BitSlice<_, _>>>::eq(
+		&a, &&*b
+	));
 	//  &BitSlice as PartialEq<&mut BitSlice>
-	assert_eq!(&*a, b);
+	assert!(<&BitSlice<_, _> as PartialEq<&mut BitSlice<_, _>>>::eq(
+		&&*a, &b
+	));
 
 	//  BitSlice as PartialOrd<BitSlice>
-	assert!(*b < *c);
+	assert_eq!(
+		<BitSlice<_, _> as PartialOrd<BitSlice<_, _>>>::partial_cmp(&*b, &*c),
+		Some(Ordering::Less)
+	);
 	//  BitSlice as PartialOrd<&mut BitSlice>
-	assert!(*b < c);
+	assert_eq!(
+		<BitSlice<_, _> as PartialOrd<&mut BitSlice<_, _>>>::partial_cmp(
+			&*b, &c
+		),
+		Some(Ordering::Less)
+	);
 	//  &mut BitSlice as PartialOrd<BitSlice>
-	assert!(b < *c);
+	assert_eq!(
+		<&mut BitSlice<_, _> as PartialOrd<BitSlice<_, _>>>::partial_cmp(
+			&b, &*c
+		),
+		Some(Ordering::Less)
+	);
 	//  &mut BitSlice as PartialOrd<&mut BitSlice>
-	assert!(b < c);
+	assert_eq!(
+		<&mut BitSlice<_, _> as PartialOrd<&mut BitSlice<_, _>>>::partial_cmp(
+			&b, &c
+		),
+		Some(Ordering::Less)
+	);
 
-	#[allow(clippy::op_ref)]
-	{
-		//  &BitSlice as PartialOrd<&BitSlice>
-		assert!(&*b < &*c);
-		//  &BitSlice as PartialOrd<&mut BitSlice>
-		assert!(&*b < c);
-		//  &mut BitSlice as PartialOrd<&BitSlice>
-		assert!(b < &*c);
-	}
+	//  &BitSlice as PartialOrd<&BitSlice>
+	assert_eq!(
+		<&BitSlice<_, _> as PartialOrd<&BitSlice<_, _>>>::partial_cmp(
+			&&*b, &&*c
+		),
+		Some(Ordering::Less)
+	);
+	//  &BitSlice as PartialOrd<&mut BitSlice>
+	assert_eq!(
+		<&BitSlice<_, _> as PartialOrd<&mut BitSlice<_, _>>>::partial_cmp(
+			&&*b, &c
+		),
+		Some(Ordering::Less)
+	);
+	//  &mut BitSlice as PartialOrd<&BitSlice>
+	assert_eq!(
+		<&mut BitSlice<_, _> as PartialOrd<&BitSlice<_, _>>>::partial_cmp(
+			&b, &&*c
+		),
+		Some(Ordering::Less)
+	);
 }
 
 #[test]

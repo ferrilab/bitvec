@@ -320,31 +320,31 @@ macro_rules! bit_domain {
 		}
 	};
 
-	(retype $slice:ident $(,)? ) => {
-		unsafe { &*($slice as *const _ as *const _) }
-	};
 	(retype mut $slice:ident $(,)? ) => {
-		unsafe { &mut *($slice as *mut _ as *mut _) }
+		unsafe { &mut *($slice as *mut BitSlice<O, _> as *mut BitSlice<O, _>) }
+	};
+	(retype $slice:ident $(,)? ) => {
+		unsafe { &*($slice as *const BitSlice<O, _> as *const BitSlice<O, _>) }
 	};
 
-	(split $slice:ident, $at:expr $(,)? ) => {
-		unsafe { $slice.split_at_unchecked($at) }
-	};
 	(split mut $slice:ident, $at:expr $(,)? ) => {
 		unsafe { $slice.split_at_unchecked_mut($at) }
+	};
+	(split $slice:ident, $at:expr $(,)? ) => {
+		unsafe { $slice.split_at_unchecked($at) }
 	};
 }
 
 bit_domain!(BitDomain);
 bit_domain!(BitDomainMut => mut @ Alias);
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Clone for BitDomain<'_, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
 	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
 	fn clone(&self) -> Self {
 		*self
 	}
@@ -599,22 +599,22 @@ macro_rules! domain {
 		}
 	};
 
-	(slice $base:expr, $elts:expr) => {
-		unsafe { slice::from_raw_parts($base as *const _, $elts) }
-	};
 	(slice mut $base:expr, $elts:expr) => {
 		unsafe { slice::from_raw_parts_mut($base as *const _ as *mut _, $elts) }
+	};
+	(slice $base:expr, $elts:expr) => {
+		unsafe { slice::from_raw_parts($base as *const _, $elts) }
 	};
 }
 
 domain!(Domain);
 domain!(DomainMut => mut @ Alias);
 
+#[cfg(not(tarpaulin_include))]
 impl<T> Clone for Domain<'_, T>
 where T: BitStore
 {
 	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
 	fn clone(&self) -> Self {
 		*self
 	}
@@ -708,7 +708,7 @@ macro_rules! fmt {
 					.finish()
 			}
 		}
-	) +};
+	)+ };
 }
 
 fmt!(

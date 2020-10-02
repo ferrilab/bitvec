@@ -30,6 +30,11 @@ ci:
 clean:
 	cargo clean
 
+cover: format check lint
+	@cargo +nightly tarpaulin --all-features -o Lcov -l --output-dir target/tarpaulin --lib --tests --ignore-tests --ignore-panics &>/dev/null &
+	cargo +nightly tarpaulin --all-features -o Html -l --output-dir target/tarpaulin --lib --tests --ignore-tests --ignore-panics
+	@tokei
+
 cross:
 	# You will need to run this the first time you start cross-compiling on a
 	# machine.
@@ -56,11 +61,6 @@ cross:
 	CI=1 TARGET=i686-linux-android DISABLE_TESTS=1 ci/script.sh
 	CI=1 TARGET=s390x-unknown-linux-gnu DISABLE_TESTS=1 ci/script.sh
 	CI=1 TARGET=x86_64-linux-android DISABLE_TESTS=1 ci/script.sh
-
-cover: check lint
-	@cargo +nightly tarpaulin --all-features -o Xml --output-dir target/tarpaulin &>/dev/null &
-	cargo +nightly tarpaulin --all-features -o Html --output-dir target/tarpaulin
-	@tokei
 
 # Runs the development routines.
 dev: format lint doc test cover
@@ -96,8 +96,11 @@ publish: checkout
 
 # Runs the test suites.
 test: check lint
-	cargo test --no-default-features
-	cargo test --all-features
-	@cargo run --all-features --example ipv4
-	@cargo run --all-features --example sieve
-	@cargo run --all-features --example tour
+	cargo test --no-default-features -q --lib --tests
+	cargo test --all-features -q --lib --tests
+	cargo test --all-features -q --doc
+	@cargo run --all-features --example aliasing &>/dev/null
+	@cargo run --all-features --example ipv4 &>/dev/null
+	@cargo run --all-features --example sieve &>/dev/null
+	@cargo run --all-features --example tour &>/dev/null
+	cargo +nightly miri test

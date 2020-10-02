@@ -1,4 +1,4 @@
-//! Trait implementations for `BitBox`
+//! Trait implementations for `BitBox`.
 
 use crate::{
 	boxed::BitBox,
@@ -74,7 +74,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Eq for BitBox<O, T>
 where
 	O: BitOrder,
@@ -262,7 +261,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Debug for BitBox<O, T>
 where
 	O: BitOrder,
@@ -369,7 +367,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 unsafe impl<O, T> Send for BitBox<O, T>
 where
 	O: BitOrder,
@@ -377,7 +374,6 @@ where
 {
 }
 
-#[cfg(not(tarpaulin_include))]
 unsafe impl<O, T> Sync for BitBox<O, T>
 where
 	O: BitOrder,
@@ -385,10 +381,45 @@ where
 {
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Unpin for BitBox<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::prelude::*;
+	use core::convert::TryInto;
+
+	#[test]
+	fn convert() {
+		let boxed: BitBox = bits![1; 64].into();
+		assert!(boxed.all());
+
+		let boxed: BitBox<Lsb0, u32> = bitvec![Lsb0, u32; 0; 64].into();
+		assert!(boxed.not_any());
+		let boxed: Box<[u32]> = boxed.into();
+		assert_eq!(&boxed[..], &[0; 2]);
+
+		let _: BitBox<Lsb0, u32> = boxed.try_into().unwrap();
+	}
+
+	#[test]
+	#[cfg(feature = "std")]
+	fn format() {
+		let render = format!("{:#?}", bitbox![Msb0, u8; 0, 1, 0, 0]);
+		assert!(
+			render.starts_with("BitBox<bitvec::order::Msb0, u8> {"),
+			"{}",
+			render
+		);
+		assert!(
+			render
+				.ends_with("    head: 000,\n    bits: 4,\n} [\n    0b0100,\n]"),
+			"{}",
+			render
+		);
+	}
 }

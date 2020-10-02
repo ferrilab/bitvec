@@ -7,51 +7,28 @@ fn get_value() {
 	let data = [5u32 << 3, 0x01234567, !5];
 	let bits = data.view_bits::<Lsb0>();
 
-	if let Domain::Enclave { head, elem, tail } = bits[3 .. 6].domain() {
-		let byte = get::<u32, u8>(elem, Lsb0::mask(head, tail), 3);
-		assert_eq!(byte, 5u8);
-	}
-	else {
-		unreachable!("it does");
-	}
+	let (head, elem, tail) = bits[3 .. 6].domain().enclave().unwrap();
+	let byte = get::<u32, u8>(elem, Lsb0::mask(head, tail), 3);
+	assert_eq!(byte, 5u8);
 
-	if let Domain::Region {
-		head: None,
-		body: &[],
-		tail: Some((elem, tail)),
-	} = bits[32 .. 48].domain()
-	{
-		let short = get::<u32, u16>(elem, Lsb0::mask(None, tail), 0);
-		assert_eq!(short, 0x4567u16);
-	}
-	else {
-		unreachable!("it does");
-	}
+	let (head, body, tail) = bits[32 .. 48].domain().region().unwrap();
+	assert!(head.is_none());
+	assert!(body.is_empty());
+	let (elem, tail) = tail.unwrap();
+	let short = get::<u32, u16>(elem, Lsb0::mask(None, tail), 0);
+	assert_eq!(short, 0x4567u16);
 
-	if let Domain::Region {
-		head: Some((head, elem)),
-		body: &[],
-		tail: None,
-	} = bits[48 .. 64].domain()
-	{
-		let short = get::<u32, u16>(elem, Lsb0::mask(head, None), 16);
-		assert_eq!(short, 0x0123u16);
-	}
-	else {
-		unreachable!("it does");
-	}
+	let (head, body, tail) = bits[48 .. 64].domain().region().unwrap();
+	assert!(tail.is_none());
+	assert!(body.is_empty());
+	let (head, elem) = head.unwrap();
+	let short = get::<u32, u16>(elem, Lsb0::mask(head, None), 16);
+	assert_eq!(short, 0x0123u16);
 
-	if let Domain::Region {
-		head: None,
-		body,
-		tail: None,
-	} = bits[64 .. 96].domain()
-	{
-		assert_eq!(body, &[!5]);
-	}
-	else {
-		unreachable!("it does");
-	}
+	let (head, body, tail) = bits[64 .. 96].domain().region().unwrap();
+	assert!(head.is_none());
+	assert_eq!(body, &[!5]);
+	assert!(tail.is_none());
 }
 
 #[test]
@@ -59,36 +36,20 @@ fn set_value() {
 	let mut data = [0u32; 3];
 	let bits = data.view_bits_mut::<Lsb0>();
 
-	if let DomainMut::Enclave { head, elem, tail } = bits[3 .. 6].domain_mut() {
-		set::<u32, u16>(elem, 13u16, Lsb0::mask(head, tail), 3);
-	}
-	else {
-		unreachable!("it does");
-	}
+	let (head, elem, tail) = bits[3 .. 6].domain_mut().enclave().unwrap();
+	set::<u32, u16>(elem, 13u16, Lsb0::mask(head, tail), 3);
 
-	if let DomainMut::Region {
-		head: None,
-		body: &mut [],
-		tail: Some((elem, tail)),
-	} = bits[32 .. 48].domain_mut()
-	{
-		set::<u32, u16>(elem, 0x4567u16, Lsb0::mask(None, tail), 0);
-	}
-	else {
-		unreachable!("it does");
-	}
+	let (head, body, tail) = bits[32 .. 48].domain_mut().region().unwrap();
+	assert!(head.is_none());
+	assert!(body.is_empty());
+	let (elem, tail) = tail.unwrap();
+	set::<u32, u16>(elem, 0x4567u16, Lsb0::mask(None, tail), 0);
 
-	if let DomainMut::Region {
-		head: Some((head, elem)),
-		body: &mut [],
-		tail: None,
-	} = bits[48 .. 64].domain_mut()
-	{
-		set::<u32, u16>(elem, 0x0123u16, Lsb0::mask(head, None), 16);
-	}
-	else {
-		unreachable!("it does");
-	}
+	let (head, body, tail) = bits[48 .. 64].domain_mut().region().unwrap();
+	assert!(tail.is_none());
+	assert!(body.is_empty());
+	let (head, elem) = head.unwrap();
+	set::<u32, u16>(elem, 0x0123u16, Lsb0::mask(head, None), 16);
 
 	assert_eq!(data[0], 5 << 3);
 	assert_eq!(data[1], 0x01234567u32);

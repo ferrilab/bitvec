@@ -248,9 +248,9 @@ where
 
 	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	#[doc(hidden)]
+	#[cfg(not(tarpaulin_include))]
 	#[deprecated(note = "Use `.as_mut_bitslice()` on iterators to view the \
 	                     remaining data.")]
-	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_slice(&mut self) -> &mut BitSlice<O, T> {
 		self.as_mut_bitslice()
 	}
@@ -264,27 +264,27 @@ where
 {
 	type Item = bool;
 
-	#[cfg_attr(not(tarpaulin_include), inline(always))]
+	#[inline(always)]
 	fn next(&mut self) -> Option<Self::Item> {
 		self.iter.next().copied()
 	}
 
-	#[cfg_attr(not(tarpaulin_include), inline(always))]
+	#[inline(always)]
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		self.iter.size_hint()
 	}
 
-	#[cfg_attr(not(tarpaulin_include), inline(always))]
+	#[inline(always)]
 	fn count(self) -> usize {
 		self.len()
 	}
 
-	#[cfg_attr(not(tarpaulin_include), inline(always))]
+	#[inline(always)]
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
 		self.iter.nth(n).copied()
 	}
 
-	#[cfg_attr(not(tarpaulin_include), inline(always))]
+	#[inline(always)]
 	fn last(mut self) -> Option<Self::Item> {
 		self.next_back()
 	}
@@ -296,12 +296,12 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[cfg_attr(not(tarpaulin_include), inline(always))]
+	#[inline(always)]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.iter.next_back().copied()
 	}
 
-	#[cfg_attr(not(tarpaulin_include), inline(always))]
+	#[inline(always)]
 	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
 		self.iter.nth_back(n).copied()
 	}
@@ -313,7 +313,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[cfg_attr(not(tarpaulin_include), inline(always))]
+	#[inline(always)]
 	fn len(&self) -> usize {
 		self.iter.len()
 	}
@@ -691,7 +691,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T, I> Iterator for Splice<'_, O, T, I>
 where
 	O: BitOrder,
@@ -726,11 +725,13 @@ where
 	}
 
 	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		self.drain.size_hint()
 	}
 
 	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	fn count(self) -> usize {
 		self.drain.len()
 	}

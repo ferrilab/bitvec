@@ -180,7 +180,7 @@ macro_rules! deser_array {
 					.pipe(Ok)
 			}
 		}
-	)* };
+	)+ };
 }
 
 deser_array!(

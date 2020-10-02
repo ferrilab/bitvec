@@ -31,7 +31,11 @@ fn build() -> Ipv4Header {
 	render("Set IP version to 4", &pkt, 0 .. 4);
 	//  Set an IHL of 5 words
 	pkt[4 .. 8].store(5u8);
-	render("Set header length to 5 words (20 bytes)", &pkt, 4 .. 8);
+	render(
+		"Set header length to 5 32-bit words (20 bytes)",
+		&pkt,
+		4 .. 8,
+	);
 	//  Set the DSCP to "low drop, class 3" per Wikipedia
 	pkt[8 .. 14].store(0b011010u8);
 	render("Set DSCP number", &pkt, 8 .. 14);
@@ -92,7 +96,7 @@ fn parse(header: BitArray<Msb0, [u8; 20]>) {
 	//  Check that the version field is `4`, by `load`ing it and by direct
 	//  inspection
 	assert_eq!(header[.. 4].load::<u8>(), 4);
-	assert_eq!(header[.. 8].load::<u8>() & 0xF0, 0x40);
+	assert_eq!(header.as_slice()[0] & 0xF0, 0x40);
 
 	let ihl = header[4 .. 8].load::<u8>() as usize;
 	assert!((5 .. 16).contains(&ihl));

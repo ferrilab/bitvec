@@ -157,6 +157,15 @@ where
 	/// # Returns
 	///
 	/// A `BitVec` with `len` live bits, all set to `bit`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bv = BitVec::<Msb0, u8>::repeat(true, 20);
+	/// assert_eq!(bv, bits![1; 20]);
+	/// ```
 	#[inline]
 	pub fn repeat(bit: bool, len: usize) -> Self {
 		let mut out = Self::with_capacity(len);
@@ -198,9 +207,10 @@ where
 		let (base, elts) = (bitptr.pointer().to_const(), bitptr.elements());
 		let source = unsafe { slice::from_raw_parts(base, elts) };
 
-		let mut vec = elts.pipe(Vec::with_capacity).pipe(ManuallyDrop::new);
-
-		vec.extend(source.iter().map(BitStore::load_value));
+		let vec = elts
+			.pipe(Vec::with_capacity)
+			.pipe(ManuallyDrop::new)
+			.tap_mut(|v| v.extend(source.iter().map(BitStore::load_value)));
 
 		unsafe {
 			bitptr.set_pointer(vec.as_ptr() as *const T);
@@ -626,6 +636,7 @@ where
 	}
 
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn bitptr(&self) -> BitPtr<T> {
 		self.pointer.as_ptr().pipe(BitPtr::from_bitslice_ptr_mut)
 	}

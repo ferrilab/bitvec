@@ -10,68 +10,6 @@ public-API constructor macros.
 
 #![doc(hidden)]
 
-/** Ensures that the ordering tokens map to a known ordering type path.
-
-Note: non-`const` constructor expressions cannot be used to initialize `static`
-bindings. Unfortunately, replacing the `from_slice` calls with literal
-construction of the pointer representation, and type-casting it into the correct
-type, is *also* unstable, as it requires dereferencing a raw pointer inside a
-`static` context.
-**/
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __bits_from_slice {
-	(mut LocalBits, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<$crate::order::LocalBits, _>::from_slice_mut(
-			&mut $slice,
-			)
-		.expect("slice construction exceeded capacity")
-		.get_unchecked_mut(.. $len)
-	};
-	(mut Lsb0, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<$crate::order::Lsb0, _>::from_slice_mut(
-			&mut $slice,
-			)
-		.expect("slice construction exceeded capacity")
-		.get_unchecked_mut(.. $len)
-	};
-	(mut Msb0, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<$crate::order::Msb0, _>::from_slice_mut(
-			&mut $slice,
-			)
-		.expect("slice construction exceeded capacity")
-		.get_unchecked_mut(.. $len)
-	};
-	(mut $order:tt, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<$order, _>::from_slice_mut(&mut $slice)
-			.expect("slice construction exceeded capacity")
-			.get_unchecked_mut(.. $len)
-	};
-
-	(LocalBits, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<$crate::order::LocalBits, _>::from_slice(
-			&$slice,
-			)
-		.expect("slice construction exceeded capacity")
-		.get_unchecked(.. $len)
-	};
-	(Lsb0, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<$crate::order::Lsb0, _>::from_slice(&$slice)
-			.expect("slice construction exceeded capacity")
-			.get_unchecked(.. $len)
-	};
-	(Msb0, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<$crate::order::Msb0, _>::from_slice(&$slice)
-			.expect("slice construction exceeded capacity")
-			.get_unchecked(.. $len)
-	};
-	($order:tt, $len:expr, $slice:ident) => {
-		$crate::slice::BitSlice::<$order, _>::from_slice(&$slice)
-			.expect("slice construction exceeded capacity")
-			.get_unchecked(.. $len)
-	};
-}
-
 /** Accumulates a stream of bit expressions into a compacted array of elements.
 
 This macro constructs a well-ordered `[T; N]` array expression usable in `const`
@@ -240,7 +178,10 @@ macro_rules! __elt_from_bits {
 	//  Known orderings can be performed immediately.
 	(
 		Lsb0, $store:ident;
-		$($a:tt, $b:tt, $c:tt, $d:tt, $e:tt, $f:tt, $g:tt, $h:tt),*
+		$(
+			$a:expr, $b:expr, $c:expr, $d:expr,
+			$e:expr, $f:expr, $g:expr, $h:expr
+		),*
 	) => {
 		$crate::__ty_from_bytes!(
 			Lsb0, $store, [$($crate::macros::internal::u8_from_le_bits(
@@ -251,7 +192,10 @@ macro_rules! __elt_from_bits {
 	};
 	(
 		Msb0, $store:ident;
-		$($a:tt, $b:tt, $c:tt, $d:tt, $e:tt, $f:tt, $g:tt, $h:tt),*
+		$(
+			$a:expr, $b:expr, $c:expr, $d:expr,
+			$e:expr, $f:expr, $g:expr, $h:expr
+		),*
 	) => {
 		$crate::__ty_from_bytes!(
 			Msb0, $store, [$($crate::macros::internal::u8_from_be_bits(
@@ -262,7 +206,10 @@ macro_rules! __elt_from_bits {
 	};
 	(
 		LocalBits, $store:ident;
-		$($a:tt, $b:tt, $c:tt, $d:tt, $e:tt, $f:tt, $g:tt, $h:tt),*
+		$(
+			$a:expr, $b:expr, $c:expr, $d:expr,
+			$e:expr, $f:expr, $g:expr, $h:expr
+		),*
 	) => {
 		$crate::__ty_from_bytes!(
 			LocalBits, $store, [$($crate::macros::internal::u8_from_ne_bits(

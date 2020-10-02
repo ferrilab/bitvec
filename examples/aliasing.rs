@@ -39,13 +39,10 @@ the elements on the edges are actually aliased! This test demonstrates using
 taint to only the affected addresses.
 !*/
 
-#[cfg(feature = "std")]
-use bitvec::{
-	domain::Domain,
-	prelude::*,
-};
+#[cfg(all(feature = "atomic", feature = "std"))]
+use bitvec::prelude::*;
 
-#[cfg(feature = "std")]
+#[cfg(all(feature = "atomic", feature = "std"))]
 use std::{
 	sync::atomic::AtomicU8,
 	sync::atomic::Ordering,
@@ -53,12 +50,12 @@ use std::{
 	time::Duration,
 };
 
-#[cfg(feature = "std")]
+#[cfg(all(feature = "atomic", feature = "std"))]
 fn snooze() {
 	thread::sleep(Duration::from_millis(10));
 }
 
-#[cfg(feature = "std")]
+#[cfg(all(feature = "atomic", feature = "std"))]
 fn main() {
 	let data = BitBox::from_bitslice([0u8; 5].view_bits::<LocalBits>());
 	let bits: &'static mut BitSlice<LocalBits, u8> = BitBox::leak(data);
@@ -126,34 +123,16 @@ fn main() {
 	*/
 	let left = thread::spawn(move || {
 		snooze();
-		match left.bit_domain_mut() {
-			BitDomainMut::Enclave { .. } => {
-				unreachable!("I have selected the pattern that works")
-			},
-			BitDomainMut::Region { head, body, tail } => {
-				//  Bind in reverse order, so that access to the contended
-				//  element is likely simultaneous.
-				let _back: &mut BitSlice<LocalBits, AtomicU8> = !tail;
-				let _middle: &mut BitSlice<LocalBits, u8> = body;
-				let _front: &mut BitSlice<LocalBits, AtomicU8> = head;
-			},
-		}
+		let (_head, _body, tail) = left.bit_domain_mut().region().unwrap();
+		let _back = !tail;
 		left
 	})
 	.join()
 	.unwrap();
 	let right = thread::spawn(move || {
 		snooze();
-		match right.bit_domain_mut() {
-			BitDomainMut::Enclave { .. } => {
-				unreachable!("I have selected the pattern that works")
-			},
-			BitDomainMut::Region { head, body, tail } => {
-				let _front: &mut BitSlice<LocalBits, AtomicU8> = !head;
-				let _middle: &mut BitSlice<LocalBits, u8> = body;
-				let _back: &mut BitSlice<LocalBits, AtomicU8> = tail;
-			},
-		}
+		let (head, _body, _tail) = right.bit_domain_mut().region().unwrap();
+		let _front = !head;
 		right
 	})
 	.join()
@@ -169,34 +148,20 @@ fn main() {
 	The values from a slice domain let you work with the underlying memory
 	directly, rather than still going through the `BitSlice` wrapper view.
 	*/
-	match left.domain() {
-		Domain::Region {
-			//  `head` is `None` when the slice fills its first element
-			head: None,
-			//  `body` is all the full elements
-			body,
-			//  `tail` refers to the partial element, and where the slice stops
-			tail: Some((tail_atom, _tail_idx)),
-		} if body == [!0u8; 2] => {
-			assert_eq!(tail_atom.load(Ordering::Relaxed), 0b1111_0000u8)
-		},
-		_ => unreachable!("I have selected the pattern that works"),
-	}
-	match right.domain() {
-		Domain::Region {
-			//  `head` starts the slice, and refers to the partial element
-			head: Some((_head_idx, head_atom)),
-			body,
-			//  `tail` is `None` when the slice fills its last element
-			tail: None,
-		} if body == [0u8; 2] => {
-			assert_eq!(head_atom.load(Ordering::Relaxed), 0b1111_0000u8)
-		},
-		_ => unreachable!("I have selected the pattern that works"),
-	}
+	let (head, body, tail) = left.domain().region().unwrap();
+	assert!(head.is_none());
+	assert_eq!(body, &[!0u8; 2]);
+	let (tail_atom, _tail_idx) = tail.unwrap();
+	assert_eq!(tail_atom.load(Ordering::Relaxed), 0b1111_0000u8);
+
+	let (head, body, tail) = right.domain().region().unwrap();
+	assert!(tail.is_none());
+	assert_eq!(body, &[0u8; 2]);
+	let (_head_idx, head_atom) = head.unwrap();
+	assert_eq!(head_atom.load(Ordering::Relaxed), 0b1111_0000u8);
 }
 
-#[cfg(not(feature = "std"))]
+#[cfg(not(all(feature = "atomic", feature = "std")))]
 fn main() {
-	//  This example requires the presence of a standard library.
+	//  This example requires the presence of atomics and a standard library.
 }

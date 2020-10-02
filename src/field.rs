@@ -864,8 +864,8 @@ where
 
 /// Performs little-endian byte-order register resizing.
 #[inline(always)]
-#[cfg(not(tarpaulin_include))]
 #[cfg(target_endian = "little")]
+#[cfg(not(tarpaulin_include))]
 unsafe fn resize_inner<T, U>(
 	src: &T,
 	dst: &mut U,
@@ -919,5 +919,5 @@ mod io;
 mod tests;
 
 // These tests are purely mathematical, and do not need to run more than once.
-#[cfg(all(test, feature = "std", not(tarpaulin)))]
+#[cfg(all(test, feature = "std", not(miri), not(tarpaulin)))]
 mod permutation_tests;

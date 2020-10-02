@@ -285,7 +285,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Debug for BitSlice<O, T>
 where
 	O: BitOrder,
@@ -313,8 +312,13 @@ where
 	}
 }
 
-/// Renders a `BitSlice` handle as its pointer representation.
-#[cfg(not(tarpaulin_include))]
+/** Renders a `BitSlice` handle as its pointer representation.
+
+This does not enable `{:p}` in a format string, as there is a blanket `Pointer`
+implementation for all references, and unsized types cannot format by
+themselves. It is only reachable by forwarding from another format marker, such
+as `Debug`.
+**/
 impl<O, T> Pointer for BitSlice<O, T>
 where
 	O: BitOrder,

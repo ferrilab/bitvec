@@ -71,6 +71,7 @@ pub trait BitView {
 
 	#[doc(hidden)]
 	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	#[deprecated(
 		since = "0.18.0",
 		note = "The method is renamed to `.view_bits`"
@@ -98,6 +99,7 @@ pub trait BitView {
 
 	#[doc(hidden)]
 	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	#[deprecated(
 		since = "0.18.0",
 		note = "The method is renamed to `.view_bits_mut`"

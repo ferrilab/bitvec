@@ -73,9 +73,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0u32;
-	/// let bits = data.view_bits::<LocalBits>();
-	/// assert_eq!(bits.len(), 32);
+	/// assert_eq!(bits![0].len(), 1);
 	/// ```
 	#[inline]
 	pub fn len(&self) -> usize {
@@ -93,8 +91,8 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// assert!(BitSlice::<LocalBits, u8>::empty().is_empty());
-	/// assert!(!(0u32.view_bits::<LocalBits>()).is_empty());
+	/// assert!(bits![].is_empty());
+	/// assert!(!bits![0].is_empty());
 	/// ```
 	#[inline]
 	pub fn is_empty(&self) -> bool {
@@ -119,12 +117,8 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 1u8;
-	/// let bits = data.view_bits::<Lsb0>();
-	/// assert_eq!(Some(&true), bits.first());
-	///
-	/// let empty = BitSlice::<LocalBits, usize>::empty();
-	/// assert_eq!(None, empty.first());
+	/// assert_eq!(Some(&true), bits![1, 0].first());
+	/// assert!(bits![].first().is_none());
 	/// ```
 	#[inline]
 	pub fn first(&self) -> Option<&bool> {
@@ -150,13 +144,12 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0u8;
-	/// let bits = data.view_bits_mut::<Lsb0>();
-	///
+	/// let bits = bits![mut 0];
+	/// assert!(!bits[0]);
 	/// if let Some(mut first) = bits.first_mut() {
 	///   *first = true;
 	/// }
-	/// assert_eq!(data, 1);
+	/// assert!(bits[0]);
 	/// ```
 	#[inline]
 	pub fn first_mut(&mut self) -> Option<BitMut<O, T>> {
@@ -175,10 +168,9 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 1u8;
-	/// let bits = data.view_bits::<Lsb0>();
-	/// if let Some((first, rest)) = bits.split_first() {
+	/// if let Some((first, rest)) = bits![1].split_first() {
 	///   assert!(*first);
+	///   assert!(rest.is_empty());
 	/// }
 	/// ```
 	#[inline]
@@ -215,16 +207,13 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0usize;
-	/// let bits = data.view_bits_mut::<Lsb0>();
-	///
+	/// let bits = bits![mut 0; 3];
 	/// if let Some((mut first, rest)) = bits.split_first_mut() {
 	///   *first = true;
 	///   *rest.get_mut(1).unwrap() = true;
 	/// }
-	/// assert_eq!(data, 5);
-	///
-	/// assert!(BitSlice::<LocalBits, usize>::empty_mut().split_first_mut().is_none());
+	/// assert_eq!(bits.count_ones(), 2);
+	/// assert!(bits![mut].split_first_mut().is_none());
 	/// ```
 	#[inline]
 	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
@@ -254,11 +243,10 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 1u8;
-	/// let bits = data.view_bits::<Msb0>();
-	///
+	/// let bits = bits![1];
 	/// if let Some((last, rest)) = bits.split_last() {
 	///   assert!(*last);
+	///   assert!(rest.is_empty());
 	/// }
 	/// ```
 	#[inline]
@@ -295,16 +283,14 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0u8;
-	/// let bits = data.view_bits_mut::<Msb0>();
+	/// let bits = bits![mut 0; 3];
 	///
 	/// if let Some((mut last, rest)) = bits.split_last_mut() {
 	///   *last = true;
-	///   *rest.get_mut(5).unwrap() = true;
+	///   *rest.get_mut(1).unwrap() = true;
 	/// }
-	/// assert_eq!(data, 5);
-	///
-	/// assert!(BitSlice::<LocalBits, usize>::empty_mut().split_last_mut().is_none());
+	/// assert_eq!(bits.count_ones(), 2);
+	/// assert!(bits![mut].split_last_mut().is_none());
 	/// ```
 	#[inline]
 	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
@@ -333,12 +319,8 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 1u8;
-	/// let bits = data.view_bits::<Msb0>();
-	/// assert_eq!(Some(&true), bits.last());
-	///
-	/// let empty = BitSlice::<LocalBits, usize>::empty();
-	/// assert_eq!(None, empty.last());
+	/// assert_eq!(Some(&true), bits![0, 1].last());
+	/// assert!(bits![].last().is_none());
 	/// ```
 	#[inline]
 	pub fn last(&self) -> Option<&bool> {
@@ -367,13 +349,11 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0u8;
-	/// let bits = data.view_bits_mut::<Msb0>();
-	///
+	/// let bits = bits![mut 0];
 	/// if let Some(mut last) = bits.last_mut() {
 	///   *last = true;
 	/// }
-	/// assert_eq!(data, 1);
+	/// assert!(bits[0]);
 	/// ```
 	#[inline]
 	pub fn last_mut(&mut self) -> Option<BitMut<O, T>> {
@@ -400,13 +380,12 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 2u8;
-	/// let bits = data.view_bits::<Lsb0>();
+	/// let bits = bits![0, 1, 0, 0];
 	///
 	/// assert_eq!(Some(&true), bits.get(1));
 	/// assert_eq!(Some(&bits[1 .. 3]), bits.get(1 .. 3));
-	/// assert_eq!(None, bits.get(9));
-	/// assert_eq!(None, bits.get(8 .. 10));
+	/// assert!(bits.get(9).is_none());
+	/// assert!(bits.get(8 .. 10).is_none());
 	/// ```
 	#[inline]
 	pub fn get<'a, I>(&'a self, index: I) -> Option<I::Immut>
@@ -430,9 +409,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0u16;
-	/// let bits = data.view_bits_mut::<Lsb0>();
-	///
+	/// let bits = bits![mut 0; 2];
 	/// assert!(!bits.get(1).unwrap());
 	/// *bits.get_mut(1).unwrap() = true;
 	/// assert!(bits.get(1).unwrap());
@@ -466,11 +443,9 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 2u16;
-	/// let bits = data.view_bits::<Lsb0>();
-	///
-	/// unsafe{
-	///   assert_eq!(bits.get_unchecked(1), &true);
+	/// let bits = bits![0, 1];
+	/// unsafe {
+	///   assert!(*bits.get_unchecked(1));
 	/// }
 	/// ```
 	///
@@ -504,14 +479,12 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0u16;
-	/// let bits = data.view_bits_mut::<Lsb0>();
-	///
+	/// let bits = bits![mut 0; 2];
 	/// unsafe {
 	///   let mut bit = bits.get_unchecked_mut(1);
 	///   *bit = true;
 	/// }
-	/// assert_eq!(data, 2);
+	/// assert!(bits[1]);
 	/// ```
 	///
 	/// [`get_mut`]: #method.get_mut
@@ -562,8 +535,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 2u16;
-	/// let bits = data.view_bits::<Lsb0>();
+	/// let bits = bits![0, 1, 1, 0];
 	/// let bits_ptr = bits.as_ptr();
 	///
 	/// for i in 0 .. bits.len() {
@@ -612,14 +584,13 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0u16;
-	/// let bits = data.view_bits_mut::<Lsb0>();
+	/// let bits = bits![mut Lsb0, u8; 0; 8];
 	/// let bits_ptr = bits.as_mut_ptr();
 	///
 	/// for i in 0 .. bits.len() {
-	///   unsafe { &mut *bits_ptr }.set(i, i % 2 == 0);
+	///   unsafe { &mut *bits_ptr }.set(i, i % 3 == 0);
 	/// }
-	/// assert_eq!(data, 0b0101_0101_0101_0101);
+	/// assert_eq!(bits.as_slice()[0], 0b0100_1001);
 	/// ```
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
@@ -647,10 +618,9 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 2u8;
-	/// let bits = data.view_bits_mut::<Lsb0>();
-	/// bits.swap(1, 3);
-	/// assert_eq!(data, 8);
+	/// let bits = bits![mut 0, 1];
+	/// bits.swap(0, 1);
+	/// assert_eq!(bits, bits![1, 0]);
 	/// ```
 	#[inline]
 	pub fn swap(&mut self, a: usize, b: usize) {
@@ -689,24 +659,24 @@ where
 		function.
 		*/
 		let mut bitptr = self.bitptr();
-		loop {
-			//  Reversing 1 or 0 bits has no effect.
-			let len = bitptr.len();
-			if len < 2 {
-				return;
-			}
+		//  The length does not need to be encoded into, and decoded back out
+		//  of, the pointer at each iteration. It is just a loop counter.
+		let mut len = bitptr.len();
+		//  Reversing 1 or 0 bits has no effect.
+		while len > 1 {
 			unsafe {
-				//  Swap the 0 and `len - 1` indices,
-				let back = len - 1;
-				bitptr.to_bitslice_mut::<O>().swap_unchecked(0, back);
+				//  Bring `len` from one past the last to the last exactly.
+				len -= 1;
+				//  Swap the 0 and last indices.
+				bitptr.to_bitslice_mut::<O>().swap_unchecked(0, len);
 
 				//  Move the pointer upwards by one bit.
 				bitptr.incr_head();
-				//  The length is unchanged, and must now be brought down by 2
-				//  in order to remove both the front and back bits.
-				bitptr.set_len(len - 2);
+				//  `incr_head` slides the tail up by one, so decrease it again.
+				len -= 1;
 
-				//  TODO(myrrlyn): See if range subslicing can be made faster.
+				//  TODO(myrrlyn): See if range subslicing can be made faster
+				//  than this unpacking.
 			}
 		}
 	}
@@ -722,8 +692,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 130u8;
-	/// let bits = data.view_bits::<Lsb0>();
+	/// let bits = bits![0, 1, 0, 0, 0, 0, 0, 1];
 	/// let mut iterator = bits.iter();
 	///
 	/// assert_eq!(iterator.next(), Some(&false));
@@ -747,12 +716,11 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0u8;
-	/// let bits = data.view_bits_mut::<Msb0>();
+	/// let bits = bits![mut Msb0, u8; 0; 8];
 	/// for (idx, mut elem) in bits.iter_mut().enumerate() {
 	///   *elem = idx % 3 == 0;
 	/// }
-	/// assert_eq!(data, 0b100_100_10);
+	/// assert_eq!(bits.as_slice()[0], 0b100_100_10);
 	/// ```
 	#[inline]
 	pub fn iter_mut(&mut self) -> IterMut<O, T> {
@@ -776,9 +744,9 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0xA5u8;
-	/// let bits = data.view_bits::<Msb0>();
+	/// let bits = bits![1, 0, 1, 0, 0, 1, 0, 1];
 	/// let mut iter = bits.windows(6);
+	///
 	/// assert_eq!(iter.next().unwrap(), &bits[.. 6]);
 	/// assert_eq!(iter.next().unwrap(), &bits[1 .. 7]);
 	/// assert_eq!(iter.next().unwrap(), &bits[2 ..]);
@@ -824,9 +792,9 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0xA5u8;
-	/// let bits = data.view_bits::<Lsb0>();
+	/// let bits = bits![0, 0, 1, 1, 1, 1, 0, 0];
 	/// let mut iter = bits.chunks(3);
+	///
 	/// assert_eq!(iter.next().unwrap(), &bits[.. 3]);
 	/// assert_eq!(iter.next().unwrap(), &bits[3 .. 6]);
 	/// assert_eq!(iter.next().unwrap(), &bits[6 ..]);
@@ -865,13 +833,11 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0u8;
-	/// let bits = data.view_bits_mut::<Lsb0>();
-	///
+	/// let bits = bits![mut Lsb0, u8; 0; 8];
 	/// for (idx, chunk) in bits.chunks_mut(3).enumerate() {
 	///   chunk.set(2 - idx, true);
 	/// }
-	/// assert_eq!(data, 0b01_010_100);
+	/// assert_eq!(bits.as_slice()[0], 0b01_010_100);
 	/// ```
 	///
 	/// [`chunks_exact_mut`]: #method.chunks_exact_mut
@@ -910,9 +876,9 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0xA5u8;
-	/// let bits = data.view_bits::<Lsb0>();
+	/// let bits = bits![1, 1, 0, 0, 1, 0, 1, 1];
 	/// let mut iter = bits.chunks_exact(3);
+	///
 	/// assert_eq!(iter.next().unwrap(), &bits[.. 3]);
 	/// assert_eq!(iter.next().unwrap(), &bits[3 .. 6]);
 	/// assert!(iter.next().is_none());
@@ -955,13 +921,11 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0u8;
-	/// let bits = data.view_bits_mut::<Lsb0>();
-	///
+	/// let bits = bits![mut Lsb0, u8; 0; 8];
 	/// for (idx, chunk) in bits.chunks_exact_mut(3).enumerate() {
 	///   chunk.set(idx, true);
 	/// }
-	/// assert_eq!(data, 0b00_010_001);
+	/// assert_eq!(bits.as_slice()[0], 0b00_010_001);
 	/// ```
 	///
 	/// [`chunks_mut`]: #method.chunks_mut
@@ -1000,9 +964,9 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0xA5u8;
-	/// let bits = data.view_bits::<Lsb0>();
+	/// let bits = bits![0, 0, 1, 1, 0, 1, 1, 0];
 	/// let mut iter = bits.rchunks(3);
+	///
 	/// assert_eq!(iter.next().unwrap(), &bits[5 ..]);
 	/// assert_eq!(iter.next().unwrap(), &bits[2 .. 5]);
 	/// assert_eq!(iter.next().unwrap(), &bits[.. 2]);
@@ -1041,13 +1005,11 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0u8;
-	/// let bits = data.view_bits_mut::<Lsb0>();
-	///
+	/// let bits = bits![mut Lsb0, u8; 0; 8];
 	/// for (idx, chunk) in bits.rchunks_mut(3).enumerate() {
 	///   chunk.set(2 - idx, true);
 	/// }
-	/// assert_eq!(data, 0b100_010_01);
+	/// assert_eq!(bits.as_slice()[0], 0b100_010_01);
 	/// ```
 	///
 	/// [`chunks_mut`]: #method.chunks_mut
@@ -1086,9 +1048,9 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0xA5u8;
-	/// let bits = data.view_bits::<Lsb0>();
+	/// let bits = bits![mut 0, 1, 1, 1, 0, 0, 1, 0];
 	/// let mut iter = bits.rchunks_exact(3);
+	///
 	/// assert_eq!(iter.next().unwrap(), &bits[5 ..]);
 	/// assert_eq!(iter.next().unwrap(), &bits[2 .. 5]);
 	/// assert!(iter.next().is_none());
@@ -1129,13 +1091,11 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0u8;
-	/// let bits = data.view_bits_mut::<Lsb0>();
-	///
+	/// let bits = bits![mut Lsb0, u8; 0; 8];
 	/// for (idx, chunk) in bits.rchunks_exact_mut(3).enumerate() {
 	///   chunk.set(idx, true);
 	/// }
-	/// assert_eq!(data, 0b001_010_00);
+	/// assert_eq!(bits.as_slice()[0], 0b001_010_00);
 	/// ```
 	///
 	/// [`chunks_mut`]: #method.chunks_mut
@@ -1170,8 +1130,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0xC3u8;
-	/// let bits = data.view_bits::<LocalBits>();
+	/// let bits = bits![1, 1, 0, 0, 0, 0, 1, 1];
 	///
 	/// let (left, right) = bits.split_at(0);
 	/// assert!(left.is_empty());
@@ -1223,15 +1182,14 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0u8;
-	/// let bits = data.view_bits_mut::<Msb0>();
+	/// let bits = bits![mut Msb0, u8; 0; 8];
 	/// // scoped to restrict the lifetime of the borrows
 	/// {
 	///   let (left, right) = bits.split_at_mut(3);
 	///   *left.get_mut(1).unwrap() = true;
 	///   *right.get_mut(2).unwrap() = true;
 	/// }
-	/// assert_eq!(data, 0b010_00100);
+	/// assert_eq!(bits.as_slice()[0], 0b010_00100);
 	/// ```
 	///
 	/// [`BitStore`]: ../store/trait.BitStore.html
@@ -1267,8 +1225,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0b01_001_000u8;
-	/// let bits = data.view_bits::<Msb0>();
+	/// let bits = bits![0, 1, 0, 0, 1, 0, 0, 0];
 	/// let mut iter = bits.split(|_pos, bit| *bit);
 	///
 	/// assert_eq!(iter.next().unwrap(), &bits[.. 1]);
@@ -1284,11 +1241,10 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 1u8;
-	/// let bits = data.view_bits::<Msb0>();
+	/// let bits = bits![0, 0, 0, 1];
 	/// let mut iter = bits.split(|_pos, bit| *bit);
 	///
-	/// assert_eq!(iter.next().unwrap(), &bits[.. 7]);
+	/// assert_eq!(iter.next().unwrap(), &bits[.. 3]);
 	/// assert!(iter.next().unwrap().is_empty());
 	/// assert!(iter.next().is_none());
 	/// ```
@@ -1299,8 +1255,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0b001_100_00u8;
-	/// let bits = data.view_bits::<Msb0>();
+	/// let bits = bits![0, 0, 1, 1, 0, 0, 0, 0,];
 	/// let mut iter = bits.split(|pos, bit| *bit);
 	///
 	/// assert_eq!(iter.next().unwrap(), &bits[0 .. 2]);
@@ -1332,13 +1287,11 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0b001_000_10u8;
-	/// let bits = data.view_bits_mut::<Msb0>();
-	///
+	/// let bits = bits![mut Msb0, u8; 0, 0, 1, 0, 0, 0, 1, 0];
 	/// for group in bits.split_mut(|_pos, bit| *bit) {
 	///   *group.get_mut(0).unwrap() = true;
 	/// }
-	/// assert_eq!(data, 0b101_100_11);
+	/// assert_eq!(bits.as_slice()[0], 0b101_100_11);
 	/// ```
 	#[inline]
 	pub fn split_mut<F>(&mut self, pred: F) -> SplitMut<O, T, F>
@@ -1365,8 +1318,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0b0001_0000u8;
-	/// let bits = data.view_bits::<Msb0>();
+	/// let bits = bits![mut Msb0, u8; 0, 0, 0, 1, 0, 0, 0, 0];
 	/// let mut iter = bits.rsplit(|_pos, bit| *bit);
 	///
 	/// assert_eq!(iter.next().unwrap(), &bits[4 ..]);
@@ -1380,9 +1332,9 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0b1001_0001u8;
-	/// let bits = data.view_bits::<Msb0>();
+	/// let bits = bits![mut Msb0, u8; 1, 0, 0, 1, 0, 0, 0, 1];
 	/// let mut iter = bits.rsplit(|_pos, bit| *bit);
+	///
 	/// assert!(iter.next().unwrap().is_empty());
 	/// assert_eq!(iter.next().unwrap(), &bits[4 .. 7]);
 	/// assert_eq!(iter.next().unwrap(), &bits[1 .. 3]);
@@ -1414,13 +1366,11 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0b001_000_10u8;
-	/// let bits = data.view_bits_mut::<Msb0>();
-	///
+	/// let bits = bits![mut Msb0, u8; 0, 0, 1, 0, 0, 0, 1, 0];
 	/// for group in bits.rsplit_mut(|_pos, bit| *bit) {
 	///   *group.get_mut(0).unwrap() = true;
 	/// }
-	/// assert_eq!(data, 0b101_100_11);
+	/// assert_eq!(bits.as_slice()[0], 0b101_100_11);
 	/// ```
 	#[inline]
 	pub fn rsplit_mut<F>(&mut self, pred: F) -> RSplitMut<O, T, F>
@@ -1449,9 +1399,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0xA5u8;
-	/// let bits = data.view_bits::<Msb0>();
-	///
+	/// let bits = bits![1, 0, 1, 0, 0, 1, 0, 1];
 	/// for group in bits.splitn(2, |pos, _bit| pos % 3 == 2) {
 	/// # #[cfg(feature = "std")] {
 	///   println!("{}", group.len());
@@ -1489,13 +1437,11 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0b001_000_10u8;
-	/// let bits = data.view_bits_mut::<Msb0>();
-	///
+	/// let bits = bits![mut Msb0, u8; 0, 0, 1, 0, 0, 0, 1, 0];
 	/// for group in bits.splitn_mut(2, |_pos, bit| *bit) {
 	///   *group.get_mut(0).unwrap() = true;
 	/// }
-	/// assert_eq!(data, 0b101_100_10);
+	/// assert_eq!(bits.as_slice()[0], 0b101_100_10);
 	/// ```
 	#[inline]
 	pub fn splitn_mut<F>(&mut self, n: usize, pred: F) -> SplitNMut<O, T, F>
@@ -1525,9 +1471,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0xA5u8;
-	/// let bits = data.view_bits::<Msb0>();
-	///
+	/// let bits = bits![Msb0, u8; 1, 0, 1, 0, 0, 1, 0, 1];
 	/// for group in bits.rsplitn(2, |pos, _bit| pos % 3 == 2) {
 	/// # #[cfg(feature = "std")] {
 	///   println!("{}", group.len());
@@ -1566,13 +1510,11 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0b001_000_10u8;
-	/// let bits = data.view_bits_mut::<Msb0>();
-	///
+	/// let bits = bits![mut Msb0, u8; 0, 0, 1, 0, 0, 0, 1, 0];
 	/// for group in bits.rsplitn_mut(2, |_pos, bit| *bit) {
 	///   *group.get_mut(0).unwrap() = true;
 	/// }
-	/// assert_eq!(data, 0b101_000_11);
+	/// assert_eq!(bits.as_slice()[0], 0b101_000_11);
 	/// ```
 	#[inline]
 	pub fn rsplitn_mut<F>(&mut self, n: usize, pred: F) -> RSplitNMut<O, T, F>
@@ -1641,6 +1583,7 @@ where
 	/// let data = 0b0100_1011u8;
 	/// let haystack = data.view_bits::<Msb0>();
 	/// let needle = &data.view_bits::<Lsb0>()[2 .. 5];
+	///
 	/// assert!(haystack.starts_with(&needle[.. 2]));
 	/// assert!(haystack.starts_with(needle));
 	/// assert!(!haystack.starts_with(&haystack[2 .. 4]));
@@ -1679,6 +1622,7 @@ where
 	/// let data = 0b0100_1011u8;
 	/// let haystack = data.view_bits::<Lsb0>();
 	/// let needle = &data.view_bits::<Msb0>()[3 .. 6];
+	///
 	/// assert!(haystack.ends_with(&needle[1 ..]));
 	/// assert!(haystack.ends_with(needle));
 	/// assert!(!haystack.ends_with(&haystack[2 .. 4]));
@@ -1723,19 +1667,11 @@ where
 	///
 	/// Takes linear (in `self.len()`) time.
 	///
-	/// # Performance
-	///
-	/// While this is faster than the equivalent rotation on `[bool]`, it is
-	/// slower than a handcrafted partial-element rotation on `[T]`. Because of
-	/// the support for custom orderings, and the lack of specialization, this
-	/// method can only accelerate by reducing the number of loop iterations
-	/// performed on the slice body, and cannot accelerate by using shift-mask
-	/// instructions to move multiple bits in one operation.
-	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
+	///
 	/// let mut data = 0xF0u8;
 	/// let bits = data.view_bits_mut::<Msb0>();
 	/// bits.rotate_left(2);
@@ -1776,9 +1712,6 @@ where
 		*/
 		let mut tmp = BitArray::<O, usize>::new(0);
 		while by > 0 {
-			//  Note: in theory, the "head to tmp" operation could be optimized
-			//  to a single element copy of `head .. BITS`, at the cost of more
-			//  loops.
 			let shamt = cmp::min(usize::BITS as usize, by);
 			unsafe {
 				let tmp_bits = tmp.get_unchecked_mut(.. shamt);
@@ -1809,15 +1742,6 @@ where
 	/// # Complexity
 	///
 	/// Takes linear (in `self.len()`) time.
-	///
-	/// # Performance
-	///
-	/// While this is faster than the equivalent rotation on `[bool]`, it is
-	/// slower than a handcrafted partial-element rotation on `[T]`. Because of
-	/// the support for custom orderings, and the lack of specialization, this
-	/// method can only accelerate by reducing the number of loop iterations
-	/// performed on the slice body, and cannot accelerate by using shift-mask
-	/// instructions to move multiple bits in one operation.
 	///
 	/// # Examples
 	///
@@ -1930,7 +1854,11 @@ where
 		T2: BitStore,
 	{
 		let len = self.len();
-		assert_eq!(len, src.len(), "Cloning from slice requires equal lengths",);
+		assert_eq!(
+			len,
+			src.len(),
+			"Cloning between slices requires equal lengths"
+		);
 		for idx in 0 .. len {
 			unsafe {
 				self.set_unchecked(idx, *src.get_unchecked(idx));
@@ -1940,8 +1868,8 @@ where
 
 	#[doc(hidden)]
 	#[inline(always)]
-	#[deprecated(note = "Use `.clone_from_bitslice` to copy between bitslices")]
 	#[cfg(not(tarpaulin_include))]
+	#[deprecated(note = "Use `.clone_from_bitslice` to copy between bitslices")]
 	pub fn clone_from_slice<O2, T2>(&mut self, src: &BitSlice<O2, T2>)
 	where
 		O2: BitOrder,
@@ -1984,8 +1912,8 @@ where
 
 	#[doc(hidden)]
 	#[inline(always)]
-	#[deprecated(note = "Use `.copy_from_bitslice` to copy between bitslices")]
 	#[cfg(not(tarpaulin_include))]
+	#[deprecated(note = "Use `.copy_from_bitslice` to copy between bitslices")]
 	pub fn copy_from_slice(&mut self, src: &Self) {
 		self.copy_from_bitslice(src)
 	}
@@ -2015,9 +1943,7 @@ where
 	///
 	/// let mut data = 0x07u8;
 	/// let bits = data.view_bits_mut::<Msb0>();
-	///
 	/// bits.copy_within(5 .., 0);
-	///
 	/// assert_eq!(data, 0xE7);
 	/// ```
 	#[inline]
@@ -2088,8 +2014,8 @@ where
 
 	#[doc(hidden)]
 	#[inline(always)]
-	#[deprecated(note = "Use `.swap_with_bitslice` to swap between bitslices")]
 	#[cfg(not(tarpaulin_include))]
+	#[deprecated(note = "Use `.swap_with_bitslice` to swap between bitslices")]
 	pub fn swap_with_slice<O2, T2>(&mut self, other: &mut BitSlice<O2, T2>)
 	where
 		O2: BitOrder,
@@ -2266,13 +2192,14 @@ where
 	/// assert_eq!(bits, bv);
 	/// # }
 	/// ```
-	#[inline]
+	#[inline(always)]
 	pub fn to_bitvec(&self) -> BitVec<O, T> {
-		self.pipe(BitVec::from_bitslice)
+		BitVec::from_bitslice(self)
 	}
 
 	#[doc(hidden)]
 	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	#[deprecated(note = "Use `.to_bitvec` to convert a bit slice into a vector")]
 	pub fn to_vec(&self) -> BitVec<O, T> {
 		self.to_bitvec()
@@ -2314,9 +2241,11 @@ where
 	{
 		let len = self.len();
 		let total = len.checked_mul(n).expect("capacity overflow");
-		let mut out = BitVec::with_capacity(total);
+		//  The memory has to be initialized before `.copy_from_bitslice` can
+		//  write into it.
+		let mut out = BitVec::repeat(false, total);
 		for span in (0 .. n).map(|rep| rep * len .. (rep + 1) * len) {
-			unsafe { out.get_unchecked_mut(span) }.clone_from_bitslice(self);
+			unsafe { out.get_unchecked_mut(span) }.copy_from_bitslice(self);
 		}
 		unsafe {
 			out.set_len(total);
@@ -2338,6 +2267,7 @@ where
 [`slice::from_ref`](https://doc.rust-lang.org/core/slice/fn.from_ref.html)
 **/
 #[inline(always)]
+#[cfg(not(tarpaulin_include))]
 pub fn from_ref<O, T>(elem: &T) -> &BitSlice<O, T>
 where
 	O: BitOrder,
@@ -2353,6 +2283,7 @@ where
 [`slice::from_mut`](https://doc.rust-lang.org/core/slice/fn.from_mut.html)
 **/
 #[inline(always)]
+#[cfg(not(tarpaulin_include))]
 pub fn from_mut<O, T>(elem: &mut T) -> &mut BitSlice<O, T>
 where
 	O: BitOrder,
@@ -2366,18 +2297,19 @@ where
 in comments. Once `rustfmt` is fixed, revert these to block comments.
 */
 
-/// Forms a bitslice from a pointer and a length.
-///
-/// The `len` argument is the number of **elements**, not the number of bits.
-///
-/// # Original
-///
-/// [`slice::from_raw_parts`](https://doc.rust-lang.org/core/slice/fn.from_raw_parts.html)
-///
-/// # Safety
-///
-/// Behavior is undefined if any of the following conditions are violated:
-///
+/** Forms a bitslice from a pointer and a length.
+
+The `len` argument is the number of **elements**, not the number of bits.
+
+# Original
+
+[`slice::from_raw_parts`](https://doc.rust-lang.org/core/slice/fn.from_raw_parts.html)
+
+# Safety
+
+Behavior is undefined if any of the following conditions are violated:
+
+**/
 /// - `data` must be [valid] for `len * mem::size_of::<T>()` many bytes, and it
 ///   must be properly aligned. This means in particular:
 ///   - The entire memory range of this slice must be contained within a single
@@ -2390,34 +2322,36 @@ in comments. Once `rustfmt` is fixed, revert these to block comments.
 /// - The memory referenced by the returned bitslice must not be mutated for the
 ///   duration of the lifetime `'a`, except inside an `UnsafeCell`.
 /// - The total size `len * T::Mem::BITS` of the slice must be no larger than
-///   [`BitSlice::<_, T>::MAX_BITS`]
-///
-/// # Caveat
-///
-/// The lifetime for the returned slice is inferred from its usage. To prevent
-/// accidental misuse, it's suggested to tie the lifetime to whichever source
-/// lifetime is safe in the context, such as by providing a helper function
-/// taking the lifetime of a host value for the slice, or by explicit
-/// annotation.
-///
-/// # Examples
-///
-/// ```rust
-/// use bitvec::prelude::*;
-/// use bitvec::slice as bv_slice;
-///
-/// let x = 42u8;
-/// let ptr = &x as *const _;
-/// let bits = unsafe {
-///   bv_slice::from_raw_parts::<LocalBits, u8>(ptr, 1)
-/// };
-/// assert_eq!(bits.count_ones(), 3);
-/// ```
-///
-/// [valid]: https://doc.rust-lang.org/core/ptr/index.html#safety
-/// [`BitSlice::<_, T>::MAX_BITS`]:
-/// struct.BitSlice.html#associatedconstant.MAX_BITS [`NonNull::dangling()`]: https://doc.rust-lang.org/core/ptr/struct.NonNull.html#method.dangling
+///   [`BitSlice::<_, T>::MAX_BITS`].
+/**
+
+# Caveat
+
+The lifetime for the returned slice is inferred from its usage. To prevent
+accidental misuse, it's suggested to tie the lifetime to whichever source
+lifetime is safe in the context, such as by providing a helper function taking
+the lifetime of a host value for the slice, or by explicit annotation.
+
+# Examples
+
+```rust
+use bitvec::prelude::*;
+use bitvec::slice as bv_slice;
+
+let x = 42u8;
+let ptr = &x as *const _;
+let bits = unsafe {
+  bv_slice::from_raw_parts::<LocalBits, u8>(ptr, 1)
+};
+assert_eq!(bits.count_ones(), 3);
+```
+
+[valid]: https://doc.rust-lang.org/core/ptr/index.html#safety
+[`BitSlice::<_, T>::MAX_BITS`]: struct.BitSlice.html#associatedconstant.MAX_BITS
+[`NonNull::dangling()`]: https://doc.rust-lang.org/core/ptr/struct.NonNull.html#method.dangling
+**/
 #[inline]
+#[cfg(not(tarpaulin_include))]
 pub unsafe fn from_raw_parts<'a, O, T>(
 	data: *const T,
 	len: usize,
@@ -2436,16 +2370,18 @@ where
 		})
 }
 
-/// Performs the same functionality as [`from_raw_parts`], except that a mutable
-/// bitslice is returned.
-///
-/// # Original
-///
-/// [`slice::from_raw_parts_mut`](https://doc.rust-lang.org/core/slice/fn.from_raw_parts_mut.html)
-///
-/// # Safety
-///
-/// Behavior is undefined if any of the following conditions are violated:
+/**
+Performs the same functionality as [`from_raw_parts`], except that a mutable
+bitslice is returned.
+
+# Original
+
+[`slice::from_raw_parts_mut`](https://doc.rust-lang.org/core/slice/fn.from_raw_parts_mut.html)
+
+# Safety
+
+Behavior is undefined if any of the following conditions are violated:
+**/
 ///
 /// - `data` must be [valid] for `len * mem::size_of::<T>()` many bytes, and it
 ///   must be properly aligned. This means in particular:
@@ -2460,13 +2396,16 @@ where
 ///   through other pointer (not derived from the return value) for the duration
 ///   of the lifetime `'a`. Both read and write accesses are forbidden.
 /// - The total size `len * T::Mem::BITS` of the slice must be no larger than
-///   [`BitSlice::<_, T>::MAX_BITS`]
+///   [`BitSlice::<_, T>::MAX_BITS`].
 ///
 /// [valid]: https://doc.rust-lang.org/core/ptr/index.html#safety
+/// [`from_raw_parts`]: fn.from_raw_parts.html
+/// [`NonNull::dangling()`]: https://doc.rust-lang.org/core/ptr/struct.NonNull.html#method.dangling
+///
 /// [`BitSlice::<_, T>::MAX_BITS`]:
 /// struct.BitSlice.html#associatedconstant.MAX_BITS
-/// [`NonNull::dangling()`]: https://doc.rust-lang.org/core/ptr/struct.NonNull.html#method.dangling
 #[inline]
+#[cfg(not(tarpaulin_include))]
 pub unsafe fn from_raw_parts_mut<'a, O, T>(
 	data: *mut T,
 	len: usize,

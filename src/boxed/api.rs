@@ -43,7 +43,8 @@ where
 	///
 	/// let boxed = BitBox::new(bits![0; 5]);
 	/// ```
-	#[cfg_attr(not(tarpaulin), inline(always))]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	#[deprecated(since = "0.18.0", note = "Prefer `::from_bitslice`")]
 	pub fn new(x: &BitSlice<O, T>) -> Self {
 		Self::from_bitslice(x)
@@ -75,7 +76,7 @@ where
 	/// After calling this function, the raw pointer is owned by the
 	/// resulting `BitBox`. Specifically, the `Box` destructor will free the
 	/// allocated memory. For this to be safe, the memory must have been
-	/// allocated in accordance with the [memory layout] used by `Box` .
+	/// allocated in accordance with the [memory layout] used by `BitBox`.
 	///
 	/// # Original
 	///
@@ -135,10 +136,11 @@ where
 	/// [`BitBox::from_raw`] for automatic cleanup:
 	///
 	/// ```rust
-	/// # use bitvec::prelude::*;
+	/// use bitvec::prelude::*;
+	///
 	/// let b = BitBox::new(bits![Msb0, u32; 0; 32]);
 	/// let ptr = BitBox::into_raw(b);
-	/// let b = unsafe { BitBox::<Msb0, _>::from_raw(ptr) };
+	/// let b = unsafe { BitBox::from_raw(ptr) };
 	/// ```
 	///
 	/// [`BitBox::from_raw`]: #method.from_raw
@@ -172,8 +174,9 @@ where
 	/// Simple usage:
 	///
 	/// ```rust
-	/// # use bitvec::prelude::*;
-	/// let b = BitBox::new(bits![LocalBits, u32; 0; 32]);
+	/// use bitvec::prelude::*;
+	///
+	/// let b = bitbox![LocalBits, u32; 0; 32];
 	/// let static_ref: &'static mut BitSlice<LocalBits, u32> = BitBox::leak(b);
 	/// static_ref.set(0, true);
 	/// assert_eq!(static_ref.count_ones(), 1);
@@ -195,6 +198,8 @@ where
 	///
 	/// [`slice::into_vec`](https://doc.rust-lang.org/std/primitive.slice.html#method.into_vec)
 	///
+	/// # API Differences
+	///
 	/// Despite taking a `Box<[T]>` receiver, this function is written in an
 	/// `impl<T> [T]` block.
 	///
@@ -206,8 +211,10 @@ where
 	/// }
 	/// ```
 	///
-	/// to be written, so this function must be implemented directly on `BitBox`
-	/// rather than on `BitSlice` with a boxed receiver.
+	/// to be written, and `BitBox` exists specifically because
+	/// `Box<BitSlice<>>` cannot be written either, so this function must be
+	/// implemented directly on `BitBox` rather than on `BitSlice` with a boxed
+	/// receiver.
 	///
 	/// # Examples
 	///
@@ -221,7 +228,7 @@ where
 	/// ```
 	#[inline]
 	pub fn into_bitvec(self) -> BitVec<O, T> {
-		let bitptr = self.bitptr();
+		let mut bitptr = self.bitptr();
 		let raw = self
 			//  Disarm the `self` destructor
 			.pipe(ManuallyDrop::new)
@@ -233,9 +240,8 @@ where
 			.pipe(ManuallyDrop::new);
 		/* The distribution claims that `[T]::into_vec(Box<[T]>) -> Vec<T>` does
 		not alter the address of the heap allocation, and only modifies the
-		buffer handle. Since the address does not change, the `BitPtr` does not
-		need to be updated; the only change is that buffer capacity is now
-		carried locally, rather than frozen in the allocator’s state.
+		buffer handle. Nevertheless, update the bit-pointer with the address of
+		the vector as returned by this transformation Just In Case.
 
 		Inspection of the distribution’s implementation shows that the
 		conversion from `(buf, len)` to `(buf, cap, len)` is done by using the
@@ -245,6 +251,7 @@ where
 		away to nothing, as it is almost entirely typesystem manipulation.
 		*/
 		unsafe {
+			bitptr.set_pointer(raw.as_ptr() as *const T as *mut T);
 			BitVec::from_raw_parts(bitptr.to_bitslice_ptr_mut(), raw.capacity())
 		}
 	}

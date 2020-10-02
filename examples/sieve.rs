@@ -29,7 +29,7 @@ square 25x25.
 //  Heisenbugs are weird.
 
 #[cfg(feature = "std")]
-use bitvec::prelude::bitvec;
+use bitvec::prelude::*;
 
 #[cfg(feature = "std")]
 use std::{
@@ -39,73 +39,78 @@ use std::{
 
 #[cfg(feature = "std")]
 fn main() {
-	let max: usize = env::args()
+	//  Capture the arguments iterator exactly once.
+	let mut args = env::args();
+	//  Attempt to parse the first argument as a search ceiling.
+	let max: usize = args
 		.nth(1)
-		.unwrap_or_else(|| "1000000".into())
-		.parse()
+		.and_then(|arg| arg.parse().ok())
 		.unwrap_or(1_000_000);
 
-	let primes = {
-		let mut bv = bitvec![1; max];
+	//  Allocate and immediately free a `Vec<bool>`, just to prove a point.
+	let vec_bool_capa = vec![false; max].capacity();
 
-		//  0 and 1 are not primes
-		bv.set(0, false);
-		bv.set(1, false);
+	//  Prepare a vector for the search space.
+	let mut primes = BitVec::<LocalBits, usize>::repeat(true, max);
+	let len = primes.len();
 
-		for n in 2 ..= ((max as f64).sqrt() as usize) {
-			//  Adjust the frequency of log statements vaguely logarithmically.
-			if n < 20_000 && n % 1_000 == 0
-				|| n < 50_000 && n % 5_000 == 0
-				|| n < 100_000 && n % 10_000 == 0
-			{
-				println!("Calculating {}…", n);
-			}
-			//  If n is prime, mark all multiples as non-prime
-			if bv[n] {
-				if n < 100 {
-					println!("Calculating {}…", n);
+	println!(
+		"BitVec   [{}]: {} bytes of heap\nVec<bool>[{}]: {} bytes of heap",
+		len,
+		//  `.capacity()` always returns bits, and we want bytes
+		primes.capacity() >> 3,
+		len,
+		vec_bool_capa,
+	);
+
+	//  0 and 1 are not primes
+	primes.set(0, false);
+	primes.set(1, false);
+
+	println!("Calculating 1…");
+	for num in 2 ..= ((len as f64).sqrt() as usize) {
+		//  Adjust the frequency of log statements logarithmically.
+		let log = (num as f64).log10();
+		if log - log.floor() == 0.0 {
+			println!("Calculating {}…", num);
+		}
+		//  If num is prime, mark all multiples as non-prime
+		if primes[num] {
+			//  Start at num * num, because num * (num - 1) was handled in the
+			//  previous iteration: (num - 1) * (num - 1 + 1)
+			'mul: for factor in num .. {
+				let product = num * factor;
+				if product >= len {
+					break 'mul;
 				}
-				'inner: for i in n .. {
-					let j = n * i;
-					if j >= max {
-						break 'inner;
-					}
-					bv.set(j, false);
-				}
+				primes.set(product, false);
 			}
 		}
-		println!("Calculation complete!");
+	}
+	println!("Calculation complete!");
+	//  Freeze the vector by permanently borrowing it as an immutable slice.
+	let primes = primes.as_bitslice();
 
-		bv
-	};
+	let prime_ct = primes.count_ones();
+	let prime_ratio = 100.0 * prime_ct as f64 / len as f64;
 
 	if primes.not_any() {
-		println!("There are no primes smaller than {}", max);
+		println!("There are no primes smaller than {}", len);
 		std::process::exit(0);
 	}
-
-	//  Count primes and non-primes.
-	let (mut one, mut zero) = (0u64, 0u64);
-	for n in primes.iter() {
-		if *n {
-			one += 1;
-		}
-		else {
-			zero += 1;
-		}
+	else {
+		println!(
+			"There are {} primes less than {} ({}%)",
+			prime_ct, len, prime_ratio
+		);
 	}
-	println!("Counting complete!");
 
-	let dim: usize = env::args()
-		.nth(2)
-		.unwrap_or_else(|| "10".into())
-		.parse()
-		.unwrap_or(10);
+	let dim = args.next().and_then(|arg| arg.parse().ok()).unwrap_or(10);
 
-	let len = primes.len();
 	let limit = cmp::min(dim * dim, len);
+	let displayed_primes = &primes[.. limit];
 	//  Find the widest number that will be printed, and get its width.
-	let cell_width = primes[.. limit]
+	let cell_width = displayed_primes
 		.iter()
 		.copied()
 		//  search from the back
@@ -117,31 +122,29 @@ fn main() {
 		.map(|(idx, _)| ((limit - 1 - idx) as f64).log10().ceil() as usize)
 		.expect("Failed to find a prime.");
 
+	let prime_ct = displayed_primes.count_ones();
+	let prime_ratio = 100.0 * prime_ct as f64 / limit as f64;
 	println!(
-		"There are {} primes and {} non-primes below {}",
-		one, zero, max
+		"There are {} primes less than {} ({}%) and they are:",
+		prime_ct, limit, prime_ratio
 	);
-	println!("The primes smaller than {} are:", limit);
-	'outer: for i in 0 .. dim {
-		let h = i * dim;
-		if h >= limit {
-			break;
-		}
-		println!();
-		for j in 0 .. dim {
-			let k = h + j;
-			if k >= limit {
-				break 'outer;
+	'rows: for (row, bits) in displayed_primes.chunks(dim).take(dim).enumerate()
+	{
+		for (col, bit) in bits.iter().copied().enumerate() {
+			let idx = row * dim + col;
+			if idx >= limit {
+				println!();
+				break 'rows;
 			}
-			if primes[k] {
-				print!("{:>1$} ", k, cell_width);
+			if bit {
+				print!("{:>1$} ", idx, cell_width);
 			}
 			else {
 				print!("{:^1$} ", "-", cell_width);
 			}
 		}
+		println!();
 	}
-	println!();
 }
 
 #[cfg(not(feature = "std"))]

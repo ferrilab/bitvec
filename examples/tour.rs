@@ -1,4 +1,4 @@
-/*! Demonstrates construction and use of a `BitVec<Msb0, u8>`.
+/*! Demonstrates construction and use of bit vectors.
 
 This example uses `bitvec!` to construct a `BitVec` from literals, then shows
 a sample of the various operations that can be applied to it.
@@ -8,8 +8,8 @@ This example prints **a lot** of text to the console.
 
 #[cfg(feature = "std")]
 use bitvec::prelude::{
-	//  `bitvec!` macro
-	bitvec,
+	//  `bits!` macro
+	bits,
 	//  memory information about the underlying type (for debugging info)
 	BitMemory,
 	//  element-traversal trait (you shouldn’t explicitly need this)
@@ -20,8 +20,8 @@ use bitvec::prelude::{
 	BitStore,
 	//  vector type, analagous to `Vec<u1>`
 	BitVec,
-	Lsb0,
 	//  directionality type markers
+	Lsb0,
 	Msb0,
 };
 
@@ -30,7 +30,8 @@ use std::iter::repeat;
 
 #[cfg(feature = "std")]
 fn main() {
-	let bv = bitvec![Msb0, u8;  //  Default types are `order::Local` and `usize`
+	//  Default types are `order::LocalBits` and `usize`
+	let bits = bits![Msb0, u8;
 		0, 0, 0, 0, 0, 0, 0, 1,
 		0, 0, 0, 0, 0, 0, 1, 0,
 		0, 0, 0, 0, 0, 1, 0, 0,
@@ -50,12 +51,13 @@ fn main() {
 		1, 0, 1, 0,
 	];
 	println!(
-		"A Msb0 BitVec has the same layout in memory as it does semantically"
+		"A Msb0 BitSlice has the same left-to-right order in memory as it does \
+		 semantically"
 	);
-	render(&bv);
+	render(&bits);
 
 	//  BitVec can turn into iterators, and be built from iterators.
-	let bv: BitVec<Lsb0, u8> = bv.into_iter().collect();
+	let bv: BitVec<Lsb0, u8> = bits.iter().collect();
 	println!(
 		"An Lsb0 BitVec has the opposite layout in memory as it does \
 		 semantically"

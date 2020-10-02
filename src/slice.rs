@@ -724,8 +724,8 @@ where
 	/// ```rust,should_panic
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = BitSlice::<LocalBits, usize>::empty_mut();
-	/// bits.set(0, false);
+	/// let bits = bits![mut 0];
+	/// bits.set(1, false);
 	/// ```
 	#[inline]
 	pub fn set(&mut self, index: usize, value: bool) {
@@ -811,9 +811,9 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = 0xFDu8.view_bits::<Msb0>();
-	/// assert!(bits[.. 4].all());
-	/// assert!(!bits[4 ..].all());
+	/// let bits = bits![1, 1, 0, 1];
+	/// assert!(bits[.. 2].all());
+	/// assert!(!bits[2 ..].all());
 	/// ```
 	#[inline]
 	pub fn all(&self) -> bool {
@@ -868,9 +868,9 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = 0x40u8.view_bits::<Msb0>();
-	/// assert!(bits[.. 4].any());
-	/// assert!(!bits[4 ..].any());
+	/// let bits = bits![0, 1, 0, 0];
+	/// assert!(bits[.. 2].any());
+	/// assert!(!bits[2 ..].any());
 	/// ```
 	#[inline]
 	pub fn any(&self) -> bool {
@@ -913,9 +913,9 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = 0xFDu8.view_bits::<Msb0>();
-	/// assert!(!bits[.. 4].not_all());
-	/// assert!(bits[4 ..].not_all());
+	/// let bits = bits![1, 1, 0, 1];
+	/// assert!(!bits[.. 2].not_all());
+	/// assert!(bits[2 ..].not_all());
 	/// ```
 	#[inline]
 	pub fn not_all(&self) -> bool {
@@ -946,9 +946,9 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = 0x40u8.view_bits::<Msb0>();
-	/// assert!(!bits[.. 4].not_any());
-	/// assert!(bits[4 ..].not_any());
+	/// let bits = bits![0, 1, 0, 0];
+	/// assert!(!bits[.. 2].not_any());
+	/// assert!(bits[2 ..].not_any());
 	/// ```
 	#[inline]
 	pub fn not_any(&self) -> bool {
@@ -984,10 +984,10 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let data = 0b111_000_10u8;
-	/// let bits = data.view_bits::<Msb0>();
+	/// let bits = bits![1, 1, 0, 0, 1, 0];
 	///
-	/// assert!(!bits[.. 3].some());
-	/// assert!(!bits[3 .. 6].some());
+	/// assert!(!bits[.. 2].some());
+	/// assert!(!bits[2 .. 4].some());
 	/// assert!(bits.some());
 	/// ```
 	///
@@ -1015,11 +1015,9 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0xF0u8;
-	/// let bits = data.view_bits::<Msb0>();
-	///
-	/// assert_eq!(bits[.. 4].count_ones(), 4);
-	/// assert_eq!(bits[4 ..].count_ones(), 0);
+	/// let bits = bits![1, 1, 0, 0];
+	/// assert_eq!(bits[.. 2].count_ones(), 2);
+	/// assert_eq!(bits[2 ..].count_ones(), 0);
 	/// ```
 	#[inline]
 	pub fn count_ones(&self) -> usize {
@@ -1063,11 +1061,9 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0xF0u8;
-	/// let bits = data.view_bits::<Msb0>();
-	///
-	/// assert_eq!(bits[.. 4].count_zeros(), 0);
-	/// assert_eq!(bits[4 ..].count_zeros(), 4);
+	/// let bits = bits![1, 1, 0, 0];
+	/// assert_eq!(bits[.. 2].count_zeros(), 0);
+	/// assert_eq!(bits[2 ..].count_zeros(), 2);
 	/// ```
 	#[inline]
 	pub fn count_zeros(&self) -> usize {
@@ -1213,6 +1209,19 @@ where
 	///
 	/// A view of the entire memory region this slice covers, including the edge
 	/// elements.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let data = 0x3Cu8;
+	/// let bits = &data.view_bits::<LocalBits>()[2 .. 6];
+	///
+	/// assert!(bits.all());
+	/// assert_eq!(bits.len(), 4);
+	/// assert_eq!(bits.as_slice(), &[0x3Cu8]);
+	/// ```
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_slice(&self) -> &[T] {
@@ -1374,8 +1383,7 @@ where
 	/// use bitvec::prelude::*;
 	/// type Bs<T> = BitSlice<LocalBits, T>;
 	///
-	/// let mut data = [0u8; 3];
-	/// let bits = data.view_bits_mut::<LocalBits>();
+	/// let bits = bits![mut LocalBits, u8; 0; 24];
 	/// let (a, b): (
 	///   &mut Bs<<u8 as BitStore>::Alias>,
 	///   &mut Bs<<u8 as BitStore>::Alias>,
@@ -1492,6 +1500,7 @@ where
 	///
 	/// [`.domain`]: #method.domain
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn domain_mut(&mut self) -> DomainMut<T> {
 		DomainMut::new(self)
 	}
@@ -1797,6 +1806,7 @@ where
 
 	/// Type-cast the slice reference to its pointer structure.
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn bitptr(&self) -> BitPtr<T> {
 		BitPtr::from_bitslice_ptr(self.as_ptr())
 	}
@@ -1805,6 +1815,7 @@ where
 	///
 	/// This is restricted so that it can only be used within the crate.
 	/// Construction of a `BitSlice` over externally-aliased memory is unsound.
+	#[cfg(not(tarpaulin_include))]
 	pub(crate) unsafe fn from_aliased_slice_unchecked(
 		slice: &[T::Alias],
 	) -> &BitSlice<O, T::Alias> {

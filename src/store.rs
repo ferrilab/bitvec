@@ -257,7 +257,7 @@ where
 	#[doc(hidden)]
 	type Threadsafe = *const Self;
 
-	//  If these are true for `R: BitRegister`, then they are true for `Cell<R>`.
+	// If these are true for `R: BitRegister`, then they are true for `Cell<R>`.
 
 	#[doc(hidden)]
 	const __ALIAS_WIDTH: [(); 0] = [];

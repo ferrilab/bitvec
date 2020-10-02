@@ -155,7 +155,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Debug for BitMut<'_, O, T>
 where
 	O: BitOrder,

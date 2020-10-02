@@ -1,4 +1,4 @@
-/*! Permutation testing
+/*! Permutation testing.
 
 This module runs battery tests on implementations of `BitField` to check that
 they behave as expected.

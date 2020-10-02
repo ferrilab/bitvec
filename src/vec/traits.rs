@@ -70,6 +70,7 @@ where
 	T: BitStore,
 {
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	fn clone(&self) -> Self {
 		self.as_bitslice().pipe(Self::from_bitslice)
 	}
@@ -91,7 +92,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Eq for BitVec<O, T>
 where
 	O: BitOrder,
@@ -289,7 +289,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Debug for BitVec<O, T>
 where
 	O: BitOrder,
@@ -353,7 +352,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Pointer for BitVec<O, T>
 where
 	O: BitOrder,
@@ -394,7 +392,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 unsafe impl<O, T> Send for BitVec<O, T>
 where
 	O: BitOrder,
@@ -402,7 +399,6 @@ where
 {
 }
 
-#[cfg(not(tarpaulin_include))]
 unsafe impl<O, T> Sync for BitVec<O, T>
 where
 	O: BitOrder,
@@ -410,7 +406,6 @@ where
 {
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Unpin for BitVec<O, T>
 where
 	O: BitOrder,
