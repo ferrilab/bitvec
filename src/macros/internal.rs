@@ -219,43 +219,25 @@ macro_rules! __elt_from_bits {
 		)
 	};
 
-	//  Unknown orders are currently unsupported in `macro_rules!`.
 	(
 		$order:tt, $store:ident;
-		$($a:tt, $b:tt, $c:tt, $d:tt, $e:tt, $f:tt, $g:tt, $h:tt),*
+		$(
+			$a:expr, $b:expr, $c:expr, $d:expr,
+			$e:expr, $f:expr, $g:expr, $h:expr
+		),*
 	) => {{
-		/* Note: they can *become* supported, by adding an `ident <-` argument
-		to the constructor macros that allows construction of runtime non-const
-		values into a binding with a constant initializer. At present, this is
-		not done because the `bitarr!` macro relies on lifetime extension of a
-		borrowed temporary in order to correctly produce a stack object usable
-		even by the `bits!` borrowing constructor. As of this commit, the
-		compiler appears to fail to properly extend the lifetime of a terminal
-		expression of a block, but does extend the lifetime of a free
-		expression. This prevents using a block to construct temporary
-		initializers before collecting them into a `BitArray` which can be
-		lifetime-extended by the caller.
-
-		While these two goals (stack-allocation of macro-constructed buffers, vs
-		accepting any ordering type in the macros) are in contention, stack
-		allocation is going to win. This will be revisited if the compiler
-		improves its lifetime-extension behavior.
-		*/
-		compile_error!("The ordering argument you provided is unrecognized, and as such cannot be used in const-initializers.");
 		let mut tmp: $store = 0;
+		let _tmp_bits = BitSlice::<$order, $store>::from_element_mut(&mut tmp);
 		let mut _idx = 0;
 		$(
-			tmp = tmp
-			| if $a != 0 { $order::select(unsafe { BitIdx::new_unchecked(_idx + 0) }).value() } else { 0 }
-			| if $b != 0 { $order::select(unsafe { BitIdx::new_unchecked(_idx + 1) }).value() } else { 0 }
-			| if $c != 0 { $order::select(unsafe { BitIdx::new_unchecked(_idx + 2) }).value() } else { 0 }
-			| if $d != 0 { $order::select(unsafe { BitIdx::new_unchecked(_idx + 3) }).value() } else { 0 }
-			| if $e != 0 { $order::select(unsafe { BitIdx::new_unchecked(_idx + 4) }).value() } else { 0 }
-			| if $f != 0 { $order::select(unsafe { BitIdx::new_unchecked(_idx + 5) }).value() } else { 0 }
-			| if $g != 0 { $order::select(unsafe { BitIdx::new_unchecked(_idx + 6) }).value() } else { 0 }
-			| if $h != 0 { $order::select(unsafe { BitIdx::new_unchecked(_idx + 7) }).value() } else { 0 }
-			;
-			_idx += 8;
+			_tmp_bits.set(_idx, $a != 0); _idx += 1;
+			_tmp_bits.set(_idx, $b != 0); _idx += 1;
+			_tmp_bits.set(_idx, $c != 0); _idx += 1;
+			_tmp_bits.set(_idx, $d != 0); _idx += 1;
+			_tmp_bits.set(_idx, $e != 0); _idx += 1;
+			_tmp_bits.set(_idx, $f != 0); _idx += 1;
+			_tmp_bits.set(_idx, $g != 0); _idx += 1;
+			_tmp_bits.set(_idx, $h != 0); _idx += 1;
 		)*
 		tmp
 	}};
