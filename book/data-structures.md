@@ -52,5 +52,5 @@ work.
 [`std::bitset<N>`]: https://en.cppreference.com/w/cpp/utility/bitset "C++ std::bitset documentation"
 [`std::vector<bool>`]: https://en.cppreference.com/w/cpp/container/vector_bool "C++ std::vector<bool> documentation"
 [array]: https://doc.rust-lang.org/stable/std/primitive.array.html "array API documentation"
-[boxed]: https://doc.rust-lang.org/stable/alloc/boxed/struct.Boxed.html "Box API documentation"
+[boxed]: https://doc.rust-lang.org/stable/alloc/boxed/struct.Box.html "Box API documentation"
 [slice]: https://doc.rust-lang.org/stable/std/primitive.slice.html "slice API documentation"
