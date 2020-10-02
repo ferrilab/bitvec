@@ -1,8 +1,13 @@
 //! Port of the `[T]` function API.
 
 use crate::{
+	access::BitAccess,
 	array::BitArray,
 	devel as dvl,
+	domain::{
+		Domain,
+		DomainMut,
+	},
 	index::BitRegister,
 	mem::BitMemory,
 	order::BitOrder,
@@ -1793,6 +1798,22 @@ where
 	///
 	/// The length of `src` must be the same as `self`.
 	///
+	/// If you are attempting to write an integer value into a `BitSlice`, see
+	/// the [`BitField::store`] trait function.
+	///
+	/// # Implementation
+	///
+	/// This method is by necessity a bit-by-bit individual walk across both
+	/// slices. Benchmarks indicate that where the slices share type parameters,
+	/// this is very close in performance to an element-wise `memcpy`. You
+	/// should use this method as the default transfer behavior, and only switch
+	/// to [`.copy_from_bitslice()`] where you know that your performance is an
+	/// issue *and* you can demonstrate that `.copy_from_bitslice()` is
+	/// meaningfully better.
+	///
+	/// Where `self` and `src` are not of the same type parameters, crate
+	/// benchmarks show a roughly halved runtime performance.
+	///
 	/// # Original
 	///
 	/// [`slice::clone_from_slice`](https://doc.rust-lang.org/std/primitive.slice.html#method.clone_from_slice)
@@ -1846,6 +1867,7 @@ where
 	/// assert_eq!(data, 0x33);
 	/// ```
 	///
+	/// [`BitField::store`]: ../field/trait.BitField.html#method.store
 	/// [`split_at_mut`]: #method.split_at_mut
 	#[inline]
 	pub fn clone_from_bitslice<O2, T2>(&mut self, src: &BitSlice<O2, T2>)
@@ -1882,6 +1904,22 @@ where
 	///
 	/// The length of `src` must be the same as `self`.
 	///
+	/// If you are attempting to write an integer value into a `BitSlice`, see
+	/// the [`BitField::store`] trait function.
+	///
+	/// # Implementation
+	///
+	/// This method attempts to use `memcpy` element-wise copy acceleration
+	/// where possible. This will only occur when both `src` and `self` are
+	/// exactly similar: in addition to having the same type parameters and
+	/// length, they must begin at the same offset in an element.
+	///
+	/// Benchmarks do not indicate that `memcpy` element-wise copy is
+	/// significantly faster than [`.clone_from_bitslice()`]’s bit-wise crawl.
+	/// This implementation is retained so that you have the ability to observe
+	/// performance characteristics on your own targets and choose as
+	/// appropriate.
+	///
 	/// # Original
 	///
 	/// [`slice::copy_from_slice`](https://doc.rust-lang.org/std/primitive.std.html#method.copy_from_slice)
@@ -1891,10 +1929,6 @@ where
 	/// This method is renamed, as it takes a bit slice rather than an element
 	/// slice.
 	///
-	/// This is unable to guarantee a strictly faster copy behavior than
-	/// [`clone_from_bitslice`]. In the future, the implementation *may*
-	/// specialize, as the language allows.
-	///
 	/// # Panics
 	///
 	/// This function will panic if the two slices have different lengths.
@@ -1903,10 +1937,74 @@ where
 	///
 	/// Copying two bits from a slice into another:
 	///
-	/// [`clone_from_bitslice`]: #method.clone_from_bitslice
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut dst = bits![mut 0; 200];
+	/// let src = bits![1; 200];
+	///
+	/// assert!(dst.not_any());
+	/// dst.copy_from_bitslice(src);
+	/// assert!(dst.all());
+	/// ```
+	/// [`BitField::store`]: ../field/trait.BitField.html#method.store
+	/// [`.clone_from_bitslice()`]: #method.clone_from_bitslice
+	#[inline]
 	pub fn copy_from_bitslice(&mut self, src: &Self) {
+		let len = self.len();
+		assert_eq!(
+			len,
+			src.len(),
+			"Copying between slices requires equal lengths"
+		);
+
+		let (d_head, s_head) = (self.bitptr().head(), src.bitptr().head());
+		if d_head == s_head {
+			match (self.domain_mut(), src.domain()) {
+				(
+					DomainMut::Enclave {
+						elem: d_elem, tail, ..
+					},
+					Domain::Enclave { elem: s_elem, .. },
+				) => {
+					let mask = O::mask(d_head, tail);
+					d_elem.clear_bits(mask);
+					d_elem.set_bits(mask & s_elem.load_value());
+				},
+				(
+					DomainMut::Region {
+						head: d_head,
+						body: d_body,
+						tail: d_tail,
+					},
+					Domain::Region {
+						head: s_head,
+						body: s_body,
+						tail: s_tail,
+					},
+				) => {
+					if let (Some((h_idx, dh_elem)), Some((_, sh_elem))) =
+						(d_head, s_head)
+					{
+						let mask = O::mask(h_idx, None);
+						dh_elem.clear_bits(mask);
+						dh_elem.set_bits(mask & sh_elem.load_value());
+					}
+					d_body.copy_from_slice(s_body);
+					if let (Some((dt_elem, t_idx)), Some((st_elem, _))) =
+						(d_tail, s_tail)
+					{
+						let mask = O::mask(None, t_idx);
+						dt_elem.clear_bits(mask);
+						dt_elem.set_bits(mask & st_elem.load_value());
+					}
+				},
+				_ => unreachable!(
+					"Slices with equal type parameters, lengths, and heads \
+					 will always have equal domains"
+				),
+			}
+		}
 		self.clone_from_bitslice(src);
 	}
 
