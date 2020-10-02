@@ -305,3 +305,12 @@ fn pointer_offset() {
 	let b = &bits[20 .. 21];
 	assert_eq!(a.offset_from(b), 10);
 }
+
+#[test]
+fn shift() {
+	let bits = bits![mut 1; 6];
+	bits.shift_left(4);
+	assert_eq!(bits, bits![1, 1, 0, 0, 0, 0]);
+	bits.shift_right(2);
+	assert_eq!(bits, bits![0, 0, 1, 1, 0, 0]);
+}

@@ -1192,6 +1192,95 @@ where
 		}
 	}
 
+	/// Shifts the contents of a bit-slice left (towards index `0`).
+	///
+	/// This moves the contents of the slice from `by ..` down to
+	/// `0 .. len - by`, and erases `len - by ..` to `0`. As this is a
+	/// destructive (and linearly expensive) operation, you may prefer instead
+	/// to use range subslicing.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `by`: The distance by which to shift the slice contents.
+	///
+	/// # Panics
+	///
+	/// This panics if `by` is not less than `self.len()`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bits = bits![mut 1; 6];
+	/// bits.shift_left(2);
+	/// assert_eq!(bits, bits![1, 1, 1, 1, 0, 0]);
+	/// ```
+	#[inline]
+	pub fn shift_left(&mut self, by: usize) {
+		let len = self.len();
+		if by == 0 {
+			return;
+		}
+		assert!(
+			by < len,
+			"Cannot shift a slice by more than its length: {} exceeds {}",
+			by,
+			len
+		);
+
+		unsafe {
+			self.copy_within_unchecked(by .., 0);
+		}
+		let trunc = len - by;
+		self[trunc ..].set_all(false);
+	}
+
+	/// Shifts the contents of a bit-slice right (towards index `self.len()`).
+	///
+	/// This moves the contents of the slice from `.. len - by` up to `by ..`,
+	/// and erases `.. by` to `0`. As this is a destructive (and linearly
+	/// expensive) operation, you may prefer instead to use range subslicing.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `by`: The distance by which to shift the slice contents.
+	///
+	/// # Panics
+	///
+	/// This panics if `by` is not less than `self.len()`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bits = bits![mut 1; 6];
+	/// bits.shift_right(2);
+	/// assert_eq!(bits, bits![0, 0, 1, 1, 1, 1]);
+	/// ```
+	#[inline]
+	pub fn shift_right(&mut self, by: usize) {
+		let len = self.len();
+		if by == 0 {
+			return;
+		}
+		assert!(
+			by < len,
+			"Cannot shift a slice by more than its length: {} exceeds {}",
+			by,
+			len
+		);
+
+		let trunc = len - by;
+		unsafe {
+			self.copy_within_unchecked(.. trunc, by);
+		}
+		self[.. by].set_all(false);
+	}
+
 	/// Accesses the total backing storage of the `BitSlice`, as a slice of its
 	/// elements.
 	///
