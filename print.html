@@ -1433,7 +1433,7 @@ mutably, respectively. They have the definition</p>
 </span>pub enum BitDomain /* Mut */ &lt;'a, O, T&gt;
 where
   O: BitOrder,
-  T: 'a + BitStore
+  T: BitStore
 {
   Enclave { body: &amp;'a /* mut */ BitSlice&lt;O, T&gt; },
   Region {
@@ -1462,7 +1462,7 @@ their bits.</p>
 <span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub enum Domain /* Mut */ &lt;'a, T&gt;
-where T: 'a + BitStore {
+where T: BitStore {
   Enclave {
     head: BitIdx&lt;T::Mem&gt;,
     elem: &amp;'a T /* ::Access */,
