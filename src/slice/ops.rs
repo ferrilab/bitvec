@@ -142,7 +142,7 @@ index!(
 impl<'a, O, T> Not for &'a mut BitSlice<O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
 	type Output = Self;
 

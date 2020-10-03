@@ -281,7 +281,7 @@ mutably, respectively. They have the definition
 pub enum BitDomain /* Mut */ <'a, O, T>
 where
   O: BitOrder,
-  T: 'a + BitStore
+  T: BitStore
 {
   Enclave { body: &'a /* mut */ BitSlice<O, T> },
   Region {
@@ -312,7 +312,7 @@ They have the definition
 
 ```rust
 pub enum Domain /* Mut */ <'a, T>
-where T: 'a + BitStore {
+where T: BitStore {
   Enclave {
     head: BitIdx<T::Mem>,
     elem: &'a T /* ::Access */,

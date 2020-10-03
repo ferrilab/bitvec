@@ -88,7 +88,7 @@ fn prove_custom() {
 
 [`verify`]: fn.verify.html
 **/
-pub unsafe trait BitOrder {
+pub unsafe trait BitOrder: 'static {
 	/// Converts a semantic bit index into an electrical bit position.
 	///
 	/// This function is the basis of the trait, and must adhere to a number of

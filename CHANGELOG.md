@@ -4,9 +4,10 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+1. [0.19.4](#0194)
+   1. [Changed](#changed)
 1. [0.19.3](#0193)
    1. [Added](#added)
-   1. [Changed](#changed)
 1. [0.19.2](#0192)
 1. [0.19.1](#0191)
 1. [0.19.0](#0190)
@@ -49,6 +50,20 @@ This document is written according to the [Keep a Changelog][kac] style.
 1. [0.2.0](#020)
 1. [0.1.0](#010)
 
+## 0.19.4
+
+### Changed
+
+The implementation of `BitSlice::copy_from_bitslice` now attempts to accelerate
+its behavior from individual-bit where possible.
+
+Where `self` and `src` have identical memory layouts (same starting point as
+well as length), it will use `memcpy` to move whole elements as batches.
+
+Additionally, `Lsb0`- and `Msb0`- ordered `BitSlice`s use a specialization hack
+to copy by use of their `BitField` batch-movement implementations. This hack is
+only usable for `BitField` implementations known to `bitvec` itself.
+
 ## 0.19.3
 
 This release has no API changes, and is being issued as a patch rather than a
@@ -61,17 +76,6 @@ between the heads of two bit-region pointers. This is *only* a defined
 computation when both pointers are derived from the same allocation block. These
 methods enable `nom` to use `BitSlice` as a sequence provider, but have little
 other practical use.
-
-### Changed
-
-The implementation of `BitSlice::copy_from_bitslice` now performs alignment
-checks on its arguments to detect where it can accelerate from individual-bit
-copying to whole-element copying, just like how `memcpy` attempts to issue wide
-load/store instructions where able.
-
-Also like `memcpy`, this appears to have essentially no performance benefit. Run
-`cargo +nightly bench --bench memcpy` on your targets to decide if this
-optimization is right for you.
 
 ## 0.19.2
 

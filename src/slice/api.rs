@@ -10,7 +10,11 @@ use crate::{
 	},
 	index::BitRegister,
 	mem::BitMemory,
-	order::BitOrder,
+	order::{
+		BitOrder,
+		Lsb0,
+		Msb0,
+	},
 	pointer::BitPtr,
 	slice::{
 		iter::{
@@ -1803,16 +1807,17 @@ where
 	///
 	/// # Implementation
 	///
-	/// This method is by necessity a bit-by-bit individual walk across both
-	/// slices. Benchmarks indicate that where the slices share type parameters,
-	/// this is very close in performance to an element-wise `memcpy`. You
-	/// should use this method as the default transfer behavior, and only switch
-	/// to [`.copy_from_bitslice()`] where you know that your performance is an
-	/// issue *and* you can demonstrate that `.copy_from_bitslice()` is
-	/// meaningfully better.
+	/// This method uses a specialization hack to detect when both `self` and
+	/// `src` are using `BitOrder` type arguments from `bitvec`, where
+	/// `BitSlice`s ordered by them have a `BitField` implementation. When this
+	/// is the case, `BitField`’s batch-access behavior allows for an
+	/// accelerated transfer. When either of the ordering type arguments `O` or
+	/// `O2` are from outside of `bitvec`, this acceleration cannot occur.
 	///
-	/// Where `self` and `src` are not of the same type parameters, crate
-	/// benchmarks show a roughly halved runtime performance.
+	/// If you know that you are copying from and to `BitSlice`s with the *same*
+	/// type arguments, you should prefer [`.copy_from_bitslice()`]. That method
+	/// will attempt to use `memcpy` for the fastest possible copy operation
+	/// where permissible, and will fall back to this method when it cannot.
 	///
 	/// # Original
 	///
@@ -1869,21 +1874,100 @@ where
 	///
 	/// [`BitField::store`]: ../field/trait.BitField.html#method.store
 	/// [`split_at_mut`]: #method.split_at_mut
+	/// [`.copy_from_bitslice()`]: #method.copy_from_bitslice
 	#[inline]
 	pub fn clone_from_bitslice<O2, T2>(&mut self, src: &BitSlice<O2, T2>)
 	where
 		O2: BitOrder,
 		T2: BitStore,
 	{
+		use crate::field::BitField;
+		use core::{
+			any::TypeId,
+			mem,
+		};
 		let len = self.len();
 		assert_eq!(
 			len,
 			src.len(),
 			"Cloning between slices requires equal lengths"
 		);
-		for idx in 0 .. len {
-			unsafe {
-				self.set_unchecked(idx, *src.get_unchecked(idx));
+
+		/* TODO(myrrlyn): Remove this when specialization stabilizes.
+
+		This section simulates access to `impl`-block specialization by
+		detecting accelerable type arguments (orderings known to `bitvec`).
+		Where the ordering arguments are known to `bitvec`, and slices ordered
+		by them have `BitField` implementations, `BitField` batch behavior can
+		be faster than a bit-by-bit crawl.
+
+		Without language-level specialization, we cannot dispatch to
+		individually well-typed functions, so instead, this block uses the
+		compiler’s `TypeId` API to determine the type arguments passed to a
+		monomorphization, and select the appropriate codegen for it. We know
+		that control will only enter any given `if` block here when the type
+		arguments to monomorphization match those stated as the `transmute`
+		targets, rendering the actual transmutation a noöp at the *type* level,
+		not just the instruction level.
+
+		Note also that the use of `unalias_mut` in the iterator is safe, because
+		the loop forbids the chunk references from overlapping in liveness with
+		each other, and `unalias_mut` has no effect when `T` is *already* an
+		aliased type.
+		*/
+		let lsb0 = TypeId::of::<Lsb0>();
+		let msb0 = TypeId::of::<Msb0>();
+		let o1 = TypeId::of::<O>();
+		let o2 = TypeId::of::<O2>();
+		let chunk_size = <usize as BitMemory>::BITS as usize;
+		if o1 == lsb0 && o2 == lsb0 {
+			let this: &mut BitSlice<Lsb0, T> = unsafe { mem::transmute(self) };
+			let that: &BitSlice<Lsb0, T2> = unsafe { mem::transmute(src) };
+			for (to, from) in this
+				.chunks_mut(chunk_size)
+				.map(|c| unsafe { BitSlice::<_, T>::unalias_mut(c) })
+				.zip(that.chunks(chunk_size))
+			{
+				to.store::<usize>(from.load::<usize>());
+			}
+		}
+		else if o1 == lsb0 && o2 == msb0 {
+			let this: &mut BitSlice<Lsb0, T> = unsafe { mem::transmute(self) };
+			let that: &BitSlice<Msb0, T2> = unsafe { mem::transmute(src) };
+			for (to, from) in this
+				.chunks_mut(chunk_size)
+				.map(|c| unsafe { BitSlice::<_, T>::unalias_mut(c) })
+				.zip(that.chunks(chunk_size))
+			{
+				to.store::<usize>(from.load::<usize>());
+			}
+		}
+		else if o1 == msb0 && o2 == lsb0 {
+			let this: &mut BitSlice<Msb0, T> = unsafe { mem::transmute(self) };
+			let that: &BitSlice<Lsb0, T2> = unsafe { mem::transmute(src) };
+			for (to, from) in this
+				.chunks_mut(chunk_size)
+				.map(|c| unsafe { BitSlice::<_, T>::unalias_mut(c) })
+				.zip(that.chunks(chunk_size))
+			{
+				to.store::<usize>(from.load::<usize>());
+			}
+		}
+		else if o1 == msb0 && o2 == msb0 {
+			let this: &mut BitSlice<Msb0, T> = unsafe { mem::transmute(self) };
+			let that: &BitSlice<Msb0, T2> = unsafe { mem::transmute(src) };
+			for (to, from) in this
+				.chunks_mut(chunk_size)
+				.map(|c| unsafe { BitSlice::<_, T>::unalias_mut(c) })
+				.zip(that.chunks(chunk_size))
+			{
+				to.store::<usize>(from.load::<usize>());
+			}
+		}
+		//  We are out of acceleration tricks; use an ordinary bitwise crawl.
+		else {
+			for (to, from) in self.iter_mut().map(|b| unsafe{BitMut::<O, T>::unalias(b)}).zip(src.iter().copied()) {
+				to.set(from);
 			}
 		}
 	}
@@ -1912,13 +1996,9 @@ where
 	/// This method attempts to use `memcpy` element-wise copy acceleration
 	/// where possible. This will only occur when both `src` and `self` are
 	/// exactly similar: in addition to having the same type parameters and
-	/// length, they must begin at the same offset in an element.
-	///
-	/// Benchmarks do not indicate that `memcpy` element-wise copy is
-	/// significantly faster than [`.clone_from_bitslice()`]’s bit-wise crawl.
-	/// This implementation is retained so that you have the ability to observe
-	/// performance characteristics on your own targets and choose as
-	/// appropriate.
+	/// length, they must begin at the same offset in an element. Where this is
+	/// not possible, it delegates to [`.clone_from_bitslice()`], which has its
+	/// own set of acceleration tricks.
 	///
 	/// # Original
 	///
@@ -1951,9 +2031,8 @@ where
 	/// [`.clone_from_bitslice()`]: #method.clone_from_bitslice
 	#[inline]
 	pub fn copy_from_bitslice(&mut self, src: &Self) {
-		let len = self.len();
 		assert_eq!(
-			len,
+			self.len(),
 			src.len(),
 			"Copying between slices requires equal lengths"
 		);
@@ -2005,7 +2084,9 @@ where
 				),
 			}
 		}
-		self.clone_from_bitslice(src);
+		else {
+			self.clone_from_bitslice(src);
+		}
 	}
 
 	#[doc(hidden)]
@@ -2100,13 +2181,10 @@ where
 	{
 		let len = self.len();
 		assert_eq!(len, other.len());
-		for n in 0 .. len {
-			unsafe {
-				let (this, that) =
-					(*self.get_unchecked(n), *other.get_unchecked(n));
-				self.set_unchecked(n, that);
-				other.set_unchecked(n, this);
-			}
+		for (to, from) in self.iter_mut().zip(other.iter_mut()) {
+			let (this, that) = (*to, *from);
+			unsafe { BitMut::<O, T>::unalias(to) }.set(that);
+			unsafe { BitMut::<O2, T2>::unalias(from) }.set(this);
 		}
 	}
 
@@ -2456,7 +2534,7 @@ pub unsafe fn from_raw_parts<'a, O, T>(
 ) -> &'a BitSlice<O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore + BitMemory,
+	T: BitStore + BitMemory,
 {
 	super::bits_from_raw_parts(data, 0, len * T::Mem::BITS as usize)
 		.unwrap_or_else(|| {
@@ -2510,7 +2588,7 @@ pub unsafe fn from_raw_parts_mut<'a, O, T>(
 ) -> &'a mut BitSlice<O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore + BitMemory,
+	T: BitStore + BitMemory,
 {
 	super::bits_from_raw_parts_mut(data, 0, len * T::Mem::BITS as usize)
 		.unwrap_or_else(|| {
@@ -2545,8 +2623,8 @@ the proxy type.
 **/
 pub trait BitSliceIndex<'a, O, T>
 where
-	O: 'a + BitOrder,
-	T: 'a + BitStore,
+	O: BitOrder,
+	T: BitStore,
 {
 	/// The output type for immutable functions.
 	type Immut;
@@ -2629,8 +2707,8 @@ where
 
 impl<'a, O, T> BitSliceIndex<'a, O, T> for usize
 where
-	O: 'a + BitOrder,
-	T: 'a + BitStore,
+	O: BitOrder,
+	T: BitStore,
 {
 	type Immut = &'a bool;
 	type Mut = BitMut<'a, O, T>;
@@ -2696,7 +2774,7 @@ where
 macro_rules! range_impl {
 	( $r:ty { $get:item $unchecked:item } ) => {
 		impl<'a, O, T> BitSliceIndex<'a, O, T> for $r
-		where O: 'a + BitOrder, T: 'a + BitStore {
+		where O: BitOrder, T: BitStore {
 			type Immut = &'a BitSlice<O, T>;
 			type Mut = &'a mut BitSlice<O, T>;
 
@@ -2734,7 +2812,7 @@ macro_rules! range_impl {
 
 	( $( $r:ty => map $func:expr; )* ) => { $(
 		impl<'a, O, T> BitSliceIndex<'a, O, T> for $r
-		where O: 'a + BitOrder, T: 'a + BitStore {
+		where O: BitOrder, T: BitStore {
 			type Immut = &'a BitSlice<O, T>;
 			type Mut = &'a mut BitSlice<O, T>;
 
@@ -2852,8 +2930,8 @@ range_impl! {
 #[cfg(not(tarpaulin_include))]
 impl<'a, O, T> BitSliceIndex<'a, O, T> for RangeFull
 where
-	O: 'a + BitOrder,
-	T: 'a + BitStore,
+	O: BitOrder,
+	T: BitStore,
 {
 	type Immut = &'a BitSlice<O, T>;
 	type Mut = &'a mut BitSlice<O, T>;

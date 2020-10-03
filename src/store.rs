@@ -79,7 +79,7 @@ This trait has trait requirements that better express its behavior:
 - `Debug` informs the compiler that other structures using this trait bound can
   correctly derive `Debug`.
   **/
-pub trait BitStore: seal::Sealed + Sized + Debug {
+pub trait BitStore: 'static + seal::Sealed + Sized + Debug {
 	/// The register type that the implementor describes.
 	type Mem: BitRegister + Into<Self>;
 

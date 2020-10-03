@@ -87,7 +87,7 @@ macro_rules! bit_domain {
 		pub enum $t <'a, O, T>
 		where
 			O: BitOrder,
-			T: 'a + BitStore
+			T: BitStore
 		{
 			/// Indicates that a `BitSlice` is contained entirely in the
 			/// interior indices of a single memory element.
@@ -140,7 +140,7 @@ macro_rules! bit_domain {
 		impl<'a, O, T> $t <'a, O, T>
 		where
 			O: BitOrder,
-			T: 'a + BitStore,
+			T: BitStore,
 		{
 			/// Attempts to view the domain as an enclave variant.
 			///
@@ -390,7 +390,7 @@ macro_rules! domain {
 		#[derive(Debug)]
 		pub enum $t <'a, T>
 		where
-			T: 'a + BitStore,
+			T: BitStore,
 		{
 			/// Indicates that a `BitSlice` is contained entirely in the
 			/// interior indices of a single memory element.
@@ -447,7 +447,7 @@ macro_rules! domain {
 
 		impl<'a, T> $t <'a, T>
 		where
-			T: 'a + BitStore,
+			T: BitStore,
 		{
 			/// Attempts to view the domain as an enclave variant.
 			///
@@ -621,7 +621,7 @@ where T: BitStore
 }
 
 impl<'a, T> Iterator for Domain<'a, T>
-where T: 'a + BitStore
+where T: BitStore
 {
 	type Item = T::Mem;
 
@@ -649,7 +649,7 @@ where T: 'a + BitStore
 }
 
 impl<'a, T> DoubleEndedIterator for Domain<'a, T>
-where T: 'a + BitStore
+where T: BitStore
 {
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {

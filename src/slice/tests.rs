@@ -102,6 +102,33 @@ fn memcpy() {
 }
 
 #[test]
+fn batch_copy() {
+	let mut l = bitarr![Lsb0, usize; 0; 500];
+	let mut m = bitarr![Msb0, usize; 0; 500];
+
+	let l2 = bitarr![Lsb0, usize; 1; 500];
+	let m2 = bitarr![Msb0, usize; 1; 500];
+
+	assert!(l.not_any());
+	l.clone_from_bitslice(&l2);
+	assert!(l.all());
+	l = BitArray::zeroed();
+
+	assert!(l.not_any());
+	l.clone_from_bitslice(&m2);
+	assert!(l.all());
+
+	assert!(m.not_any());
+	m.clone_from_bitslice(&l2);
+	assert!(m.all());
+	m = BitArray::zeroed();
+
+	assert!(m.not_any());
+	m.clone_from_bitslice(&m2);
+	assert!(m.all());
+}
+
+#[test]
 fn query() {
 	let data = [0x0Fu8, !0, 0xF0, 0, 0x0E];
 	let bits = data.view_bits::<Msb0>();

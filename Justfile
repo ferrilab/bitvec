@@ -5,6 +5,10 @@
 # does not work on Windows.                                                    #
 ################################################################################
 
+# Runs the benchmark suite
+bench *ARGS:
+	cargo +nightly bench {{ARGS}}
+
 # Builds the library.
 build:
 	cargo build --no-default-features
@@ -95,12 +99,12 @@ publish: checkout
 	cargo publish
 
 # Runs the test suites.
-test: check lint
-	cargo test --no-default-features -q --lib --tests
-	cargo test --all-features -q --lib --tests
-	cargo test --all-features -q --doc
+test *ARGS: check lint
+	cargo test --no-default-features -q --lib --tests {{ARGS}}
+	cargo test --all-features -q --lib --tests {{ARGS}}
+	cargo test --all-features -q --doc {{ARGS}}
 	@cargo run --all-features --example aliasing &>/dev/null
 	@cargo run --all-features --example ipv4 &>/dev/null
 	@cargo run --all-features --example sieve &>/dev/null
 	@cargo run --all-features --example tour &>/dev/null
-	cargo +nightly miri test
+	cargo +nightly miri test {{ARGS}}

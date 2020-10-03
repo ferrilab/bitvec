@@ -86,7 +86,7 @@ assert_eq!(bits, bits![1; 2]);
 pub struct BitMut<'a, O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
 	/// Accessing pointer to the containing element.
 	addr: NonNull<T::Access>,
@@ -126,6 +126,14 @@ where
 			head,
 			data: (&*(addr as *const T)).get_bit::<O>(head),
 		}
+	}
+
+	/// Removes an alias marking.
+	///
+	/// This is only safe when the proxy is known to be the only handle to its
+	/// referent element during its lifetime.
+	pub(crate) unsafe fn unalias(this: BitMut<O, T::Alias>) -> Self {
+		core::mem::transmute(this)
 	}
 
 	/// Writes a bit into the proxied location without an intermediate copy.

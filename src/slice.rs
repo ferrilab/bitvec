@@ -2127,7 +2127,7 @@ pub unsafe fn bits_from_raw_parts<'a, O, T>(
 ) -> Option<&'a BitSlice<O, T>>
 where
 	O: BitOrder,
-	T: 'a + BitStore + BitMemory,
+	T: BitStore + BitMemory,
 {
 	let head = crate::index::BitIdx::new(head)?;
 	BitPtr::new(addr, head, bits).map(BitPtr::to_bitslice_ref)
@@ -2186,7 +2186,7 @@ pub unsafe fn bits_from_raw_parts_mut<'a, O, T>(
 ) -> Option<&'a mut BitSlice<O, T>>
 where
 	O: BitOrder,
-	T: 'a + BitStore + BitMemory,
+	T: BitStore + BitMemory,
 {
 	let head = crate::index::BitIdx::new(head)?;
 	BitPtr::new(addr, head, bits).map(BitPtr::to_bitslice_mut)

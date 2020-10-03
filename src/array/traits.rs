@@ -331,8 +331,8 @@ where
 #[cfg(not(tarpaulin_include))]
 impl<'a, O, V> IntoIterator for &'a BitArray<O, V>
 where
-	O: 'a + BitOrder,
-	V: 'a + BitView + Sized,
+	O: BitOrder,
+	V: BitView + Sized,
 {
 	type IntoIter = <&'a BitSlice<O, V::Store> as IntoIterator>::IntoIter;
 	type Item = <&'a BitSlice<O, V::Store> as IntoIterator>::Item;
@@ -346,8 +346,8 @@ where
 #[cfg(not(tarpaulin_include))]
 impl<'a, O, V> IntoIterator for &'a mut BitArray<O, V>
 where
-	O: 'a + BitOrder,
-	V: 'a + BitView + Sized,
+	O: BitOrder,
+	V: BitView + Sized,
 {
 	type IntoIter = <&'a mut BitSlice<O, V::Store> as IntoIterator>::IntoIter;
 	type Item = <&'a mut BitSlice<O, V::Store> as IntoIterator>::Item;

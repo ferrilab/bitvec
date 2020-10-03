@@ -107,8 +107,8 @@ where
 
 impl<O, T> IntoIterator for BitVec<O, T>
 where
-	O: 'static + BitOrder,
-	T: 'static + BitStore,
+	O: BitOrder,
+	T: BitStore,
 {
 	type IntoIter = IntoIter<O, T>;
 	type Item = bool;
@@ -125,8 +125,8 @@ where
 #[cfg(not(tarpaulin_include))]
 impl<'a, O, T> IntoIterator for &'a BitVec<O, T>
 where
-	O: 'a + BitOrder,
-	T: 'a + BitStore,
+	O: BitOrder,
+	T: BitStore,
 {
 	type IntoIter = <&'a BitSlice<O, T> as IntoIterator>::IntoIter;
 	type Item = <&'a BitSlice<O, T> as IntoIterator>::Item;
@@ -140,8 +140,8 @@ where
 #[cfg(not(tarpaulin_include))]
 impl<'a, O, T> IntoIterator for &'a mut BitVec<O, T>
 where
-	O: 'a + BitOrder,
-	T: 'a + BitStore,
+	O: BitOrder,
+	T: BitStore,
 {
 	type IntoIter = <&'a mut BitSlice<O, T> as IntoIterator>::IntoIter;
 	type Item = <&'a mut BitSlice<O, T> as IntoIterator>::Item;
@@ -173,8 +173,8 @@ not cause a compilation error.
 #[derive(Clone, Debug)]
 pub struct IntoIter<O, T>
 where
-	O: 'static + BitOrder,
-	T: 'static + BitStore,
+	O: BitOrder,
+	T: BitStore,
 {
 	/// Take ownership of the vector for destruction.
 	_bv: BitVec<O, T>,
@@ -340,7 +340,7 @@ This `struct` is created by the [`drain`] method on [`BitVec`].
 pub struct Drain<'a, O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
 	/// Exclusive reference to the vector this drains.
 	source: NonNull<BitVec<O, T>>,
@@ -354,7 +354,7 @@ where
 impl<'a, O, T> Drain<'a, O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
 	#[inline]
 	pub(super) fn new<R>(source: &'a mut BitVec<O, T>, range: R) -> Self
@@ -516,7 +516,7 @@ where
 impl<'a, O, T> Debug for Drain<'a, O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -668,7 +668,7 @@ documentation for more.
 pub struct Splice<'a, O, T, I>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 	I: Iterator<Item = bool>,
 {
 	/// The region of the vector being spliced.
@@ -680,7 +680,7 @@ where
 impl<'a, O, T, I> Splice<'a, O, T, I>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 	I: Iterator<Item = bool>,
 {
 	/// Constructs a splice out of a drain and a replacement.

@@ -59,8 +59,8 @@ for bit in bits.iter() {
 #[derive(Debug)]
 pub struct Iter<'a, O, T>
 where
-	O: 'a + BitOrder,
-	T: 'a + BitStore,
+	O: BitOrder,
+	T: BitStore,
 {
 	/// Address of the element with the first live bit.
 	base: *const T,
@@ -89,8 +89,8 @@ where
 
 impl<'a, O, T> Iter<'a, O, T>
 where
-	O: 'a + BitOrder,
-	T: 'a + BitStore,
+	O: BitOrder,
+	T: BitStore,
 {
 	/// Views the underlying data as a subslice of the original data.
 	///
@@ -201,8 +201,8 @@ where
 
 impl<'a, O, T> IntoIterator for &'a BitSlice<O, T>
 where
-	O: 'a + BitOrder,
-	T: 'a + BitStore,
+	O: BitOrder,
+	T: BitStore,
 {
 	type IntoIter = Iter<'a, O, T>;
 	type Item = <Self::IntoIter as Iterator>::Item;
@@ -272,8 +272,8 @@ assert_eq!(data, 0b100_100_10);
 #[derive(Debug)]
 pub struct IterMut<'a, O, T>
 where
-	O: 'a + BitOrder,
-	T: 'a + BitStore,
+	O: BitOrder,
+	T: BitStore,
 {
 	/// Address of the element with the first live bit.
 	base: NonNull<<T::Alias as BitStore>::Access>,
@@ -289,8 +289,8 @@ where
 
 impl<'a, O, T> IterMut<'a, O, T>
 where
-	O: 'a + BitOrder,
-	T: 'a + BitStore,
+	O: BitOrder,
+	T: BitStore,
 {
 	/// Views the underlying data as a subslice of the original data.
 	///
@@ -396,8 +396,8 @@ where
 
 impl<'a, O, T> IntoIterator for &'a mut BitSlice<O, T>
 where
-	O: 'a + BitOrder,
-	T: 'a + BitStore,
+	O: BitOrder,
+	T: BitStore,
 {
 	type IntoIter = IterMut<'a, O, T>;
 	type Item = <Self::IntoIter as Iterator>::Item;
@@ -424,8 +424,8 @@ where
 
 impl<'a, O, T> Iter<'a, O, T>
 where
-	O: 'a + BitOrder,
-	T: 'a + BitStore,
+	O: BitOrder,
+	T: BitStore,
 {
 	/// The canonical empty iterator.
 	const EMPTY: Self = Self {
@@ -459,8 +459,8 @@ where
 
 impl<'a, O, T> IterMut<'a, O, T>
 where
-	O: 'a + BitOrder,
-	T: 'a + BitStore,
+	O: BitOrder,
+	T: BitStore,
 {
 	/// The canonical empty iterator.
 	const EMPTY: Self = Self {
@@ -497,8 +497,8 @@ macro_rules! iter {
 	($($t:ident => $i:ty),+ $(,)?) => { $(
 		impl<'a, O, T> $t<'a, O, T>
 		where
-			O: 'a + BitOrder,
-			T: 'a + BitStore,
+			O: BitOrder,
+			T: BitStore,
 		{
 			/// Tests whether the iterator is *any* empty iterator.
 			pub(crate) fn inherent_is_empty(&self) -> bool {
@@ -508,8 +508,8 @@ macro_rules! iter {
 
 		impl<'a, O, T> Iterator for $t<'a, O, T>
 		where
-			O: 'a + BitOrder,
-			T: 'a + BitStore,
+			O: BitOrder,
+			T: BitStore,
 		{
 			type Item = $i;
 
@@ -554,8 +554,8 @@ macro_rules! iter {
 
 		impl<'a, O, T> DoubleEndedIterator for $t <'a, O, T>
 		where
-			O: 'a + BitOrder,
-			T: 'a + BitStore,
+			O: BitOrder,
+			T: BitStore,
 		{
 			#[inline]
 			fn next_back(&mut self) -> Option<Self::Item> {
@@ -651,7 +651,7 @@ macro_rules! group {
 		impl<'a, O, T> Iterator for $iter <'a, O, T>
 		where
 			O: BitOrder,
-			T: 'a + BitStore,
+			T: BitStore,
 		{
 			type Item = $item;
 
@@ -681,7 +681,7 @@ macro_rules! group {
 		impl<'a, O, T> DoubleEndedIterator for $iter <'a, O, T>
 		where
 			O: BitOrder,
-			T: 'a + BitStore,
+			T: BitStore,
 		{
 			#[inline]
 			$next_back
@@ -723,7 +723,7 @@ This struct is created by the [`windows`] method on [bit slices].
 pub struct Windows<'a, O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
 	/// The `BitSlice` being windowed.
 	slice: &'a BitSlice<O, T>,
@@ -811,7 +811,7 @@ This struct is created by the [`chunks`] method on [bit slices].
 pub struct Chunks<'a, O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
 	/// The `BitSlice` being chunked.
 	slice: &'a BitSlice<O, T>,
@@ -918,7 +918,7 @@ All slices yielded from this iterator are marked as aliased.
 pub struct ChunksMut<'a, O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
 	/// The `BitSlice` being chunked.
 	slice: &'a mut BitSlice<O, T::Alias>,
@@ -1025,7 +1025,7 @@ This struct is created by the [`chunks_exact`] method on [bit slices].
 pub struct ChunksExact<'a, O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
 	/// The `BitSlice` being chunked.
 	slice: &'a BitSlice<O, T>,
@@ -1038,7 +1038,7 @@ where
 impl<'a, O, T> ChunksExact<'a, O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
 	#[cfg_attr(not(tarpaulin), inline(always))]
 	pub(super) fn new(slice: &'a BitSlice<O, T>, width: usize) -> Self {
@@ -1146,7 +1146,7 @@ All slices yielded from this iterator are marked as aliased.
 pub struct ChunksExactMut<'a, O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
 	/// The `BitSlice` being chunked.
 	slice: &'a mut BitSlice<O, T::Alias>,
@@ -1159,7 +1159,7 @@ where
 impl<'a, O, T> ChunksExactMut<'a, O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
 	#[cfg_attr(not(tarpaulin), inline(always))]
 	pub(super) fn new(slice: &'a mut BitSlice<O, T>, width: usize) -> Self {
@@ -1268,7 +1268,7 @@ This struct is created by the [`rchunks`] method on [`BitSlice`]s.
 pub struct RChunks<'a, O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
 	/// The `BitSlice` being chunked.
 	slice: &'a BitSlice<O, T>,
@@ -1383,7 +1383,7 @@ All slices yielded from this iterator are marked as aliased.
 pub struct RChunksMut<'a, O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
 	/// The `BitSlice` being chunked.
 	slice: &'a mut BitSlice<O, T::Alias>,
@@ -1483,7 +1483,7 @@ This struct is created by the [`rchunks_exact`] method on [bit slices].
 pub struct RChunksExact<'a, O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
 	/// The `BitSlice` being chunked.
 	slice: &'a BitSlice<O, T>,
@@ -1496,7 +1496,7 @@ where
 impl<'a, O, T> RChunksExact<'a, O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
 	#[cfg_attr(not(tarpaulin), inline(always))]
 	pub(super) fn new(slice: &'a BitSlice<O, T>, width: usize) -> Self {
@@ -1605,7 +1605,7 @@ All slices yielded from this iterator are marked as aliased.
 pub struct RChunksExactMut<'a, O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
 	/// The `BitSlice` being chunked.
 	slice: &'a mut BitSlice<O, T::Alias>,
@@ -1618,7 +1618,7 @@ where
 impl<'a, O, T> RChunksExactMut<'a, O, T>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 {
 	#[cfg_attr(not(tarpaulin), inline(always))]
 	pub(super) fn new(slice: &'a mut BitSlice<O, T>, width: usize) -> Self {
@@ -1745,7 +1745,7 @@ macro_rules! split {
 		impl<'a, O, T, P> $iter <'a, O, T, P>
 		where
 			O: BitOrder,
-			T: 'a + BitStore,
+			T: BitStore,
 			P: FnMut(usize, &bool) -> bool,
 		{
 			#[inline]
@@ -1774,8 +1774,8 @@ macro_rules! split {
 
 		impl<'a, O, T, P> Iterator for $iter <'a, O, T, P>
 		where
-			O: 'a + BitOrder,
-			T: 'a + BitStore,
+			O: BitOrder,
+			T: BitStore,
 			P: FnMut(usize, &bool) -> bool,
 		{
 			type Item = $item;
@@ -1796,8 +1796,8 @@ macro_rules! split {
 
 		impl<'a, O, T, P> DoubleEndedIterator for $iter <'a, O, T, P>
 		where
-			O: 'a + BitOrder,
-			T: 'a + BitStore,
+			O: BitOrder,
+			T: BitStore,
 			P: FnMut(usize, &bool) -> bool,
 		{
 			#[inline]
@@ -1806,16 +1806,16 @@ macro_rules! split {
 
 		impl<'a, O, T, P> core::iter::FusedIterator for $iter <'a, O, T, P>
 		where
-			O: 'a + BitOrder,
-			T: 'a + BitStore,
+			O: BitOrder,
+			T: BitStore,
 			P: FnMut(usize, &bool) -> bool,
 		{
 		}
 
 		impl<'a, O, T, P> SplitIter for $iter <'a, O, T, P>
 		where
-			O: 'a + BitOrder,
-			T: 'a + BitStore,
+			O: BitOrder,
+			T: BitStore,
 			P: FnMut(usize, &bool) -> bool,
 		{
 			#[inline]
@@ -1853,7 +1853,7 @@ predicate receives the index of each bit, as well as its value.
 pub struct Split<'a, O, T, P>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 	P: FnMut(usize, &bool) -> bool,
 {
 	/// The `BitSlice` being split.
@@ -1999,7 +1999,7 @@ predicate receives the index of each bit, as well as its value.
 pub struct RSplit<'a, O, T, P>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 	P: FnMut(usize, &bool) -> bool,
 {
 	/// The `BitSlice` being split.
@@ -2056,7 +2056,7 @@ predicate receives the index of each bit, as well as its value.
 pub struct RSplitMut<'a, O, T, P>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 	P: FnMut(usize, &bool) -> bool,
 {
 	slice: &'a mut BitSlice<O, T::Alias>,
@@ -2119,7 +2119,7 @@ predicate receives the index of each bit, as well as its value.
 pub struct SplitN<'a, O, T, P>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 	P: FnMut(usize, &bool) -> bool,
 {
 	/// The `BitSlice` being split.
@@ -2148,7 +2148,7 @@ predicate receives the index of each bit, as well as its value.
 pub struct SplitNMut<'a, O, T, P>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 	P: FnMut(usize, &bool) -> bool,
 {
 	/// The `BitSlice` being split.
@@ -2178,7 +2178,7 @@ predicate receives the index of each bit, as well as its value.
 pub struct RSplitN<'a, O, T, P>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 	P: FnMut(usize, &bool) -> bool,
 {
 	/// The `BitSlice` being split.
@@ -2208,7 +2208,7 @@ predicate receives the index of each bit, as well as its value.
 pub struct RSplitNMut<'a, O, T, P>
 where
 	O: BitOrder,
-	T: 'a + BitStore,
+	T: BitStore,
 	P: FnMut(usize, &bool) -> bool,
 {
 	/// The `BitSlice` being split.
@@ -2222,7 +2222,7 @@ macro_rules! split_n {
 		impl<'a, O, T, P> $outer<'a, O, T, P>
 		where
 			O: BitOrder,
-			T: 'a + BitStore,
+			T: BitStore,
 			P: FnMut(usize, &bool) -> bool,
 		{
 			pub(super) fn new(
@@ -2252,8 +2252,8 @@ macro_rules! split_n {
 
 		impl<'a, O, T, P> Iterator for $outer<'a, O, T, P>
 		where
-			O: 'a + BitOrder,
-			T: 'a + BitStore,
+			O: BitOrder,
+			T: BitStore,
 			P: FnMut(usize, &bool) -> bool,
 			$( T::$alias: radium::Radium<<<T as BitStore>::Alias as BitStore>::Mem>, )?
 		{
