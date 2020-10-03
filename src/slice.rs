@@ -2202,6 +2202,7 @@ mod api;
 mod iter;
 mod ops;
 mod proxy;
+mod specialization;
 mod traits;
 
 //  Match the `core::slice` API module topology.

@@ -4,7 +4,11 @@ use crate::{
 	domain::Domain,
 	index::BitRegister,
 	mem::BitMemory,
-	order::BitOrder,
+	order::{
+		BitOrder,
+		Lsb0,
+		Msb0,
+	},
 	slice::BitSlice,
 	store::BitStore,
 	view::BitView,
@@ -29,6 +33,7 @@ use core::{
 		Hash,
 		Hasher,
 	},
+	mem,
 	str,
 };
 
@@ -74,8 +79,37 @@ where
 	T2: BitStore,
 {
 	fn eq(&self, rhs: &BitSlice<O2, T2>) -> bool {
-		self.len() == rhs.len()
-			&& self.iter().zip(rhs.iter()).all(|(l, r)| l == r)
+		if self.len() != rhs.len() {
+			return false;
+		}
+
+		let fallback = || {
+			self.iter()
+				.copied()
+				.zip(rhs.iter().copied())
+				.all(|(l, r)| l == r)
+		};
+		//  Batch loads only work when `<O1, T1>` and `<O2, T2>` are the same.
+		if any::TypeId::of::<O1>() == any::TypeId::of::<O2>()
+			&& any::TypeId::of::<T1>() == any::TypeId::of::<T2>()
+		{
+			if any::TypeId::of::<O1>() == any::TypeId::of::<Lsb0>() {
+				let this: &BitSlice<Lsb0, T1> = unsafe { mem::transmute(self) };
+				let that: &BitSlice<Lsb0, T1> = unsafe { mem::transmute(rhs) };
+				this.sp_eq(that)
+			}
+			else if any::TypeId::of::<O1>() == any::TypeId::of::<Msb0>() {
+				let this: &BitSlice<Msb0, T1> = unsafe { mem::transmute(self) };
+				let that: &BitSlice<Msb0, T1> = unsafe { mem::transmute(rhs) };
+				this.sp_eq(that)
+			}
+			else {
+				fallback()
+			}
+		}
+		else {
+			fallback()
+		}
 	}
 }
 

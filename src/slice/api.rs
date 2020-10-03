@@ -1955,7 +1955,6 @@ where
 	/// [`.clone_from_bitslice()`]: #method.clone_from_bitslice
 	#[inline]
 	pub fn copy_from_bitslice(&mut self, src: &Self) {
-		use crate::field::BitField;
 		use core::{
 			any::TypeId,
 			mem,
@@ -2045,26 +2044,12 @@ where
 		else if TypeId::of::<O>() == TypeId::of::<Lsb0>() {
 			let this: &mut BitSlice<Lsb0, T> = unsafe { mem::transmute(self) };
 			let that: &BitSlice<Lsb0, T> = unsafe { mem::transmute(src) };
-			let chunk_size = <usize as BitMemory>::BITS as usize;
-			for (to, from) in this
-				.chunks_mut(chunk_size)
-				.map(|c| unsafe { BitSlice::<Lsb0, T>::unalias_mut(c) })
-				.zip(that.chunks(chunk_size))
-			{
-				to.store::<usize>(from.load::<usize>())
-			}
+			this.sp_copy_from_bitslice(that);
 		}
 		else if TypeId::of::<O>() == TypeId::of::<Msb0>() {
 			let this: &mut BitSlice<Msb0, T> = unsafe { mem::transmute(self) };
 			let that: &BitSlice<Msb0, T> = unsafe { mem::transmute(src) };
-			let chunk_size = <usize as BitMemory>::BITS as usize;
-			for (to, from) in this
-				.chunks_mut(chunk_size)
-				.map(|c| unsafe { BitSlice::<Msb0, T>::unalias_mut(c) })
-				.zip(that.chunks(chunk_size))
-			{
-				to.store::<usize>(from.load::<usize>())
-			}
+			this.sp_copy_from_bitslice(that);
 		}
 		else {
 			self.clone_from_bitslice(src);
