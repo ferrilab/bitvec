@@ -110,21 +110,11 @@ fn batch_copy() {
 	let m2 = bitarr![Msb0, usize; 1; 500];
 
 	assert!(l.not_any());
-	l.clone_from_bitslice(&l2);
-	assert!(l.all());
-	l = BitArray::zeroed();
-
-	assert!(l.not_any());
-	l.clone_from_bitslice(&m2);
+	l.copy_from_bitslice(&l2);
 	assert!(l.all());
 
 	assert!(m.not_any());
-	m.clone_from_bitslice(&l2);
-	assert!(m.all());
-	m = BitArray::zeroed();
-
-	assert!(m.not_any());
-	m.clone_from_bitslice(&m2);
+	m.copy_from_bitslice(&m2);
 	assert!(m.all());
 }
 

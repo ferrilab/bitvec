@@ -1881,98 +1881,18 @@ where
 		O2: BitOrder,
 		T2: BitStore,
 	{
-		use crate::field::BitField;
-		use core::{
-			any::TypeId,
-			mem,
-		};
-		let len = self.len();
 		assert_eq!(
-			len,
+			self.len(),
 			src.len(),
 			"Cloning between slices requires equal lengths"
 		);
 
-		/* TODO(myrrlyn): Remove this when specialization stabilizes.
-
-		This section simulates access to `impl`-block specialization by
-		detecting accelerable type arguments (orderings known to `bitvec`).
-		Where the ordering arguments are known to `bitvec`, and slices ordered
-		by them have `BitField` implementations, `BitField` batch behavior can
-		be faster than a bit-by-bit crawl.
-
-		Without language-level specialization, we cannot dispatch to
-		individually well-typed functions, so instead, this block uses the
-		compiler’s `TypeId` API to determine the type arguments passed to a
-		monomorphization, and select the appropriate codegen for it. We know
-		that control will only enter any given `if` block here when the type
-		arguments to monomorphization match those stated as the `transmute`
-		targets, rendering the actual transmutation a noöp at the *type* level,
-		not just the instruction level.
-
-		Note also that the use of `unalias_mut` in the iterator is safe, because
-		the loop forbids the chunk references from overlapping in liveness with
-		each other, and `unalias_mut` has no effect when `T` is *already* an
-		aliased type.
-		*/
-		let lsb0 = TypeId::of::<Lsb0>();
-		let msb0 = TypeId::of::<Msb0>();
-		let o1 = TypeId::of::<O>();
-		let o2 = TypeId::of::<O2>();
-		let chunk_size = <usize as BitMemory>::BITS as usize;
-		if o1 == lsb0 && o2 == lsb0 {
-			let this: &mut BitSlice<Lsb0, T> = unsafe { mem::transmute(self) };
-			let that: &BitSlice<Lsb0, T2> = unsafe { mem::transmute(src) };
-			for (to, from) in this
-				.chunks_mut(chunk_size)
-				.map(|c| unsafe { BitSlice::<_, T>::unalias_mut(c) })
-				.zip(that.chunks(chunk_size))
-			{
-				to.store::<usize>(from.load::<usize>());
-			}
-		}
-		else if o1 == lsb0 && o2 == msb0 {
-			let this: &mut BitSlice<Lsb0, T> = unsafe { mem::transmute(self) };
-			let that: &BitSlice<Msb0, T2> = unsafe { mem::transmute(src) };
-			for (to, from) in this
-				.chunks_mut(chunk_size)
-				.map(|c| unsafe { BitSlice::<_, T>::unalias_mut(c) })
-				.zip(that.chunks(chunk_size))
-			{
-				to.store::<usize>(from.load::<usize>());
-			}
-		}
-		else if o1 == msb0 && o2 == lsb0 {
-			let this: &mut BitSlice<Msb0, T> = unsafe { mem::transmute(self) };
-			let that: &BitSlice<Lsb0, T2> = unsafe { mem::transmute(src) };
-			for (to, from) in this
-				.chunks_mut(chunk_size)
-				.map(|c| unsafe { BitSlice::<_, T>::unalias_mut(c) })
-				.zip(that.chunks(chunk_size))
-			{
-				to.store::<usize>(from.load::<usize>());
-			}
-		}
-		else if o1 == msb0 && o2 == msb0 {
-			let this: &mut BitSlice<Msb0, T> = unsafe { mem::transmute(self) };
-			let that: &BitSlice<Msb0, T2> = unsafe { mem::transmute(src) };
-			for (to, from) in this
-				.chunks_mut(chunk_size)
-				.map(|c| unsafe { BitSlice::<_, T>::unalias_mut(c) })
-				.zip(that.chunks(chunk_size))
-			{
-				to.store::<usize>(from.load::<usize>());
-			}
-		}
-		//  We are out of acceleration tricks; use an ordinary bitwise crawl.
-		else {
-			for (to, from) in self
-				.iter_mut()
-				.map(|b| unsafe { BitMut::<O, T>::unalias(b) })
-				.zip(src.iter().copied())
-			{
-				to.set(from);
-			}
+		for (to, from) in self
+			.iter_mut()
+			.map(|b| unsafe { BitMut::<O, T>::unalias(b) })
+			.zip(src.iter().copied())
+		{
+			to.set(from);
 		}
 	}
 
@@ -2035,6 +1955,12 @@ where
 	/// [`.clone_from_bitslice()`]: #method.clone_from_bitslice
 	#[inline]
 	pub fn copy_from_bitslice(&mut self, src: &Self) {
+		use crate::field::BitField;
+		use core::{
+			any::TypeId,
+			mem,
+		};
+
 		assert_eq!(
 			self.len(),
 			src.len(),
@@ -2086,6 +2012,58 @@ where
 					"Slices with equal type parameters, lengths, and heads \
 					 will always have equal domains"
 				),
+			}
+		}
+		/* TODO(myrrlyn): Remove this when specialization stabilizes.
+
+		This section simulates access to specialization through partial
+		type-argument application. It detects accelerable type arguments (`O`
+		values provided by `bitvec`, where `BitSlice<O, _>` implements
+		`BitField`) and uses their batch load/store behavior to move more than
+		one bit per cycle.
+
+		Without language-level specialization, we cannot dispatch to
+		individually well-typed functions, so instead this block uses the
+		compiler’s `TypeId` API to inspect the type arguments passed to a
+		monomorphization and select the appropriate codegen for it. We know that
+		control will only enter any of these subsequent blocks when the type
+		argument to monomorphization matches the guard, rendering the
+		`transmute` calls type-level noöps.
+
+		This is only safe to do in `.copy_from_bitslice()`, not in
+		`.clone_from_bitslice()`, because `BitField`’s behavior will only be
+		correct when the two slices are matching in both their ordering and
+		storage type arguments. Mismatches will cause an observed shuffling of
+		sections as `BitField` reïnterprets raw bytes according to the machine
+		register selected.
+
+		Note also that the alias removal in the iterators is safe, because the
+		loops forbid the chunk references from overlapping their liveness with
+		each other, and `unalias_mut` has no effect when `T` is already an
+		aliased type.
+		*/
+		else if TypeId::of::<O>() == TypeId::of::<Lsb0>() {
+			let this: &mut BitSlice<Lsb0, T> = unsafe { mem::transmute(self) };
+			let that: &BitSlice<Lsb0, T> = unsafe { mem::transmute(src) };
+			let chunk_size = <usize as BitMemory>::BITS as usize;
+			for (to, from) in this
+				.chunks_mut(chunk_size)
+				.map(|c| unsafe { BitSlice::<Lsb0, T>::unalias_mut(c) })
+				.zip(that.chunks(chunk_size))
+			{
+				to.store::<usize>(from.load::<usize>())
+			}
+		}
+		else if TypeId::of::<O>() == TypeId::of::<Msb0>() {
+			let this: &mut BitSlice<Msb0, T> = unsafe { mem::transmute(self) };
+			let that: &BitSlice<Msb0, T> = unsafe { mem::transmute(src) };
+			let chunk_size = <usize as BitMemory>::BITS as usize;
+			for (to, from) in this
+				.chunks_mut(chunk_size)
+				.map(|c| unsafe { BitSlice::<Msb0, T>::unalias_mut(c) })
+				.zip(that.chunks(chunk_size))
+			{
+				to.store::<usize>(from.load::<usize>())
 			}
 		}
 		else {
