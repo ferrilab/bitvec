@@ -81,7 +81,7 @@ This trait has trait requirements that better express its behavior:
   **/
 pub trait BitStore: 'static + seal::Sealed + Sized + Debug {
 	/// The register type that the implementor describes.
-	type Mem: BitRegister + Into<Self>;
+	type Mem: BitRegister + BitStore;
 
 	/// The modifier type over `Self::Mem` used to perform memory access.
 	type Access: BitAccess<Item = Self::Mem>;

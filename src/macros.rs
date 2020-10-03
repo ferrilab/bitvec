@@ -153,8 +153,8 @@ macro_rules! bits {
 	};
 }
 
-/** Constructs a `BitArray` wrapper out of a literal array in source code, like
-`bits!`
+/** Constructs a [`BitArray`] wrapper out of a literal array in source code,
+like [`bits!`].
 
 As with all macro constructors, `bitarr!` can be invoked with either a sequence
 of individual bit expressions (`expr, expr`) or a repeated bit (`expr; count`).
@@ -203,6 +203,9 @@ fn zero() -> ContainsBitfield {
 
 The order/store type parameters must be repeated in the macros to construct both
 the typename and the value. Mismatches will result in a compiler error.
+
+[`BitArray`]: crate::array::BitArray
+[`bits!`]: crate::bits
 **/
 #[macro_export]
 macro_rules! bitarr {

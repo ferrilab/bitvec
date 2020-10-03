@@ -45,7 +45,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::new`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.new)
+	/// [`Vec::new`](alloc::vec::Vec::new)
 	///
 	/// # Examples
 	///
@@ -74,7 +74,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::with_capacity`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.with_capacity)
+	/// [`Vec::with_capacity`](alloc::vec::Vec::with_capacity)
 	///
 	/// # Panics
 	///
@@ -123,7 +123,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::from_raw_parts`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.from_raw_parts)
+	/// [`Vec::from_raw_parts`](alloc::vec::Vec::from_raw_parts)
 	///
 	/// # API Differences
 	///
@@ -205,6 +205,8 @@ where
 	///   assert_eq!(rebuilt.len(), len);
 	/// }
 	/// ```
+	///
+	/// [`dealloc`]: alloc::alloc::GlobalAlloc::dealloc
 	#[inline]
 	pub unsafe fn from_raw_parts(
 		pointer: *mut BitSlice<O, T>,
@@ -224,7 +226,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::capacity`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.capacity)
+	/// [`Vec::capacity`](alloc::vec::Vec::capacity)
 	///
 	/// # Examples
 	///
@@ -253,7 +255,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::reserve`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.reserve)
+	/// [`Vec::reserve`](alloc::vec::Vec::reserve)
 	///
 	/// # Panics
 	///
@@ -303,7 +305,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::reserve_exact`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.reserve_exact)
+	/// [`Vec::reserve_exact`](alloc::vec::Vec::reserve_exact)
 	///
 	/// # Panics
 	///
@@ -346,7 +348,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::shrink_to_fit`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.shrink_to_fit)
+	/// [`Vec::shrink_to_fit`](alloc::vec::Vec::shrink_to_fit)
 	///
 	/// # Examples
 	///
@@ -370,11 +372,11 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::into_boxed_slice`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.into_boxed_slice)
+	/// [`Vec::into_boxed_slice`](alloc::vec::Vec::into_boxed_slice)
 	///
 	/// # Analogue
 	///
-	/// See [`into_boxed_bitslice`] for a `BitVec -> BitBox` transform.
+	/// See [`.into_boxed_bitslice()`] for a `BitVec -> BitBox` transform.
 	///
 	/// # Examples
 	///
@@ -400,8 +402,8 @@ where
 	/// assert_eq!(slice.into_vec().capacity(), 1);
 	/// ```
 	///
-	/// [`Box<[T]>`]: https://doc.rust-lang.org/alloc/boxed/struct.Box.html
-	/// [`into_boxed_bitslice`]: #method.into_boxed_bitslice
+	/// [`Box<[T]>`]: alloc::boxed::Box
+	/// [`.into_boxed_bitslice()`]: crate::vec::BitVec::into_boxed_bitslice
 	#[inline]
 	pub fn into_boxed_slice(self) -> Box<[T]> {
 		self.into_vec().into_boxed_slice()
@@ -422,7 +424,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::truncate`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.truncate)
+	/// [`Vec::truncate`](alloc::vec::Vec::truncate)
 	///
 	/// # Examples
 	///
@@ -472,7 +474,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::as_slice`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.as_slice)
+	/// [`Vec::as_slice`](alloc::vec::Vec::as_slice)
 	///
 	/// # Analogue
 	///
@@ -502,7 +504,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::as_mut_slice`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.as_mut_slice)
+	/// [`Vec::as_mut_slice`](alloc::vec::Vec::as_mut_slice)
 	///
 	/// # Analogue
 	///
@@ -542,7 +544,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::as_ptr`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.as_ptr)
+	/// [`Vec::as_ptr`](alloc::vec::Vec::as_ptr)
 	///
 	/// # Analogue
 	///
@@ -560,6 +562,9 @@ where
 	///   assert_eq!(*bv_ptr, 0b1010);
 	/// }
 	/// ```
+	///
+	/// [`as_bitptr`]: crate::vec::BitVec::as_bitptr
+	/// [`as_mut_ptr`]: crate::vec::BitVec::as_mut_ptr
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_ptr(&self) -> *const T {
@@ -575,7 +580,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::as_mut_ptr`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.as_mut_ptr)
+	/// [`Vec::as_mut_ptr`](alloc::vec::Vec::as_mut_ptr)
 	///
 	/// # Analogue
 	///
@@ -614,7 +619,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::set_len`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.set_len)
+	/// [`Vec::set_len`](alloc::vec::Vec::set_len)
 	///
 	/// # Safety
 	///
@@ -695,7 +700,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::swap_remove`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.swap_remove)
+	/// [`Vec::swap_remove`](alloc::vec::Vec::swap_remove)
 	///
 	/// # Panics
 	///
@@ -731,7 +736,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::insert`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.insert)
+	/// [`Vec::insert`](alloc::vec::Vec::insert)
 	///
 	/// # Panics
 	///
@@ -761,7 +766,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::remove`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.remove)
+	/// [`Vec::remove`](alloc::vec::Vec::remove)
 	///
 	/// # Panics
 	///
@@ -796,7 +801,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::retain`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.retain)
+	/// [`Vec::retain`](alloc::vec::Vec::retain)
 	///
 	/// # API Differences
 	///
@@ -827,7 +832,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::push`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.push)
+	/// [`Vec::push`](alloc::vec::Vec::push)
 	///
 	/// # Panics
 	///
@@ -871,7 +876,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::pop`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.pop)
+	/// [`Vec::pop`](alloc::vec::Vec::pop)
 	///
 	/// # Examples
 	///
@@ -883,7 +888,7 @@ where
 	/// assert!(bv.not_any());
 	/// ```
 	///
-	/// [`None`]: https://doc.rust-lang.org/core/option/enum.Option.html#variant.None
+	/// [`None`]: core::option::Option::None
 	#[inline]
 	pub fn pop(&mut self) -> Option<bool> {
 		match self.len() {
@@ -899,7 +904,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::append`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.append)
+	/// [`Vec::append`](alloc::vec::Vec::append)
 	///
 	/// # Panics
 	///
@@ -939,7 +944,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::drain`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.drain)
+	/// [`Vec::drain`](alloc::vec::Vec::drain)
 	///
 	/// # Panics
 	///
@@ -974,7 +979,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::clear`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.clear)
+	/// [`Vec::clear`](alloc::vec::Vec::clear)
 	///
 	/// # Examples
 	///
@@ -1002,7 +1007,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::split_off`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.split_off)
+	/// [`Vec::split_off`](alloc::vec::Vec::split_off)
 	///
 	/// # Panics
 	///
@@ -1048,7 +1053,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::resize_with`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.resize_with)
+	/// [`Vec::resize_with`](alloc::vec::Vec::resize_with)
 	///
 	/// # Examples
 	///
@@ -1065,10 +1070,10 @@ where
 	/// assert_eq!(bv, bits![0, 1, 0, 1]);
 	/// ```
 	///
-	/// [`Clone`]: https://doc.rust-lang.org/std/clone/trait.Clone.html
-	/// [`Default`]: https://doc.rust-lang.org/std/default/trait.Default.html
-	/// [`Default::default`]: https://doc.rust-lang.org/std/default/trait.Default.html#tymethod.default
-	/// [`resize`]: #method.resize
+	/// [`Clone`]: std::clone::Clone
+	/// [`Default`]: std::default::Default
+	/// [`Default::default`]: std::default::Default::default
+	/// [`resize`]: crate::vec::BitVec::resize
 	#[inline]
 	pub fn resize_with<F>(&mut self, new_len: usize, mut func: F)
 	where F: FnMut() -> bool {
@@ -1097,7 +1102,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::resize`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.resize)
+	/// [`Vec::resize`](alloc::vec::Vec::resize)
 	///
 	/// # Examples
 	///
@@ -1150,12 +1155,12 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::extend_from_slice`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.extend_from_slice)
+	/// [`Vec::extend_from_slice`](alloc::vec::Vec::extend_from_slice)
 	///
 	/// # Analogue
 	///
-	/// See [`extend_from_bitslice`] for the method to append a bit-slice of the
-	/// same type parameters to a bit-vector.
+	/// See [`.extend_from_bitslice()`] for the method to append a bit-slice of
+	/// the same type parameters to a bit-vector.
 	///
 	/// # Examples
 	///
@@ -1167,8 +1172,8 @@ where
 	/// assert_eq!(bv, bits![0, 1]);
 	/// ```
 	///
-	/// [`extend`]: #impl-Extend<%26'a bool>
-	/// [`extend_from_bitslice`]: #method.extend_from_bitslice
+	/// [`Extend`]: #impl-Extend<%26'a bool>
+	/// [`.extend_from_bitslice()`]: crate::vec::BitVec::extend_from_bitslice
 	#[cfg_attr(not(tarpaulin), inline(always))]
 	pub fn extend_from_slice(&mut self, other: &[bool]) {
 		self.extend(other)
@@ -1197,7 +1202,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Vec::splice`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#method.splice)
+	/// [`Vec::splice`](alloc::vec::Vec::splice)
 	///
 	/// # Examples
 	///

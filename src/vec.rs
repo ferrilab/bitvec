@@ -21,6 +21,7 @@ resizing, and provide some specializations that cannot safely be done on
 
 use crate::{
 	boxed::BitBox,
+	devel as dvl,
 	index::BitIdx,
 	mem::BitMemory,
 	order::{
@@ -522,7 +523,7 @@ where
 	pub fn set_elements(&mut self, element: T::Mem) {
 		self.as_mut_slice()
 			.iter_mut()
-			.for_each(|elt| *elt = element.into());
+			.for_each(|elt| *elt = dvl::remove_mem(element));
 	}
 
 	/// Views the buffer’s contents as a `BitSlice`.

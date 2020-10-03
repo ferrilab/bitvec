@@ -1966,7 +1966,11 @@ where
 		}
 		//  We are out of acceleration tricks; use an ordinary bitwise crawl.
 		else {
-			for (to, from) in self.iter_mut().map(|b| unsafe{BitMut::<O, T>::unalias(b)}).zip(src.iter().copied()) {
+			for (to, from) in self
+				.iter_mut()
+				.map(|b| unsafe { BitMut::<O, T>::unalias(b) })
+				.zip(src.iter().copied())
+			{
 				to.set(from);
 			}
 		}

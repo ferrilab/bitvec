@@ -336,6 +336,10 @@ fn pointer_offset() {
 #[test]
 fn shift() {
 	let bits = bits![mut 1; 6];
+	bits.shift_left(0);
+	bits.shift_right(0);
+	assert_eq!(bits, bits![1; 6]);
+
 	bits.shift_left(4);
 	assert_eq!(bits, bits![1, 1, 0, 0, 0, 0]);
 	bits.shift_right(2);

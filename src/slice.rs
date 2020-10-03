@@ -165,11 +165,11 @@ of type arguments informs nearly every part of this library’s behavior.
 
 ## `T: BitStore`
 
-This is the simpler of the two parameters. It refers to the integer type used to
-hold bits. It must be one of the Rust unsigned integer fundamentals: `u8`,
-`u16`, `u32`, `usize`, and on 64-bit systems only, `u64`. In addition, it can
-also be the `Cell<N>` wrapper over any of those, or their equivalent types in
-`core::sync::atomic`. Unless you know you need to have `Cell` or atomic
+[`BitStore`] is the simpler of the two parameters. It refers to the integer type
+used to hold bits. It must be one of the Rust unsigned integer fundamentals:
+`u8`, `u16`, `u32`, `usize`, and on 64-bit systems only, `u64`. In addition, it
+can also be the `Cell<T>` wrapper over any of those, or their equivalent types
+in [`core::sync::atomic`]. Unless you know you need to have `Cell` or atomic
 properties, though, you should use a plain integer.
 
 The default type argument is `usize`.
@@ -189,9 +189,9 @@ down.
 
 ## `O: BitOrder`
 
-This is the more complex parameter. It has a default argument which, like
-`usize`, is the good-enough choice when you do not explicitly need to control
-the representation of bits in memory.
+[`BitOrder`] is the more complex parameter. It has a default argument which,
+like `usize`, is the good-enough choice when you do not explicitly need to
+control the representation of bits in memory.
 
 This parameter determines how to index the bits within a single memory element
 `T`. Computers all agree that in a slice of elements `T`, the element with the
@@ -271,7 +271,7 @@ runtime cost. Where it is slower, it will not be significantly slower than a
 manual replacement.
 
 As the machine instructions operate on registers rather than bits, your choice
-of `T: BitOrder` type parameter can influence your slice’s performance. Using
+of `T: BitStore` type parameter can influence your slice’s performance. Using
 larger register types means that slices can gallop over completely-filled
 interior elements faster, while narrower register types permit more graceful
 handling of subslicing and aliased splits.
@@ -307,9 +307,9 @@ sole `&mut` reference returned by the macro call.
 ## Borrowing Constructors
 
 The functions [`from_element`], [`from_element_mut`], [`from_slice`], and
-[`from_slice_mut`] take references to existing memory, and construct `BitSlice`
-references over them. These are the most basic ways to borrow memory and view it
-as bits.
+[`from_slice_mut`] take references to existing memory, and construct
+`BitSlice` references over them. These are the most basic ways to borrow memory
+and view it as bits.
 
 ```rust
 use bitvec::prelude::*;
@@ -367,15 +367,21 @@ assert_eq!(vec.as_bitslice(), slice[.. 20]);
 ```
 
 [TCP wire format]: https://en.wikipedia.org/wiki/Transmission_Control_Protocol#TCP_segment_structure
-[`BitArray`]: ../array/struct.BitArray.html
-[`BitBox`]: ../boxed/struct.BitBox.html
-[`BitMut<O, T>`]: struct.BitMut.html
-[`BitVec`]: ../vec/struct.BitVec.html
-[`BitView`]: ../view/trait.BitView.html
-[`Lsb0`]: ../order/struct.Lsb0.html
-[`Msb0`]: ../order/struct.Msb0.html
-[`bits!`]: ../macro.bits.html
-[`bitvec::prelude::LocalBits`]: ../order/type.LocalBits.html
+[`BitArray`]: crate::array::BitArray
+[`BitBox`]: crate::boxed::BitBox
+[`BitMut<O, T>`]: crate::slice::BitMut
+[`BitOrder`]: crate::order::BitOrder
+[`BitStore`]: crate::store::BitStore
+[`BitVec`]: crate::vec::BitVec
+[`BitView`]: crate::view::BitView
+[`Lsb0`]: crate::order::Lsb0
+[`Msb0`]: crate::order::Msb0
+[`bits!`]: crate::bits
+[`bitvec::prelude::LocalBits`]: crate::order::LocalBits
+[`from_element`]: Self::from_element
+[`from_element_mut`]: Self::from_element_mut
+[`from_slice`]: Self::from_slice
+[`from_slice_mut`]: Self::from_slice_mut
 [`std::bitset`]: https://en.cppreference.com/w/cpp/utility/bitset
 [`std::vector<bool>`]: https://en.cppreference.com/w/cpp/container/vector_bool
 **/
@@ -1892,7 +1898,7 @@ where
 	///
 	/// This function computes the *semantic* distance between the heads, rather
 	/// than the *electrical. It does not take into account the `BitOrder`
-	/// implementation of the slice. See the [`::electrical_distance`] method
+	/// implementation of the slice. See the [`.electrical_distance()`] method
 	/// for that comparison.
 	///
 	/// # Safety and Soundness
@@ -1913,7 +1919,7 @@ where
 	/// `self`, and negative when `other` is lower in the address space than
 	/// `self`.
 	///
-	/// [`::electrical_distance]`: #method.electrical_comparison
+	/// [`.electrical_distance()]`: crate::slice::BitSlice::electrical_distance
 	pub fn offset_from(&self, other: &Self) -> isize {
 		let (elts, bits) = unsafe { self.bitptr().ptr_diff(other.bitptr()) };
 		elts.saturating_mul(T::Mem::BITS as isize)
