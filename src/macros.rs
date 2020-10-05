@@ -219,7 +219,7 @@ macro_rules! bitarr {
 	};
 
 	(for $len:literal, in $store:ident) => {
-		$crate::bitarr!(for $len, in $crate::order::Lsb0, usize)
+		$crate::bitarr!(for $len, in $crate::order::Lsb0, $store)
 	};
 
 	(for $len:literal) => {
