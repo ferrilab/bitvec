@@ -1,18 +1,25 @@
 /*! I/O trait implementations.
 
 The standard library defines byte-based I/O protocols that form the basis of
-exchanging memory buffers with I/O controllers. As `BitSlice` is designed to be
+exchanging memory buffers with I/O controllers. As [`BitSlice`] is designed to be
 used with I/O buffers, it makes sense for it to implement these protocols.
 
 This module is a subset of the `field` module because it relies on the
-`BitField` trait’s ability to map `BitSlice` to a value-storage region. The I/O
-protocols `Read` and `Write` are strictly byte-based, and cannot be altered to
-be bit-based. As such, they are only implemented on types with a `BitField`
-implementation.
+[`BitField`] trait’s ability to map [`BitSlice`] to a value-storage region. The
+I/O protocols [`Read`] and [`Write`] are strictly byte-based, and cannot be
+altered to be bit-based. As such, they are only implemented on types with a
+`BitField` implementation.
 
-Calling `BitField` methods in a loop imposes a non-trivial, and irremovable,
-per-loop overhead cost. Use of `bitvec` data structures directly, rather than
-their underlying buffers, will have a performance penalty.
+Calling [`BitField`] methods in a loop imposes a non-trivial, and irremovable,
+per-loop overhead cost. Use of [`bitvec`] data structures directly, rather than
+their underlying buffers, will have a performance penalty relative to the
+underlying buffer, but much less than a bit-by-bit traversal.
+
+[`BitField`]: crate::field::BitField
+[`BitSlice`]: crate::slice::BitSlice
+[`Read`]: std::io::Read
+[`Write`]: std::io::Write
+[`bitvec`]: crate
 !*/
 
 #![cfg(feature = "std")]
@@ -36,11 +43,12 @@ use std::io::{
 /** Mirrors the implementation on `[u8]` (found [here]).
 
 The implementation loads bytes out of the `&BitSlice` reference until exhaustion
-of either the source `BitSlice` or destination `[u8]`. When `.read()` returns,
+of either the source [`BitSlice`] or destination `[u8]`. When `.read()` returns,
 `self` will have been updated to no longer include the leading segment copied
 out as bytes of `buf`.
 
 [here]: https://doc.rust-lang.org/std/primitive.slice.html#impl-Read
+[`BitSlice`]: crate::slice::BitSlice
 **/
 impl<'a, O, T> Read for &'a BitSlice<O, T>
 where
@@ -63,11 +71,12 @@ where
 /** Mirrors the implementation on `[u8]` (found [here]).
 
 The implementation copies bytes into the `&mut BitSlice` reference until
-exhaustion of either the source `[u8]` or destination `BitSlice`. When
+exhaustion of either the source `[u8]` or destination [`BitSlice`]. When
 `.write()` returns, `self` will have been updated to no longer include the
 leading segment containing bytes copied in from `buf`.
 
 [here]: https://doc.rust-lang.org/std/primitive.slice.html#impl-Write
+[`BitSlice`]: crate::slice::BitSlice
 **/
 impl<'a, O, T> Write for &'a mut BitSlice<O, T>
 where
@@ -97,9 +106,10 @@ where
 
 The implementation copies bytes from `buf` into the tail end of `self`. The
 performance characteristics of this operation are dependent on the type
-parameters of the `BitVec`, and the position of its tail.
+parameters of the [`BitVec`], and the position of its tail.
 
 [here]: https://doc.rust-lang.org/std/vec/struct.Vec.html#impl-Write
+[`BitVec`]: crate::vec::BitVec
 **/
 impl<O, T> Write for BitVec<O, T>
 where

@@ -1,9 +1,9 @@
-/*! Representation of the `BitSlice` region memory model
+/*! Representation of the [`BitSlice`] region memory model
 
-This module allows any `BitSlice` region to be decomposed into domains with
+This module allows any [`BitSlice`] region to be decomposed into domains with
 more detailed aliasing information.
 
-Specifically, any particular `BitSlice` region is one of:
+Specifically, any particular [`BitSlice`] region is one of:
 
 - touches only interior indices of one element
 - touches at least one edge index of any number of elements (including zero)
@@ -13,6 +13,8 @@ known to not have any other write-capable views to them, and in the case of an
 `&mut BitSlice` handle specifically, no other views at all. As such, the domain
 view of this memory is able to remove the aliasing marker type and permit direct
 memory access for the duration of its existence.
+
+[`BitSlice`]: crate::slice::BitSlice
 !*/
 
 use crate::{
@@ -49,9 +51,9 @@ use wyz::fmt::FmtForward;
 macro_rules! bit_domain {
 	($t:ident $(=> $m:ident)? $(@ $a:ident)?) => {
 		/// Granular representation of the memory region containing a
-		/// `BitSlice`.
+		/// [`BitSlice`].
 		///
-		/// `BitSlice` regions can be described in terms of edge and center
+		/// [`BitSlice`] regions can be described in terms of edge and center
 		/// elements, where the edge elements retain the aliasing status of the
 		/// source `BitSlice` handle, and the center elements are known to be
 		/// completely unaliased by any other view. This property allows any
@@ -60,7 +62,7 @@ macro_rules! bit_domain {
 		/// longer requires them for correct access.
 		///
 		/// This enum acts like the `.split*` methods in that it only subdivides
-		/// the source `BitSlice` into smaller `BitSlices`, and makes
+		/// the source [`BitSlice`] into smaller `BitSlice`s, and makes
 		/// appropriate modifications to the aliasing markers. It does not
 		/// provide references to the underlying memory elements. If you need
 		/// such access directly, use the [`Domain`] or [`DomainMut`] enums.
@@ -71,8 +73,8 @@ macro_rules! bit_domain {
 		///
 		/// # Type Parameters
 		///
-		/// - `O`: The ordering type of the source `BitSlice` handle.
-		/// - `T`: The element type of the source `BitSlice` handle, including
+		/// - `O`: The ordering type of the source [`BitSlice`] handle.
+		/// - `T`: The element type of the source [`BitSlice`] handle, including
 		///   aliasing markers.
 		///
 		/// # Aliasing Awareness
@@ -81,37 +83,49 @@ macro_rules! bit_domain {
 		/// original `&BitSlice` handle, and so does not need to modfiy any
 		/// aliasing conditions.
 		///
-		/// [`Domain`]: enum.Domain.html
-		/// [`DomainMut`]: enum.DomainMut.html
+		/// [`BitSlice`]: crate::slice::BitSlice
+		/// [`Domain`]: crate::domain::Domain
+		/// [`DomainMut`]: crate::domain::DomainMut
 		#[derive(Debug)]
 		pub enum $t <'a, O, T>
 		where
 			O: BitOrder,
 			T: BitStore
 		{
-			/// Indicates that a `BitSlice` is contained entirely in the
+			/// Indicates that a [`BitSlice`] is contained entirely in the
 			/// interior indices of a single memory element.
+			///
+			/// [`BitSlice`]: crate::slice::BitSlice
 			Enclave {
-				/// The start index of the `BitSlice`.
+				/// The start index of the [`BitSlice`].
 				///
 				/// This is not likely to be useful information, but is retained
 				/// for structural similarity with the rest of the module.
+				///
+				/// [`BitSlice`]: crate::slice::BitSlice
 				head: BitIdx<T::Mem>,
-				/// The original `BitSlice` used to create this bit-domain view.
+				/// The original [`BitSlice`] used to create this bit-domain
+				/// view.
+				///
+				/// [`BitSlice`]: crate::slice::BitSlice
 				body: &'a $($m)? BitSlice<O, T>,
-				/// The end index of the `BitSlice`.
+				/// The end index of the [`BitSlice`].
 				///
 				/// This is not likely to be useful information, but is retained
 				/// for structural similarity with the rest of the module.
+				///
+				/// [`BitSlice`]: crate::slice::BitSlice
 				tail: BitTail<T::Mem>,
 			},
-			/// Indicates that a `BitSlice` region touches at least one edge
+			/// Indicates that a [`BitSlice`] region touches at least one edge
 			/// index of any number of elements.
 			///
-			/// This contains two bitslices representing the partially-occupied
-			/// edge elements, with their original aliasing marker, and one
-			/// bitslice representing the fully-occupied interior elements,
-			/// marked as unaliased.
+			/// This contains two [`BitSlice`]s representing the
+			/// partially-occupied edge elements, with their original aliasing
+			/// marker, and one `BitSlice` representing the fully-occupied
+			/// interior elements, marked as unaliased.
+			///
+			/// [`BitSlice`]: crate::slice::BitSlice
 			Region {
 				/// Any bits that partially-fill the base element of the slice
 				/// region.
@@ -119,14 +133,16 @@ macro_rules! bit_domain {
 				/// This does not modify its aliasing status, as it will already
 				/// be appropriately marked before constructing this view.
 				head: &'a $($m)? BitSlice<O, T>,
-				/// Any bits inside elements that the source bitslice completely
-				/// covers.
+				/// Any bits inside elements that the source [`BitSlice`]
+				/// completely covers.
 				///
 				/// This is marked as unaliased, because it is statically
 				/// impossible for any other handle to have write access to the
-				/// region it covers. As such, a bitslice that was marked as
+				/// region it covers. As such, a [`BitSlice`] that was marked as
 				/// entirely aliased, but contains interior unaliased elements,
 				/// can safely remove its aliasing protections.
+				///
+				/// [`BitSlice`]: crate::slice::BitSlice
 				body: &'a $($m)? BitSlice<O, T::Mem>,
 				/// Any bits that partially fill the last element of the slice
 				/// region.
@@ -153,7 +169,7 @@ macro_rules! bit_domain {
 			/// If `self` is the [`Enclave`] variant, this returns `Some` of the
 			/// enclave fields, as a tuple. Otherwise, it returns `None`.
 			///
-			/// [`Enclave`]: #variant.Enclave
+			/// [`Enclave`]: Self::Enclave
 			#[inline]
 			pub fn enclave(self) -> Option<(
 				BitIdx<T::Mem>,
@@ -179,7 +195,7 @@ macro_rules! bit_domain {
 			/// If `self` is the [`Region`] variant, this returns `Some` of the
 			/// region fields, as a tuple. Otherwise, it returns `None`.
 			///
-			/// [`Region`]: #variant.Region
+			/// [`Region`]: Self::Region
 			#[inline]
 			pub fn region(self) -> Option<(
 				&'a $($m)? BitSlice<O, T>,
@@ -194,15 +210,18 @@ macro_rules! bit_domain {
 				}
 			}
 
-			/// Constructs a bit-domain view from a bitslice.
+			/// Constructs a bit-domain view from a [`BitSlice`].
 			///
 			/// # Parameters
 			///
-			/// - `slice`: The source bitslice for which the view is constructed
+			/// - `slice`: The source [`BitSlice`] for which the view is
+			///   constructed.
 			///
 			/// # Returns
 			///
 			/// A bit-domain view over the source slice.
+			///
+			/// [`BitSlice`]: crate::slice::BitSlice
 			#[inline]
 			pub(crate) fn new(slice: &'a $($m)? BitSlice<O, T>) -> Self {
 				let bitptr = slice.bitptr();
@@ -360,9 +379,9 @@ where
 macro_rules! domain {
 	($t:ident $(=> $m:ident @ $a:ident)?) => {
 		/// Granular representation of the memory region containing a
-		/// `BitSlice`.
+		/// [`BitSlice`].
 		///
-		/// `BitSlice` regions can be described in terms of edge and center
+		/// [`BitSlice`] regions can be described in terms of edge and center
 		/// elements, where the edge elements retain the aliasing status of the
 		/// source `BitSlice` handle, and the center elements are known to be
 		/// completely unaliased by any other view. This property allows any
@@ -370,7 +389,7 @@ macro_rules! domain {
 		/// remove any aliasing markers from the subregion of memory that no
 		/// longer requires them for correct access.
 		///
-		/// This enum splits the element region backing a `BitSlice` into
+		/// This enum splits the element region backing a [`BitSlice`] into
 		/// maybe-aliased and known-unaliased subslices. If you do not need to
 		/// work directly with the memory elements, and only need to firmly
 		/// specify the aliasing status of a `BitSlice`, see the [`BitDomain`]
@@ -382,54 +401,67 @@ macro_rules! domain {
 		///
 		/// # Type Parameters
 		///
-		/// - `T`: The element type of the source `BitSlice` handle, including
+		/// - `T`: The element type of the source [`BitSlice`] handle, including
 		///   aliasing markers.
 		///
-		/// [`BitDomain`]: enum.BitDomain.html
-		/// [`BitDomainMut`]: enum.BitDomainMut.html
+		/// [`BitDomain`]: crate::domain::BitDomain
+		/// [`BitDomainMut`]: crate::domain::BitDomainMut
+		/// [`BitSlice`]: crate::slice::BitSlice
 		#[derive(Debug)]
 		pub enum $t <'a, T>
 		where
 			T: BitStore,
 		{
-			/// Indicates that a `BitSlice` is contained entirely in the
+			/// Indicates that a [`BitSlice`] is contained entirely in the
 			/// interior indices of a single memory element.
+			///
+			/// [`BitSlice`]: crate::slice::BitSlice
 			Enclave {
-				/// The start index of the `BitSlice`.
+				/// The start index of the [`BitSlice`].
+				///
+				/// [`BitSlice`]: crate::slice::BitSlice
 				head: BitIdx<T::Mem>,
-				/// An aliased view of the element containing the `BitSlice`.
+				/// An aliased view of the element containing the [`BitSlice`].
 				///
 				/// This is necessary even on immutable views, because other
 				/// views to the referent element may be permitted to modify it.
+				///
+				/// [`BitSlice`]: crate::slice::BitSlice
 				elem: &'a T $(::$a)?,
-				/// The end index of the `BitSlice`.
+				/// The end index of the [`BitSlice`].
+				///
+				/// [`BitSlice`]: crate::slice::BitSlice
 				tail: BitTail<T::Mem>,
 			},
-			/// Indicates that a `BitSlice` region touches at least one edge
+			/// Indicates that a [`BitSlice`] region touches at least one edge
 			/// index of any number of elements.
 			///
 			/// This contains two optional references to the aliased edges, and
 			/// one reference to the unaliased middle. Each can be queried and
 			/// used individually.
+			///
+			/// [`BitSlice`]: crate::slice::BitSlice
 			Region {
-				/// If the `BitSlice` started in the interior of its first
+				/// If the [`BitSlice`] started in the interior of its first
 				/// element, this contains the starting index and the base
 				/// address.
+				///
+				/// [`BitSlice`]: crate::slice::BitSlice
 				head: Option<(BitIdx<T::Mem>, &'a T $(::$a)?)>,
 				/// All fully-spanned, unaliased, elements.
 				///
 				/// This is marked as bare memory without any access
 				/// protections, because it is statically impossible for any
 				/// other handle to have write access to the region it covers.
-				/// As such, a bitslice that was marked as entirely aliased, but
-				/// contains interior unaliased elements, can safely remove its
-				/// aliasing protections.
+				/// As such, a [`BitSlice`] that was marked as entirely aliased,
+				/// but contains interior unaliased elements, can safely remove
+				/// its aliasing protections.
 				///
 				/// # Safety Exception
 				///
 				/// `&BitSlice<O, T::Alias>` references have access to a
 				/// `.set_aliased` method, which represents the only means in
-				/// `bitvec` of writing to memory without an exclusive `&mut `
+				/// `bitvec` of writing to memory without an exclusive `&mut`
 				/// reference.
 				///
 				/// Construction of two such shared, aliasing, references over
@@ -460,7 +492,7 @@ macro_rules! domain {
 			/// If `self` is the [`Enclave`] variant, this returns `Some` of the
 			/// enclave fields, as a tuple. Otherwise, it returns `None`.
 			///
-			/// [`Enclave`]: #variant.Enclave
+			/// [`Enclave`]: Self::Enclave
 			#[inline]
 			pub fn enclave(self) -> Option<(
 				BitIdx<T::Mem>,
@@ -485,7 +517,7 @@ macro_rules! domain {
 			/// If `self` is the [`Region`] variant, this returns `Some` of the
 			/// region fields, as a tuple. Otherwise, it returns `None`.
 			///
-			/// [`Region`]: #variant.Region
+			/// [`Region`]: Self::Region
 			#[inline]
 			pub fn region(self) -> Option<(
 				Option<(BitIdx<T::Mem>, &'a T $(::$a)?)>,

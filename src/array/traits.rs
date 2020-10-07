@@ -1,4 +1,7 @@
-//! Trait implementations on `BitArray`.
+/*! Trait implementations on [`BitArray`].
+
+[`BitArray`]: crate::array::BitArray
+!*/
 
 use crate::{
 	array::BitArray,
@@ -165,19 +168,19 @@ where
 	}
 }
 
-impl<O1, O2, T, V> TryFrom<&'_ BitSlice<O2, T>> for BitArray<O1, V>
+impl<'a, O1, O2, T, V> TryFrom<&'a BitSlice<O2, T>> for BitArray<O1, V>
 where
 	O1: BitOrder,
 	O2: BitOrder,
 	T: BitStore,
 	V: BitView + Sized,
 {
-	type Error = TryFromBitSliceError;
+	type Error = TryFromBitSliceError<'a, O2, T>;
 
 	#[inline]
-	fn try_from(src: &BitSlice<O2, T>) -> Result<Self, Self::Error> {
+	fn try_from(src: &'a BitSlice<O2, T>) -> Result<Self, Self::Error> {
 		if src.len() != V::const_bits() {
-			return Self::Error::err();
+			return Self::Error::err(src);
 		}
 		let mut out = Self::zeroed();
 		out.clone_from_bitslice(src);
@@ -190,7 +193,7 @@ where
 	O: BitOrder,
 	V: BitView + Sized,
 {
-	type Error = TryFromBitSliceError;
+	type Error = TryFromBitSliceError<'a, O, V::Store>;
 
 	#[inline]
 	fn try_from(src: &'a BitSlice<O, V::Store>) -> Result<Self, Self::Error> {
@@ -198,7 +201,7 @@ where
 		//  This pointer cast can only happen if the slice is exactly as long as
 		//  the array, and is aligned to the front of the element.
 		if src.len() != V::const_bits() || bitptr.head() != BitIdx::ZERO {
-			return Self::Error::err();
+			return Self::Error::err(src);
 		}
 		Ok(unsafe { &*(bitptr.pointer().to_const() as *const BitArray<O, V>) })
 	}
@@ -209,7 +212,7 @@ where
 	O: BitOrder,
 	V: BitView + Sized,
 {
-	type Error = TryFromBitSliceError;
+	type Error = TryFromBitSliceError<'a, O, V::Store>;
 
 	#[inline]
 	fn try_from(
@@ -217,7 +220,7 @@ where
 	) -> Result<Self, Self::Error> {
 		let bitptr = src.bitptr();
 		if src.len() != V::const_bits() || bitptr.head() != BitIdx::ZERO {
-			return Self::Error::err();
+			return Self::Error::err(&*src);
 		}
 		Ok(unsafe { &mut *(bitptr.pointer().to_mut() as *mut BitArray<O, V>) })
 	}
@@ -365,29 +368,67 @@ where
 {
 }
 
-/// The error type returned when a conversion from a bitslice to a bitarray
-/// fails.
-#[derive(Clone, Copy, Debug)]
-pub struct TryFromBitSliceError;
+/** The error type returned when a conversion from a [`BitSlice`] to a
+[`BitArray`] fails.
+
+[`BitArray`]: crate::array::BitArray
+[`BitSlice`]: crate::slice::BitSlice
+**/
+#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+pub struct TryFromBitSliceError<'a, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	inner: &'a BitSlice<O, T>,
+}
 
 #[cfg(not(tarpaulin_include))]
-impl TryFromBitSliceError {
+impl<'a, O, T> TryFromBitSliceError<'a, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	#[inline(always)]
-	fn err<T>() -> Result<T, Self> {
-		Err(Self)
+	fn err<A>(inner: &'a BitSlice<O, T>) -> Result<A, Self> {
+		Err(Self { inner })
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl Display for TryFromBitSliceError {
+impl<O, T> Debug for TryFromBitSliceError<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		fmt.debug_struct("TryFromBitSliceError")
+			.field("inner", &self.inner)
+			.finish()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<O, T> Display for TryFromBitSliceError<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		fmt.write_str("could not convert bitslice to bitarray")
+		fmt.write_fmt(format_args!(
+			"could not convert bitslice to bitarray: {:?}",
+			self.inner
+		))
 	}
 }
 
 #[cfg(feature = "std")]
-impl std::error::Error for TryFromBitSliceError {
+impl<'a, O, T> std::error::Error for TryFromBitSliceError<'a, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
 }
 
 #[cfg(test)]

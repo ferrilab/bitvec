@@ -1,11 +1,11 @@
-/*! Parallel bitfield access.
+/*! Batched bitfield access.
 
-This module provides parallel, multiple-bit, access to a `BitSlice`. This
+This module provides batched, multiple-bit, access to a [`BitSlice`]. This
 functionality permits the use of `BitSlice` as a library-level implementation of
 the bitfield language feature found in C and C++.
 
-The `BitField` trait is not sealed against client implementation, as there is no
-useful way to automatically use a `BitOrder` implementation to provide a
+The [`BitField`] trait is not sealed against client implementation, as there is
+no useful way to automatically use a [`BitOrder`] implementation to provide a
 universal behavior. As such, the trait has some requirements that the compiler
 cannot enforce for client implementations.
 
@@ -27,15 +27,24 @@ shift/mask operation to select the part of the value that is live.
 
 # Endianness
 
-The `_le` and `_be` methods of `BitField` refer to the order in which
-`T: BitStore` elements of the slice are assigned significance when containing
-fragments of a stored data value. Within any `T` element, the order of its
-constituent bytes is *not* governed by the `BitField` trait method.
+The `_le` and `_be` methods of [`BitField`] refer to the order in which
+`T:` [`BitStore`] elements of the slice are assigned significance when
+containing fragments of a stored data value. Within any `T` element, the order
+of its constituent bytes is *not* governed by the `BitField` trait method.
 
-The provided `BitOrder` implementors `Lsb0` and `Msb0` use the local machine’s
-byte ordering. Other cursors *may* implement ordering of bytes within `T`
-elements differently, for instance by calling `.to_be_bytes` before store and
-`from_be_bytes` after load.
+The provided [`BitOrder`] implementors [`Lsb0`] and [`Msb0`] use the local
+machine’s byte ordering. Other cursors *may* implement ordering of bytes within
+`T` elements differently, for instance by calling [`.to_be_bytes()`] before
+store and [`::from_be_bytes()`] after load.
+
+[`BitField`]: self::BitField
+[`BitOrder`]: crate::order::BitOrder
+[`BitSlice`]: crate::slice::BitSlice
+[`BitStore`]: crate::store::BitStore
+[`Lsb0`]: crate::order::Lsb0
+[`Msb0`]: crate::order::Msb0
+[`.to_be_bytes()`]: usize::to_be_bytes
+[`::from_be_bytes()`]: usize::from_be_bytes
 !*/
 
 use crate::{
@@ -75,16 +84,16 @@ use crate::{
 	vec::BitVec,
 };
 
-/** Performs C-style bitfield access through a `BitSlice`.
+/** Performs C-style bitfield access through a [`BitSlice`].
 
 Bit orderings that permit batched access to regions of memory are enabled to
-load data from, and store data to, a `BitStore` with faster behavior than the
+load data from, and store data to, a [`BitStore`] with faster behavior than the
 default bit-by-bit traversal.
 
-This trait transfers data between a `BitSlice` and a local element. The trait
+This trait transfers data between a [`BitSlice`] and a local element. The trait
 functions always place the live bit region of the slice against the least
-significant bit edge of the local element (return value of `load`, argument of
-`store`).
+significant bit edge of the local element (return value of [`load`], argument of
+[`store`]).
 
 Implementations are encouraged to preserve in-memory bit ordering within a
 memory element, so that call sites can provide a value pattern that the user can
@@ -92,14 +101,20 @@ clearly see matches what they expect for memory ordering. These methods should
 only move data between locations, without modifying the data itself.
 
 Methods should be called as `bits[start .. end].load_or_store()`, where the
-range subslice selects no mor than the `M::BITS` element width being
+range subslice selects no more than the [`M::BITS`] element width being
 transferred.
+
+[`BitSlice`]: crate::slice::BitSlice
+[`BitStore`]: crate::store::BitStore
+[`M::BITS`]: crate::mem::BitMemory::BITS
+[`load`]: Self::load
+[`store`]: Self::store
 **/
 pub trait BitField {
 	/// Loads the bits in the `self` region into a local value.
 	///
 	/// This can load into any of the unsigned integers which implement
-	/// `BitMemory`. Any further transformation must be done by the user.
+	/// [`BitMemory`]. Any further transformation must be done by the user.
 	///
 	/// The default implementation of this function calls [`load_le`] on
 	/// little-endian byte-ordered CPUs, and [`load_be`] on big-endian
@@ -108,13 +123,13 @@ pub trait BitField {
 	/// # Parameters
 	///
 	/// - `&self`: A read reference to some bits in memory. This slice must be
-	///   trimmed to have a width no more than the `M::BITS` width of the type
+	///   trimmed to have a width no more than the [`M::BITS`] width of the type
 	///   being loaded. This can be accomplished with range indexing on a larger
 	///   slice.
 	///
 	/// # Returns
 	///
-	/// A value `M` whose least `self.len()` significant bits are filled with
+	/// A value `M` whose least [`self.len()`] significant bits are filled with
 	/// the bits of `self`.
 	///
 	/// # Panics
@@ -122,8 +137,11 @@ pub trait BitField {
 	/// This method is encouraged to panic if `self` is empty, or wider than a
 	/// single element `M`.
 	///
-	/// [`load_be`]: #tymethod.load_be
-	/// [`load_le`]: #tymethod.load_le
+	/// [`BitMemory`]: crate::mem::BitMemory
+	/// [`M::BITS`]: crate::mem::BitMemory::BITS
+	/// [`load_be`]: Self::load_be
+	/// [`load_le`]: Self::load_le
+	/// [`self.len()`]: crate::slice::BitSlice::len
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	fn load<M>(&self) -> M
@@ -138,7 +156,7 @@ pub trait BitField {
 	/// Stores a sequence of bits from the user into the domain of `self`.
 	///
 	/// This can store any of the unsigned integers which implement
-	/// `BitMemory`. Any other types must first be transformed by the user.
+	/// [`BitMemory`]. Any other types must first be transformed by the user.
 	///
 	/// The default implementation of this function calls [`store_le`] on
 	/// little-endian byte-ordered CPUs, and [`store_be`] on big-endian
@@ -147,24 +165,27 @@ pub trait BitField {
 	/// # Parameters
 	///
 	/// - `&mut self`: A write reference to some bits in memory. This slice must
-	///   be trimmed to have a width no more than the `M::BITS` width of the
+	///   be trimmed to have a width no more than the [`M::BITS`] width of the
 	///   type being stored. This can be accomplished with range indexing on a
 	///   larger slice.
-	/// - `value`: A value, whose `self.len()` least significant bits will be
+	/// - `value`: A value, whose [`self.len()`] least significant bits will be
 	///   stored into `self`.
 	///
 	/// # Behavior
 	///
-	/// The `self.len()` least significant bits of `value` are written into the
-	/// domain of `self`.
+	/// The [`self.len()`] least significant bits of `value` are written into
+	/// the domain of `self`.
 	///
 	/// # Panics
 	///
 	/// This method is encouraged to panic if `self` is empty, or wider than a
 	/// single element `M`.
 	///
-	/// [`store_be`]: #tymethod.store_be
-	/// [`store_le`]: #tymethod.store_le
+	/// [`BitMemory`]: crate::mem::BitMemory
+	/// [`M::BITS`]: crate::mem::BitMemory::BITS
+	/// [`self.len()`]: crate::slice::BitSlice::len
+	/// [`store_be`]: Self::store_be
+	/// [`store_le`]: Self::store_le
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	fn store<M>(&mut self, value: M)
@@ -186,13 +207,13 @@ pub trait BitField {
 	/// # Parameters
 	///
 	/// - `&self`: A read reference to some bits in memory. This slice must be
-	///   trimmed to have a width no more than the `M::BITS` width of the type
+	///   trimmed to have a width no more than the [`M::BITS`] width of the type
 	///   being loaded. This can be accomplished with range indexing on a larger
 	///   slice.
 	///
 	/// # Returns
 	///
-	/// A value `M` whose least `self.len()` significant bits are filled with
+	/// A value `M` whose least [`self.len()`] significant bits are filled with
 	/// the bits of `self`. If `self` spans multiple elements `T`, then the
 	/// lowest-address `T` is interpreted as containing the least significant
 	/// bits of the return value `M`, and the highest-address `T` is interpreted
@@ -202,6 +223,9 @@ pub trait BitField {
 	///
 	/// This method is encouraged to panic if `self` is empty, or wider than a
 	/// single element `M`.
+	///
+	/// [`M::BITS`]: crate::mem::BitMemory::BITS
+	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn load_le<M>(&self) -> M
 	where M: BitMemory;
 
@@ -215,13 +239,13 @@ pub trait BitField {
 	/// # Parameters
 	///
 	/// - `&self`: A read reference to some bits in memory. This slice must be
-	///   trimmed to have a width no more than the `M::BITS` width of the type
+	///   trimmed to have a width no more than the [`M::BITS`] width of the type
 	///   being loaded. This can be accomplished with range indexing on a larger
 	///   slice.
 	///
 	/// # Returns
 	///
-	/// A value `M` whose least `self.len()` significant bits are filled with
+	/// A value `M` whose least [`self.len()`] significant bits are filled with
 	/// the bits of `self`. If `self` spans multiple elements `T`, then the
 	/// lowest-address `T` is interpreted as containing the most significant
 	/// bits of the return value `M`, and the highest-address `T` is interpreted
@@ -231,6 +255,9 @@ pub trait BitField {
 	///
 	/// This method is encouraged to panic if `self` is empty, or wider than a
 	/// single element `M`.
+	///
+	/// [`M::BITS`]: crate::mem::BitMemory::BITS
+	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn load_be<M>(&self) -> M
 	where M: BitMemory;
 
@@ -244,16 +271,16 @@ pub trait BitField {
 	/// # Parameters
 	///
 	/// - `&mut self`: A write reference to some bits in memory. This slice must
-	///   be trimmed to have a width no more than the `M::BITS` width of the
+	///   be trimmed to have a width no more than the [`M::BITS`] width of the
 	///   type being stored. This can be accomplished with range indexing on a
 	///   larger slice.
-	/// - `value`: A value, whose `self.len()` least significant bits will be
+	/// - `value`: A value, whose [`self.len()`] least significant bits will be
 	///   stored into `self`.
 	///
 	/// # Behavior
 	///
-	/// The `self.len()` least significant bits of `value` are written into the
-	/// domain of `self`. If `self` spans multiple elements `T`, then the
+	/// The [`self.len()`] least significant bits of `value` are written into
+	/// the domain of `self`. If `self` spans multiple elements `T`, then the
 	/// lowest-address `T` is interpreted as containing the least significant
 	/// bits of the `M` return value, and the highest-address `T` is interpreted
 	/// as containing its most significant bits.
@@ -262,6 +289,9 @@ pub trait BitField {
 	///
 	/// This method is encouraged to panic if `self` is empty, or wider than a
 	/// single element `M`.
+	///
+	/// [`M::BITS`]: crate::mem::BitMemory::BITS
+	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn store_le<M>(&mut self, value: M)
 	where M: BitMemory;
 
@@ -275,16 +305,16 @@ pub trait BitField {
 	/// # Parameters
 	///
 	/// - `&mut self`: A write reference to some bits in memory. This slice must
-	///   be trimmed to have a width no more than the `M::BITS` width of the
+	///   be trimmed to have a width no more than the [`M::BITS`] width of the
 	///   type being stored. This can be accomplished with range indexing on a
 	///   larger slice.
-	/// - `value`: A value, whose `self.len()` least significant bits will be
+	/// - `value`: A value, whose [`self.len()`] least significant bits will be
 	///   stored into `self`.
 	///
 	/// # Behavior
 	///
-	/// The `self.len()` least significant bits of `value` are written into the
-	/// domain of `self`. If `self` spans multiple elements `T`, then the
+	/// The [`self.len()`] least significant bits of `value` are written into
+	/// the domain of `self`. If `self` spans multiple elements `T`, then the
 	/// lowest-address `T` is interpreted as containing the most significant
 	/// bits of the `M` return value, and the highest-address `T` is interpreted
 	/// as containing its least significant bits.
@@ -293,6 +323,9 @@ pub trait BitField {
 	///
 	/// This method is encouraged to panic if `self` is empty, or wider than a
 	/// single element `M`.
+	///
+	/// [`M::BITS`]: crate::mem::BitMemory::BITS
+	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn store_be<M>(&mut self, value: M)
 	where M: BitMemory;
 }
@@ -727,34 +760,41 @@ fn check(action: &'static str, len: usize, width: u8) {
 /** Reads a value out of a section of a memory element.
 
 This function is used to extract a portion of an `M` value from a portion of a
-`T` value. The `BitField` implementations call it as they assemble a complete
+`T` value. The [`BitField`] implementations call it as they assemble a complete
 `M`. It performs the following steps:
 
 1. the referent value of the `elem` pointer is copied into local memory,
 2. `mask`ed to discard the portions of `*elem` that are not live,
-3. shifted to the LSedge of the `T::Mem` temporary,
+3. shifted to the LSedge of the [`T::Mem`] temporary,
 4. then `resize`d into an `M` value.
 
 This is the exact inverse of `set`.
 
 # Type Parameters
 
-- `T`: The `BitStore` type of a `BitSlice` that is the source of a read event.
-- `M`: The local type of the data contained in that `BitSlice`.
+- `T`: The [`BitStore`] type of a [`BitSlice`] that is the source of a read
+  event.
+- `M`: The local type of the data contained in that [`BitSlice`].
 
 # Parameters
 
-- `elem`: An aliased reference to a single element of a `BitSlice` storage. This
-  is required to remain aliased, as other write-capable references to the
+- `elem`: An aliased reference to a single element of a [`BitSlice`] storage.
+  This is required to remain aliased, as other write-capable references to the
   location may exist.
-- `mask`: A `BitMask` of the live region of the value at `*elem` to be used as
+- `mask`: A [`BitMask`] of the live region of the value at `*elem` to be used as
   the contents of the returned value.
 - `shamt`: The distance of the least significant bit of the mask region from the
-  least significant edge of the `T::Mem` fetched value.
+  least significant edge of the [`T::Mem`] fetched value.
 
 # Returns
 
 `resize((*elem & mask) >> shamt)`
+
+[`BitField`]: crate::field::BitField
+[`BitMask`]: crate::index::BitMask
+[`BitSlice`]: crate::slice::BitSlice
+[`BitStore`]: crate::store::BitStore
+[`T::Mem`]: crate::store::BitStore::Mem
 **/
 #[inline]
 fn get<T, M>(elem: &T, mask: BitMask<T::Mem>, shamt: u8) -> M
@@ -772,11 +812,11 @@ where
 /** Writes a value into a section of a memory element.
 
 This function is used to emplace a portion of an `M` value into a portion of a
-`T` value. The `BitField` implementations call it as they disassemble a complete
-`M`. It performs the following steps:
+`T` value. The [`BitField`] implementations call it as they disassemble a
+complete `M`. It performs the following steps:
 
-1. the provided `value` is `resize`d from `M` to `T::Mem`,
-2. then shifted from the LSedge of the `T::Mem` temporary by `shamt`,
+1. the provided `value` is `resize`d from `M` to [`T::Mem`],
+2. then shifted from the LSedge of the [`T::Mem`] temporary by `shamt`,
 3. `mask`ed to discard the portions of `value` that are not live,
 4. then written into the `mask`ed portion of `*elem`.
 
@@ -784,22 +824,28 @@ This is the exact inverse of `get`.
 
 # Type Parameters
 
-- `T`: The `BitStore` type of a `BitSlice` that is the sink of a write event.
-- `M`: The local type of the data being written into that `BitSlice`.
+- `T`: The [`BitStore`] type of a [`BitSlice`] that is the sink of a write event.
+- `M`: The local type of the data being written into that [`BitSlice`].
 
 # Parameters
 
-- `elem`: An aliased reference to a single element of a `BitSlice` storage.
+- `elem`: An aliased reference to a single element of a [`BitSlice`] storage.
 - `value`: The value whose least-significant bits will be written into the
   subsection of `*elt` covered by `mask`.
 - `mask`: A `BitMask` of the live region of the value at `*elem` to be used as
   a filter on the provided value.
 - `shamt`: The distance of the least significant bit of the mask region from the
-  least significant edge of the `T::Mem` destination value.
+  least significant edge of the [`T::Mem`] destination value.
 
 # Effects
 
 `*elem &= !mask; *elem |= (resize(value) << shamt) & mask;`
+
+[`BitField`]: crate::field::BitField
+[`BitMask`]: crate::index::BitMask
+[`BitSlice`]: crate::slice::BitSlice
+[`BitStore`]: crate::store::BitStore
+[`T::Mem`]: crate::store::BitStore::Mem
 **/
 #[inline]
 fn set<T, M>(elem: &T::Alias, value: M, mask: BitMask<T::Mem>, shamt: u8)
@@ -826,7 +872,7 @@ where
 	elem.set_bits(value);
 }
 
-/** Resizes a value from one register width to another
+/** Resizes a value from one register width to another.
 
 This zero-extends or truncates its source value in order to fit in the target
 type.
@@ -838,7 +884,7 @@ type.
 
 # Parameters
 
-- `value`: Any register value
+- `value`: Any register value.
 
 # Returns
 

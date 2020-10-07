@@ -71,7 +71,7 @@ dev: format lint doc test cover
 
 # Builds the crate documentation.
 doc:
-	@cargo doc --all-features --document-private-items
+	@cargo +nightly doc --all-features --document-private-items
 
 # Runs the formatter on all Rust files.
 format:

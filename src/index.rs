@@ -9,7 +9,7 @@ have an index out of bounds for a register, and creating a sequence of type
 transformations that give assurance about the continued validity of each value
 in its surrounding context.
 
-By eliminating public constructors from arbitrary integers, `bitvec` can
+By eliminating public constructors from arbitrary integers, [`bitvec`] can
 guarantee that only it can produce seed values, and only trusted functions can
 transform their numeric values or types, until the program reaches the property
 it requires. This chain of assurance means that operations that interact with
@@ -17,16 +17,23 @@ memory can be confident in the correctness of their actions and effects.
 
 # Type Sequence
 
-The library produces `BitIdx` values from region computation. These types cannot
+The library produces [`BitIdx`] values from region computation. These types cannot
 be publicly constructed, and are only ever the result of pointer analysis. As
 such, they rely on correctness of the memory regions provided to library entry
 points, and those entry points can leverage the Rust type system to ensure
 safety there.
 
-`BitIdx` is transformed to `BitPos` through the `BitOrder` trait, which has an
-associated verification function to prove that implementations are correct.
-`BitPos` is the only type that can describe memory operations, and is used to
-create selection masks of `BitSel` and `BitMask`.
+[`BitIdx`] is transformed to [`BitPos`] through the [`BitOrder`] trait, which
+has an associated verification function to prove that implementations are
+correct. `BitPos` is the only type that can describe memory operations, and is
+used to create selection masks of [`BitSel`] and [`BitMask`].
+
+[`BitIdx`]: self::BitIdx
+[`BitMask`]: self::BitMask
+[`BitOrder`]: crate::order::BitOrder
+[`BitPos`]: self::BitPos
+[`BitSel`]: self::BitSel
+[`bitvec`]: crate
 !*/
 
 use crate::{
@@ -131,10 +138,13 @@ invalid value.
 
 # Construction
 
-This type cannot be constructed outside the `bitvec` crate. `bitvec` will
+This type cannot be constructed outside the [`bitvec`] crate. `bitvec` will
 construct safe values of this type, and allows users to view them and use them
 to construct other index types from them. All values of this type constructed by
 `bitvec` are known to be correct based on user input to the crate.
+
+[`BitOrder`]: crate::order::BitOrder
+[`bitvec`]: crate
 **/
 // #[rustc_layout_scalar_valid_range_end(R::BITS)]
 #[repr(transparent)]
@@ -236,8 +246,10 @@ where R: BitRegister
 
 	/// Computes the bit position corresponding to `self` under some ordering.
 	///
-	/// This forwards to `O::at::<R>`, and is the only public, safe, constructor
-	/// for a position counter.
+	/// This forwards to [`O::at::<R>`], which is the only public, safe,
+	/// constructor for a position counter.
+	///
+	/// [`O::at::<R>`]: crate::order::BitOrder::at
 	#[inline(always)]
 	pub fn position<O>(self) -> BitPos<R>
 	where O: BitOrder {
@@ -246,8 +258,10 @@ where R: BitRegister
 
 	/// Computes the bit selector corresponding to `self` under an ordering.
 	///
-	/// This forwards to `O::select::<R>`, and is the only public, safe,
+	/// This forwards to [`O::select::<R>`], which is the only public, safe,
 	/// constructor for a bit selector.
+	///
+	/// [`O::select::<R>`]: crate::order::BitOrder::select
 	#[inline(always)]
 	pub fn select<O>(self) -> BitSel<R>
 	where O: BitOrder {
@@ -256,8 +270,10 @@ where R: BitRegister
 
 	/// Computes the bit selector for `self` as an accessor mask.
 	///
-	/// This is a type-cast over `Self::select`. It is one of the few public,
+	/// This is a type-cast over [`Self::select`]. It is one of the few public,
 	/// safe, constructors of a multi-bit mask.
+	///
+	/// [`Self::select`]: Self::select
 	#[inline]
 	pub fn mask<O>(self) -> BitMask<R>
 	where O: BitOrder {
@@ -282,9 +298,10 @@ where R: BitRegister
 
 	/// Constructs a range over all indices between a start and end point.
 	///
-	/// Because implementation details of the `RangeOps` family are not yet
-	/// stable, and heterogenous ranges are not supported, this must be an
-	/// opaque iterator rather than a direct `Range<BitIdx<R>>`.
+	/// Because implementation details of the range type family, including the
+	/// [`RangeBounds`] trait, are not yet stable, and heterogenous ranges are
+	/// not supported, this must be an opaque iterator rather than a direct
+	/// [`Range<BitIdx<R>>`].
 	///
 	/// # Parameters
 	///
@@ -300,6 +317,9 @@ where R: BitRegister
 	/// # Requirements
 	///
 	/// `from` must be no greater than `upto`.
+	///
+	/// [`RangeBounds`]: core::ops::RangeBounds
+	/// [`Range<BitIdx<R>>`]: core::ops::Range
 	#[inline]
 	pub fn range(
 		from: Self,
@@ -399,6 +419,8 @@ where R: BitRegister
 	/// - `.0`: The number of elements, starting in the element that contains
 	///   `self`, that contain live bits of the span.
 	/// - `.1`: The tail counter of the span’s end point.
+	///
+	/// [`BitTail::span`]: crate::index::BitTail::span
 	#[inline]
 	pub(crate) fn span(self, len: usize) -> (usize, BitTail<R>) {
 		make!(tail self.value()).span(len)
@@ -443,7 +465,9 @@ where R: BitRegister
 pub struct BitIdxErr<R>
 where R: BitRegister
 {
-	/// The value that cannot be wrapped into a `BitIdx`.
+	/// The value that cannot be wrapped into a [`BitIdx`].
+	///
+	/// [`BitIdx`]: crate::index::BitIdx
 	err: u8,
 	/// The register type marker.
 	_ty: PhantomData<R>,
@@ -501,16 +525,16 @@ impl<R> std::error::Error for BitIdxErr<R> where R: BitRegister
 
 /** Semantic index of a dead bit *after* a live region.
 
-Like `BitIdx<R>`, this type indicates a semantic counter within a register `R`.
-However, it marks the position of a *dead* bit *after* a live range. This means
-that it is permitted to have the value of `R::BITS`, to indicate that a live
-region touches the semantic back edge of the register `R`.
+Like [`BitIdx<R>`], this type indicates a semantic counter within a register
+`R`. However, it marks the position of a *dead* bit *after* a live range. This
+means that it is permitted to have the value of [`R::BITS`], to indicate that a
+live region touches the semantic back edge of the register `R`.
 
 Instances of this type will only contain the value `0` when the span that
 created them is empty. Otherwise, they will have the range `1 ..= R::BITS`.
 
 This type cannot be used for indexing into a register `R`, and does not
-translate to a `BitPos<R>`. It has no behavior other than viewing its internal
+translate to a [`BitPos<R>`]. It has no behavior other than viewing its internal
 counter for region arithmetic.
 
 # Type Parameters
@@ -526,10 +550,15 @@ invalid value.
 
 # Construction
 
-This type cannot be directly constructed outside the `bitvec` crate. `bitvec`
+This type cannot be directly constructed outside the [`bitvec`] crate. `bitvec`
 will construct safe values of this type, and allows users to view them and use
 them for region computation. All values of this type constructed by `bitvec` are
 known to be correct based on user input to the crate.
+
+[`BitIdx<R>`]: crate::index::BitIdx
+[`BitPos<R>`]: crate::index::BitPos
+[`R::BITS`]: crate::mem::BitMemory::BITS
+[`bitvec`]: crate
 **/
 // #[rustc_layout_scalar_valid_range_end(R::BITS + 1)]
 #[repr(transparent)]
@@ -618,8 +647,11 @@ where R: BitRegister
 	/// # Behavior
 	///
 	/// If `len` is `0`, this returns `(0, self)`, as the span has no live bits.
-	/// If `self` is `BitTail::END`, then the new region starts at
-	/// `BitIdx::ZERO` in the next element.
+	/// If `self` is [`BitTail::END`], then the new region starts at
+	/// [`BitIdx::ZERO`] in the next element.
+	///
+	/// [`BitIdx::ZERO`]: crate::index::BitIdx::ZERO
+	/// [`BitTail::END`]: crate::index::BitTail::END
 	pub(crate) fn span(self, len: usize) -> (usize, Self) {
 		if len == 0 {
 			return (0, self);
@@ -669,8 +701,8 @@ where R: BitRegister
 /** An electrical position of a single bit within a register `R`.
 
 This type is used as the shift distance in the expression `1 << shamt`. It is
-only produced by the translation of a semantic `BitIdx<R>` according to some
-[`BitOrder`] implementation using `BitOrder::at`. It can only be used for the
+only produced by the translation of a semantic [`BitIdx<R>`] according to some
+[`BitOrder`] implementation using [`BitOrder::at`]. It can only be used for the
 construction of bit masks used to manipulate a register value during memory
 access, and serves no other purpose.
 
@@ -687,11 +719,17 @@ invalid value, and users are required to do the same.
 
 # Construction
 
-This type offers public unsafe constructors. `bitvec` does not offer any public
-APIs that take values of this type directly; it always routes through `BitOrder`
-implementations. As `BitIdx` will only be constructed from safe, correct,
-values, and `BitOrder::at` is the only `BitIdx -> BitPos` transform function,
-all constructed `BitPos` values are known to be memory-correct.
+This type offers public unsafe constructors. [`bitvec`] does not offer any
+public APIs that take values of this type directly; it always routes through
+[`BitOrder`] implementations. As [`BitIdx`] will only be constructed from safe,
+correct, values, and `BitOrder::at` is the only `BitIdx -> BitPos` transform
+function, all constructed `BitPos` values are known to be memory-correct.
+
+[`BitIdx`]: crate::index::BitIdx
+[`BitIdx<R>`]: crate::index::BitIdx
+[`BitOrder`]: crate::order::BitOrder
+[`BitOrder::at`]: crate::order::BitOrder::at
+[`bitvec`]: crate
 **/
 // #[rustc_layout_scalar_valid_range_end(R::BITS)]
 #[repr(transparent)]
@@ -721,8 +759,10 @@ where R: BitRegister
 	///
 	/// # Safety
 	///
-	/// This function must only be called within a `BitOrder::at` implementation
-	/// which is verified to be correct.
+	/// This function must only be called within a [`BitOrder::at`]
+	/// implementation which is verified to be correct.
+	///
+	/// [`BitOrder::at`]: crate::order::BitOrder::at
 	#[inline]
 	pub unsafe fn new(pos: u8) -> Option<Self> {
 		//  Reject a position value that is not within the range `0 .. R::BITS`.
@@ -748,8 +788,10 @@ where R: BitRegister
 	/// builds, invalid `pos` values cause a panic; release builds do not check
 	/// the input.
 	///
-	/// This function must only be called in a correct `BitOrder::at`
+	/// This function must only be called in a correct [`BitOrder::at`]
 	/// implementation.
+	///
+	/// [`BitOrder::at`]: crate::order::BitOrder::at
 	#[inline]
 	pub unsafe fn new_unchecked(pos: u8) -> Self {
 		debug_assert!(
@@ -840,10 +882,15 @@ other bits set to `0`.
 
 # Construction
 
-This type is only constructed from `BitPos` values, which are themselves only
-constructed by a chain of known-good `BitIdx` values passed into known-correct
-`BitOrder` implementations. As such, `bitvec` can use `BitSel` values with full
-confidence that they are correct in the surrounding context.
+This type is only constructed from [`BitPos`] values, which are themselves only
+constructed by a chain of known-good [`BitIdx`] values passed into known-correct
+[`BitOrder`] implementations. As such, `bitvec` can use [`BitSel`] values with
+full confidence that they are correct in the surrounding context.
+
+[`BitIdx`]: crate::index::BitIdx
+[`BitOrder`]: crate::order::BitOrder
+[`BitPos`]: crate::index::BitPos
+[`BitSel`]: crate::index::BitSel
 **/
 #[repr(transparent)]
 #[derive(Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -870,8 +917,10 @@ where R: BitRegister
 	///
 	/// # Safety
 	///
-	/// This function must only be called within a `BitOrder::select`
+	/// This function must only be called within a [`BitOrder::select`]
 	/// implementation that is verified to be correct.
+	///
+	/// [`BitOrder::select`]: crate::order::BitOrder::select
 	#[inline]
 	pub unsafe fn new(sel: R) -> Option<Self> {
 		if sel.count_ones() != 1 {
@@ -896,8 +945,10 @@ where R: BitRegister
 	/// debug builds, invalid `sel` values cause a panic; release builds do not
 	/// check the input.
 	///
-	/// This function must only be called in a correct `BitOrder::select`
+	/// This function must only be called in a correct [`BitOrder::select`]
 	/// implementation.
+	///
+	/// [`BitOrder::select`]: crate::order::BitOrder::select
 	#[inline]
 	pub unsafe fn new_unchecked(sel: R) -> Self {
 		debug_assert!(
@@ -973,9 +1024,11 @@ selections for a batch operation on a register.
 
 # Construction
 
-It is only constructed by accumulating `BitSel` values. The chain of custody for
-safe construction in this module and in `order` ensures that all masks that are
-applied to register values can be trusted to not cause memory unsafety.
+It is only constructed by accumulating [`BitSel`] values. The chain of custody
+for safe construction in this module and in `order` ensures that all masks that
+are applied to register values can be trusted to not cause memory unsafety.
+
+[`BitSel`]: crate::index::BitSel
 **/
 #[repr(transparent)]
 #[derive(Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -1010,10 +1063,13 @@ where R: BitRegister
 	///
 	/// # Safety
 	///
-	/// This function must only be called within a `BitOrder::mask`
+	/// This function must only be called within a [`BitOrder::mask`]
 	/// implementation which is verified to be correct.
 	///
-	/// Prefer accumulating `BitSel` values using the `Sum` implementation.
+	/// Prefer accumulating [`BitSel`] values using the `Sum` implementation.
+	///
+	/// [`BitOrder::mask`]: crate::order::BitOrder::mask
+	/// [`BitSel`]: crate::index::BitSel
 	#[inline]
 	pub unsafe fn new(mask: R) -> Self {
 		make!(mask mask)

@@ -54,12 +54,14 @@ use crate::{
 	order::{
 		BitOrder,
 		Lsb0,
+		Msb0,
 	},
 	pointer::BitPtr,
 	store::BitStore,
 };
 
 use core::{
+	any::TypeId,
 	cmp,
 	marker::PhantomData,
 	ops::RangeBounds,
@@ -376,7 +378,7 @@ assert_eq!(vec.as_bitslice(), slice[.. 20]);
 [`BitView`]: crate::view::BitView
 [`Lsb0`]: crate::order::Lsb0
 [`Msb0`]: crate::order::Msb0
-[`bits!`]: crate::bits
+[`bits!`]: macro@crate::bits
 [`bitvec::prelude::LocalBits`]: crate::order::LocalBits
 [`from_element`]: Self::from_element
 [`from_element_mut`]: Self::from_element_mut
@@ -1163,7 +1165,8 @@ where
 	/// bool` references, and the [`BitMut`] proxy reference has an unavoidable
 	/// overhead. This method bypasses both problems, by applying a function to
 	/// each pair of index and value in the slice, without constructing a proxy
-	/// reference.
+	/// reference. Benchmarks indicate that this method is about 2–4 times
+	/// faster than the `.iter_mut().enumerate()` equivalent.
 	///
 	/// # Parameters
 	///
@@ -1854,18 +1857,28 @@ where
 	#[inline]
 	pub unsafe fn copy_within_unchecked<R>(&mut self, src: R, dest: usize)
 	where R: RangeBounds<usize> {
-		let len = self.len();
-		let rev = src.contains(&dest);
-		let source = dvl::normalize_range(src, len);
-		let iter = source.zip(dest .. len);
-		if rev {
-			for (from, to) in iter.rev() {
-				self.copy_unchecked(from, to);
-			}
+		if TypeId::of::<O>() == TypeId::of::<Lsb0>() {
+			let this: &mut BitSlice<Lsb0, T> = &mut *(self as *mut _ as *mut _);
+			this.sp_copy_within_unchecked(src, dest);
+		}
+		else if TypeId::of::<O>() == TypeId::of::<Msb0>() {
+			let this: &mut BitSlice<Msb0, T> = &mut *(self as *mut _ as *mut _);
+			this.sp_copy_within_unchecked(src, dest);
 		}
 		else {
-			for (from, to) in iter {
-				self.copy_unchecked(from, to);
+			let source = dvl::normalize_range(src, self.len());
+			let source_len = source.len();
+			let rev = source.contains(&dest);
+			let iter = source.zip(dest .. dest + source_len);
+			if rev {
+				for (from, to) in iter.rev() {
+					self.copy_unchecked(from, to);
+				}
+			}
+			else {
+				for (from, to) in iter {
+					self.copy_unchecked(from, to);
+				}
 			}
 		}
 	}
@@ -2121,9 +2134,9 @@ within the caller’s memory management system. It must also not be modified for
 the duration of the lifetime `'a`, unless the `T` type parameter permits safe
 shared mutation.
 
-[`BitSlice::<O, T>::MAX_BITS`]: struct.BitSlice.html#associatedconstant.MAX_BITS
-[`T::Mem::BITS`]: ../mem/trait.BitMemory.html#associatedconstant.BITS
-[`slice::from_raw_parts`]: https://doc.rust-lang.org/core/slice/fn.from_raw_parts.html
+[`BitSlice::<O, T>::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
+[`T::Mem::BITS`]: crate::mem::BitMemory::BITS
+[`slice::from_raw_parts`]: core::slice::from_raw_parts
 **/
 #[inline]
 pub unsafe fn bits_from_raw_parts<'a, O, T>(
@@ -2180,9 +2193,9 @@ within the caller’s memory management system. It must also not be reachable fo
 the lifetime `'a` by any path other than references derived from the return
 value.
 
-[`BitSlice::<O, T>::MAX_BITS`]: struct.BitSlice.html#associatedconstant.MAX_BITS
-[`T::Mem::BITS`]: ../mem/trait.BitMemory.html#associatedconstant.BITS
-[`slice::from_raw_parts_mut`]: https://doc.rust-lang.org/core/slice/fn.from_raw_parts_mut.html
+[`BitSlice::<O, T>::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
+[`T::Mem::BITS`]: crate::mem::BitMemory::BITS
+[`slice::from_raw_parts_mut`]: core::slice::from_raw_parts_mut
 **/
 #[inline]
 pub unsafe fn bits_from_raw_parts_mut<'a, O, T>(

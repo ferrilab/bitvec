@@ -1,4 +1,7 @@
-//! Operator implementations on `BitArray`.
+/*! Operator implementations on [`BitArray`].
+
+[`BitArray`]: crate::array::BitArray
+!*/
 
 use crate::{
 	array::BitArray,

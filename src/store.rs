@@ -1,7 +1,9 @@
 /*! Memory modeling.
 
-This module provides a `BitStore` trait, which mediates how handles access
+This module provides a [`BitStore`] trait, which mediates how handles access
 memory and perform analysis on the regions they describe.
+
+[`BitStore`]: self::BitStore
 !*/
 
 use crate::{
@@ -25,24 +27,24 @@ use radium::Radium;
 /** Common interface for memory regions.
 
 This trait is implemented on the fundamental integers no wider than the target
-processor word size, their `Cell` wrappers, and (if present) their `Atomic`
+processor word size, their [`Cell`] wrappers, and (if present) their [`Atomic`]
 variants. Users provide this type as a parameter to their data structures in
 order to inform the structure of how it may access the memory it describes.
 
-Currently, `bitvec` is only tested on 32- and 64- bit architectures. This means
-that `u8`, `u16`, `u32`, and `usize` unconditionally implement `BitStore`, but
-`u64` will only do so on 64-bit targets, and will be unavailable on 32-bit
+Currently, [`bitvec`] is only tested on 32- and 64- bit architectures. This
+means that `u8`, `u16`, `u32`, and `usize` unconditionally implement `BitStore`,
+but `u64` will only do so on 64-bit targets, and will be unavailable on 32-bit
 targets. This is a necessary restriction of `bitvec` internals. Please comment
 on [Issue #76](https://github.com/myrrlyn/bitvec/issues/76) if this affects you.
 
-Specifically, this has the davantage that a `BitSlice<_, Cell<_>>` knows that it
-has a view of memory that will not undergo concurrent modification. As such, it
-can forego atomic accesses, and just use ordinary load/store instructions
+Specifically, this has the davantage that a [`BitSlice<_, Cell<_>>`] knows that
+it has a view of memory that will not undergo concurrent modification. As such,
+it can forego atomic accesses, and just use ordinary load/store instructions
 without fear of causing observable race conditions.
 
-The associated types `Mem` and `Alias` allow implementors to know the register
-width of the memory they describe (`Mem`) and to know the aliasing status of the
-region.
+The associated types [`Mem`] and [`Alias`] allow implementors to know the
+register width of the memory they describe (`Mem`) and to know the aliasing
+status of the region.
 
 # Generic Programming
 
@@ -55,13 +57,13 @@ and `T::NoAlias::NoAlias == T::NoAlias`. Unfortunately, the Rust type system
 does not allow these relationships to be described, so generic programming that
 performs type transitions will *rapidly* become uncomfortable to use.
 
-Internally, `bitvec` makes use of type-manipulation functions that are known to
-be correct with respect to the implementations of `BitStore` in order to ease
+Internally, [`bitvec`] makes use of type-manipulation functions that are known
+to be correct with respect to the implementations of `BitStore in order to ease
 implementation of library methods.
 
 You are not expected to do significant programming that is generic over the
-`BitStore` memory parameter. When using a concrete type, the compiler will
-gladly reduce the abstract type associations into their instantiated selections,
+`BitStore memory parameter. When using a concrete type, the compiler will gladly
+reduce the abstract type associations into their instantiated selections,
 allowing monomorphized code to be *much* more convenient than generic.
 
 If you have a use case that involves generic programming over this trait, and
@@ -74,11 +76,20 @@ This trait has trait requirements that better express its behavior:
 
 - `Sealed` prevents it from being implemented by downstream libraries (`Sealed`
   is a public trait in a private module, that only this crate can name).
-- `Sized` instructs the compiler that values of this type can be used as
+- [`Sized`] instructs the compiler that values of this type can be used as
   immediates.
-- `Debug` informs the compiler that other structures using this trait bound can
-  correctly derive `Debug`.
-  **/
+- [`Debug`] informs the compiler that other structures using this trait bound
+  can correctly derive `Debug`.
+
+[`Alias`]: Self::Alias
+[`Atomic`]: core::sync::atomic
+[`BitSlice<_, Cell<_>>`]: crate::slice::BitSlice
+[`Cell`]: core::cell::Cell
+[`Mem`]: Self::Mem
+[`Debug`]: core::fmt::Debug
+[`Sized`]: core::marker::Sized
+[`bitvec`]: crate
+**/
 pub trait BitStore: 'static + seal::Sealed + Sized + Debug {
 	/// The register type that the implementor describes.
 	type Mem: BitRegister + BitStore;
@@ -90,13 +101,8 @@ pub trait BitStore: 'static + seal::Sealed + Sized + Debug {
 	/// access.
 	///
 	/// While the associated type always has the same `Mem` concrete type as
-	/// `Self`, attempting to encode this requirement as `<Mem = Self::Mem>
+	/// `Self`, attempting to encode this requirement as `<Mem = Self::Mem>`
 	/// causes Rust to enter an infinite recursion in the trait solver.
-	///
-	/// Instead, the two `Radium` bounds inform the compiler that the `Alias` is
-	/// irradiant over both the current memory and the destination memory types,
-	/// allowing generic type algebra to resolve correctly even though the fact
-	/// that `Radium` is only implemented once is not guaranteed.
 	type Alias: BitStore + Radium<Item = Self::Mem>;
 
 	/// Marker for the thread safety of the implementor.
@@ -192,7 +198,7 @@ macro_rules! store {
 			type Threadsafe = Self;
 
 			#[doc(hidden)]
-			const __ALIGNED_TO_SIZE: [(); 0] = [(); mem::aligned_to_size::<Self>()];
+			const __ALIGNED_TO_SIZE: [(); 0] = [(); mem::misaligned_to_size::<Self>()];
 
 			#[doc(hidden)]
 			const __ALIAS_WIDTH: [(); 0] = [(); mem::cmp_layout::<Self::Mem, Self::Alias>()];
@@ -215,7 +221,7 @@ macro_rules! store {
 			type Threadsafe = Self;
 
 			#[doc(hidden)]
-			const __ALIGNED_TO_SIZE: [(); 0] = [(); mem::aligned_to_size::<Self>()];
+			const __ALIGNED_TO_SIZE: [(); 0] = [(); mem::misaligned_to_size::<Self>()];
 
 			#[doc(hidden)]
 			const __ALIAS_WIDTH: [(); 0] = [(); mem::cmp_layout::<Self::Mem, Self::Alias>()];
@@ -258,7 +264,6 @@ where
 	type Threadsafe = *const Self;
 
 	// If these are true for `R: BitRegister`, then they are true for `Cell<R>`.
-
 	#[doc(hidden)]
 	const __ALIAS_WIDTH: [(); 0] = [];
 	#[doc(hidden)]

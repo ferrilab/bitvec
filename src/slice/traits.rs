@@ -33,7 +33,6 @@ use core::{
 		Hash,
 		Hasher,
 	},
-	mem,
 	str,
 };
 
@@ -94,13 +93,17 @@ where
 			&& any::TypeId::of::<T1>() == any::TypeId::of::<T2>()
 		{
 			if any::TypeId::of::<O1>() == any::TypeId::of::<Lsb0>() {
-				let this: &BitSlice<Lsb0, T1> = unsafe { mem::transmute(self) };
-				let that: &BitSlice<Lsb0, T1> = unsafe { mem::transmute(rhs) };
+				let this: &BitSlice<Lsb0, T1> =
+					unsafe { &*(self as *const _ as *const _) };
+				let that: &BitSlice<Lsb0, T1> =
+					unsafe { &*(rhs as *const _ as *const _) };
 				this.sp_eq(that)
 			}
 			else if any::TypeId::of::<O1>() == any::TypeId::of::<Msb0>() {
-				let this: &BitSlice<Msb0, T1> = unsafe { mem::transmute(self) };
-				let that: &BitSlice<Msb0, T1> = unsafe { mem::transmute(rhs) };
+				let this: &BitSlice<Msb0, T1> =
+					unsafe { &*(self as *const _ as *const _) };
+				let that: &BitSlice<Msb0, T1> =
+					unsafe { &*(rhs as *const _ as *const _) };
 				this.sp_eq(that)
 			}
 			else {

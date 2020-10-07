@@ -1,4 +1,7 @@
-//! Port of the `Vec<T>` function API.
+/*! Port of the [`Vec<T>`] function API.
+
+[`Vec<T>`]: alloc::vec::Vec
+!*/
 
 use crate::{
 	mem::BitMemory,
@@ -52,7 +55,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut bv = BitVec::<LocalBits, usize>::new();
+	/// let mut bv: BitVec = BitVec::new();
 	/// ```
 	#[inline]
 	pub fn new() -> Self {
@@ -85,17 +88,17 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut bv = BitVec::<LocalBits, usize>::with_capacity(10);
+	/// let mut bv: BitVec = BitVec::with_capacity(64);
 	///
 	/// // The vector contains no items, even though it has capacity for more
 	/// assert_eq!(bv.len(), 0);
 	///
-	/// // These are all done without reallocating...
-	/// for i in 0..10 {
+	/// // These are all done without reällocating…
+	/// for i in 0 .. 64 {
 	///   bv.push(true);
 	/// }
 	///
-	/// // ...but this may make the vector reallocate
+	/// // …but this may make the vector reällocate
 	/// bv.push(false);
 	/// ```
 	///
@@ -119,7 +122,7 @@ where
 	}
 
 	/// Creates a `BitVec<O, T>` directly from the raw components of another
-	/// bit-vector.
+	/// `BitVec<O, T>`.
 	///
 	/// # Original
 	///
@@ -132,7 +135,7 @@ where
 	/// `*BitSlice` region pointer. As such, this only accepts two components;
 	/// the slice pointer and the buffer capacity.
 	///
-	/// `Vec` could define its raw parts as `*[T]` and `usize` also, but Rust
+	/// [`Vec`] could define its raw parts as `*[T]` and `usize` also, but Rust
 	/// does not make working with raw slice pointers easy.
 	///
 	/// # Panics
@@ -154,11 +157,12 @@ where
 	/// - `capacity` needs to be the capacity that the pointer was allocated
 	///   with.
 	///
-	/// In addition to the invariants inherited from `Vec::from_raw_parts`, the
-	/// fact that this function takes a bit-slice pointer adds another one:
+	/// In addition to the invariants inherited from [`Vec::from_raw_parts`],
+	/// the fact that this function takes a [`BitSlice`] pointer adds another
+	/// one:
 	///
 	/// - **`pointer` MUST NOT have had its value modified in any way in the**
-	/// **time when it was outside of a `bitvec` container type.**
+	///   **time when it was outside of a `bitvec` container type.**
 	///
 	/// Violating these *will* cause problems like corrupting the allocator’s
 	/// internal data structures. For example it is **not** safe to build a
@@ -184,14 +188,15 @@ where
 	///
 	/// let bv = bitvec![0, 1, 0, 1];
 	///
-	/// // Prevent running `bv`’s destructor so we are in complete control
-	/// // of the allocation.
+	/// // Prevent running `bv`’s destructor so we
+	/// // are in complete control of the allocation.
 	/// let mut bv = mem::ManuallyDrop::new(bv);
 	///
-	/// // Pull out the various important pieces of information about `bv`
+	/// // Pull out the various important
+	/// // pieces of information about `bv`
 	/// let p = bv.as_mut_ptr();
 	/// let e = bv.elements();
-	/// let cap = bv.capacity();
+	/// let cap = bv.alloc_capacity();
 	///
 	/// unsafe {
 	///   let bits = bv::slice::from_raw_parts_mut::<LocalBits, _>(p, e);
@@ -206,6 +211,9 @@ where
 	/// }
 	/// ```
 	///
+	/// [`BitSlice`]: crate::slice::BitSlice
+	/// [`Vec`]: alloc::vec::Vec
+	/// [`Vec::from_raw_parts`]: alloc::vec::Vec::from_raw_parts
 	/// [`dealloc`]: alloc::alloc::GlobalAlloc::dealloc
 	#[inline]
 	pub unsafe fn from_raw_parts(
@@ -355,7 +363,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut bv = BitVec::<LocalBits, usize>::with_capacity(100);
+	/// let mut bv: BitVec = BitVec::with_capacity(100);
 	/// bv.extend([false, true, false].iter().copied());
 	/// assert!(bv.capacity() >= 100);
 	/// bv.shrink_to_fit();
@@ -403,7 +411,7 @@ where
 	/// ```
 	///
 	/// [`Box<[T]>`]: alloc::boxed::Box
-	/// [`.into_boxed_bitslice()`]: crate::vec::BitVec::into_boxed_bitslice
+	/// [`.into_boxed_bitslice()`]: Self::into_boxed_bitslice
 	#[inline]
 	pub fn into_boxed_slice(self) -> Box<[T]> {
 		self.into_vec().into_boxed_slice()
@@ -419,7 +427,7 @@ where
 	///
 	/// Note that this method has no effect on the allocated capacity of the
 	/// vector, **nor does it erase truncated memory**. Bits in the allocated
-	/// memory that are outside of the `.as_bitslice()` view always have
+	/// memory that are outside of the [`.as_bitslice()`] view always have
 	/// **unspecified** values, and cannot be relied upon to be zero.
 	///
 	/// # Original
@@ -461,8 +469,9 @@ where
 	/// assert!(bv.is_empty());
 	/// ```
 	///
-	/// [`clear`]: #method.clear
-	/// [`drain`]: #method.drain
+	/// [`clear`]: Self::clear
+	/// [`drain`]: Self::drain
+	/// [`.as_bitslice()`]: Self::as_bitslice
 	#[inline]
 	pub fn truncate(&mut self, len: usize) {
 		if len < self.len() {
@@ -478,7 +487,7 @@ where
 	///
 	/// # Analogue
 	///
-	/// See [`as_bitslice`] for a `&BitVec -> &BitSlice` transform.
+	/// See [`.as_bitslice()`] for a `&BitVec -> &BitSlice` transform.
 	///
 	/// # Examples
 	///
@@ -491,7 +500,7 @@ where
 	/// # }
 	/// ```
 	///
-	/// [`as_bitslice`]: #method.as_bitslice
+	/// [`.as_bitslice()`]: Self::as_bitslice
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_slice(&self) -> &[T] {
@@ -508,7 +517,8 @@ where
 	///
 	/// # Analogue
 	///
-	/// See [`as_mut_bitslice`] for a `&mut BitVec -> &mut BitSlice` transform.
+	/// See [`.as_mut_bitslice()`] for a `&mut BitVec -> &mut BitSlice`
+	/// transform.
 	///
 	/// # Examples
 	///
@@ -521,7 +531,7 @@ where
 	/// # }
 	/// ```
 	///
-	/// [`as_mut_bitslice`]: #method.as_mut_bitslice
+	/// [`.as_mut_bitslice()`]: Self::as_mut_bitslice
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
@@ -539,8 +549,8 @@ where
 	///
 	/// The caller must also ensure that the memory the pointer
 	/// (non-transitively) points to is never written to (except inside an
-	/// `UnsafeCell`) using this pointer or any pointer derived from it. If you
-	/// need to mutate the contents of the slice, use [`as_mut_ptr`].
+	/// [`UnsafeCell`]) using this pointer or any pointer derived from it. If
+	/// you need to mutate the contents of the slice, use [`.as_mut_ptr()`].
 	///
 	/// # Original
 	///
@@ -548,7 +558,7 @@ where
 	///
 	/// # Analogue
 	///
-	/// See [`as_bitptr`] for a `&BitVec -> *const BitSlice` transform.
+	/// See [`.as_bitptr()`] for a `&BitVec -> *const BitSlice` transform.
 	///
 	/// # Examples
 	///
@@ -563,8 +573,9 @@ where
 	/// }
 	/// ```
 	///
-	/// [`as_bitptr`]: crate::vec::BitVec::as_bitptr
-	/// [`as_mut_ptr`]: crate::vec::BitVec::as_mut_ptr
+	/// [`UnsafeCell`]: core::cell::UnsafeCell
+	/// [`.as_bitptr()`]: Self::as_bitptr
+	/// [`.as_mut_ptr()`]: Self::as_mut_ptr
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_ptr(&self) -> *const T {
@@ -584,7 +595,7 @@ where
 	///
 	/// # Analogue
 	///
-	/// See [`as_mut_bitptr`] for a `&mut BitVec -> *mut BitSlice` transform.
+	/// See [`.as_mut_bitptr()`] for a `&mut BitVec -> *mut BitSlice` transform.
 	///
 	/// # Eaxmples
 	///
@@ -603,7 +614,7 @@ where
 	/// assert!(bv.all());
 	/// ```
 	///
-	/// [`as_mut_bitptr`]: #method.as_mut_bitptr
+	/// [`.as_mut_bitptr()`]: Self::as_mut_bitptr
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_ptr(&mut self) -> *mut T {
@@ -664,11 +675,11 @@ where
 	/// # }
 	/// ```
 	///
-	/// [`capacity()`]: #method.capacity
-	/// [`clear`]: #method.clear
-	/// [`extend`]: #method.extend
-	/// [`resize`]: #method.resize
-	/// [`truncate`]: #method.truncate
+	/// [`capacity()`]: Self::capacity
+	/// [`clear`]: Self::clear
+	/// [`extend`]: Self::extend
+	/// [`resize`]: Self::resize
+	/// [`truncate`]: Self::truncate
 	#[inline]
 	pub unsafe fn set_len(&mut self, new_len: usize) {
 		assert!(
@@ -684,12 +695,7 @@ where
 			new_len,
 			cap,
 		);
-		self.pointer = self
-			.pointer
-			.as_ptr()
-			.pipe(BitPtr::from_bitslice_ptr_mut)
-			.tap_mut(|bp| bp.set_len(new_len))
-			.to_nonnull()
+		self.set_len_unchecked(new_len);
 	}
 
 	/// Removes a bit from the vector and returns it.
@@ -861,12 +867,7 @@ where
 			self.with_vec(|v| v.push(T::Mem::ZERO));
 		}
 		unsafe {
-			self.pointer = self
-				.pointer
-				.as_ptr()
-				.pipe(BitPtr::from_bitslice_ptr_mut)
-				.tap_mut(|bp| bp.set_len(len + 1))
-				.to_nonnull();
+			self.set_len_unchecked(len + 1);
 			self.set_unchecked(len, value);
 		}
 	}
@@ -895,7 +896,9 @@ where
 			0 => None,
 			n => unsafe {
 				let m = n - 1;
-				(*self.get_unchecked(m)).tap(|_| self.set_len(m)).pipe(Some)
+				(*self.get_unchecked(m))
+					.tap(|_| self.set_len_unchecked(m))
+					.pipe(Some)
 			},
 		}
 	}
@@ -940,7 +943,7 @@ where
 	/// consumed or not consumed at all.
 	///
 	/// Note 2: It is unspecified how many bits are removed from the vector if
-	/// the `Drain` value is leaked.
+	/// the [`Drain`] value is leaked.
 	///
 	/// # Original
 	///
@@ -965,6 +968,8 @@ where
 	/// bv.drain(..);
 	/// assert_eq!(bv, bits![]);
 	/// ```
+	///
+	/// [`Drain`]: crate::vec::Drain
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn drain<R>(&mut self, range: R) -> Drain<O, T>
@@ -974,8 +979,8 @@ where
 
 	/// Clears the vector, removing all values.
 	///
-	/// Note that this method has no effect on the allocated capacity of the
-	/// vector.
+	/// Note that this method has no effect on the contents or allocated
+	/// capacity of the vector.
 	///
 	/// # Original
 	///
@@ -1044,12 +1049,10 @@ where
 	/// the closure `func`. The return values from `func` will end up in the
 	/// `BitVec` in the order they have been generated.
 	///
-	/// If `new_len` is less than `len`, the `Vec` is simply truncated.
+	/// If `new_len` is less than `len`, the `BitVec` is simply truncated.
 	///
 	/// This method uses a closure to create new values on every push. If you’d
-	/// rather [`Clone`] a given bit, use [`resize`]. If you want to use the
-	/// [`Default`] trait to generate values, you can pass [`Default::default`]
-	/// as the second argument.
+	/// rather copy a given bit, use [`resize`].
 	///
 	/// # Original
 	///
@@ -1070,10 +1073,7 @@ where
 	/// assert_eq!(bv, bits![0, 1, 0, 1]);
 	/// ```
 	///
-	/// [`Clone`]: std::clone::Clone
-	/// [`Default`]: std::default::Default
-	/// [`Default::default`]: std::default::Default::default
-	/// [`resize`]: crate::vec::BitVec::resize
+	/// [`resize`]: Self::resize
 	#[inline]
 	pub fn resize_with<F>(&mut self, new_len: usize, mut func: F)
 	where F: FnMut() -> bool {
@@ -1118,7 +1118,7 @@ where
 	/// assert_eq!(bv, bits![1; 2]);
 	/// ```
 	///
-	/// [`resize_with`]: #method.resize_with
+	/// [`resize_with`]: Self::resize_with
 	#[inline]
 	pub fn resize(&mut self, new_len: usize, value: bool) {
 		let len = self.len();
@@ -1159,8 +1159,8 @@ where
 	///
 	/// # Analogue
 	///
-	/// See [`.extend_from_bitslice()`] for the method to append a bit-slice of
-	/// the same type parameters to a bit-vector.
+	/// See [`.extend_from_bitslice()`] for the method to append a [`BitSlice`]
+	/// of the same type parameters to a bit-vector.
 	///
 	/// # Examples
 	///
@@ -1172,8 +1172,9 @@ where
 	/// assert_eq!(bv, bits![0, 1]);
 	/// ```
 	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	/// [`Extend`]: #impl-Extend<%26'a bool>
-	/// [`.extend_from_bitslice()`]: crate::vec::BitVec::extend_from_bitslice
+	/// [`.extend_from_bitslice()`]: Self::extend_from_bitslice
 	#[cfg_attr(not(tarpaulin), inline(always))]
 	pub fn extend_from_slice(&mut self, other: &[bool]) {
 		self.extend(other)
@@ -1187,9 +1188,9 @@ where
 	/// the end.
 	///
 	/// It is unspecified how many bits are removed from the vector if the
-	/// `Splice` value is leaked.
+	/// [`Splice`] value is leaked.
 	///
-	/// The input iterator `replace_with` is only consumed when the `Splice`
+	/// The input iterator `replace_with` is only consumed when the [`Splice`]
 	/// value is dropped.
 	///
 	/// This is optimal if:
@@ -1215,6 +1216,8 @@ where
 	/// assert_eq!(bv, bits![1, 0, 0]);
 	/// assert_eq!(old, bits![0, 1]);
 	/// ```
+	///
+	/// [`Splice`]: crate::vec::Splice
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn splice<R, I>(

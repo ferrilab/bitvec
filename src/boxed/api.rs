@@ -1,4 +1,7 @@
-//! Port of the `Box<[T]>` function API.
+/*! Port of the [`Box<slice<T>>`] function API.
+
+[`Box<slice<T>>`]: alloc::boxed::Box
+!*/
 
 use crate::{
 	boxed::BitBox,
@@ -28,7 +31,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Box::new`](https://doc.rust-lang.org/alloc/boxed/struct.Box.html#method.new)
+	/// [`Box::new`](alloc::boxed::Box::new)
 	///
 	/// # API Differences
 	///
@@ -56,7 +59,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Box::pin`](https://doc.rust-lang.org/alloc/boxed/struct.Box.html#method.pin)
+	/// [`Box::pin`](alloc::boxed::Box::pin)
 	///
 	/// # API Differences
 	///
@@ -80,7 +83,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Box::from_raw`](https://doc.rust-lang.org/alloc/boxed/struct.Box.html#method.from_raw)
+	/// [`Box::from_raw`](alloc::boxed::Box::from_raw)
 	///
 	/// # Safety
 	///
@@ -102,8 +105,8 @@ where
 	/// ```
 	///
 	/// [memory layout]: https://doc.rust-lang.org/alloc/boxed/index.html#memory-layout
-	/// [`Layout`]: https://doc.rust-lang.org/alloc/struct.Layout.html
-	/// [`BitBox::into_raw`]: #method.into_raw
+	/// [`Layout`]: alloc::alloc::Layout
+	/// [`BitBox::into_raw`]: Self::into_raw
 	#[inline]
 	pub unsafe fn from_raw(raw: *mut BitSlice<O, T>) -> Self {
 		raw.pipe(BitPtr::from_bitslice_ptr_mut)
@@ -128,7 +131,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Box::into_raw`](https://doc.rust-lang.org/alloc/boxed/struct.Box.html#method.into_raw)
+	/// [`Box::into_raw`](alloc::boxed::Box::into_raw)
 	///
 	/// # Examples
 	///
@@ -143,7 +146,7 @@ where
 	/// let b = unsafe { BitBox::from_raw(ptr) };
 	/// ```
 	///
-	/// [`BitBox::from_raw`]: #method.from_raw
+	/// [`BitBox::from_raw`]: Self::from_raw
 	#[cfg_attr(not(tarpaulin), inline(always))]
 	pub fn into_raw(b: Self) -> *mut BitSlice<O, T> {
 		Self::leak(b)
@@ -167,7 +170,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Box::leak`](https://doc.rust-lang.org/alloc/boxed/struct.Box.html#method.leak)
+	/// [`Box::leak`](alloc::boxed::Box::leak)
 	///
 	/// # Examples
 	///
@@ -182,7 +185,7 @@ where
 	/// assert_eq!(static_ref.count_ones(), 1);
 	/// ```
 	///
-	/// [`BitBox::from_raw`]: #method.from_raw
+	/// [`BitBox::from_raw`]: Self::from_raw
 	#[inline]
 	pub fn leak<'a>(b: Self) -> &'a mut BitSlice<O, T>
 	where T: 'a {

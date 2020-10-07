@@ -32,7 +32,7 @@ This struct is created by the [`iter`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::Iter`](https://doc.rust-lang.org/core/slice/struct.Iter.html)
+[`slice::Iter`](core::slice::Iter.html)
 
 # Examples
 
@@ -42,7 +42,8 @@ Basic usage:
 # #[cfg(feature = "std")] {
 use bitvec::prelude::*;
 
-// First, we declare a type which has `iter` method to get the `Iter` struct (&BitSlice here):
+// First, we declare a type which has `iter` method
+// to get the `Iter` struct (&BitSlice here):
 let data = 129u8;
 let bits = BitSlice::<LocalBits, _>::from_element(&data);
 
@@ -53,8 +54,8 @@ for bit in bits.iter() {
 # }
 ```
 
-[`BitSlice`]: struct.BitSlice.html
-[`iter`]: struct.BitSlice.html#method.iter
+[`BitSlice`]: crate::slice::BitSlice
+[`iter`]: crate::slice::BitSlice::iter
 **/
 #[derive(Debug)]
 pub struct Iter<'a, O, T>
@@ -99,7 +100,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`Iter::as_slice`](https://doc.rust-lang.org/core/slice/struct.Iter.html#method.as_slice)
+	/// [`Iter::as_slice`](core::slice::Iter::as_slice)
 	///
 	/// # API Differences
 	///
@@ -114,14 +115,15 @@ where
 	/// # #[cfg(feature = "std")] {
 	/// use bitvec::prelude::*;
 	///
-	/// // First, we declare a type which has the `iter` method to get the `Iter`
-	/// // struct (&BitSlice here):
+	/// // First, we declare a type which has the `iter` method
+	/// // to get the `Iter` struct (&BitSlice here):
 	/// let data = 129u8;
 	/// let bits = BitSlice::<Msb0, _>::from_element(&data);
 	///
 	/// // Then, we get the iterator:
 	/// let mut iter = bits.iter();
-	/// // So if we print what `as_bitslice` returns here, we have "[1, 0, 0, 0, 0, 0, 0, 1]":
+	/// // So if we print what `as_bitslice` returns
+	/// // here, we have "[1, 0, 0, 0, 0, 0, 0, 1]":
 	/// println!("{:?}", iter.as_bitslice());
 	///
 	/// // Next, we move to the second element of the slice:
@@ -209,7 +211,6 @@ where
 
 	fn into_iter(self) -> Self::IntoIter {
 		let (addr, head, bits) = self.bitptr().raw_parts();
-
 		let base = addr.to_const();
 
 		let (elts, tail) = head.offset(bits as isize);
@@ -238,7 +239,7 @@ This struct is created by the [`iter_mut`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::IterMut`](https://doc.rust-lang.org/core/slice/struct.IterMut.html)
+[`slice::IterMut`](core::slice::IterMut.html)
 
 # API Differences
 
@@ -254,8 +255,8 @@ Basic usage:
 
 ```rust
 use bitvec::prelude::*;
-// First, we declare a type which has `iter_mut` method to get the `IterMut`
-// struct (&BitSlice here):
+// First, we declare a type which has `iter_mut` method
+// to get the `IterMut` struct (&BitSlice here):
 let mut data = 0u8;
 let bits = data.view_bits_mut::<Msb0>();
 
@@ -266,8 +267,8 @@ for (idx, mut bit) in bits.iter_mut().enumerate() {
 assert_eq!(data, 0b100_100_10);
 ```
 
-[`BitSlice`]: struct.BitSlice.html
-[`iter_mut`]: struct.BitSlice.html#method.iter_mut
+[`BitSlice`]: crate::slice::BitSlice
+[`iter_mut`]: crate::slice::BitSlice::iter_mut
 **/
 #[derive(Debug)]
 pub struct IterMut<'a, O, T>
@@ -299,7 +300,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`IterMut::into_bitslice`](https://doc.rust-lang.org/core/slice/struct.IterMut.html#method.into_bitslice)
+	/// [`IterMut::into_slice`](core::slice::IterMut::into_slice)
 	///
 	/// # API Differences
 	///
@@ -314,8 +315,8 @@ where
 	/// # #[cfg(feature = "std")] {
 	/// use bitvec::prelude::*;
 	///
-	/// // First, we declare a type which has `iter_mut` method to get the `IterMut`
-	/// // struct (&BitSlice here):
+	/// // First, we declare a type which has `iter_mut` method
+	/// // to get the `IterMut` struct (&BitSlice here):
 	/// let mut data = 0u8;
 	/// let bits = data.view_bits_mut::<Lsb0>();
 	///
@@ -324,8 +325,8 @@ where
 	///   let mut iter = bits.iter_mut();
 	///   // We move to the next element:
 	///   iter.next();
-	///   // So if we print what `into_bitslice` method returns here, we have
-	///   // "[0, 0, 0, 0, 0, 0, 0]":
+	///   // So if we print what `into_bitslice` method
+	///   // returns here, we have "[0, 0, 0, 0, 0, 0, 0]":
 	///   println!("{:?}", iter.into_bitslice());
 	/// }
 	///
@@ -333,7 +334,8 @@ where
 	/// {
 	///   // First we get back the iterator:
 	///   let mut iter = bits.iter_mut();
-	///   // We change the value of the first bit of the slice returned by the `next` method:
+	///   // We change the value of the first bit of
+	///   // the slice returned by the `next` method:
 	///   *iter.next().unwrap() = true;
 	/// }
 	/// // Now data is "1":
@@ -501,7 +503,7 @@ macro_rules! iter {
 			T: BitStore,
 		{
 			/// Tests whether the iterator is *any* empty iterator.
-			pub(crate) fn inherent_is_empty(&self) -> bool {
+			fn inherent_is_empty(&self) -> bool {
 				self.base == self.last && self.head == self.tail
 			}
 		}
@@ -714,10 +716,10 @@ This struct is created by the [`windows`] method on [bit slices].
 
 # Original
 
-[`slice::Windows`](https://doc.rust-lang.org/core/slice/struct.Windows.html)
+[`slice::Windows`](core::slice::Windows.html)
 
-[bit slices]: struct.BitSlice.html
-[`windows`]: struct.BitSlice.html#method.windows
+[bit slices]: crate::slice::BitSlice
+[`windows`]: crate::slice::BitSlice::windows
 **/
 #[derive(Clone, Debug)]
 pub struct Windows<'a, O, T>
@@ -802,10 +804,10 @@ This struct is created by the [`chunks`] method on [bit slices].
 
 # Original
 
-[`slice::Chunks`](https://doc.rust-lang.org/core/slice/struct.Chunks.html)
+[`slice::Chunks`](core::slice::Chunks.html)
 
-[bit slices]: struct.BitSlice.html
-[`chunks`]: struct.BitSlice.html#method.chunks
+[bit slices]: crate::slice::BitSlice
+[`chunks`]: crate::slice::BitSlice::chunks
 **/
 #[derive(Clone, Debug)]
 pub struct Chunks<'a, O, T>
@@ -905,14 +907,14 @@ This struct is created by the [`chunks_mut`] method on [bit slices].
 
 # Original
 
-[`slice::ChunksMut`](https://doc.rust-lang.org/core/slice/struct.ChunksMut.html)
+[`slice::ChunksMut`](core::slice::ChunksMut.html)
 
 # API Differences
 
 All slices yielded from this iterator are marked as aliased.
 
-[bit slices]: struct.BitSlice.html
-[`chunks_mut`]: struct.BitSlice.html#chunks_mut
+[bit slices]: crate::slice::BitSlice
+[`chunks_mut`]: crate::slice::BitSlice::chunks_mut
 **/
 #[derive(Debug)]
 pub struct ChunksMut<'a, O, T>
@@ -1015,11 +1017,11 @@ This struct is created by the [`chunks_exact`] method on [bit slices].
 
 # Original
 
-[`slice::ChunksExact`](https://doc.rust-lang.org/core/slice/struct.ChunksExact.html)
+[`slice::ChunksExact`](core::slice::ChunksExact.html)
 
-[bit slices]: struct.BitSlice.html
-[`chunks_exact`]: struct.BitSlice.html#method.chunks_exact
-[`remainder`]: #method.remainder
+[bit slices]: crate::slice::BitSlice
+[`chunks_exact`]: crate::slice::BitSlice::chunks_exact
+[`remainder`]: Self::remainder
 **/
 #[derive(Clone, Debug)]
 pub struct ChunksExact<'a, O, T>
@@ -1058,7 +1060,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::ChunksExact::remainder`](https://doc.rust-lang.org/core/slice/struct.ChunksExact.html#method.remainder)
+	/// [`slice::ChunksExact::remainder`](core::slice::ChunksExact::remainder)
 	pub fn remainder(&self) -> &'a BitSlice<O, T> {
 		self.extra
 	}
@@ -1132,15 +1134,15 @@ This struct is created by the [`chunks_exact_mut`] method on [bit slices].
 
 # Original
 
-[`slice::ChunksExactMut`](https://doc.rust-lang.org/core/slice/struct.ChunksExactMut.html)
+[`slice::ChunksExactMut`](core::slice::ChunksExactMut.html)
 
 # API Differences
 
 All slices yielded from this iterator are marked as aliased.
 
-[bit slices]: struct.BitSlice.html
-[`chunks_exact_mut`]: struct.BitSlice.html#method.chunks_exact_mut
-[`into_remainder`]: #method.into_remainder
+[bit slices]: crate::slice::BitSlice
+[`chunks_exact_mut`]: crate::slice::BitSlice::chunks_exact_mut
+[`into_remainder`]: Self::into_remainder
 **/
 #[derive(Debug)]
 pub struct ChunksExactMut<'a, O, T>
@@ -1179,12 +1181,14 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::ChunksExactMut::into_remainder`](https://doc.rust-lang.org/core/slice/struct.ChunksExactMut.html#method.into_remainder)
+	/// [`slice::ChunksExactMut::into_remainder`][orig]
 	///
 	/// # API Differences
 	///
 	/// The remainder slice, as with all slices yielded from this iterator, is
 	/// marked as aliased.
+	///
+	/// [orig]: core::slice::ChunksExactMut::into_remainder
 	#[inline]
 	pub fn into_remainder(self) -> &'a mut BitSlice<O, T::Alias> {
 		self.extra
@@ -1259,10 +1263,10 @@ This struct is created by the [`rchunks`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::RChunks`](https://doc.rust-lang.org/core/slice/struct.RChunks.html)
+[`slice::RChunks`](core::slice::RChunks.html)
 
-[`BitSlice`]: struct.BitSlice.html
-[`rchunks`]: struct.BitSlice.html#method.rchunks
+[`BitSlice`]: crate::slice::BitSlice
+[`rchunks`]: crate::slice::BitSlice::rchunks
 **/
 #[derive(Clone, Debug)]
 pub struct RChunks<'a, O, T>
@@ -1376,8 +1380,8 @@ This struct is created by the [`rchunks_mut`] method on [bit slices].
 
 All slices yielded from this iterator are marked as aliased.
 
-[bit slices]: struct.BitSlice.html
-[`rchunks_mut`]: struct.BitSlice.html#method.rchunks_mut
+[bit slices]: crate::slice::BitSlice
+[`rchunks_mut`]: crate::slice::BitSlice::rchunks_mut
 **/
 #[derive(Debug)]
 pub struct RChunksMut<'a, O, T>
@@ -1473,11 +1477,11 @@ This struct is created by the [`rchunks_exact`] method on [bit slices].
 
 # Original
 
-[`slice::RChunksExact`](https://doc.rust-lang.org/core/slice/struct.RChunksExact.html)
+[`slice::RChunksExact`](core::slice::RChunksExact.html)
 
-[bit slices]: struct.BitSlice.html
-[`rchunks_exact`]: struct.BitSlice.html#method.rchunks_exact
-[`remainder`]: #method.remainder
+[bit slices]: crate::slice::BitSlice
+[`rchunks_exact`]: crate::slice::BitSlice::rchunks_exact
+[`remainder`]: Self::remainder
 **/
 #[derive(Clone, Debug)]
 pub struct RChunksExact<'a, O, T>
@@ -1515,7 +1519,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::RChunksExact::remainder`](https://doc.rust-lang.org/core/slice/struct.RChunksExact.html#method.remainder)
+	/// [`slice::RChunksExact::remainder`](core::slice::RChunksExact::remainder)
 	#[inline]
 	pub fn remainder(&self) -> &'a BitSlice<O, T> {
 		self.extra
@@ -1591,15 +1595,15 @@ This struct is created by the [`rchunks_exact_mut`] method on [bit slices].
 
 # Original
 
-[`slice::RChunksExactMut`](https://doc.rust-lang.org/core/slice/struct.RChunksExactMut.html)
+[`slice::RChunksExactMut`](core::slice::RChunksExactMut.html)
 
 # API Differences
 
 All slices yielded from this iterator are marked as aliased.
 
-[bit slices]: struct.BitSlice.html
-[`into_remainder`]: #method.into_remainder
-[`rchunks_exact_mut`]: struct.BitSlice.html#method.rchunks_exact_mut
+[bit slices]: crate::slice::BitSlice
+[`into_remainder`]: Self::into_remainder
+[`rchunks_exact_mut`]: crate::slice::BitSlice::rchunks_exact_mut
 **/
 #[derive(Debug)]
 pub struct RChunksExactMut<'a, O, T>
@@ -1637,12 +1641,14 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::RChunksExactMut::into_remainder`](https://doc.rust-lang.org/core/slice/struct.RChunksExactMut.html#method.into_remainder)
+	/// [`slice::RChunksExactMut::into_remainder`][orig]
 	///
 	/// # API Differences
 	///
 	/// The remainder slice, as with all slices yielded from this iterator, is
 	/// marked as aliased.
+	///
+	/// [orig]: core::slice::RChunksExactMut::into_remainder
 	#[inline]
 	pub fn into_remainder(self) -> &'a mut BitSlice<O, T::Alias> {
 		self.extra
@@ -1839,15 +1845,15 @@ This struct is created by the [`split`] method on [bit slices].
 
 # Original
 
-[`slice::Split`](https://doc.rust-lang.org/core/slice/struct.Split.html)
+[`slice::Split`](core::slice::Split.html)
 
 # API Differences
 
 In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
-[bit slices]: struct.BitSlice.html
-[`split`]: struct.BitSlice.html#method.split
+[bit slices]: crate::slice::BitSlice
+[`split`]: crate::slice::BitSlice::split
 **/
 #[derive(Clone)]
 pub struct Split<'a, O, T, P>
@@ -1909,15 +1915,15 @@ This struct is created by the [`split_mut`] method on [bit slices].
 
 # Original
 
-[`slice::SplitMut`](https://doc.rust-lang.org/core/slice/struct.SplitMut.html)
+[`slice::SplitMut`](core::slice::SplitMut.html)
 
 # API Differences
 
 In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
-[bit slices]: struct.BitSlice.html
-[`split_mut`]: struct.BitSlice.html#method.split_mut
+[bit slices]: crate::slice::BitSlice
+[`split_mut`]: crate::slice::BitSlice::split_mut
 **/
 pub struct SplitMut<'a, O, T, P>
 where
@@ -1985,15 +1991,15 @@ This struct is created by the [`rsplit`] method on [bit slices].
 
 # Original
 
-[`slice::RSplit`](https://doc.rust-lang.org/core/slice/struct.RSplit.html)
+[`slice::RSplit`](core::slice::RSplit.html)
 
 # API Differences
 
 In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
-[bit slices]: struct.BitSlice.html
-[`rsplit`]: struct.BitSlice.html#method.rsplit
+[bit slices]: crate::slice::BitSlice
+[`rsplit`]: crate::slice::BitSlice::rsplit
 **/
 #[derive(Clone)]
 pub struct RSplit<'a, O, T, P>
@@ -2043,15 +2049,15 @@ This struct is created by the [`rsplit_mut`] method on [bit slices].
 
 # Original
 
-[`slice::RSplit`](https://doc.rust-lang.org/core/slice/struct.RSplit.html)
+[`slice::RSplit`](core::slice::RSplit.html)
 
 # API Differences
 
 In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
-[bit slices]: struct.BitSlice.html
-[`rsplit_mut`]: struct.BitSlice.html#method.rsplit_mut
+[bit slices]: crate::slice::BitSlice
+[`rsplit_mut`]: crate::slice::BitSlice::rsplit_mut
 **/
 pub struct RSplitMut<'a, O, T, P>
 where
@@ -2106,15 +2112,15 @@ This struct is created by the [`splitn`] method on [bit slices].
 
 # Original
 
-[`slice::SplitN`](https://doc.rust-lang.org/core/slice/struct.SplitN.html)
+[`slice::SplitN`](core::slice::SplitN.html)
 
 # API Differences
 
 In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
-[bit slices]: struct.BitSlice.html
-[`splitn`]: struct.BitSlice.html#method.splitn
+[bit slices]: crate::slice::BitSlice
+[`splitn`]: crate::slice::BitSlice::splitn
 **/
 pub struct SplitN<'a, O, T, P>
 where
@@ -2135,15 +2141,15 @@ This struct is created by the [`splitn_mut`] method on [bit slices].
 
 # Original
 
-[`slice::SplitNMut`](https://doc.rust-lang.org/core/slice/struct.SplitNMut.html)
+[`slice::SplitNMut`](core::slice::SplitNMut.html)
 
 # API Differences
 
 In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
-[bit slices]: struct.BitSlice.html
-[`splitn_mut`]: struct.BitSlice.html#method.splitn_mut
+[bit slices]: crate::slice::BitSlice
+[`splitn_mut`]: crate::slice::BitSlice::splitn_mut
 **/
 pub struct SplitNMut<'a, O, T, P>
 where
@@ -2165,15 +2171,15 @@ This struct is created by the [`rsplitn`] method on [bit slices].
 
 # Original
 
-[`slice::RSplitN`](https://doc.rust-lang.org/core/slice/struct.RSplitN.html)
+[`slice::RSplitN`](core::slice::RSplitN.html)
 
 # API Differences
 
 In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
-[bit slices]: struct.BitSlice.html
-[`rsplitn`]: struct.BitSlice.html#method.rsplitn
+[bit slices]: crate::slice::BitSlice
+[`rsplitn`]: crate::slice::BitSlice::rsplitn
 **/
 pub struct RSplitN<'a, O, T, P>
 where
@@ -2195,15 +2201,15 @@ This struct is created by the [`rsplitn_mut`] method on [bit slices].
 
 # Original
 
-[`slice::RSplitNMut`](https://doc.rust-lang.org/core/slice/struct.RSplitNMut.html)
+[`slice::RSplitNMut`](core::slice::RSplitNMut.html)
 
 # API Differences
 
 In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
-[bit slices]: struct.BitSlice.html
-[`rsplitn_mut`]: struct.BitSlice.html#method.rsplitn_mut
+[bit slices]: crate::slice::BitSlice
+[`rsplitn_mut`]: crate::slice::BitSlice::rsplitn_mut
 **/
 pub struct RSplitNMut<'a, O, T, P>
 where
@@ -2219,7 +2225,7 @@ where
 
 macro_rules! split_n {
 	($outer:ident => $inner:ident => $item:ty $( where $alias:ident )?) => {
-		impl<'a, O, T, P> $outer<'a, O, T, P>
+		impl<'a, O, T, P> $outer <'a, O, T, P>
 		where
 			O: BitOrder,
 			T: BitStore,
@@ -2236,7 +2242,7 @@ macro_rules! split_n {
 			}}
 		}
 
-		impl<O, T, P> Debug for $outer<'_, O, T, P>
+		impl<O, T, P> Debug for $outer <'_, O, T, P>
 		where
 			O: BitOrder,
 			T: BitStore,
@@ -2250,7 +2256,7 @@ macro_rules! split_n {
 			}
 		}
 
-		impl<'a, O, T, P> Iterator for $outer<'a, O, T, P>
+		impl<'a, O, T, P> Iterator for $outer <'a, O, T, P>
 		where
 			O: BitOrder,
 			T: BitStore,
@@ -2281,7 +2287,7 @@ macro_rules! split_n {
 			}
 		}
 
-		impl<O, T, P> core::iter::FusedIterator for $outer<'_, O, T, P>
+		impl<O, T, P> core::iter::FusedIterator for $outer <'_, O, T, P>
 		where
 			O: BitOrder,
 			T: BitStore,

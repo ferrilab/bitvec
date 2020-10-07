@@ -4,25 +4,25 @@
 #[doc(hidden)]
 pub mod internal;
 
-/** Constructs a `BitSlice` handle out of a literal array in source code, like
-`vec!`.
+/** Constructs a [`BitSlice`] handle out of a literal array in source code, like
+[`vec!`].
 
-`bits!` can be invoked in a number of ways. It takes the name of a `BitOrder`
-implementation, the name of a `BitStore`-implementing core type (which can be
+`bits!` can be invoked in a number of ways. It takes the name of a [`BitOrder`]
+implementation, the name of a [`BitStore`]-implementing core type (which can be
 any of the fundamental integers, their `Cell` wrappers, or their `Atomic`
 sibling types), and zero or more expressions which are used to build the bits.
 Each value expression corresponds to one bit. If the expression evaluates to
 `0`, it is the zero bit; otherwise, it is the `1` bit.
 
-`bits!` can be invoked with no type specifiers, a `BitOrder` specifier only, or
-both a `BitOrder` and a `BitStore` specifier. It cannot be invoked with a
+`bits!` can be invoked with no type specifiers, a [`BitOrder`] specifier only,
+or both a `BitOrder` and a [`BitStore`] specifier. It cannot be invoked with a
 `BitStore` but no `BitOrder`, as the macro grammar is incapable of
 distinguishing between these two.
 
 In addition, a `mut` marker may be used as the first argument to produce an
 `&mut BitSlice` handle instead of a `&BitSlice` handle.
 
-Like `vec!`, `bits!` supports bit lists `[0, 1, …]` and repetition markers
+Like [`vec!`], `bits!` supports bit lists `[0, 1, …]` and repetition markers
 `[1; n]`.
 
 # Examples
@@ -42,6 +42,11 @@ bits![mut Lsb0; 0; 5];
 bits![1; 5];
 bits![mut LocalBits; 0, 1,];
 ```
+
+[`BitOrder`]: crate::order::BitOrder
+[`BitSlice`]: crate::slice::BitSlice
+[`BitStore`]: crate::store::BitStore
+[`vec!`]: macro@alloc::vec
 **/
 #[macro_export]
 macro_rules! bits {
@@ -291,20 +296,22 @@ macro_rules! bitarr {
 	};
 }
 
-/** Constructs a `BitVec` out of a literal array in source code, like `vec!`.
+/** Constructs a [`BitVec`] out of a literal array in source code, like
+[`vec!`].
 
-`bitvec!` can be invoked in a number of ways. It takes the name of a `BitOrder`
-implementation, the name of a `BitStore`-implementing fundamental, and zero or
-more fundamentals (integer, floating-point, or boolean) which are used to build
-the bits. Each fundamental literal corresponds to one bit, and is considered to
-represent `1` if it is any other value than exactly zero.
+`bitvec!` can be invoked in a number of ways. It takes the name of a
+[`BitOrder`] implementation, the name of a [`BitStore`]-implementing
+fundamental, and zero or more fundamentals (integer, floating-point, or boolean)
+which are used to build the bits. Each fundamental literal corresponds to one
+bit, and is considered to represent `1` if it is any other value than exactly
+zero.
 
-`bitvec!` can be invoked with no specifiers, a `BitOrder` specifier, or a
-`BitOrder` and a `BitStore` specifier. It cannot be invoked with a `BitStore`
+`bitvec!` can be invoked with no specifiers, a [`BitOrder`] specifier, or a
+`BitOrder` and a [`BitStore`] specifier. It cannot be invoked with a `BitStore`
 specifier but no `BitOrder` specifier, due to overlap in how those tokens are
 matched by the macro system.
 
-Like `vec!`, `bitvec!` supports bit lists `[0, 1, …]` and repetition markers
+Like [`vec!`], `bitvec!` supports bit lists `[0, 1, …]` and repetition markers
 `[1; n]`.
 
 # Examples
@@ -322,6 +329,11 @@ bitvec![Msb0, u8; 1; 5];
 bitvec![Lsb0; 0; 5];
 bitvec![1; 5];
 ```
+
+[`BitOrder`]: crate::order::BitOrder
+[`BitStore`]: crate::store::BitStore
+[`BitVec`]: crate::vec::BitVec
+[`vec!`]: macro@alloc::vec
 **/
 #[macro_export]
 #[cfg(feature = "alloc")]
@@ -346,13 +358,17 @@ macro_rules! bitvec {
 	}};
 }
 
-/** Constructs a `BitBox` out of a literal array in source code, like `bitvec!`.
+/** Constructs a [`BitBox`] out of a literal array in source code, like
+[`bitvec!`].
 
 This has exactly the same syntax as [`bitvec!`], and in fact is a thin wrapper
-around `bitvec!` that calls `.into_boxed_slice()` on the produced `BitVec` to
-freeze it.
+around `bitvec!` that calls [`.into_boxed_slice()`] on the produced [`BitVec`]
+to freeze it.
 
-[`bitvec!`]: #macro.bitvec
+[`BitBox`]: crate::boxed::BitBox
+[`BitVec`]: crate::vec::BitVec
+[`bitvec!`]: macro@crate::bitvec
+[`.into_boxed_slice()`]: crate::vec::BitVec::into_boxed_slice
 **/
 #[macro_export]
 #[cfg(feature = "alloc")]

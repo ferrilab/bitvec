@@ -7,9 +7,10 @@ code.
 
 `BitArray` has little behavior or properties in its own right. It serves solely
 as a type capable of being used in immediate value position, and delegates to
-`BitSlice` for all actual work.
+[`BitSlice`] for all actual work.
 
-[`BitArray`]: struct.BitArray.html
+[`BitArray`]: self::BitArray
+[`BitSlice`]: crate::slice::BitSlice
 [std]: https://doc.rust-lang.org/std/primitive.array.html
 !*/
 
@@ -19,6 +20,7 @@ use crate::{
 		Lsb0,
 	},
 	slice::BitSlice,
+	store::BitStore,
 	view::BitView,
 };
 
@@ -60,17 +62,17 @@ numeric type parameters in type-level expressions.
 
 /** An array of individual bits, able to be held by value on the stack.
 
-This type is generic over all `Sized` implementors of the `BitView` trait. Due
-to limitations in the Rust language’s const-generics implementation (it is both
-unstable and incomplete), this must take an array type parameter, rather than a
-bit-count integer parameter, making it inconvenient to use. The [`bitarr!`]
-macro is capable of constructing both values and specific types of `BitArray`,
-and this macro should be preferred for most use.
+This type is generic over all [`Sized`] implementors of the [`BitView`] trait.
+Due to limitations in the Rust language’s const-generics implementation (it is
+both unstable and incomplete), this must take an array type parameter, rather
+than a bit-count integer parameter, making it inconvenient to use. The
+[`bitarr!`] macro is capable of constructing both values and specific types of
+`BitArray`, and this macro should be preferred for most use.
 
-The advantage of using this wrapper is that it implements `Deref`/`Mut` to
-`BitSlice`, as well as implementing all of `BitSlice`’s traits by forwarding to
-the bit-slice view of its contained data. This allows it to have `BitSlice`
-behavior by itself, without requiring explicit `.as_bitslice()` calls in user
+The advantage of using this wrapper is that it implements [`Deref`]/[`Mut`] to
+[`BitSlice`], as well as implementing all of `BitSlice`’s traits by forwarding
+to the bit-slice view of its contained data. This allows it to have `BitSlice`
+behavior by itself, without requiring explicit [`.as_bitslice()`] calls in user
 code.
 
 > Note: Not all traits may be implemented for forwarding, as a matter of effort
@@ -85,7 +87,7 @@ for example, an array of twelve bits.
 # Type Parameters
 
 - `O`: The ordering of bits within memory elements.
-- `V`: Some amount of memory which can be used as the basis for a `BitSlice`
+- `V`: Some amount of memory which can be used as the basis for a [`BitSlice`]
   view. This will usually be an array `[T: BitStore; N]`.
 
 # Examples
@@ -135,7 +137,13 @@ When const-generics stabilize, this will be modified to have a signature more
 like `BitArray<O, T: BitStore, const N: usize>([T; elts::<T>(N)]);`, to mirror
 the behavior of ordinary arrays `[T; N]` as they stand today.
 
-[`bitarr!`]: ../../macro.bitarr.html
+[`BitSlice`]: crate::slice::BitSlice
+[`BitView`]: crate::view::BitView
+[`Deref`]: core::ops::Deref
+[`Mut`]: core::ops::DerefMut
+[`Sized`]: core::marker::Sized
+[`bitarr!`]: macro@crate::bitarr
+[`.as_bitslice()`]: Self::as_bitslice
 **/
 #[repr(transparent)]
 #[derive(Clone, Copy)]
@@ -238,10 +246,10 @@ where
 	/// Views the array as a slice of its raw underlying memory type.
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	pub fn as_raw_slice(&self) -> &[V::Mem] {
+	pub fn as_raw_slice(&self) -> &[<V::Store as BitStore>::Mem] {
 		unsafe {
 			slice::from_raw_parts(
-				&self.data as *const V as *const V::Mem,
+				&self.data as *const V as *const <V::Store as BitStore>::Mem,
 				V::const_elts(),
 			)
 		}
@@ -250,10 +258,10 @@ where
 	/// Views the array as a mutable slice of its raw underlying memory type.
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	pub fn as_raw_mut_slice(&mut self) -> &mut [V::Mem] {
+	pub fn as_raw_mut_slice(&mut self) -> &mut [<V::Store as BitStore>::Mem] {
 		unsafe {
 			slice::from_raw_parts_mut(
-				&mut self.data as *mut V as *mut V::Mem,
+				&mut self.data as *mut V as *mut <V::Store as BitStore>::Mem,
 				V::const_elts(),
 			)
 		}

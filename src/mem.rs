@@ -21,11 +21,13 @@ This trait cannot be implemented outside this crate.
 pub trait BitMemory: IsUnsigned + seal::Sealed {
 	/// The bit width of the integer.
 	///
-	/// `mem::size_of` returns the size in bytes, and bytes are always eight
+	/// [`mem::size_of`] returns the size in bytes, and bytes are always eight
 	/// bits on architectures Rust targets.
 	///
 	/// Issue #76904 will place this constant on the fundamentals directly, as a
 	/// `u32`.
+	///
+	/// [`mem::size_of`]: core::mem::size_of
 	const BITS: u8 = mem::size_of::<Self>() as u8 * 8;
 	/// The number of bits required to store an index in the range `0 .. BITS`.
 	const INDX: u8 = Self::BITS.trailing_zeros() as u8;
@@ -84,7 +86,7 @@ hold for the pointer representation to correctly function.
 `0` if the alignment matches the size; `1` if they differ
 **/
 #[doc(hidden)]
-pub(crate) const fn aligned_to_size<T>() -> usize {
+pub(crate) const fn misaligned_to_size<T>() -> usize {
 	(mem::align_of::<T>() != mem::size_of::<T>()) as usize
 }
 

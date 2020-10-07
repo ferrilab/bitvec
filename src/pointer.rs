@@ -1,6 +1,6 @@
-/*! Bitslice pointer encoding
+/*! Bit-region pointer encoding
 
-This module defines the in-memory representation of the handle to a `BitSlice`
+This module defines the in-memory representation of the handle to a [`BitSlice`]
 region. This structure is crate-internal, and defines the methods required to
 store a `BitSlice` pointer in memory and retrieve values from it suitable for
 work.
@@ -9,6 +9,8 @@ Currently, this module is absolutely forbidden for export outside the crate, and
 its implementation cannot be relied upon. Future work *may* choose to stabilize
 the encoding, and make it available, but this work is not a priority for the
 project.
+
+[`BitSlice`]: crate::slice::BitSlice
 !*/
 
 use crate::{
@@ -130,7 +132,7 @@ where T: BitStore
 {
 	#[inline(always)]
 	fn from(addr: *const T) -> Self {
-		Self::new((addr) as usize)
+		Self::new(addr as usize)
 	}
 }
 
@@ -160,7 +162,7 @@ where T: BitStore
 {
 	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		<Self as Pointer>::fmt(&self, fmt)
+		Pointer::fmt(self, fmt)
 	}
 }
 
@@ -262,13 +264,13 @@ reserved as the sentinel value for `Option::<BitPtr<T>>::None`.
 All pointers with a `bits: 0` logical field are empty. Pointers used to maintain
 ownership of heap buffers are not permitted to erase their `addr` field, but
 unowning pointers may do so. When an unowning pointer becomes empty, it may
-replace its `addr` with the `NonNull::<T>::dangling()` value.
+replace its `addr` with the [`NonNull::<T>::dangling()`] value.
 
 All empty pointers are equivalent to each other.
 
 ### Uninhabited Slices
 
-Any empty pointer with a non-`dangling()` base address is considered to be an
+Any empty pointer with a non-[`dangling()`] base address is considered to be an
 uninhabited region.
 
 # Type Parameters
@@ -296,6 +298,9 @@ values into any other type will result in an incorrect program, and permit the
 program to begin illegal or undefined behaviors. This type may never be
 manipulated in any way by user code outside of the APIs it offers to this crate;
 it certainly may not be seen or observed by other crates.
+
+[`NonNull::<T>::dangling()`]: core::ptr::NonNull::dangling
+[`dangling()`]: core::ptr::NonNull::dangling
 **/
 #[repr(C)]
 #[derive(Eq, Hash)]
@@ -305,9 +310,9 @@ where T: BitStore
 	/// Two-element bitfield structure, holding pointer and head information.
 	///
 	/// This stores a pointer to the zeroth element of the slice, and the high
-	/// bits of the head bit cursor. It is typed as a `NonNull<u8>` in order to
-	/// provide null-value optimizations to `Option<BitPtr<T>>`, and because the
-	/// presence of head-bit cursor information in the lowest bits means the
+	/// bits of the head bit cursor. It is typed as a [`NonNull<u8>`] in order
+	/// to provide null-value optimizations to `Option<BitPtr<T>>`, and because
+	/// the presence of head-bit cursor information in the lowest bits means the
 	/// bit pattern will not uphold alignment properties assumed by
 	/// `NonNull<T>`.
 	///
@@ -315,15 +320,16 @@ where T: BitStore
 	/// slice domain, because the owning handle’s [`BitOrder`] implementation
 	/// governs the bit pattern of the head cursor.
 	///
-	/// [`BitOrder`]: ../order/trait.BitOrder.html
+	/// [`BitOrder`]: crate::order::BitOrder
+	/// [`NonNull<u8>`]: core::ptr::NonNull
 	ptr: NonNull<u8>,
 	/// Two-element bitfield structure, holding bit-count and head-index
 	/// information.
 	///
 	/// This stores the bit count in its highest bits and the low three bits of
-	/// the head `BitIdx` in the lowest three bits.
+	/// the head [`BitIdx`] in the lowest three bits.
 	///
-	/// [`BitIdx`]: ../struct.BitIdx.html
+	/// [`BitIdx`]: crate::index::BitIdx
 	len: usize,
 	_ty: PhantomData<*mut T>,
 }
@@ -345,17 +351,21 @@ where T: BitStore
 		_ty: PhantomData,
 	};
 	/// The number of low bits of `self.len` required to hold the low bits of
-	/// the head `BitIdx` cursor.
+	/// the head [`BitIdx`] cursor.
 	///
 	/// This is always `3`, until Rust tries to target an architecture that does
 	/// not have 8-bit bytes.
+	///
+	/// [`BitIdx`]: crate::index::BitIdx
 	pub(crate) const LEN_HEAD_BITS: usize = 3;
 	/// Marks the bits of `self.len` that hold part of the `head` logical field.
 	pub(crate) const LEN_HEAD_MASK: usize = 0b0111;
 	/// Marks the bits of `self.ptr` that hold the `addr` logical field.
 	pub(crate) const PTR_ADDR_MASK: usize = !0 << Self::PTR_HEAD_BITS;
 	/// The number of low bits of `self.ptr` required to hold the high bits of
-	/// the head `BitIdx` cursor.
+	/// the head [`BitIdx`] cursor.
+	///
+	/// [`BitIdx`]: crate::index::BitIdx
 	pub(crate) const PTR_HEAD_BITS: usize =
 		T::Mem::INDX as usize - Self::LEN_HEAD_BITS;
 	/// Marks the bits of `self.ptr` that hold part of the `head` logical field.
@@ -365,13 +375,15 @@ where T: BitStore
 	/// The inclusive maximum number of elements that the region described by a
 	/// `BitPtr` can cover in memory.
 	///
-	/// This is the number of elements required to store `MAX_BITS`, plus one
-	/// because a region could start in the middle of its base element and thus
-	/// push the final bits into a new element.
+	/// This is the number of elements required to store [`REGION_MAX_BITS`],
+	/// plus one because a region could start in the middle of its base element
+	/// and thus push the final bits into a new element.
 	///
 	/// Since the region is ⅛th the bit span of a `usize` counter already, this
 	/// number is guaranteed to be well below the limits of arithmetic or Rust’s
 	/// own constraints on memory region handles.
+	///
+	/// [`REGION_MAX_BITS`]: crate::pointer::BitPtr::REGION_MAX_BITS
 	pub(crate) const REGION_MAX_ELTS: usize =
 		crate::mem::elts::<T::Mem>(Self::REGION_MAX_BITS) + 1;
 
@@ -479,7 +491,7 @@ where T: BitStore
 	///
 	/// See [`::new`].
 	///
-	/// [`::new`]: #method.new
+	/// [`::new`]: Self::new
 	#[inline]
 	pub(crate) unsafe fn new_unchecked(
 		addr: impl Into<Address<T>>,
@@ -530,7 +542,9 @@ where T: BitStore
 	///
 	/// # Safety
 	///
-	/// None. The invariants of `::new` must be checked at the caller.
+	/// None. The invariants of [`::new`] must be checked at the caller.
+	///
+	/// [`::new`]: Self::new
 	#[inline]
 	#[cfg(feature = "alloc")]
 	pub(crate) unsafe fn set_pointer(&mut self, addr: impl Into<Address<T>>) {
@@ -552,8 +566,11 @@ where T: BitStore
 	///
 	/// # Returns
 	///
-	/// A `BitIdx` of the first live bit in the element at the `self.pointer()`
-	/// address.
+	/// A [`BitIdx`] of the first live bit in the element at the
+	/// [`self.pointer()`] address.
+	///
+	/// [`BitIdx`]: crate::index::BitIdx
+	/// [`self.pointer()`]: Self::pointer
 	pub(crate) fn head(&self) -> BitIdx<T::Mem> {
 		//  Get the high part of the head counter out of the pointer.
 		let ptr = self.ptr.as_ptr() as usize;
@@ -608,11 +625,13 @@ where T: BitStore
 	///
 	/// - `&mut self`
 	/// - `len`: A new bit length. This must not be greater than
-	///   `Self::REGION_MAX_BITS`.
+	///   [`Self::REGION_MAX_BITS`].
 	///
 	/// # Effects
 	///
 	/// The `new_len` value is written directly into the `.bits` logical field.
+	///
+	/// [`Self::REGION_MAX_BITS`]: Self::REGION_MAX_BITS
 	#[inline]
 	pub(crate) unsafe fn set_len(&mut self, new_len: usize) {
 		debug_assert!(
@@ -641,8 +660,8 @@ where T: BitStore
 		(self.pointer(), self.head(), self.len())
 	}
 
-	/// Computes the number of elements, starting at `self.pointer()`, that the
-	/// region touches.
+	/// Computes the number of elements, starting at [`self.pointer()`], that
+	/// the region touches.
 	///
 	/// # Parameters
 	///
@@ -650,8 +669,10 @@ where T: BitStore
 	///
 	/// # Returns
 	///
-	/// The count of all elements, starting at `self.pointer()`, that contain
+	/// The count of all elements, starting at [`self.pointer()`], that contain
 	/// live bits included in the referent region.
+	///
+	/// [`self.pointer()`]: Self::pointer
 	pub(crate) fn elements(&self) -> usize {
 		//  Find the distance of the last bit from the base address.
 		let total = self.len() + self.head().value() as usize;
@@ -707,7 +728,10 @@ where T: BitStore
 	/// # Effects
 	///
 	/// Increments `.head` by one. If the increment resulted in a rollover to
-	/// `0`, then the `.addr` field is increased to the next `T::Mem` stepping.
+	/// `0`, then the `.addr` field is increased to the next [`T::Mem`]
+	/// stepping.
+	///
+	/// [`T::Mem`]: crate::store::BitStore::Mem
 	#[inline]
 	pub(crate) unsafe fn incr_head(&mut self) {
 		//  Increment the cursor, permitting rollover to `T::Mem::BITS`.
@@ -745,9 +769,12 @@ where T: BitStore
 	///
 	/// # Safety
 	///
-	/// `T` will be marked as `::Alias` where necessary by `BitSlice`, and so
-	/// this pointer already contains the aliasing information it needs to be
+	/// `T` will be marked as [`::Alias`] where necessary by [`BitSlice`], and
+	/// so this pointer already contains the aliasing information it needs to be
 	/// safe.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
+	/// [`::Alias`]: crate::store::BitStore::Alias
 	#[inline]
 	pub(crate) fn as_aliased_slice<'a>(&self) -> &'a [T::Alias] {
 		unsafe {
@@ -768,8 +795,10 @@ where T: BitStore
 	///
 	/// # Returns
 	///
-	/// The value of the bit `index` bits away from `self.head()`, according to
-	/// the `O` ordering.
+	/// The value of the bit `index` bits away from [`self.head()`], according
+	/// to the `O` ordering.
+	///
+	/// [`self.head()`]: Self::head
 	#[inline]
 	pub(crate) unsafe fn read<O>(&self, index: usize) -> bool
 	where O: BitOrder {
@@ -794,7 +823,10 @@ where T: BitStore
 	/// # Effects
 	///
 	/// `value` is written to the bit specified by `index`, relative to
-	/// `self.head()` and `self.pointer()`.
+	/// [`self.head()`] and [`self.pointer()`].
+	///
+	/// [`self.head()`]: Self::head
+	/// [`self.pointer()`]: Self::pointer
 	#[inline]
 	pub(crate) unsafe fn write<O>(&self, index: usize, value: bool)
 	where O: BitOrder {
@@ -950,10 +982,12 @@ where T: BitStore
 		unsafe { &mut *self.to_bitslice_ptr_mut::<O>() }
 	}
 
-	/// Typecasts the pointer structure into a `NonNull<BitSlice>` pointer.
+	/// Typecasts the pointer structure into a [`NonNull<BitSlice>`] pointer.
 	///
 	/// This function is used by the owning indirect handles, and does not yet
 	/// have any purpose in non-`alloc` programs.
+	///
+	/// [`NonNull<BitSlice>`]: core::ptr::NonNull
 	#[inline]
 	#[cfg(feature = "alloc")]
 	pub(crate) fn to_nonnull<O>(self) -> NonNull<BitSlice<O, T>>
@@ -965,7 +999,7 @@ where T: BitStore
 	}
 
 	/// Renders the pointer structure into a formatter for use during
-	/// higher-level type `Debug` implementations.
+	/// higher-level type [`Debug`] implementations.
 	///
 	/// # Parameters
 	///
@@ -989,8 +1023,10 @@ where T: BitStore
 	/// the caller.
 	///
 	/// Higher types in the crate should use this function to drive their
-	/// `Debug` implementations, and then use `BitSlice`’s list formatters to
+	/// [`Debug`] implementations, and then use `BitSlice`’s list formatters to
 	/// display their contents if appropriate.
+	///
+	/// [`Debug`]: core::fmt::Debug
 	#[inline]
 	pub(crate) fn render<'a>(
 		&'a self,
@@ -1083,6 +1119,16 @@ mod tests {
 		bits,
 		order::Msb0,
 	};
+
+	#[test]
+	fn components() {
+		let bits = bits![Msb0, u8; 0; 24];
+		let partial = bits[2 .. 22].bitptr();
+		assert_eq!(partial.pointer(), bits.bitptr().pointer());
+		assert_eq!(partial.elements(), 3);
+		assert_eq!(partial.head().value(), 2);
+		assert_eq!(partial.len(), 20);
+	}
 
 	#[test]
 	#[cfg(feature = "alloc")]

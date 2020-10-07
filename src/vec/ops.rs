@@ -1,4 +1,7 @@
-//! Operator implementations for `BitVec`.
+/*! Operator implementations for [`BitVec`].
+
+[`BitVec`]: crate::vec::BitVec
+!*/
 
 use crate::{
 	devel as dvl,

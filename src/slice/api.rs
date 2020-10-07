@@ -1,4 +1,4 @@
-//! Port of the `[T]` function API.
+//! Port of the `[T]` inherent method API.
 
 use crate::{
 	access::BitAccess,
@@ -45,6 +45,7 @@ use crate::{
 };
 
 use core::{
+	any::TypeId,
 	cmp,
 	ops::{
 		Range,
@@ -105,13 +106,6 @@ where
 	/// ```
 	#[inline]
 	pub fn is_empty(&self) -> bool {
-		/* TODO(myrrlyn): Investigate coercing all empty slices to `empty()`
-
-		The empty slice pointer represents its entire `.len` field as zero,
-		which removes a shift operation in the pointer decoding. `BitSlice` only
-		monotonically decreases, so when it becomes empty, writing `0` to `.len`
-		may be more advantageous than preserving the `head` component.
-		*/
 		self.bitptr().len() == 0
 	}
 
@@ -293,7 +287,6 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let bits = bits![mut 0; 3];
-	///
 	/// if let Some((mut last, rest)) = bits.split_last_mut() {
 	///   *last = true;
 	///   *rest.get_mut(1).unwrap() = true;
@@ -407,7 +400,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::get_mut`](https://doc.rust-lang.org/core/slice/trait.SliceIndex.html#method.get_mut)
+	/// [`slice::get_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.get_mut)
 	///
 	/// # API Differences
 	///
@@ -424,7 +417,7 @@ where
 	/// assert!(bits.get(1).unwrap());
 	/// ```
 	///
-	/// [`get`]: #method.get
+	/// [`get`]: Self::get
 	#[inline]
 	pub fn get_mut<'a, I>(&'a mut self, index: I) -> Option<I::Mut>
 	where I: BitSliceIndex<'a, O, T> {
@@ -458,7 +451,7 @@ where
 	/// }
 	/// ```
 	///
-	/// [`get`]: #method.get
+	/// [`get`]: Self::get
 	/// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
 	#[inline]
 	#[allow(clippy::missing_safety_doc)]
@@ -496,7 +489,7 @@ where
 	/// assert!(bits[1]);
 	/// ```
 	///
-	/// [`get_mut`]: #method.get_mut
+	/// [`get_mut`]: Self::get_mut
 	/// [undefined behavior]: ../../reference/behavior-considered-undefined.html
 	#[inline]
 	#[allow(clippy::missing_safety_doc)]
@@ -533,11 +526,12 @@ where
 	/// # Notes
 	///
 	/// You **cannot** use any of the methods in the `pointer` fundamental type
-	/// or the `core::ptr` module on the `*_ BitSlice` type. This pointer
-	/// retains the `bitvec`-specific value encoding, and is incomprehensible by
-	/// the Rust standard library.
+	/// or the `core::ptr` module on the `*BitSlice` type. This pointer retains
+	/// the `bitvec`-specific value encoding, and is incomprehensible by the
+	/// Rust standard library.
 	///
-	/// The only thing you can do with this pointer is dereference it.
+	/// The only thing you can do with this pointer is reborrow its referent
+	/// region with `&*`.
 	///
 	/// # Examples
 	///
@@ -554,7 +548,7 @@ where
 	/// }
 	/// ```
 	///
-	/// [`as_mut_ptr`]: #method.as_mut_ptr
+	/// [`as_mut_ptr`]: Self::as_mut_ptr
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_ptr(&self) -> *const Self {
@@ -584,9 +578,12 @@ where
 	/// # Notes
 	///
 	/// You **cannot** use any of the methods in the `pointer` fundamental type
-	/// or the `core::ptr` module on the `*_ BitSlice` type. This pointer
-	/// retains the `bitvec`-specific value encoding, and is incomprehensible by
-	/// the Rust standard library.
+	/// or the `core::ptr` module on the `*BitSlice` type. This pointer retains
+	/// the `bitvec`-specific value encoding, and is incomprehensible by the
+	/// Rust standard library.
+	///
+	/// The only thing you can do with this pointer is reborrow its referent
+	/// region with `&mut *`.
 	///
 	/// # Examples
 	///
@@ -718,7 +715,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::iter_mut`](https://doc.rust-lang.org/std/primitive.slice.html#Method.iter_mut)
+	/// [`slice::iter_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.iter_mut)
 	///
 	/// # Examples
 	///
@@ -810,8 +807,8 @@ where
 	/// assert!(iter.next().is_none());
 	/// ```
 	///
-	/// [`chunks_exact`]: #method.chunks_exact
-	/// [`rchunks`]: #method.rchunks
+	/// [`chunks_exact`]: Self::chunks_exact
+	/// [`rchunks`]: Self::rchunks
 	#[inline]
 	pub fn chunks(&self, chunk_size: usize) -> Chunks<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
@@ -849,8 +846,8 @@ where
 	/// assert_eq!(bits.as_slice()[0], 0b01_010_100);
 	/// ```
 	///
-	/// [`chunks_exact_mut`]: #method.chunks_exact_mut
-	/// [`rchunks_mut`]: #method.rchunks_mut
+	/// [`chunks_exact_mut`]: Self::chunks_exact_mut
+	/// [`rchunks_mut`]: Self::rchunks_mut
 	#[inline]
 	pub fn chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
@@ -894,8 +891,8 @@ where
 	/// assert_eq!(iter.remainder(), &bits[6 ..]);
 	/// ```
 	///
-	/// [`chunks`]: #method.chunks
-	/// [`rchunks_exact`]: #method.rchunks_exact
+	/// [`chunks`]: Self::chunks
+	/// [`rchunks_exact`]: Self::rchunks_exact
 	#[inline]
 	pub fn chunks_exact(&self, chunk_size: usize) -> ChunksExact<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
@@ -937,8 +934,8 @@ where
 	/// assert_eq!(bits.as_slice()[0], 0b00_010_001);
 	/// ```
 	///
-	/// [`chunks_mut`]: #method.chunks_mut
-	/// [`rchunks_exact_mut`]: #method.rchunks_exact_mut
+	/// [`chunks_mut`]: Self::chunks_mut
+	/// [`rchunks_exact_mut`]: Self::rchunks_exact_mut
 	#[inline]
 	pub fn chunks_exact_mut(
 		&mut self,
@@ -982,8 +979,8 @@ where
 	/// assert!(iter.next().is_none());
 	/// ```
 	///
-	/// [`chunks`]: #method.chunks
-	/// [`rchunks_exact`]: #method.rchunks_exact
+	/// [`chunks`]: Self::chunks
+	/// [`rchunks_exact`]: Self::rchunks_exact
 	#[inline]
 	pub fn rchunks(&self, chunk_size: usize) -> RChunks<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
@@ -1021,8 +1018,8 @@ where
 	/// assert_eq!(bits.as_slice()[0], 0b100_010_01);
 	/// ```
 	///
-	/// [`chunks_mut`]: #method.chunks_mut
-	/// [`rchunks_exact_mut`]: #method.rchunks_exact_mut
+	/// [`chunks_mut`]: Self::chunks_mut
+	/// [`rchunks_exact_mut`]: Self::rchunks_exact_mut
 	#[inline]
 	pub fn rchunks_mut(&mut self, chunk_size: usize) -> RChunksMut<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
@@ -1066,9 +1063,9 @@ where
 	/// assert_eq!(iter.remainder(), &bits[.. 2]);
 	/// ```
 	///
-	/// [`chunks`]: #method.chunks
-	/// [`rchunks`]: #method.rchunks
-	/// [`chunks_exact`]: #method.chunks_exact
+	/// [`chunks`]: Self::chunks
+	/// [`rchunks`]: Self::rchunks
+	/// [`chunks_exact`]: Self::chunks_exact
 	#[inline]
 	pub fn rchunks_exact(&self, chunk_size: usize) -> RChunksExact<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
@@ -1091,6 +1088,10 @@ where
 	/// remainder as a smaller chunk, and [`chunks_exact_mut`] for the same
 	/// iterator but starting at the beginning of the slice.
 	///
+	/// # Original
+	///
+	/// [`slice::rchunks_exact_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.rchunks_exact_mut)
+	///
 	/// # Panics
 	///
 	/// Panics if `chunk_size` is 0.
@@ -1107,9 +1108,9 @@ where
 	/// assert_eq!(bits.as_slice()[0], 0b001_010_00);
 	/// ```
 	///
-	/// [`chunks_mut`]: #method.chunks_mut
-	/// [`rchunks_mut`]: #method.rchunks_mut
-	/// [`chunks_exact_mut`]: #method.chunks_exact_mut
+	/// [`chunks_mut`]: Self::chunks_mut
+	/// [`rchunks_mut`]: Self::rchunks_mut
+	/// [`chunks_exact_mut`]: Self::chunks_exact_mut
 	#[inline]
 	pub fn rchunks_exact_mut(
 		&mut self,
@@ -1168,7 +1169,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::split_at_mut`](https://doc.rust-lang.org/std/primitive.html#method.split_at_mut)
+	/// [`slice::split_at_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.split_at_mut)
 	///
 	/// # API Differences
 	///
@@ -1201,7 +1202,7 @@ where
 	/// assert_eq!(bits.as_slice()[0], 0b010_00100);
 	/// ```
 	///
-	/// [`BitStore`]: ../store/trait.BitStore.html
+	/// [`BitStore`]: crate::store::BitStore
 	#[inline]
 	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
 	//  so this will not be aliased.
@@ -1563,8 +1564,8 @@ where
 	/// being searched for does not need to have the same type parameters as the
 	/// slice being searched.
 	///
-	/// [`any`]: #method.any
-	/// [`not_all`]: #method.not_all
+	/// [`any`]: Self::any
+	/// [`not_all`]: Self::not_all
 	#[inline]
 	pub fn contains<O2, T2>(&self, x: &BitSlice<O2, T2>) -> bool
 	where
@@ -1669,8 +1670,7 @@ where
 	/// # Panics
 	///
 	/// This function will panic if `by` is greater than the length of the
-	/// slice. Note that `by == self.len()` does *not* panic and is a no-op
-	/// rotation.
+	/// slice. Note that `by == self.len()` does *not* panic and is a noöp.
 	///
 	/// # Complexity
 	///
@@ -1719,7 +1719,7 @@ where
 		There is no reason to use a stack temporary smaller than a processor
 		word, so this uses `usize` instead of `T` for performance benefits.
 		*/
-		let mut tmp = BitArray::<O, usize>::new(0);
+		let mut tmp = BitArray::<O, usize>::zeroed();
 		while by > 0 {
 			let shamt = cmp::min(<usize as BitMemory>::BITS as usize, by);
 			unsafe {
@@ -1745,8 +1745,7 @@ where
 	/// # Panics
 	///
 	/// This function will panic if `by` is greater than the length of the
-	/// slice. Note that `by == self.len()` does *not* panic and is a no-op
-	/// rotation.
+	/// slice. Note that `by == self.len()` does *not* panic and is a noöp.
 	///
 	/// # Complexity
 	///
@@ -1783,7 +1782,7 @@ where
 		if by == 0 || by == len {
 			return;
 		}
-		let mut tmp = BitArray::<O, usize>::new(0);
+		let mut tmp = BitArray::<O, usize>::zeroed();
 		while by > 0 {
 			let shamt = cmp::min(<usize as BitMemory>::BITS as usize, by);
 			let mid = len - shamt;
@@ -1872,9 +1871,9 @@ where
 	/// assert_eq!(data, 0x33);
 	/// ```
 	///
-	/// [`BitField::store`]: ../field/trait.BitField.html#method.store
-	/// [`split_at_mut`]: #method.split_at_mut
-	/// [`.copy_from_bitslice()`]: #method.copy_from_bitslice
+	/// [`BitField::store`]: crate::field::BitField::store
+	/// [`split_at_mut`]: Self::split_at_mut
+	/// [`.copy_from_bitslice()`]: Self::copy_from_bitslice
 	#[inline]
 	pub fn clone_from_bitslice<O2, T2>(&mut self, src: &BitSlice<O2, T2>)
 	where
@@ -1951,15 +1950,10 @@ where
 	/// dst.copy_from_bitslice(src);
 	/// assert!(dst.all());
 	/// ```
-	/// [`BitField::store`]: ../field/trait.BitField.html#method.store
-	/// [`.clone_from_bitslice()`]: #method.clone_from_bitslice
+	/// [`BitField::store`]: crate::field::BitField::store
+	/// [`.clone_from_bitslice()`]: Self::clone_from_bitslice
 	#[inline]
 	pub fn copy_from_bitslice(&mut self, src: &Self) {
-		use core::{
-			any::TypeId,
-			mem,
-		};
-
 		assert_eq!(
 			self.len(),
 			src.len(),
@@ -2042,13 +2036,17 @@ where
 		aliased type.
 		*/
 		else if TypeId::of::<O>() == TypeId::of::<Lsb0>() {
-			let this: &mut BitSlice<Lsb0, T> = unsafe { mem::transmute(self) };
-			let that: &BitSlice<Lsb0, T> = unsafe { mem::transmute(src) };
+			let this: &mut BitSlice<Lsb0, T> =
+				unsafe { &mut *(self as *mut _ as *mut _) };
+			let that: &BitSlice<Lsb0, T> =
+				unsafe { &*(src as *const _ as *const _) };
 			this.sp_copy_from_bitslice(that);
 		}
 		else if TypeId::of::<O>() == TypeId::of::<Msb0>() {
-			let this: &mut BitSlice<Msb0, T> = unsafe { mem::transmute(self) };
-			let that: &BitSlice<Msb0, T> = unsafe { mem::transmute(src) };
+			let this: &mut BitSlice<Msb0, T> =
+				unsafe { &mut *(self as *mut _ as *mut _) };
+			let that: &BitSlice<Msb0, T> =
+				unsafe { &*(src as *const _ as *const _) };
 			this.sp_copy_from_bitslice(that);
 		}
 		else {
@@ -2318,11 +2316,11 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// Copies `self` into a new `BitVec`.
+	/// Copies `self` into a new [`BitVec`].
 	///
 	/// # Original
 	///
-	/// [`slice::to_vec`](https://doc.rust-lang.org/std.primitive.html#method.to_vec)
+	/// [`slice::to_vec`](https://doc.rust-lang.org/std.primitive.slice.html#method.to_vec)
 	///
 	/// # Examples
 	///
@@ -2335,6 +2333,9 @@ where
 	/// assert_eq!(bits, bv);
 	/// # }
 	/// ```
+	///
+	/// [`BitStore`]: crate::store::BitStore::Mem
+	/// [`BitVec`]: crate::vec::BitVec
 	#[inline(always)]
 	pub fn to_bitvec(&self) -> BitVec<O, T> {
 		BitVec::from_bitslice(self)
@@ -2389,9 +2390,6 @@ where
 		let mut out = BitVec::repeat(false, total);
 		for span in (0 .. n).map(|rep| rep * len .. (rep + 1) * len) {
 			unsafe { out.get_unchecked_mut(span) }.copy_from_bitslice(self);
-		}
-		unsafe {
-			out.set_len(total);
 		}
 		out
 	}
@@ -2490,8 +2488,8 @@ assert_eq!(bits.count_ones(), 3);
 ```
 
 [valid]: https://doc.rust-lang.org/core/ptr/index.html#safety
-[`BitSlice::<_, T>::MAX_BITS`]: struct.BitSlice.html#associatedconstant.MAX_BITS
-[`NonNull::dangling()`]: https://doc.rust-lang.org/core/ptr/struct.NonNull.html#method.dangling
+[`BitSlice::<_, T>::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
+[`NonNull::dangling()`]: core::ptr::NonNull::dangling
 **/
 #[inline]
 #[cfg(not(tarpaulin_include))]
@@ -2543,10 +2541,10 @@ Behavior is undefined if any of the following conditions are violated:
 ///
 /// [valid]: https://doc.rust-lang.org/core/ptr/index.html#safety
 /// [`from_raw_parts`]: fn.from_raw_parts.html
-/// [`NonNull::dangling()`]: https://doc.rust-lang.org/core/ptr/struct.NonNull.html#method.dangling
+/// [`NonNull::dangling()`]: core::ptr::NonNull::dangling
 ///
 /// [`BitSlice::<_, T>::MAX_BITS`]:
-/// struct.BitSlice.html#associatedconstant.MAX_BITS
+/// crate::slice::BitSlice::MAX_BITS
 #[inline]
 #[cfg(not(tarpaulin_include))]
 pub unsafe fn from_raw_parts_mut<'a, O, T>(
@@ -2578,15 +2576,17 @@ There is no tracking issue for `feature(slice_index_methods)`.
 
 # Original
 
-[`slice::SliceIndex`](https://doc.rust-lang.org/stable/core/slice/trait.SliceIndex.html)
+[`slice::SliceIndex`](core::slice::SliceIndex)
 
 # API Differences
 
-`SliceIndex::Output` is not usable here, because the `usize` implementation
+[`SliceIndex::Output`] is not usable here, because the `usize` implementation
 cannot produce `&mut bool`. Instead, two output types `Immut` and `Mut` are
 defined. The range implementations define these to be the appropriately mutable
 `BitSlice` reference; the `usize` implementation defines them to be `&bool` and
 the proxy type.
+
+[`SliceIndex::Output`]: core::slice::SliceIndex::Output
 **/
 pub trait BitSliceIndex<'a, O, T>
 where
@@ -2603,7 +2603,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`SliceIndex::get`](https://doc.rust-lang.org/core/slice/trait.SliceIndex.html#method.get)
+	/// [`SliceIndex::get`](core::slice::SliceIndex::get)
 	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::Immut>;
 
 	/// Returns a mutable reference to the output at this location, if in
@@ -2611,7 +2611,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`SliceIndex::get_mut`](https://doc.rust-lang.org/core/slice/trait.SliceIndex.html#method.get_mut)
+	/// [`SliceIndex::get_mut`](core::slice::SliceIndex::get_mut)
 	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::Mut>;
 
 	/// Returns a shared reference to the output at this location, without
@@ -2621,7 +2621,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`SliceIndex::get_unchecked`](https://doc.rust-lang.org/core/slice/trait.SliceIndex.html#method.get_unchecked)
+	/// [`SliceIndex::get_unchecked`](core::slice::SliceIndex::get_unchecked)
 	///
 	/// # Safety
 	///
@@ -2640,7 +2640,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`SliceIndex::get_unchecked_mut`](https://doc.rust-lang.org/core/slice/trait.SliceIndex.html#method.get_unchecked_mut)
+	/// [`SliceIndex::get_unchecked_mut`][gum]
 	///
 	/// # Safety
 	///
@@ -2649,6 +2649,7 @@ where
 	/// calling in order to prevent boundary escapes and the ensuing safety
 	/// violations.
 	///
+	/// [gum]: core::slice::SliceIndex::get_unchecked_mut
 	/// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
 	unsafe fn get_unchecked_mut(
 		self,
@@ -2660,7 +2661,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`SliceIndex::index`](https://doc.rust-lang.org/core/slice/trait.SliceIndex.html#method.index)
+	/// [`SliceIndex::index`](core::slice::SliceIndex::index)
 	fn index(self, slice: &'a BitSlice<O, T>) -> Self::Immut;
 
 	/// Returns a mutable reference to the output at this location, panicking if
@@ -2668,7 +2669,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`SliceIndex::index_mut`](https://doc.rust-lang.org/core/slice/trait.SliceIndex.html#method.index_mut)
+	/// [`SliceIndex::index_mut`](core::slice::SliceIndex::index_mut)
 	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::Mut;
 }
 
@@ -2865,7 +2866,7 @@ range_impl!(RangeFrom<usize> {
 });
 
 range_impl!(RangeTo<usize> {
-	// `.. end` just changes the length
+	// `.. end` only changes the length
 	fn get(self, slice: Self::Immut) -> Option<Self::Immut> {
 		let len = slice.len();
 		if self.end <= len {

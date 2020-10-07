@@ -233,3 +233,12 @@ fn cloning() {
 	a.clone_from(&b);
 	assert_eq!(a, b);
 }
+
+#[test]
+fn vec_splice() {
+	let mut bv = bitvec![0, 1, 0];
+	let new = bits![1, 0];
+	let old: BitVec = bv.splice(.. 2, new.iter().copied()).collect();
+	assert_eq!(bv, bits![1, 0, 0]);
+	assert_eq!(old, bits![0, 1]);
+}

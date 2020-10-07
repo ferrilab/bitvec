@@ -1,23 +1,31 @@
-/*! `serde`-powered de/serialization.
+/*! [`serde`]-powered de/serialization.
 
-This module implements the Serde traits for the `bitvec` types.
+This module implements the Serde traits for the [`bitvec`] types.
 
-`BitSlice` is able to implement `Serialize`, but `serde` does not provide a
-mechanism for deserializing into data borrowed from the calling context. Thus,
-`BitSlice` can only deserialize into `BitBox` or `BitVec`, when built with the
-`"alloc"` feature.
+[`BitSlice`] is able to implement [`Serialize`], but [`serde`] does not provide
+a mechanism for deserializing into data borrowed from the calling context. Thus,
+`BitSlice` can only deserialize into [`BitBox`] or [`BitVec`], when built with
+the `"alloc"` feature.
 
-`BitBox` and `BitVec` implement serialization through `BitSlice`, and
+[`BitBox`] and [`BitVec`] implement serialization through [`BitSlice`], and
 deserialize `BitSlice`s into themselves.
 
-`BitArray` has different behavior: because it always spans the full memory
+[`BitArray`] has different behavior: because it always spans the full memory
 buffer, and has no partial edge elements, it de/serializes the underlying memory
 array without any additional information. It is currently incapable of
-deserializing the stream produced by serializing `BitSlice`, and can only
+deserializing the stream produced by serializing [`BitSlice`], and can only
 deserialize the streams produced by `BitArray`s and ordinary arrays.
 
-If you require de/serialization compatibility between `BitArray` and the other
+If you require de/serialization compatibility between [`BitArray`] and the other
 structures, please file an issue.
+
+[`BitArray`]: crate::array::BitArray
+[`BitBox`]: crate::boxed::BitBox
+[`BitSlice`]: crate::slice::BitSlice
+[`BitVec`]: crate::vec::BitVec
+[`Serialize`]: serde::ser::Serialize
+[`bitvec`]: crate
+[`serde`]: serde
 !*/
 
 #![cfg(feature = "serde")]
@@ -111,7 +119,7 @@ impl<O, V> Serialize for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
-	V::Mem: Serialize,
+	<V::Store as BitStore>::Mem: Serialize,
 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
@@ -188,6 +196,10 @@ deser_array!(
 	21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
 );
 
+/** Aid for deserializing a protocol into a [`BitVec`].
+
+[`BitVec`]: crate::vec::BitVec
+**/
 #[cfg(feature = "alloc")]
 #[derive(Clone, Copy, Debug, Default)]
 struct BitVecVisitor<'de, O, T>
@@ -212,7 +224,7 @@ where
 		_bs: PhantomData,
 	};
 
-	/// Constructs a `BitVec` from deserialized components.
+	/// Constructs a [`BitVec`] from deserialized components.
 	///
 	/// # Parameters
 	///
@@ -223,9 +235,11 @@ where
 	///
 	/// # Returns
 	///
-	/// The result of assembling the deserialized components into a `BitVec`.
+	/// The result of assembling the deserialized components into a [`BitVec`].
 	/// This can fail if the `head` is invalid, or if the deserialized data
 	/// cannot be encoded into a `BitPtr`.
+	///
+	/// [`BitVec`]: crate::vec::BitVec
 	fn assemble<E>(
 		&self,
 		head: u8,

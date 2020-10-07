@@ -1,4 +1,7 @@
-//! Operator trait implementations.
+/*! Operator implementations for [`BitBox`].
+
+[`BitBox`]: crate::boxed::BitBox
+!*/
 
 use crate::{
 	boxed::BitBox,

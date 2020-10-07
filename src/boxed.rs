@@ -1,4 +1,5 @@
-/*! A dynamically-allocated, fixed-size, buffer containing a `BitSlice` region.
+/*! A dynamically-allocated, fixed-size, buffer containing a [`BitSlice`]
+region.
 
 You can read the standard library’s [`alloc::boxed` module documentation][std]
 here.
@@ -6,8 +7,8 @@ here.
 This module defines the [`BitBox`] buffer, and all of its associated support
 code.
 
-`BitBox` is equivalent to `Box<[bool]>`, in its operation and in its
-relationship to the `BitSlice` and [`BitVec`] types. Most of the interesting
+[`BitBox`] is equivalent to `Box<[bool]>`, in its operation and in its
+relationship to the [`BitSlice`] and [`BitVec`] types. Most of the interesting
 work to be done on a bit-sequence is implemented in `BitSlice`, to which
 `BitBox` dereferences, and the box container itself only exists to maintain
 wonership and provide some specializations that cannot safely be done on
@@ -19,11 +20,11 @@ it when you have a bit-sequence whose width is either unknowable at compile-time
 or inexpressable in `BitArray`, and are constructing the sequence in a `BitVec`
 before freezing it.
 
-[`BitArray`]: ../array/struct.BitArray.html
-[`BitBox`]: struct.BitBox.html
-[`BitSlice`]: ../slice/struct.BitSlice.html
-[`BitVec`]: ../vec/struct.BitVec.html
-[std]: https://doc.rust-lang.org/alloc/boxed
+[`BitArray`]: crate::array::BitArray
+[`BitBox`]: self::BitBox
+[`BitSlice`]: crate::slice::BitSlice
+[`BitVec`]: crate::vec::BitVec
+[std]: alloc::boxed
 !*/
 
 #![cfg(feature = "alloc")]
@@ -38,6 +39,7 @@ use crate::{
 	pointer::BitPtr,
 	slice::BitSlice,
 	store::BitStore,
+	vec::BitVec,
 };
 
 use alloc::boxed::Box;
@@ -74,7 +76,7 @@ These sections look like this:
 
 # Original
 
-[`Box<[T]>`](https://doc.rust-lang.org/alloc/boxed/struct.Box.html)
+[`Box<[T]>`](alloc::boxed::Box)
 
 # API Differences
 
@@ -119,10 +121,10 @@ Heap allocation can only occur at runtime, but the [`bitbox!`] macro will
 construct an appropriate `BitSlice` buffer at compile-time, and at run-time,
 only copy the buffer into a heap allocation.
 
-[`BitArray`]: ../array/struct.BitArray.html
-[`BitSlice`]: ../slice/struct.BitSlice.html
-[`BitVec`]: ../vec/struct.BitVec.html
-[`bitbox!`]: ../macro.bitbox.html
+[`BitArray`]: crate::array::BitArray
+[`BitSlice`]: crate::slice::BitSlice
+[`BitVec`]: crate::vec::BitVec
+[`bitbox!`]: macro@crate::bitbox
 **/
 #[repr(transparent)]
 pub struct BitBox<O = Lsb0, T = usize>
@@ -162,7 +164,7 @@ where
 	/// ```
 	#[inline]
 	pub fn from_bitslice(slice: &BitSlice<O, T>) -> Self {
-		slice.to_bitvec().into_boxed_bitslice()
+		BitVec::from_bitslice(slice).into_boxed_bitslice()
 	}
 
 	/// Converts a `Box<[T]>` into a `BitBox`<O, T>` without copying its buffer.
@@ -190,8 +192,7 @@ where
 	/// assert_eq!(bb, bits![0; 32]);
 	/// ```
 	///
-	/// [`BitSlice::MAX_ELTS`]:
-	/// ../slice/struct.BitSlice.html#associatedconstant.MAX_ELTS
+	/// [`BitSlice::MAX_ELTS`]: crate::slice::BitSlice::MAX_ELTS
 	#[inline]
 	pub fn from_boxed_slice(boxed: Box<[T]>) -> Self {
 		Self::try_from_boxed_slice(boxed)
@@ -413,6 +414,7 @@ where
 		}
 	}
 
+	/// Views the handle’s encoded pointer.
 	#[inline]
 	pub(crate) fn bitptr(&self) -> BitPtr<T> {
 		self.pointer.as_ptr().pipe(BitPtr::from_bitslice_ptr_mut)

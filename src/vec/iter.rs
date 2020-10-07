@@ -1,4 +1,7 @@
-//! `BitVec` iterators
+/*! [`BitVec`] iterators.
+
+[`BitVec`]: crate::vec::BitVec
+!*/
 
 use crate::{
 	devel as dvl,
@@ -159,16 +162,10 @@ the [`IntoIterator`] trait).
 
 # Original
 
-[`vec::IntoIter`](https://doc.rust-lang.org/alloc/vec/struct.IntoIter.html)
+[`vec::IntoIter`](alloc::vec::IntoIter)
 
-# API Differences
-
-This explicitly requires that `O` and `T` type parameters are `'static`, which
-is not a bound present in the original. However, it is always *true*, so it will
-not cause a compilation error.
-
-[`BitVec`]: struct.BitVec.html
-[`IntoIterator`]: https://doc.rust-lang.org/core/iter/trait.IntoIterator.html
+[`BitVec`]: crate::vec::BitVec
+[`IntoIterator`]: core::iter::IntoIterator
 **/
 #[derive(Clone, Debug)]
 pub struct IntoIter<O, T>
@@ -178,8 +175,10 @@ where
 {
 	/// Take ownership of the vector for destruction.
 	_bv: BitVec<O, T>,
-	/// Use `BitSlice` iteration processes. This requires a `'static` lifetime,
-	/// since it cannot borrow from itself.
+	/// Use [`BitSlice`] iteration processes. This requires a `'static`
+	/// lifetime, since it cannot borrow from itself.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	iter: Iter<'static, O, T>,
 }
 
@@ -188,11 +187,11 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// Returns the remaining bits of this iterator as a bitslice.
+	/// Returns the remaining bits of this iterator as a [`BitSlice`].
 	///
 	/// # Original
 	///
-	/// [`vec::IntoIter::as_slice`](https://doc.rust-lang.org/alloc/vec/struct.IntoIter.html#method.as_slice)
+	/// [`vec::IntoIter::as_slice`](alloc::vec::IntoIter::as_slice)
 	///
 	/// # Examples
 	///
@@ -201,10 +200,13 @@ where
 	///
 	/// let bv = bitvec![0, 1, 0, 1];
 	/// let mut into_iter = bv.into_iter();
+	///
 	/// assert_eq!(into_iter.as_bitslice(), bits![0, 1, 0, 1]);
 	/// let _ = into_iter.next().unwrap();
 	/// assert_eq!(into_iter.as_bitslice(), bits![1, 0, 1]);
 	/// ```
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
@@ -221,11 +223,11 @@ where
 		self.as_bitslice()
 	}
 
-	/// Returns the remaining bits of this iterator as a mutable slice.
+	/// Returns the remaining bits of this iterator as a mutable [`BitSlice`].
 	///
 	/// # Original
 	///
-	/// [`vec::IntoIter::as_mut_slice`](https://doc.rust-lang.org/alloc/vec/struct.IntoIter.html#method.as_mut_slice)
+	/// [`vec::IntoIter::as_mut_slice`](alloc::vec::IntoIter::as_mut_slice)
 	///
 	/// # Examples
 	///
@@ -234,12 +236,15 @@ where
 	///
 	/// let bv = bitvec![0, 1, 0, 1];
 	/// let mut into_iter = bv.into_iter();
+	///
 	/// assert_eq!(into_iter.as_bitslice(), bits![0, 1, 0, 1]);
 	/// into_iter.as_mut_bitslice().set(2, true);
 	/// assert!(!into_iter.next().unwrap());
 	/// assert!(into_iter.next().unwrap());
 	/// assert!(into_iter.next().unwrap());
 	/// ```
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
@@ -326,16 +331,16 @@ where
 {
 }
 
-/** A draining iterator for `BitVec<O, T>`.
+/** A draining iterator for [`BitVec`].
 
 This `struct` is created by the [`drain`] method on [`BitVec`].
 
 # Original
 
-[`vec::Drain`](https://doc.rust-lang.org/alloc/vec/struct.Drain.html)
+[`vec::Drain`](alloc::vec::Drain)
 
-[`BitVec`]: struct.BitVec.html
-[`drain`]: struct.BitVec.html#method.drain
+[`BitVec`]: crate::vec::BitVec
+[`drain`]: crate::vec::BitVec::drain
 **/
 pub struct Drain<'a, O, T>
 where
@@ -388,20 +393,33 @@ where
 		}
 	}
 
-	/// Returns the remaining bits of this iterator as a bit-slice.
+	/// Returns the remaining bits of this iterator as a [`BitSlice`].
 	///
 	/// # Original
 	///
-	/// [`Drain::as_slice`](https://doc.rust-lang.org/alloc/vec/struct.Drain.html#method.as_slice)
+	/// [`Drain::as_slice`](alloc::vec::Drain::as_slice)
 	///
 	/// # API Differences
 	///
-	/// This method is renamed, as it operates on a bit-slice rather than an
+	/// This method is renamed, as it operates on a [`BitSlice`] rather than an
 	/// element slice.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &'a BitSlice<O, T> {
 		self.drain.as_bitslice()
+	}
+
+	#[inline]
+	#[doc(hidden)]
+	#[allow(deprecated)]
+	#[cfg(not(tarpaulin_include))]
+	#[deprecated(
+		note = "Use `.as_bitslice` on iterators to view the remaining data"
+	)]
+	pub fn as_slice(&self) -> &BitSlice<O, T> {
+		self.drain.as_slice()
 	}
 
 	/// Attempts to overwrite the drained region with another iterator.
@@ -477,6 +495,10 @@ where
 	/// cursor will not be modified.
 	#[inline]
 	unsafe fn move_tail(&mut self, additional: usize) {
+		if additional == 0 {
+			return;
+		}
+
 		let bitvec = self.source.as_mut();
 		let tail_len = self.tail.end - self.tail.start;
 
@@ -641,10 +663,13 @@ where
 	}
 }
 
-/// `std` uses a `bool` flag for done/not done, which is less clear about what
-/// it signals.
+/** `std` uses a `bool` flag for done/not done, which is less clear about what
+it signals.
+
+See <https://github.com/rust-lang/rust/blob/5779815/library/alloc/src/vec.rs#L3327-L3348>.
+**/
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 enum FillStatus {
 	/// The drain span is completely filled.
 	FullSpan   = 0,
@@ -652,17 +677,17 @@ enum FillStatus {
 	EmptyInput = 1,
 }
 
-/** A splicing iterator for `BitVec`.
+/** A splicing iterator for [`BitVec`].
 
 This struct is created by the [`splice()`] method on [`BitVec`]. See its
 documentation for more.
 
 # Original
 
-[`vec::Splice`](https://doc.rust-lang.org/alloc/vec/struct.Splice.html)
+[`vec::Splice`](alloc::vec::Splice)
 
-[`BitVec`]: struct.BitVec.html
-[`splice()`]: struct.BitVec.html#method.splice
+[`BitVec`]: crate::vec::BitVec
+[`splice()`]: crate::vec::BitVec::splice
 **/
 #[derive(Debug)]
 pub struct Splice<'a, O, T, I>
@@ -815,9 +840,10 @@ where
 			return;
 		}
 
-		//  If the `splice` *still* has bits to provide, then its `.size_hint()`
-		//  is untrustworthy. Collect the `splice` into a vector, then insert
-		//  the vector into the spliced region.
+		/* If the `splice` *still* has bits to provide, then its `.size_hint()`
+		is untrustworthy. Collect the `splice` into a vector, then insert the
+		vector into the spliced region.
+		*/
 		let mut collected = self.splice.by_ref().collect::<BitVec>().into_iter();
 		let len = collected.len();
 		if len > 0 {

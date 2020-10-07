@@ -1,13 +1,16 @@
 /*! Memory access control.
 
-`bitvec` allows a program to produce handles over memory that do not logically
+[`bitvec`] allows a program to produce handles over memory that do not logically
 alias, but may alias in hardware. This module provides a unified interface for
 memory accesses that can be specialized to handle aliased and unaliased access
 events.
 
-The `BitAccess` trait provides capabilities to access bits in memory elements
+The [`BitAccess`] trait provides capabilities to access bits in memory elements
 through shared references, and its implementations are responsible for
 coördinating synchronization and contention as needed.
+
+[`BitAccess`]: self::BitAccess
+[`bitvec`]: crate
 !*/
 
 use crate::{
@@ -33,8 +36,11 @@ memory locations, so that use sites elsewhere in the crate can select their
 required behavior without changing the interface.
 
 This is automatically implemented for all types that permit shared/mutable
-memory access to register types through the `radium` crate. Its use is
-constrained in the `store` module.
+memory access to register types through the [`radium`] crate. Its use is
+constrained in the [`store`] module.
+
+[`radium`]: radium
+[`store`]: crate::store
 **/
 pub trait BitAccess: Debug + Radium + Sized
 where <Self as Radium>::Item: BitRegister
@@ -242,8 +248,8 @@ where <Self as Radium>::Item: BitRegister
 	/// `value` into memory. If `value` is `false`, then this produces
 	/// [`clear_bit`]; if it is `true`, then this produces [`set_bit`].
 	///
-	/// [`clear_bit`]: #method.clear_bit
-	/// [`set_bit`]: #method.set_bit
+	/// [`clear_bit`]: Self::clear_bit
+	/// [`set_bit`]: Self::set_bit
 	#[inline]
 	fn get_writer<O>(
 		value: bool,
@@ -265,8 +271,8 @@ where <Self as Radium>::Item: BitRegister
 	/// `value` into memory. If `value` is `false`, then this produces
 	/// [`clear_bits`]; if it is `true`, then this produces [`set_bits`].
 	///
-	/// [`clear_bits`]: #method.clear_bits
-	/// [`set_bits`]: #method.set_bits
+	/// [`clear_bits`]: Self::clear_bits
+	/// [`set_bits`]: Self::set_bits
 	#[inline]
 	fn get_writers(
 		value: bool,

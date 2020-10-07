@@ -1,12 +1,14 @@
-/*! Utilities needed to develop `bitvec` itself.
+/*! Utilities needed to develop [`bitvec`] itself.
 
-This module contains required to perform generic programming in the `bitvec`
+This module contains required to perform generic programming in the [`bitvec`]
 type system. These are not part of the SemVer public API, as they are only
 required when interacting directly with the `bitvec` type system, and are not
 needed to use its data structures directly.
 
 This module is provided, under `feature = "devel"`, for the use of other crates
-that wish to safely perform generic programming with `bitvec` region types.
+that wish to safely perform generic programming with [`bitvec`] region types.
+
+[`bitvec`]: crate
 !*/
 
 #![allow(dead_code)]
@@ -32,7 +34,10 @@ use core::{
 
 use tap::pipe::Pipe;
 
-/// Views a `BitStore` reference as its accessor.
+/** Views a [`BitStore`] reference as its accessor.
+
+[`BitStore`]: crate::store::BitStore
+**/
 #[inline(always)]
 #[cfg(not(tarpaulin_include))]
 pub fn accessor<T>(x: &T) -> &T::Access
@@ -40,7 +45,10 @@ where T: BitStore {
 	unsafe { &*(x as *const T as *const T::Access) }
 }
 
-/// Inserts an `::Alias` marker into a `BitMask`’s type parameter.
+/** Inserts an `::Alias` marker into a [`BitMask`]’s type parameter.
+
+[`BitMask`]: crate::index::BitMask
+**/
 #[inline(always)]
 #[cfg(not(tarpaulin_include))]
 pub fn alias_mask<T>(
@@ -50,7 +58,10 @@ where T: BitStore {
 	unsafe { *(&x as *const _ as *const _) }
 }
 
-/// Inserts an `::Alias` marker into a `T::Mem` value’s type.
+/** Inserts an `::Alias` marker into a [`T::Mem`] value’s type.
+
+[`T::Mem`]: crate::store::BitStore::Mem
+**/
 #[inline(always)]
 #[cfg(not(tarpaulin_include))]
 pub fn alias_mem<T>(x: T::Mem) -> <T::Alias as BitStore>::Mem
@@ -82,7 +93,10 @@ where T: BitStore {
 	unsafe { *(&x as *const _ as *const _) }
 }
 
-/// Removes the `::Alias` marker from a `BitPtr`’s referent type.
+/** Removes the `::Alias` marker from a [`BitPtr`]’s referent type.
+
+[`BitPtr`]: crate::pointer::BitPtr
+**/
 #[inline(always)]
 #[cfg(not(tarpaulin_include))]
 pub fn remove_bitptr_alias<T>(x: BitPtr<T::Alias>) -> BitPtr<T>

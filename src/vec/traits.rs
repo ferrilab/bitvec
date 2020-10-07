@@ -1,4 +1,7 @@
-//! Trait implementations for `BitVec`.
+/*! Trait implementations for [`BitVec`].
+
+[`BitVec`]: crate::vec::BitVec
+!*/
 
 use crate::{
 	boxed::BitBox,
@@ -223,7 +226,7 @@ where
 {
 	#[inline(always)]
 	fn from(slice: &'a BitSlice<O, T>) -> Self {
-		slice.to_bitvec()
+		Self::from_bitslice(slice)
 	}
 }
 
@@ -235,7 +238,7 @@ where
 {
 	#[inline(always)]
 	fn from(slice: &'a mut BitSlice<O, T>) -> Self {
-		slice.to_bitvec()
+		Self::from_bitslice(slice)
 	}
 }
 

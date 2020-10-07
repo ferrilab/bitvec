@@ -16,19 +16,24 @@ use criterion::{
 	Throughput,
 };
 
+//  One kibibit
 const FACTOR: usize = 1024;
 
 pub fn benchmarks(crit: &mut Criterion) {
 	fn steps() -> impl Iterator<Item = (BenchmarkId, usize, Throughput)> {
-		[1, 2, 4, 8, 16, 32, 64, 128].iter().copied().map(|n| {
-			(
-				BenchmarkId::from_parameter(n),
-				n * FACTOR,
-				Throughput::Elements(
-					(n * FACTOR / <usize as BitMemory>::BITS as usize) as u64,
-				),
-			)
-		})
+		[1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64]
+			.iter()
+			.copied()
+			.map(|n| {
+				(
+					BenchmarkId::from_parameter(n),
+					n * FACTOR,
+					Throughput::Elements(
+						(n * FACTOR / <usize as BitMemory>::BITS as usize)
+							as u64,
+					),
+				)
+			})
 	}
 
 	fn mkgroup<

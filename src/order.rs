@@ -1,17 +1,22 @@
 /*! Ordering of bits within register elements.
 
-`bitvec` structures are parametric over any ordering of bits within a register.
-The `BitOrder` trait maps a cursor position (indicated by the `BitIdx` type) to an
-electrical position (indicated by the `BitPos` type) within that element, and
-also defines the order of traversal over a register.
+[`bitvec`] structures are parametric over any ordering of bits within a
+register. The [`BitOrder`] trait maps a cursor position (indicated by the
+[`BitIdx`] type) to an electrical position (indicated by the [`BitPos`] type)
+within that element, and also defines the order of traversal over a register.
 
-The only requirement on implementors of `BitOrder` is that the transform function
-from cursor (`BitIdx`) to position (`BitPos`) is *total* (every integer in the
-domain `0 .. T::BITS` is used) and *unique* (each cursor maps to one and only
-one position, and each position is mapped by one and only one cursor).
-Contiguity is not required.
+The only requirement on implementors of [`BitOrder`] is that the transform
+function from cursor ([`BitIdx`]) to position ([`BitPos`]) is *total* (every
+integer in the domain `0 .. T::BITS` is used) and *unique* (each cursor maps to
+one and only one position, and each position is mapped by one and only one
+cursor). Contiguity is not required.
 
-`BitOrder` is a stateless trait, and implementors should be zero-sized types.
+[`BitOrder`] is a stateless trait, and implementors should be zero-sized types.
+
+[`BitIdx`]: crate::index::BitIdx
+[`BitPos`]: crate::index::BitPos
+[`BitOrder`]: crate::order::BitOrder
+[`bitvec`]: crate
 !*/
 
 use crate::index::{
@@ -27,9 +32,9 @@ use crate::index::{
 
 # Usage
 
-`bitvec` structures store and operate on semantic counts, not bit positions. The
-`BitOrder::at` function takes a semantic ordering, `BitIdx`, and produces an
-electrical position, `BitPos`.
+[`bitvec`] structures store and operate on semantic counts, not bit positions.
+The [`BitOrder::at`] function takes a semantic ordering, [`BitIdx`], and
+produces an electrical position, [`BitPos`].
 
 # Safety
 
@@ -54,8 +59,8 @@ for interaction with memory.
 # Verification
 
 Rust currently lacks Zig’s compile-time computation capability. This means that
-`bitvec` cannot fail a compile if it detects that a `BitOrder` implementation is
-invalid and breaks the stated requirements. `bitvec` does offer a function,
+[`bitvec`] cannot fail a compile if it detects that a `BitOrder` implementation
+is invalid and breaks the stated requirements. `bitvec` does offer a function,
 [`verify`], which ensures the correctness of an implementation. When Rust gains
 the capability to run this function in generic `const` contexts, `bitvec` will
 use it to prevent at compile-time the construction of data structures that use
@@ -86,7 +91,11 @@ fn prove_custom() {
 }
 ```
 
-[`verify`]: fn.verify.html
+[`BitIdx`]: crate::index::BitIdx
+[`BitOrder::at`]: self::BitOrder::at
+[`BitPos`]: crate::index::BitPos
+[`bitvec`]: crate
+[`verify`]: crate::order::verify
 **/
 pub unsafe trait BitOrder: 'static {
 	/// Converts a semantic bit index into an electrical bit position.
@@ -101,8 +110,8 @@ pub unsafe trait BitOrder: 'static {
 	/// # Returns
 	///
 	/// The electrical position of the indexed bit within a register `R`. See
-	/// the `BitPos` documentation for what electrical positions are considered
-	/// to mean.
+	/// the [`BitPos`] documentation for what electrical positions are
+	/// considered to mean.
 	///
 	/// # Type Parameters
 	///
@@ -115,10 +124,10 @@ pub unsafe trait BitOrder: 'static {
 	///
 	/// ## Totality
 	///
-	/// This function must be able to accept every input in the `BitIdx<R>`
-	/// value range, and produce a corresponding `BitPos<R>`. It must not abort
-	/// the program or return an invalid `BitPos<R>` for any input value in the
-	/// `BitIdx<R>` range.
+	/// This function must be able to accept every input in the [`BitIdx<R>`]
+	/// value range, and produce a corresponding [`BitPos<R>`]. It must not
+	/// abort the program or return an invalid `BitPos<R>` for any input value
+	/// in the `BitIdx<R>` range.
 	///
 	/// ## Bijection
 	///
@@ -136,7 +145,7 @@ pub unsafe trait BitOrder: 'static {
 	///
 	/// ## Output Validity
 	///
-	/// The produced `BitPos<R>` must be within the valid range of that type.
+	/// The produced [`BitPos<R>`] must be within the valid range of that type.
 	/// Call sites of this function will not take any steps to constrain the
 	/// output value. If you use `unsafe` code to produce an invalid
 	/// `BitPos<R>`, the program is permanently incorrect, and will likely
@@ -145,8 +154,11 @@ pub unsafe trait BitOrder: 'static {
 	/// # Usage
 	///
 	/// This function will only ever be called with input values in the valid
-	/// `BitIdx<R>` range. Implementors are not required to consider any values
-	/// outside this range in their function body.
+	/// [`BitIdx<R>`] range. Implementors are not required to consider any
+	/// values outside this range in their function body.
+	///
+	/// [`BitIdx<R>`]: crate::index::BitIdx
+	/// [`BitPos<R>`]: crate::index::BitPos
 	fn at<R>(index: BitIdx<R>) -> BitPos<R>
 	where R: BitRegister;
 
@@ -155,11 +167,12 @@ pub unsafe trait BitOrder: 'static {
 	/// This is an optional function; a default implementation is provided for
 	/// you.
 	///
-	/// The default implementation of this function calls `Self::at` to produce
-	/// an electrical position, then turns that into a selector mask by setting
-	/// the `n`th bit more significant than the least significant bit of the
-	/// element. `BitOrder` implementations may choose to provide a faster mask
-	/// production here, but they must satisfy the requirements listed below.
+	/// The default implementation of this function calls [`Self::at`] to
+	/// produce an electrical position, then turns that into a selector mask by
+	/// setting the `n`th bit more significant than the least significant bit of
+	/// the element. `BitOrder` implementations may choose to provide a faster
+	/// mask production here, but they must satisfy the requirements listed
+	/// below.
 	///
 	/// # Parameters
 	///
@@ -182,6 +195,8 @@ pub unsafe trait BitOrder: 'static {
 	///
 	/// As with `at`, this function must produce a unique mapping from each
 	/// legal index in the `R` domain to a one-hot value of `R`.
+	///
+	/// [`Self::at`]: crate::order::BitOrder::at
 	#[inline]
 	fn select<R>(index: BitIdx<R>) -> BitSel<R>
 	where R: BitRegister {
@@ -192,8 +207,8 @@ pub unsafe trait BitOrder: 'static {
 	/// register `R`.
 	///
 	/// The default implementation of this function traverses the index range,
-	/// converting each index into a single-bit selector with `Self::select` and
-	/// accumulating into a combined register value.
+	/// converting each index into a single-bit selector with [`Self::select`]
+	/// and accumulating into a combined register value.
 	///
 	/// # Parameters
 	///
@@ -220,6 +235,8 @@ pub unsafe trait BitOrder: 'static {
 	///   .map(1 << Self::at::<R>)
 	///   .fold(0, |mask, sel| mask | sel)
 	/// ```
+	///
+	/// [`Self::select`]: crate::order::BitOrder::select
 	#[inline]
 	fn mask<R>(
 		from: impl Into<Option<BitIdx<R>>>,
@@ -238,7 +255,7 @@ pub unsafe trait BitOrder: 'static {
 	}
 }
 
-/// Traverses a register from `MSbit` to `LSbit`.
+/// Traverses a register from the most significant bit to the least significant.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Msb0;
 
@@ -283,7 +300,7 @@ unsafe impl BitOrder for Msb0 {
 	}
 }
 
-/// Traverses a register from `LSbit` to `MSbit`.
+/// Traverses a register from the least significant bit to the most significant.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Lsb0;
 
@@ -326,20 +343,24 @@ unsafe impl BitOrder for Lsb0 {
 /** A default bit ordering.
 
 Typically, your platform’s C compiler uses most-significant-bit-first ordering
-for bitfields. The Msb0 bit ordering and big-endian byte ordering are otherwise
-completely unrelated.
+for bitfields. The [`Msb0`] bit ordering and big-endian byte ordering are
+otherwise completely unrelated.
+
+[`Msb0`]: crate::order::Msb0
 **/
 #[cfg(target_endian = "big")]
-pub type LocalBits = Msb0;
+pub use Msb0 as LocalBits;
 
 /** A default bit ordering.
 
 Typically, your platform’s C compiler uses least-significant-bit-first ordering
-for bitfields. The Lsb0 bit ordering and little-endian byte ordering are
+for bitfields. The [`Lsb0`] bit ordering and little-endian byte ordering are
 otherwise completely unrelated.
+
+[`Lsb0`]: crate::order::Lsb0
 **/
 #[cfg(target_endian = "little")]
-pub type LocalBits = Lsb0;
+pub use Lsb0 as LocalBits;
 
 #[cfg(not(any(target_endian = "big", target_endian = "little")))]
 compile_fail!(concat!(
@@ -347,15 +368,15 @@ compile_fail!(concat!(
 	env!(CARGO_PKG_REPOSITORY)
 ));
 
-/** Verifies a `BitOrder` implementation’s adherence to the stated rules.
+/** Verifies a [`BitOrder`] implementation’s adherence to the stated rules.
 
-This function checks some `BitOrder` implementation’s behavior on each of the
-`BitRegister` types it must handle, and reports any violation of the rules that
-it detects.
+This function checks some [`BitOrder`] implementation’s behavior on each of the
+[`BitRegister`] types it must handle, and reports any violation of the rules
+that it detects.
 
 # Type Parameters
 
-- `O`: The `BitOrder` implementation to test.
+- `O`: The [`BitOrder`] implementation to test.
 
 # Parameters
 
@@ -364,10 +385,13 @@ it detects.
 
 # Panics
 
-This panics if it detects any violation of the `BitOrder` implementation rules
+This panics if it detects any violation of the [`BitOrder`] implementation rules
 for `O`.
+
+[`BitOrder`]: crate::order::BitOrder
+[`BitRegister`]: crate::index::BitRegister
 **/
-#[cfg(test)]
+#[cfg(any(doc, test))]
 pub fn verify<O>(verbose: bool)
 where O: BitOrder {
 	verify_for_type::<O, u8>(verbose);
@@ -379,19 +403,19 @@ where O: BitOrder {
 	verify_for_type::<O, u64>(verbose);
 }
 
-/** Verifies a `BitOrder` implementation’s adherence to the stated rules, for
+/** Verifies a [`BitOrder`] implementation’s adherence to the stated rules, for
 one register type.
 
-This function checks some `BitOrder` implementation against only one of the
-`BitRegister` types that it will encounter. This is useful if you are
+This function checks some [`BitOrder`] implementation against only one of the
+[`BitRegister`] types that it will encounter. This is useful if you are
 implementing an ordering that only needs to be concerned with a subset of the
 types, and you know that you will never use it with the types it does not
 support.
 
 # Type Parameters
 
-- `O`: The `BitOrder` implementation to test.
-- `R`: The `BitRegister` type for which to test `O`.
+- `O`: The [`BitOrder`] implementation to test.
+- `R`: The [`BitRegister`] type for which to test `O`.
 
 # Parameters
 
@@ -400,10 +424,13 @@ support.
 
 # Panics
 
-This panics if it detects any violation of the `BitOrder` implementation rules
+This panics if it detects any violation of the [`BitOrder`] implementation rules
 for the combination of input types and index values.
+
+[`BitOrder`]: crate::order::BitOrder
+[`BitRegister`]: crate::index::BitRegister
 **/
-#[cfg(test)]
+#[cfg(any(doc, test))]
 pub fn verify_for_type<O, R>(verbose: bool)
 where
 	O: BitOrder,
