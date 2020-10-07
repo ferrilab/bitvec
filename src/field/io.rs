@@ -82,12 +82,16 @@ impl<'a, O, T> Write for &'a mut BitSlice<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
-	BitSlice<O, T::Alias>: BitField,
+	BitSlice<O, T>: BitField,
 {
 	#[inline]
 	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
 		let mut idx = 0;
-		for (slot, byte) in self.chunks_exact_mut(8).zip(buf.iter().copied()) {
+		for (slot, byte) in self
+			.chunks_exact_mut(8)
+			.remove_alias()
+			.zip(buf.iter().copied())
+		{
 			slot.store(byte);
 			idx += 1;
 		}
@@ -115,7 +119,7 @@ impl<O, T> Write for BitVec<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
-	BitSlice<O, T::Alias>: BitField,
+	BitSlice<O, T>: BitField,
 {
 	#[inline]
 	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {

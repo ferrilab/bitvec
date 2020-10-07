@@ -2303,6 +2303,226 @@ split_n!(SplitNMut => SplitMut => &'a mut BitSlice<O, T::Alias> );
 split_n!(RSplitN => RSplit => &'a BitSlice<O, T>);
 split_n!(RSplitNMut => RSplitMut => &'a mut BitSlice<O, T::Alias> );
 
+/* This macro has some very obnoxious call syntax that is necessary to handle
+the different iteration protocols used above.
+
+The `Split` iterators are not `DoubleEndedIterator` or `ExactSizeIterator`, and
+must be excluded from those implementations. However, bounding on `DEI` causes
+`.next_back()` and `.nth_back()` to return opaque associated types, rather than
+the return type from the directly-resolved signatures. As such, the item type of
+the source iterator must also be provided so that methods on it can be named.
+*/
+macro_rules! noalias {
+	( $(
+		$from:ident $( ( $p:ident ) )?
+		=> $alias:ty
+		=> $to:ident
+		=> $item:ty
+		=> $map:path
+		;
+	)+ ) => { $(
+		/// An iterator variant that does not apply a `::Alias` marker to its
+		/// yielded items.
+		///
+		/// This iterator can be safely used in `for … in` loop headers, but
+		/// cannot be used anywhere that its surrounding code may pull multiple
+		/// yielded items into the same scope. This includes any iterator
+		/// adapters that pull multiple yielded items into the same collection!
+		/// Each yielded item **must** not have any sibling items in its scope.
+		///
+		/// This iterator does not yield `T::Mem` raw-typed references, as it
+		/// may be produced from an already-aliased iterator and must retain its
+		/// initial aliasing properties. It merely asserts that it will not be
+		/// used in contexts that produce multiple yielded items in the same
+		/// scope.
+		pub struct $to <'a, O, T $( , $p )? >
+		where
+			O: BitOrder,
+			T: BitStore,
+			$( $p : FnMut(usize, &bool) -> bool, )?
+		{
+			/// The actual iterator that this modifies.
+			inner: $from <'a, O, T $( , $p )? >,
+		}
+
+		impl<'a, O, T $( , $p )? > $from <'a, O, T $( , $p )? >
+		where
+			O: BitOrder,
+			T: BitStore,
+			$( $p : FnMut(usize, &bool) -> bool, )?
+		{
+			/// Adapts the iterator to no longer mark its yielded items as
+			/// aliased.
+			///
+			/// # Safety
+			///
+			/// This adapter can only be used in contexts where only one yielded
+			/// item will be alive at any time. This is most commonly true in
+			/// `for … in` loops, so long as no subsequent adapter collects
+			/// multiple yielded items into a collection where they are live
+			/// simultaneously.
+			///
+			/// The items yielded by this iterator will not have an additional
+			/// alias marker applied to them, so their use in an iteration
+			/// sequence will not be penalized when the surrounding code
+			/// guarantees that each item yielded by the iterator is destroyed
+			/// before the next is produced.
+			///
+			/// This adapter does **not** convert the iterator to use `T::Mem`
+			/// raw types, as it can be applied to an iterator over an
+			/// already-aliased slice and must preserve its condition. Its only
+			/// effect is to prevent the addition of a new `::Alias` marker.
+			#[inline(always)]
+			pub fn remove_alias(self) -> $to <'a, O, T $( , $p )? > {
+				$to ::new(self)
+			}
+		}
+
+		impl<'a, O, T $( , $p )? > $to <'a, O, T $( , $p )? >
+		where
+			O: BitOrder,
+			T: BitStore,
+			$( $p : FnMut(usize, &bool) -> bool, )?
+		{
+			#[inline(always)]
+			fn new(inner: $from<'a, O, T $( , $p )? >) -> Self {
+				Self { inner }
+			}
+		}
+
+		impl<'a, O, T $( , $p )? > Iterator for $to <'a, O, T $( , $p )? >
+		where
+			O: BitOrder,
+			T: BitStore,
+			$( $p : FnMut(usize, &bool) -> bool, )?
+		{
+			type Item = $item;
+
+			#[inline(always)]
+			fn next(&mut self) -> Option<Self::Item> {
+				self.inner.next().map(|item| unsafe { $map(item) })
+			}
+
+			#[inline(always)]
+			fn size_hint(&self) -> (usize, Option<usize>) {
+				self.inner.size_hint()
+			}
+
+			#[inline(always)]
+			fn count(self) -> usize {
+				self.inner.count()
+			}
+
+			#[inline(always)]
+			fn nth(&mut self, n: usize) -> Option<Self::Item> {
+				self.inner.nth(n).map(|item| unsafe { $map(item) })
+			}
+
+			#[inline(always)]
+			fn last(self) -> Option<Self::Item> {
+				self.inner.last().map(|item| unsafe { $map(item) })
+			}
+		}
+
+		impl<'a, O, T $( , $p )? > DoubleEndedIterator for $to <'a, O, T $( , $p )? >
+		where
+			O: BitOrder,
+			T: BitStore,
+			$from <'a, O, T $( , $p )? >: DoubleEndedIterator<Item = $alias >,
+			$( $p : FnMut(usize, &bool) -> bool, )?
+		{
+			#[inline(always)]
+			fn next_back(&mut self) -> Option<Self::Item> {
+				self.inner
+					.next_back()
+					.map(|item| unsafe { $map(item) })
+				}
+
+				#[inline(always)]
+				fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+					self.inner
+					.nth_back(n)
+					.map(|item| unsafe { $map(item) })
+			}
+		}
+
+		impl<'a, O, T $( , $p )? > ExactSizeIterator for $to <'a, O, T $( , $p )? >
+		where
+			O: BitOrder,
+			T: BitStore,
+			$from <'a, O, T $( , $p )? >: ExactSizeIterator,
+			$( $p : FnMut(usize, &bool) -> bool, )?
+		{
+			#[inline(always)]
+			fn len(&self) -> usize {
+				self.inner.len()
+			}
+		}
+
+		impl<O, T $( , $p )? > FusedIterator for $to <'_, O, T $( , $p )? >
+		where
+			O: BitOrder,
+			T: BitStore,
+			$( $p : FnMut(usize, &bool) -> bool, )?
+		{
+		}
+
+		unsafe impl<O, T $( , $p )? > Send for $to <'_, O, T $( , $p )? >
+		where
+			O: BitOrder,
+			T: BitStore,
+			$( $p : FnMut(usize, &bool) -> bool, )?
+		{
+		}
+
+		unsafe impl<O, T $( , $p )? > Sync for $to <'_, O, T $( , $p )? >
+		where
+			O: BitOrder,
+			T: BitStore,
+			$( $p : FnMut(usize, &bool) -> bool, )?
+		{
+		}
+	)+ };
+}
+
+noalias! {
+	IterMut => <usize as BitSliceIndex<'a, O, T::Alias>>::Mut
+	=> IterMutNoAlias => <usize as BitSliceIndex<'a, O, T>>::Mut
+	=> BitMut::unalias;
+
+	ChunksMut => &'a mut BitSlice<O, T::Alias>
+	=> ChunksMutNoAlias => &'a mut BitSlice<O, T>
+	=> BitSlice::unalias_mut;
+
+	ChunksExactMut => &'a mut BitSlice<O, T::Alias>
+	=> ChunksExactMutNoAlias => &'a mut BitSlice<O, T>
+	=> BitSlice::unalias_mut;
+
+	RChunksMut => &'a mut BitSlice<O, T::Alias>
+	=> RChunksMutNoAlias => &'a mut BitSlice<O, T>
+	=> BitSlice::unalias_mut;
+
+	RChunksExactMut => &'a mut BitSlice<O, T::Alias>
+	=> RChunksExactMutNoAlias => &'a mut BitSlice<O, T>
+	=> BitSlice::unalias_mut;
+
+	SplitMut (P) => &'a mut BitSlice<O, T::Alias>
+	=> SplitMutNoAlias => &'a mut BitSlice<O, T>
+	=> BitSlice::unalias_mut;
+
+	RSplitMut (P) => &'a mut BitSlice<O, T::Alias>
+	=> RSplitMutNoAlias => &'a mut BitSlice<O, T>
+	=> BitSlice::unalias_mut;
+
+	SplitNMut (P) => &'a mut BitSlice<O, T::Alias>
+	=> SplitNMutNoAlias => &'a mut BitSlice<O, T>
+	=> BitSlice::unalias_mut;
+
+	RSplitNMut (P) => &'a mut BitSlice<O, T::Alias>
+	=> RSplitNMutNoAlias => &'a mut BitSlice<O, T>
+	=> BitSlice::unalias_mut;
+}
+
 #[cfg(test)]
 mod tests {
 	use crate::prelude::*;

@@ -717,6 +717,14 @@ where
 	///
 	/// [`slice::iter_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.iter_mut)
 	///
+	/// # API Differences
+	///
+	/// This iterator marks each yielded reference as aliased, as iterators can
+	/// be used to yield multiple items into the same scope. If you are using
+	/// the iterator in a manner that ensures that all yielded items have
+	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
+	/// remove the marker from yielded references.
+	///
 	/// # Examples
 	///
 	/// ```rust
@@ -728,6 +736,8 @@ where
 	/// }
 	/// assert_eq!(bits.as_slice()[0], 0b100_100_10);
 	/// ```
+	///
+	/// [`.remove_alias()`]: crate::slice::IterMut::remove_alias
 	#[inline]
 	pub fn iter_mut(&mut self) -> IterMut<O, T> {
 		self.into_iter()
@@ -830,6 +840,14 @@ where
 	///
 	/// [`slice::chunks_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.chunks_mut)
 	///
+	/// # API Differences
+	///
+	/// This iterator marks each yielded reference as aliased, as iterators can
+	/// be used to yield multiple items into the same scope. If you are using
+	/// the iterator in a manner that ensures that all yielded items have
+	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
+	/// remove the marker from yielded references.
+	///
 	/// # Panics
 	///
 	/// Panics if `chunk_size` is 0.
@@ -848,6 +866,7 @@ where
 	///
 	/// [`chunks_exact_mut`]: Self::chunks_exact_mut
 	/// [`rchunks_mut`]: Self::rchunks_mut
+	/// [`.remove_alias()`]: crate::slice::ChunksMut::remove_alias
 	#[inline]
 	pub fn chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
@@ -918,6 +937,14 @@ where
 	///
 	/// [`slice::chunks_exact_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.chunks_exact_mut)
 	///
+	/// # API Differences
+	///
+	/// This iterator marks each yielded reference as aliased, as iterators can
+	/// be used to yield multiple items into the same scope. If you are using
+	/// the iterator in a manner that ensures that all yielded items have
+	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
+	/// remove the marker from yielded references.
+	///
 	/// # Panics
 	///
 	/// Panics if `chunk_size` is 0.
@@ -936,6 +963,7 @@ where
 	///
 	/// [`chunks_mut`]: Self::chunks_mut
 	/// [`rchunks_exact_mut`]: Self::rchunks_exact_mut
+	/// [`.remove_alias()`]: crate::slice::ChunksExactMut::remove_alias
 	#[inline]
 	pub fn chunks_exact_mut(
 		&mut self,
@@ -1002,6 +1030,14 @@ where
 	///
 	/// [`slice::rchunks_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.rchunks_mut)
 	///
+	/// # API Differences
+	///
+	/// This iterator marks each yielded reference as aliased, as iterators can
+	/// be used to yield multiple items into the same scope. If you are using
+	/// the iterator in a manner that ensures that all yielded items have
+	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
+	/// remove the marker from yielded references.
+	///
 	/// # Panics
 	///
 	/// Panics if `chunk_size` is 0.
@@ -1020,6 +1056,7 @@ where
 	///
 	/// [`chunks_mut`]: Self::chunks_mut
 	/// [`rchunks_exact_mut`]: Self::rchunks_exact_mut
+	/// [`.remove_alias()`]: crate::slice::RChunksMut::remove_alias
 	#[inline]
 	pub fn rchunks_mut(&mut self, chunk_size: usize) -> RChunksMut<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
@@ -1092,6 +1129,14 @@ where
 	///
 	/// [`slice::rchunks_exact_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.rchunks_exact_mut)
 	///
+	/// # API Differences
+	///
+	/// This iterator marks each yielded reference as aliased, as iterators can
+	/// be used to yield multiple items into the same scope. If you are using
+	/// the iterator in a manner that ensures that all yielded items have
+	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
+	/// remove the marker from yielded references.
+	///
 	/// # Panics
 	///
 	/// Panics if `chunk_size` is 0.
@@ -1111,6 +1156,7 @@ where
 	/// [`chunks_mut`]: Self::chunks_mut
 	/// [`rchunks_mut`]: Self::rchunks_mut
 	/// [`chunks_exact_mut`]: Self::chunks_exact_mut
+	/// [`.remove_alias()`]: crate::slice::RChunksExactMut::remove_alias
 	#[inline]
 	pub fn rchunks_exact_mut(
 		&mut self,
@@ -1292,6 +1338,12 @@ where
 	/// decision, the predicate receives the index of each bit, as well as its
 	/// value.
 	///
+	/// This iterator marks each yielded reference as aliased, as iterators can
+	/// be used to yield multiple items into the same scope. If you are using
+	/// the iterator in a manner that ensures that all yielded items have
+	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
+	/// remove the marker from yielded references.
+	///
 	/// # Examples
 	///
 	/// ```rust
@@ -1303,6 +1355,8 @@ where
 	/// }
 	/// assert_eq!(bits.as_slice()[0], 0b101_100_11);
 	/// ```
+	///
+	/// [`.remove_alias()`]: crate::slice::SplitMut::remove_alias
 	#[inline]
 	pub fn split_mut<F>(&mut self, pred: F) -> SplitMut<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
@@ -1371,6 +1425,12 @@ where
 	/// decision, the predicate receives the index of each bit, as well as its
 	/// value.
 	///
+	/// This iterator marks each yielded reference as aliased, as iterators can
+	/// be used to yield multiple items into the same scope. If you are using
+	/// the iterator in a manner that ensures that all yielded items have
+	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
+	/// remove the marker from yielded references.
+	///
 	/// # Examples
 	///
 	/// ```rust
@@ -1382,6 +1442,8 @@ where
 	/// }
 	/// assert_eq!(bits.as_slice()[0], 0b101_100_11);
 	/// ```
+	///
+	/// [`.remove_alias()`]: crate::slice::RSplitMut::remove_alias
 	#[inline]
 	pub fn rsplit_mut<F>(&mut self, pred: F) -> RSplitMut<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
@@ -1442,6 +1504,12 @@ where
 	/// decision, the predicate receives the index of each bit, as well as its
 	/// value.
 	///
+	/// This iterator marks each yielded reference as aliased, as iterators can
+	/// be used to yield multiple items into the same scope. If you are using
+	/// the iterator in a manner that ensures that all yielded items have
+	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
+	/// remove the marker from yielded references.
+	///
 	/// # Examples
 	///
 	/// ```rust
@@ -1453,6 +1521,8 @@ where
 	/// }
 	/// assert_eq!(bits.as_slice()[0], 0b101_100_10);
 	/// ```
+	///
+	/// [`.remove_alias()`]: crate::slice::SplitNMut::remove_alias
 	#[inline]
 	pub fn splitn_mut<F>(&mut self, n: usize, pred: F) -> SplitNMut<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
@@ -1515,6 +1585,12 @@ where
 	/// decision, the predicate receives the index of each bit, as well as its
 	/// value.
 	///
+	/// This iterator marks each yielded reference as aliased, as iterators can
+	/// be used to yield multiple items into the same scope. If you are using
+	/// the iterator in a manner that ensures that all yielded items have
+	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
+	/// remove the marker from yielded references.
+	///
 	/// # Examples
 	///
 	/// ```rust
@@ -1526,6 +1602,8 @@ where
 	/// }
 	/// assert_eq!(bits.as_slice()[0], 0b101_000_11);
 	/// ```
+	///
+	/// [`.remove_alias()`]: crate::slice::RSplitNMut::remove_alias
 	#[inline]
 	pub fn rsplitn_mut<F>(&mut self, n: usize, pred: F) -> RSplitNMut<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
@@ -1886,10 +1964,7 @@ where
 			"Cloning between slices requires equal lengths"
 		);
 
-		for (to, from) in self
-			.iter_mut()
-			.map(|b| unsafe { BitMut::<O, T>::unalias(b) })
-			.zip(src.iter().copied())
+		for (to, from) in self.iter_mut().remove_alias().zip(src.iter().copied())
 		{
 			to.set(from);
 		}

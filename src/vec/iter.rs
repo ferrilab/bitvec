@@ -54,7 +54,9 @@ where
 				let new_len = len + n;
 				let new = unsafe { self.get_unchecked_mut(len .. new_len) };
 				let mut pulled = 0;
-				for (slot, bit) in new.iter_mut().zip(iter.by_ref()) {
+				for (slot, bit) in
+					new.iter_mut().remove_alias().zip(iter.by_ref())
+				{
 					slot.set(bit);
 					pulled += 1;
 				}

@@ -47,7 +47,7 @@ specialize! {
 		let chunk_size = <usize as BitMemory>::BITS as usize;
 		for (to, from) in self
 			.chunks_mut(chunk_size)
-			.map(|c| unsafe { BitSlice::<_, T>::unalias_mut(c) })
+			.remove_alias()
 			.zip(src.chunks(chunk_size))
 		{
 			to.store::<usize>(from.load::<usize>())
