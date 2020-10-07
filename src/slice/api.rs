@@ -2412,15 +2412,19 @@ where
 	/// [`BitStore`]: crate::store::BitStore::Mem
 	/// [`BitVec`]: crate::vec::BitVec
 	#[inline(always)]
-	pub fn to_bitvec(&self) -> BitVec<O, T> {
-		BitVec::from_bitslice(self)
+	pub fn to_bitvec(&self) -> BitVec<O, T::Mem> {
+		let mut bv = BitVec::from_bitslice(self);
+		let ptr = bv.as_mut_bitptr();
+		let capa = bv.alloc_capacity();
+		core::mem::forget(bv);
+		unsafe { BitVec::from_raw_parts(ptr as *mut BitSlice<O, T::Mem>, capa) }
 	}
 
 	#[doc(hidden)]
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated(note = "Use `.to_bitvec` to convert a bit slice into a vector")]
-	pub fn to_vec(&self) -> BitVec<O, T> {
+	pub fn to_vec(&self) -> BitVec<O, T::Mem> {
 		self.to_bitvec()
 	}
 
