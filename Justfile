@@ -40,31 +40,18 @@ cover: format check lint
 	@tokei
 
 cross:
-	# You will need to run this the first time you start cross-compiling on a
-	# machine.
-	# TRAVIS_OS_NAME=linux ci/install_rust.sh
+	@# You will need to run this the first time you start cross-compiling on a
+	@# machine.
+	@# TRAVIS_OS_NAME=linux ci/install_rust.sh
 
-	# Run on a Linux host, and execute the test suite
-	CI=1 TARGET=aarch64-unknown-linux-gnu ci/script.sh
-	CI=1 TARGET=arm-unknown-linux-gnueabi ci/script.sh
-	CI=1 TARGET=armv7-unknown-linux-gnueabihf ci/script.sh
-	CI=1 TARGET=i686-unknown-linux-gnu ci/script.sh
-	CI=1 TARGET=i686-unknown-linux-musl ci/script.sh
-	CI=1 TARGET=mips-unknown-linux-gnu ci/script.sh
-	CI=1 TARGET=mips64-unknown-linux-gnuabi64 ci/script.sh
-	CI=1 TARGET=mips64el-unknown-linux-gnuabi64 ci/script.sh
-	CI=1 TARGET=mipsel-unknown-linux-gnu ci/script.sh
-	CI=1 TARGET=powerpc-unknown-linux-gnu ci/script.sh
-	CI=1 TARGET=powerpc64le-unknown-linux-gnu ci/script.sh
-	CI=1 TARGET=x86_64-unknown-linux-musl ci/script.sh
+	@# Run on a Linux host, and execute the test suite
+	parallel -v 'env ENABLE_CROSS=1 TARGET={} ci/script.sh' :::: ci/target_test.txt
 
-	# Run on a Linx host, but do not execute the test suite.
-	CI=1 TARGET=aarch64-linux-android DISABLE_TESTS=1 ci/script.sh
-	CI=1 TARGET=arm-linux-androideabi DISABLE_TESTS=1 ci/script.sh
-	CI=1 TARGET=armv7-linux-androideabi DISABLE_TESTS=1 ci/script.sh
-	CI=1 TARGET=i686-linux-android DISABLE_TESTS=1 ci/script.sh
-	CI=1 TARGET=s390x-unknown-linux-gnu DISABLE_TESTS=1 ci/script.sh
-	CI=1 TARGET=x86_64-linux-android DISABLE_TESTS=1 ci/script.sh
+	@# Run on a Linx host, but do not execute the test suite.
+	parallel -v 'env ENABLE_CROSS=1 TARGET={} DISABLE_TESTS=1 ci/script.sh' :::: ci/target_notest.txt
+
+	@# Cross-compile only, without attempting to emulate.
+	parallel -v 'rustup target add {} ; cargo check --no-default-features --target {}' :::: ci/target_local.txt
 
 # Runs the development routines.
 dev: format lint doc test cover

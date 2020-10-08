@@ -61,6 +61,7 @@ fn buffer_control() {
 }
 
 #[test]
+#[cfg(not(target_arch = "riscv64"))]
 #[should_panic(expected = "Vector capacity exceeded")]
 fn overcommit() {
 	BitVec::<LocalBits, usize>::with_capacity(
@@ -69,6 +70,7 @@ fn overcommit() {
 }
 
 #[test]
+#[cfg(not(target_arch = "riscv64"))]
 #[should_panic(
 	expected = "Attempted to reconstruct a `BitVec` from a null pointer"
 )]
