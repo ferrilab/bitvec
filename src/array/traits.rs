@@ -453,7 +453,7 @@ mod tests {
 		let arr: &mut BitArray<Msb0, [u16; 4]> = bits.try_into().unwrap();
 		assert!(arr.not_any());
 
-		let bits = bits![mut 0; 4];
+		let bits = bits![mut LocalBits, usize; 0; 4];
 		let bit_arr: Result<&BitArray<LocalBits, usize>, _> =
 			(&*bits).try_into();
 		assert!(bit_arr.is_err());
