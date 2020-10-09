@@ -180,6 +180,143 @@ impl<T> Copy for Address<T> where T: BitStore
 {
 }
 
+/** Forms a raw [`BitSlice`] pointer from its component data.
+
+This is logically equivalent to [`ptr::slice_from_raw_parts`].
+
+This function is safe, but actually using the return value is unsafe. See the
+documentation of [`bits_from_raw_parts`] for slice safety requirements.
+
+# Type Parameters
+
+- `O`: The ordering of bits within elements `T`.
+- `T`: The type of each memory element in the backing storage region.
+
+# Parameters
+
+- `addr`: The base address of the memory region that the [`BitSlice`] covers.
+- `head`: The index of the first live bit in `*addr`, at which the `BitSlice`
+  begins. This is required to be in the range `0 .. T::Mem::BITS`.
+- `bits`: The number of live bits, beginning at `head` in `*addr`, that the
+  `BitSlice` contains. This must be no greater than [`BitSlice::MAX_BITS`].
+
+# Returns
+
+If the input parameters are valid, this returns `Some` shared reference to a
+[`BitSlice`]. The failure conditions causing this to return `None` are:
+
+- `head` is not less than [`T::Mem::BITS`]
+- `bits` is greater than [`BitSlice::<O, T>::MAX_BITS`]
+- `addr` is not adequately aligned to `T`
+- `addr` is so high in the memory space that the region wraps to the base of the
+  memory space
+
+# Examples
+
+```rust
+use bitvec::{
+  index::BitIdx,
+  order::Msb0,
+  ptr as bp,
+  slice::BitSlice,
+};
+
+let data = 0xF0u8;
+let bitptr: *const BitSlice<Msb0, u8>
+  = bp::bitslice_from_raw_parts(&data, BitIdx::ZERO, 4).unwrap();
+assert_eq!(unsafe { &*bitptr }.len(), 4);
+assert!(unsafe { &*bitptr }.all());
+```
+
+[`BitSlice`]: crate::slice::BitSlice
+[`BitSlice::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
+[`BitSlice::<O, T>::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
+[`T::Mem::BITS`]: crate::mem::BitMemory::BITS
+[`ptr::slice_from_raw_parts`]: core::ptr::slice_from_raw_parts
+[`bits_from_raw_parts`]: crate::slice::bits_from_raw_parts
+**/
+pub fn bitslice_from_raw_parts<O, T>(
+	addr: *const T,
+	head: BitIdx<T::Mem>,
+	bits: usize,
+) -> Option<*const BitSlice<O, T>>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	BitPtr::new(addr, head, bits).map(BitPtr::to_bitslice_ptr)
+}
+
+/** Performs the same functionality as [`bitslice_from_raw_parts`], except that
+a raw mutable [`BitSlice`] is returned, as opposed to a raw immutable
+`BitSlice`.
+
+This is logically equivalent to [`ptr::slice_from_raw_parts_mut`].
+
+This function is safe, but actually using the return value is unsafe. See the
+documentation of [`bits_from_raw_parts_mut`] for slice safety requirements.
+
+# Type Parameters
+
+- `O`: The ordering of bits within elements `T`.
+- `T`: The type of each memory element in the backing storage region.
+
+# Parameters
+
+- `addr`: The base address of the memory region that the [`BitSlice`] covers.
+- `head`: The index of the first live bit in `*addr`, at which the `BitSlice`
+  begins. This is required to be in the range `0 .. T::Mem::BITS`.
+- `bits`: The number of live bits, beginning at `head` in `*addr`, that the
+  `BitSlice` contains. This must be no greater than [`BitSlice::MAX_BITS`].
+
+# Returns
+
+If the input parameters are valid, this returns `Some` shared reference to a
+[`BitSlice`]. The failure conditions causing this to return `None` are:
+
+- `head` is not less than [`T::Mem::BITS`]
+- `bits` is greater than [`BitSlice::<O, T>::MAX_BITS`]
+- `addr` is not adequately aligned to `T`
+- `addr` is so high in the memory space that the region wraps to the base of the
+  memory space
+
+# Examples
+
+```rust
+use bitvec::{
+  index::BitIdx,
+  order::Msb0,
+  ptr as bp,
+  slice::BitSlice,
+};
+
+let mut data = 0x00u8;
+let bitptr: *mut BitSlice<Msb0, u8>
+  = bp::bitslice_from_raw_parts_mut(&mut data, BitIdx::ZERO, 4).unwrap();
+assert_eq!(unsafe { &*bitptr }.len(), 4);
+unsafe { &mut *bitptr }.set_all(true);
+assert_eq!(data, 0xF0);
+```
+
+[`BitSlice`]: crate::slice::BitSlice
+[`BitSlice::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
+[`BitSlice::<O, T>::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
+[`T::Mem::BITS`]: crate::mem::BitMemory::BITS
+[`ptr::slice_from_raw_parts_mut`]: core::ptr::slice_from_raw_parts_mut
+[`bits_from_raw_parts_mut`]: crate::slice::bits_from_raw_parts_mut
+**/
+pub fn bitslice_from_raw_parts_mut<O, T>(
+	addr: *mut T,
+	head: BitIdx<T::Mem>,
+	bits: usize,
+) -> Option<*mut BitSlice<O, T>>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	BitPtr::new(addr, head, bits).map(BitPtr::to_bitslice_ptr_mut)
+}
+
 /** Bit-precision slice pointer encoding.
 
 Rust slices use a pointer/length encoding to represent regions of memory.
@@ -383,7 +520,7 @@ where T: BitStore
 	/// number is guaranteed to be well below the limits of arithmetic or Rust’s
 	/// own constraints on memory region handles.
 	///
-	/// [`REGION_MAX_BITS`]: crate::pointer::BitPtr::REGION_MAX_BITS
+	/// [`REGION_MAX_BITS`]: crate::ptr::BitPtr::REGION_MAX_BITS
 	pub(crate) const REGION_MAX_ELTS: usize =
 		crate::mem::elts::<T::Mem>(Self::REGION_MAX_BITS) + 1;
 

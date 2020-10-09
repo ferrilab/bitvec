@@ -6,7 +6,7 @@
 use crate::{
 	boxed::BitBox,
 	order::BitOrder,
-	pointer::BitPtr,
+	ptr::BitPtr,
 	slice::BitSlice,
 	store::BitStore,
 	vec::BitVec,

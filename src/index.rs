@@ -162,9 +162,9 @@ impl<R> BitIdx<R>
 where R: BitRegister
 {
 	/// The inclusive-maximum index.
-	pub(crate) const LAST: Self = make!(idx R::MASK);
+	pub const LAST: Self = make!(idx R::MASK);
 	/// The zero index.
-	pub(crate) const ZERO: Self = make!(idx 0);
+	pub const ZERO: Self = make!(idx 0);
 
 	/// Wraps a counter value as a known-good index into an `R` register.
 	///
@@ -178,7 +178,7 @@ where R: BitRegister
 	/// otherwise, it returns a `BitIdx` wrapping the `idx` value.
 	#[inline]
 	#[doc(hidden)]
-	pub(crate) fn new(idx: u8) -> Option<Self> {
+	pub fn new(idx: u8) -> Option<Self> {
 		if idx >= R::BITS {
 			return None;
 		}

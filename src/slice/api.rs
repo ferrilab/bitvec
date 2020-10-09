@@ -15,7 +15,7 @@ use crate::{
 		Lsb0,
 		Msb0,
 	},
-	pointer::BitPtr,
+	ptr::BitPtr,
 	slice::{
 		iter::{
 			Chunks,

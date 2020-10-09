@@ -30,7 +30,7 @@ use crate::{
 		BitOrder,
 		Lsb0,
 	},
-	pointer::BitPtr,
+	ptr::BitPtr,
 	slice::BitSlice,
 	store::BitStore,
 };

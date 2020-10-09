@@ -31,7 +31,7 @@ use crate::{
 	},
 	mem::BitMemory,
 	order::BitOrder,
-	pointer::BitPtr,
+	ptr::BitPtr,
 	slice::BitSlice,
 	store::BitStore,
 };

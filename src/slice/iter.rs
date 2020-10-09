@@ -4,7 +4,7 @@ use crate::{
 	index::BitIdx,
 	mem::BitMemory,
 	order::BitOrder,
-	pointer::BitPtr,
+	ptr::BitPtr,
 	slice::{
 		proxy::BitMut,
 		BitSlice,

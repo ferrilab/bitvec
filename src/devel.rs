@@ -16,7 +16,7 @@ that wish to safely perform generic programming with [`bitvec`] region types.
 
 use crate::{
 	index::BitMask,
-	pointer::BitPtr,
+	ptr::BitPtr,
 	store::BitStore,
 };
 
@@ -95,7 +95,7 @@ where T: BitStore {
 
 /** Removes the `::Alias` marker from a [`BitPtr`]’s referent type.
 
-[`BitPtr`]: crate::pointer::BitPtr
+[`BitPtr`]: crate::ptr::BitPtr
 **/
 #[inline(always)]
 #[cfg(not(tarpaulin_include))]
