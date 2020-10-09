@@ -37,7 +37,7 @@ but `u64` will only do so on 64-bit targets, and will be unavailable on 32-bit
 targets. This is a necessary restriction of `bitvec` internals. Please comment
 on [Issue #76](https://github.com/myrrlyn/bitvec/issues/76) if this affects you.
 
-Specifically, this has the davantage that a [`BitSlice<_, Cell<_>>`] knows that
+Specifically, this has the advantage that a [`BitSlice<_, Cell<_>>`] knows that
 it has a view of memory that will not undergo concurrent modification. As such,
 it can forego atomic accesses, and just use ordinary load/store instructions
 without fear of causing observable race conditions.
@@ -72,8 +72,9 @@ file an issue asking for support in this area.
 
 # Supertraits
 
-This trait has trait requirements that better express its behavior:
+This trait has requirements that better express its behavior:
 
+- `'static`: Implementors never contain references.
 - `Sealed` prevents it from being implemented by downstream libraries (`Sealed`
   is a public trait in a private module, that only this crate can name).
 - [`Sized`] instructs the compiler that values of this type can be used as
@@ -85,8 +86,8 @@ This trait has trait requirements that better express its behavior:
 [`Atomic`]: core::sync::atomic
 [`BitSlice<_, Cell<_>>`]: crate::slice::BitSlice
 [`Cell`]: core::cell::Cell
-[`Mem`]: Self::Mem
 [`Debug`]: core::fmt::Debug
+[`Mem`]: Self::Mem
 [`Sized`]: core::marker::Sized
 [`bitvec`]: crate
 **/
@@ -240,15 +241,15 @@ macro_rules! store {
 }
 
 store!(
-	u8 => radium::types::RadiumU8,
-	u16 => radium::types::RadiumU16,
-	u32 => radium::types::RadiumU32,
+	u8 => core::sync::atomic::AtomicU8,
+	u16 => core::sync::atomic::AtomicU16,
+	u32 => core::sync::atomic::AtomicU32,
 );
 
 #[cfg(target_pointer_width = "64")]
-store!(u64 => radium::types::RadiumU64);
+store!(u64 => core::sync::atomic::AtomicU64);
 
-store!(usize => radium::types::RadiumUsize);
+store!(usize => core::sync::atomic::AtomicUsize);
 
 impl<R> BitStore for Cell<R>
 where

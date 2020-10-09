@@ -1,4 +1,7 @@
-//! Operator trait implementations
+/*! Operator implementations on [`BitSlice`].
+
+[`BitSlice`]: crate::slice::BitSlice
+!*/
 
 use crate::{
 	access::BitAccess,

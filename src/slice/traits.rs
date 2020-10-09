@@ -1,4 +1,7 @@
-//! Trait implementations for `BitSlice`
+/*! Trait implementations for [`BitSlice`].
+
+[`BitSlice`]: crate::slice::BitSlice
+!*/
 
 use crate::{
 	domain::Domain,

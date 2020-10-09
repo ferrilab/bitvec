@@ -69,27 +69,36 @@ incorrect ordering implementations.
 The verifier function panics when it detects invalid behavior, with an error
 message intended to clearly indicate the broken requirement.
 
-```rust
-use bitvec::{
-  index::{BitIdx, BitPos, BitRegister},
-  order::{self, BitOrder},
-};
-# use bitvec::{index::*, order::Lsb0};
+# Examples
 
-pub struct Custom;
-unsafe impl BitOrder for Custom {
-  fn at<R: BitRegister>(idx: BitIdx<R>) -> BitPos<R> {
-  // impl
-  # return Lsb0::at::<R>(idx);
-  }
-}
+Implementations are not required to remain contiguous over a register. This
+example swizzles the high and low nybbles of each byte, but any translation is
+valid as long as it satisfies the strict one-to-one requirement of
+index-to-position.
 
-#[test]
-#[cfg(test)]
-fn prove_custom() {
-  order::verify::<Custom>();
-}
-```
+**/
+/// ```rust
+/// use bitvec::{
+///   index::{BitIdx, BitPos, BitRegister},
+///   order::{self, BitOrder},
+/// };
+/// # use bitvec::{index::*, order::Lsb0};
+///
+/// /// Swizzles YYYYMMDD into MMDDYYYY per byte
+/// pub struct AmericanDateStyle;
+/// unsafe impl BitOrder for AmericanDateStyle {
+///   fn at<R: BitRegister>(idx: BitIdx<R>) -> BitPos<R> {
+///     unsafe { BitPos::new(idx.value() ^ 4) }.unwrap()
+///   }
+/// }
+///
+/// #[test]
+/// #[cfg(test)]
+/// fn prove_custom() {
+///   order::verify::<AmericanDateStyle>();
+/// }
+/// ```
+/**
 
 [`BitIdx`]: crate::index::BitIdx
 [`BitOrder::at`]: self::BitOrder::at
@@ -570,20 +579,27 @@ where
 #[cfg(all(test, not(miri)))]
 mod tests {
 	use super::*;
+	use crate::index::BitRegister;
 
 	#[test]
 	fn verify_impls() {
 		verify::<Lsb0>(cfg!(feature = "testing"));
 		verify::<Msb0>(cfg!(feature = "testing"));
+	}
 
-		struct DefaultImpl;
-		unsafe impl BitOrder for DefaultImpl {
-			fn at<R>(index: BitIdx<R>) -> BitPos<R>
+	#[test]
+	fn custom_order() {
+		struct AmericanDateStyle;
+		unsafe impl BitOrder for AmericanDateStyle {
+			fn at<R>(idx: BitIdx<R>) -> BitPos<R>
 			where R: BitRegister {
-				unsafe { BitPos::new_unchecked(index.value()) }
+				let val = idx.value();
+				let new = val ^ 4;
+				unsafe { BitPos::new(new) }.unwrap_or_else(|| {
+					panic!("Attempted to solve {} -> {}", val, new)
+				})
 			}
 		}
-
-		verify::<DefaultImpl>(cfg!(feature = "testing"));
+		verify::<AmericanDateStyle>(cfg!(feature = "testing"));
 	}
 }

@@ -2480,11 +2480,13 @@ where
 	*/
 }
 
-/** Converts a reference to `T` into a bitslice over one element.
+/** Converts a reference to `T` into a [`BitSlice`] over one element.
 
 # Original
 
-[`slice::from_ref`](https://doc.rust-lang.org/core/slice/fn.from_ref.html)
+[`slice::from_ref`](core::slice::from_ref)
+
+[`BitSlice`]: crate::slice::BitSlice
 **/
 #[inline(always)]
 #[cfg(not(tarpaulin_include))]
@@ -2496,11 +2498,13 @@ where
 	BitSlice::from_element(elem)
 }
 
-/** Converts a reference to `T` into a bitslice over one element.
+/** Converts a reference to `T` into a [`BitSlice`] over one element.
 
 # Original
 
-[`slice::from_mut`](https://doc.rust-lang.org/core/slice/fn.from_mut.html)
+[`slice::from_mut`](core::slice::from_mut)
+
+[`BitSlice`]: crate::slice::BitSlice
 **/
 #[inline(always)]
 #[cfg(not(tarpaulin_include))]
@@ -2517,30 +2521,30 @@ where
 in comments. Once `rustfmt` is fixed, revert these to block comments.
 */
 
-/** Forms a bitslice from a pointer and a length.
+/** Forms a [`BitSlice`] from a pointer and a length.
 
 The `len` argument is the number of **elements**, not the number of bits.
 
 # Original
 
-[`slice::from_raw_parts`](https://doc.rust-lang.org/core/slice/fn.from_raw_parts.html)
+[`slice::from_raw_parts`](core::slice::from_raw_parts)
 
 # Safety
 
 Behavior is undefined if any of the following conditions are violated:
-
 **/
+///
 /// - `data` must be [valid] for `len * mem::size_of::<T>()` many bytes, and it
 ///   must be properly aligned. This means in particular:
 ///   - The entire memory range of this slice must be contained within a single
 ///     allocated object! Slices can never span across multiple allocated
 ///     objects.
 ///   - `data` must be non-null and aligned even for zero-length slices. The
-///     `&BitSlice` pointer encoding requires this porperty to hold. You can
+///     `&BitSlice` pointer encoding requires this property to hold. You can
 ///     obtain a pointer that is usable as `data` for zero-length slices using
 ///     [`NonNull::dangling()`].
-/// - The memory referenced by the returned bitslice must not be mutated for the
-///   duration of the lifetime `'a`, except inside an `UnsafeCell`.
+/// - The memory referenced by the returned [`BitSlice`] must not be mutated for
+///   the duration of the lifetime `'a`, except inside an [`UnsafeCell`].
 /// - The total size `len * T::Mem::BITS` of the slice must be no larger than
 ///   [`BitSlice::<_, T>::MAX_BITS`].
 /**
@@ -2567,8 +2571,10 @@ assert_eq!(bits.count_ones(), 3);
 ```
 
 [valid]: https://doc.rust-lang.org/core/ptr/index.html#safety
+[`BitSlice`]: crate::slice::BitSlice
 [`BitSlice::<_, T>::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
 [`NonNull::dangling()`]: core::ptr::NonNull::dangling
+[`UnsafeCell`]: core::cell::UnsafeCell
 **/
 #[inline]
 #[cfg(not(tarpaulin_include))]
@@ -2590,13 +2596,12 @@ where
 		})
 }
 
-/**
-Performs the same functionality as [`from_raw_parts`], except that a mutable
+/** Performs the same functionality as [`from_raw_parts`], except that a mutable
 bitslice is returned.
 
 # Original
 
-[`slice::from_raw_parts_mut`](https://doc.rust-lang.org/core/slice/fn.from_raw_parts_mut.html)
+[`slice::from_raw_parts_mut`](core::slice::from_raw_parts_mut)
 
 # Safety
 
@@ -2609,7 +2614,7 @@ Behavior is undefined if any of the following conditions are violated:
 ///     allocated object! Slices can never span across multiple allocated
 ///     objects.
 ///   - `data` must be non-null and aligned even for zero-length slices. The
-///     `&BitSlice` pointer encoding requires this porperty to hold. You can
+///     [`&BitSlice`] pointer encoding requires this property to hold. You can
 ///     obtain a pointer that is usable as `data` for zero-length slices using
 ///     [`NonNull::dangling()`].
 /// - The memory referenced by the returned bitslice must not be accessed
@@ -2619,11 +2624,10 @@ Behavior is undefined if any of the following conditions are violated:
 ///   [`BitSlice::<_, T>::MAX_BITS`].
 ///
 /// [valid]: https://doc.rust-lang.org/core/ptr/index.html#safety
-/// [`from_raw_parts`]: fn.from_raw_parts.html
+/// [`BitSlice::<_, T>::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
 /// [`NonNull::dangling()`]: core::ptr::NonNull::dangling
-///
-/// [`BitSlice::<_, T>::MAX_BITS`]:
-/// crate::slice::BitSlice::MAX_BITS
+/// [`from_raw_parts`]: crate::slice::from_raw_parts
+/// [`&BitSlice`]: crate::slice::BitSlice
 #[inline]
 #[cfg(not(tarpaulin_include))]
 pub unsafe fn from_raw_parts_mut<'a, O, T>(
@@ -2647,8 +2651,8 @@ where
 /** A helper trait used for indexing operations.
 
 This trait has its definition stabilized, but has not stabilized its associated
-functions. This means it cannot be implemented outside of the distribution
-libraries. *Furthermore*, since `bitvec` cannot create `&mut bool` references,
+methods. This means it cannot be implemented outside of the distribution
+libraries. *Furthermore*, since [`bitvec`] cannot create `&mut bool` references,
 it is insufficient for `bitvec`’s uses.
 
 There is no tracking issue for `feature(slice_index_methods)`.
@@ -2662,20 +2666,22 @@ There is no tracking issue for `feature(slice_index_methods)`.
 [`SliceIndex::Output`] is not usable here, because the `usize` implementation
 cannot produce `&mut bool`. Instead, two output types `Immut` and `Mut` are
 defined. The range implementations define these to be the appropriately mutable
-`BitSlice` reference; the `usize` implementation defines them to be `&bool` and
-the proxy type.
+[`BitSlice`] reference; the `usize` implementation defines them to be `&bool`
+and the proxy type.
 
+[`BitSlice`]: crate::slice::BitSlice
 [`SliceIndex::Output`]: core::slice::SliceIndex::Output
+[`bitvec`]: crate
 **/
 pub trait BitSliceIndex<'a, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// The output type for immutable functions.
+	/// The output type for immutable accessors.
 	type Immut;
 
-	/// The output type for mutable functions.
+	/// The output type for mutable accessors.
 	type Mut;
 
 	/// Returns a shared reference to the output at this location, if in bounds.

@@ -300,7 +300,12 @@ where
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		if fmt.alternate() {
-			Pointer::fmt(self, fmt)?;
+			self.bitptr().render(
+				fmt,
+				"Vec",
+				Some(any::type_name::<O>()),
+				None,
+			)?;
 			fmt.write_str(" ")?;
 		}
 		Display::fmt(self.as_bitslice(), fmt)

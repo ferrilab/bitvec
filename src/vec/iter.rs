@@ -157,7 +157,7 @@ where
 	}
 }
 
-/** An iterator that moves out of a vector.
+/** An iterator that moves out of a [`BitVec`].
 
 This `struct` is created by the `into_iter` method on [`BitVec`] (provided by
 the [`IntoIterator`] trait).

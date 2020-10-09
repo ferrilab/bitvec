@@ -2093,13 +2093,13 @@ where
 	pub const MAX_ELTS: usize = BitPtr::<T>::REGION_MAX_ELTS;
 }
 
-/** Constructs a `&BitSlice` reference from its component data.
+/** Constructs a [`&BitSlice`] reference from its component data.
 
 This is logically equivalent to [`slice::from_raw_parts`] for `[T]`.
 
 # Lifetimes
 
-- `'a`: The lifetime of the returned bitslice handle. This must be no longer
+- `'a`: The lifetime of the returned [`BitSlice`] handle. This must be no longer
   than the duration of the referent region, as it is illegal for references to
   dangle.
 
@@ -2110,16 +2110,16 @@ This is logically equivalent to [`slice::from_raw_parts`] for `[T]`.
 
 # Parameters
 
-- `addr`: The base address of the memory region that the `BitSlice` covers.
+- `addr`: The base address of the memory region that the [`BitSlice`] covers.
 - `head`: The index of the first live bit in `*addr`, at which the `BitSlice`
   begins. This is required to be in the range `0 .. T::Mem::BITS`.
 - `bits`: The number of live bits, beginning at `head` in `*addr`, that the
-  `BitSlice` contains. This must be no greater than `BitSlice::MAX_BITS`.
+  `BitSlice` contains. This must be no greater than [`BitSlice::MAX_BITS`].
 
 # Returns
 
 If the input parameters are valid, this returns `Some` shared reference to a
-`BitSlice`. The failure conditions causing this to return `None` are:
+[`BitSlice`]. The failure conditions causing this to return `None` are:
 
 - `head` is not less than [`T::Mem::BITS`]
 - `bits` is greater than [`BitSlice::<O, T>::MAX_BITS`]
@@ -2129,14 +2129,17 @@ If the input parameters are valid, this returns `Some` shared reference to a
 
 # Safety
 
-The memory region described by the returned `BitSlice` must be validly allocated
-within the caller’s memory management system. It must also not be modified for
-the duration of the lifetime `'a`, unless the `T` type parameter permits safe
-shared mutation.
+The memory region described by the returned [`BitSlice`] must be validly
+allocated within the caller’s memory management system. It must also not be
+modified for the duration of the lifetime `'a`, unless the `T` type parameter
+permits safe shared mutation.
 
+[`BitSlice`]: crate::slice::BitSlice
+[`BitSlice::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
 [`BitSlice::<O, T>::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
 [`T::Mem::BITS`]: crate::mem::BitMemory::BITS
 [`slice::from_raw_parts`]: core::slice::from_raw_parts
+[`&BitSlice`]: crate::slice::BitSlice
 **/
 #[inline]
 pub unsafe fn bits_from_raw_parts<'a, O, T>(
@@ -2152,13 +2155,13 @@ where
 	BitPtr::new(addr, head, bits).map(BitPtr::to_bitslice_ref)
 }
 
-/** Constructs a `&mut BitSlice` reference from its component data.
+/** Constructs a [`&mut BitSlice`] reference from its component data.
 
 This is logically equivalent to [`slice::from_raw_parts_mut`] for `[T]`.
 
 # Lifetimes
 
-- `'a`: The lifetime of the returned bitslice handle. This must be no longer
+- `'a`: The lifetime of the returned [`BitSlice`] handle. This must be no longer
   than the duration of the referent region, as it is illegal for references to
   dangle.
 
@@ -2169,16 +2172,16 @@ This is logically equivalent to [`slice::from_raw_parts_mut`] for `[T]`.
 
 # Parameters
 
-- `addr`: The base address of the memory region that the `BitSlice` covers.
+- `addr`: The base address of the memory region that the [`BitSlice`] covers.
 - `head`: The index of the first live bit in `*addr`, at which the `BitSlice`
   begins. This is required to be in the range `0 .. T::Mem::BITS`.
 - `bits`: The number of live bits, beginning at `head` in `*addr`, that the
-  `BitSlice` contains. This must be no greater than `BitSlice::MAX_BITS`.
+  `BitSlice` contains. This must be no greater than [`BitSlice::MAX_BITS`].
 
 # Returns
 
 If the input parameters are valid, this returns `Some` shared reference to a
-`BitSlice`. The failure conditions causing this to return `None` are:
+[`BitSlice`]. The failure conditions causing this to return `None` are:
 
 - `head` is not less than [`T::Mem::BITS`]
 - `bits` is greater than [`BitSlice::<O, T>::MAX_BITS`]
@@ -2188,14 +2191,17 @@ If the input parameters are valid, this returns `Some` shared reference to a
 
 # Safety
 
-The memory region described by the returned `BitSlice` must be validly allocated
-within the caller’s memory management system. It must also not be reachable for
-the lifetime `'a` by any path other than references derived from the return
-value.
+The memory region described by the returned [`BitSlice`] must be validly
+allocated within the caller’s memory management system. It must also not be
+reachable for the lifetime `'a` by any path other than references derived from
+the return value.
 
+[`BitSlice`]: crate::slice::BitSlice
+[`BitSlice::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
 [`BitSlice::<O, T>::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
 [`T::Mem::BITS`]: crate::mem::BitMemory::BITS
 [`slice::from_raw_parts_mut`]: core::slice::from_raw_parts_mut
+[`&mut BitSlice`]: crate::slice::BitSlice
 **/
 #[inline]
 pub unsafe fn bits_from_raw_parts_mut<'a, O, T>(

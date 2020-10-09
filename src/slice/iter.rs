@@ -1,4 +1,7 @@
-//! `BitSlice` iterators
+/*! [`BitSlice`] iterators.
+
+[`BitSlice`]: crate::slice::BitSlice
+!*/
 
 use crate::{
 	index::BitIdx,
@@ -26,13 +29,13 @@ use core::{
 	ptr::NonNull,
 };
 
-/** Immutable slice iterator
+/** Immutable [`BitSlice`] iterator
 
 This struct is created by the [`iter`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::Iter`](core::slice::Iter.html)
+[`slice::Iter`](core::slice::Iter)
 
 # Examples
 
@@ -79,12 +82,16 @@ where
 	/// Semantic index of the first dead bit after the last live bit. This may
 	/// be in an element beyond the dereferencable region.
 	///
-	/// This is not a `BitTail` because reverse iteration requires a valid
+	/// This is not a [`BitTail`] because reverse iteration requires a valid
 	/// index, and the use of a pointer that may point outside the element
 	/// region has a smoother codepath than the use of an index that may be
 	/// outside the element.
+	///
+	/// [`BitTail`]: crate::index::BitTail
 	tail: BitIdx<T::Mem>,
-	/// `Iter` is semantically equivalent to a `&BitSlice`.
+	/// `Iter` is semantically equivalent to a [`&BitSlice`].
+	///
+	/// [`&BitSlice`]: crate::slice::BitSlice
 	_ref: PhantomData<&'a BitSlice<O, T>>,
 }
 
@@ -95,7 +102,7 @@ where
 {
 	/// Views the underlying data as a subslice of the original data.
 	///
-	/// This has the same lifetime as the original bit slice, and so the
+	/// This has the same lifetime as the original [`BitSlice`], and so the
 	/// iterator can continue to be used while this exists.
 	///
 	/// # Original
@@ -105,7 +112,7 @@ where
 	/// # API Differences
 	///
 	/// This is renamed, as its return type is not an element slice `&[T]` or
-	/// `&[bool]` but a bit slice.
+	/// `&[bool]` but a [`BitSlice`].
 	///
 	/// # Examples
 	///
@@ -233,19 +240,19 @@ where
 {
 }
 
-/** Mutable bit slice iterator.
+/** Mutable [`BitSlice`] iterator.
 
 This struct is created by the [`iter_mut`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::IterMut`](core::slice::IterMut.html)
+[`slice::IterMut`](core::slice::IterMut)
 
 # API Differences
 
-In addition to returning `BitMut` instead of `&mut bool`, all references
+In addition to returning [`BitMut`] instead of `&mut bool`, all references
 produced from this iterator are marked as aliasing. This is necessary because
-the references receive the lifetime of the original slice, not of the iterator
+the references receive the lifetime of the original [`BitSlice`], not of the iterator
 object, and the iterator is able to produce multiple live references in the same
 scope.
 
@@ -267,6 +274,7 @@ for (idx, mut bit) in bits.iter_mut().enumerate() {
 assert_eq!(data, 0b100_100_10);
 ```
 
+[`BitMut`]: crate::slice::BitMut
 [`BitSlice`]: crate::slice::BitSlice
 [`iter_mut`]: crate::slice::BitSlice::iter_mut
 **/
@@ -305,7 +313,7 @@ where
 	/// # API Differences
 	///
 	/// This is renamed, as its return type is not an element slice `&mut [T]`
-	/// or `&mut [bool]` but a bit slice.
+	/// or `&mut [bool]` but a [`BitSlice`].
 	///
 	/// # Examples
 	///
@@ -712,13 +720,13 @@ macro_rules! group {
 
 /** An iterator over overlapping subslices of length `size`.
 
-This struct is created by the [`windows`] method on [bit slices].
+This struct is created by the [`windows`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::Windows`](core::slice::Windows.html)
+[`slice::Windows`](core::slice::Windows)
 
-[bit slices]: crate::slice::BitSlice
+[`BitSlice`]: crate::slice::BitSlice
 [`windows`]: crate::slice::BitSlice::windows
 **/
 #[derive(Clone, Debug)]
@@ -727,7 +735,9 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// The `BitSlice` being windowed.
+	/// The [`BitSlice`] being windowed.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	slice: &'a BitSlice<O, T>,
 	/// The width of the produced windows.
 	width: usize,
@@ -794,19 +804,19 @@ group!(Windows => &'a BitSlice<O, T> {
 	}
 });
 
-/** An iterator over a bit slice in (non-overlapping) chunks (`chunk_size` bits
-at a time), starting at the beginning of the slice.
+/** An iterator over a [`BitSlice`] in (non-overlapping) chunks (`chunk_size`
+bits at a time), starting at the beginning of the slice.
 
 When the slice length is not evenly divided by the chunk size, the last slice of
 the iteration will be the remainder.
 
-This struct is created by the [`chunks`] method on [bit slices].
+This struct is created by the [`chunks`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::Chunks`](core::slice::Chunks.html)
+[`slice::Chunks`](core::slice::Chunks)
 
-[bit slices]: crate::slice::BitSlice
+[`BitSlice`]: crate::slice::BitSlice
 [`chunks`]: crate::slice::BitSlice::chunks
 **/
 #[derive(Clone, Debug)]
@@ -815,7 +825,9 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// The `BitSlice` being chunked.
+	/// The [`BitSlice`] being chunked.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	slice: &'a BitSlice<O, T>,
 	/// The width of the produced chunks.
 	width: usize,
@@ -897,23 +909,23 @@ group!(Chunks => &'a BitSlice<O, T> {
 	}
 });
 
-/** An iterator over a bit slice in (non-overlapping) mutable chunks
+/** An iterator over a [`BitSlice`] in (non-overlapping) mutable chunks
 (`chunk_size` bits at a time), starting at the beginning of the slice.
 
-When the slice len is not evenly divided by the chunk size, the last slice of
+When the slice length is not evenly divided by the chunk size, the last slice of
 the iteration will be the remainder.
 
-This struct is created by the [`chunks_mut`] method on [bit slices].
+This struct is created by the [`chunks_mut`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::ChunksMut`](core::slice::ChunksMut.html)
+[`slice::ChunksMut`](core::slice::ChunksMut)
 
 # API Differences
 
 All slices yielded from this iterator are marked as aliased.
 
-[bit slices]: crate::slice::BitSlice
+[`BitSlice`]: crate::slice::BitSlice
 [`chunks_mut`]: crate::slice::BitSlice::chunks_mut
 **/
 #[derive(Debug)]
@@ -922,7 +934,9 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// The `BitSlice` being chunked.
+	/// The [`BitSlice`] being chunked.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	slice: &'a mut BitSlice<O, T::Alias>,
 	/// The width of the produced chunks.
 	width: usize,
@@ -1006,20 +1020,20 @@ group!(ChunksMut => &'a mut BitSlice<O, T::Alias> {
 	}
 });
 
-/** An iterator over a bit slice in (non-overlapping) chunks (`chunk_size` bits
-at a time), starting at the beginning of the slice.
+/** An iterator over a [`BitSlice`] in (non-overlapping) chunks (`chunk_size`
+bits at a time), starting at the beginning of the slice.
 
-When the slice len is not evenly divided by the chunk size, the last up to
-`chunk_size - 1` bits will be ommitted but can be retrieved from the
-[`remainder`] function from the iterator.
+When the slice length is not evenly divided by the chunk size, the last up to
+`chunk_size-1` bits will be ommitted but can be retrieved from the [`remainder`]
+function from the iterator.
 
-This struct is created by the [`chunks_exact`] method on [bit slices].
+This struct is created by the [`chunks_exact`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::ChunksExact`](core::slice::ChunksExact.html)
+[`slice::ChunksExact`](core::slice::ChunksExact)
 
-[bit slices]: crate::slice::BitSlice
+[`BitSlice`]: crate::slice::BitSlice
 [`chunks_exact`]: crate::slice::BitSlice::chunks_exact
 [`remainder`]: Self::remainder
 **/
@@ -1029,9 +1043,13 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// The `BitSlice` being chunked.
+	/// The [`BitSlice`] being chunked.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	slice: &'a BitSlice<O, T>,
-	/// Any remnant of the chunked `BitSlice` not divisible by `width`.
+	/// Any remnant of the chunked [`BitSlice`] not divisible by `width`.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	extra: &'a BitSlice<O, T>,
 	/// The width of the produced chunks.
 	width: usize,
@@ -1054,13 +1072,15 @@ where
 		}
 	}
 
-	/// Returns the remainder of the original bit slice that is not going to be
-	/// returned by the iterator. The returned slice has at most `chunk_size-1`
-	/// bits.
+	/// Returns the remainder of the original [`BitSlice`] that is not going to
+	/// be returned by the iterator. The returned `BitSlice` has at most
+	/// `chunk_size-1` bits.
 	///
 	/// # Original
 	///
 	/// [`slice::ChunksExact::remainder`](core::slice::ChunksExact::remainder)
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	pub fn remainder(&self) -> &'a BitSlice<O, T> {
 		self.extra
 	}
@@ -1123,24 +1143,24 @@ group!(ChunksExact => &'a BitSlice<O, T> {
 	}
 });
 
-/** An iterator over a bit slice in (non-overlapping) mutable chunks
+/** An iterator over a [`BitSlice`] in (non-overlapping) mutable chunks
 (`chunk_size` bits at a time), starting at the beginning of the slice.
 
-When the slice len is not evenly divided by the chunk size, the last up to
+When the slice length is not evenly divided by the chunk size, the last up to
 `chunk_size-1` bits will be omitted but can be retrieved from the
 [`into_remainder`] function from the iterator.
 
-This struct is created by the [`chunks_exact_mut`] method on [bit slices].
+This struct is created by the [`chunks_exact_mut`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::ChunksExactMut`](core::slice::ChunksExactMut.html)
+[`slice::ChunksExactMut`](core::slice::ChunksExactMut)
 
 # API Differences
 
 All slices yielded from this iterator are marked as aliased.
 
-[bit slices]: crate::slice::BitSlice
+[`BitSlice`]: crate::slice::BitSlice
 [`chunks_exact_mut`]: crate::slice::BitSlice::chunks_exact_mut
 [`into_remainder`]: Self::into_remainder
 **/
@@ -1150,9 +1170,13 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// The `BitSlice` being chunked.
+	/// The [`BitSlice`] being chunked.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	slice: &'a mut BitSlice<O, T::Alias>,
-	/// Any remnant of the chunked `BitSlice` not divisible by `width`.
+	/// Any remnant of the chunked [`BitSlice`] not divisible by `width`.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	extra: &'a mut BitSlice<O, T::Alias>,
 	/// The width of the produced chunks.
 	width: usize,
@@ -1175,9 +1199,9 @@ where
 		}
 	}
 
-	/// Returns the remainder of the original slice that is not going to be
-	/// returned by the iterator. The returned slice has at most `chunk_size-1`
-	/// bits.
+	/// Returns the remainder of the original [`BitSlice`] that is not going to
+	/// be returned by the iterator. The returned `BitSlice` has at most
+	/// `chunk_size-1` bits.
 	///
 	/// # Original
 	///
@@ -1189,6 +1213,7 @@ where
 	/// marked as aliased.
 	///
 	/// [orig]: core::slice::ChunksExactMut::into_remainder
+	/// [`BitSlice`]: crate::slice::BitSlice
 	#[inline]
 	pub fn into_remainder(self) -> &'a mut BitSlice<O, T::Alias> {
 		self.extra
@@ -1253,8 +1278,8 @@ group!(ChunksExactMut => &'a mut BitSlice<O, T::Alias> {
 	}
 });
 
-/** An iterator over a bit slice in (non-overlapping) chunks (`chunk_size` bits
-at a time), starting at the end of the slice.
+/** An iterator over a [`BitSlice`] in (non-overlapping) chunks (`chunk_size`
+bits at a time), starting at the end of the slice.
 
 When the slice length is not evenly divided by the chunk size, the last slice of
 the iteration will be the remainder.
@@ -1263,7 +1288,7 @@ This struct is created by the [`rchunks`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::RChunks`](core::slice::RChunks.html)
+[`slice::RChunks`](core::slice::RChunks)
 
 [`BitSlice`]: crate::slice::BitSlice
 [`rchunks`]: crate::slice::BitSlice::rchunks
@@ -1274,7 +1299,9 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// The `BitSlice` being chunked.
+	/// The [`BitSlice`] being chunked.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	slice: &'a BitSlice<O, T>,
 	/// The width of the produced chunks.
 	width: usize,
@@ -1368,19 +1395,23 @@ group!(RChunks => &'a BitSlice<O, T> {
 	}
 });
 
-/** An iterator over a slice in (non-overlapping) mutable chunks (`chunk_size`
-bits at a time), starting at the end of the slice.
+/** An iterator over a [`BitSlice`] in (non-overlapping) mutable chunks
+(`chunk_size` bits at a time), starting at the end of the slice.
 
 When the slice length is not evenly divided by the chunk size, the last slice of
 the iteration will be the remainder.
 
-This struct is created by the [`rchunks_mut`] method on [bit slices].
+This struct is created by the [`rchunks_mut`] method on [`BitSlice`]s.
+
+# Original
+
+[`slice::RChunksMut`](core::slice::RChunksMut)
 
 # API Differences
 
 All slices yielded from this iterator are marked as aliased.
 
-[bit slices]: crate::slice::BitSlice
+[`BitSlice`]: crate::slice::BitSlice
 [`rchunks_mut`]: crate::slice::BitSlice::rchunks_mut
 **/
 #[derive(Debug)]
@@ -1389,7 +1420,9 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// The `BitSlice` being chunked.
+	/// The [`BitSlice`] being chunked.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	slice: &'a mut BitSlice<O, T::Alias>,
 	/// The width of the produced chunks.
 	width: usize,
@@ -1466,20 +1499,20 @@ group!(RChunksMut => &'a mut BitSlice<O, T::Alias> {
 	}
 });
 
-/** An iterator over a bit slice in (non-overlapping) chunks (`chunk_size` bits
-at a time), starting at the end of the slice.
+/** An iterator over a [`BitSlice`] in (non-overlapping) chunks (`chunk_size`
+bits at a time), starting at the end of the slice.
 
-When the slice len is not evenly divided by the chunk size, the last up to
+When the slice length is not evenly divided by the chunk size, the last up to
 `chunk_size-1` bits will be omitted but can be retrieved from the [`remainder`]
 function from the iterator.
 
-This struct is created by the [`rchunks_exact`] method on [bit slices].
+This struct is created by the [`rchunks_exact`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::RChunksExact`](core::slice::RChunksExact.html)
+[`slice::RChunksExact`](core::slice::RChunksExact)
 
-[bit slices]: crate::slice::BitSlice
+[`BitSlice`]: crate::slice::BitSlice
 [`rchunks_exact`]: crate::slice::BitSlice::rchunks_exact
 [`remainder`]: Self::remainder
 **/
@@ -1489,9 +1522,13 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// The `BitSlice` being chunked.
+	/// The [`BitSlice`] being chunked.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	slice: &'a BitSlice<O, T>,
-	/// Any remnant of the chunked `BitSlice` not divisible by `width`.
+	/// Any remnant of the chunked [`BitSlice`] not divisible by `width`.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	extra: &'a BitSlice<O, T>,
 	/// The width of the produced chunks.
 	width: usize,
@@ -1513,13 +1550,15 @@ where
 		}
 	}
 
-	/// Returns the remainder of the original slice that is not going to be
-	/// returned by the iterator. The returned slice has at most `chunk_size-1`
-	/// bits.
+	/// Returns the remainder of the original [`BitSlice`] that is not going to
+	/// be returned by the iterator. The returned `BitSlice` has at most
+	/// `chunk_size-1` bits.
 	///
 	/// # Original
 	///
 	/// [`slice::RChunksExact::remainder`](core::slice::RChunksExact::remainder)
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	#[inline]
 	pub fn remainder(&self) -> &'a BitSlice<O, T> {
 		self.extra
@@ -1584,24 +1623,24 @@ group!(RChunksExact => &'a BitSlice<O, T> {
 	}
 });
 
-/** An iterator over a bit slice in (non-overlapping) mutable chunks
+/** An iterator over a [`BitSlice`] in (non-overlapping) mutable chunks
 (`chunk_size` bits at a time), starting at the end of the slice.
 
-When the slice len is not evenly divided by the chunk size, the last up to
+When the slice length is not evenly divided by the chunk size, the last up to
 `chunk_size-1` bits will be omitted but can be retrieved from the
 [`into_remainder`] function from the iterator.
 
-This struct is created by the [`rchunks_exact_mut`] method on [bit slices].
+This struct is created by the [`rchunks_exact_mut`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::RChunksExactMut`](core::slice::RChunksExactMut.html)
+[`slice::RChunksExactMut`](core::slice::RChunksExactMut)
 
 # API Differences
 
 All slices yielded from this iterator are marked as aliased.
 
-[bit slices]: crate::slice::BitSlice
+[`BitSlice`]: crate::slice::BitSlice
 [`into_remainder`]: Self::into_remainder
 [`rchunks_exact_mut`]: crate::slice::BitSlice::rchunks_exact_mut
 **/
@@ -1611,9 +1650,13 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// The `BitSlice` being chunked.
+	/// The [`BitSlice`] being chunked.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	slice: &'a mut BitSlice<O, T::Alias>,
-	/// Any remnant of the chunked `BitSlice` not divisible by `width`.
+	/// Any remnant of the chunked [`BitSlice`] not divisible by `width`.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	extra: &'a mut BitSlice<O, T::Alias>,
 	/// The width of the produced chunks.
 	width: usize,
@@ -1635,9 +1678,9 @@ where
 		}
 	}
 
-	/// Returns the remainder of the original slice that is not going to be
-	/// returned by the iterator. The returned slice has at most `chunk_size-1`
-	/// bits.
+	/// Returns the remainder of the original [`BitSlice`] that is not going to
+	/// be returned by the iterator. The returned `BitSlice` has at most
+	/// `chunk_size-1` bits.
 	///
 	/// # Original
 	///
@@ -1649,6 +1692,7 @@ where
 	/// marked as aliased.
 	///
 	/// [orig]: core::slice::RChunksExactMut::into_remainder
+	/// [`BitSlice`]: crate::slice::BitSlice
 	#[inline]
 	pub fn into_remainder(self) -> &'a mut BitSlice<O, T::Alias> {
 		self.extra
@@ -1841,18 +1885,18 @@ macro_rules! split {
 /** An iterator over subslices separated by bits that match a predicate
 function.
 
-This struct is created by the [`split`] method on [bit slices].
+This struct is created by the [`split`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::Split`](core::slice::Split.html)
+[`slice::Split`](core::slice::Split)
 
 # API Differences
 
 In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
-[bit slices]: crate::slice::BitSlice
+[`BitSlice`]: crate::slice::BitSlice
 [`split`]: crate::slice::BitSlice::split
 **/
 #[derive(Clone)]
@@ -1862,7 +1906,9 @@ where
 	T: BitStore,
 	P: FnMut(usize, &bool) -> bool,
 {
-	/// The `BitSlice` being split.
+	/// The [`BitSlice`] being split.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	slice: &'a BitSlice<O, T>,
 	/// The function used to test whether a split should occur.
 	pred: P,
@@ -1908,21 +1954,21 @@ split!(Split => &'a BitSlice<O, T> {
 	}
 });
 
-/** An iterator over the mutable subslices of the slice which are separated by
-bits that match `pred`.
+/** An iterator over the mutable subslices which are separated by bits that
+match `pred`.
 
-This struct is created by the [`split_mut`] method on [bit slices].
+This struct is created by the [`split_mut`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::SplitMut`](core::slice::SplitMut.html)
+[`slice::SplitMut`](core::slice::SplitMut)
 
 # API Differences
 
 In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
-[bit slices]: crate::slice::BitSlice
+[`BitSlice`]: crate::slice::BitSlice
 [`split_mut`]: crate::slice::BitSlice::split_mut
 **/
 pub struct SplitMut<'a, O, T, P>
@@ -1985,20 +2031,20 @@ split!(SplitMut => &'a mut BitSlice<O, T::Alias> {
 });
 
 /** An iterator over subslices separated by bits that match a predicate
-function, starting from the end of the slice.
+function, starting from the end of the [`BitSlice`].
 
-This struct is created by the [`rsplit`] method on [bit slices].
+This struct is created by the [`rsplit`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::RSplit`](core::slice::RSplit.html)
+[`slice::RSplit`](core::slice::RSplit)
 
 # API Differences
 
 In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
-[bit slices]: crate::slice::BitSlice
+[`BitSlice`]: crate::slice::BitSlice
 [`rsplit`]: crate::slice::BitSlice::rsplit
 **/
 #[derive(Clone)]
@@ -2008,7 +2054,9 @@ where
 	T: BitStore,
 	P: FnMut(usize, &bool) -> bool,
 {
-	/// The `BitSlice` being split.
+	/// The [`BitSlice`] being split.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	slice: &'a BitSlice<O, T>,
 	/// The function used to test whether a split should occur.
 	pred: P,
@@ -2043,20 +2091,20 @@ split!(RSplit => &'a BitSlice<O, T> {
 });
 
 /** An iterator over subslices separated by bits that match a predicate
-function, starting from the end of the slice.
+function, starting from the end of the [`BitSlice`].
 
-This struct is created by the [`rsplit_mut`] method on [bit slices].
+This struct is created by the [`rsplit_mut`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::RSplit`](core::slice::RSplit.html)
+[`slice::RSplitMut`](core::slice::RSplitMut)
 
 # API Differences
 
 In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
-[bit slices]: crate::slice::BitSlice
+[`BitSlice`]: crate::slice::BitSlice
 [`rsplit_mut`]: crate::slice::BitSlice::rsplit_mut
 **/
 pub struct RSplitMut<'a, O, T, P>
@@ -2108,18 +2156,18 @@ trait SplitIter: DoubleEndedIterator {
 /** An iterator over subslices separated by bits that match a predicate
 function, limited to a given number of splits.
 
-This struct is created by the [`splitn`] method on [bit slices].
+This struct is created by the [`splitn`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::SplitN`](core::slice::SplitN.html)
+[`slice::SplitN`](core::slice::SplitN)
 
 # API Differences
 
 In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
-[bit slices]: crate::slice::BitSlice
+[`BitSlice`]: crate::slice::BitSlice
 [`splitn`]: crate::slice::BitSlice::splitn
 **/
 pub struct SplitN<'a, O, T, P>
@@ -2128,7 +2176,9 @@ where
 	T: BitStore,
 	P: FnMut(usize, &bool) -> bool,
 {
-	/// The `BitSlice` being split.
+	/// The [`BitSlice`] being split.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	inner: Split<'a, O, T, P>,
 	/// The number of splits remaining.
 	count: usize,
@@ -2137,18 +2187,18 @@ where
 /** An iterator over subslices separated by bits that match a predicate
 function, limited to a given number of splits.
 
-This struct is created by the [`splitn_mut`] method on [bit slices].
+This struct is created by the [`splitn_mut`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::SplitNMut`](core::slice::SplitNMut.html)
+[`slice::SplitNMut`](core::slice::SplitNMut)
 
 # API Differences
 
 In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
-[bit slices]: crate::slice::BitSlice
+[`BitSlice`]: crate::slice::BitSlice
 [`splitn_mut`]: crate::slice::BitSlice::splitn_mut
 **/
 pub struct SplitNMut<'a, O, T, P>
@@ -2157,7 +2207,9 @@ where
 	T: BitStore,
 	P: FnMut(usize, &bool) -> bool,
 {
-	/// The `BitSlice` being split.
+	/// The [`BitSlice`] being split.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	inner: SplitMut<'a, O, T, P>,
 	/// The number of splits remaining.
 	count: usize,
@@ -2165,20 +2217,20 @@ where
 
 /** An iterator over subslices separated by bits that match a predicate
 function, limited to a given number of splits, starting from the end of the
-slice.
+[`BitSlice`].
 
-This struct is created by the [`rsplitn`] method on [bit slices].
+This struct is created by the [`rsplitn`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::RSplitN`](core::slice::RSplitN.html)
+[`slice::RSplitN`](core::slice::RSplitN)
 
 # API Differences
 
 In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
-[bit slices]: crate::slice::BitSlice
+[`BitSlice`]: crate::slice::BitSlice
 [`rsplitn`]: crate::slice::BitSlice::rsplitn
 **/
 pub struct RSplitN<'a, O, T, P>
@@ -2187,7 +2239,9 @@ where
 	T: BitStore,
 	P: FnMut(usize, &bool) -> bool,
 {
-	/// The `BitSlice` being split.
+	/// The [`BitSlice`] being split.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	inner: RSplit<'a, O, T, P>,
 	/// The number of splits remaining.
 	count: usize,
@@ -2195,20 +2249,20 @@ where
 
 /** An iterator over subslices separated by bits that match a predicate
 function, limited to a given number of splits, starting from the end of the
-slice.
+[`BitSlice`].
 
-This struct is created by the [`rsplitn_mut`] method on [bit slices].
+This struct is created by the [`rsplitn_mut`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::RSplitNMut`](core::slice::RSplitNMut.html)
+[`slice::RSplitNMut`](core::slice::RSplitNMut)
 
 # API Differences
 
 In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
-[bit slices]: crate::slice::BitSlice
+[`BitSlice`]: crate::slice::BitSlice
 [`rsplitn_mut`]: crate::slice::BitSlice::rsplitn_mut
 **/
 pub struct RSplitNMut<'a, O, T, P>
@@ -2217,7 +2271,9 @@ where
 	T: BitStore,
 	P: FnMut(usize, &bool) -> bool,
 {
-	/// The `BitSlice` being split.
+	/// The [`BitSlice`] being split.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	inner: RSplitMut<'a, O, T, P>,
 	/// The number of splits remaining.
 	count: usize,
@@ -2321,7 +2377,7 @@ macro_rules! noalias {
 		=> $map:path
 		;
 	)+ ) => { $(
-		/// An iterator variant that does not apply a `::Alias` marker to its
+		/// An iterator variant that does not apply a [`T::Alias`] marker to its
 		/// yielded items.
 		///
 		/// This iterator can be safely used in `for … in` loop headers, but
@@ -2330,11 +2386,14 @@ macro_rules! noalias {
 		/// adapters that pull multiple yielded items into the same collection!
 		/// Each yielded item **must** not have any sibling items in its scope.
 		///
-		/// This iterator does not yield `T::Mem` raw-typed references, as it
+		/// This iterator does not yield [`T::Mem`] raw-typed references, as it
 		/// may be produced from an already-aliased iterator and must retain its
 		/// initial aliasing properties. It merely asserts that it will not be
 		/// used in contexts that produce multiple yielded items in the same
 		/// scope.
+		///
+		/// [`T::Alias`]: crate::store::BitStore::Alias
+		/// [`T::Mem`]: crate::store::BitStore::Mem
 		pub struct $to <'a, O, T $( , $p )? >
 		where
 			O: BitOrder,
@@ -2368,10 +2427,13 @@ macro_rules! noalias {
 			/// guarantees that each item yielded by the iterator is destroyed
 			/// before the next is produced.
 			///
-			/// This adapter does **not** convert the iterator to use `T::Mem`
+			/// This adapter does **not** convert the iterator to use [`T::Mem`]
 			/// raw types, as it can be applied to an iterator over an
 			/// already-aliased slice and must preserve its condition. Its only
-			/// effect is to prevent the addition of a new `::Alias` marker.
+			/// effect is to prevent the addition of a new [`T::Alias`] marker.
+			///
+			/// [`T::Alias`]: crate::store::BitStore::Alias
+			/// [`T::Mem`]: crate::store::BitStore::Mem
 			#[inline(always)]
 			pub fn remove_alias(self) -> $to <'a, O, T $( , $p )? > {
 				$to ::new(self)

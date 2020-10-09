@@ -1,6 +1,6 @@
-/*! Proxy reference for `&mut bool`
+/*! Proxy reference for `&mut bool`.
 
-`BitSlice` regions can easily produce *read* references to `bool`s that they
+[`BitSlice`] regions can easily produce *read* references to `bool`s that they
 contain, by testing the bit and producing the appropriate `&'static bool`, but
 Rust’s rules forbid production of a *write* reference to a `bool` stored within
 a `BitSlice` region. This is because references `&mut T` must be dereferencable
@@ -12,12 +12,15 @@ used to store a value into the referenced location, this type must be used
 instead. Rust’s strict use of references, rather than arbitrary referential
 types, makes this the only major API incompatibility with the rest of the
 standard library.
+
+[`BitSlice`]: crate::slice::BitSlice
 !*/
 
 use crate::{
 	access::BitAccess,
 	index::BitIdx,
 	order::BitOrder,
+	ptr::BitPtr,
 	slice::BitSlice,
 	store::BitStore,
 };
@@ -37,22 +40,20 @@ use core::{
 	ptr::NonNull,
 };
 
-use wyz::fmt::FmtForward;
-
 /** Proxy reference type, equivalent to `&mut bool`.
 
 This is a two-word structure capable of correctly referring to a single bit in
 a memory element. Because Rust does not permit reference-like objects in the
 same manner that C++ does – `&T` and `&mut T` values are required to be
-immediately-valid pointers, not objects – `bitvec` cannot manifest encoded
-`&mut Bit` values in the same way that it can manifest `&mut BitSlice`.
+immediately-valid pointers, not objects – [`bitvec`] cannot manifest encoded
+`&mut Bit` values in the same way that it can manifest [`&mut BitSlice`].
 
-Instead, this type implements `Deref` and `DerefMut` to an internal `bool` slot,
-and in `Drop` commits the value of that `bool` to the proxied bit in the source
-`BitSlice` from which the `BitMut` value was created. The combination of Rust’s
-own exclusion rules and the aliasing type system in this library ensure that a
-`BitMut` value has unique access to the bit it proxies, and the memory element
-it uses will not have destructive data races from other views.
+Instead, this type implements [`Deref`] and [`DerefMut`] to an internal `bool`
+slot, and in [`Drop`] commits the value of that `bool` to the proxied bit in the
+source [`BitSlice`] from which the `BitMut` value was created. The combination
+of Rust’s own exclusion rules and the aliasing type system in this library
+ensure that a `BitMut` value has unique access to the bit it proxies, and the
+memory element it uses will not have destructive data races from other views.
 
 # Lifetimes
 
@@ -82,6 +83,13 @@ second.set(true);
 drop(first); // it’s not a reference!
 assert_eq!(bits, bits![1; 2]);
 ```
+
+[`BitSlice`]: crate::slice::BitSlice
+[`Deref`]: core::ops::Deref
+[`DerefMut`]: core::ops::DerefMut
+[`Drop`]: core::ops::Drop
+[`bitvec`]: crate
+[`&mut BitSlice`]: crate::slice::BitSlice
 **/
 pub struct BitMut<'a, O, T>
 where
@@ -92,7 +100,9 @@ where
 	addr: NonNull<T::Access>,
 	/// Index of the proxied bit within the containing element.
 	head: BitIdx<T::Mem>,
-	/// A local cache for `Deref` usage.
+	/// A local cache for [`Deref`] usage.
+	///
+	/// [`Deref`]: core::ops::Deref
 	data: bool,
 	/// This type is semantically equivalent to a mutable slice of length 1.
 	_ref: PhantomData<&'a mut BitSlice<O, T>>,
@@ -128,6 +138,28 @@ where
 		}
 	}
 
+	/// Views the proxy as a `&BitSlice` of length 1, instead of a direct
+	/// proxy.
+	#[inline]
+	#[cfg(not(tarpaulin_include))]
+	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
+		unsafe {
+			BitPtr::new_unchecked(self.addr.as_ptr() as *const T, self.head, 1)
+		}
+		.to_bitslice_ref::<O>()
+	}
+
+	/// Views the proxy as a `&mut BitSlice` of length 1, instead of a direct
+	/// proxy.
+	#[inline]
+	#[cfg(not(tarpaulin_include))]
+	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
+		unsafe {
+			BitPtr::new_unchecked(self.addr.as_ptr() as *mut T, self.head, 1)
+		}
+		.to_bitslice_mut::<O>()
+	}
+
 	/// Removes an alias marking.
 	///
 	/// This is only safe when the proxy is known to be the only handle to its
@@ -140,14 +172,16 @@ where
 	///
 	/// This function writes `value` directly into the proxied location, and
 	/// does not store `value` in the proxy’s internal cache. This should be
-	/// equivalent to the behavior seen when using ordinary `DerefMut` proxying,
-	/// but the latter depends on compiler optimization.
+	/// equivalent to the behavior seen when using ordinary [`DerefMut`]
+	/// proxying, but the latter depends on compiler optimization.
 	///
 	/// # Parameters
 	///
 	/// - `self`: This destroys the proxy, as it becomes invalid when writing
 	///   directly to the location without updating the cache.
 	/// - `value`: The new bit to write into the proxied slot.
+	///
+	/// [`DerefMut`]: core::ops::DerefMut
 	#[inline]
 	pub fn set(mut self, value: bool) {
 		self.write(value);
@@ -170,12 +204,11 @@ where
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		write!(fmt, "BitMut<{}>", core::any::type_name::<T::Mem>())?;
-		fmt.debug_struct("")
-			.field("addr", &self.addr.as_ptr().fmt_pointer())
-			.field("head", &self.head.fmt_binary())
-			.field("data", &self.data)
-			.finish()
+		let bitptr = self.as_bitslice().bitptr();
+		bitptr.render(fmt, "Mut", Some(core::any::type_name::<O>()), &[(
+			"bit",
+			&self.data as &dyn Debug,
+		)])
 	}
 }
 
@@ -221,9 +254,8 @@ mod tests {
 
 	#[test]
 	fn proxy_ref() {
-		let mut data = 0u32;
-		let bits = BitSlice::<Lsb0, _>::from_element_mut(&mut data);
-		assert!(!bits[0]);
+		let bits = bits![mut 0; 2];
+		assert!(bits.not_any());
 
 		let mut proxy = bits.first_mut().unwrap();
 		*proxy = true;
@@ -237,6 +269,24 @@ mod tests {
 		//  The proxy commits the cache on drop, releasing its lock on the main
 		//  buffer, permitting us to see that the writeback occurred.
 		assert!(bits[0]);
-		assert_eq!(data, 1);
+
+		let proxy = bits.get_mut(1).unwrap();
+		proxy.set(true);
+		assert!(bits[1]);
+	}
+
+	#[test]
+	#[cfg(feature = "alloc")]
+	fn format() {
+		let bits = bits![mut Msb0, u8; 0];
+		let mut bit = bits.get_mut(0).unwrap();
+
+		let text = format!("{:?}", bit);
+		assert!(text.starts_with("BitMut<bitvec::order::Msb0, u8> { addr: 0x"));
+		assert!(text.ends_with(", head: 000, bits: 1, bit: false }"));
+		*bit = true;
+		let text = format!("{:?}", bit);
+		assert!(text.starts_with("BitMut<bitvec::order::Msb0, u8> { addr: 0x"));
+		assert!(text.ends_with(", head: 000, bits: 1, bit: true }"));
 	}
 }
