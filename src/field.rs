@@ -852,13 +852,11 @@ This is the exact inverse of `get`.
 [`T::Mem`]: crate::store::BitStore::Mem
 **/
 #[inline]
-fn set<T, M>(elem: &T::Alias, value: M, mask: BitMask<T::Mem>, shamt: u8)
+fn set<T, M>(elem: &T::Access, value: M, mask: BitMask<T::Mem>, shamt: u8)
 where
 	T: BitStore,
 	M: BitMemory,
 {
-	//  Convert the aliasing reference into its accessing type.
-	let elem = dvl::accessor(elem);
 	//  Mark the mask as aliased, to fit into the accessor reference.
 	let mask = dvl::alias_mask::<T>(mask);
 	//  Modify `value` to fit the accessor reference, by:

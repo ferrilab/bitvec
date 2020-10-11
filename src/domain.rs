@@ -404,9 +404,26 @@ macro_rules! domain {
 		/// - `T`: The element type of the source [`BitSlice`] handle, including
 		///   aliasing markers.
 		///
+		/// # Mutability
+		///
+		/// This produces [`T::Access`] references when mutable, rather than
+		/// [`T::Alias`], because it must produce shared write-capable
+		/// references. The `bitvec` memory model requires only that
+		/// write-capable references be created through `&mut` exclusive
+		/// `bitvec` references, and `DomainMut` is only produced from
+		/// `&mut BitSlice` references.
+		///
+		/// The edge references do not forbid modifying bits outside of the
+		/// source [`BitSlice`] domain, and writes out of bounds will be
+		/// correctly handled by any other handles capable of viewing those
+		/// elements. Doing so is still *incorrect*, though defined, and you are
+		/// responsible for writing only within bounds when using `DomainMut`.
+		///
 		/// [`BitDomain`]: crate::domain::BitDomain
 		/// [`BitDomainMut`]: crate::domain::BitDomainMut
 		/// [`BitSlice`]: crate::slice::BitSlice
+		/// [`T::Access`]: crate::store::BitStore::Access
+		/// [`T::Alias`]: crate::store::BitStore::Alias
 		#[derive(Debug)]
 		pub enum $t <'a, T>
 		where
@@ -626,7 +643,7 @@ macro_rules! domain {
 }
 
 domain!(Domain);
-domain!(DomainMut => mut @ Alias);
+domain!(DomainMut => mut @ Access);
 
 #[cfg(not(tarpaulin_include))]
 impl<T> Clone for Domain<'_, T>

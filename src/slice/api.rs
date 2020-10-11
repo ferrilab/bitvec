@@ -2081,9 +2081,8 @@ where
 					Domain::Enclave { elem: s_elem, .. },
 				) => {
 					let mask = O::mask(d_head, tail);
-					let access = dvl::accessor(d_elem);
-					access.clear_bits(mask);
-					access.set_bits(mask & s_elem.load_value());
+					d_elem.clear_bits(mask);
+					d_elem.set_bits(mask & s_elem.load_value());
 				},
 				(
 					DomainMut::Region {
@@ -2101,18 +2100,16 @@ where
 						(d_head, s_head)
 					{
 						let mask = O::mask(h_idx, None);
-						let access = dvl::accessor(dh_elem);
-						access.clear_bits(mask);
-						access.set_bits(mask & sh_elem.load_value());
+						dh_elem.clear_bits(mask);
+						dh_elem.set_bits(mask & sh_elem.load_value());
 					}
 					d_body.copy_from_slice(s_body);
 					if let (Some((dt_elem, t_idx)), Some((st_elem, _))) =
 						(d_tail, s_tail)
 					{
 						let mask = O::mask(None, t_idx);
-						let access = dvl::accessor(dt_elem);
-						access.clear_bits(mask);
-						access.set_bits(mask & st_elem.load_value());
+						dt_elem.clear_bits(mask);
+						dt_elem.set_bits(mask & st_elem.load_value());
 					}
 				},
 				_ => unreachable!(

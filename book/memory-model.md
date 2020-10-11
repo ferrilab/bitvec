@@ -327,14 +327,20 @@ where T: BitStore {
 ```
 
 As with the bit domains, these domains will inherit any aliasing markers from
-their source bitslice. The `::Access` associated type enables the mutable domain
-to produce shared references that allow mutation without adding an unnecessary
+their source bitslice. The `::Alias` associated type enables the mutable domain
+to produce references that allow mutation without adding an unnecessary
 aliasing marker. Rust strongly forbids the production of `&mut` references to
 aliased memory elements, which is why the only `&mut` reference in these views
 is to memory that is fully known to be unaliased.
 
 > This deäliasing behavior is why `BitSlice`s are impossible to construct over
 > memory that permits external aliases outside of `bitvec`’s control.
+
+The `DomainMut` structure will produce bare [atomic] or [`Cell`] types in the
+alias condition. This is necessary in order to avoid production of `&mut`
+references which alias (as this is undefined in the Rust abstract machine,
+regardless of behavior), and safe because any other references to the same
+location will be similarly aliased and capable of handling external mutation.
 
 ## LLVM Suboptimizations
 

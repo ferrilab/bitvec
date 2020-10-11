@@ -1138,24 +1138,14 @@ where
 	#[inline]
 	pub fn set_all(&mut self, value: bool) {
 		//  Grab the function pointers used to commit bit-masks into memory.
-		let setter = <<T::Alias as BitStore>::Access>::get_writers(value);
+		let setter = <T::Access>::get_writers(value);
 		match self.domain_mut() {
 			DomainMut::Enclave { head, elem, tail } => {
-				//  Step three: write the bitmask through the accessor.
-				setter(
-					//  Step one: attach an `::Access` marker to the reference
-					dvl::accessor(elem),
-					//  Step two: insert an `::Alias` marker *into the bitmask*
-					//  because typechecking is “fun”
-					O::mask(head, tail).pipe(dvl::alias_mask::<T>),
-				);
+				setter(elem, O::mask(head, tail));
 			},
 			DomainMut::Region { head, body, tail } => {
 				if let Some((head, elem)) = head {
-					setter(
-						dvl::accessor(elem),
-						O::mask(head, None).pipe(dvl::alias_mask::<T>),
-					);
+					setter(elem, O::mask(head, None));
 				}
 				//  loop assignment is `memset`’s problem, not ours
 				unsafe {
@@ -1166,10 +1156,7 @@ where
 					);
 				}
 				if let Some((elem, tail)) = tail {
-					setter(
-						dvl::accessor(elem),
-						O::mask(None, tail).pipe(dvl::alias_mask::<T>),
-					);
+					setter(elem, O::mask(None, tail));
 				}
 			},
 		}

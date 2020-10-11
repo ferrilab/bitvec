@@ -25,24 +25,10 @@ use core::{
 		Range,
 		RangeBounds,
 	},
-	ptr::{
-		self,
-		NonNull,
-	},
+	ptr::NonNull,
 };
 
 use tap::pipe::Pipe;
-
-/** Views a [`BitStore`] reference as its accessor.
-
-[`BitStore`]: crate::store::BitStore
-**/
-#[inline(always)]
-#[cfg(not(tarpaulin_include))]
-pub fn accessor<T>(x: &T) -> &T::Access
-where T: BitStore {
-	unsafe { &*(x as *const T as *const T::Access) }
-}
 
 /** Inserts an [`::Alias`] marker into a [`BitMask`]’s type parameter.
 
@@ -70,14 +56,6 @@ where T: BitStore {
 	unsafe { *(&x as *const _ as *const _) }
 }
 
-/// Converts a mutable reference into its memory register type.
-#[inline(always)]
-#[cfg(not(tarpaulin_include))]
-pub fn mem_mut<T>(x: &mut T) -> &mut T::Mem
-where T: BitStore {
-	unsafe { &mut *(x as *mut _ as *mut _) }
-}
-
 /** Removes the `::Alias` marker from a [`BitPtr`]’s referent type.
 
 [`BitPtr`]: crate::ptr::BitPtr
@@ -91,10 +69,11 @@ where T: BitStore {
 
 /// Removes the `::Mem` marker from a memory value.
 #[inline(always)]
+#[cfg(feature = "serde")]
 #[cfg(not(tarpaulin_include))]
 pub fn remove_mem<T>(x: T::Mem) -> T
 where T: BitStore {
-	unsafe { ptr::read(&x as *const T::Mem as *const T) }
+	unsafe { core::ptr::read(&x as *const T::Mem as *const T) }
 }
 
 /// Gets a `NonNull<T>` base pointer from a `NonNull<[T]>` slice pointer.

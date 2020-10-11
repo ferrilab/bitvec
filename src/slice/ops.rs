@@ -5,7 +5,6 @@
 
 use crate::{
 	access::BitAccess,
-	devel as dvl,
 	domain::DomainMut,
 	order::BitOrder,
 	slice::{
@@ -29,8 +28,6 @@ use core::ops::{
 	RangeTo,
 	RangeToInclusive,
 };
-
-use tap::pipe::Pipe;
 
 impl<O, T, Rhs> BitAndAssign<Rhs> for BitSlice<O, T>
 where
@@ -151,20 +148,18 @@ where
 
 	fn not(self) -> Self::Output {
 		match self.domain_mut() {
-			DomainMut::Enclave { head, elem, tail } => elem
-				.pipe(dvl::accessor)
-				.invert_bits(dvl::alias_mask::<T>(O::mask(head, tail))),
+			DomainMut::Enclave { head, elem, tail } => {
+				elem.invert_bits(O::mask(head, tail));
+			},
 			DomainMut::Region { head, body, tail } => {
 				if let Some((head, elem)) = head {
-					elem.pipe(dvl::accessor)
-						.invert_bits(dvl::alias_mask::<T>(O::mask(head, None)));
+					elem.invert_bits(O::mask(head, None));
 				}
 				for elem in body {
 					*elem = !*elem;
 				}
 				if let Some((elem, tail)) = tail {
-					elem.pipe(dvl::accessor)
-						.invert_bits(dvl::alias_mask::<T>(O::mask(None, tail)));
+					elem.invert_bits(O::mask(None, tail));
 				}
 			},
 		}
