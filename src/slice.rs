@@ -5,14 +5,14 @@ You can read the language’s [`slice` module documentation][std] here.
 This module defines the [`BitSlice`] region, and all of its associated support
 code.
 
-`BitSlice` is the primary working type of this crate. It is a wrapper type over
-`[T]` which enables you to view, manipulate, and take the address of individual
-bits in memory. It behaves in every possible respect exactly like an ordinary
-slice: it is dynamically-sized, and must be held by `&` or `&mut` reference,
-just like `[T]`, and implements every inherent method and trait that `[T]` does,
-to the absolute limits of what Rust permits.
+[`BitSlice`] is the primary working type of this crate. It is a wrapper type
+over `[T]` which enables you to view, manipulate, and take the address of
+individual bits in memory. It behaves in every possible respect exactly like an
+ordinary slice: it is dynamically-sized, and must be held by `&` or `&mut`
+reference, just like `[T]`, and implements every inherent method and trait that
+`[T]` does, to the absolute limits of what Rust permits.
 
-The key to `BitSlice`’s powerful capability is that references to it use a
+The key to [`BitSlice`]’s powerful capability is that references to it use a
 special encoding that store, in addition to the address of the base element and
 the bit length, the index of the starting bit in the base element. This custom
 reference encoding has some costs in what APIs are possible – for instance, Rust
@@ -22,7 +22,7 @@ existence.
 
 Because of the volume of code that must be written to match the `[T]` standard
 API, this module is organized very differently than the slice implementation in
-the `core` and `std` distribution libraries.
+the [`core`] and [`std`] distribution libraries.
 
 - the root module `slice` contains new APIs that have no counterpart in `[T]`
 - `slice/api` contains reïmplementations of the `[T]` inherent methods
@@ -33,7 +33,9 @@ the `core` and `std` distribution libraries.
 - lastly, `slice/tests` contains all the unit tests.
 
 [`BitSlice`]: struct.BitSlice.html
-[std]: https://doc.rust-lang.org/std/slice
+[`core`]: core
+[`std`]: std
+[std]: https://doc.rust-lang.org/stable/std/slice
 !*/
 
 use crate::{
@@ -67,7 +69,6 @@ use crate::{
 
 use core::{
 	any::TypeId,
-	cmp,
 	marker::PhantomData,
 	ops::RangeBounds,
 	ptr,
@@ -82,15 +83,15 @@ use tap::pipe::Pipe;
 
 This is the main working type of the crate. It is analagous to `[bool]`, and is
 written to be as close as possible to drop-in replacable for it. This type
-contains most of the *methods* used to operate on memory, but it will rarely be
-named directly in your code. You should generally prefer to use [`BitArray`] for
-fixed-size arrays or [`BitVec`] for dynamic vectors, and use `&BitSlice`
-references only where you would directly use `&[bool]` or `&[u8]` references
-before using this crate.
+contains most of the behavior used to operate on memory, but it will probably
+not be the most-commonly named type in your code. You should generally prefer to
+use [`BitArray`] for fixed-size arrays or [`BitVec`] for dynamic vectors, and
+use `&BitSlice` references only where you would directly use `&[bool]` or
+`&[u8]` references before using this crate.
 
 As it is a slice wrapper, you are intended to work with this through references
 (`&BitSlice<O, T>` and `&mut BitSlice<O, T>`) or through the other data
-structures provided by `bitvec` that are implemented atop it. Once created,
+structures provided by [`bitvec`] that are implemented atop it. Once created,
 references to `BitSlice` are guaranteed to work just like references to `[bool]`
 to the fullest extent possible in the Rust language.
 
@@ -100,7 +101,7 @@ Rust guarantees about reference behavior, including lifetime tracking,
 mutability and aliasing awareness, and explicit memory control, *as well as* the
 full set of tools and APIs available to the standard `[bool]` slice type.
 `BitSlice` can arbitrarily split and subslice, just like `[bool]`. You can write
-a linear consuming function and keep the patterns already know.
+a linear consuming function and keep the patterns you already know.
 
 For example, to trim all the bits off either edge that match a condition, you
 could write
@@ -134,7 +135,7 @@ These sections look like this:
 
 # Original
 
-[`slice`](https://doc.rust-lang.org/std/primitive.slice.html)
+[`slice`](https://doc.rust-lang.org/stable/std/primitive.slice.html)
 
 # API Differences
 
@@ -153,9 +154,9 @@ instead produce a [`BitMut<O, T>`] proxy reference.
 handled indirectly. This is most commonly through the reference types
 `&BitSlice` and `&mut BitSlice`, which borrow memory owned by some other value
 in the program. These buffers can be directly owned by the sibling types
-`BitBox`, which behavios like `Box<[T]>`, and `BitVec`, which behaves like
-`Vec<T>`. It cannot be used as the type parameter to a standard-library-provided
-handle type.
+[`BitBox`], which behaves like [`Box<[T]>`](alloc::boxed::Box), and [`BitVec`],
+which behaves like [`Vec<T>`]. It cannot be used as the type parameter to a
+standard-library-provided handle type.
 
 The `BitSlice` region provides access to each individual bit in the region, as
 if each bit had a memory address that you could use to dereference it. It packs
@@ -211,35 +212,35 @@ penultimate, and which is the last.
 
 To make matters even more confusing, there are two predominant ideas of
 in-element ordering that often *correlate* with the in-element *byte* ordering
-of integer types, but are in fact wholly unrelated! `bitvec` provides these two
-main orders as types for you, and if you need a different one, it also provides
-the tools you need to make your own.
+of integer types, but are in fact wholly unrelated! [`bitvec`] provides these
+two main orders as types for you, and if you need a different one, it also
+provides the tools you need to make your own.
 
 ### Least Significant Bit Comes First
 
 This ordering, named the [`Lsb0`] type, indexes bits within an element by
 placing the `0` index at the least significant bit (numeric value `1`) and the
-final index at the most significant bit (numeric value `T::min_value()`, for
+final index at the most significant bit (numeric value [`T::MIN`][minval] for
 signed integers on most machines).
 
-For example, this is the ordering used by the [TCP wire format], and by most C
-compilers to lay out bit-field struct members on little-endian **byte**-ordered
-machines.
+For example, this is the ordering used by most C compilers to lay out bit-field
+struct members on little-endian **byte**-ordered machines.
 
 ### Most Significant Bit Comes First
 
 This ordering, named the [`Msb0`] type, indexes bits within an element by
-placing the `0` index at the most significant bit (numeric value `T::min_value()`
-for most signed integers) and the final index at the least significant bit
-(numeric value `1`).
+placing the `0` index at the most significant bit (numeric value
+[`T::MIN`][minval] for most signed integers) and the final index at the least
+significant bit (numeric value `1`).
 
-This is the ordering used by most C compilers to lay out bit-field struct
-members on big-endian **byte**-ordered machines.
+For example, this is the ordering used by the [TCP wire format], and by most C
+compilers to lay out bit-field struct members on big-endian **byte**-ordered
+machines.
 
 ### Default Ordering
 
-The default ordering is `Lsb0`, as it typically produces shorter object code
-than `Msb0` does. If you are implementing a collection, then `Lsb0` is likely
+The default ordering is [`Lsb0`], as it typically produces shorter object code
+than [`Msb0`] does. If you are implementing a collection, then `Lsb0` is likely
 the more performant ordering; if you are implementing a buffer protocol, then
 your choice of ordering is dictated by the protocol definition.
 
@@ -258,7 +259,7 @@ Furthermore, in order to satisfy Rust’s requirements about alias conditions,
 never creates the potential for undefined behavior.
 
 You must never attempt to type-cast a reference to `BitSlice` in any way. You
-must not use `mem::transmute` with `BitSlice` anywhere in its type arguments.
+must not use [`mem::transmute`] with `BitSlice` anywhere in its type arguments.
 You must not use `as`-casting to convert between `*BitSlice` and any other type.
 You must not attempt to modify the binary representation of a `&BitSlice`
 reference value. These actions will all lead to runtime memory unsafety, are
@@ -280,7 +281,7 @@ runtime cost. Where it is slower, it will not be significantly slower than a
 manual replacement.
 
 As the machine instructions operate on registers rather than bits, your choice
-of `T: BitStore` type parameter can influence your slice’s performance. Using
+of [`T: BitStore`] type parameter can influence your slice’s performance. Using
 larger register types means that slices can gallop over completely-filled
 interior elements faster, while narrower register types permit more graceful
 handling of subslicing and aliased splits.
@@ -295,23 +296,20 @@ the region.
 ## Macro Constructor
 
 `BitSlice` buffers can be constructed at compile-time through the [`bits!`]
-macro. This macro accepts a superset of the `vec!` arguments, and creates an
-appropriate buffer in your program’s static memory.
+macro. This macro accepts a superset of the [`vec!`] arguments, and creates an
+appropriate buffer in the local scope. The macro expands to a borrowed
+[`BitArray`] temporary; currently, it cannot be assigned to a `static` binding.
 
 ```rust
 use bitvec::prelude::*;
 
-let static_borrow = bits![0, 1, 0, 0, 1, 0, 0, 1];
-let mutable_static: &mut BitSlice<_, _> = bits![mut 0; 8];
+let immut = bits![Lsb0, u8; 0, 1, 0, 0, 1, 0, 0, 1];
+let mutable: &mut BitSlice<_, _> = bits![mut Msb0, u8; 0; 8];
 
-assert_ne!(static_borrow, mutable_static);
-mutable_static.clone_from_bitslice(static_borrow);
-assert_eq!(static_borrow, mutable_static);
+assert_ne!(immut, mutable);
+mutable.clone_from_bitslice(immut);
+assert_eq!(immut, mutable);
 ```
-
-Note that, despite constructing a `static mut` binding, the `bits![mut …]` call
-is not `unsafe`, as the constructed symbol is hidden and only accessible by the
-sole `&mut` reference returned by the macro call.
 
 ## Borrowing Constructors
 
@@ -332,16 +330,16 @@ let local_mut = BitSlice::<Lsb0, _>::from_slice_mut(&mut data);
 
 ## Trait Method Constructors
 
-The [`BitView`] trait implements `.view_bits::<O>()` and `.view_bits_mut::<O>()`
-methods on elements, arrays not larger than 32 elements, and slices. This trait,
-imported in the crate prelude, is *probably* the easiest way for you to borrow
-memory.
+The [`BitView`] trait implements [`.view_bits::<O>()`] and
+[`.view_bits_mut::<O>()`] methods on elements, arrays not larger than 64
+elements, and slices. This trait, imported in the crate prelude, is *probably*
+the easiest way for you to borrow memory.
 
 ```rust
 use bitvec::prelude::*;
 
 let data = [0u32; 5];
-let trait_view = data.view_bits::<Msb0>();
+let trait_view = data.view_bits::<Lsb0>();
 
 let mut data = 0usize;
 let trait_mut = data.view_bits_mut::<Msb0>();
@@ -376,6 +374,8 @@ assert_eq!(vec.as_bitslice(), slice[.. 20]);
 ```
 
 [TCP wire format]: https://en.wikipedia.org/wiki/Transmission_Control_Protocol#TCP_segment_structure
+[minval]: https://doc.rust-lang.org/stable/std/primitive.usize.html#associatedconstant.MIN
+
 [`BitArray`]: crate::array::BitArray
 [`BitBox`]: crate::boxed::BitBox
 [`BitMut<O, T>`]: crate::slice::BitMut
@@ -383,16 +383,28 @@ assert_eq!(vec.as_bitslice(), slice[.. 20]);
 [`BitStore`]: crate::store::BitStore
 [`BitVec`]: crate::vec::BitVec
 [`BitView`]: crate::view::BitView
+[`Cell<T>`]: core::cell::Cell
 [`Lsb0`]: crate::order::Lsb0
 [`Msb0`]: crate::order::Msb0
+[`T: BitStore`]: crate::store::BitStore
+[`Vec<T>`]: alloc::vec::Vec
+
+[`access`]: crate::access
 [`bits!`]: macro@crate::bits
+[`bitvec`]: crate
 [`bitvec::prelude::LocalBits`]: crate::order::LocalBits
 [`from_element`]: Self::from_element
 [`from_element_mut`]: Self::from_element_mut
 [`from_slice`]: Self::from_slice
 [`from_slice_mut`]: Self::from_slice_mut
+[`mem::transmute`]: core::mem::transmute
 [`std::bitset`]: https://en.cppreference.com/w/cpp/utility/bitset
 [`std::vector<bool>`]: https://en.cppreference.com/w/cpp/container/vector_bool
+[`vec!`]: macro@alloc::vec
+
+[`.split_at_mut()`]: Self::split_at_mut
+[`.view_bits::<O>()`]: crate::view::BitView::view_bits
+[`.view_bits_mut::<O>()`]: crate::view::BitView::view_bits_mut
 **/
 #[repr(transparent)]
 pub struct BitSlice<O = Lsb0, T = usize>
@@ -436,9 +448,9 @@ where
 {
 	/// Constructs a shared `&BitSlice` reference over a shared element.
 	///
-	/// The [`BitView`] trait, implemented on all `T` elements, provides a
-	/// method [`.view_bits::<O>()`] which delegates to this function and may be
-	/// more convenient for you to write.
+	/// The [`BitView`] trait, implemented on all [`BitRegister`] implementors,
+	/// provides a method [`.view_bits::<O>()`] which delegates to this function
+	/// and may be more convenient for you to write.
 	///
 	/// # Parameters
 	///
@@ -454,12 +466,13 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let elem = 0u8;
-	/// let bits = BitSlice::<LocalBits, _>::from_element(&elem);
+	/// let bits = BitSlice::<Lsb0, _>::from_element(&elem);
 	/// assert_eq!(bits.len(), 8);
 	/// ```
 	///
-	/// [`BitView`]: ../view/trait.BitView.html
-	/// [`.view_bits::<O>()`]: ../view/trait.BitView.html#method.view_bits
+	/// [`BitRegister`]: crate::mem::BitRegister
+	/// [`BitView`]: crate::view::BitView
+	/// [`.view_bits::<O>()`]: crate::view::BitView::view_bits
 	#[inline]
 	pub fn from_element(elem: &T) -> &Self {
 		unsafe {
@@ -470,9 +483,9 @@ where
 
 	/// Constructs an exclusive `&mut BitSlice` reference over an element.
 	///
-	/// The [`BitView`] trait, implemented on all `T` elements, provides a
-	/// method [`.view_bits_mut::<O>()`] which delegates to this function and
-	/// may be more convenient for you to write.
+	/// The [`BitView`] trait, implemented on all [`BitRegister`] implementors,
+	/// provides a method [`.view_bits_mut::<O>()`] which delegates to this
+	/// function and may be more convenient for you to write.
 	///
 	/// # Parameters
 	///
@@ -497,9 +510,9 @@ where
 	/// assert_eq!(elem, 1);
 	/// ```
 	///
-	/// [`BitView`]: ../view/trait.BitView.html
-	/// [`.view_bits_mut::<O>()`]:
-	/// ../view/trait.BitView.html#method.view_bits_mut
+	/// [`BitRegister`]: crate::mem::BitRegister
+	/// [`BitView`]: crate::view::BitView
+	/// [`.view_bits_mut::<O>()`]: crate::view::BitView::view_bits_mut
 	#[inline]
 	pub fn from_element_mut(elem: &mut T) -> &mut Self {
 		unsafe {
@@ -508,11 +521,11 @@ where
 		.to_bitslice_mut()
 	}
 
-	/// Constructs a shared `&BitSlice` reference over a shared element slice.
+	/// Constructs a shared `&BitSlice` reference over a slice.
 	///
 	/// The [`BitView`] trait, implemented on all `[T]` slices, provides a
-	/// method [`.view_bits::<O>()`] that is equivalent to this function and may
-	/// be more convenient for you to write.
+	/// method [`.view_bits::<O>()`] which delegates to this function and may be
+	/// more convenient for you to write.
 	///
 	/// # Parameters
 	///
@@ -526,7 +539,8 @@ where
 	///
 	/// # Conditions
 	///
-	/// The produced `&BitSlice` handle always begins at the zeroth bit.
+	/// The produced `&BitSlice` handle always begins at the zeroth bit of the
+	/// zeroth element in `slice`.
 	///
 	/// # Examples
 	///
@@ -541,9 +555,9 @@ where
 	/// An example showing this function failing would require a slice exceeding
 	/// `!0usize >> 3` bytes in size, which is infeasible to produce.
 	///
-	/// [`BitView`]: ../view/trait.BitView.html
-	/// [`MAX_ELTS`]: #associatedconstant.MAX_ELTS
-	/// [`.view_bits::<O>()`]: ../view/trait.BitView.html#method.view_bits
+	/// [`BitView`]: crate::view::BitView
+	/// [`MAX_ELTS`]: Self::MAX_ELTS
+	/// [`.view_bits::<O>()`]: crate::view::BitView::view_bits
 	#[inline]
 	pub fn from_slice(slice: &[T]) -> Option<&Self> {
 		let elts = slice.len();
@@ -555,32 +569,10 @@ where
 		Some(unsafe { Self::from_slice_unchecked(slice) })
 	}
 
-	/// Converts a slice reference into a `BitSlice` reference without checking
-	/// that its size can be safely used.
-	///
-	/// # Safety
-	///
-	/// If the `slice` length is too long, then it will be capped at
-	/// [`MAX_BITS`]. You are responsible for ensuring that the input slice is
-	/// not unduly truncated.
-	///
-	/// Prefer [`from_slice`].
-	///
-	/// [`MAX_BITS`]: #associatedconstant.MAX_BITS
-	/// [`from_slice`]: #method.from_slice
-	#[inline]
-	pub unsafe fn from_slice_unchecked(slice: &[T]) -> &Self {
-		//  This branch could be removed by lowering the element ceiling by one,
-		//  but `from_slice` should not be in any tight loops, so it’s fine.
-		let bits = cmp::min(slice.len() * T::Mem::BITS as usize, Self::MAX_BITS);
-		BitPtr::new_unchecked(slice.as_ptr(), BitIdx::ZERO, bits)
-			.to_bitslice_ref()
-	}
-
 	/// Constructs an exclusive `&mut BitSlice` reference over a slice.
 	///
 	/// The [`BitView`] trait, implemented on all `[T]` slices, provides a
-	/// method [`.view_bits_mut::<O>()`] that is equivalent to this function and
+	/// method [`.view_bits_mut::<O>()`] which delegates to this function and
 	/// may be more convenient for you to write.
 	///
 	/// # Parameters
@@ -589,16 +581,12 @@ where
 	///
 	/// # Returns
 	///
-	/// An exclusive `&mut BitSlice` over the `slice` elements.
+	/// If `slice` does not have fewer than [`MAX_ELTS`] elements, this returns
+	/// `None`. Otherwise, it returns an exclusive `&mut BitSlice` over the
+	/// `slice` elements.
 	///
 	/// Note that the original `slice` reference will be inaccessible for the
 	/// duration of the returned slice handle’s lifetime.
-	///
-	/// # Panics
-	///
-	/// This panics if `slice` does not have fewer than [`MAX_ELTS`] elements.
-	///
-	/// [`MAX_ELTS`]: #associatedconstant.MAX_ELTS
 	///
 	/// # Conditions
 	///
@@ -627,15 +615,15 @@ where
 	/// # #[cfg(feature = "alloc")] {
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = vec![0usize; BitSlice::<LocalBits, usize>::MAX_ELTS];
-	/// let bits = BitSlice::<LocalBits, _>::from_slice_mut(&mut data[..]).unwrap();
+	/// let mut data = vec![0usize; BitSlice::<Lsb0, usize>::MAX_ELTS];
+	/// let bits = BitSlice::<Lsb0, _>::from_slice_mut(&mut data[..]).unwrap();
 	/// # }
 	/// # #[cfg(not(feature = "alloc"))] panic!("No allocator present");
 	/// ```
 	///
-	/// [`BitView`]: ../view/trait.BitView.html
-	/// [`.view_bits_mut::<O>()`]:
-	/// ../view/trait.BitView.html#method.view_bits_mut
+	/// [`BitView`]: crate::view::BitView
+	/// [`MAX_ELTS`]: Self::MAX_ELTS
+	/// [`.view_bits_mut::<O>()`]: crate::view::BitView::view_bits_mut
 	#[inline]
 	pub fn from_slice_mut(slice: &mut [T]) -> Option<&mut Self> {
 		let elts = slice.len();
@@ -650,17 +638,37 @@ where
 	///
 	/// # Safety
 	///
-	/// If the `slice` length is too long, then it will be capped at
-	/// [`MAX_BITS`]. You are responsible for ensuring that the input slice is
-	/// not unduly truncated.
+	/// If the `slice` length is longer than [`MAX_ELTS`], then the returned
+	/// `BitSlice` will have its length severely truncated. This is not a safety
+	/// violation, but it is behavior that callers must avoid to remain correct.
+	///
+	/// Prefer [`from_slice`].
+	///
+	/// [`MAX_ELTS`]: Self::MAX_ELTS
+	/// [`from_slice`]: Self::from_slice
+	#[inline]
+	pub unsafe fn from_slice_unchecked(slice: &[T]) -> &Self {
+		let bits = slice.len().wrapping_mul(T::Mem::BITS as usize);
+		BitPtr::new_unchecked(slice.as_ptr(), BitIdx::ZERO, bits)
+			.to_bitslice_ref()
+	}
+
+	/// Converts a slice reference into a `BitSlice` reference without checking
+	/// that its size can be safely used.
+	///
+	/// # Safety
+	///
+	/// If the `slice` length is longer than [`MAX_ELTS`], then the returned
+	/// `BitSlice` will have its length severely truncated. This is not a safety
+	/// violation, but it is behavior that callers must avoid to remain correct.
 	///
 	/// Prefer [`from_slice_mut`].
 	///
-	/// [`MAX_BITS`]: #associatedconstant.MAX_BITS
-	/// [`from_slice_mut`]: #method.from_slice_mut
+	/// [`MAX_ELTS`]: Self::MAX_ELTS
+	/// [`from_slice_mut`]: Self::from_slice_mut
 	#[inline]
 	pub unsafe fn from_slice_unchecked_mut(slice: &mut [T]) -> &mut Self {
-		let bits = cmp::min(slice.len() * T::Mem::BITS as usize, Self::MAX_BITS);
+		let bits = slice.len().wrapping_mul(T::Mem::BITS as usize);
 		BitPtr::new_unchecked(slice.as_ptr(), BitIdx::ZERO, bits)
 			.to_bitslice_mut()
 	}
@@ -711,7 +719,7 @@ where
 	/// - `&mut self`
 	/// - `index`: The bit index to set. It must be in the range `0 ..
 	///   self.len()`.
-	/// - `value`: The value to be set, `true` for `1` and `false` for `0`.
+	/// - `value`: The value to be set; `true` for `1` or `false` for `0`.
 	///
 	/// # Effects
 	///
@@ -719,20 +727,18 @@ where
 	///
 	/// # Panics
 	///
-	/// This method panics if `index` is outside the slice domain.
+	/// This method panics if `index` is not less than [`self.len()`]
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0u8;
-	/// let bits = data.view_bits_mut::<Msb0>();
+	/// let bits = bits![mut 0];
 	///
-	/// assert!(!bits.get(7).unwrap());
-	/// bits.set(7, true);
-	/// assert!(bits.get(7).unwrap());
-	/// assert_eq!(data, 1);
+	/// assert!(!bits[0]);
+	/// bits.set(0, true);
+	/// assert!(bits[0]);
 	/// ```
 	///
 	/// This example panics when it attempts to set a bit that is out of bounds.
@@ -743,6 +749,8 @@ where
 	/// let bits = bits![mut 0];
 	/// bits.set(1, false);
 	/// ```
+	///
+	/// [`self.len()`]: Self::len
 	#[inline]
 	pub fn set(&mut self, index: usize, value: bool) {
 		let len = self.len();
@@ -796,7 +804,7 @@ where
 	/// assert_eq!(data, 1);
 	/// ```
 	///
-	/// [`set`]: #method.set
+	/// [`set`]: Self::set
 	#[inline]
 	pub unsafe fn set_unchecked(&mut self, index: usize, value: bool) {
 		self.bitptr().write::<O>(index, value);
@@ -918,7 +926,7 @@ where
 	///
 	/// # Parameters
 	///
-	/// - `&self
+	/// - `&self`
 	///
 	/// # Returns
 	///
@@ -974,7 +982,7 @@ where
 	/// Tests whether the slice has some, but not all, bits set and some, but
 	/// not all, bits unset.
 	///
-	/// This is `false` if either [`.all`] or [`.not_any`] are `true`.
+	/// This is `false` if either [`.all()`] or [`.not_any()`] are `true`.
 	///
 	/// # Truth Table
 	///
@@ -1007,8 +1015,8 @@ where
 	/// assert!(bits.some());
 	/// ```
 	///
-	/// [`.all`]: #method.all
-	/// [`.not_any`]: #method.not_any
+	/// [`.all()`]: Self::all
+	/// [`.not_any()`]: Self::not_any
 	#[inline]
 	pub fn some(&self) -> bool {
 		self.any() && self.not_all()
@@ -1022,7 +1030,7 @@ where
 	///
 	/// # Returns
 	///
-	/// The number of high bits in the slice domain.
+	/// The number of bits in the slice domain that are set to `1`.
 	///
 	/// # Examples
 	///
@@ -1068,7 +1076,7 @@ where
 	///
 	/// # Returns
 	///
-	/// The number of low bits in the slice domain.
+	/// The number of bits in the slice domain that are set to `0`.
 	///
 	/// # Examples
 	///
@@ -1342,9 +1350,9 @@ where
 	/// aliased by other handles. To gain access to all elements that the
 	/// `BitSlice` region covers, use one of the following:
 	///
-	/// - [`.as_slice`] produces a shared slice over all elements, marked
+	/// - [`.as_slice()`] produces a shared slice over all elements, marked
 	///   aliased as appropriate.
-	/// - [`.domain`] produces a view describing each component of the region,
+	/// - [`.domain()`] produces a view describing each component of the region,
 	///   marking only the contended edges as aliased and the uncontended
 	///   interior as unaliased.
 	///
@@ -1374,8 +1382,8 @@ where
 	/// assert_eq!(accum, 3);
 	/// ```
 	///
-	/// [`.as_slice`]: #method.as_slice
-	/// [`.domain`]: #method.domain
+	/// [`.as_slice()`]: Self::as_slice
+	/// [`.domain()`]: Self::domain
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_raw_slice(&self) -> &[T::Mem] {
@@ -1391,6 +1399,7 @@ where
 	/// - [`.as_slice()`] produces an immutable slice over all elements. Even
 	///   when `T` permits aliasing, this slice cannot be used to write into the
 	///   referent memory.
+	/// - [`.domain_mut()`] produces a view describing each component of the
 	///   region, marking only the contended edges as aliased and the
 	///   uncontended interior as unaliased.
 	///
@@ -1416,12 +1425,24 @@ where
 	/// assert_eq!(&[3, 66], bits.as_slice());
 	/// ```
 	///
-	/// [`.as_aliased_slice`]: #method.as_aliased_slice
-	/// [`.domain_mut`]: #method.domain_mut
+	/// [`.as_slice()`: Self::as_slice]
+	/// [`.domain_mut()`]: Self::domain_mut
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_raw_slice_mut(&mut self) -> &mut [T::Mem] {
 		self.domain_mut().region().map_or(&mut [], |(_, b, _)| b)
+	}
+
+	/// Converts the bitslice reference to a bitslice pointer.
+	#[inline(always)]
+	pub fn as_bitptr(&self) -> *const Self {
+		self as *const Self
+	}
+
+	/// Converts the bitslice reference to a bitslice pointer.
+	#[inline(always)]
+	pub fn as_mut_bitptr(&mut self) -> *mut Self {
+		self as *mut Self
 	}
 
 	/// Splits the slice into the logical components of its memory domain.
@@ -1496,14 +1517,14 @@ where
 	/// Splits the slice into immutable references to its underlying memory
 	/// components.
 	///
-	/// Unlike [`.bit_domain`] and [`.bit_domain_mut`], this does not return
+	/// Unlike [`.bit_domain()`] and [`.bit_domain_mut()`], this does not return
 	/// smaller `BitSlice` handles but rather appropriately-marked references to
 	/// the underlying memory elements.
 	///
 	/// The aliased references allow mutation of these elements. You are
 	/// required to not use mutating methods on these references *at all*. This
 	/// function is not marked `unsafe`, but this is a contract you must uphold.
-	/// Use [`.domain_mut`] to modify the underlying elements.
+	/// Use [`.domain_mut()`] to modify the underlying elements.
 	///
 	/// > It is not currently possible to forbid mutation through these
 	/// > references. This may change in the future.
@@ -1522,9 +1543,9 @@ where
 	///
 	/// A read-only descriptor of the memory elements backing `*self`.
 	///
-	/// [`.bit_domain`]: #method.bit_domain
-	/// [`.bit_domain_mut`]: #method.bit_domain_mut
-	/// [`.domain_mut`]: #method.domain_mut
+	/// [`.bit_domain()`]: Self::bit_domain
+	/// [`.bit_domain_mut()`]: Self::bit_domain_mut
+	/// [`.domain_mut()`]: Self::domain_mut
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn domain(&self) -> Domain<T> {
@@ -1534,7 +1555,7 @@ where
 	/// Splits the slice into mutable references to its underlying memory
 	/// elements.
 	///
-	/// Like [`.domain`], this returns appropriately-marked references to the
+	/// Like [`.domain()`], this returns appropriately-marked references to the
 	/// underlying memory elements. These references are all writable.
 	///
 	/// The aliased edge references permit modifying memory beyond their bit
@@ -1554,7 +1575,7 @@ where
 	/// A descriptor of the memory elements underneath `*self`, permitting
 	/// mutation.
 	///
-	/// [`.domain`]: #method.domain
+	/// [`.domain()`]: Self::domain
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn domain_mut(&mut self) -> DomainMut<T> {
@@ -1564,7 +1585,7 @@ where
 	/// Splits a slice at some mid-point, without checking boundary conditions.
 	///
 	/// This is generally not recommended; use with caution! For a safe
-	/// alternative, see [`split_at`].
+	/// alternative, see [`.split_at()`].
 	///
 	/// # Parameters
 	///
@@ -1598,7 +1619,7 @@ where
 	/// assert!(two[0]);
 	/// ```
 	///
-	/// [`split_at`]: #method.split_at
+	/// [`.split_at()`]: Self::split_at
 	#[inline]
 	pub unsafe fn split_at_unchecked(&self, mid: usize) -> (&Self, &Self) {
 		match mid {
@@ -1612,7 +1633,7 @@ where
 	/// conditions.
 	///
 	/// This is generally not recommended; use with caution! For a safe
-	/// alternative, see [`split_at_mut`].
+	/// alternative, see [`.split_at_mut()`].
 	///
 	/// # Parameters
 	///
@@ -1647,7 +1668,7 @@ where
 	/// assert_eq!(data, 0x0180u16);
 	/// ```
 	///
-	/// [`split_at_mut`]: #method.split_at_mut
+	/// [`.split_at_mut()`]: Self::split_at_mut
 	#[inline]
 	#[allow(clippy::type_complexity)]
 	pub unsafe fn split_at_unchecked_mut(
@@ -1671,16 +1692,17 @@ where
 	/// Splits a mutable slice at some mid-point, without checking boundary
 	/// conditions or adding an alias marker.
 	///
-	/// This method has the same behavior as [`split_at_unchecked_mut`], except
-	/// that it does not apply an aliasing marker to the partitioned subslices.
+	/// This method has the same behavior as [`.split_at_unchecked_mut()`],
+	/// except that it does not apply an aliasing marker to the partitioned
+	/// subslices.
 	///
 	/// # Safety
 	///
-	/// See [`split_at_unchecked_mut`] for safety requirements.
+	/// See [`.split_at_unchecked_mut()`] for safety requirements.
 	///
 	/// Additionally, this is only safe when `T` is alias-safe.
 	///
-	/// [`split_at_unchecked_mut`]: #method.split_at_unchecked_mut
+	/// [`.split_at_unchecked_mut()`]: Self::split_at_unchecked_mut
 	#[inline]
 	pub(crate) unsafe fn split_at_unchecked_mut_noalias(
 		&mut self,
@@ -1696,7 +1718,7 @@ where
 	/// Swaps the bits at two indices without checking boundary conditions.
 	///
 	/// This is generally not recommended; use with caution! For a safe
-	/// alternative, see [`swap`].
+	/// alternative, see [`.swap()`].
 	///
 	/// # Parameters
 	///
@@ -1728,7 +1750,7 @@ where
 	/// assert_eq!(data, 128);
 	/// ```
 	///
-	/// [`swap`]: #method.swap
+	/// [`.swap()`]: Self::swap
 	#[inline]
 	pub unsafe fn swap_unchecked(&mut self, a: usize, b: usize) {
 		let bit_a = *self.get_unchecked(a);
@@ -1752,7 +1774,7 @@ where
 	///
 	/// # Safety
 	///
-	/// Both `from` and `to` must be less than `self.len()`, in order for
+	/// Both `from` and `to` must be less than [`self.len()`], in order for
 	/// `self` to legally read from and write to them, respectively.
 	///
 	/// If `self` had been split from a larger slice, reading from `from` or
@@ -1773,6 +1795,8 @@ where
 	///
 	/// assert_eq!(data, 5);
 	/// ```
+	///
+	/// [`self.len()`]: Self::len
 	#[inline]
 	pub unsafe fn copy_unchecked(&mut self, from: usize, to: usize) {
 		let tmp = *self.get_unchecked(from);
@@ -1784,7 +1808,7 @@ where
 	/// `src` is the range within `self` to copy from. `dest` is the starting
 	/// index of the range within `self` to copy to, which will have the same
 	/// length as `src`. The two ranges may overlap. The ends of the two ranges
-	/// must be less than or equal to `self.len()`.
+	/// must be less than or equal to [`self.len()`].
 	///
 	/// # Effects
 	///
@@ -1798,7 +1822,7 @@ where
 	/// # Safety
 	///
 	/// Both the `src` range and the target range `dest .. dest + src.len()`
-	/// must not exceed the `self.len()` slice range.
+	/// must not exceed the [`self.len()`] slice range.
 	///
 	/// # Examples
 	///
@@ -1812,6 +1836,8 @@ where
 	///
 	/// assert_eq!(data, 0xE7);
 	/// ```
+	///
+	/// [`self.len()`]: Self::len
 	#[inline]
 	pub unsafe fn copy_within_unchecked<R>(&mut self, src: R, dest: usize)
 	where R: RangeBounds<usize> {
@@ -1899,7 +1925,7 @@ where
 
 	/// Computes the electrical distance between the heads of two slices.
 	///
-	/// This method uses the slices’ `BitOrder` implementation to compute the
+	/// This method uses the slices’ [`BitOrder`] implementation to compute the
 	/// bit position of their heads, then computes the shift distance, in bits,
 	/// between them.
 	///
@@ -1915,6 +1941,8 @@ where
 	/// # Returns
 	///
 	/// The electrical bit distance between the heads of `self` and `other`.
+	///
+	/// [`BitOrder`]: crate::order::BitOrder
 	pub fn electrical_distance(&self, other: &Self) -> isize {
 		let this = self.bitptr();
 		let that = other.bitptr();
@@ -1939,14 +1967,14 @@ where
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn alias(&self) -> &BitSlice<O, T::Alias> {
-		unsafe { &*(self.as_ptr() as *const BitSlice<O, T::Alias>) }
+		unsafe { &*(self.as_bitptr() as *const BitSlice<O, T::Alias>) }
 	}
 
 	/// Marks a mutable slice as describing an aliased memory region.
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn alias_mut(&mut self) -> &mut BitSlice<O, T::Alias> {
-		unsafe { &mut *(self as *mut Self as *mut BitSlice<O, T::Alias>) }
+		unsafe { &mut *(self.as_mut_bitptr() as *mut BitSlice<O, T::Alias>) }
 	}
 
 	/// Removes the aliasing marker from a mutable slice handle.
@@ -1968,7 +1996,7 @@ where
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn bitptr(&self) -> BitPtr<T> {
-		BitPtr::from_bitslice_ptr(self.as_ptr())
+		self.as_bitptr().pipe(BitPtr::from_bitslice_ptr)
 	}
 
 	/// Constructs a `BitSlice` over aliased memory.
@@ -1996,7 +2024,7 @@ where
 {
 	/// Splits a mutable slice at some mid-point.
 	///
-	/// This method has the same behavior as [`split_at_mut`], except that it
+	/// This method has the same behavior as [`.split_at_mut()`], except that it
 	/// does not apply an aliasing marker to the partitioned subslices.
 	///
 	/// # Safety
@@ -2004,7 +2032,7 @@ where
 	/// Because this method is defined only on `BitSlice`s whose `T` type is
 	/// alias-safe, the subslices do not need to be additionally marked.
 	///
-	/// [`split_at_mut`]: #method.split_at_mut
+	/// [`.split_at_mut()`]: Self::split_at_mut
 	#[inline]
 	//  `.split_at_mut` is already tested, and `::unalias_mut` is a noöp.
 	#[cfg(not(tarpaulin_include))]

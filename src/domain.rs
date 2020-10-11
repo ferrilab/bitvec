@@ -1,4 +1,4 @@
-/*! Representation of the [`BitSlice`] region memory model
+/*! Representation of the [`BitSlice`] region memory model.
 
 This module allows any [`BitSlice`] region to be decomposed into domains with
 more detailed aliasing information.
@@ -8,11 +8,11 @@ Specifically, any particular [`BitSlice`] region is one of:
 - touches only interior indices of one element
 - touches at least one edge index of any number of elements (including zero)
 
-In the latter case, any elements *completely* spanned by the slice handle are
-known to not have any other write-capable views to them, and in the case of an
-`&mut BitSlice` handle specifically, no other views at all. As such, the domain
-view of this memory is able to remove the aliasing marker type and permit direct
-memory access for the duration of its existence.
+In the latter case, any elements *completely* spanned by the [`BitSlice`] handle
+are known to not have any other write-capable views to them, and in the case of
+an `&mut BitSlice` handle specifically, no other views at all. As such, the
+domain view of this memory is able to remove the aliasing marker type and permit
+direct memory access for the duration of its existence.
 
 [`BitSlice`]: crate::slice::BitSlice
 !*/
@@ -80,7 +80,7 @@ macro_rules! bit_domain {
 		/// # Aliasing Awareness
 		///
 		/// This enum does not grant access to memory outside the scope of the
-		/// original `&BitSlice` handle, and so does not need to modfiy any
+		/// original [`BitSlice`] handle, and so does not need to modfiy any
 		/// aliasing conditions.
 		///
 		/// [`BitSlice`]: crate::slice::BitSlice
@@ -456,20 +456,6 @@ macro_rules! domain {
 				/// As such, a [`BitSlice`] that was marked as entirely aliased,
 				/// but contains interior unaliased elements, can safely remove
 				/// its aliasing protections.
-				///
-				/// # Safety Exception
-				///
-				/// `&BitSlice<O, T::Alias>` references have access to a
-				/// `.set_aliased` method, which represents the only means in
-				/// `bitvec` of writing to memory without an exclusive `&mut`
-				/// reference.
-				///
-				/// Construction of two such shared, aliasing, references over
-				/// the same data, then construction of a domain view over one
-				/// of them and simultaneous writing through the other to
-				/// interior elements marked as unaliased, will cause the domain
-				/// view to be undefined behavior. Do not combine domain views
-				/// and `.set_aliased` calls.
 				body: &'a $($m)? [T::Mem],
 				/// If the `BitSlice` ended in the interior of its last element,
 				/// this contains the ending index and the last address.

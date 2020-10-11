@@ -218,8 +218,23 @@ fn split() {
 
 #[test]
 fn iterators() {
-	0b0100_1000u8
-		.view_bits::<Msb0>()
+	assert!(bits![0; 2].iter().nth(2).is_none());
+	assert!(bits![0; 2].iter().nth_back(2).is_none());
+
+	let bits = bits![mut 0; 4];
+
+	assert!(bits.chunks(2).nth(2).is_none());
+	assert!(bits.chunks(2).nth_back(2).is_none());
+	assert!(bits.chunks_mut(2).nth(2).is_none());
+	assert!(bits.chunks_mut(2).nth_back(2).is_none());
+
+	assert!(bits.rchunks(2).nth(2).is_none());
+	assert!(bits.rchunks(2).nth_back(2).is_none());
+	assert!(bits.rchunks_mut(2).nth(2).is_none());
+	assert!(bits.rchunks_mut(2).nth_back(2).is_none());
+	assert!(bits![mut].rchunks_mut(1).next().is_none());
+
+	bits![Msb0, u8; 0, 1, 0, 0, 1, 0, 0, 0]
 		.split(|_, bit| *bit)
 		.zip([1usize, 2, 3].iter())
 		.for_each(|(bits, len)| assert_eq!(bits.len(), *len));
@@ -234,8 +249,7 @@ fn iterators() {
 		});
 	assert_eq!(data, !0);
 
-	0b0100_1000u8
-		.view_bits::<Msb0>()
+	bits![Msb0, u8; 0, 1, 0, 0, 1, 0, 0, 0]
 		.rsplit(|_, bit| *bit)
 		.zip([3usize, 2, 1].iter())
 		.for_each(|(bits, len)| assert_eq!(bits.len(), *len));
@@ -250,8 +264,7 @@ fn iterators() {
 		});
 	assert_eq!(data, !0);
 
-	0b0100_1000u8
-		.view_bits::<Msb0>()
+	bits![Msb0, u8; 0, 1, 0, 0, 1, 0, 0, 0]
 		.splitn(2, |_, bit| *bit)
 		.zip([1usize, 6].iter())
 		.for_each(|(bits, len)| assert_eq!(bits.len(), *len));
@@ -266,8 +279,7 @@ fn iterators() {
 		});
 	assert_eq!(data, !0);
 
-	0b0100_1000u8
-		.view_bits::<Msb0>()
+	bits![Msb0, u8; 0, 1, 0, 0, 1, 0, 0, 0]
 		.rsplitn(2, |_, bit| *bit)
 		.zip([3usize, 4].iter())
 		.for_each(|(bits, len)| assert_eq!(bits.len(), *len));
@@ -334,4 +346,30 @@ fn shift() {
 	assert_eq!(bits, bits![1, 1, 0, 0, 0, 0]);
 	bits.shift_right(2);
 	assert_eq!(bits, bits![0, 0, 1, 1, 0, 0]);
+}
+
+#[test]
+fn invert() {
+	let mut data = [0u8; 4];
+	let bits = data.view_bits_mut::<Lsb0>();
+
+	let inv = !&mut bits[2 .. 6];
+	assert!(inv.all());
+
+	let inv = !&mut bits[12 .. 28];
+	assert!(inv.all());
+
+	assert_eq!(data, [0x3C, 0xF0, 0xFF, 0x0F]);
+}
+
+#[test]
+fn rotate() {
+	let bits = bits![mut 0, 1, 0, 0, 1, 0];
+
+	bits.rotate_left(0);
+	bits.rotate_right(0);
+	bits.rotate_left(6);
+	bits.rotate_right(6);
+
+	assert_eq!(bits, bits![0, 1, 0, 0, 1, 0]);
 }

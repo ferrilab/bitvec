@@ -11,7 +11,7 @@ as a type capable of being used in immediate value position, and delegates to
 
 [`BitArray`]: self::BitArray
 [`BitSlice`]: crate::slice::BitSlice
-[std]: https://doc.rust-lang.org/std/primitive.array.html
+[std]: https://doc.rust-lang.org/stable/std/primitive.array.html
 !*/
 
 use crate::{

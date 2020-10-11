@@ -5,7 +5,7 @@
 # editors capable of understanding this file.                                  #
 ################################################################################
 
-# All files must be encoded in UTF-8, use ␊ line endings, including a final
+# All files must be encoded in UTF-8, use ␊ line endings, and include a final
 # newline.
 [*]
 charset = utf-8

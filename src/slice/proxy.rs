@@ -61,8 +61,8 @@ memory element it uses will not have destructive data races from other views.
 
 # Type Parameters
 
-- `O`: The `BitOrder` type parameter from the source `&mut BitSlice`.
-- `T`: The `BitStore` type parameter from the source `&mut BitSlice`.
+- `O`: The [`BitOrder`] type parameter from the source `&mut BitSlice`.
+- `T`: The [`BitStore`] type parameter from the source `&mut BitSlice`.
 
 # Examples
 
@@ -84,7 +84,9 @@ drop(first); // it’s not a reference!
 assert_eq!(bits, bits![1; 2]);
 ```
 
+[`BitOrder`]: crate::order::BitOrder
 [`BitSlice`]: crate::slice::BitSlice
+[`BitStore`]: crate::store::BitStore
 [`Deref`]: core::ops::Deref
 [`DerefMut`]: core::ops::DerefMut
 [`Drop`]: core::ops::Drop

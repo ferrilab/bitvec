@@ -48,7 +48,7 @@ of either the source [`BitSlice`] or destination `[u8]`. When `.read()` returns,
 `self` will have been updated to no longer include the leading segment copied
 out as bytes of `buf`.
 
-[here]: https://doc.rust-lang.org/std/primitive.slice.html#impl-Read
+[here]: https://doc.rust-lang.org/stable/std/primitive.slice.html#impl-Read
 [`BitSlice`]: crate::slice::BitSlice
 **/
 impl<'a, O, T> Read for &'a BitSlice<O, T>
@@ -76,7 +76,7 @@ exhaustion of either the source `[u8]` or destination [`BitSlice`]. When
 `.write()` returns, `self` will have been updated to no longer include the
 leading segment containing bytes copied in from `buf`.
 
-[here]: https://doc.rust-lang.org/std/primitive.slice.html#impl-Write
+[here]: https://doc.rust-lang.org/stable/std/primitive.slice.html#impl-Write
 [`BitSlice`]: crate::slice::BitSlice
 **/
 impl<'a, O, T> Write for &'a mut BitSlice<O, T>
@@ -113,7 +113,7 @@ The implementation copies bytes from `buf` into the tail end of `self`. The
 performance characteristics of this operation are dependent on the type
 parameters of the [`BitVec`], and the position of its tail.
 
-[here]: https://doc.rust-lang.org/std/vec/struct.Vec.html#impl-Write
+[here]: https://doc.rust-lang.org/stable/std/vec/struct.Vec.html#impl-Write
 [`BitVec`]: crate::vec::BitVec
 **/
 impl<O, T> Write for BitVec<O, T>

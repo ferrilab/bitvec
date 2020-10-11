@@ -1,9 +1,9 @@
-/*! Memory access control.
+/*! Controls for accessing memory.
 
 [`bitvec`] allows a program to produce handles over memory that do not logically
-alias, but may alias in hardware. This module provides a unified interface for
-memory accesses that can be specialized to handle aliased and unaliased access
-events.
+alias their bits, but may alias in hardware. This module provides a unified
+interface for memory accesses that can be specialized to handle aliased and
+unaliased access events.
 
 The [`BitAccess`] trait provides capabilities to access bits in memory elements
 through shared references, and its implementations are responsible for
@@ -51,6 +51,12 @@ This is automatically implemented for all types that permit shared/mutable
 memory access to register types through the [`radium`] crate. Its use is
 constrained in the [`store`] module.
 
+This trait is only ever used by [`bitvec`] internals, and is never exposed outside
+the crate. It must be `pub`lic so that it can be used as an associated item in
+[`BitStore`], even though it is never made accessible.
+
+[`BitStore`]: crate::store::BitStore
+[`bitvec`]: crate
 [`radium`]: radium
 [`store`]: crate::store
 **/

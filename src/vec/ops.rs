@@ -147,10 +147,9 @@ where
 {
 	#[inline]
 	fn drop(&mut self) {
-		//  The buffer elements do not have destructors.
-		self.clear();
-		//  Run the `Vec` destructor to deällocate the buffer.
-		self.with_vec(|vec| unsafe { ManuallyDrop::drop(vec) });
+		drop(unsafe {
+			Vec::from_raw_parts(self.as_mut_ptr(), 0, self.alloc_capacity())
+		})
 	}
 }
 

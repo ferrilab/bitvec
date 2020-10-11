@@ -741,12 +741,8 @@ where
 				unsafe {
 					let bv = self.drain.source.as_mut();
 					let len = bv.len();
-					/* TODO(myrrlyn): Investigate adding functionality to `Iter`
-					that permits an exchange behavior, rather than separated
-					computations of the pointer for read and write access.
-					*/
+					bv.set_len_unchecked(len + 1);
 					bv.set_unchecked(len, bit);
-					bv.set_len(len + 1);
 				}
 			}
 		})

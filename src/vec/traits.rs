@@ -38,10 +38,7 @@ use core::{
 	},
 };
 
-use tap::{
-	pipe::Pipe,
-	tap::Tap,
-};
+use tap::tap::Tap;
 
 #[cfg(not(tarpaulin_include))]
 impl<O, T> Borrow<BitSlice<O, T>> for BitVec<O, T>
@@ -75,22 +72,31 @@ where
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	fn clone(&self) -> Self {
-		self.as_bitslice().pipe(Self::from_bitslice)
+		Self::new().tap_mut(|bv| bv.clone_from(self))
 	}
 
 	#[inline]
 	fn clone_from(&mut self, other: &Self) {
-		self.clear();
-		self.reserve(other.len());
 		self.with_vec(|v| {
-			v.extend(other.as_slice().iter().map(BitStore::load_value))
+			let src = other.as_slice();
+			unsafe {
+				v.set_len(0);
+			}
+			v.reserve(src.len());
+			/* `.copy_from_slice` cannot be used reliably until the owned
+			buffers are restricted to only bare integers, not alias wrappers.
+			While `BitVec<_, AtomicUsize>` is permitted to exist, it can be
+			borrowed as `&[AtomicUsize]` on a separate thread from this `Clone`
+			call, and modify the memory while cloning takes place. Once the
+			restriction is in place, this can be replaced with an ordinary copy.
+			*/
+			v.extend(src.iter().map(BitStore::load_value))
 		});
-		unsafe {
-			self.set_len(other.len());
-		}
-		self.pointer = self
+		//  Copy the `other` region pointer, replacing its base address with our
+		//  own allocation address, and store that as our region pointer.
+		self.pointer = other
 			.bitptr()
-			.tap_mut(|bp| unsafe { bp.set_head(other.bitptr().head()) })
+			.tap_mut(|bp| unsafe { bp.set_pointer(self.as_mut_ptr()) })
 			.to_nonnull();
 	}
 }
@@ -299,16 +305,13 @@ where
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		if fmt.alternate() {
-			self.bitptr().render(
-				fmt,
-				"Vec",
-				Some(any::type_name::<O>()),
-				None,
-			)?;
-			fmt.write_str(" ")?;
-		}
-		Display::fmt(self.as_bitslice(), fmt)
+		self.bitptr()
+			.render(fmt, "Vec", Some(any::type_name::<O>()), &[(
+				"capacity",
+				&self.capacity() as &dyn Debug,
+			)])?;
+		fmt.write_str(" ")?;
+		Binary::fmt(self.as_bitslice(), fmt)
 	}
 }
 

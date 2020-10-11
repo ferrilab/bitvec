@@ -2,14 +2,14 @@
 
 #![allow(unused_variables, array_into_iter)]
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 use bitvec::prelude::*;
 
-#[cfg(feature = "std")]
-use std::iter::repeat;
+#[cfg(feature = "alloc")]
+use core::iter::repeat;
 
 #[test]
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 fn main() {
 	// You can build a static array,
 	let arr = bitarr![Lsb0, u32; 0; 64];

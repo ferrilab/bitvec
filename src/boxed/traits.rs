@@ -272,16 +272,10 @@ where
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		if fmt.alternate() {
-			self.bitptr().render(
-				fmt,
-				"Box",
-				Some(any::type_name::<O>()),
-				None,
-			)?;
-			fmt.write_str(" ")?;
-		}
-		Display::fmt(self.as_bitslice(), fmt)
+		self.bitptr()
+			.render(fmt, "Box", Some(any::type_name::<O>()), None)?;
+		fmt.write_str(" ")?;
+		Binary::fmt(self.as_bitslice(), fmt)
 	}
 }
 
@@ -413,17 +407,12 @@ mod tests {
 	#[test]
 	#[cfg(feature = "std")]
 	fn format() {
-		let render = format!("{:#?}", bitbox![Msb0, u8; 0, 1, 0, 0]);
+		let text = format!("{:?}", bitbox![Msb0, u8; 0, 1, 0, 0]);
 		assert!(
-			render.starts_with("BitBox<bitvec::order::Msb0, u8> {"),
+			text.starts_with("BitBox<bitvec::order::Msb0, u8> { addr: 0x"),
 			"{}",
-			render
+			text
 		);
-		assert!(
-			render
-				.ends_with("    head: 000,\n    bits: 4,\n} [\n    0b0100,\n]"),
-			"{}",
-			render
-		);
+		assert!(text.ends_with(", head: 000, bits: 4 } [0100]"), "{}", text);
 	}
 }

@@ -205,14 +205,18 @@ fn misc() {
 
 	let mut bv_1 = bitvec![Lsb0, u8; 0; 5];
 	let mut bv_2 = bitvec![Msb0, u16; 1; 5];
+	let mut bv_3 = bv_1.clone();
 	bv_1.append(&mut bv_2);
 
 	assert_eq!(bv_1, bits![0, 0, 0, 0, 0, 1, 1, 1, 1, 1]);
 	assert!(bv_2.is_empty());
 
-	let bv_3 = bv_1.split_off(5);
+	bv_1.append(&mut bv_3);
+	assert_eq!(bv_1, bits![0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0]);
+
+	let bv_4 = bv_1.split_off(5);
 	assert!(bv_1.not_any());
-	assert!(bv_3.all());
+	assert!(bv_4.some());
 
 	let mut last = false;
 	bv_1.resize_with(10, || {
@@ -243,4 +247,26 @@ fn vec_splice() {
 	let old: BitVec = bv.splice(.. 2, new.iter().copied()).collect();
 	assert_eq!(bv, bits![1, 0, 0]);
 	assert_eq!(old, bits![0, 1]);
+
+	let mut bv = bitvec![0, 1, 0];
+	let new = bits![1, 1, 0, 0, 1, 1];
+	let old: BitVec = bv.splice(1 .. 2, new.iter().copied()).collect();
+	assert_eq!(bv, bits![0, 1, 1, 0, 0, 1, 1, 0]);
+	assert_eq!(old, bits![1]);
+}
+
+#[test]
+fn format() {
+	let text = format!("{:?}", bitvec![Msb0, u8; 0, 1, 0, 0]);
+	assert!(
+		text.starts_with("BitVec<bitvec::order::Msb0, u8> { addr: 0x"),
+		"{}",
+		text
+	);
+	assert!(
+		text.contains(", head: 000, bits: 4, capacity: "),
+		"{}",
+		text
+	);
+	assert!(text.ends_with(" } [0100]"), "{}", text);
 }

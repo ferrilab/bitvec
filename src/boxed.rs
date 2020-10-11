@@ -138,7 +138,7 @@ where
 	pointer: NonNull<BitSlice<O, T>>,
 }
 
-/// Methods specific to `BitBox<_, T>`, and not present on `Box<[T]>`.
+/// Methods specific to `BitBox<_, T>` not present on `Box<[T]>`.
 impl<O, T> BitBox<O, T>
 where
 	O: BitOrder,

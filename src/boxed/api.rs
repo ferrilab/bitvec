@@ -200,7 +200,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::into_vec`](https://doc.rust-lang.org/std/primitive.slice.html#method.into_vec)
+	/// [`slice::into_vec`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.into_vec)
 	///
 	/// # API Differences
 	///

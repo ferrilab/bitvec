@@ -186,6 +186,12 @@ where R: BitRegister
 		make!(idx idx)
 	}
 
+	/// Views the internal index value.
+	#[inline(always)]
+	pub fn value(self) -> u8 {
+		self.idx
+	}
+
 	/// Increments an index counter, wrapping at the back edge of the register.
 	///
 	/// # Parameters
@@ -254,22 +260,6 @@ where R: BitRegister
 		self.select::<O>().mask()
 	}
 
-	/// Views the internal index value.
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub fn value(self) -> u8 {
-		self.idx
-	}
-
-	/// Ranges over all possible index values.
-	#[inline]
-	pub(crate) fn range_all() -> impl Iterator<Item = Self>
-	+ DoubleEndedIterator
-	+ ExactSizeIterator
-	+ FusedIterator {
-		(Self::ZERO.idx ..= Self::LAST.idx).map(|val| make!(idx val))
-	}
-
 	/// Constructs a range over all indices between a start and end point.
 	///
 	/// Because implementation details of the range type family, including the
@@ -310,6 +300,15 @@ where R: BitRegister
 		(from.value() .. upto.value()).map(|val| make!(idx val))
 	}
 
+	/// Ranges over all possible index values.
+	#[inline]
+	pub(crate) fn range_all() -> impl Iterator<Item = Self>
+	+ DoubleEndedIterator
+	+ ExactSizeIterator
+	+ FusedIterator {
+		(Self::ZERO.idx ..= Self::LAST.idx).map(|val| make!(idx val))
+	}
+
 	/// Computes the the jump distance for a number of bits away from a start.
 	///
 	/// This produces the number of elements to move from the starting point,
@@ -331,7 +330,7 @@ where R: BitRegister
 	/// - `.1`: The bit index of the destination bit in the element selected by
 	///   applying the `.0` pointer offset.
 	///
-	/// [`ptr::offset`]: https://doc.rust-lang.org/std/primitive.pointer.html#method.offset
+	/// [`ptr::offset`]: https://doc.rust-lang.org/stable/std/primitive.pointer.html#method.offset
 	#[inline]
 	pub(crate) fn offset(self, by: isize) -> (isize, Self) {
 		let val = self.value();
@@ -587,18 +586,6 @@ where R: BitRegister
 		self.end
 	}
 
-	/// Ranges over all valid tails for a starting index.
-	#[inline]
-	#[cfg(test)]
-	pub(crate) fn range_from(
-		start: BitIdx<R>,
-	) -> impl Iterator<Item = Self>
-	+ DoubleEndedIterator
-	+ ExactSizeIterator
-	+ FusedIterator {
-		(start.idx ..= Self::END.end).map(|val| make!(tail val))
-	}
-
 	/// Computes span information for a region beginning immediately after a
 	/// preceding region.
 	///
@@ -626,6 +613,7 @@ where R: BitRegister
 	///
 	/// [`BitIdx::ZERO`]: crate::index::BitIdx::ZERO
 	/// [`BitTail::END`]: crate::index::BitTail::END
+	#[inline]
 	pub(crate) fn span(self, len: usize) -> (usize, Self) {
 		if len == 0 {
 			return (0, self);
@@ -647,6 +635,18 @@ where R: BitRegister
 		let is_zero = (tail == 0) as u8;
 		let edges = 2 - is_zero as usize;
 		(elts + edges, make!(tail(is_zero << R::INDX) | tail))
+	}
+
+	/// Ranges over all valid tails for a starting index.
+	#[inline]
+	#[cfg(test)]
+	pub(crate) fn range_from(
+		start: BitIdx<R>,
+	) -> impl Iterator<Item = Self>
+	+ DoubleEndedIterator
+	+ ExactSizeIterator
+	+ FusedIterator {
+		(start.idx ..= Self::END.end).map(|val| make!(tail val))
 	}
 }
 
@@ -777,6 +777,12 @@ where R: BitRegister
 		make!(pos pos)
 	}
 
+	/// Views the internal position value.
+	#[inline(always)]
+	pub fn value(self) -> u8 {
+		self.pos
+	}
+
 	/// Constructs a one-hot selection mask from the position counter.
 	///
 	/// This is a well-typed `1 << pos`.
@@ -807,12 +813,6 @@ where R: BitRegister
 	#[inline]
 	pub fn mask(self) -> BitMask<R> {
 		make!(mask self.select().sel)
-	}
-
-	/// Views the internal position value.
-	#[inline]
-	pub fn value(self) -> u8 {
-		self.pos
 	}
 }
 
@@ -934,18 +934,18 @@ where R: BitRegister
 		make!(sel sel)
 	}
 
+	/// Views the internal selector value.
+	#[inline(always)]
+	pub fn value(self) -> R {
+		self.sel
+	}
+
 	/// Converts the selector into a bit mask.
 	///
 	/// This is a type-cast.
 	#[inline(always)]
 	pub fn mask(self) -> BitMask<R> {
 		make!(mask self.sel)
-	}
-
-	/// Views the internal selector value.
-	#[inline]
-	pub fn value(self) -> R {
-		self.sel
 	}
 
 	/// Ranges over all possible selector values.
@@ -1048,20 +1048,10 @@ where R: BitRegister
 		make!(mask mask)
 	}
 
-	/// Creates a new mask with a selector bit activated.
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	/// - `sel`: The selector bit to activate in the new mask.
-	///
-	/// # Returns
-	///
-	/// A copy of `self`, with the selector at `sel` activated.
-	#[inline]
-	pub fn combine(mut self, sel: BitSel<R>) -> Self {
-		self.insert(sel);
-		self
+	/// Views the internal mask value.
+	#[inline(always)]
+	pub fn value(self) -> R {
+		self.mask
 	}
 
 	/// Inserts a selector into an existing mask.
@@ -1079,6 +1069,22 @@ where R: BitRegister
 		self.mask |= sel.sel;
 	}
 
+	/// Creates a new mask with a selector bit activated.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	/// - `sel`: The selector bit to activate in the new mask.
+	///
+	/// # Returns
+	///
+	/// A copy of `self`, with the selector at `sel` activated.
+	#[inline]
+	pub fn combine(mut self, sel: BitSel<R>) -> Self {
+		self.insert(sel);
+		self
+	}
+
 	/// Tests whether a mask contains a given selector bit.
 	///
 	/// # Paramters
@@ -1092,12 +1098,6 @@ where R: BitRegister
 	#[inline]
 	pub fn test(self, sel: BitSel<R>) -> bool {
 		self.mask & sel.sel != R::ZERO
-	}
-
-	/// Views the internal mask value.
-	#[inline]
-	pub fn value(self) -> R {
-		self.mask
 	}
 }
 

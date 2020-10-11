@@ -372,8 +372,8 @@ where
 	#[inline]
 	#[doc(hidden)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated(note = "Use `.into_bitslice` on mutable iterators to view \
-	                     the remaining data")]
+	#[deprecated = "Use `.into_bitslice()` on mutable iterators to view the \
+	                remaining data"]
 	pub fn into_slice(self) -> &'a mut BitSlice<O, T::Alias> {
 		self.into_bitslice()
 	}
@@ -1060,7 +1060,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[cfg_attr(not(tarpaulin), inline(always))]
+	#[inline]
 	pub(super) fn new(slice: &'a BitSlice<O, T>, width: usize) -> Self {
 		let len = slice.len();
 		let rem = len % width;
@@ -1187,7 +1187,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[cfg_attr(not(tarpaulin), inline(always))]
+	#[inline]
 	pub(super) fn new(slice: &'a mut BitSlice<O, T>, width: usize) -> Self {
 		let len = slice.len();
 		let rem = len % width;
@@ -1539,7 +1539,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[cfg_attr(not(tarpaulin), inline(always))]
+	#[inline]
 	pub(super) fn new(slice: &'a BitSlice<O, T>, width: usize) -> Self {
 		let (extra, slice) =
 			unsafe { slice.split_at_unchecked(slice.len() % width) };
@@ -1667,7 +1667,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[cfg_attr(not(tarpaulin), inline(always))]
+	#[inline]
 	pub(super) fn new(slice: &'a mut BitSlice<O, T>, width: usize) -> Self {
 		let (extra, slice) =
 			unsafe { slice.split_at_unchecked_mut(slice.len() % width) };
@@ -1767,7 +1767,8 @@ macro_rules! new_group {
 			O: BitOrder,
 			T: BitStore
 		{
-			#[cfg_attr(not(tarpaulin), inline(always))]
+			#[inline(always)]
+			#[cfg(not(tarpaulin_include))]
 			#[allow(clippy::redundant_field_names)]
 			pub(super) fn new(
 				slice: &'a $($m)? BitSlice<O, T>,
@@ -2591,8 +2592,7 @@ mod tests {
 
 	#[test]
 	fn iter() {
-		let data = 0b0110_1001u8;
-		let bits = data.view_bits::<Msb0>();
+		let bits = bits![Lsb0, u8; 0, 1, 1, 0, 1, 0, 0, 1];
 		let mut iter = bits.iter();
 
 		assert_eq!(iter.as_bitslice(), bits);
@@ -2622,8 +2622,7 @@ mod tests {
 
 	#[test]
 	fn iter_mut() {
-		let mut data = 0b0110_1001u8;
-		let bits = data.view_bits_mut::<Msb0>();
+		let bits = bits![mut Msb0, u8; 0, 1, 1, 0, 1, 0, 0, 1];
 		let mut iter = bits.iter_mut();
 
 		*iter.next().unwrap() = true;
@@ -2636,8 +2635,7 @@ mod tests {
 
 	#[test]
 	fn windows() {
-		let data = 0u8;
-		let bits = data.view_bits::<LocalBits>();
+		let bits = bits![LocalBits, u8; 0; 8];
 
 		let mut windows = bits.windows(5);
 		assert_eq!(windows.next().unwrap().bitptr(), bits[.. 5].bitptr());
@@ -2654,8 +2652,7 @@ mod tests {
 
 	#[test]
 	fn chunks() {
-		let data = 0u16;
-		let bits = data.view_bits::<LocalBits>();
+		let bits = bits![Lsb0, u16; 0; 16];
 
 		let mut chunks = bits.chunks(5);
 		assert_eq!(chunks.next().unwrap().bitptr(), bits[.. 5].bitptr());
@@ -2668,8 +2665,8 @@ mod tests {
 
 	#[test]
 	fn chunks_mut() {
-		let mut data = 0u16;
-		let bits = data.view_bits_mut::<LocalBits>();
+		let bits = bits![mut Msb0, u16; 0; 16];
+
 		let (one, two, three, four) = (
 			bits[.. 5].bitptr(),
 			bits[15 ..].bitptr(),
@@ -2688,8 +2685,7 @@ mod tests {
 
 	#[test]
 	fn chunks_exact() {
-		let data = 0u32;
-		let bits = data.view_bits::<LocalBits>();
+		let bits = bits![Lsb0, u32; 0; 32];
 
 		let mut chunks = bits.chunks_exact(5);
 		assert_eq!(chunks.remainder().bitptr(), bits[30 ..].bitptr());
@@ -2712,8 +2708,7 @@ mod tests {
 
 	#[test]
 	fn chunks_exact_mut() {
-		let mut data = 0u32;
-		let bits = data.view_bits_mut::<LocalBits>();
+		let bits = bits![mut Msb0, u32; 0; 32];
 
 		let (one, two, three, four, rest) = (
 			bits[.. 5].bitptr(),
@@ -2739,8 +2734,7 @@ mod tests {
 
 	#[test]
 	fn rchunks() {
-		let data = 0u16;
-		let bits = data.view_bits::<LocalBits>();
+		let bits = bits![Lsb0, u16; 0; 16];
 
 		let mut rchunks = bits.rchunks(5);
 		assert_eq!(rchunks.next().unwrap().bitptr(), bits[11 ..].bitptr());
@@ -2753,8 +2747,8 @@ mod tests {
 
 	#[test]
 	fn rchunks_mut() {
-		let mut data = 0u16;
-		let bits = data.view_bits_mut::<LocalBits>();
+		let bits = bits![mut Msb0, u16; 0; 16];
+
 		let (one, two, three, four) = (
 			bits[11 ..].bitptr(),
 			bits[.. 1].bitptr(),
@@ -2773,8 +2767,7 @@ mod tests {
 
 	#[test]
 	fn rchunks_exact() {
-		let data = 0u32;
-		let bits = data.view_bits::<LocalBits>();
+		let bits = bits![Lsb0, u32; 0; 32];
 
 		let mut rchunks = bits.rchunks_exact(5);
 		assert_eq!(rchunks.remainder().bitptr(), bits[.. 2].bitptr());
@@ -2794,8 +2787,7 @@ mod tests {
 
 	#[test]
 	fn rchunks_exact_mut() {
-		let mut data = 0u32;
-		let bits = data.view_bits_mut::<LocalBits>();
+		let bits = bits![mut Msb0, u32; 0; 32];
 
 		let (rest, one, two, three, four) = (
 			bits[.. 2].bitptr(),

@@ -17,7 +17,8 @@
 
 `bitvec` permits a program to view memory as bit-addressed, rather than
 byte-addressed. It is a foundation library for `bool`ean collections and
-precise, user-controlled, in-memory layout of data fields.
+precise, user-controlled, in-memory layout of data fields and I/O protocol
+buffers.
 
 # Table of Contents <!-- omit in toc -->
 
@@ -36,7 +37,7 @@ precise, user-controlled, in-memory layout of data fields.
    1. [`std` Feature](#std-feature)
 1. [API Reference](#api-reference)
    1. [Implementation Details](#implementation-details)
-1. [Alias Warning](#alias-warning)
+1. [Alias Conditions](#alias-conditions)
 
 # Introduction
 
@@ -57,14 +58,14 @@ this library is the best tool available for your use.
 
 `bitvec` is the only crate in the Rust ecosystem that fits directly into the
 Rust language memory model and APIs. Its most important feature is the
-[`&/mut BitSlice`][`BitSlice`] reference type, which is a slice of bits without
-any restriction on where in memory it begins or ends. Because it is a reference,
-it can be used in traits whose signatures demand an explicit *reference* type,
-not merely some borrowing handle.
+[`&/mut BitSlice`] reference type, which is a slice of bits without any
+restriction on where in memory it begins or ends. Because it is a reference, it
+can be used in traits whose signatures demand an explicit *reference* type, not
+merely some borrowing handle.
 
 In addition, `bitvec` implements the register behavior seen in C and Ada
-[bitfield]s by permitting any `&/mut BitSlice` region to be used as if it were a
-memory location into and out of which programmers can move integers.
+[bitfield]s by permitting many [`&/mut BitSlice`] regions to be used as if they
+were memory locations into and out of which programmers can move integers.
 
 Furthermore, `bitvec` implements the entire standard-library sequence API, to
 the point that you can begin using the crate by running a `sed` script and have
@@ -82,8 +83,8 @@ codegen optimizations.
 
 ## Limitations
 
-The `&/mut BitSlice` reference type is implemented with a pointer encoding that
-packs the starting-bit index into the length portion of an ordinary slice
+The [`&/mut BitSlice`] reference type is implemented with a pointer encoding
+that packs the starting-bit index into the length portion of an ordinary slice
 reference. This costs three bits of the length counter, and requires more
 computation to operate on the pointer than an ordinary slice pointer would
 incur. [`BitSlice`] regions are thus limited to one-eighth the range of a
@@ -96,14 +97,14 @@ the pointer encoding’s cost by performing partial or complete work at compile
 time, and create precomputed instruction arguments rather than runtime function
 calls.
 
-Because the `&/mut BitSlice` *reference* uses a unique encoding, the `BitSlice`
-*region* type cannot be used as an argument to any other pointer type. You
-**must** use the container types provided by `bitvec`. If `bitvec` does not have
-a port of the container you want (for example, `Rc` and `Arc`), you must file an
-issue for future work.
+Because the [`&/mut BitSlice`] *reference* uses a unique encoding, the
+`BitSlice` *region* type cannot be used as an argument to any other pointer
+type. You **must** use the container types provided by `bitvec`. If `bitvec`
+does not have a port of the container you want (for example, [`Rc`] and
+[`Arc`]), you must file an issue for future work.
 
 `bitvec` cannot fully mirror the C++ [`std::bitset<N>`] type until type-level
-integers are more fully stabilized in the Rust compiler. The `BitArray` type
+integers are more fully stabilized in the Rust compiler. The [`BitArray`] type
 provides the best analogue that Rust can offer.
 
 # Usage
@@ -176,9 +177,9 @@ to perform textual find/replace operations:
 - `Box<[bool]>` → `BitBox`
 - `Vec<bool>` → `BitVec`
 
-If you have errors about missing type parameters, use `<Lsb0, usize>` as needed
-until the compiler relents. These are the default type arguments and will be the
-best suited for your target’s performance.
+If you have errors about missing type parameters, use `<_, _>` or
+`<Lsb0, usize>` as needed until the compiler relents. These are the default type
+arguments and will be the best suited for your target’s performance.
 
 Almost everything else in your project should continue working. The primary
 exception is that `collection[place] = value;` is not expressible in `bitvec`,
@@ -206,10 +207,18 @@ behaviors that the standard library does not have on its `bool`ean collections.
 >
 > —the crate author, a day before beginning this project
 
-This project was written specifically to handle the construction of I/O buffers
-that are not expressible in ordinary Rust. If you need logic more complex than a
-`#[repr(C)]` attribute on your type definitions and a pointer-cast to
-`*const u8`, then this is the project for you.
+or
+
+> i was able to just type bit indices from the datasheet into the rust and it
+> just, works. … itanium is based on 41-bit instruction words and i can just, not
+> care. this is wonderful
+>
+> —a satisfied user
+
+This project was written specifically to handle the de/construction of I/O
+buffers that are not expressible in ordinary Rust. If you need logic more
+complex than a `#[repr(C)]` attribute on your type definitions and a
+pointer-cast to `*const u8`, then this is the project for you.
 
 `bitvec` provides two bit-ordering behaviors out of the box:
 
@@ -362,63 +371,52 @@ You can disable the three uncommented features by using the rule
 
 ## `alloc` Feature
 
-This feature links `bitvec` against the distribution-provided `alloc` crate, if
-your target has one, and enables the [`BitBox`] and [`BitVec`] types. This
-feature is a dependency of `std`, and will always be present when building for
-targets that have `std`. If you are building for a `#![no_std]` target, you will
-need to disable the `std` default feature, and may choose to reënable the
-`alloc` feature if your target has an `alloc` library and your project specifies
-an allocator.
+This feature links `bitvec` against the distribution-provided [`alloc`] crate,
+if your target has one, and enables the [`BitBox`] and [`BitVec`] types. This
+feature is a dependency of the `std` feature, and will always be present when
+building for targets that have [`std`]. If you are building for a `#![no_std]`
+target, you will need to disable the `std` default feature, and may choose to
+reënable the `alloc` feature if your target has an `alloc` library and your
+project specifies an allocator.
 
 ## `atomic` Feature
 
-This feature attempts to use atomic memory accesses for aliased memory, thus
-allowing safe concurrent multiprocessing. It is a default feature so that
-split [`BitSlice`]s are thread-safe by default, just as split integer slices
-are.
+This feature selects atomic memory accesses for aliased memory, thus allowing
+safe concurrent multiprocessing. It is a default feature so that split
+[`BitSlice`]s are thread-safe by default, just as split integer slices are.
 
 You **must** disable this feature if your target processor is lacking any atomic
 types not wider than the processor word. For example, 32-bit targets may use the
-`"atomic"` feature even though they do not have `AtomicU64`, but targets such as
-`riscv32imc-unknown-none-elf` must disable it entirely as they do not have
-even `AtomicU8`. To the author’s knowledge, there are no targets that have
-`AtomicU8` but not `AtomicUsize`. If you require more precise atomic control
+`"atomic"` feature even though they do not have [`AtomicU64`], but targets such
+as `riscv32imc-unknown-none-elf` must disable it entirely as they do not have
+even [`AtomicU8`]. To the author’s knowledge, there are no targets that have
+`AtomicU8` but not [`AtomicUsize`]. If you require more precise atomic control
 than merely “not wider than the processor word”, file an issue.
 
-The `"atomic"` feature does not guarantee atomic memory access; rather, `bitvec`
-uses the [`radium`] project to detect the atomic support of the target
-processor, and fall back to `Cell` where atomic accesses are not available. For
-example, certain RISC-V targets (`riscv32i-*` and `riscv32imc-*`) do not have
-any atomic instructions, and so `bitvec` will fall back to `Cell` when targeting
-them even if this feature is enabled.
-
 Disabling this feature completely removes atomic instructions from the crate,
-even for targets that support them, and strictly uses `Cell` memory access.
+even for targets that support them, and strictly uses [`Cell`] memory access.
 
 `bitvec` is tested to build on all targets listed in its CI manifest. `bitvec`
 will likely work on targets that are not listed, but is not proäctively assured
 to do so. If you are building for a target that `bitvec` does not explicitly
-support, you may encounter `radium` errors that attempt to use certain `AtomicT`
-symbols that do not exist. In this event, please file an issue or a pull request
-with `radium` to update it for your target. I maintain both, and will update
-both `radium` and `bitvec` accordingly.
+support, you may encounter [`radium`] errors that attempt to use certain
+`AtomicT` symbols that do not exist. In this event, please file an issue or a
+pull request with `radium` to update it for your target. I maintain both, and
+will update both `radium` and `bitvec` accordingly.
 
 > Note: see the documentation on [`BitSlice::split_at_mut`] and the [`domain`]
 > module for more information on how `bitvec` detects alias conditions and
 > manages thread safety.
 
 This is a default feature so that splitting a [`BitSlice`] still results in
-concurrency-safe behavior. If your target does not have atomics, you will need
-to disable it. `bitvec` uses `radium`’s best-effort atomic exports, and will
-automatically decay to thread-unsafe `Cell` behavior even when this feature is
-enabled if your target does not support the atomics you attempt to use. The
-presence of the `"atomic"` feature does not guarantee atomicity, but its absence
-does guarantee the use of `Cell` memory access.
+concurrency-safe behavior. If you do not need hardware concurrency, then you can
+disable this feature to remove the production of instructions that lock the
+memory bus during mutable access.
 
 ## `serde` Feature
 
-This feature enables a `serde::Serialize` implementation for [`BitSlice`], and a
-full `serde::Serialize`/`serde::Deserialize` implementation on [`BitArray`],
+This feature enables a [`serde::Serialize`] implementation for [`BitSlice`], and
+a full `serde::Serialize`/[`serde::Deserialize`] implementation on [`BitArray`],
 [`BitBox`], and [`BitVec`]. This feature allows you to transport bit collections
 through I/O protocols.
 
@@ -436,11 +434,11 @@ capable of receiving the transported data.
 
 ## `std` Feature
 
-This feature links `bitvec` against the distribution-provided `std` crate, if
+This feature links `bitvec` against the distribution-provided [`std`] crate, if
 your target has one. The only additional features it provides that are not
-present in `alloc` are implementations of `io::Read` and `io::Write` on data
-structures that match `Read` and `Write` types in `std`, where the type
-parameters have [`BitField`] trait implementations.
+present in [`alloc`] are implementations of [`io::Read`] and [`io::Write`] on
+data structures that match `Read` and `Write` types in `std`, for bit orderings
+that have [`BitField`] trait implementations.
 
 # API Reference
 
@@ -522,39 +520,38 @@ The `pointer` module implements the pointer encoding used to drive the
 and is not planned to be stabilized as an external interface. If you have a use
 case for it, please file an issue.
 
-# Alias Warning
+# Alias Conditions
 
-`bitvec` introduces managed memory-aliasing conditions when performing subslice
-partitions with `&mut BitSlice` references. Under the `atomic` feature, aliasing
-events change the references to use atomic memory accesses rather than ordinary
-load/store behavior; when the `atomic` feature is disabled, the affected
-references use `Cell` instead, and lose their ability to cross thread
-boundaries. Together, these prevent you from introducing race unsafety in your
-program through the use of subslice partitions. If you do discover such a fault,
-it is an error in `bitvec`. Please file an issue.
+`bitvec` operates on the principle that each bit is an individually-addressed
+element of memory. This is, of course, untrue in hardware, and so `bitvec` must
+be aware of the underlying memory region and how the bus drives `bitvec`’s
+operation.
 
-This example demonstrates how `bitvec` produces memory aliases:
+`bitvec` structures may only be constructed over raw integers. Once constructed,
+a `&mut BitSlice` can be split into multiple subslices that do not overlap in
+bits, but do overlap in memory elements on the bus. In order to remain correct
+in the Rust memory model and in the generated instructions, these split slices
+are marked as aliased, and switch over to using coördinated types capable of
+handling multiple handles with write capability to the same element. By default,
+these types are atomic, however, as discussed above, they can fall back to
+`Cell`s instead.
 
-```rust
-use bitvec::prelude::*;
+`bitvec` is capable of performing pointer analysis to determine which elements
+in a slice region are known to be aliased and which are not. This analysis
+depends on the rule that `&`/`&mut` exclusion *and modification* rules apply to
+the entire `BitSlice` region, but the [`UnsafeCell`] type sidesteps this: shared
+references are still capable of modifying the memory regions that may be viewed
+by shared references that do *not* expect volatility.
 
-let mut data = 0u8;
-let bits: &mut BitSlice<_, u8> = data.view_bits_mut::<Lsb0>();
-let (l, r): (
-  &mut BitSlice<_, u8::Alias>,
-  &mut BitSlice<_, u8::Alias>,
-) = bits.split_at_mut(4);
-```
+Instead, `bitvec` uses wrapper types over atoms and cells that disallow mutation
+of the underlying memory except through `&mut` exclusive references. These
+wrapper types retain the volatility properties of their wrapped types, and so,
+for instance, the wrapped atomic will still perform an atomic load from memory
+on each access. The only restriction needed is that these types cannot be used
+to write into memory that has any possibility of being viewed without a
+synchronization control.
 
-The `l` and `r` subslices both refer to the `data` element, and are capable of
-effecting writes to it. They may use either the `AtomicU8` or the `Cell<u8>`
-type parameter, based on the presence or absence of the `atomic` feature. The
-change of memory-access type can cause performance effects (for example, such a
-partition on a very large slice will require atomic access to, or remove thread
-safety from, every location in the slice, not just the affected addresses). You
-can mitigate these penalties by using the `.bit_domain/_mut` methods to produce
-`&/mut BitSlice` references that are safely bounded to minimize the size of
-aliased regions and maximize the size of unaliased.
+`bitvec` has no plans to support shared-mutable `BitSlice` regions.
 
 <!-- Badges -->
 [codecov]: https://codecov.io/gh/myrrlyn/bitvec "Code Coverage"
@@ -572,8 +569,12 @@ aliased regions and maximize the size of unaliased.
 [travis_img]: https://img.shields.io/travis/myrrlyn/bitvec.svg?logo=travis "Travis CI Display"
 
 <!-- Documentation -->
+[`Arc`]: https://doc.rust-lang.org/stable/alloc/sync/struct.Arc.html "Arc API reference"
 [`AsBits<T>`]: https://docs.rs/bitvec/latest/bitvec/view/trait.AsBits.html "AsBits API reference"
 [`AsBitsMut<T>`]: https://docs.rs/bitvec/latest/bitvec/view/trait.AsBitsMut.html "AsBitsMut API reference"
+[`AtomicU8`]: https://doc.rust-lang.org/stable/core/sync/atomic/struct.AtomicU8.html "AtomicU8 API reference"
+[`AtomicU64`]: https://doc.rust-lang.org/stable/core/sync/atomic/struct.AtomicU64.html "AtomicU64 API reference"
+[`AtomicUsize`]: https://doc.rust-lang.org/stable/core/sync/atomic/struct.AtomicUsize.html "AtomicUsize API reference"
 [`BitArray`]: https://docs.rs/bitvec/latest/bitvec/array/struct.BitArray.html "BitArray API reference"
 [`BitBox`]: https://docs.rs/bitvec/latest/bitvec/boxed/struct.BitBox.html "BitBox API reference"
 [`BitField`]: https://docs.rs/bitvec/latest/bitvec/fields/trait.BitField.html "BitField API reference"
@@ -583,16 +584,27 @@ aliased regions and maximize the size of unaliased.
 [`BitStore`]: https://docs.rs/bitvec/latest/bitvec/store/trait.BitStore.html "BitStore API reference"
 [`BitVec`]: https://docs.rs/bitvec/latest/bitvec/vec/struct.BitVec.html "BitVec API reference"
 [`BitView`]: https://docs.rs/bitvec/latest/bitvec/view/trait.BitView.html "BitView API reference"
+[`Cell`]: https://doc.rust-lang.org/stable/core/cell/struct.Cell.html "Cell API reference"
 [`Lsb0`]: https://docs.rs/bitvec/latest/bitvec/order/struct.Lsb0.html "Lsb0 API reference"
 [`Msb0`]: https://docs.rs/bitvec/latest/bitvec/order/struct.Msb0.html "Msb0 API reference"
+[`Rc`]: https://doc.rust-lang.org/stable/alloc/rc/struct.Rc.html "Rc API reference"
+[`UnsafeCell`]: https://doc.rust-lang.org/stable/core/cell/struct.UnsafeCell.html "UnsafeCell API reference"
 
+[`alloc`]: https://doc.rust-lang.org/stable/alloc "alloc API reference"
 [`bitarr!`]: https://docs.rs/bitvec/latest/bitvec/macro.bitarr.html "bitarr! API reference"
 [`bitbox!`]: https://docs.rs/bitvec/latest/bitvec/macro.bitbox.html "bitbox! API reference"
 [`bits!`]: https://docs.rs/bitvec/latest/bitvec/macro.bits.html "bits! API reference"
 [`bitvec!`]: https://docs.rs/bitvec/latest/bitvec/macro.bitvec.html "bitvec! API reference"
 [`domain`]: https://docs.rs/bitvec/latest/bitvec/domain "Domain module API reference"
+[`io::Read`]: https://doc.rust-lang.org/stable/std/io/trait.Read.html "Read API reference"
+[`io::Write`]: https://doc.rust-lang.org/stable/std/io/trait.Write.html "Write API reference"
+[`serde::Deserialize`]: https://docs.rs/serde/latest/serde/de/trait.Deserialize.html "Deserialize API reference"
+[`serde::Serialize`]: https://docs.rs/serde/latest/serde/ser/trait.Serialize.html "Serialize API reference"
+[`std`]: https://doc.rust-lang.org/stable/std "std API reference"
 
-[Bit Ordering]: https://github.com/myrrlyn/bitvec/blob/HEAD/doc/Bit%20Ordering.md
+[`&/mut BitSlice`]: https://docs.rs/bitvec/latest/bitvec/slice/struct.BitSlice.html "BitSlice API reference"
+
+[Bit Ordering]: https://github.com/myrrlyn/bitvec/blob/HEAD/develop/book/bit-ordering.md
 [docs.rs]: https://docs.rs/bitvec/latest/bitvec "crate API reference"
 [examples]: https://github.com/myrrlyn/bitvec/blob/HEAD/examples
 [macro]: https://docs.rs/bitvec/latest/bitvec/#macros

@@ -14,6 +14,7 @@ use crate::{
 };
 
 use core::{
+	any,
 	borrow::{
 		Borrow,
 		BorrowMut,
@@ -275,16 +276,10 @@ where
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		if fmt.alternate() {
-			self.bitptr().render(
-				fmt,
-				"Array",
-				Some(core::any::type_name::<O>()),
-				None,
-			)?;
-			fmt.write_str(" ")?;
-		}
-		Binary::fmt(self, fmt)
+		self.bitptr()
+			.render(fmt, "Array", Some(any::type_name::<O>()), None)?;
+		fmt.write_str(" ")?;
+		Binary::fmt(self.as_bitslice(), fmt)
 	}
 }
 
@@ -491,18 +486,16 @@ mod tests {
 	#[test]
 	#[cfg(feature = "std")]
 	fn format() {
-		let render = format!("{:#?}", bitarr![Msb0, u8; 0, 1, 0, 0]);
+		let text = format!("{:?}", bitarr![Msb0, u8; 0, 1, 0, 0]);
 		assert!(
-			render.starts_with("BitArray<bitvec::order::Msb0, u8> {"),
+			text.starts_with("BitArray<bitvec::order::Msb0, u8> { addr: 0x"),
 			"{}",
-			render
+			text
 		);
 		assert!(
-			render.ends_with(
-				"    head: 000,\n    bits: 8,\n} [\n    0b01000000,\n]"
-			),
+			text.ends_with(", head: 000, bits: 8 } [01000000]"),
 			"{}",
-			render
+			text
 		);
 	}
 }

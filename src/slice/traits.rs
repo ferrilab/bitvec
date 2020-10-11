@@ -31,7 +31,6 @@ use core::{
 		Formatter,
 		LowerHex,
 		Octal,
-		Pointer,
 		UpperHex,
 	},
 	hash::{
@@ -195,6 +194,7 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn partial_cmp(&self, rhs: &BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		for (l, r) in self.iter().zip(rhs.iter()) {
 			match (l, r) {
@@ -305,23 +305,25 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Default for &BitSlice<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
+	#[inline(always)]
 	fn default() -> Self {
 		BitSlice::empty()
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Default for &mut BitSlice<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
+	#[inline(always)]
 	fn default() -> Self {
 		BitSlice::empty_mut()
 	}
@@ -334,10 +336,9 @@ where
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		if fmt.alternate() {
-			Pointer::fmt(self, fmt)?;
-			fmt.write_str(" ")?;
-		}
+		self.bitptr()
+			.render(fmt, "Slice", Some(any::type_name::<O>()), None)?;
+		fmt.write_str(" ")?;
 		Binary::fmt(self, fmt)
 	}
 }
@@ -351,25 +352,6 @@ where
 	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(self, fmt)
-	}
-}
-
-/** Renders a `BitSlice` handle as its pointer representation.
-
-This does not enable `{:p}` in a format string, as there is a blanket `Pointer`
-implementation for all references, and unsized types cannot format by
-themselves. It is only reachable by forwarding from another format marker, such
-as `Debug`.
-**/
-impl<O, T> Pointer for BitSlice<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	#[inline]
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		self.bitptr()
-			.render(fmt, "Slice", Some(any::type_name::<O>()), None)
 	}
 }
 

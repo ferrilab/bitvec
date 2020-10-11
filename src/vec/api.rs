@@ -28,6 +28,7 @@ use alloc::{
 };
 
 use core::{
+	any::TypeId,
 	mem,
 	ops::RangeBounds,
 	slice,
@@ -136,7 +137,9 @@ where
 	/// Ordinary vectors decompose into their buffer pointer and element length
 	/// separately; bit vectors must keep these two components bundled into the
 	/// `*BitSlice` region pointer. As such, this only accepts two components;
-	/// the slice pointer and the buffer capacity.
+	/// the slice pointer and the allocation capacity, measured in `T` elements
+	/// and **not** in bits. This capacity can be fetched through the
+	/// [`.alloc_capacity()`] method.
 	///
 	/// [`Vec`] could define its raw parts as `*[T]` and `usize` also, but Rust
 	/// does not make working with raw slice pointers easy.
@@ -157,8 +160,8 @@ where
 	///   the alignment really needs to be equal to satisfy the [`dealloc`]
 	///   requirement that memory must be allocated and deällocated with the
 	///   same layout.)
-	/// - `capacity` needs to be the capacity that the pointer was allocated
-	///   with.
+	/// - `capacity` needs to be the capacity that the underlying buffer was
+	///   allocated with.
 	///
 	/// In addition to the invariants inherited from [`Vec::from_raw_parts`],
 	/// the fact that this function takes a [`BitSlice`] pointer adds another
@@ -171,7 +174,7 @@ where
 	/// internal data structures. For example it is **not** safe to build a
 	/// `BitVec<_, u8>` from a pointer to a C `char` array with length `size_t`.
 	/// It’s also not safe to build one from a `BitVec<_, u16>` and its length,
-	/// becauset the allocator cares about the alignment, and these two types
+	/// because the allocator cares about the alignment, and these two types
 	/// have different alignments. The buffer was allocated with alignment 2
 	/// (for `u16`), but after turning it into a `BitVec<_, u8>`, it’ll be
 	/// deällocated with alignment 1.
@@ -218,6 +221,7 @@ where
 	/// [`Vec`]: alloc::vec::Vec
 	/// [`Vec::from_raw_parts`]: alloc::vec::Vec::from_raw_parts
 	/// [`dealloc`]: alloc::alloc::GlobalAlloc::dealloc
+	/// [`.alloc_capacity()`]: Self::alloc_capacity
 	#[inline]
 	pub unsafe fn from_raw_parts(
 		pointer: *mut BitSlice<O, T>,
@@ -227,10 +231,8 @@ where
 		if (pointer as *mut [()]).is_null() {
 			panic!("Attempted to reconstruct a `BitVec` from a null pointer");
 		}
-		pointer
-			.pipe(BitPtr::from_bitslice_ptr_mut)
-			.to_nonnull()
-			.pipe(|pointer| Self { pointer, capacity })
+		let pointer = pointer.pipe(BitPtr::from_bitslice_ptr_mut).to_nonnull();
+		Self { pointer, capacity }
 	}
 
 	/// Returns the number of bits the vector can hold without reällocating.
@@ -238,6 +240,16 @@ where
 	/// # Original
 	///
 	/// [`Vec::capacity`](alloc::vec::Vec::capacity)
+	///
+	/// # API Differences
+	///
+	/// This returns the number of *bits* available in the allocation’s storage
+	/// space. This is technically correct ([`Vec::<bool>::capacity()`] would
+	/// return the same amount), but this value **cannot** be used to describe
+	/// the allocation underlying the vector.
+	///
+	/// Use [`.alloc_capacity()`] to get the capacity of the underlying
+	/// allocation, measured in `T`.
 	///
 	/// # Examples
 	///
@@ -247,6 +259,9 @@ where
 	/// let bv: BitVec<LocalBits, usize> = BitVec::with_capacity(100);
 	/// assert!(bv.capacity() >= 100);
 	/// ```
+	///
+	/// [`Vec::<bool>::capacity()`]: alloc::vec::Vec::capacity
+	/// [`.alloc_capacity()`]: Self::alloc_capacity
 	#[inline]
 	pub fn capacity(&self) -> usize {
 		self.capacity
@@ -439,7 +454,7 @@ where
 	///
 	/// # Examples
 	///
-	/// Truncating a five bit vector to two bits:
+	/// Truncating a five-bit vector to two bits:
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
@@ -478,7 +493,7 @@ where
 	#[inline]
 	pub fn truncate(&mut self, len: usize) {
 		if len < self.len() {
-			unsafe { self.set_len(len) }
+			unsafe { self.set_len_unchecked(len) }
 		}
 	}
 
@@ -498,6 +513,7 @@ where
 	/// # #[cfg(feature = "std")] {
 	/// use bitvec::prelude::*;
 	/// use std::io::{self, Write};
+	///
 	/// let buffer = bitvec![Msb0, u8; 0, 1, 0, 1, 1, 0, 0, 0];
 	/// io::sink().write(buffer.as_slice()).unwrap();
 	/// # }
@@ -529,6 +545,7 @@ where
 	/// # #[cfg(feature = "std")] {
 	/// use bitvec::prelude::*;
 	/// use std::io::{self, Read};
+	///
 	/// let mut buffer = bitvec![Msb0, u8; 0; 24];
 	/// io::repeat(0b101).read_exact(buffer.as_mut_slice()).unwrap();
 	/// # }
@@ -732,7 +749,6 @@ where
 		let len = self.len();
 		assert!(index < len, "Index {} out of bounds: {}", index, len);
 		let last = len - 1;
-		//  TODO(myrrlyn): Implement `BitSlice::xchg`?
 		unsafe {
 			self.swap_unchecked(index, last);
 			self.set_len(last);
@@ -935,7 +951,24 @@ where
 		O2: BitOrder,
 		T2: BitRegister + BitStore,
 	{
-		self.extend(other.iter().copied());
+		let this_len = self.len();
+		let new_len = this_len + other.len();
+		self.resize(new_len, false);
+		unsafe {
+			let dst = self.get_unchecked_mut(this_len .. new_len);
+			//  If `other` matches `self`’s type arguments, use copy instead of
+			//  clone to gain access to its optimizations.
+			if TypeId::of::<O>() == TypeId::of::<O2>()
+				&& TypeId::of::<T>() == TypeId::of::<T2>()
+			{
+				let other = other.as_bitslice() as *const BitSlice<O2, T2>
+					as *const BitSlice<O, T>;
+				dst.copy_from_bitslice(&*other)
+			}
+			else {
+				dst.clone_from_bitslice(other.as_bitslice());
+			}
+		}
 		other.clear();
 	}
 
@@ -1000,11 +1033,10 @@ where
 	///
 	/// assert!(bv.is_empty());
 	/// ```
-	#[cfg_attr(not(tarpaulin), inline(always))]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn clear(&mut self) {
-		unsafe {
-			self.set_len(0);
-		}
+		self.pointer = BitPtr::uninhabited(self.as_mut_ptr()).to_nonnull();
 	}
 
 	/// Splits the collection into two at the given index.
@@ -1032,11 +1064,12 @@ where
 	/// assert_eq!(bv2, bits![0, 1]);
 	/// ```
 	#[inline]
+	#[must_use = "use `.truncate()` if you don't need the other half"]
 	pub fn split_off(&mut self, at: usize) -> Self {
 		let len = self.len();
 		assert!(at <= len, "Index {} out of bounds: {}", at, len);
 		match at {
-			0 => mem::replace(self, Self::with_capacity(self.capacity())),
+			0 => mem::replace(self, Self::new()),
 			n if n == len => Self::new(),
 			_ => unsafe {
 				self.set_len(at);
@@ -1128,19 +1161,8 @@ where
 		if new_len > len {
 			let ext = new_len - len;
 			self.reserve(ext);
-			/* Initialize all of the newly-allocated memory, not just the bits
-			that will become live. This is a requirement for correctness.
-
-			*Strictly speaking*, only `len .. ⌈new_len / bit_width⌉` needs to be
-			initialized, but computing the correct boundary is probably not
-			sufficiently less effort than just initializing the complete
-			allocation to be worth the instructions. If users complain about
-			performance on this method, revisit this decision, but if they don’t
-			then the naïve solution is fine.
-			*/
-			let capa = self.capacity();
 			unsafe {
-				self.get_unchecked_mut(len .. capa).set_all(value);
+				self.get_unchecked_mut(len .. new_len).set_all(value);
 			}
 		}
 		unsafe {
@@ -1150,7 +1172,7 @@ where
 
 	/// Clones and appends all `bool`s in a slice to the `BitVec`.
 	///
-	/// Iterates over the slice `other`, clones each `bool`, and then appends it
+	/// Iterates over the slice `other`, copies each `bool`, and then appends it
 	/// to the `BitVec`. The `other` slice is traversed in-order.
 	///
 	/// Prefer the [`Extend`] implementation; this method is retained only for
@@ -1178,7 +1200,8 @@ where
 	/// [`BitSlice`]: crate::slice::BitSlice
 	/// [`Extend`]: #impl-Extend<%26'a bool>
 	/// [`.extend_from_bitslice()`]: Self::extend_from_bitslice
-	#[cfg_attr(not(tarpaulin), inline(always))]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn extend_from_slice(&mut self, other: &[bool]) {
 		self.extend(other)
 	}

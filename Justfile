@@ -34,11 +34,16 @@ ci:
 clean:
 	cargo clean
 
+# Produces coverage statistics for the (non-doc) test suite.
 cover: format check lint
 	@cargo +nightly tarpaulin --all-features -o Lcov -l --output-dir target/tarpaulin --lib --tests --ignore-tests --ignore-panics &>/dev/null &
 	cargo +nightly tarpaulin --all-features -o Html -l --output-dir target/tarpaulin --lib --tests --ignore-tests --ignore-panics
 	@tokei
 
+# This runs the cross-compile battery on a development machine. It is not
+# suitable for use in a CI environment. It requires the Rust projects
+# <https://crates.io/crates/parallel> and
+# <https://github.com/rust-embedded/cross>.
 cross:
 	@# You will need to run this the first time you start cross-compiling on a
 	@# machine.
@@ -51,14 +56,16 @@ cross:
 	parallel -v 'env ENABLE_CROSS=1 TARGET={} DISABLE_TESTS=1 ci/script.sh' :::: ci/target_notest.txt
 
 	@# Cross-compile only, without attempting to emulate.
-	parallel -v 'rustup target add {} ; cargo check --no-default-features --target {}' :::: ci/target_local.txt
+	@# You will need to install rustup targets in order to check for them:
+	@# parallel -v 'rustup target add {}' :::: ci/target_local.txt
+	parallel -v 'cargo check --no-default-features --target {}' :::: ci/target_local.txt
 
 # Runs the development routines.
 dev: format lint doc test cover
 
 # Builds the crate documentation.
 doc:
-	@cargo +nightly doc --all-features --document-private-items
+	@cargo +nightly doc --all-features
 
 # Runs the formatter on all Rust files.
 format:
@@ -74,8 +81,9 @@ lint: check
 loop action:
 	watchexec -w src -- "just {{action}}"
 
-miri:
-	cargo +nightly miri test
+# Looks for undefined behavior in the (non-doc) test suite.
+miri *ARGS:
+	cargo +nightly miri test {{ARGS}}
 
 # Packages the crate in preparation for publishing on crates.io
 package:

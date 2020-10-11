@@ -265,6 +265,46 @@ pub unsafe trait BitOrder: 'static {
 	}
 }
 
+/// Traverses a register from the least significant bit to the most significant.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct Lsb0;
+
+unsafe impl BitOrder for Lsb0 {
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
+	fn at<R>(index: BitIdx<R>) -> BitPos<R>
+	where R: BitRegister {
+		unsafe { BitPos::new_unchecked(index.value()) }
+	}
+
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
+	fn select<R>(index: BitIdx<R>) -> BitSel<R>
+	where R: BitRegister {
+		unsafe { BitSel::new_unchecked(R::ONE << index.value()) }
+	}
+
+	#[inline]
+	fn mask<R>(
+		from: impl Into<Option<BitIdx<R>>>,
+		upto: impl Into<Option<BitTail<R>>>,
+	) -> BitMask<R>
+	where
+		R: BitRegister,
+	{
+		let from = from.into().unwrap_or(BitIdx::ZERO).value();
+		let upto = upto.into().unwrap_or(BitTail::END).value();
+		debug_assert!(upto >= from, "Ranges must run from low index to high");
+		let ct = upto - from;
+		if ct == R::BITS {
+			return BitMask::ALL;
+		}
+		//  1. Set all bits high.
+		//  2. Shift left by the number of bits in the mask. These are now low.
+		//  3. Invert. The mask bits at LSedge are high; the rest are low.
+		//  4. Shift left by the distance from LSedge.
+		unsafe { BitMask::new(!(R::ALL << ct) << from) }
+	}
+}
+
 /// Traverses a register from the most significant bit to the least significant.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Msb0;
@@ -307,46 +347,6 @@ unsafe impl BitOrder for Msb0 {
 		//  3. Invert. The mask bits (at MSedge) are high; the rest are low.
 		//  4. Shift right by the distance from MSedge.
 		unsafe { BitMask::new(!(R::ALL >> ct) >> from) }
-	}
-}
-
-/// Traverses a register from the least significant bit to the most significant.
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Lsb0;
-
-unsafe impl BitOrder for Lsb0 {
-	#[cfg_attr(not(tarpaulin_include), inline(always))]
-	fn at<R>(index: BitIdx<R>) -> BitPos<R>
-	where R: BitRegister {
-		unsafe { BitPos::new_unchecked(index.value()) }
-	}
-
-	#[cfg_attr(not(tarpaulin_include), inline(always))]
-	fn select<R>(index: BitIdx<R>) -> BitSel<R>
-	where R: BitRegister {
-		unsafe { BitSel::new_unchecked(R::ONE << index.value()) }
-	}
-
-	#[inline]
-	fn mask<R>(
-		from: impl Into<Option<BitIdx<R>>>,
-		upto: impl Into<Option<BitTail<R>>>,
-	) -> BitMask<R>
-	where
-		R: BitRegister,
-	{
-		let from = from.into().unwrap_or(BitIdx::ZERO).value();
-		let upto = upto.into().unwrap_or(BitTail::END).value();
-		debug_assert!(upto >= from, "Ranges must run from low index to high");
-		let ct = upto - from;
-		if ct == R::BITS {
-			return BitMask::ALL;
-		}
-		//  1. Set all bits high.
-		//  2. Shift left by the number of bits in the mask. These are now low.
-		//  3. Invert. The mask bits at LSedge are high; the rest are low.
-		//  4. Shift left by the distance from LSedge.
-		unsafe { BitMask::new(!(R::ALL << ct) << from) }
 	}
 }
 

@@ -1,3 +1,10 @@
+################################################################################
+#                              Book Configuration                              #
+#                                                                              #
+# This file configures the `mdbook` executable used to compile `book/` into a  #
+# project manual.                                                              #
+################################################################################
+
 [book]
 title = "A User’s Guide to the `bitvec` Project"
 authors = [

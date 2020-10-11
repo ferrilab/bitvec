@@ -301,7 +301,6 @@ mod seal {
 }
 
 #[cfg(test)]
-#[cfg(not(tarpaulin_include))]
 mod tests {
 	use crate::{
 		access::*,

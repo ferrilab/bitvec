@@ -73,17 +73,17 @@ macro_rules! bits {
 	//  Explicit order, default store.
 
 	(mut $order:ident; $($val:expr),* $(,)?) => {
-		unsafe { $crate::bits!(mut $order, usize; $($val),*) }
+		$crate::bits!(mut $order, usize; $($val),*)
 	};
 
 	(mut $order:path; $($val:expr),* $(,)?) => {
-		unsafe { $crate::bits!(mut $order, usize; $($val),*) }
+		$crate::bits!(mut $order, usize; $($val),*)
 	};
 
 	//  Default order and store.
 
 	(mut $($val:expr),* $(,)?) => {
-		unsafe { $crate::bits!(mut Lsb0, usize; $($val),*) }
+		$crate::bits!(mut Lsb0, usize; $($val),*)
 	};
 
 	//  Repetition syntax `[bit ; count]`.

@@ -78,7 +78,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::len`](https://doc.rust-lang.org/std/primitive.slice.html#method.len)
+	/// [`slice::len`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.len)
 	///
 	/// # Examples
 	///
@@ -96,7 +96,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::is_empty`](https://doc.rust-lang.org/std/primitive.slice.html#method.is_empty)
+	/// [`slice::is_empty`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.is_empty)
 	///
 	/// # Examples
 	///
@@ -115,7 +115,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::first`](https://doc.rust-lang.org/std/primitive.slice.html#method.first)
+	/// [`slice::first`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.first)
 	///
 	/// # Examples
 	///
@@ -135,12 +135,12 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::first_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.first_mut)
+	/// [`slice::first_mut`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.first_mut)
 	///
 	/// # API Differences
 	///
 	/// This crate cannot manifest `&mut bool` references, and must use the
-	/// `BitMut` proxy type where `&mut bool` exists in the standard library
+	/// [`BitMut`] proxy type where `&mut bool` exists in the standard library
 	/// API. The proxy value must be bound as `mut` in order to write through
 	/// it.
 	///
@@ -156,6 +156,8 @@ where
 	/// }
 	/// assert!(bits[0]);
 	/// ```
+	///
+	/// [`BitMut`]: crate::slice::BitMut
 	#[inline]
 	pub fn first_mut(&mut self) -> Option<BitMut<O, T>> {
 		self.get_mut(0)
@@ -166,7 +168,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::split_first`](https://doc.rust-lang.org/std/primitive.slice.html#split_first)
+	/// [`slice::split_first`](https://doc.rust-lang.org/stable/std/primitive.slice.html#split_first)
 	///
 	/// # Examples
 	///
@@ -194,12 +196,12 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::split_first_mut`](https://doc.rust-lang.org/std/primitive.slice.html#split_first_mut)
+	/// [`slice::split_first_mut`](https://doc.rust-lang.org/stable/std/primitive.slice.html#split_first_mut)
 	///
 	/// # API Differences
 	///
 	/// This crate cannot manifest `&mut bool` references, and must use the
-	/// `BitMut` proxy type where `&mut bool` exists in the standard library
+	/// [`BitMut`] proxy type where `&mut bool` exists in the standard library
 	/// API. The proxy value must be bound as `mut` in order to write through
 	/// it.
 	///
@@ -220,6 +222,8 @@ where
 	/// assert_eq!(bits.count_ones(), 2);
 	/// assert!(bits![mut].split_first_mut().is_none());
 	/// ```
+	///
+	/// [`BitMut`]: crate::slice::BitMut
 	#[inline]
 	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
 	//  so this will not be aliased.
@@ -241,7 +245,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::split_last`](https://doc.rust-lang.org/std/primitive.slice.html#method.split_last)
+	/// [`slice::split_last`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.split_last)
 	///
 	/// # Examples
 	///
@@ -270,12 +274,12 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::split_last_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.split_last_mut)
+	/// [`slice::split_last_mut`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.split_last_mut)
 	///
 	/// # API Differences
 	///
 	/// This crate cannot manifest `&mut bool` references, and must use the
-	/// `BitMut` proxy type where `&mut bool` exists in the standard library
+	/// [`BitMut`] proxy type where `&mut bool` exists in the standard library
 	/// API. The proxy value must be bound as `mut` in order to write through
 	/// it.
 	///
@@ -296,6 +300,8 @@ where
 	/// assert_eq!(bits.count_ones(), 2);
 	/// assert!(bits![mut].split_last_mut().is_none());
 	/// ```
+	///
+	/// [`BitMut`]: crate::slice::BitSlice
 	#[inline]
 	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
 	//  so this will not be aliased.
@@ -316,7 +322,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::last`](https://doc.rust-lang.org/std/primitive.slice.html#method.last)
+	/// [`slice::last`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.last)
 	///
 	/// # Examples
 	///
@@ -339,12 +345,12 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::last_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.last_mut)
+	/// [`slice::last_mut`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.last_mut)
 	///
 	/// # API Differences
 	///
 	/// This crate cannot manifest `&mut bool` references, and must use the
-	/// `BitMut` proxy type where `&mut bool` exists in the standard library
+	/// [`BitMut`] proxy type where `&mut bool` exists in the standard library
 	/// API. The proxy value must be bound as `mut` in order to write through
 	/// it.
 	///
@@ -359,6 +365,8 @@ where
 	/// }
 	/// assert!(bits[0]);
 	/// ```
+	///
+	/// [`BitMut`]: crate::slice::BitMut
 	#[inline]
 	pub fn last_mut(&mut self) -> Option<BitMut<O, T>> {
 		match self.len() {
@@ -377,7 +385,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::get`](https://doc.rust-lang.org/std/primitive.slice.html#method.get)
+	/// [`slice::get`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.get)
 	///
 	/// # Examples
 	///
@@ -402,11 +410,11 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::get_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.get_mut)
+	/// [`slice::get_mut`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.get_mut)
 	///
 	/// # API Differences
 	///
-	/// When `I` is `usize`, this returns `BitMut` instead of `&mut bool`.
+	/// When `I` is `usize`, this returns [`BitMut`] instead of `&mut bool`.
 	///
 	/// # Examples
 	///
@@ -419,6 +427,7 @@ where
 	/// assert!(bits.get(1).unwrap());
 	/// ```
 	///
+	/// [`BitMut`]: crate::slice::BitMut
 	/// [`get`]: Self::get
 	#[inline]
 	pub fn get_mut<'a, I>(&'a mut self, index: I) -> Option<I::Mut>
@@ -440,7 +449,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::get_unchecked`](https://doc.rust-lang.org/std/primitive.slice.html#method.get_unchecked)
+	/// [`slice::get_unchecked`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.get_unchecked)
 	///
 	/// # Examples
 	///
@@ -476,7 +485,11 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::get_unchecked_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.get_unchecked_mut)
+	/// [`slice::get_unchecked_mut`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.get_unchecked_mut)
+	///
+	/// # API Differences
+	///
+	/// When `I` is `usize`, this returns [`BitMut`] instead of `&mut bool`.
 	///
 	/// # Examples
 	///
@@ -491,6 +504,7 @@ where
 	/// assert!(bits[1]);
 	/// ```
 	///
+	/// [`BitMut`]: crate::slice::BitMut
 	/// [`get_mut`]: Self::get_mut
 	/// [undefined behavior]: ../../reference/behavior-considered-undefined.html
 	#[inline]
@@ -516,7 +530,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::as_ptr`](https://doc.rust-lang.org/std/primitive.slice.html#method.as_ptr)
+	/// [`slice::as_ptr`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.as_ptr)
 	///
 	/// # API Differences
 	///
@@ -553,8 +567,9 @@ where
 	/// [`as_mut_ptr`]: Self::as_mut_ptr
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
+	#[deprecated = "Use `.as_bitptr()` to access the region pointer"]
 	pub fn as_ptr(&self) -> *const Self {
-		self as *const Self
+		self.as_bitptr()
 	}
 
 	/// Returns an unsafe mutable bit-slice pointer to the region.
@@ -568,7 +583,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::as_mut_ptr`](https://doc.rust-lang.org/std/primitive.slice.html#method.as_mut_ptr)
+	/// [`slice::as_mut_ptr`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.as_mut_ptr)
 	///
 	/// # API Differences
 	///
@@ -602,15 +617,16 @@ where
 	/// ```
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
+	#[deprecated = "Use `.as_mut_bitptr()` to access the region pointer"]
 	pub fn as_mut_ptr(&mut self) -> *mut Self {
-		self as *mut Self
+		self.as_mut_bitptr()
 	}
 
 	/// Swaps two bits in the slice.
 	///
 	/// # Original
 	///
-	/// [`slice::swap`](https://doc.rust-lang.org/std/primitive.slice.html#method.swap)
+	/// [`slice::swap`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.swap)
 	///
 	/// # Arguments
 	///
@@ -644,7 +660,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::reverse`](https://doc.rust-lang.org/std/primitive.slice.html#method.reverse)
+	/// [`slice::reverse`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.reverse)
 	///
 	/// # Examples
 	///
@@ -693,7 +709,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::iter`](https://doc.rust-lang.org/std/primitive.slice.html#method.iter)
+	/// [`slice::iter`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.iter)
 	///
 	/// # Examples
 	///
@@ -717,7 +733,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::iter_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.iter_mut)
+	/// [`slice::iter_mut`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.iter_mut)
 	///
 	/// # API Differences
 	///
@@ -726,6 +742,9 @@ where
 	/// the iterator in a manner that ensures that all yielded items have
 	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
 	/// remove the marker from yielded references.
+	///
+	/// Because [`bitvec`] cannot produce `&mut bool` references, this instead
+	/// yields [`BitMut`] proxy references
 	///
 	/// # Examples
 	///
@@ -739,6 +758,8 @@ where
 	/// assert_eq!(bits.as_slice()[0], 0b100_100_10);
 	/// ```
 	///
+	/// [`BitMut`]: crate::slice::BitMut
+	/// [`bitvec`]: crate
 	/// [`.remove_alias()`]: crate::slice::IterMut::remove_alias
 	#[inline]
 	pub fn iter_mut(&mut self) -> IterMut<O, T> {
@@ -751,7 +772,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::windows`](https://doc.rust-lang.org/std/primitive.slice.html#method.windows)
+	/// [`slice::windows`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.windows)
 	///
 	/// # Panics
 	///
@@ -799,7 +820,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::chunks`](https://doc.rust-lang.org/std/primitive.slice.html#method.chunks)
+	/// [`slice::chunks`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.chunks)
 	///
 	/// # Panics
 	///
@@ -840,7 +861,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::chunks_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.chunks_mut)
+	/// [`slice::chunks_mut`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.chunks_mut)
 	///
 	/// # API Differences
 	///
@@ -892,7 +913,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::chunks_exact`](https://doc.rust-lang.org/std/primitive.slice.html#method.chunks_exact)
+	/// [`slice::chunks_exact`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.chunks_exact)
 	///
 	/// # Panics
 	///
@@ -937,7 +958,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::chunks_exact_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.chunks_exact_mut)
+	/// [`slice::chunks_exact_mut`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.chunks_exact_mut)
 	///
 	/// # API Differences
 	///
@@ -989,7 +1010,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::rchunks`](https://doc.rust-lang.org/std/primitive.slice.html#method.rchunks)
+	/// [`slice::rchunks`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rchunks)
 	///
 	/// # Panics
 	///
@@ -1030,7 +1051,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::rchunks_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.rchunks_mut)
+	/// [`slice::rchunks_mut`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rchunks_mut)
 	///
 	/// # API Differences
 	///
@@ -1082,7 +1103,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::rchunks_exact`](https://doc.rust-lang.org/std/primitive.slice.html#method.rchunks_exact)
+	/// [`slice::rchunks_exact`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rchunks_exact)
 	///
 	/// # Panics
 	///
@@ -1129,7 +1150,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::rchunks_exact_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.rchunks_exact_mut)
+	/// [`slice::rchunks_exact_mut`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rchunks_exact_mut)
 	///
 	/// # API Differences
 	///
@@ -1177,7 +1198,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::split_at`](https://doc.rust-lang.org/std/primitive.slice.html#method.split_at)
+	/// [`slice::split_at`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.split_at)
 	///
 	/// # Panics
 	///
@@ -1217,7 +1238,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::split_at_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.split_at_mut)
+	/// [`slice::split_at_mut`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.split_at_mut)
 	///
 	/// # API Differences
 	///
@@ -1270,7 +1291,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::split`](https://doc.rust-lang.org/std/primitive.slice.html#method.split)
+	/// [`slice::split`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.split)
 	///
 	/// # API Differences
 	///
@@ -1332,7 +1353,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::split_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.split_mut)
+	/// [`slice::split_mut`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.split_mut)
 	///
 	/// # API Differences
 	///
@@ -1371,7 +1392,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::rsplit`](https://doc.rust-lang.org/std/primitive.slice.html#method.rsplit)
+	/// [`slice::rsplit`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplit)
 	///
 	/// # API Differences
 	///
@@ -1419,7 +1440,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::rsplit_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.rsplit_mut)
+	/// [`slice::rsplit_mut`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplit_mut)
 	///
 	/// # API Differences
 	///
@@ -1460,7 +1481,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::splitn`](https://doc.rust-lang.org/std/primitive.slice.html#method.splitn)
+	/// [`slice::splitn`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.splitn)
 	///
 	/// # API Differences
 	///
@@ -1498,7 +1519,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::splitn_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.splitn_mut)
+	/// [`slice::splitn_mut`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.splitn_mut)
 	///
 	/// # API Differences
 	///
@@ -1540,7 +1561,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::rsplitn`](https://doc.rust-lang.org/std/primitive.slice.html#method.rsplitn)
+	/// [`slice::rsplitn`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplitn)
 	///
 	/// # API Differences
 	///
@@ -1579,7 +1600,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::rsplitn_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.rsplitn_mut)
+	/// [`slice::rsplitn_mut`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.rsplitn_mut)
 	///
 	/// # API Differences
 	///
@@ -1617,7 +1638,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::contains`](https://doc.rust-lang.org/std/primitive.slice.html#method.contains)
+	/// [`slice::contains`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.contains)
 	///
 	/// # API Differences
 	///
@@ -1663,7 +1684,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::starts_with`](https://doc.rust-lang.org/std/primitive.slice.html#method.starts_with)
+	/// [`slice::starts_with`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.starts_with)
 	///
 	/// # Examples
 	///
@@ -1702,7 +1723,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::ends_with`](https://doc.rust-lang.org/std/primitive.slice.html#method.ends_with)
+	/// [`slice::ends_with`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.ends_with)
 	///
 	/// # Examples
 	///
@@ -1745,7 +1766,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::rotate_left`](https://doc.rust-lang.org/std/primitive.slice.html#rotate_left)
+	/// [`slice::rotate_left`](https://doc.rust-lang.org/stable/std/primitive.slice.html#rotate_left)
 	///
 	/// # Panics
 	///
@@ -1820,7 +1841,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::rotate_right`](https://doc.rust-lang.org/std/primitive.slice.html#rotate_right)
+	/// [`slice::rotate_right`](https://doc.rust-lang.org/stable/std/primitive.slice.html#rotate_right)
 	///
 	/// # Panics
 	///
@@ -1900,7 +1921,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::clone_from_slice`](https://doc.rust-lang.org/std/primitive.slice.html#method.clone_from_slice)
+	/// [`slice::clone_from_slice`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.clone_from_slice)
 	///
 	/// # API Differences
 	///
@@ -1977,16 +1998,16 @@ where
 		else {
 			for (to, from) in
 				self.iter_mut().remove_alias().zip(src.iter().copied())
-		{
-			to.set(from);
+			{
+				to.set(from);
+			}
 		}
-	}
 	}
 
 	#[doc(hidden)]
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated(note = "Use `.clone_from_bitslice` to copy between bitslices")]
+	#[deprecated = "Use `.clone_from_bitslice()` to copy between bitslices"]
 	pub fn clone_from_slice<O2, T2>(&mut self, src: &BitSlice<O2, T2>)
 	where
 		O2: BitOrder,
@@ -2013,7 +2034,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::copy_from_slice`](https://doc.rust-lang.org/std/primitive.std.html#method.copy_from_slice)
+	/// [`slice::copy_from_slice`](https://doc.rust-lang.org/stable/std/primitive.std.html#method.copy_from_slice)
 	///
 	/// # API Differences
 	///
@@ -2154,7 +2175,7 @@ where
 	#[doc(hidden)]
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated(note = "Use `.copy_from_bitslice` to copy between bitslices")]
+	#[deprecated = "Use `.copy_from_bitslice()` to copy between bitslices"]
 	pub fn copy_from_slice(&mut self, src: &Self) {
 		self.copy_from_bitslice(src)
 	}
@@ -2168,7 +2189,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::copy_within`](https://doc.rust-lang.org/std/primitive.slice.html#method.copy_within)
+	/// [`slice::copy_within`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.copy_within)
 	///
 	/// # Panics
 	///
@@ -2207,7 +2228,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::swap_with_slice`](https://doc.rust-lang.org/std/primitive.slice.html#method.swap_with_slice)
+	/// [`slice::swap_with_slice`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.swap_with_slice)
 	///
 	/// # API Differences
 	///
@@ -2253,7 +2274,7 @@ where
 	#[doc(hidden)]
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated(note = "Use `.swap_with_bitslice` to swap between bitslices")]
+	#[deprecated = "Use `.swap_with_bitslice` to swap between bitslices"]
 	pub fn swap_with_slice<O2, T2>(&mut self, other: &mut BitSlice<O2, T2>)
 	where
 		O2: BitOrder,
@@ -2275,7 +2296,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::align_to`](https://doc.rust-lang.org/std/primitive.slice.html#method.align_to)
+	/// [`slice::align_to`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.align_to)
 	///
 	/// # API Differences
 	///
@@ -2361,7 +2382,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::align_to`](https://doc.rust-lang.org/std/primitive.slice.html#method.align_to)
+	/// [`slice::align_to_mut`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.align_to_mut)
 	///
 	/// # API Differences
 	///
@@ -2406,7 +2427,10 @@ where
 	}
 }
 
-/// These functions only exist when `BitVec` does.
+/** These functions only exist when [`BitVec`] does.
+
+[`BitVec`]: crate::vec::BitVec
+**/
 #[cfg(feature = "alloc")]
 impl<O, T> BitSlice<O, T>
 where
@@ -2417,7 +2441,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::to_vec`](https://doc.rust-lang.org/std.primitive.slice.html#method.to_vec)
+	/// [`slice::to_vec`](https://doc.rust-lang.org/stable/std.primitive.slice.html#method.to_vec)
 	///
 	/// # Examples
 	///
@@ -2459,7 +2483,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::repeat`](https://doc.rust-lang.org/std/primitive.slice.html#method.repeat)
+	/// [`slice::repeat`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.repeat)
 	///
 	/// # Panics
 	///
@@ -2597,7 +2621,7 @@ let bits = unsafe {
 assert_eq!(bits.count_ones(), 3);
 ```
 
-[valid]: https://doc.rust-lang.org/core/ptr/index.html#safety
+[valid]: https://doc.rust-lang.org/stable/core/ptr/index.html#safety
 [`BitSlice`]: crate::slice::BitSlice
 [`BitSlice::<_, T>::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
 [`NonNull::dangling()`]: core::ptr::NonNull::dangling
@@ -2650,7 +2674,7 @@ Behavior is undefined if any of the following conditions are violated:
 /// - The total size `len * T::Mem::BITS` of the slice must be no larger than
 ///   [`BitSlice::<_, T>::MAX_BITS`].
 ///
-/// [valid]: https://doc.rust-lang.org/core/ptr/index.html#safety
+/// [valid]: https://doc.rust-lang.org/stable/core/ptr/index.html#safety
 /// [`BitSlice::<_, T>::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
 /// [`NonNull::dangling()`]: core::ptr::NonNull::dangling
 /// [`from_raw_parts`]: crate::slice::from_raw_parts

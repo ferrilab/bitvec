@@ -1,6 +1,6 @@
 /*! View constructors for memory regions.
 
-The `&BitSlice` type is a referential view over existing memory. The inherent
+The [`&BitSlice`] type is a referential view over existing memory. The inherent
 constructors are awkward to call, as they require function syntax rather than
 method syntax, and must provide a token for the memory type even though this is
 provided by the prior binding.
@@ -8,8 +8,8 @@ provided by the prior binding.
 This module provides a view trait, [`BitView`], which provides [`BitSlice`]
 constructors available in method-call syntax with only ordering type parameters.
 
-In addition, the traits `AsBits` and `AsBitsMut` are analogues of [`AsRef`] and
-[`AsMut`], respectively. These traits have a blanket implementation for all
+In addition, the traits [`AsBits`] and [`AsBitsMut`] are analogues of [`AsRef`]
+and [`AsMut`], respectively. These traits have a blanket implementation for all
 `A: As{Ref,Mut}<[T: BitStore]>`, so that any type that implements a view to a
 suitable memory region automatically implements a view to that region’s bits.
 
@@ -18,10 +18,13 @@ functions into one trait, and can provide specialized implementations with a
 slight performance increase over the generic, but `AsBits{,Mut}` can fit in the
 generic type system of any library without undue effort.
 
+[`AsBits`]: self::AsBits
+[`AsBitsMut`]: self::AsBitsMut
 [`AsMut`]: core::convert::AsMut
 [`AsRef`]: core::convert::AsRef
 [`BitSlice`]: crate::slice::BitSlice
 [`BitView`]: self::BitView
+[`&BitSlice`]: crate::slice::BitSlice
 !*/
 
 use crate::{
@@ -275,7 +278,7 @@ view with either choice.
 
 You are not *forbidden* from creating multiple views with different element
 types to the same region, but doing so is likely to cause inconsistent and
-unsurprising behavior.
+surprising behavior.
 
 Refrain from implementing this trait with more than one storage argument unless
 you are sure that you can uphold the memory region requirements of all of them,
@@ -324,7 +327,7 @@ view with either choice.
 
 You are not *forbidden* from creating multiple views with different element
 types to the same region, but doing so is likely to cause inconsistent and
-unsurprising behavior.
+surprising behavior.
 
 Refrain from implementing this trait with more than one storage argument unless
 you are sure that you can uphold the memory region requirements of all of them,

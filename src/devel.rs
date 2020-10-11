@@ -12,7 +12,6 @@ that wish to safely perform generic programming with [`bitvec`] region types.
 !*/
 
 #![allow(dead_code)]
-#![cfg_attr(tarpaulin, skip)]
 
 use crate::{
 	index::BitMask,
@@ -45,9 +44,10 @@ where T: BitStore {
 	unsafe { &*(x as *const T as *const T::Access) }
 }
 
-/** Inserts an `::Alias` marker into a [`BitMask`]’s type parameter.
+/** Inserts an [`::Alias`] marker into a [`BitMask`]’s type parameter.
 
 [`BitMask`]: crate::index::BitMask
+[`::Alias`]: crate::store::BitStore::Alias
 **/
 #[inline(always)]
 #[cfg(not(tarpaulin_include))]
@@ -58,9 +58,10 @@ where T: BitStore {
 	unsafe { *(&x as *const _ as *const _) }
 }
 
-/** Inserts an `::Alias` marker into a [`T::Mem`] value’s type.
+/** Inserts an [`::Alias`] marker into a [`T::Mem`] value’s type.
 
 [`T::Mem`]: crate::store::BitStore::Mem
+[`::Alias`]: crate::store::BitStore::Alias
 **/
 #[inline(always)]
 #[cfg(not(tarpaulin_include))]
