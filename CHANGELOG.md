@@ -4,8 +4,10 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
-1. [0.19.4](#0194)
+1. [0.20.0](#0200)
    1. [Changed](#changed)
+1. [0.19.4](#0194)
+   1. [Changed](#changed-1)
 1. [0.19.3](#0193)
    1. [Added](#added)
 1. [0.19.2](#0192)
@@ -49,6 +51,41 @@ This document is written according to the [Keep a Changelog][kac] style.
 1. [0.3.0](#030)
 1. [0.2.0](#020)
 1. [0.1.0](#010)
+
+## 0.20.0
+
+### Changed
+
+The types used when a `&mut BitSlice` aliases its underlying memory are now
+specialized wrappers rather than bare `Atomic` or `Cell<>` types. These new
+wrappers forbid mutation through shared references, but retain the synchronized
+load and store behavior of their wrapped types when accessed. This seals the
+last (known) memory unsoundness hole in the crate, and ensures that the
+following scenario can no longer cause undefined behavior:
+
+```rust
+use bitvec::prelude::*;
+
+let mut data = [0u8; 2]
+let bits = data.view_bits_mut::<Msb0>();
+let (_, rest) = data.split_at_mut(4);
+
+let sharemut_slice = rest.as_slice();
+let (_, immut_slice, _) = rest.domain().region().unwrap();
+```
+
+In this example, `sharemut_slice` is a `&[u8::Alias]` slice and `immut_slice` is
+a `&[u8]`. Prior to `0.20`, `u8::Alias` was an `AtomicU8` or a `Cell<u8>`,
+either of which permit modification through `&` shared references. Doing so
+while a `&[u8]` reference views the referent memory is undefined behavior.
+
+Now, `u8::Alias` is either `BitSafeAtomU8` or `BitSafeCellU8`, both of which can
+be found in the `access` module. These types retain the load/store behavior of
+their eponymous types, but forbid modifying the referent memory through an `&`
+shared reference.
+
+`bitvec` has no support for shared mutation of the same bit from multiple
+handles, and has no plans to add it.
 
 ## 0.19.4
 

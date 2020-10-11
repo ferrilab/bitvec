@@ -40,12 +40,16 @@ taint to only the affected addresses.
 !*/
 
 #[cfg(all(feature = "atomic", feature = "std"))]
-use bitvec::prelude::*;
+use bitvec::{
+	access::{
+		BitSafe,
+		BitSafeAtomU8,
+	},
+	prelude::*,
+};
 
 #[cfg(all(feature = "atomic", feature = "std"))]
 use std::{
-	sync::atomic::AtomicU8,
-	sync::atomic::Ordering,
 	thread,
 	time::Duration,
 };
@@ -75,17 +79,18 @@ fn main() {
 
 	//  Now, like the wise Solomon, we are going to cut this slice in half.
 	let (left, right): (
-		&'static mut BitSlice<LocalBits, AtomicU8>,
-		&'static mut BitSlice<LocalBits, AtomicU8>,
+		&'static mut BitSlice<LocalBits, BitSafeAtomU8>,
+		&'static mut BitSlice<LocalBits, BitSafeAtomU8>,
 	) = bits.split_at_mut(bits.len() / 2);
 
 	/* If you look at the `.split_at_mut` docs, you’ll see that it returns a
 	slice typed as `&mut BitSlice<O, T::Alias>`. If you follow that into the
 	`BitStore` trait docs, you’ll see in the `u8` implementation that
-	`type Alias = AtomicU8;`. If you see `type Alias = Cell<u8>;`, then this
-	example won’t compile! Turn on `feature = "atomic"` in your build settings.
+	`type Alias = BitSafeAtomU8;`. If you see `type Alias = BitSafeCellU8;`,
+	then this example won’t compile! Turn on `feature = "atomic"` in your build
+	settings.
 
-	`AtomicU8` is *still `Send`*, so we can still move these slices across
+	`BitSafeAtomU8` is *still `Send`*, so we can still move these slices across
 	threads!
 
 	`&mut BitSlice` implements `Not`, and it does so by writing batched masks to
@@ -152,13 +157,13 @@ fn main() {
 	assert!(head.is_none());
 	assert_eq!(body, &[!0u8; 2]);
 	let (tail_atom, _tail_idx) = tail.unwrap();
-	assert_eq!(tail_atom.load(Ordering::Relaxed), 0b1111_0000u8);
+	assert_eq!(tail_atom.load(), 0b1111_0000u8);
 
 	let (head, body, tail) = right.domain().region().unwrap();
 	assert!(tail.is_none());
 	assert_eq!(body, &[0u8; 2]);
 	let (_head_idx, head_atom) = head.unwrap();
-	assert_eq!(head_atom.load(Ordering::Relaxed), 0b1111_0000u8);
+	assert_eq!(head_atom.load(), 0b1111_0000u8);
 }
 
 #[cfg(not(all(feature = "atomic", feature = "std")))]

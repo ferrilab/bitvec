@@ -56,7 +56,10 @@ use crate::{
 		DomainMut,
 	},
 	index::BitMask,
-	mem::BitMemory,
+	mem::{
+		BitMemory,
+		BitRegister,
+	},
 	order::{
 		BitOrder,
 		Lsb0,
@@ -656,6 +659,7 @@ impl<O, V> BitField for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
+	V::Store: BitRegister,
 	BitSlice<O, V::Store>: BitField,
 {
 	#[inline]
@@ -688,7 +692,7 @@ where
 impl<O, T> BitField for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	BitSlice<O, T>: BitField,
 {
 	#[inline]
@@ -721,7 +725,7 @@ where
 impl<O, T> BitField for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	BitSlice<O, T>: BitField,
 {
 	#[inline]

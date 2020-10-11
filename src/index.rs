@@ -37,9 +37,8 @@ used to create selection masks of [`BitSel`] and [`BitMask`].
 !*/
 
 use crate::{
-	mem::BitMemory,
+	mem::BitRegister,
 	order::BitOrder,
-	store::BitStore,
 };
 
 use core::{
@@ -62,8 +61,6 @@ use core::{
 		Not,
 	},
 };
-
-use radium::marker::BitOps;
 
 #[cfg(feature = "serde")]
 use core::convert::TryFrom;
@@ -94,29 +91,6 @@ macro_rules! make {
 		BitMask { mask: $e }
 	};
 }
-
-/// Marks that an integer can be used in a processor register.
-pub trait BitRegister: BitMemory + BitOps + BitStore {}
-
-macro_rules! register {
-	($($t:ty),+ $(,)?) => { $(
-		impl BitRegister for $t {
-		}
-	)* };
-}
-
-register!(u8, u16, u32);
-
-/** `u64` can only be used as a register on processors whose word size is at
-least 64 bits.
-
-This implementation is not present on targets with 32-bit processor words.
-**/
-#[cfg(target_pointer_width = "64")]
-impl BitRegister for u64 {
-}
-
-register!(usize);
 
 /** A semantic index of a single bit within a register `R`.
 
@@ -963,9 +937,8 @@ where R: BitRegister
 	/// Converts the selector into a bit mask.
 	///
 	/// This is a type-cast.
-	#[inline]
-	pub fn mask(self) -> BitMask<R>
-	where R: BitRegister {
+	#[inline(always)]
+	pub fn mask(self) -> BitMask<R> {
 		make!(mask self.sel)
 	}
 

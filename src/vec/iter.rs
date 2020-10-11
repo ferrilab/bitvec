@@ -5,6 +5,7 @@
 
 use crate::{
 	devel as dvl,
+	mem::BitRegister,
 	order::BitOrder,
 	slice::{
 		BitSlice,
@@ -40,7 +41,7 @@ use tap::{
 impl<O, T> Extend<bool> for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	#[inline]
 	fn extend<I>(&mut self, iter: I)
@@ -72,7 +73,7 @@ where
 impl<'a, O, T> Extend<&'a bool> for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	#[inline]
 	fn extend<I>(&mut self, iter: I)
@@ -84,7 +85,7 @@ where
 impl<O, T> FromIterator<bool> for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	#[inline]
 	fn from_iter<I>(iter: I) -> Self
@@ -101,7 +102,7 @@ where
 impl<'a, O, T> FromIterator<&'a bool> for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	#[inline]
 	fn from_iter<I>(iter: I) -> Self
@@ -113,7 +114,7 @@ where
 impl<O, T> IntoIterator for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	type IntoIter = IntoIter<O, T>;
 	type Item = bool;
@@ -131,7 +132,7 @@ where
 impl<'a, O, T> IntoIterator for &'a BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	type IntoIter = <&'a BitSlice<O, T> as IntoIterator>::IntoIter;
 	type Item = <&'a BitSlice<O, T> as IntoIterator>::Item;
@@ -146,7 +147,7 @@ where
 impl<'a, O, T> IntoIterator for &'a mut BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	type IntoIter = <&'a mut BitSlice<O, T> as IntoIterator>::IntoIter;
 	type Item = <&'a mut BitSlice<O, T> as IntoIterator>::Item;
@@ -173,7 +174,7 @@ the [`IntoIterator`] trait).
 pub struct IntoIter<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	/// Take ownership of the vector for destruction.
 	_bv: BitVec<O, T>,
@@ -187,7 +188,7 @@ where
 impl<O, T> IntoIter<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	/// Returns the remaining bits of this iterator as a [`BitSlice`].
 	///
@@ -267,7 +268,7 @@ where
 impl<O, T> Iterator for IntoIter<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	type Item = bool;
 
@@ -301,7 +302,7 @@ where
 impl<O, T> DoubleEndedIterator for IntoIter<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	#[inline(always)]
 	fn next_back(&mut self) -> Option<Self::Item> {
@@ -318,7 +319,7 @@ where
 impl<O, T> ExactSizeIterator for IntoIter<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	#[inline(always)]
 	fn len(&self) -> usize {
@@ -329,7 +330,7 @@ where
 impl<O, T> FusedIterator for IntoIter<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 }
 
@@ -347,7 +348,7 @@ This `struct` is created by the [`drain`] method on [`BitVec`].
 pub struct Drain<'a, O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	/// Exclusive reference to the vector this drains.
 	source: NonNull<BitVec<O, T>>,
@@ -361,7 +362,7 @@ where
 impl<'a, O, T> Drain<'a, O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	#[inline]
 	pub(super) fn new<R>(source: &'a mut BitVec<O, T>, range: R) -> Self
@@ -528,7 +529,7 @@ where
 impl<O, T> AsRef<BitSlice<O, T>> for Drain<'_, O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	#[inline(always)]
 	fn as_ref(&self) -> &BitSlice<O, T> {
@@ -540,7 +541,7 @@ where
 impl<'a, O, T> Debug for Drain<'a, O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -554,7 +555,7 @@ where
 impl<O, T> Iterator for Drain<'_, O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	type Item = bool;
 
@@ -588,7 +589,7 @@ where
 impl<O, T> DoubleEndedIterator for Drain<'_, O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	#[inline(always)]
 	fn next_back(&mut self) -> Option<Self::Item> {
@@ -605,7 +606,7 @@ where
 impl<O, T> ExactSizeIterator for Drain<'_, O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	#[inline(always)]
 	fn len(&self) -> usize {
@@ -616,28 +617,28 @@ where
 impl<O, T> FusedIterator for Drain<'_, O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 }
 
 unsafe impl<O, T> Send for Drain<'_, O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 }
 
 unsafe impl<O, T> Sync for Drain<'_, O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 }
 
 impl<O, T> Drop for Drain<'_, O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	#[inline]
 	fn drop(&mut self) {
@@ -695,7 +696,7 @@ documentation for more.
 pub struct Splice<'a, O, T, I>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	I: Iterator<Item = bool>,
 {
 	/// The region of the vector being spliced.
@@ -707,7 +708,7 @@ where
 impl<'a, O, T, I> Splice<'a, O, T, I>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	I: Iterator<Item = bool>,
 {
 	/// Constructs a splice out of a drain and a replacement.
@@ -721,7 +722,7 @@ where
 impl<O, T, I> Iterator for Splice<'_, O, T, I>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	I: Iterator<Item = bool>,
 {
 	type Item = bool;
@@ -768,7 +769,7 @@ where
 impl<O, T, I> DoubleEndedIterator for Splice<'_, O, T, I>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	I: Iterator<Item = bool>,
 {
 	#[inline(always)]
@@ -786,7 +787,7 @@ where
 impl<O, T, I> ExactSizeIterator for Splice<'_, O, T, I>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	I: Iterator<Item = bool>,
 {
 	#[inline(always)]
@@ -798,7 +799,7 @@ where
 impl<O, T, I> FusedIterator for Splice<'_, O, T, I>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	I: Iterator<Item = bool>,
 {
 }
@@ -806,7 +807,7 @@ where
 impl<O, T, I> Drop for Splice<'_, O, T, I>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	I: Iterator<Item = bool>,
 {
 	#[inline]

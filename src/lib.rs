@@ -236,7 +236,7 @@ extern crate alloc;
 #[macro_use]
 pub mod macros;
 
-mod access;
+pub mod access;
 pub mod array;
 pub mod domain;
 pub mod field;

@@ -31,7 +31,10 @@ before freezing it.
 
 use crate::{
 	index::BitIdx,
-	mem::BitMemory,
+	mem::{
+		BitMemory,
+		BitRegister,
+	},
 	order::{
 		BitOrder,
 		Lsb0,
@@ -130,7 +133,7 @@ only copy the buffer into a heap allocation.
 pub struct BitBox<O = Lsb0, T = usize>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	pointer: NonNull<BitSlice<O, T>>,
 }
@@ -139,7 +142,7 @@ where
 impl<O, T> BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	/// Clones a `&BitSlice` into a `BitVec`.
 	///

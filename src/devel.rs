@@ -69,28 +69,12 @@ where T: BitStore {
 	unsafe { *(&x as *const _ as *const _) }
 }
 
-/// Loads through an aliased reference into an unmarked local.
-#[inline(always)]
-#[cfg(not(tarpaulin_include))]
-pub fn load_aliased_local<T>(x: &T::Alias) -> T::Mem
-where T: BitStore {
-	x.load_value().pipe(remove_alias::<T>)
-}
-
 /// Converts a mutable reference into its memory register type.
 #[inline(always)]
 #[cfg(not(tarpaulin_include))]
 pub fn mem_mut<T>(x: &mut T) -> &mut T::Mem
 where T: BitStore {
 	unsafe { &mut *(x as *mut _ as *mut _) }
-}
-
-/// Removes the `::Alias` marker from a register value’s type.
-#[inline(always)]
-#[cfg(not(tarpaulin_include))]
-pub fn remove_alias<T>(x: <<T as BitStore>::Alias as BitStore>::Mem) -> T::Mem
-where T: BitStore {
-	unsafe { *(&x as *const _ as *const _) }
 }
 
 /** Removes the `::Alias` marker from a [`BitPtr`]’s referent type.

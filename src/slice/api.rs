@@ -8,8 +8,10 @@ use crate::{
 		Domain,
 		DomainMut,
 	},
-	index::BitRegister,
-	mem::BitMemory,
+	mem::{
+		BitMemory,
+		BitRegister,
+	},
 	order::{
 		BitOrder,
 		Lsb0,
@@ -1964,10 +1966,21 @@ where
 			"Cloning between slices requires equal lengths"
 		);
 
-		for (to, from) in self.iter_mut().remove_alias().zip(src.iter().copied())
+		if TypeId::of::<O>() == TypeId::of::<O2>()
+			&& TypeId::of::<T>() == TypeId::of::<T2>()
+		{
+			let that = src as *const _ as *const _;
+			unsafe {
+				self.copy_from_bitslice(&*that);
+			}
+		}
+		else {
+			for (to, from) in
+				self.iter_mut().remove_alias().zip(src.iter().copied())
 		{
 			to.set(from);
 		}
+	}
 	}
 
 	#[doc(hidden)]
@@ -2036,6 +2049,8 @@ where
 		);
 
 		let (d_head, s_head) = (self.bitptr().head(), src.bitptr().head());
+		//  Where the two slices have identical layouts (head index and length),
+		//  the copy can be done by using the memory domains.
 		if d_head == s_head {
 			match (self.domain_mut(), src.domain()) {
 				(
@@ -2045,8 +2060,9 @@ where
 					Domain::Enclave { elem: s_elem, .. },
 				) => {
 					let mask = O::mask(d_head, tail);
-					d_elem.clear_bits(mask);
-					d_elem.set_bits(mask & s_elem.load_value());
+					let access = dvl::accessor(d_elem);
+					access.clear_bits(mask);
+					access.set_bits(mask & s_elem.load_value());
 				},
 				(
 					DomainMut::Region {
@@ -2064,16 +2080,18 @@ where
 						(d_head, s_head)
 					{
 						let mask = O::mask(h_idx, None);
-						dh_elem.clear_bits(mask);
-						dh_elem.set_bits(mask & sh_elem.load_value());
+						let access = dvl::accessor(dh_elem);
+						access.clear_bits(mask);
+						access.set_bits(mask & sh_elem.load_value());
 					}
 					d_body.copy_from_slice(s_body);
 					if let (Some((dt_elem, t_idx)), Some((st_elem, _))) =
 						(d_tail, s_tail)
 					{
 						let mask = O::mask(None, t_idx);
-						dt_elem.clear_bits(mask);
-						dt_elem.set_bits(mask & st_elem.load_value());
+						let access = dvl::accessor(dt_elem);
+						access.clear_bits(mask);
+						access.set_bits(mask & st_elem.load_value());
 					}
 				},
 				_ => unreachable!(
@@ -2125,7 +2143,11 @@ where
 			this.sp_copy_from_bitslice(that);
 		}
 		else {
-			self.clone_from_bitslice(src);
+			for (to, from) in
+				self.iter_mut().remove_alias().zip(src.iter().copied())
+			{
+				to.set(from);
+			}
 		}
 	}
 
@@ -2411,12 +2433,17 @@ where
 	///
 	/// [`BitStore`]: crate::store::BitStore::Mem
 	/// [`BitVec`]: crate::vec::BitVec
-	#[inline(always)]
+	#[inline]
 	pub fn to_bitvec(&self) -> BitVec<O, T::Mem> {
-		let mut bv = BitVec::from_bitslice(self);
-		let ptr = bv.as_mut_bitptr();
-		let capa = bv.alloc_capacity();
-		core::mem::forget(bv);
+		let vec: alloc::vec::Vec<_> =
+			self.as_slice().iter().map(BitStore::load_value).collect();
+		let mut bitptr = self.bitptr();
+		unsafe {
+			bitptr.set_pointer(vec.as_ptr() as *const T);
+		}
+		let ptr = bitptr.to_bitslice_ptr_mut::<O>();
+		let capa = vec.capacity();
+		core::mem::forget(vec);
 		unsafe { BitVec::from_raw_parts(ptr as *mut BitSlice<O, T::Mem>, capa) }
 	}
 
@@ -2457,18 +2484,18 @@ where
 	/// bits![0, 1].repeat(BitSlice::<LocalBits, usize>::MAX_BITS);
 	/// ```
 	#[inline]
-	pub fn repeat(&self, n: usize) -> BitVec<O, T>
+	pub fn repeat(&self, n: usize) -> BitVec<O, T::Mem>
 	where
 		O: BitOrder,
 		T: BitStore,
 	{
 		let len = self.len();
 		let total = len.checked_mul(n).expect("capacity overflow");
-		//  The memory has to be initialized before `.copy_from_bitslice` can
+		//  The memory has to be initialized before `.clone_from_bitslice` can
 		//  write into it.
 		let mut out = BitVec::repeat(false, total);
 		for span in (0 .. n).map(|rep| rep * len .. (rep + 1) * len) {
-			unsafe { out.get_unchecked_mut(span) }.copy_from_bitslice(self);
+			unsafe { out.get_unchecked_mut(span) }.clone_from_bitslice(self);
 		}
 		out
 	}

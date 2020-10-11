@@ -23,9 +23,11 @@ dynamic resizing, and provide some specializations that cannot safely be done on
 
 use crate::{
 	boxed::BitBox,
-	devel as dvl,
 	index::BitIdx,
-	mem::BitMemory,
+	mem::{
+		BitMemory,
+		BitRegister,
+	},
 	order::{
 		BitOrder,
 		Lsb0,
@@ -42,8 +44,6 @@ use core::{
 	ptr::NonNull,
 	slice,
 };
-
-use funty::IsInteger;
 
 use tap::{
 	pipe::Pipe,
@@ -254,7 +254,7 @@ only copy the buffer into a heap allocation.
 pub struct BitVec<O = Lsb0, T = usize>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	/// Region pointer describing the live portion of the owned buffer.
 	pointer: NonNull<BitSlice<O, T>>,
@@ -266,7 +266,7 @@ where
 impl<O, T> BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	/// Constructs a `BitVec` from a value repeated many times.
 	///
@@ -298,7 +298,7 @@ where
 		unsafe {
 			out.set_len(len);
 		}
-		out.set_elements(if bit { T::Mem::ALL } else { T::Mem::ZERO });
+		out.set_elements(if bit { T::ALL } else { T::ZERO });
 		out
 	}
 
@@ -681,10 +681,17 @@ where
 	/// assert_eq!(bv.as_slice(), [0xA5, 0xA5]);
 	/// ```
 	#[inline]
-	pub fn set_elements(&mut self, element: T::Mem) {
+	pub fn set_elements(&mut self, element: T) {
 		self.as_mut_slice()
 			.iter_mut()
-			.for_each(|elt| *elt = dvl::remove_mem(element));
+			.for_each(|elt| *elt = element);
+	}
+
+	/// Writes a new length value into the pointer without any checks.
+	#[inline]
+	pub(crate) unsafe fn set_len_unchecked(&mut self, new_len: usize) {
+		self.pointer =
+			self.bitptr().tap_mut(|bp| bp.set_len(new_len)).to_nonnull()
 	}
 
 	/// Views the buffer’s contents as a [`BitSlice`].
@@ -809,12 +816,6 @@ where
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn bitptr(&self) -> BitPtr<T> {
 		self.pointer.as_ptr().pipe(BitPtr::from_bitslice_ptr_mut)
-	}
-
-	#[inline]
-	pub(crate) unsafe fn set_len_unchecked(&mut self, new_len: usize) {
-		self.pointer =
-			self.bitptr().tap_mut(|bp| bp.set_len(new_len)).to_nonnull()
 	}
 
 	/// Permits a function to modify the `Vec<T>` backing storage of a

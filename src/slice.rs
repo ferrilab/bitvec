@@ -37,7 +37,10 @@ the `core` and `std` distribution libraries.
 !*/
 
 use crate::{
-	access::BitAccess,
+	access::{
+		BitAccess,
+		BitSafe,
+	},
 	devel as dvl,
 	domain::{
 		BitDomain,
@@ -48,9 +51,11 @@ use crate::{
 	index::{
 		BitIdx,
 		BitMask,
+	},
+	mem::{
+		BitMemory,
 		BitRegister,
 	},
-	mem::BitMemory,
 	order::{
 		BitOrder,
 		Lsb0,
@@ -70,8 +75,6 @@ use core::{
 };
 
 use funty::IsInteger;
-
-use radium::Radium;
 
 use tap::pipe::Pipe;
 
@@ -170,9 +173,13 @@ of type arguments informs nearly every part of this library’s behavior.
 [`BitStore`] is the simpler of the two parameters. It refers to the integer type
 used to hold bits. It must be one of the Rust unsigned integer fundamentals:
 `u8`, `u16`, `u32`, `usize`, and on 64-bit systems only, `u64`. In addition, it
-can also be the `Cell<T>` wrapper over any of those, or their equivalent types
-in [`core::sync::atomic`]. Unless you know you need to have `Cell` or atomic
-properties, though, you should use a plain integer.
+can also be an alias-safed wrapper over them (see the [`access`] module) in
+order to permit bit-slices to share underlying memory without interfering with
+each other.
+
+`BitSlice` references can only be constructed over the integers, not over their
+aliasing wrappers. `BitSlice` will only use aliasing types in its `T` slots when
+you invoke APIs that produce them, such as [`.split_at_mut()`].
 
 The default type argument is `usize`.
 
@@ -416,15 +423,16 @@ where
 	/// instruction. If this were `[T]`, then Rust would make the pointer
 	/// encoding used to manage values of `&BitSlice` become undefined behavior.
 	///
-	/// See the `pointer` module for information on the encoding used.
+	/// See the `ptr` module for information on the encoding used.
 	_mem: [()],
 }
 
-/// Constructors are limited to integers only, and not their `Cell`s or atomics.
+/// Constructors are limited to only the integers, and not their aliased
+/// wrappers.
 impl<O, T> BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitStore + BitRegister,
+	T: BitRegister + BitStore,
 {
 	/// Constructs a shared `&BitSlice` reference over a shared element.
 	///
@@ -1380,9 +1388,9 @@ where
 	/// aliased by other handles. To gain access to all elements that the
 	/// `BitSlice` region covers, use one of the following:
 	///
-	/// - [`.as_aliased_slice`] produces a shared slice over all elements,
-	///   marked as aliased to allow for the possibliity of mutation.
-	/// - [`.domain_mut`] produces a view describing each component of the
+	/// - [`.as_slice()`] produces an immutable slice over all elements. Even
+	///   when `T` permits aliasing, this slice cannot be used to write into the
+	///   referent memory.
 	///   region, marking only the contended edges as aliased and the
 	///   uncontended interior as unaliased.
 	///
@@ -1419,7 +1427,7 @@ where
 	/// Splits the slice into the logical components of its memory domain.
 	///
 	/// This produces a set of read-only subslices, marking as much as possible
-	/// as affirmatively lacking any write-capable view (`T::NoAlias`). The
+	/// as affirmatively lacking any write-capable view ([`T::Mem`]). The
 	/// unaliased view is able to safely perform unsynchronized reads from
 	/// memory without causing undefined behavior, as the type system is able to
 	/// statically prove that no other write-capable views exist.
@@ -1433,44 +1441,11 @@ where
 	/// A `BitDomain` structure representing the logical components of the
 	/// memory region.
 	///
-	/// # Safety Exception
+	/// # Aliasing Edge Cases
 	///
-	/// The following snippet describes a means of constructing a `T::NoAlias`
-	/// view into memory that is, in fact, aliased:
-	///
-	/// ```rust
-	/// # #[cfg(feature = "atomic")] {
-	/// use bitvec::prelude::*;
-	/// use core::sync::atomic::AtomicU8;
-	/// type Bs<T> = BitSlice<LocalBits, T>;
-	///
-	/// let data = [AtomicU8::new(0), AtomicU8::new(0), AtomicU8::new(0)];
-	/// let bits: &Bs<AtomicU8> = data.view_bits::<LocalBits>();
-	/// let subslice: &Bs<AtomicU8> = &bits[4 .. 20];
-	///
-	/// let (_, noalias, _): (_, &Bs<u8>, _) =
-	///   subslice.bit_domain().region().unwrap();
-	/// # }
-	/// ```
-	///
-	/// The `noalias` reference, which has memory type `u8`, assumes that it can
-	/// act as an `&u8` reference: unsynchronized loads are permitted, as no
-	/// handle exists which is capable of modifying the middle bit of `data`.
-	/// This means that LLVM is permitted to issue loads from memory *wherever*
-	/// it wants in the block during which `noalias` is live, as all loads are
-	/// equivalent.
-	///
-	/// Use of the `bits` or `subslice` handles, which are still live for the
-	/// lifetime of `noalias`, to issue [`.set_aliased`] calls into the middle
-	/// element introduce **undefined behavior**. `bitvec` permits safe code to
-	/// introduce this undefined behavior solely because it requires deliberate
-	/// opt-in – you must start from atomic data; this cannot occur when `data`
-	/// is non-atomic – and use of the shared-mutation facility simultaneously
-	/// with the unaliasing view.
-	///
-	/// The [`.set_aliased`] method is speculative, and will be marked as
-	/// `unsafe` or removed at any suspicion that its presence in the library
-	/// has any costs.
+	/// When the `self` slice is marked as aliasing, the subslices produced by
+	/// this method retain their alias-safed read behavior, and disallow
+	/// modifying the memory they govern.
 	///
 	/// # Examples
 	///
@@ -1496,7 +1471,7 @@ where
 	/// # fn read_from<T: BitStore>(_: &BitSlice<LocalBits, T>) {}
 	/// ```
 	///
-	/// [`.set_aliased`]: #method.set_aliased
+	/// [`T::Mem`]: crate::store::BitStore::Mem
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn bit_domain(&self) -> BitDomain<O, T> {
@@ -1506,24 +1481,12 @@ where
 	/// Splits the slice into the logical components of its memory domain.
 	///
 	/// This produces a set of mutable subslices, marking as much as possible as
-	/// affirmatively lacking any other view (`T::Mem`). The bare view is able
+	/// affirmatively lacking any other view ([`T::Mem`]). The bare view is able
 	/// to safely perform unsynchronized reads from and writes to memory without
 	/// causing undefined behavior, as the type system is able to statically
 	/// prove that no other views exist.
 	///
-	/// # Why This Is More Sound Than `.bit_domain`
-	///
-	/// The `&mut` exclusion rule makes it impossible to construct two
-	/// references over the same memory where one of them is marked `&mut`. This
-	/// makes it impossible to hold a live reference to memory *separately* from
-	/// any references produced from this method. For the duration of all
-	/// references produced by this method, all ancestor references used to
-	/// reach this method call are either suspended or dead, and the compiler
-	/// will not allow you to use them.
-	///
-	/// As such, this method cannot introduce undefined behavior where a
-	/// reference incorrectly believes that the referent memory region is
-	/// immutable.
+	/// [`T::Mem`]: crate::store::BitStore::Mem
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn bit_domain_mut(&mut self) -> BitDomainMut<O, T> {
@@ -1545,16 +1508,11 @@ where
 	/// > It is not currently possible to forbid mutation through these
 	/// > references. This may change in the future.
 	///
-	/// # Safety Exception
+	/// # Aliased Edge Cases
 	///
-	/// As with [`.bit_domain`], this produces unsynchronized immutable
-	/// references over the fully-populated interior elements. If this view is
-	/// constructed from a `BitSlice` handle over atomic memory, then it will
-	/// remove the atomic access behavior for the interior elements. This *by
-	/// itself* is safe, as long as no contemporaneous atomic writes to that
-	/// memory can occur. You must not retain and use an atomic reference to the
-	/// memory region marked as `NoAlias` for the duration of this view’s
-	/// existence.
+	/// As with [`.bit_domain()`], the references to aliased edge elements
+	/// forbid mutation through them. The referent element may be modified by
+	/// other references, and the alias-aware load behavior is retained.
 	///
 	/// # Parameters
 	///
@@ -2034,7 +1992,7 @@ where
 impl<O, T> BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitStore + Radium<Item = <T as BitStore>::Mem>,
+	T: BitSafe + BitStore,
 {
 	/// Splits a mutable slice at some mid-point.
 	///

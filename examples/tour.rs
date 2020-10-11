@@ -7,22 +7,24 @@ This example prints **a lot** of text to the console.
 !*/
 
 #[cfg(feature = "std")]
-use bitvec::prelude::{
-	//  `bits!` macro
-	bits,
+use bitvec::{
 	//  memory information about the underlying type (for debugging info)
-	BitMemory,
-	//  element-traversal trait (you shouldn’t explicitly need this)
-	BitOrder,
-	//  slice type, analagous to `[u1]`
-	BitSlice,
-	//  trait unifying the primitives (you shouldn’t explicitly need this)
-	BitStore,
-	//  vector type, analagous to `Vec<u1>`
-	BitVec,
-	//  directionality type markers
-	Lsb0,
-	Msb0,
+	mem::BitMemory,
+	prelude::{
+		//  `bits!` macro
+		bits,
+		//  element-traversal trait (you shouldn’t explicitly need this)
+		BitOrder,
+		//  slice type, analagous to `[u1]`
+		BitSlice,
+		//  trait unifying the primitives (you shouldn’t explicitly need this)
+		BitStore,
+		//  vector type, analagous to `Vec<u1>`
+		BitVec,
+		//  directionality type markers
+		Lsb0,
+		Msb0,
+	},
 };
 
 #[cfg(feature = "std")]

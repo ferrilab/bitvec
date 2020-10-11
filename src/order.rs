@@ -19,13 +19,15 @@ cursor). Contiguity is not required.
 [`bitvec`]: crate
 !*/
 
-use crate::index::{
-	BitIdx,
-	BitMask,
-	BitPos,
-	BitRegister,
-	BitSel,
-	BitTail,
+use crate::{
+	index::{
+		BitIdx,
+		BitMask,
+		BitPos,
+		BitSel,
+		BitTail,
+	},
+	mem::BitRegister,
 };
 
 /** An ordering over a register.
@@ -75,14 +77,15 @@ Implementations are not required to remain contiguous over a register. This
 example swizzles the high and low nybbles of each byte, but any translation is
 valid as long as it satisfies the strict one-to-one requirement of
 index-to-position.
-
 **/
+///
 /// ```rust
 /// use bitvec::{
-///   index::{BitIdx, BitPos, BitRegister},
-///   order::{self, BitOrder},
+///   prelude::BitOrder,
+///   // Additional symbols:
+///   index::{BitIdx, BitPos},
+///   mem::BitRegister,
 /// };
-/// # use bitvec::{index::*, order::Lsb0};
 ///
 /// /// Swizzles YYYYMMDD into MMDDYYYY per byte
 /// pub struct AmericanDateStyle;
@@ -95,17 +98,15 @@ index-to-position.
 /// #[test]
 /// #[cfg(test)]
 /// fn prove_custom() {
-///   order::verify::<AmericanDateStyle>();
+///   bitvec::order::verify::<AmericanDateStyle>();
 /// }
 /// ```
-/**
-
-[`BitIdx`]: crate::index::BitIdx
-[`BitOrder::at`]: self::BitOrder::at
-[`BitPos`]: crate::index::BitPos
-[`bitvec`]: crate
-[`verify`]: crate::order::verify
-**/
+///
+/// [`BitIdx`]: crate::index::BitIdx
+/// [`BitOrder::at`]: self::BitOrder::at
+/// [`BitPos`]: crate::index::BitPos
+/// [`bitvec`]: crate
+/// [`verify`]: crate::order::verify
 pub unsafe trait BitOrder: 'static {
 	/// Converts a semantic bit index into an electrical bit position.
 	///
@@ -314,13 +315,13 @@ unsafe impl BitOrder for Msb0 {
 pub struct Lsb0;
 
 unsafe impl BitOrder for Lsb0 {
-	#[cfg_attr(not(tarpaulin), inline(always))]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn at<R>(index: BitIdx<R>) -> BitPos<R>
 	where R: BitRegister {
 		unsafe { BitPos::new_unchecked(index.value()) }
 	}
 
-	#[cfg_attr(not(tarpaulin), inline(always))]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn select<R>(index: BitIdx<R>) -> BitSel<R>
 	where R: BitRegister {
 		unsafe { BitSel::new_unchecked(R::ONE << index.value()) }
@@ -398,7 +399,7 @@ This panics if it detects any violation of the [`BitOrder`] implementation rules
 for `O`.
 
 [`BitOrder`]: crate::order::BitOrder
-[`BitRegister`]: crate::index::BitRegister
+[`BitRegister`]: crate::mem::BitRegister
 **/
 #[cfg(any(doc, test))]
 pub fn verify<O>(verbose: bool)
@@ -437,7 +438,7 @@ This panics if it detects any violation of the [`BitOrder`] implementation rules
 for the combination of input types and index values.
 
 [`BitOrder`]: crate::order::BitOrder
-[`BitRegister`]: crate::index::BitRegister
+[`BitRegister`]: crate::mem::BitRegister
 **/
 #[cfg(any(doc, test))]
 pub fn verify_for_type<O, R>(verbose: bool)
@@ -579,7 +580,7 @@ where
 #[cfg(all(test, not(miri)))]
 mod tests {
 	use super::*;
-	use crate::index::BitRegister;
+	use crate::mem::BitRegister;
 
 	#[test]
 	fn verify_impls() {

@@ -4,7 +4,10 @@
 !*/
 
 use crate::{
-	mem::BitMemory,
+	mem::{
+		BitMemory,
+		BitRegister,
+	},
 	order::BitOrder,
 	ptr::BitPtr,
 	slice::BitSlice,
@@ -40,7 +43,7 @@ use tap::{
 impl<O, T> BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	/// Constructs a new, empty `BitVec<O, T>`.
 	///
@@ -930,7 +933,7 @@ where
 	pub fn append<O2, T2>(&mut self, other: &mut BitVec<O2, T2>)
 	where
 		O2: BitOrder,
-		T2: BitStore,
+		T2: BitRegister + BitStore,
 	{
 		self.extend(other.iter().copied());
 		other.clear();

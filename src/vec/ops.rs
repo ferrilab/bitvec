@@ -4,35 +4,34 @@
 !*/
 
 use crate::{
-	devel as dvl,
+	mem::BitRegister,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
 	vec::BitVec,
 };
 
-use core::{
-	mem::ManuallyDrop,
-	ops::{
-		BitAnd,
-		BitAndAssign,
-		BitOr,
-		BitOrAssign,
-		BitXor,
-		BitXorAssign,
-		Deref,
-		DerefMut,
-		Index,
-		IndexMut,
-		Not,
-	},
+use alloc::vec::Vec;
+
+use core::ops::{
+	BitAnd,
+	BitAndAssign,
+	BitOr,
+	BitOrAssign,
+	BitXor,
+	BitXorAssign,
+	Deref,
+	DerefMut,
+	Index,
+	IndexMut,
+	Not,
 };
 
 #[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitAnd<Rhs> for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	BitSlice<O, T>: BitAndAssign<Rhs>,
 {
 	type Output = Self;
@@ -48,7 +47,7 @@ where
 impl<O, T, Rhs> BitAndAssign<Rhs> for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	BitSlice<O, T>: BitAndAssign<Rhs>,
 {
 	#[inline]
@@ -61,7 +60,7 @@ where
 impl<O, T, Rhs> BitOr<Rhs> for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	BitSlice<O, T>: BitOrAssign<Rhs>,
 {
 	type Output = Self;
@@ -77,7 +76,7 @@ where
 impl<O, T, Rhs> BitOrAssign<Rhs> for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	BitSlice<O, T>: BitOrAssign<Rhs>,
 {
 	#[inline]
@@ -90,7 +89,7 @@ where
 impl<O, T, Rhs> BitXor<Rhs> for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	BitSlice<O, T>: BitXorAssign<Rhs>,
 {
 	type Output = Self;
@@ -106,7 +105,7 @@ where
 impl<O, T, Rhs> BitXorAssign<Rhs> for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	BitSlice<O, T>: BitXorAssign<Rhs>,
 {
 	#[inline]
@@ -119,7 +118,7 @@ where
 impl<O, T> Deref for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	type Target = BitSlice<O, T>;
 
@@ -133,7 +132,7 @@ where
 impl<O, T> DerefMut for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	#[inline(always)]
 	fn deref_mut(&mut self) -> &mut Self::Target {
@@ -144,7 +143,7 @@ where
 impl<O, T> Drop for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	#[inline]
 	fn drop(&mut self) {
@@ -159,7 +158,7 @@ where
 impl<O, T, Idx> Index<Idx> for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	BitSlice<O, T>: Index<Idx>,
 {
 	type Output = <BitSlice<O, T> as Index<Idx>>::Output;
@@ -174,7 +173,7 @@ where
 impl<O, T, Idx> IndexMut<Idx> for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	BitSlice<O, T>: IndexMut<Idx>,
 {
 	#[inline]
@@ -191,13 +190,13 @@ on the value of bits in the buffer that are outside the domain of
 impl<O, T> Not for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 {
 	type Output = Self;
 
 	#[inline]
 	fn not(mut self) -> Self::Output {
-		for elem in self.as_mut_slice().iter_mut().map(dvl::mem_mut) {
+		for elem in self.as_mut_slice() {
 			*elem = !*elem;
 		}
 		self

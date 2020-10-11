@@ -6,7 +6,7 @@
 
 [package]
 name = "bitvec"
-version = "0.19.3"
+version = "0.20.0"
 authors = [
 	"myrrlyn <self@myrrlyn.dev>",
 ]
@@ -88,7 +88,7 @@ features = [
 
 [badges.codecov]
 repository = "myrrlyn/bitvec"
-branch = "master"
+branch = "develop"
 service = "github"
 
 [badges.is-it-maintained-issue-resolution]

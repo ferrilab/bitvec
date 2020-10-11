@@ -25,11 +25,11 @@ generic type system of any library without undue effort.
 !*/
 
 use crate::{
-	index::{
-		BitIdx,
+	index::BitIdx,
+	mem::{
+		BitMemory,
 		BitRegister,
 	},
-	mem::BitMemory,
 	order::BitOrder,
 	ptr::BitPtr,
 	slice::BitSlice,
@@ -131,7 +131,7 @@ pub trait BitView {
 
 #[cfg(not(tarpaulin_include))]
 impl<T> BitView for T
-where T: BitStore + BitRegister
+where T: BitRegister + BitStore
 {
 	type Store = Self;
 
@@ -156,7 +156,7 @@ where T: BitStore + BitRegister
 
 #[cfg(not(tarpaulin_include))]
 impl<T> BitView for [T]
-where T: BitStore + BitRegister
+where T: BitRegister + BitStore
 {
 	type Store = T;
 
@@ -184,7 +184,7 @@ where T: BitStore + BitRegister
 
 #[cfg(not(tarpaulin_include))]
 impl<T> BitView for [T; 0]
-where T: BitStore
+where T: BitRegister + BitStore
 {
 	type Store = T;
 
@@ -212,7 +212,7 @@ macro_rules! view_bits {
 	($($n:expr),+ $(,)?) => { $(
 		#[cfg(not(tarpaulin_include))]
 		impl<T> BitView for [T; $n]
-		where T: BitStore {
+		where T: BitRegister + BitStore {
 			type Store = T;
 
 			#[inline]

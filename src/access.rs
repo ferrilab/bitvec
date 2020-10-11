@@ -17,19 +17,31 @@ use crate::{
 	index::{
 		BitIdx,
 		BitMask,
-		BitRegister,
 	},
+	mem::BitRegister,
 	order::BitOrder,
 };
 
 use core::{
+	cell::Cell,
 	fmt::Debug,
 	sync::atomic::Ordering,
 };
 
 use radium::Radium;
 
-/** Access interface to memory locations.
+#[cfg(feature = "atomic")]
+use core::sync::atomic::{
+	AtomicU16,
+	AtomicU32,
+	AtomicU8,
+	AtomicUsize,
+};
+
+#[cfg(all(feature = "atomic", target_pointer_width = "64"))]
+use core::sync::atomic::AtomicU64;
+
+/** Selects instructions used when accessing a memory location.
 
 This trait abstracts over the specific instructions used to perform accesses to
 memory locations, so that use sites elsewhere in the crate can select their
@@ -302,7 +314,7 @@ where <Self as Radium>::Item: BitRegister
 	/// Rust memory model, even if it may not be technically undefined.
 	#[inline]
 	unsafe fn store_value(&self, value: <Self as Radium>::Item) {
-		self.store(value, Ordering::Relaxed)
+		self.store(value, Ordering::Relaxed);
 	}
 }
 
@@ -312,6 +324,123 @@ where
 	<Self as Radium>::Item: BitRegister,
 {
 }
+
+/** Restricts external code from modifying a memory element to which they lack
+exclusive access. This permits the propagation of `&`/`&mut` mutability rules
+even to types that may allow shared mutation.
+**/
+pub trait BitSafe: Debug + Sized {
+	/// The register type contained within this wrapper.
+	type Mem: BitRegister;
+
+	/// Marks a value as alias-safed.
+	fn new(value: Self::Mem) -> Self;
+
+	/// Reads the value out of memory only if a shared reference to the location
+	/// can be produced.
+	fn load(&self) -> Self::Mem;
+
+	/// Writes a value into memory only if an exclusive reference to the
+	/// location can be produced.
+	fn store(&mut self, value: Self::Mem);
+
+	/// Removes the alias-safety marker.
+	#[inline(always)]
+	fn value(self) -> Self::Mem {
+		self.load()
+	}
+}
+
+macro_rules! safe {
+	($($t:ident => $cw:ident => $aw:ident => $a:ident),+ $(,)?) => { $(
+		/// A wrapper over a [`Cell`] that forbids writing to the location
+		/// except through an exclusive reference.
+		///
+		/// This is necessary in order to enforce [`bitvec`]’s memory model,
+		/// which disallows shared mutation to individual bits. [`BitSlice`]s
+		/// may produce memory views that use this type in order to ensure that
+		/// any other views that alias its memory can be assured that no racing
+		/// mutation occurs.
+		///
+		/// [`BitSlice`]: crate::slice::BitSlice
+		/// [`bitvec`]: crate
+		/// [`Cell`]: core::cell::Cell
+		#[derive(Debug)]
+		#[repr(transparent)]
+		pub struct $cw {
+			inner: Cell<$t>,
+		}
+
+		/// A wrapper over an [`atom`] that forbids writing to the location
+		/// except through an exclusive reference.
+		///
+		/// This is necessary in order to enforce [`bitvec`]’s memory model,
+		/// which disallows shared mutation to individual bits. [`BitSlice`]s
+		/// may produce memory views that use this type in order to ensure that
+		/// any other views that alias its memory can be assured that no racing
+		/// mutation occurs.
+		///
+		/// [`BitSlice`]: crate::slice::BitSlice
+		/// [`atom`]: core::sync::atomic
+		/// [`bitvec`]: crate
+		#[derive(Debug)]
+		#[repr(transparent)]
+		#[cfg(feature = "atomic")]
+		pub struct $aw {
+			inner: $a,
+		}
+
+		impl BitSafe for $cw {
+			type Mem = $t;
+
+			#[inline(always)]
+			fn new(value: $t) -> Self {
+				Self { inner: Cell::new(value) }
+			}
+
+			#[inline(always)]
+			fn load(&self) -> $t {
+				self.inner.get()
+			}
+
+			#[inline(always)]
+			fn store(&mut self, value: $t) {
+				self.inner.set(value);
+			}
+		}
+
+		#[cfg(feature = "atomic")]
+		impl BitSafe for $aw {
+			type Mem = $t;
+
+			#[inline(always)]
+			fn new(value: $t) -> Self {
+				Self { inner: $a::new(value) }
+			}
+
+			#[inline(always)]
+			fn load(&self) -> $t {
+				self.inner.load(Ordering::Relaxed)
+			}
+
+			#[inline(always)]
+			fn store(&mut self, value: $t) {
+				self.inner.store(value, Ordering::Relaxed);
+			}
+		}
+	)+ };
+}
+
+safe! {
+	u8 => BitSafeCellU8 => BitSafeAtomU8 => AtomicU8,
+	u16 => BitSafeCellU16 => BitSafeAtomU16 => AtomicU16,
+	u32 => BitSafeCellU32 => BitSafeAtomU32 => AtomicU32,
+}
+
+#[cfg(target_pointer_width = "64")]
+safe!(u64 => BitSafeCellU64 => BitSafeAtomU64 => AtomicU64);
+
+safe!(usize => BitSafeCellUsize => BitSafeAtomUsize => AtomicUsize);
 
 #[cfg(test)]
 mod tests {
@@ -323,6 +452,7 @@ mod tests {
 		let mut data = 0u8;
 		let bits = data.view_bits_mut::<LocalBits>();
 		let accessor = unsafe { &*(bits.bitptr().pointer().to_access()) };
+		let aliased = unsafe { &*(bits.bitptr().pointer().to_alias()) };
 
 		BitAccess::set_bit::<Lsb0>(accessor, BitIdx::ZERO);
 		assert_eq!(accessor.get(), 1);
@@ -341,7 +471,7 @@ mod tests {
 		BitAccess::invert_bits(accessor, BitMask::ALL);
 		assert_eq!(accessor.get(), !1);
 
-		assert!(!BitStore::get_bit::<Lsb0>(accessor, BitIdx::ZERO));
+		assert!(!BitStore::get_bit::<Lsb0>(aliased, BitIdx::ZERO));
 		assert_eq!(accessor.get(), !1);
 
 		BitAccess::write_bit::<Lsb0>(accessor, BitIdx::new(1).unwrap(), false);
@@ -351,7 +481,7 @@ mod tests {
 		assert_eq!(accessor.get(), !0);
 		BitAccess::write_bits(accessor, Lsb0::mask(BitIdx::new(2), None), false);
 		assert_eq!(
-			BitStore::get_bits(accessor, Lsb0::mask(BitIdx::new(2), None)),
+			BitStore::get_bits(aliased, Lsb0::mask(BitIdx::new(2), None)),
 			0
 		);
 		assert_eq!(accessor.get(), 3);
@@ -368,8 +498,6 @@ mod tests {
 	#[test]
 	#[cfg(not(miri))]
 	fn sanity_check_prefetch() {
-		use core::cell::Cell;
-
 		assert_eq!(
 			<Cell<u8> as BitAccess>::get_writer::<Msb0>(false) as *const (),
 			<Cell<u8> as BitAccess>::clear_bit::<Msb0> as *const ()

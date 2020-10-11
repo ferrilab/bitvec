@@ -9,12 +9,14 @@ use core::mem;
 
 use funty::IsUnsigned;
 
+use radium::marker::BitOps;
+
 /** Description of an integer type.
 
 This trait provides information used to describe integer-typed regions of memory
 and enables other parts of the crate to adequately describe the memory bus. This
 trait has **no** bearing on the processor instructions or registers used to
-interact with memory.
+interact with memory. It solely describes integers that can exist on a system.
 
 This trait cannot be implemented outside this crate.
 **/
@@ -22,10 +24,10 @@ pub trait BitMemory: IsUnsigned + seal::Sealed {
 	/// The bit width of the integer.
 	///
 	/// [`mem::size_of`] returns the size in bytes, and bytes are always eight
-	/// bits on architectures Rust targets.
+	/// bits wide on architectures that Rust supports.
 	///
-	/// Issue #76904 will place this constant on the fundamentals directly, as a
-	/// `u32`.
+	/// Issue #76904 will place this constant on the fundamental integers
+	/// directly, as a `u32`.
 	///
 	/// [`mem::size_of`]: core::mem::size_of
 	const BITS: u8 = mem::size_of::<Self>() as u8 * 8;
@@ -33,7 +35,10 @@ pub trait BitMemory: IsUnsigned + seal::Sealed {
 	const INDX: u8 = Self::BITS.trailing_zeros() as u8;
 	/// A mask over all bits that can be used as an index within the element.
 	const MASK: u8 = Self::BITS - 1;
+}
 
+/// Marks that an integer can be used in a processor register.
+pub trait BitRegister: BitMemory + BitOps {
 	/// The value with only its least significant bit set to `1`.
 	const ONE: Self;
 	/// The value with all of its bits set to `1`.
@@ -41,16 +46,37 @@ pub trait BitMemory: IsUnsigned + seal::Sealed {
 }
 
 macro_rules! memory {
-	($($t:ty),+ $(,)?) => { $(
-		impl BitMemory for $t {
-			const ONE: Self = 1;
-			const ALL: Self = !0;
-		}
+	($($t:ident),+ $(,)?) => { $(
+		impl BitMemory for $t {}
 		impl seal::Sealed for $t {}
 	)+ };
 }
 
 memory!(u8, u16, u32, u64, u128, usize);
+
+macro_rules! register {
+	($($t:ident),+ $(,)?) => { $(
+		impl BitRegister for $t {
+			const ONE: Self = 1;
+			const ALL: Self = !0;
+		}
+	)+ };
+}
+
+register!(u8, u16, u32);
+
+/** `u64` can only be used as a register on processors whose word size is at
+least 64 bits.
+
+This implementation is not present on targets with 32-bit processor words.
+**/
+#[cfg(target_pointer_width = "64")]
+impl BitRegister for u64 {
+	const ALL: Self = !0;
+	const ONE: Self = 1;
+}
+
+register!(usize);
 
 /** Computes the number of elements required to store some number of bits.
 

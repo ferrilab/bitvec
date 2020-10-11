@@ -34,8 +34,10 @@ use crate::{
 	array::BitArray,
 	devel as dvl,
 	domain::Domain,
-	index::BitRegister,
-	mem::BitMemory,
+	mem::{
+		BitMemory,
+		BitRegister,
+	},
 	order::BitOrder,
 	ptr::BitPtr,
 	slice::BitSlice,
@@ -119,6 +121,7 @@ impl<O, V> Serialize for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
+	V::Store: BitRegister,
 	<V::Store as BitStore>::Mem: Serialize,
 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -132,7 +135,7 @@ where
 impl<O, T> Serialize for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	T::Mem: Serialize,
 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -146,7 +149,7 @@ where
 impl<O, T> Serialize for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	T::Mem: Serialize,
 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -158,7 +161,7 @@ where
 impl<'de, O, T> Deserialize<'de> for BitArray<O, T>
 where
 	O: BitOrder,
-	T: BitStore + BitRegister,
+	T: BitRegister + BitStore,
 	T::Mem: Deserialize<'de>,
 {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -176,7 +179,7 @@ macro_rules! deser_array {
 		impl<'de, O, T> Deserialize<'de> for BitArray<O, [T; $n]>
 		where
 			O: BitOrder,
-			T: BitStore,
+			T: BitRegister + BitStore,
 			T::Mem: Deserialize<'de>
 		{
 			fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -205,7 +208,7 @@ deser_array!(
 struct BitVecVisitor<'de, O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	T::Mem: Deserialize<'de>,
 {
 	_lt: PhantomData<&'de ()>,
@@ -216,7 +219,7 @@ where
 impl<'de, O, T> BitVecVisitor<'de, O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	T::Mem: Deserialize<'de>,
 {
 	const THIS: Self = Self {
@@ -284,7 +287,7 @@ where
 impl<'de, O, T> Visitor<'de> for BitVecVisitor<'de, O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	T::Mem: Deserialize<'de>,
 {
 	type Value = BitVec<O, T>;
@@ -355,7 +358,7 @@ where
 impl<'de, O, T> Deserialize<'de> for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	T::Mem: Deserialize<'de>,
 {
 	#[inline]
@@ -371,7 +374,7 @@ where
 impl<'de, O, T> Deserialize<'de> for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
+	T: BitRegister + BitStore,
 	T::Mem: Deserialize<'de>,
 {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

@@ -90,7 +90,7 @@ macro_rules! bit_domain {
 		pub enum $t <'a, O, T>
 		where
 			O: BitOrder,
-			T: BitStore
+			T: BitStore,
 		{
 			/// Indicates that a [`BitSlice`] is contained entirely in the
 			/// interior indices of a single memory element.

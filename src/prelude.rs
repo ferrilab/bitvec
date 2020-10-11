@@ -46,7 +46,6 @@ pub use crate::{
 	bitarr,
 	bits,
 	field::BitField,
-	mem::BitMemory,
 	order::{
 		BitOrder,
 		LocalBits,

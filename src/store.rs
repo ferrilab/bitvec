@@ -1,19 +1,24 @@
 /*! Memory modeling.
 
-This module provides a [`BitStore`] trait, which mediates how handles access
-memory and perform analysis on the regions they describe.
+This module provides a [`BitStore`] trait, which describes the register width
+and alias condition of memory underlying a [`BitSlice`] region. This trait is
+used to handle all access to memory and transformation of alias status for the
+regions.
 
+[`BitSlice`]: crate::slice::BitSlice
 [`BitStore`]: self::BitStore
 !*/
 
 use crate::{
-	access::BitAccess,
+	access::*,
 	index::{
 		BitIdx,
 		BitMask,
+	},
+	mem::{
+		self,
 		BitRegister,
 	},
-	mem,
 	order::BitOrder,
 };
 
@@ -22,7 +27,16 @@ use core::{
 	fmt::Debug,
 };
 
-use radium::Radium;
+#[cfg(feature = "atomic")]
+use core::sync::atomic::{
+	AtomicU16,
+	AtomicU32,
+	AtomicU8,
+	AtomicUsize,
+};
+
+#[cfg(all(feature = "atomic", target_pointer_width = "64"))]
+use core::sync::atomic::AtomicU64;
 
 /** Common interface for memory regions.
 
@@ -77,10 +91,8 @@ This trait has requirements that better express its behavior:
 - `'static`: Implementors never contain references.
 - `Sealed` prevents it from being implemented by downstream libraries (`Sealed`
   is a public trait in a private module, that only this crate can name).
-- [`Sized`] instructs the compiler that values of this type can be used as
-  immediates.
 - [`Debug`] informs the compiler that other structures using this trait bound
-  can correctly derive `Debug`.
+can correctly derive `Debug`.
 
 [`Alias`]: Self::Alias
 [`Atomic`]: core::sync::atomic
@@ -91,37 +103,15 @@ This trait has requirements that better express its behavior:
 [`Sized`]: core::marker::Sized
 [`bitvec`]: crate
 **/
-pub trait BitStore: 'static + seal::Sealed + Sized + Debug {
+pub trait BitStore: 'static + seal::Sealed + Debug {
 	/// The register type that the implementor describes.
 	type Mem: BitRegister + BitStore;
 
-	/// The modifier type over `Self::Mem` used to perform memory access.
+	/// The type used to perform memory access to a `Self::Mem` region.
 	type Access: BitAccess<Item = Self::Mem>;
 
-	/// A sibling `BitStore` implementor that performs alias-aware memory
-	/// access.
-	///
-	/// While the associated type always has the same `Mem` concrete type as
-	/// `Self`, attempting to encode this requirement as `<Mem = Self::Mem>`
-	/// causes Rust to enter an infinite recursion in the trait solver.
-	type Alias: BitStore + Radium<Item = Self::Mem>;
-
-	/// Marker for the thread safety of the implementor.
-	///
-	/// This is necessary because `Cell<T: Send>` is `Send`, but `Cell` does not
-	/// use synchronization instructions and thus cannot be used for aliased
-	/// parallelized memory manipulation.
-	#[doc(hidden)]
-	type Threadsafe;
-
-	/// Require that all implementors are aligned to their width.
-	#[doc(hidden)]
-	const __ALIGNED_TO_SIZE: [(); 0];
-
-	/// Require that the `::Alias` associated type has the same width and
-	/// alignment as `Self`.
-	#[doc(hidden)]
-	const __ALIAS_WIDTH: [(); 0];
+	/// A sibling `BitStore` implementor used when a region becomes aliased.
+	type Alias: BitSafe<Mem = Self::Mem> + BitStore<Mem = Self::Mem>;
 
 	/// Copies a memory element into the caller’s local context.
 	///
@@ -174,26 +164,51 @@ pub trait BitStore: 'static + seal::Sealed + Sized + Debug {
 	fn get_bits(&self, mask: BitMask<Self::Mem>) -> Self::Mem {
 		self.load_value() & mask.value()
 	}
+
+	/// Marker for the thread safety of the implementor.
+	///
+	/// This is necessary because `Cell<T: Send>` is `Send`, but `Cell` does not
+	/// use synchronization instructions and thus cannot be used for aliased
+	/// parallelized memory manipulation.
+	#[doc(hidden)]
+	type Threadsafe;
+
+	/// Require that all implementors are aligned to their width.
+	#[doc(hidden)]
+	const __ALIGNED_TO_SIZE: [(); 0];
+
+	/// Require that the `::Alias` associated type has the same width and
+	/// alignment as `Self`.
+	#[doc(hidden)]
+	const __ALIAS_WIDTH: [(); 0];
 }
 
 /// Batch implementation of `BitStore` for appropriate types.
 macro_rules! store {
-	($($t:ty => $a:ty),+ $(,)?) => { $(
+	($($t:ident => $cw:ident => $aw:ident => $a:ident),+ $(,)?) => { $(
 		impl BitStore for $t {
+			type Mem = $t;
 			/// The unsigned integers will only be `BitStore` type parameters
 			/// for handles to unaliased memory, following the normal Rust
 			/// reference rules.
-			type Access = Cell<Self>;
+			type Access = Cell<$t>;
 
-			/// In atomic builds, use `radium`’s best-effort atomic export.
+			/// In atomic builds, use the safed [atomic] wrapper.
+			///
+			/// [atomic]: core::sync::atomic
 			#[cfg(feature = "atomic")]
-			type Alias = $a;
+			type Alias = $aw;
 
-			/// In non-atomic builds, use cell wrappers for aliased access.
+			/// In non-atomic builds, use the safed [`Cell`] wrapper.
+			///
+			/// [`Cell`]: core::cell::Cell
 			#[cfg(not(feature = "atomic"))]
-			type Alias = Cell<Self>;
+			type Alias = $cw;
 
-			type Mem = Self;
+			#[inline(always)]
+			fn load_value(&self) -> $t {
+				*self
+			}
 
 			#[doc(hidden)]
 			type Threadsafe = Self;
@@ -203,20 +218,40 @@ macro_rules! store {
 
 			#[doc(hidden)]
 			const __ALIAS_WIDTH: [(); 0] = [(); mem::cmp_layout::<Self::Mem, Self::Alias>()];
+		}
+
+		impl BitStore for $cw {
+			type Mem = $t;
+			type Access = Cell<$t>;
+			type Alias = $cw;
 
 			#[inline(always)]
-			fn load_value(&self) -> Self::Mem {
-				*self
+			fn load_value(&self) -> $t {
+				self.load()
 			}
+
+			/// Raw pointers are never threadsafe, so this prevents handles using
+			/// `Cell` wrappers from crossing thread boundaries.
+			#[doc(hidden)]
+			type Threadsafe = *const Self;
+
+			// If these are true for `R: BitRegister`, then they are true for `Cell<R>`.
+			#[doc(hidden)]
+			const __ALIAS_WIDTH: [(); 0] = [];
+			#[doc(hidden)]
+			const __ALIGNED_TO_SIZE: [(); 0] = [];
 		}
 
 		#[cfg(feature = "atomic")]
-		impl BitStore for $a {
-			type Access = Self;
-
-			type Alias = Self;
-
+		impl BitStore for $aw {
 			type Mem = $t;
+			type Access = $a;
+			type Alias = $aw;
+
+			#[inline(always)]
+			fn load_value(&self) -> $t {
+				self.load()
+			}
 
 			#[doc(hidden)]
 			type Threadsafe = Self;
@@ -226,59 +261,26 @@ macro_rules! store {
 
 			#[doc(hidden)]
 			const __ALIAS_WIDTH: [(); 0] = [(); mem::cmp_layout::<Self::Mem, Self::Alias>()];
-
-			#[inline(always)]
-			fn load_value(&self) -> Self::Mem {
-				Self::load(self, core::sync::atomic::Ordering::Relaxed)
-			}
 		}
 
 		impl seal::Sealed for $t {}
+		impl seal::Sealed for $cw {}
 
 		#[cfg(feature = "atomic")]
-		impl seal::Sealed for $a {}
+		impl seal::Sealed for $aw {}
 	)+ };
 }
 
-store!(
-	u8 => core::sync::atomic::AtomicU8,
-	u16 => core::sync::atomic::AtomicU16,
-	u32 => core::sync::atomic::AtomicU32,
-);
+store! {
+	u8 => BitSafeCellU8 => BitSafeAtomU8 => AtomicU8,
+	u16 => BitSafeCellU16 => BitSafeAtomU16 => AtomicU16,
+	u32 => BitSafeCellU32 => BitSafeAtomU32 => AtomicU32,
+}
 
 #[cfg(target_pointer_width = "64")]
-store!(u64 => core::sync::atomic::AtomicU64);
+store!(u64 => BitSafeCellU64 => BitSafeAtomU64 => AtomicU64);
 
-store!(usize => core::sync::atomic::AtomicUsize);
-
-impl<R> BitStore for Cell<R>
-where
-	Self: Radium<Item = R>,
-	R: BitRegister,
-{
-	type Access = Self;
-	type Alias = Self;
-	type Mem = R;
-	/// Raw pointers are never threadsafe, so this prevents handles using
-	/// `Cell<_>` type parameters from crossing thread boundaries.
-	#[doc(hidden)]
-	type Threadsafe = *const Self;
-
-	// If these are true for `R: BitRegister`, then they are true for `Cell<R>`.
-	#[doc(hidden)]
-	const __ALIAS_WIDTH: [(); 0] = [];
-	#[doc(hidden)]
-	const __ALIGNED_TO_SIZE: [(); 0] = [];
-
-	#[inline(always)]
-	fn load_value(&self) -> Self::Mem {
-		self.get()
-	}
-}
-
-impl<R> seal::Sealed for Cell<R> where R: BitRegister
-{
-}
+store!(usize => BitSafeCellUsize => BitSafeAtomUsize => AtomicUsize);
 
 #[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
 compile_fail!(concat!(
@@ -301,8 +303,11 @@ mod seal {
 #[cfg(test)]
 #[cfg(not(tarpaulin_include))]
 mod tests {
-	use crate::prelude::*;
-	use core::cell::Cell;
+	use crate::{
+		access::*,
+		prelude::*,
+	};
+
 	use static_assertions::*;
 
 	#[test]
@@ -341,12 +346,12 @@ mod tests {
 		}
 
 		//  `Cell`s are never threadsafe.
-		assert_not_impl_any!(BitSlice<LocalBits, Cell<u8>>: Send, Sync);
-		assert_not_impl_any!(BitSlice<LocalBits, Cell<u16>>: Send, Sync);
-		assert_not_impl_any!(BitSlice<LocalBits, Cell<u32>>: Send, Sync);
-		assert_not_impl_any!(BitSlice<LocalBits, Cell<usize>>: Send, Sync);
+		assert_not_impl_any!(BitSlice<LocalBits, BitSafeCellU8>: Send, Sync);
+		assert_not_impl_any!(BitSlice<LocalBits, BitSafeCellU16>: Send, Sync);
+		assert_not_impl_any!(BitSlice<LocalBits, BitSafeCellU32>: Send, Sync);
+		assert_not_impl_any!(BitSlice<LocalBits, BitSafeCellUsize>: Send, Sync);
 
 		#[cfg(target_pointer_width = "64")]
-		assert_not_impl_any!(BitSlice<LocalBits, Cell<u64>>: Send, Sync);
+		assert_not_impl_any!(BitSlice<LocalBits, BitSafeCellU64>: Send, Sync);
 	}
 }

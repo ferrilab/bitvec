@@ -15,6 +15,7 @@ as a type capable of being used in immediate value position, and delegates to
 !*/
 
 use crate::{
+	mem::BitRegister,
 	order::{
 		BitOrder,
 		Lsb0,
@@ -151,6 +152,7 @@ pub struct BitArray<O = Lsb0, V = usize>
 where
 	O: BitOrder,
 	V: BitView + Sized,
+	V::Store: BitRegister,
 {
 	/// Bit ordering when viewed as a bitslice.
 	_ord: PhantomData<O>,
@@ -162,6 +164,7 @@ impl<O, V> BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView + Sized,
+	V::Store: BitRegister,
 {
 	/// Constructs a new `BitArray` with zeroed memory.
 	#[inline(always)]
