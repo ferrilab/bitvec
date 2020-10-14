@@ -1,20 +1,21 @@
-/*! Representation of the [`BitSlice`] region memory model.
+/*! Representations of the [`BitSlice`] region memory model.
 
-This module allows any [`BitSlice`] region to be decomposed into domains with
-more detailed aliasing information.
+This module allows any [`BitSlice`] region to be decomposed into domains that
+restricts [`T::Alias`] markers to only the edge elements that may require them.
 
-Specifically, any particular [`BitSlice`] region is one of:
+Specifically, any given [`BitSlice`] region is one of:
 
 - touches only interior indices of one element
 - touches at least one edge index of any number of elements (including zero)
 
 In the latter case, any elements *completely* spanned by the [`BitSlice`] handle
-are known to not have any other write-capable views to them, and in the case of
-an `&mut BitSlice` handle specifically, no other views at all. As such, the
+are known to not have any other write-capable handles to them, and in the case
+of an `&mut BitSlice` handle specifically, no other views at all. As such, the
 domain view of this memory is able to remove the aliasing marker type and permit
-direct memory access for the duration of its existence.
+direct memory access to the underlying buffer for the duration of its existence.
 
 [`BitSlice`]: crate::slice::BitSlice
+[`T::Alias`]: crate::store::BitStore::Alias
 !*/
 
 use crate::{
@@ -54,18 +55,24 @@ macro_rules! bit_domain {
 		/// [`BitSlice`].
 		///
 		/// [`BitSlice`] regions can be described in terms of edge and center
-		/// elements, where the edge elements retain the aliasing status of the
-		/// source `BitSlice` handle, and the center elements are known to be
-		/// completely unaliased by any other view. This property allows any
-		/// `BitSlice` handle to be decomposed into smaller regions, and safely
-		/// remove any aliasing markers from the subregion of memory that no
-		/// longer requires them for correct access.
+		/// partitions, where the edge partitions must retain the aliasing
+		/// status of the source `BitSlice` handle, and the center partition is
+		/// known to be completely unaliased by any other view. This property
+		/// allows any `BitSlice` handle to be decomposed into smaller regions,
+		/// and safely remove any aliasing markers from the center partition
+		/// that no longer requires such safeguarding.
 		///
 		/// This enum acts like the `.split*` methods in that it only subdivides
 		/// the source [`BitSlice`] into smaller `BitSlice`s, and makes
-		/// appropriate modifications to the aliasing markers. It does not
-		/// provide references to the underlying memory elements. If you need
-		/// such access directly, use the [`Domain`] or [`DomainMut`] enums.
+		/// appropriate modifications to the aliasing markers.
+		///
+		/// It does not add any aliasing markers: if the slice is marked as
+		/// aliased, then the edge partitions will retain that marker, and if it
+		/// is not, then the edge partitions do not need it.
+		///
+		/// This does not provide references to the underlying memory buffer. If
+		/// you need such direct access, use the [`Domain`] or [`DomainMut`]
+		/// enums.
 		///
 		/// # Lifetimes
 		///
@@ -74,8 +81,8 @@ macro_rules! bit_domain {
 		/// # Type Parameters
 		///
 		/// - `O`: The ordering type of the source [`BitSlice`] handle.
-		/// - `T`: The element type of the source [`BitSlice`] handle, including
-		///   aliasing markers.
+		/// - `T`: The register type of the source [`BitSlice`] handle,
+		///   including any aliasing markers.
 		///
 		/// # Aliasing Awareness
 		///
@@ -93,7 +100,7 @@ macro_rules! bit_domain {
 			T: BitStore,
 		{
 			/// Indicates that a [`BitSlice`] is contained entirely in the
-			/// interior indices of a single memory element.
+			/// interior indices of a single memory register.
 			///
 			/// [`BitSlice`]: crate::slice::BitSlice
 			Enclave {
@@ -382,18 +389,18 @@ macro_rules! domain {
 		/// [`BitSlice`].
 		///
 		/// [`BitSlice`] regions can be described in terms of edge and center
-		/// elements, where the edge elements retain the aliasing status of the
-		/// source `BitSlice` handle, and the center elements are known to be
-		/// completely unaliased by any other view. This property allows any
-		/// `BitSlice` handle to be decomposed into smaller regions, and safely
-		/// remove any aliasing markers from the subregion of memory that no
-		/// longer requires them for correct access.
+		/// partitions, where the edge partitions must retain the aliasing
+		/// status of the source `BitSlice` handle, and the center partition is
+		/// known to be completely unaliased by any other view. This property
+		/// allows any `BitSlice` handle to be decomposed into smaller regions,
+		/// and safely remove any aliasing markers from the center partition
+		/// that no longer requires such safeguarding.
 		///
-		/// This enum splits the element region backing a [`BitSlice`] into
-		/// maybe-aliased and known-unaliased subslices. If you do not need to
-		/// work directly with the memory elements, and only need to firmly
-		/// specify the aliasing status of a `BitSlice`, see the [`BitDomain`]
-		/// and [`BitDomainMut`] enums.
+		/// This enum splits the underlying element slice `[T]` into the
+		/// maybe-aliased edge elements and known-unaliased center elements. If
+		/// you do not need to work with the memory elements directly, and only
+		/// need to firmly specify the access behavior of the [`BitSlice`]
+		/// handle, use the [`BitDomain`] and [`BitDomainMut`] enums.
 		///
 		/// # Lifetimes
 		///
@@ -401,17 +408,18 @@ macro_rules! domain {
 		///
 		/// # Type Parameters
 		///
-		/// - `T`: The element type of the source [`BitSlice`] handle, including
-		///   aliasing markers.
+		/// - `T`: The register type of the source [`BitSlice`] handle,
+		///   including any aliasing markers.
 		///
 		/// # Mutability
 		///
-		/// This produces [`T::Access`] references when mutable, rather than
-		/// [`T::Alias`], because it must produce shared write-capable
-		/// references. The `bitvec` memory model requires only that
-		/// write-capable references be created through `&mut` exclusive
-		/// `bitvec` references, and `DomainMut` is only produced from
-		/// `&mut BitSlice` references.
+		/// The immutable view produces [`T::Alias`] references, which permit
+		/// foreign writes to the referent location but disallow writes through
+		/// itself. The mutable view produces [`T::Access`] references, because
+		/// `&mut _` references can only ever be produced when no other aliasing
+		/// handle exists. The write permissions must be weakened from
+		/// `&mut T::Alias` to `&T::Access` in order to satisfy the Rust memory
+		/// rules.
 		///
 		/// The edge references do not forbid modifying bits outside of the
 		/// source [`BitSlice`] domain, and writes out of bounds will be

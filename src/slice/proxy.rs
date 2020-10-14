@@ -19,7 +19,10 @@ standard library.
 use crate::{
 	access::BitAccess,
 	index::BitIdx,
-	order::BitOrder,
+	order::{
+		BitOrder,
+		Lsb0,
+	},
 	ptr::BitPtr,
 	slice::BitSlice,
 	store::BitStore,
@@ -93,7 +96,8 @@ assert_eq!(bits, bits![1; 2]);
 [`bitvec`]: crate
 [`&mut BitSlice`]: crate::slice::BitSlice
 **/
-pub struct BitMut<'a, O, T>
+#[repr(C)]
+pub struct BitMut<'a, O = Lsb0, T = usize>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -133,10 +137,10 @@ where
 	) -> Self
 	{
 		Self {
-			_ref: PhantomData,
 			addr: NonNull::new_unchecked(addr as *mut T::Access),
 			head,
 			data: (&*(addr as *const T)).get_bit::<O>(head),
+			_ref: PhantomData,
 		}
 	}
 
@@ -148,7 +152,7 @@ where
 		unsafe {
 			BitPtr::new_unchecked(self.addr.as_ptr() as *const T, self.head, 1)
 		}
-		.to_bitslice_ref::<O>()
+		.to_bitslice_ref()
 	}
 
 	/// Views the proxy as a `&mut BitSlice` of length 1, instead of a direct
@@ -159,14 +163,16 @@ where
 		unsafe {
 			BitPtr::new_unchecked(self.addr.as_ptr() as *mut T, self.head, 1)
 		}
-		.to_bitslice_mut::<O>()
+		.to_bitslice_mut()
 	}
 
 	/// Removes an alias marking.
 	///
 	/// This is only safe when the proxy is known to be the only handle to its
 	/// referent element during its lifetime.
-	pub(crate) unsafe fn unalias(this: BitMut<O, T::Alias>) -> Self {
+	pub(crate) unsafe fn remove_alias(this: BitMut<O, T::Alias>) -> Self {
+		//  The `#[repr(C)]` alias makes these structures layout-compatible
+		//  for transmutation.
 		core::mem::transmute(this)
 	}
 
@@ -207,10 +213,7 @@ where
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		let bitptr = self.as_bitslice().bitptr();
-		bitptr.render(fmt, "Mut", Some(core::any::type_name::<O>()), &[(
-			"bit",
-			&self.data as &dyn Debug,
-		)])
+		bitptr.render(fmt, "Mut", &[("bit", &self.data as &dyn Debug)])
 	}
 }
 

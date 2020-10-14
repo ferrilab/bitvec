@@ -1,7 +1,4 @@
-/*! Trait implementations for [`BitBox`].
-
-[`BitBox`]: crate::boxed::BitBox
-!*/
+//! Non-operator trait implementations.
 
 use crate::{
 	boxed::BitBox,
@@ -16,7 +13,6 @@ use crate::{
 use alloc::boxed::Box;
 
 use core::{
-	any,
 	borrow::{
 		Borrow,
 		BorrowMut,
@@ -272,8 +268,7 @@ where
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		self.bitptr()
-			.render(fmt, "Box", Some(any::type_name::<O>()), None)?;
+		self.bitptr().render(fmt, "Box", None)?;
 		fmt.write_str(" ")?;
 		Binary::fmt(self.as_bitslice(), fmt)
 	}
@@ -335,8 +330,7 @@ where
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		self.bitptr()
-			.render(fmt, "Box", Some(any::type_name::<O>()), None)
+		self.bitptr().render(fmt, "Box", None)
 	}
 }
 

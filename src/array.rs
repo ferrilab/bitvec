@@ -1,13 +1,14 @@
-/*! A fixed-size region viewed as individual bits, corresponding to `[bool]`.
+/*! A statically-allocated, fixed-size, buffer containing a [`BitSlice`] region.
 
 You can read the language’s [array fundamental documentation][std] here.
 
 This module defines the [`BitArray`] immediate type, and its associated support
 code.
 
-`BitArray` has little behavior or properties in its own right. It serves solely
-as a type capable of being used in immediate value position, and delegates to
-[`BitSlice`] for all actual work.
+[`BitArray`] is equivalent to `[bool; N]`, in its operation and in its
+relationship to the [`BitSlice`] type. It has little behavior or properties in
+its own right, and serves solely as a type capable of being used in immediate
+value position, and delegates to `BitSlice` for all actual work.
 
 [`BitArray`]: self::BitArray
 [`BitSlice`]: crate::slice::BitSlice
@@ -15,13 +16,11 @@ as a type capable of being used in immediate value position, and delegates to
 !*/
 
 use crate::{
-	mem::BitRegister,
 	order::{
 		BitOrder,
 		Lsb0,
 	},
 	slice::BitSlice,
-	store::BitStore,
 	view::BitView,
 };
 
@@ -65,44 +64,42 @@ numeric type parameters in type-level expressions.
 
 This type is generic over all [`Sized`] implementors of the [`BitView`] trait.
 Due to limitations in the Rust language’s const-generics implementation (it is
-both unstable and incomplete), this must take an array type parameter, rather
-than a bit-count integer parameter, making it inconvenient to use. The
-[`bitarr!`] macro is capable of constructing both values and specific types of
-`BitArray`, and this macro should be preferred for most use.
+both unstable and incomplete), this must take an array type parameter directly,
+rather than register type and bit-count integer parameters. This makes it less
+convenient to use than C++’s [`std::bitset<N>`] array type. The [`bitarr!`]
+macro is capable of constructing both values and specific types of `BitArray`,
+and this macro should be preferred for most use.
 
 The advantage of using this wrapper is that it implements [`Deref`]/[`Mut`] to
-[`BitSlice`], as well as implementing all of `BitSlice`’s traits by forwarding
-to the bit-slice view of its contained data. This allows it to have `BitSlice`
+[`BitSlice`], as well as implementing all of `BitSlice`s traits by forwarding to
+the `BitSlice` view of its contained data. This allows it to have `BitSlice`
 behavior by itself, without requiring explicit [`.as_bitslice()`] calls in user
 code.
 
-> Note: Not all traits may be implemented for forwarding, as a matter of effort
-> and perceived need. Please file an issue for any additional traits that you
-> need to be forwarded.
-
 # Limitations
 
-This always produces a bit-slice that fully spans its data; you cannot produce,
-for example, an array of twelve bits.
+This does not track start or end indices of its [`BitSlice`] view, and so that
+view will always fully span the buffer. You cannot produce, for example, an
+array of twelve bits.
 
 # Type Parameters
 
-- `O`: The ordering of bits within memory elements.
-- `V`: Some amount of memory which can be used as the basis for a [`BitSlice`]
-  view. This will usually be an array `[T: BitStore; N]`.
+- `O`: The ordering of bits within memory registers.
+- `V`: Some buffer which can be used as the basis for a [`BitSlice`] view. This
+  will usually be an array of `[T: BitRegister; N]`.
 
 # Examples
 
 This type is useful for marking that some value is always to be used as a
-bit-slice.
-
+[`BitSlice`].
 **/
+///
 /// ```rust
 /// use bitvec::prelude::*;
 ///
 /// struct HasBitfields {
 ///   header: u32,
-///   //  creates a type declaration
+///   // creates a type declaration.
 ///   fields: bitarr!(for 20, in Msb0, u8),
 /// }
 ///
@@ -110,7 +107,8 @@ bit-slice.
 ///   pub fn new() -> Self {
 ///     Self {
 ///       header: 0,
-///       //  creates a value object. the type paramaters must be repeated.
+///       // creates a value object.
+///       // the type paramaters must be repeated.
 ///       fields: bitarr![Msb0, u8; 0; 20],
 ///     }
 ///   }
@@ -135,8 +133,8 @@ bit-slice.
 # Eventual Obsolescence
 
 When const-generics stabilize, this will be modified to have a signature more
-like `BitArray<O, T: BitStore, const N: usize>([T; elts::<T>(N)]);`, to mirror
-the behavior of ordinary arrays `[T; N]` as they stand today.
+like `BitArray<O, T, const N: usize>([T; elts::<T>(N)]);`, to mirror the
+behavior of ordinary arrays `[T; N]` as they stand today.
 
 [`BitSlice`]: crate::slice::BitSlice
 [`BitView`]: crate::view::BitView
@@ -144,31 +142,30 @@ the behavior of ordinary arrays `[T; N]` as they stand today.
 [`Mut`]: core::ops::DerefMut
 [`Sized`]: core::marker::Sized
 [`bitarr!`]: macro@crate::bitarr
+[`std::bitset<N>`]: https://en.cppreference.com/w/cpp/utility/bitset
 [`.as_bitslice()`]: Self::as_bitslice
 **/
 #[repr(transparent)]
 #[derive(Clone, Copy)]
-pub struct BitArray<O = Lsb0, V = usize>
+pub struct BitArray<O = Lsb0, V = [usize; 1]>
 where
 	O: BitOrder,
-	V: BitView + Sized,
-	V::Store: BitRegister,
+	V: BitView,
 {
-	/// Bit ordering when viewed as a bitslice.
+	/// The ordering of bits within a register `V::Mem`.
 	_ord: PhantomData<O>,
 	/// The wrapped data store.
 	data: V,
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView + Sized,
-	V::Store: BitRegister,
+	V: BitView,
 {
-	/// Constructs a new `BitArray` with zeroed memory.
+	/// Constructs a new `BitArray` with its memory set to zero.
 	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
 	pub fn zeroed() -> Self {
 		Self {
 			_ord: PhantomData,
@@ -176,15 +173,18 @@ where
 		}
 	}
 
-	/// Constructs a new `BitArray` from a data store.
+	/// Wraps a buffer in a `BitArray`.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
+	///
+	/// let data = [0u8; 2];
+	/// let bits: BitArray<Msb0, _> = BitArray::new(data);
+	/// assert_eq!(bits.len(), 16);
 	/// ```
 	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
 	pub fn new(data: V) -> Self {
 		Self {
 			_ord: PhantomData,
@@ -192,82 +192,69 @@ where
 		}
 	}
 
-	/// Removes the bit-array wrapper, returning the contained data.
+	/// Removes the `BitArray` wrapper, leaving the contained buffer.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bitarr: BitArray<LocalBits, [usize; 1]> = bitarr![0; 30];
-	/// let native: [usize; 1] = bitarr.unwrap();
+	/// let bitarr = bitarr![Lsb0, usize; 0; 30];
+	/// let native: [usize; 1] = bitarr.value();
 	/// ```
 	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub fn unwrap(self) -> V {
+	pub fn value(self) -> V {
 		self.data
 	}
 
-	/// Views the array as a bit-slice.
+	/// Views the array as a [`BitSlice`].
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub fn as_bitslice(&self) -> &BitSlice<O, V::Store> {
+	pub fn as_bitslice(&self) -> &BitSlice<O, V::Mem> {
 		self.data.view_bits::<O>()
 	}
 
-	/// Views the array as a mutable bit-slice.
+	/// Views the array as a mutable [`BitSlice`].
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, V::Store> {
+	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, V::Mem> {
 		self.data.view_bits_mut::<O>()
 	}
 
-	/// Views the array as a slice of its underlying elements.
+	/// Views the array as a slice of its underlying memory registers.
 	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub fn as_slice(&self) -> &[V::Store] {
+	pub fn as_slice(&self) -> &[V::Mem] {
 		unsafe {
 			slice::from_raw_parts(
-				&self.data as *const V as *const V::Store,
+				&self.data as *const V as *const V::Mem,
 				V::const_elts(),
 			)
 		}
 	}
 
-	/// Views the array as a mutable slice of its underlying elements.
+	/// Views the array as a mutable slice of its underlying memory registers.
 	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub fn as_mut_slice(&mut self) -> &mut [V::Store] {
+	pub fn as_mut_slice(&mut self) -> &mut [V::Mem] {
 		unsafe {
 			slice::from_raw_parts_mut(
-				&mut self.data as *mut V as *mut V::Store,
+				&mut self.data as *mut V as *mut V::Mem,
 				V::const_elts(),
 			)
 		}
 	}
 
-	/// Views the array as a slice of its raw underlying memory type.
+	/// Views the interior buffer.
 	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub fn as_raw_slice(&self) -> &[<V::Store as BitStore>::Mem] {
-		unsafe {
-			slice::from_raw_parts(
-				&self.data as *const V as *const <V::Store as BitStore>::Mem,
-				V::const_elts(),
-			)
-		}
+	pub fn as_buffer(&self) -> &V {
+		&self.data
 	}
 
-	/// Views the array as a mutable slice of its raw underlying memory type.
+	/// Mutably views the interior buffer.
 	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub fn as_raw_mut_slice(&mut self) -> &mut [<V::Store as BitStore>::Mem] {
-		unsafe {
-			slice::from_raw_parts_mut(
-				&mut self.data as *mut V as *mut <V::Store as BitStore>::Mem,
-				V::const_elts(),
-			)
-		}
+	pub fn as_mut_buffer(&mut self) -> &mut V {
+		&mut self.data
 	}
 }
 
@@ -276,7 +263,6 @@ mod traits;
 
 #[cfg(test)]
 mod tests {
-	use super::*;
 	use crate::prelude::*;
 
 	#[test]
@@ -304,6 +290,6 @@ mod tests {
 	fn wrap_unwrap() {
 		let data: [u8; 15] = *b"Saluton, mondo!";
 		let bits = BitArray::<LocalBits, _>::new(data);
-		assert_eq!(bits.unwrap(), data);
+		assert_eq!(bits.value(), data);
 	}
 }

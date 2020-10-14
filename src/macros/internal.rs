@@ -27,18 +27,19 @@ macro_rules! __bits_store_array {
 		//  Attributes are not currently allowed on expressions, only items and
 		//  statements, so the routing here must bind to a name.
 		#[cfg(target_pointer_width = "32")]
-		const OUT: [usize; LEN] = $crate::__bits_store_array!(
+		let out: [usize; LEN] = $crate::__bits_store_array!(
 			$order, u32 @ usz; $($val),*
 		);
 
 		#[cfg(target_pointer_width = "64")]
-		const OUT: [usize; LEN] = $crate::__bits_store_array!(
+		let out: [usize; LEN] = $crate::__bits_store_array!(
 			$order, u64 @ usz; $($val),*
 		);
 
-		OUT
+		out
 	}};
-	// Entry point.
+
+	//  General entry point.
 	($order:tt, $store:ident $(@ $usz:ident )?; $($val:expr),*) => {
 		$crate::__bits_store_array!(
 			 $order, $store $(@ $usz)?, []; $($val,)*
@@ -64,6 +65,7 @@ macro_rules! __bits_store_array {
 			$crate::__elt_from_bits!($order, $store; $($elt),*) as usize
 		),*]
 	};
+
 	($order:tt, $store:ident, [$( ($($elt:tt),*) )*]; $(0),*) => {
 		[$(
 			$crate::__elt_from_bits!($order, $store; $($elt),*)
@@ -84,6 +86,7 @@ macro_rules! __bits_store_array {
 			$($($t)*)?
 		)
 	};
+
 	(
 		$order:tt, u16 $(@ $usz:ident)?, [$($w:tt)*];
 		$a0:tt, $b0:tt, $c0:tt, $d0:tt, $e0:tt, $f0:tt, $g0:tt, $h0:tt,
@@ -98,6 +101,7 @@ macro_rules! __bits_store_array {
 			$($($t)*)?
 		)
 	};
+
 	(
 		$order:tt, u32 $(@ $usz:ident)?, [$($w:tt)*];
 		$a0:tt, $b0:tt, $c0:tt, $d0:tt, $e0:tt, $f0:tt, $g0:tt, $h0:tt,
@@ -116,6 +120,7 @@ macro_rules! __bits_store_array {
 			$($($t)*)?
 		)
 	};
+
 	(
 		$order:tt, u64 $(@ $usz:ident)?, [$($w:tt)*];
 		$a0:tt, $b0:tt, $c0:tt, $d0:tt, $e0:tt, $f0:tt, $g0:tt, $h0:tt,
@@ -219,6 +224,7 @@ macro_rules! __elt_from_bits {
 		)
 	};
 
+	//  TODO(myrrlyn): Replace this with something that can const-fold.
 	(
 		$order:tt, $store:ident;
 		$(
@@ -227,7 +233,7 @@ macro_rules! __elt_from_bits {
 		),*
 	) => {{
 		let mut tmp: $store = 0;
-		let _tmp_bits = BitSlice::<$order, $store>::from_element_mut(&mut tmp);
+		let _tmp_bits = $crate::slice::BitSlice::<$order, $store>::from_element_mut(&mut tmp);
 		let mut _idx = 0;
 		$(
 			_tmp_bits.set(_idx, $a != 0); _idx += 1;
@@ -248,7 +254,7 @@ macro_rules! __elt_from_bits {
 #[macro_export]
 macro_rules! __extend_bool {
 	($val:expr, $typ:ident) => {
-		(0 as $typ).wrapping_sub(($val != 0) as $typ)
+		[0 as $typ, !0][($val != 0) as usize]
 	};
 }
 
@@ -304,6 +310,7 @@ macro_rules! __ty_from_bytes {
 }
 
 /// Construct a `u8` from bits applied in Lsb0-order.
+#[inline]
 #[allow(clippy::many_single_char_names)]
 #[allow(clippy::too_many_arguments)]
 pub const fn u8_from_le_bits(
@@ -328,6 +335,7 @@ pub const fn u8_from_le_bits(
 }
 
 /// Construct a `u8` from bits applied in Msb0-order.
+#[inline]
 #[allow(clippy::many_single_char_names)]
 #[allow(clippy::too_many_arguments)]
 pub const fn u8_from_be_bits(
@@ -358,6 +366,13 @@ pub use self::u8_from_le_bits as u8_from_ne_bits;
 #[doc(hidden)]
 #[cfg(target_endian = "big")]
 pub use self::u8_from_be_bits as u8_from_ne_bits;
+
+#[doc(hidden)]
+#[deprecated = "Ordering-only macro constructors are deprecated. Specify a \
+                storage type as well, or remove the ordering and use the \
+                default."]
+pub const fn __deprecated_order_no_store() {
+}
 
 #[cfg(test)]
 mod tests {

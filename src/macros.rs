@@ -1,162 +1,10 @@
 //! Constructor macros for the crate’s collection types.
 
+#![allow(deprecated)]
+
 #[macro_use]
 #[doc(hidden)]
 pub mod internal;
-
-/** Constructs a [`BitSlice`] handle out of a literal array in source code, like
-[`vec!`].
-
-`bits!` can be invoked in a number of ways. It takes the name of a [`BitOrder`]
-implementation, the name of a [`BitStore`]-implementing core type (which can be
-any of the fundamental integers, their `Cell` wrappers, or their `Atomic`
-sibling types), and zero or more expressions which are used to build the bits.
-Each value expression corresponds to one bit. If the expression evaluates to
-`0`, it is the zero bit; otherwise, it is the `1` bit.
-
-`bits!` can be invoked with no type specifiers, a [`BitOrder`] specifier only,
-or both a `BitOrder` and a [`BitStore`] specifier. It cannot be invoked with a
-`BitStore` but no `BitOrder`, as the macro grammar is incapable of
-distinguishing between these two.
-
-In addition, a `mut` marker may be used as the first argument to produce an
-`&mut BitSlice` handle instead of a `&BitSlice` handle.
-
-Like [`vec!`], `bits!` supports bit lists `[0, 1, …]` and repetition markers
-`[1; n]`.
-
-# Examples
-
-```rust
-use bitvec::prelude::*;
-
-bits![Msb0, u8; 0, 1];
-bits![mut Lsb0, u8; 0, 1,];
-bits![Msb0; 0, 1];
-bits![mut Lsb0; 0, 1,];
-bits![0, 1];
-bits![mut 0, 1,];
-bits![0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0];
-bits![Msb0, u8; 1; 5];
-bits![mut Lsb0; 0; 5];
-bits![1; 5];
-bits![mut LocalBits; 0, 1,];
-```
-
-[`BitOrder`]: crate::order::BitOrder
-[`BitSlice`]: crate::slice::BitSlice
-[`BitStore`]: crate::store::BitStore
-[`vec!`]: macro@alloc::vec
-**/
-#[macro_export]
-macro_rules! bits {
-	//  Sequence syntax `[bit (, bit)*]` or `[(bit ,)*]`.
-
-	//  Explicit order and store.
-
-	(mut $order:ident, $store:ident; $($val:expr),* $(,)?) => {{
-		&mut $crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
-	}};
-
-	/* These arms differ in `$order:ident` and `$order:path` in order to force
-	the matcher to wrap a `:path`, which is `[:tt]`, as a single opaque `:tt`
-	for propagation through the macro call. Since the literal `$order` values
-	will match as `:ident`, not `:path`, this will only ever enter for orderings
-	that the rest of the macros would not be able to inspect and special-case
-	*anyway*.
-	*/
-
-	(mut $order:path, $store:ident; $($val:expr),* $(,)?) => {{
-		&mut $crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
-	}};
-
-	//  Explicit order, default store.
-
-	(mut $order:ident; $($val:expr),* $(,)?) => {
-		$crate::bits!(mut $order, usize; $($val),*)
-	};
-
-	(mut $order:path; $($val:expr),* $(,)?) => {
-		$crate::bits!(mut $order, usize; $($val),*)
-	};
-
-	//  Default order and store.
-
-	(mut $($val:expr),* $(,)?) => {
-		$crate::bits!(mut Lsb0, usize; $($val),*)
-	};
-
-	//  Repetition syntax `[bit ; count]`.
-	//  NOTE: `count` must be a `const`, as this is a non-allocating macro.
-
-	//  Explicit order and store.
-
-	(mut $order:ident, $store:ident; $val:expr; $len:expr) => {{
-		&mut $crate::bitarr![$order, $store; $val; $len][.. $len]
-	}};
-
-	(mut $order:path, $store:ident; $val:expr; $len:expr) => {{
-		&mut $crate::bitarr![$order, $store; $val; $len][.. $len]
-	}};
-
-	//  Explicit order, default store.
-
-	(mut $order:ident; $val:expr; $len:expr) => {
-		$crate::bits!(mut $order, usize; $val; $len)
-	};
-
-	(mut $order:path; $val:expr; $len:expr) => {
-		$crate::bits!(mut $order, usize; $val; $len)
-	};
-
-	//  Default order and store.
-
-	(mut $val:expr; $len:expr) => {
-		$crate::bits!(mut Lsb0, usize; $val; $len)
-	};
-
-	//  Repeat everything from above, but now immutable.
-
-	($order:ident, $store:ident; $($val:expr),* $(,)?) => {{
-		&$crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
-	}};
-
-	($order:path, $store:ident; $($val:expr),* $(,)?) => {{
-		&$crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
-	}};
-
-	($order:ident; $($val:expr),* $(,)?) => {
-		$crate::bits!($order, usize; $($val),*)
-	};
-
-	($order:path; $($val:expr),* $(,)?) => {
-		$crate::bits!($order, usize; $($val),*)
-	};
-
-	($($val:expr),* $(,)?) => {
-		$crate::bits!(Lsb0, usize; $($val),*)
-	};
-
-	($order:ident, $store:ident; $val:expr; $len:expr) => {{
-		&$crate::bitarr![$order, $store; $val; $len][.. $len]
-	}};
-
-	($order:path, $store:ident; $val:expr; $len:expr) => {{
-		&$crate::bitarr![$order, $store; $val; $len][.. $len]
-	}};
-
-	($order:ident; $val:expr; $len:expr) => {
-		$crate::bits!($order, usize; $val; $len)
-	};
-
-	($order:path; $val:expr; $len:expr) => {
-		$crate::bits!($order, usize; $val; $len)
-	};
-
-	($val:expr; $len:expr) => {
-		$crate::bits!(Lsb0, usize; $val; $len)
-	};
-}
 
 /** Constructs a [`BitArray`] wrapper out of a literal array in source code,
 like [`bits!`].
@@ -214,9 +62,9 @@ the typename and the value. Mismatches will result in a compiler error.
 **/
 #[macro_export]
 macro_rules! bitarr {
-	//  Produces a typename instead of a value expression
+	//  Type constructors
 
-	(for $len:literal, in $order:path, $store:ident) => {
+	(for $len:literal, in $order:ty, $store:ident) => {
 		$crate::array::BitArray::<
 			$order,
 			[$store; $crate::mem::elts::<$store>($len)],
@@ -231,7 +79,19 @@ macro_rules! bitarr {
 		$crate::bitarr!(for $len, in usize)
 	};
 
-	//  Produces a value expression
+	//  Value constructors
+
+	/* The duplicate matchers differing in `:ident` and `:path` exploit a rule
+	of macro expansion so that the literal tokens `Lsb0`, `Msb0`, and
+	`LocalBits` can be propagated through the entire expansion, thus selecting
+	optimized construction sequences. Names of orderings other than these three
+	tokens become opaque, and route to a fallback implementation that is less
+	likely to be automatically optimized during codegen.
+
+	`:ident` fragments are inspectable as literal tokens by future macros, while
+	`:path` fragments become a single opaque object that can only match as
+	`:path` or `:tt` bindings when passed along.
+	*/
 
 	($order:ident, $store:ident; $($val:expr),* $(,)?) => {
 		$crate::array::BitArray::<
@@ -251,13 +111,15 @@ macro_rules! bitarr {
 		)
 	};
 
-	($order:ident; $($val:expr),* $(,)?) => {
+	($order:ident; $($val:expr),* $(,)?) => {{
+		$crate::macros::internal::__deprecated_order_no_store();
 		$crate::bitarr!($order, usize; $($val),*)
-	};
+	}};
 
-	($order:path; $($val:expr),* $(,)?) => {
+	($order:path; $($val:expr),* $(,)?) => {{
+		$crate::macros::internal::__deprecated_order_no_store();
 		$crate::bitarr!($order, usize; $($val),*)
-	};
+	}};
 
 	($($val:expr),* $(,)?) => {
 		$crate::bitarr!(Lsb0, usize; $($val),*)
@@ -283,16 +145,172 @@ macro_rules! bitarr {
 		])
 	};
 
-	($order:ident; $val:expr; $len:expr) => {
+	($order:ident; $val:expr; $len:expr) => {{
+		$crate::macros::internal::__deprecated_order_no_store();
 		$crate::bitarr!($order, usize; $val; $len)
-	};
+	}};
 
-	($order:path; $val:expr; $len:expr) => {
+	($order:path; $val:expr; $len:expr) => {{
+		$crate::macros::internal::__deprecated_order_no_store();
 		$crate::bitarr!($order, usize; $val; $len)
-	};
+	}};
 
 	($val:expr; $len:expr) => {
 		$crate::bitarr!(Lsb0, usize; $val; $len)
+	};
+}
+
+/** Constructs a [`BitSlice`] handle out of a literal array in source code, like
+[`vec!`].
+
+`bits!` can be invoked in a number of ways. It takes the name of a [`BitOrder`]
+implementation, the name of a [`BitStore`]-implementing core type (which can be
+any of the fundamental integers, their `Cell` wrappers, or their `Atomic`
+sibling types), and zero or more expressions which are used to build the bits.
+Each value expression corresponds to one bit. If the expression evaluates to
+`0`, it is the zero bit; otherwise, it is the `1` bit.
+
+`bits!` can be invoked with no type specifiers, a [`BitOrder`] specifier only,
+or both a `BitOrder` and a [`BitStore`] specifier. It cannot be invoked with a
+`BitStore` but no `BitOrder`, as the macro grammar is incapable of
+distinguishing between these two.
+
+In addition, a `mut` marker may be used as the first argument to produce an
+`&mut BitSlice` handle instead of a `&BitSlice` handle.
+
+Like [`vec!`], `bits!` supports bit lists `[0, 1, …]` and repetition markers
+`[1; n]`.
+
+# Examples
+
+```rust
+use bitvec::prelude::*;
+
+bits![Msb0, u8; 0, 1];
+bits![mut Lsb0, u8; 0, 1,];
+bits![Msb0; 0, 1];
+bits![mut Lsb0; 0, 1,];
+bits![0, 1];
+bits![mut 0, 1,];
+bits![0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0];
+bits![Msb0, u8; 1; 5];
+bits![mut Lsb0; 0; 5];
+bits![1; 5];
+bits![mut LocalBits; 0, 1,];
+```
+
+[`BitOrder`]: crate::order::BitOrder
+[`BitSlice`]: crate::slice::BitSlice
+[`BitStore`]: crate::store::BitStore
+[`vec!`]: macro@alloc::vec
+**/
+#[macro_export]
+macro_rules! bits {
+	//  Sequence syntax `[bit (, bit)*]` or `[(bit ,)*]`.
+
+	//  Explicit order and store.
+
+	(mut $order:ident, $store:ident; $($val:expr),* $(,)?) => {{
+		&mut $crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
+	}};
+
+	(mut $order:path, $store:ident; $($val:expr),* $(,)?) => {{
+		&mut $crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
+	}};
+
+	//  Explicit order, default store.
+
+	(mut $order:ident; $($val:expr),* $(,)?) => {{
+		$crate::macros::internal::__deprecated_order_no_store();
+		$crate::bits!(mut $order, usize; $($val),*)
+	}};
+
+	(mut $order:path; $($val:expr),* $(,)?) => {{
+		$crate::macros::internal::__deprecated_order_no_store();
+		$crate::bits!(mut $order, usize; $($val),*)
+	}};
+
+	//  Default order and store.
+
+	(mut $($val:expr),* $(,)?) => {
+		$crate::bits!(mut Lsb0, usize; $($val),*)
+	};
+
+	//  Repetition syntax `[bit ; count]`.
+	//  NOTE: `count` must be a `const`, as this is a non-allocating macro.
+
+	//  Explicit order and store.
+
+	(mut $order:ident, $store:ident; $val:expr; $len:expr) => {{
+		&mut $crate::bitarr![$order, $store; $val; $len][.. $len]
+	}};
+
+	(mut $order:path, $store:ident; $val:expr; $len:expr) => {{
+		&mut $crate::bitarr![$order, $store; $val; $len][.. $len]
+	}};
+
+	//  Explicit order, default store.
+
+	(mut $order:ident; $val:expr; $len:expr) => {{
+		$crate::macros::internal::__deprecated_order_no_store();
+		$crate::bits!(mut $order, usize; $val; $len)
+	}};
+
+	(mut $order:path; $val:expr; $len:expr) => {{
+		$crate::macros::internal::__deprecated_order_no_store();
+		$crate::bits!(mut $order, usize; $val; $len)
+	}};
+
+	//  Default order and store.
+
+	(mut $val:expr; $len:expr) => {
+		$crate::bits!(mut Lsb0, usize; $val; $len)
+	};
+
+	//  Repeat everything from above, but now immutable.
+
+	($order:ident, $store:ident; $($val:expr),* $(,)?) => {{
+		&$crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
+	}};
+
+	($order:path, $store:ident; $($val:expr),* $(,)?) => {{
+		&$crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
+	}};
+
+	($order:ident; $($val:expr),* $(,)?) => {{
+		$crate::macros::internal::__deprecated_order_no_store();
+		$crate::bits!($order, usize; $($val),*)
+	}};
+
+	($order:path; $($val:expr),* $(,)?) => {{
+		$crate::macros::internal::__deprecated_order_no_store();
+		$crate::bits!($order, usize; $($val),*)
+	}};
+
+	($($val:expr),* $(,)?) => {
+		$crate::bits!(Lsb0, usize; $($val),*)
+	};
+
+	($order:ident, $store:ident; $val:expr; $len:expr) => {{
+		&$crate::bitarr![$order, $store; $val; $len][.. $len]
+	}};
+
+	($order:path, $store:ident; $val:expr; $len:expr) => {{
+		&$crate::bitarr![$order, $store; $val; $len][.. $len]
+	}};
+
+	($order:ident; $val:expr; $len:expr) => {{
+		$crate::macros::internal::__deprecated_order_no_store();
+		$crate::bits!($order, usize; $val; $len)
+	}};
+
+	($order:path; $val:expr; $len:expr) => {{
+		$crate::macros::internal::__deprecated_order_no_store();
+		$crate::bits!($order, usize; $val; $len)
+	}};
+
+	($val:expr; $len:expr) => {
+		$crate::bits!(Lsb0, usize; $val; $len)
 	};
 }
 
@@ -344,9 +362,10 @@ macro_rules! bitvec {
 		$crate::vec::BitVec::<$order, $store>::repeat($val != 0, $rep)
 	};
 
-	($order:ty; $val:expr; $rep:expr) => {
+	($order:ty; $val:expr; $rep:expr) => {{
+		$crate::macros::internal::__deprecated_order_no_store();
 		$crate::vec::BitVec::<$order, usize>::repeat($val != 0, $rep)
-	};
+	}};
 
 	($val:expr; $rep:expr) => {
 		$crate::vec::BitVec::<$crate::order::Lsb0, usize>::repeat($val != 0, $rep)

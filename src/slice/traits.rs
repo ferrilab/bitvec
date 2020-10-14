@@ -1,7 +1,4 @@
-/*! Trait implementations for [`BitSlice`].
-
-[`BitSlice`]: crate::slice::BitSlice
-!*/
+//! Non-operator trait implementations.
 
 use crate::{
 	domain::Domain,
@@ -20,7 +17,7 @@ use crate::{
 };
 
 use core::{
-	any,
+	any::TypeId,
 	cmp,
 	convert::TryFrom,
 	fmt::{
@@ -82,28 +79,27 @@ where
 	T2: BitStore,
 {
 	fn eq(&self, rhs: &BitSlice<O2, T2>) -> bool {
-		if self.len() != rhs.len() {
-			return false;
-		}
-
 		let fallback = || {
+			if self.len() != rhs.len() {
+				return false;
+			}
 			self.iter()
 				.copied()
 				.zip(rhs.iter().copied())
 				.all(|(l, r)| l == r)
 		};
-		//  Batch loads only work when `<O1, T1>` and `<O2, T2>` are the same.
-		if any::TypeId::of::<O1>() == any::TypeId::of::<O2>()
-			&& any::TypeId::of::<T1>() == any::TypeId::of::<T2>()
+
+		if TypeId::of::<O1>() == TypeId::of::<O2>()
+			&& TypeId::of::<T1>() == TypeId::of::<T2>()
 		{
-			if any::TypeId::of::<O1>() == any::TypeId::of::<Lsb0>() {
+			if TypeId::of::<O1>() == TypeId::of::<Lsb0>() {
 				let this: &BitSlice<Lsb0, T1> =
 					unsafe { &*(self as *const _ as *const _) };
 				let that: &BitSlice<Lsb0, T1> =
 					unsafe { &*(rhs as *const _ as *const _) };
 				this.sp_eq(that)
 			}
-			else if any::TypeId::of::<O1>() == any::TypeId::of::<Msb0>() {
+			else if TypeId::of::<O1>() == TypeId::of::<Msb0>() {
 				let this: &BitSlice<Msb0, T1> =
 					unsafe { &*(self as *const _ as *const _) };
 				let that: &BitSlice<Msb0, T1> =
@@ -336,8 +332,7 @@ where
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		self.bitptr()
-			.render(fmt, "Slice", Some(any::type_name::<O>()), None)?;
+		self.bitptr().render(fmt, "Slice", None)?;
 		fmt.write_str(" ")?;
 		Binary::fmt(self, fmt)
 	}
@@ -397,46 +392,56 @@ macro_rules! fmt {
 						})
 					}
 				}
+
 				//  If the alternate flag is set, include the radix prefix.
 				let start = if fmt.alternate() { 0 } else { 2 };
 				//  Create a list format accumulator.
 				let mut dbg = fmt.debug_list();
-				/* Create a static buffer of the maximum number of UTF-8 bytes
-				needed to render a `usize` in the selected radix. Rust does not
-				yet grant access to trait constants for use in constant
-				expressions within generics.
+				/* Create a static buffer sized for the maximum number of UTF-8
+				bytes needed to render a `usize` in the selected radix.
+
+				Rust does not yet grant access to trait constants for use in
+				constant expressions within generics.
 				*/
 				const W: usize = <usize as BitMemory>::BITS as usize / $blksz;
 				let mut w: [u8; W + 2] = [b'0'; W + 2];
 				//  Write the prefix symbol into the buffer.
 				w[1] = $pfx;
-				//  This closure does the main work of rendering a bit slice as
-				//  text. It will be called on each memory element of the slice
-				//  undergoing formatting.
+
+				/* This closure does the main work of rendering a bit-slice as
+				text. It will be called on each memory element of the slice
+				being formatted.
+				*/
 				let mut writer = |bits: &BitSlice<O, T::Mem>| {
-					//  Set the end index of the format buffer.
+					//  Set the end index of the text accumulator.
 					let mut end = 2;
 					/* Taking `rchunks` clusters the bits to the right edge, so
 					that any remainder is in the left-most (first-rendered)
-					digit, in the same manner as how English clusters digits in
+					digit, in the same manner as English digit clusters in
 					ordinary writing.
 
-					Since `rchunks` takes from the back, it must be reversed in
-					order to traverse from front to back. The enumeration
-					provides the offset from the buffer start for writing the
-					computed digit into the format buffer.
+					Since `rchunks` takes from back to front, it must be
+					reversed in order to traverse the slice from front to back.
+					The enumeration provides the offset from the buffer start
+					for writing the computed digit into the text accumulator.
 					*/
 					for (index, chunk) in bits.rchunks($blksz).rev().enumerate()
 					{
-						//  Accumulate an Lsb0 representation of the slice
-						//  contents.
+						/* Copy the bits of the slice into the temporary, in
+						Msb0 order, at the LSedge of the temporary. This will
+						translate the bit sequence into the binary digit that
+						represents it.
+						*/
 						let mut val = 0u8;
 						for bit in chunk {
 							val <<= 1;
 							val |= *bit as u8;
 						}
-						//  Translate the accumulator into ASCII hexadecimal
-						//  glyphs, and write the glyph into the format buffer.
+
+						/* Translate the accumulator digit into the matching
+						ASCII hexadecimal glyph, and write the glyph into the
+						text accumulator.
+						*/
 						w[2 + index] = match val {
 							v @ 0 ..= 9 => b'0' + v,
 							v @ 10 ..= 16 => $base + (v - 10),
@@ -444,17 +449,22 @@ macro_rules! fmt {
 						};
 						end += 1;
 					}
-					//  View the format buffer as UTF-8 and write it into the
+
+					//  View the text accumulator as UTF-8 and write it into the
 					//  main formatter.
 					dbg.entry(&Seq(&w[start .. end]));
 				};
-				//  Break the source `BitSlice` into its element-wise components.
+
+				/* Break the source `BitSlice` into its aliased sub-regions.
+				This is necessary in order to load each element into local
+				memory for formatting.
+				*/
 				match self.domain() {
 					Domain::Enclave { head, elem, tail } => {
 						//  Load a copy of `*elem` into the stack,
 						let tmp = elem.load_value();
-						//  View it as a `BitSlice` over the whole element,
-						// narrow it to the live range, and render it.
+						//  View the whole element as bits, narrow it to the
+						//  live span, and render.
 						let bits = tmp.view_bits::<O>();
 						unsafe {
 							bits.get_unchecked(
@@ -463,7 +473,7 @@ macro_rules! fmt {
 						}
 						.pipe(writer);
 					},
-					//  Same process as above, but with different truncations.
+					//  Same process as above, but at different truncations.
 					Domain::Region { head, body, tail } => {
 						if let Some((head, elem)) = head {
 							let tmp = elem.load_value();
@@ -474,8 +484,7 @@ macro_rules! fmt {
 							.pipe(&mut writer);
 						}
 						for elem in body.iter() {
-							elem.pipe(BitSlice::<O, T::Mem>::from_element)
-								.pipe(&mut writer);
+							elem.view_bits::<O>().pipe(&mut writer);
 						}
 						if let Some((elem, tail)) = tail {
 							let tmp = elem.load_value();
@@ -531,6 +540,7 @@ where
 }
 
 #[cfg(feature = "alloc")]
+#[cfg(not(tarpaulin_include))]
 impl<O, T> ToOwned for BitSlice<O, T>
 where
 	O: BitOrder,

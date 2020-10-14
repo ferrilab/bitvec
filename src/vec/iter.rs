@@ -1,7 +1,4 @@
-/*! [`BitVec`] iterators.
-
-[`BitVec`]: crate::vec::BitVec
-!*/
+//! Iterators over `Vec<T>`.
 
 use crate::{
 	devel as dvl,
@@ -15,6 +12,8 @@ use crate::{
 	vec::BitVec,
 };
 
+use alloc::vec::Vec;
+
 use core::{
 	fmt::{
 		self,
@@ -25,7 +24,10 @@ use core::{
 		FromIterator,
 		FusedIterator,
 	},
-	mem,
+	mem::{
+		self,
+		ManuallyDrop,
+	},
 	ops::{
 		Range,
 		RangeBounds,
@@ -119,16 +121,12 @@ where
 	type IntoIter = IntoIter<O, T>;
 	type Item = bool;
 
-	#[inline]
+	#[inline(always)]
 	fn into_iter(self) -> Self::IntoIter {
-		IntoIter {
-			iter: self.as_bitslice().bitptr().to_bitslice_ref().iter(),
-			_bv: self,
-		}
+		IntoIter::new(self)
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<'a, O, T> IntoIterator for &'a BitVec<O, T>
 where
 	O: BitOrder,
@@ -143,7 +141,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<'a, O, T> IntoIterator for &'a mut BitVec<O, T>
 where
 	O: BitOrder,
@@ -153,6 +150,7 @@ where
 	type Item = <&'a mut BitSlice<O, T> as IntoIterator>::Item;
 
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	fn into_iter(self) -> Self::IntoIter {
 		self.as_mut_bitslice().into_iter()
 	}
@@ -160,8 +158,8 @@ where
 
 /** An iterator that moves out of a [`BitVec`].
 
-This `struct` is created by the `into_iter` method on [`BitVec`] (provided by
-the [`IntoIterator`] trait).
+This `struct` is created by the [`.into_iter()`] method on [`BitVec`] (provided
+by the [`IntoIterator`] trait).
 
 # Original
 
@@ -169,17 +167,18 @@ the [`IntoIterator`] trait).
 
 [`BitVec`]: crate::vec::BitVec
 [`IntoIterator`]: core::iter::IntoIterator
+[`.into_iter()`]: core::iter::IntoIterator::into_iter
 **/
-#[derive(Clone, Debug)]
 pub struct IntoIter<O, T>
 where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	/// Take ownership of the vector for destruction.
-	_bv: BitVec<O, T>,
-	/// Use [`BitSlice`] iteration processes. This requires a `'static`
-	/// lifetime, since it cannot borrow from itself.
+	/// The base address of the allocation.
+	base: NonNull<T>,
+	/// The allocation capacity, measured in elements `T`.
+	capa: usize,
+	/// A [`BitSlice`] iterator over the vector’s contents.
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
 	iter: Iter<'static, O, T>,
@@ -190,6 +189,22 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
+	/// Constructs an iterator over a [`BitVec`].
+	///
+	/// [`BitVec`]: crate::vec::BitVec
+	#[inline]
+	fn new(bv: BitVec<O, T>) -> Self {
+		//  Disarm the destructor,
+		let bv = ManuallyDrop::new(bv);
+		//  Construct a `BitSlice` iterator over the region, and detach its
+		//  lifetime.
+		let iter = bv.as_bitslice().bitptr().to_bitslice_ref().iter();
+		//  Only the allocation’s base and capacity need to be kept for `Drop`.
+		let base = bv.bitptr().pointer().to_nonnull();
+		let capa = bv.alloc_capacity();
+		Self { base, capa, iter }
+	}
+
 	/// Returns the remaining bits of this iterator as a [`BitSlice`].
 	///
 	/// # Original
@@ -210,7 +225,7 @@ where
 	/// ```
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
-	#[inline]
+	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
 		self.iter.as_bitslice()
@@ -219,9 +234,7 @@ where
 	#[doc(hidden)]
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated(
-		note = "Use `.as_bitslice()` on iterators to view the remaining data."
-	)]
+	#[deprecated = "Use `.as_bitslice()` to view the underlying slice"]
 	pub fn as_slice(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
 	}
@@ -254,13 +267,25 @@ where
 		self.iter.as_bitslice().bitptr().to_bitslice_mut()
 	}
 
-	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	#[doc(hidden)]
+	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated(note = "Use `.as_mut_bitslice()` on iterators to view the \
-	                     remaining data.")]
+	#[deprecated = "Use `.as_mut_bitslice()` to view the underlying slice"]
 	pub fn as_mut_slice(&mut self) -> &mut BitSlice<O, T> {
 		self.as_mut_bitslice()
+	}
+}
+
+impl<O, T> Debug for IntoIter<O, T>
+where
+	O: BitOrder,
+	T: BitRegister + BitStore,
+{
+	#[inline]
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		fmt.debug_tuple("IntoIter")
+			.field(&self.as_bitslice())
+			.finish()
 	}
 }
 
@@ -334,16 +359,28 @@ where
 {
 }
 
+impl<O, T> Drop for IntoIter<O, T>
+where
+	O: BitOrder,
+	T: BitRegister + BitStore,
+{
+	#[inline]
+	fn drop(&mut self) {
+		//  Rebuild the `Vec` governing the allocation, and run its destructor.
+		drop(unsafe { Vec::from_raw_parts(self.base.as_ptr(), 0, self.capa) });
+	}
+}
+
 /** A draining iterator for [`BitVec`].
 
-This `struct` is created by the [`drain`] method on [`BitVec`].
+This `struct` is created by the [`.drain()`] method on [`BitVec`].
 
 # Original
 
 [`vec::Drain`](alloc::vec::Drain)
 
 [`BitVec`]: crate::vec::BitVec
-[`drain`]: crate::vec::BitVec::drain
+[`.drain()`]: crate::vec::BitVec::drain
 **/
 pub struct Drain<'a, O, T>
 where
@@ -418,9 +455,7 @@ where
 	#[doc(hidden)]
 	#[allow(deprecated)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated(
-		note = "Use `.as_bitslice` on iterators to view the remaining data"
-	)]
+	#[deprecated = "Use `.as_bitslice()` to view the underlying slice"]
 	pub fn as_slice(&self) -> &BitSlice<O, T> {
 		self.drain.as_slice()
 	}
@@ -682,7 +717,7 @@ enum FillStatus {
 
 /** A splicing iterator for [`BitVec`].
 
-This struct is created by the [`splice()`] method on [`BitVec`]. See its
+This struct is created by the [`.splice()`] method on [`BitVec`]. See its
 documentation for more.
 
 # Original
@@ -690,7 +725,7 @@ documentation for more.
 [`vec::Splice`](alloc::vec::Splice)
 
 [`BitVec`]: crate::vec::BitVec
-[`splice()`]: crate::vec::BitVec::splice
+[`.splice()`]: crate::vec::BitVec::splice
 **/
 #[derive(Debug)]
 pub struct Splice<'a, O, T, I>

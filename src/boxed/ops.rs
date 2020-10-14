@@ -1,7 +1,4 @@
-/*! Operator implementations for [`BitBox`].
-
-[`BitBox`]: crate::boxed::BitBox
-!*/
+//! Port of the `Box<[T]>` operator implementations.
 
 use crate::{
 	boxed::BitBox,
@@ -149,7 +146,7 @@ where
 	#[inline]
 	fn drop(&mut self) {
 		//  Run the `Box` destructor to deällocate the buffer.
-		self.with_box(|boxed| unsafe { ManuallyDrop::drop(boxed) });
+		self.with_box(|slot| unsafe { ManuallyDrop::drop(slot) });
 	}
 }
 

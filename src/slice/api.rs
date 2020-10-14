@@ -1,22 +1,13 @@
-//! Port of the `[T]` inherent method API.
+//! Port of the `[T]` inherent API.
 
 use crate::{
-	access::BitAccess,
 	array::BitArray,
 	devel as dvl,
-	domain::{
-		Domain,
-		DomainMut,
-	},
 	mem::{
 		BitMemory,
 		BitRegister,
 	},
-	order::{
-		BitOrder,
-		Lsb0,
-		Msb0,
-	},
+	order::BitOrder,
 	ptr::BitPtr,
 	slice::{
 		iter::{
@@ -47,7 +38,6 @@ use crate::{
 };
 
 use core::{
-	any::TypeId,
 	cmp,
 	ops::{
 		Range,
@@ -60,10 +50,7 @@ use core::{
 	},
 };
 
-use tap::{
-	pipe::Pipe,
-	tap::Tap,
-};
+use tap::tap::Tap;
 
 #[cfg(feature = "alloc")]
 use crate::vec::BitVec;
@@ -85,7 +72,8 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// assert_eq!(bits![0].len(), 1);
+	/// let a = bits![0, 0, 1];
+	/// assert_eq!(a.len(), 3);
 	/// ```
 	#[inline]
 	pub fn len(&self) -> usize {
@@ -103,8 +91,8 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// assert!(bits![].is_empty());
-	/// assert!(!bits![0].is_empty());
+	/// let a = bits![0, 0, 1];
+	/// assert!(!a.is_empty());
 	/// ```
 	#[inline]
 	pub fn is_empty(&self) -> bool {
@@ -115,23 +103,24 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::first`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.first)
-	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// assert_eq!(Some(&true), bits![1, 0].first());
-	/// assert!(bits![].first().is_none());
+	/// let v = bits![1, 0, 0];
+	/// assert_eq!(Some(&true), v.first());
+	///
+	/// let w = bits![];
+	/// assert_eq!(None, w.first());
 	/// ```
 	#[inline]
 	pub fn first(&self) -> Option<&bool> {
 		self.get(0)
 	}
 
-	/// Returns a mutable pointer to the first bit of the slice, or `None` if it
-	/// is empty.
+	/// Returns a mutable pointer to the first bit of the slice, or `None`
+	/// if it is empty.
 	///
 	/// # Original
 	///
@@ -149,12 +138,12 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut 0];
-	/// assert!(!bits[0]);
-	/// if let Some(mut first) = bits.first_mut() {
+	/// let x = bits![mut 0, 1, 0];
+	///
+	/// if let Some(mut first) = x.first_mut() {
 	///   *first = true;
 	/// }
-	/// assert!(bits[0]);
+	/// assert_eq!(x, bits![1, 1, 0]);
 	/// ```
 	///
 	/// [`BitMut`]: crate::slice::BitMut
@@ -163,8 +152,8 @@ where
 		self.get_mut(0)
 	}
 
-	/// Returns the first and all the rest of the bits of the slice, or `None`
-	/// if it is empty.
+	/// Returns the first and all the rest of the bits of the slice, or
+	/// `None` if it is empty.
 	///
 	/// # Original
 	///
@@ -175,9 +164,11 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// if let Some((first, rest)) = bits![1].split_first() {
-	///   assert!(*first);
-	///   assert!(rest.is_empty());
+	/// let x = bits![1, 0, 0];
+	///
+	/// if let Some((first, rest)) = x.split_first() {
+	///   assert_eq!(first, &true);
+	///   assert_eq!(rest, bits![0; 2]);
 	/// }
 	/// ```
 	#[inline]
@@ -191,8 +182,8 @@ where
 		}
 	}
 
-	/// Returns the first and all the rest of the bits of the slice, or `None`
-	/// if it is empty.
+	/// Returns the first and all the rest of the bits of the slice, or
+	/// `None` if it is empty.
 	///
 	/// # Original
 	///
@@ -214,13 +205,14 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut 0; 3];
-	/// if let Some((mut first, rest)) = bits.split_first_mut() {
+	/// let x = bits![mut 0, 0, 1];
+	///
+	/// if let Some((mut first, rest)) = x.split_first_mut() {
 	///   *first = true;
-	///   *rest.get_mut(1).unwrap() = true;
+	///   rest.set(0, true);
+	///   rest.set(1, false);
 	/// }
-	/// assert_eq!(bits.count_ones(), 2);
-	/// assert!(bits![mut].split_first_mut().is_none());
+	/// assert_eq!(x, bits![1, 1, 0]);
 	/// ```
 	///
 	/// [`BitMut`]: crate::slice::BitMut
@@ -240,8 +232,8 @@ where
 		}
 	}
 
-	/// Returns the last and all the rest of the bits of the slice, or `None` if
-	/// it is empty.
+	/// Returns the last and all the rest of the bits of the slice, or
+	/// `None` if it is empty.
 	///
 	/// # Original
 	///
@@ -252,10 +244,11 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![1];
-	/// if let Some((last, rest)) = bits.split_last() {
-	///   assert!(*last);
-	///   assert!(rest.is_empty());
+	/// let x = bits![0, 0, 1];
+	///
+	/// if let Some((last, rest)) = x.split_last() {
+	///   assert_eq!(last, &true);
+	///   assert_eq!(rest, bits![0; 2]);
 	/// }
 	/// ```
 	#[inline]
@@ -269,8 +262,8 @@ where
 		}
 	}
 
-	/// Returns the last and all the rest of the bits of the slice, or `None` if
-	/// it is empty.
+	/// Returns the last and all the rest of the bits of the slice, or
+	/// `None` if it is empty.
 	///
 	/// # Original
 	///
@@ -292,13 +285,14 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut 0; 3];
-	/// if let Some((mut last, rest)) = bits.split_last_mut() {
+	/// let x = bits![mut 1, 0, 0];
+	///
+	/// if let Some((mut last, rest)) = x.split_last_mut() {
 	///   *last = true;
-	///   *rest.get_mut(1).unwrap() = true;
+	///   rest.set(0, false);
+	///   rest.set(1, true);
 	/// }
-	/// assert_eq!(bits.count_ones(), 2);
-	/// assert!(bits![mut].split_last_mut().is_none());
+	/// assert_eq!(x, bits![0, 1, 1]);
 	/// ```
 	///
 	/// [`BitMut`]: crate::slice::BitSlice
@@ -329,8 +323,11 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// assert_eq!(Some(&true), bits![0, 1].last());
-	/// assert!(bits![].last().is_none());
+	/// let v = bits![0, 0, 1];
+	/// assert_eq!(Some(&true), v.last());
+	///
+	/// let w = bits![];
+	/// assert_eq!(None, w.last());
 	/// ```
 	#[inline]
 	pub fn last(&self) -> Option<&bool> {
@@ -340,8 +337,7 @@ where
 		}
 	}
 
-	/// Returns a mutable pointer to the last bit of the slice, or `None` if it
-	/// is empty.
+	/// Returns a mutable pointer to the last bit in the slice.
 	///
 	/// # Original
 	///
@@ -359,11 +355,12 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut 0];
-	/// if let Some(mut last) = bits.last_mut() {
+	/// let x = bits![mut 0, 1, 0];
+	///
+	/// if let Some(mut last) = x.last_mut() {
 	///   *last = true;
 	/// }
-	/// assert!(bits[0]);
+	/// assert_eq!(x, bits![0, 1, 1]);
 	/// ```
 	///
 	/// [`BitMut`]: crate::slice::BitMut
@@ -375,11 +372,10 @@ where
 		}
 	}
 
-	/// Returns a reference to an element or subslice depending on the type of
-	/// index.
+	/// Returns a reference to a bit or subslice depending on the type of index.
 	///
-	/// - If given a position, returns a reference to the element at that
-	///   position or `None` if out of bounds.
+	/// - If given a position, returns a reference to the bit at that position
+	///   or `None` if out of bounds.
 	/// - If given a range, returns the subslice corresponding to that range, or
 	///   `None` if out of bounds.
 	///
@@ -392,21 +388,21 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![0, 1, 0, 0];
-	///
-	/// assert_eq!(Some(&true), bits.get(1));
-	/// assert_eq!(Some(&bits[1 .. 3]), bits.get(1 .. 3));
-	/// assert!(bits.get(9).is_none());
-	/// assert!(bits.get(8 .. 10).is_none());
+	/// let v = bits![0, 1, 0];
+	/// assert_eq!(Some(&true), v.get(1));
+	/// assert_eq!(Some(bits![0, 1]), v.get(0 .. 2));
+	/// assert_eq!(None, v.get(3));
+	/// assert_eq!(None, v.get(0 .. 4));
 	/// ```
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn get<'a, I>(&'a self, index: I) -> Option<I::Immut>
 	where I: BitSliceIndex<'a, O, T> {
 		index.get(self)
 	}
 
-	/// Returns a mutable reference to an element or subslice depending on the
-	/// type of index (see [`get`]) or `None` if the index is out of bounds.
+	/// Returns a mutable reference to a bit or subslice depending on the type
+	/// of index (see [`.get()`]) or `None` if the index is out of bounds.
 	///
 	/// # Original
 	///
@@ -414,38 +410,38 @@ where
 	///
 	/// # API Differences
 	///
-	/// When `I` is `usize`, this returns [`BitMut`] instead of `&mut bool`.
+	/// This crate cannot manifest `&mut bool` references, and must use the
+	/// [`BitMut`] proxy type where `&mut bool` exists in the standard library
+	/// API. The proxy value must be bound as `mut` in order to write through
+	/// it.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut 0; 2];
-	/// assert!(!bits.get(1).unwrap());
-	/// *bits.get_mut(1).unwrap() = true;
-	/// assert!(bits.get(1).unwrap());
+	/// let x = bits![mut 0, 0, 1];
+	///
+	/// if let Some(mut bit) = x.get_mut(1) {
+	///   *bit = true;
+	/// }
+	/// assert_eq!(x, bits![0, 1, 1]);
 	/// ```
 	///
 	/// [`BitMut`]: crate::slice::BitMut
-	/// [`get`]: Self::get
+	/// [`.get()`]: Self::get
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn get_mut<'a, I>(&'a mut self, index: I) -> Option<I::Mut>
 	where I: BitSliceIndex<'a, O, T> {
 		index.get_mut(self)
 	}
 
-	/// Returns a reference to an element or subslice, without doing bounds
-	/// checking.
+	/// Returns a reference to a bit or subslice, without doing bounds checking.
 	///
-	/// This is generally not recommended; use with caution!
-	///
-	/// Unlike the original slice function, calling this with an out-of-bounds
-	/// index is not *technically* compile-time [undefined behavior], as the
-	/// references produced do not actually describe local memory. However, the
-	/// use of an out-of-bounds index will eventually cause an out-of-bounds
-	/// memory read, which is a runtime safety violation. For a safe alternative
-	/// see [`get`].
+	/// This is generally not recommended; use with caution! Calling this method
+	/// with an out-of-bounds index is *[undefined behavior]* even if the
+	/// resulting reference is not used. For a safe alternative, see [`.get()`].
 	///
 	/// # Original
 	///
@@ -456,32 +452,30 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![0, 1];
+	/// let x = bits![0, 1, 0];
+	///
 	/// unsafe {
-	///   assert!(*bits.get_unchecked(1));
+	///   assert_eq!(x.get_unchecked(1), &true);
 	/// }
 	/// ```
 	///
-	/// [`get`]: Self::get
 	/// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
+	/// [`.get()`]: Self::get
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	#[allow(clippy::missing_safety_doc)]
 	pub unsafe fn get_unchecked<'a, I>(&'a self, index: I) -> I::Immut
 	where I: BitSliceIndex<'a, O, T> {
 		index.get_unchecked(self)
 	}
 
-	/// Returns a mutable reference to the output at this location, without
-	/// doing bounds checking.
+	/// Returns a mutable reference to a bit or subslice, without doing bounds
+	/// checking.
 	///
-	/// This is generally not recommended; use with caution!
-	///
-	/// Unlike the original slice function, calling this with an out-of-bounds
-	/// index is not *technically* compile-time [undefined behavior], as the
-	/// references produced do not actually describe local memory. However, the
-	/// use of an out-of-bounds index will eventually cause an out-of-bounds
-	/// memory write, which is a runtime safety violation. For a safe
-	/// alternative see [`get_mut`].
+	/// This is generally not recommended; use with caution! Calling this method
+	/// with an out-of-bounds index is *[undefined behavior]* even if the
+	/// resulting reference is not used. For a safe alternative, see
+	/// [`.get_mut()`].
 	///
 	/// # Original
 	///
@@ -489,44 +483,48 @@ where
 	///
 	/// # API Differences
 	///
-	/// When `I` is `usize`, this returns [`BitMut`] instead of `&mut bool`.
+	/// This crate cannot manifest `&mut bool` references, and must use the
+	/// [`BitMut`] proxy type where `&mut bool` exists in the standard library
+	/// API. The proxy value must be bound as `mut` in order to write through
+	/// it.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut 0; 2];
+	/// let x = bits![mut 0; 3];
 	/// unsafe {
-	///   let mut bit = bits.get_unchecked_mut(1);
+	///   let mut bit = x.get_unchecked_mut(1);
 	///   *bit = true;
 	/// }
-	/// assert!(bits[1]);
+	/// assert_eq!(x, bits![0, 1, 0]);
 	/// ```
 	///
 	/// [`BitMut`]: crate::slice::BitMut
 	/// [`get_mut`]: Self::get_mut
 	/// [undefined behavior]: ../../reference/behavior-considered-undefined.html
 	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	#[allow(clippy::missing_safety_doc)]
 	pub unsafe fn get_unchecked_mut<'a, I>(&'a mut self, index: I) -> I::Mut
 	where I: BitSliceIndex<'a, O, T> {
 		index.get_unchecked_mut(self)
 	}
 
-	/// Returns a raw bit-slice pointer to the region.
+	/// Returns a raw pointer to the slice’s region.
 	///
-	/// The caller must ensure that the slice outlives the pointer this function
-	/// returns, or else it will end up pointing to garbage.
+	/// The caller must ensure that the slice outlives the pointer this
+	/// function returns, or else it will end up pointing to garbage.
 	///
 	/// The caller must also ensure that the memory the pointer
-	/// (non-transitively) points to is only written to if `T` allows shared
-	/// mutation, using this pointer or any pointer derived from it. If you need
-	/// to mutate the contents of the slice, use [`as_mut_ptr`].
+	/// (non-transitively) points to is never written to using this pointer or
+	/// any pointer derived from it. If you need to mutate the contents of the
+	/// slice, use [`.as_mut_bitptr()`].
 	///
-	/// Modifying the container (such as `BitVec`) referenced by this slice may
-	/// cause its buffer to be reällocated, which would also make any pointers
-	/// to it invalid.
+	/// Modifying the container referenced by this slice may cause its
+	/// buffer to be reällocated, which would also make any pointers to it
+	/// invalid.
 	///
 	/// # Original
 	///
@@ -554,17 +552,17 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![0, 1, 1, 0];
-	/// let bits_ptr = bits.as_ptr();
+	/// let x = bits![0, 0, 1];
+	/// let x_ptr = x.as_ptr();
 	///
-	/// for i in 0 .. bits.len() {
-	///   assert_eq!(bits[i], unsafe {
-	///     (&*bits_ptr)[i]
-	///   });
+	/// unsafe {
+	///   for i in 0 .. x.len() {
+	///     assert_eq!(*x.get_unchecked(i), (&*x)[i]);
+	///   }
 	/// }
 	/// ```
 	///
-	/// [`as_mut_ptr`]: Self::as_mut_ptr
+	/// [`.as_mut_bitptr()`]: Self::as_mut_bitptr
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.as_bitptr()` to access the region pointer"]
@@ -572,14 +570,14 @@ where
 		self.as_bitptr()
 	}
 
-	/// Returns an unsafe mutable bit-slice pointer to the region.
+	/// Returns an unsafe mutable pointer to the slice’s region.
 	///
-	/// The caller must ensure that the slice outlives the pointer this function
-	/// returns, or else it will end up pointing to garbage.
+	/// The caller must ensure that the slice outlives the pointer this
+	/// function returns, or else it will end up pointing to garbage.
 	///
-	/// Modifying the container (such as `BitVec`) referenced by this slice may
-	/// cause its buffer to be reällocated, which would also make any pointers
-	/// to it invalid.
+	/// Modifying the container referenced by this slice may cause its
+	/// buffer to be reällocated, which would also make any pointers to it
+	/// invalid.
 	///
 	/// # Original
 	///
@@ -642,9 +640,9 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut 0, 1];
-	/// bits.swap(0, 1);
-	/// assert_eq!(bits, bits![1, 0]);
+	/// let v = bits![mut 0, 1, 1, 0];
+	/// v.swap(1, 3);
+	/// assert_eq!(v, bits![0, 0, 1, 1]);
 	/// ```
 	#[inline]
 	pub fn swap(&mut self, a: usize, b: usize) {
@@ -667,10 +665,9 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0b1_1001100u8;
-	/// let bits = data.view_bits_mut::<Msb0>();
-	/// bits[1 ..].reverse();
-	/// assert_eq!(data, 0b1_0011001);
+	/// let v = bits![mut 0, 1, 1];
+	/// v.reverse();
+	/// assert_eq!(v, bits![1, 1, 0]);
 	/// ```
 	#[inline]
 	pub fn reverse(&mut self) {
@@ -692,7 +689,7 @@ where
 				//  Bring `len` from one past the last to the last exactly.
 				len -= 1;
 				//  Swap the 0 and last indices.
-				bitptr.to_bitslice_mut::<O>().swap_unchecked(0, len);
+				bitptr.to_bitslice_mut().swap_unchecked(0, len);
 
 				//  Move the pointer upwards by one bit.
 				bitptr.incr_head();
@@ -716,12 +713,12 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![0, 1, 0, 0, 0, 0, 0, 1];
-	/// let mut iterator = bits.iter();
+	/// let x = bits![0, 0, 1];
+	/// let mut iterator = x.iter();
 	///
 	/// assert_eq!(iterator.next(), Some(&false));
+	/// assert_eq!(iterator.next(), Some(&false));
 	/// assert_eq!(iterator.next(), Some(&true));
-	/// assert_eq!(iterator.nth(5), Some(&true));
 	/// assert_eq!(iterator.next(), None);
 	/// ```
 	#[inline]
@@ -737,29 +734,31 @@ where
 	///
 	/// # API Differences
 	///
-	/// This iterator marks each yielded reference as aliased, as iterators can
-	/// be used to yield multiple items into the same scope. If you are using
+	/// This crate cannot manifest `&mut bool` references, and must use the
+	/// [`BitMut`] proxy type where `&mut bool` exists in the standard library
+	/// API. The proxy value must be bound as `mut` in order to write through
+	/// it.
+	///
+	/// This iterator marks each yielded item as aliased, as iterators can be
+	/// used to yield multiple items into the same scope. If you are using
 	/// the iterator in a manner that ensures that all yielded items have
 	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
-	/// remove the marker from yielded references.
+	/// remove the alias marker from the yielded subslices.
 	///
-	/// Because [`bitvec`] cannot produce `&mut bool` references, this instead
-	/// yields [`BitMut`] proxy references
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut Msb0, u8; 0; 8];
-	/// for (idx, mut elem) in bits.iter_mut().enumerate() {
-	///   *elem = idx % 3 == 0;
+	/// let x = bits![mut 0, 0, 1];
+	/// for mut bit in x.iter_mut() {
+	///   *bit = !*bit;
 	/// }
-	/// assert_eq!(bits.as_slice()[0], 0b100_100_10);
+	/// assert_eq!(x, bits![1, 1, 0]);
 	/// ```
 	///
 	/// [`BitMut`]: crate::slice::BitMut
-	/// [`bitvec`]: crate
 	/// [`.remove_alias()`]: crate::slice::IterMut::remove_alias
 	#[inline]
 	pub fn iter_mut(&mut self) -> IterMut<O, T> {
@@ -783,12 +782,11 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![1, 0, 1, 0, 0, 1, 0, 1];
-	/// let mut iter = bits.windows(6);
-	///
-	/// assert_eq!(iter.next().unwrap(), &bits[.. 6]);
-	/// assert_eq!(iter.next().unwrap(), &bits[1 .. 7]);
-	/// assert_eq!(iter.next().unwrap(), &bits[2 ..]);
+	/// let slice = bits![0, 0, 1, 1];
+	/// let mut iter = slice.windows(2);
+	/// assert_eq!(iter.next().unwrap(), bits![0; 2]);
+	/// assert_eq!(iter.next().unwrap(), bits![0, 1]);
+	/// assert_eq!(iter.next().unwrap(), bits![1; 2]);
 	/// assert!(iter.next().is_none());
 	/// ```
 	///
@@ -797,8 +795,8 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = BitSlice::<LocalBits, usize>::empty();
-	/// let mut iter = bits.windows(1);
+	/// let slice = bits![0; 3];
+	/// let mut iter = slice.windows(4);
 	/// assert!(iter.next().is_none());
 	/// ```
 	#[inline]
@@ -814,9 +812,9 @@ where
 	/// divide the length of the slice, then the last chunk will not have length
 	/// `chunk_size`.
 	///
-	/// See [`chunks_exact`] for a variant of this iterator that returns chunks
-	/// of always exactly `chunk_size` bits, and [`rchunks`] for the same
-	/// iterator but starting at the end of the slice.
+	/// See [`.chunks_exact()`] for a variant of this iterator that returns
+	/// chunks of always exactly `chunk_size` bits, and [`.rchunks()`] for the
+	/// same iterator but starting at the end of the slice.
 	///
 	/// # Original
 	///
@@ -831,17 +829,16 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![0, 0, 1, 1, 1, 1, 0, 0];
-	/// let mut iter = bits.chunks(3);
-	///
-	/// assert_eq!(iter.next().unwrap(), &bits[.. 3]);
-	/// assert_eq!(iter.next().unwrap(), &bits[3 .. 6]);
-	/// assert_eq!(iter.next().unwrap(), &bits[6 ..]);
+	/// let slice = bits![0, 1, 0, 0, 1];
+	/// let mut iter = slice.chunks(2);
+	/// assert_eq!(iter.next().unwrap(), bits![0, 1]);
+	/// assert_eq!(iter.next().unwrap(), bits![0, 0]);
+	/// assert_eq!(iter.next().unwrap(), bits![1]);
 	/// assert!(iter.next().is_none());
 	/// ```
 	///
-	/// [`chunks_exact`]: Self::chunks_exact
-	/// [`rchunks`]: Self::rchunks
+	/// [`.chunks_exact()`]: Self::chunks_exact
+	/// [`.rchunks()`]: Self::rchunks
 	#[inline]
 	pub fn chunks(&self, chunk_size: usize) -> Chunks<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
@@ -855,9 +852,9 @@ where
 	/// not divide the length of the slice, then the last chunk will not have
 	/// length `chunk_size`.
 	///
-	/// See [`chunks_exact_mut`] for a variant of this iterator that returns
-	/// chunks of always exactly `chunk_size` bits, and [`rchunks_mut`] for the
-	/// same iterator but starting at the end of the slice.
+	/// See [`.chunks_exact_mut()`] for a variant of this iterator that returns
+	/// chunks of always exactly `chunk_size` bits, and [`.rchunks_mut()`] for
+	/// the same iterator but starting at the end of the slice.
 	///
 	/// # Original
 	///
@@ -865,11 +862,11 @@ where
 	///
 	/// # API Differences
 	///
-	/// This iterator marks each yielded reference as aliased, as iterators can
-	/// be used to yield multiple items into the same scope. If you are using
+	/// This iterator marks each yielded item as aliased, as iterators can be
+	/// used to yield multiple items into the same scope. If you are using
 	/// the iterator in a manner that ensures that all yielded items have
 	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
-	/// remove the marker from yielded references.
+	/// remove the alias marker from the yielded subslices.
 	///
 	/// # Panics
 	///
@@ -880,15 +877,20 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut Lsb0, u8; 0; 8];
-	/// for (idx, chunk) in bits.chunks_mut(3).enumerate() {
-	///   chunk.set(2 - idx, true);
+	/// let v = bits![mut 0; 5];
+	/// let mut count = 1;
+	///
+	/// for chunk in v.chunks_mut(2) {
+	///   for mut bit in chunk.iter_mut() {
+	///     *bit = count % 2 == 0;
+	///   }
+	///   count += 1;
 	/// }
-	/// assert_eq!(bits.as_slice()[0], 0b01_010_100);
+	/// assert_eq!(v, bits![0, 0, 1, 1, 0]);
 	/// ```
 	///
-	/// [`chunks_exact_mut`]: Self::chunks_exact_mut
-	/// [`rchunks_mut`]: Self::rchunks_mut
+	/// [`.chunks_exact_mut()`]: Self::chunks_exact_mut
+	/// [`.rchunks_mut()`]: Self::rchunks_mut
 	/// [`.remove_alias()`]: crate::slice::ChunksMut::remove_alias
 	#[inline]
 	pub fn chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<O, T> {
@@ -901,14 +903,15 @@ where
 	///
 	/// The chunks are slices and do not overlap. If `chunk_size` does not
 	/// divide the length of the slice, then the last up to `chunk_size-1` bits
-	/// will be omitted and can be retrieved from the `remainder` function of
+	/// will be omitted and can be retrieved from the [`.remainder()`] method of
 	/// the iterator.
 	///
-	/// Due to each chunk having exactly `chunk_size` bits, the compiler may
-	/// optimize the resulting code better than in the case of [`chunks`].
+	/// Due to each chunk having exactly `chunk_size` bits, the compiler may be
+	/// able to optimize the resulting code better than in the case of
+	/// [`.chunks()`].
 	///
-	/// See [`chunks`] for a variant of this iterator that also returns the
-	/// remainder as a smaller chunk, and [`rchunks_exact`] for the same
+	/// See [`.chunks()`] for a variant of this iterator that also returns the
+	/// remainder as a smaller chunk, and [`.rchunks_exact()`] for the same
 	/// iterator but starting at the end of the slice.
 	///
 	/// # Original
@@ -924,17 +927,17 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![1, 1, 0, 0, 1, 0, 1, 1];
-	/// let mut iter = bits.chunks_exact(3);
-	///
-	/// assert_eq!(iter.next().unwrap(), &bits[.. 3]);
-	/// assert_eq!(iter.next().unwrap(), &bits[3 .. 6]);
+	/// let slice = bits![0, 1, 1, 0, 0];
+	/// let mut iter = slice.chunks_exact(2);
+	/// assert_eq!(iter.next().unwrap(), bits![0, 1]);
+	/// assert_eq!(iter.next().unwrap(), bits![1, 0]);
 	/// assert!(iter.next().is_none());
-	/// assert_eq!(iter.remainder(), &bits[6 ..]);
+	/// assert_eq!(iter.remainder(), bits![0]);
 	/// ```
 	///
-	/// [`chunks`]: Self::chunks
-	/// [`rchunks_exact`]: Self::rchunks_exact
+	/// [`.chunks()`]: Self::chunks
+	/// [`.rchunks_exact()`]: Self::rchunks_exact
+	/// [`.remainder()`]: crate::slice::ChunksExact::remainder
 	#[inline]
 	pub fn chunks_exact(&self, chunk_size: usize) -> ChunksExact<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
@@ -945,16 +948,17 @@ where
 	/// starting at the beginning of the slice.
 	///
 	/// The chunks are mutable slices, and do not overlap. If `chunk_size` does
-	/// not divide the beginning length of the slice, then the last up to
-	/// `chunk_size-1` bits will be omitted and can be retrieved from the
-	/// `into_remainder` function of the iterator.
+	/// not divide the length of the slice, then the last up to `chunk_size-1`
+	/// bits will be omitted and can be retrieved from the [`.into_remainder()`]
+	/// method of the iterator.
 	///
-	/// Due to each chunk having exactly `chunk_size` bits, the compiler may
-	/// optimize the resulting code better than in the case of [`chunks_mut`].
+	/// Due to each chunk having exactly `chunk_size` bits, the compiler may be
+	/// able to optimize the resulting code better than in the case of
+	/// [`.chunks_mut()`].
 	///
-	/// See [`chunks_mut`] for a variant of this iterator that also returns the
-	/// remainder as a smaller chunk, and [`rchunks_exact_mut`] for the same
-	/// iterator but starting at the end of the slice.
+	/// See [`.chunks_mut()`] for a variant of this iterator that also returns
+	/// the remainder as a smaller chunk, and [`.rchunks_exact_mut()`] for the
+	/// same iterator but starting at the end of the slice.
 	///
 	/// # Original
 	///
@@ -962,11 +966,11 @@ where
 	///
 	/// # API Differences
 	///
-	/// This iterator marks each yielded reference as aliased, as iterators can
-	/// be used to yield multiple items into the same scope. If you are using
+	/// This iterator marks each yielded item as aliased, as iterators can be
+	/// used to yield multiple items into the same scope. If you are using
 	/// the iterator in a manner that ensures that all yielded items have
 	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
-	/// remove the marker from yielded references.
+	/// remove the alias marker from the yielded subslices.
 	///
 	/// # Panics
 	///
@@ -977,15 +981,17 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut Lsb0, u8; 0; 8];
-	/// for (idx, chunk) in bits.chunks_exact_mut(3).enumerate() {
-	///   chunk.set(idx, true);
+	/// let v = bits![mut 0; 5];
+	///
+	/// for chunk in v.chunks_exact_mut(2) {
+	///   chunk.set_all(true);
 	/// }
-	/// assert_eq!(bits.as_slice()[0], 0b00_010_001);
+	/// assert_eq!(v, bits![1, 1, 1, 1, 0]);
 	/// ```
 	///
-	/// [`chunks_mut`]: Self::chunks_mut
-	/// [`rchunks_exact_mut`]: Self::rchunks_exact_mut
+	/// [`.chunks_mut()`]: Self::chunks_mut
+	/// [`.into_remainder()`]: crate::slice::ChunksExactMut::into_remainder
+	/// [`.rchunks_exact_mut()`]: Self::rchunks_exact_mut
 	/// [`.remove_alias()`]: crate::slice::ChunksExactMut::remove_alias
 	#[inline]
 	pub fn chunks_exact_mut(
@@ -1004,9 +1010,9 @@ where
 	/// divide the length of the slice, then the last chunk will not have length
 	/// `chunk_size`.
 	///
-	/// See [`rchunks_exact`] for a variant of this iterator that returns chunks
-	/// of always exactly `chunk_size` bits, and [`chunks`] for the same
-	/// iterator but starting at the beginning of the slice.
+	/// See [`.rchunks_exact()`] for a variant of this iterator that returns
+	/// chunks of always exactly `chunk_size` bits, and [`.chunks()`] for the
+	/// same iterator but starting at the beginning of the slice.
 	///
 	/// # Original
 	///
@@ -1021,17 +1027,16 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![0, 0, 1, 1, 0, 1, 1, 0];
-	/// let mut iter = bits.rchunks(3);
-	///
-	/// assert_eq!(iter.next().unwrap(), &bits[5 ..]);
-	/// assert_eq!(iter.next().unwrap(), &bits[2 .. 5]);
-	/// assert_eq!(iter.next().unwrap(), &bits[.. 2]);
+	/// let slice = bits![0, 1, 0, 0, 1];
+	/// let mut iter = slice.rchunks(2);
+	/// assert_eq!(iter.next().unwrap(), bits![0, 1]);
+	/// assert_eq!(iter.next().unwrap(), bits![1, 0]);
+	/// assert_eq!(iter.next().unwrap(), bits![0]);
 	/// assert!(iter.next().is_none());
 	/// ```
 	///
-	/// [`chunks`]: Self::chunks
-	/// [`rchunks_exact`]: Self::rchunks_exact
+	/// [`.chunks()`]: Self::chunks
+	/// [`.rchunks_exact()`]: Self::rchunks_exact
 	#[inline]
 	pub fn rchunks(&self, chunk_size: usize) -> RChunks<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
@@ -1045,9 +1050,9 @@ where
 	/// not divide the length of the slice, then the last chunk will not have
 	/// length `chunk_size`.
 	///
-	/// See [`rchunks_exact_mut`] for a variant of this iterator that returns
-	/// chunks of always exactly `chunk_size` bits, and [`chunks_mut`] for the
-	/// same iterator but starting at the beginning of the slice.
+	/// See [`.rchunks_exact_mut()`] for a variant of this iterator that returns
+	/// chunks of always exactly `chunk_size` bits, and [`.chunks_mut()`] for
+	/// the same iterator but starting at the beginning of the slice.
 	///
 	/// # Original
 	///
@@ -1055,11 +1060,11 @@ where
 	///
 	/// # API Differences
 	///
-	/// This iterator marks each yielded reference as aliased, as iterators can
-	/// be used to yield multiple items into the same scope. If you are using
+	/// This iterator marks each yielded item as aliased, as iterators can be
+	/// used to yield multiple items into the same scope. If you are using
 	/// the iterator in a manner that ensures that all yielded items have
 	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
-	/// remove the marker from yielded references.
+	/// remove the alias marker from the yielded subslices.
 	///
 	/// # Panics
 	///
@@ -1070,15 +1075,20 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut Lsb0, u8; 0; 8];
-	/// for (idx, chunk) in bits.rchunks_mut(3).enumerate() {
-	///   chunk.set(2 - idx, true);
+	/// let v = bits![mut 0; 5];
+	/// let mut count = 1;
+	///
+	/// for chunk in v.rchunks_mut(2) {
+	///   for mut bit in chunk.iter_mut() {
+	///     *bit = count % 2 == 0;
+	///   }
+	///   count += 1;
 	/// }
-	/// assert_eq!(bits.as_slice()[0], 0b100_010_01);
+	/// assert_eq!(v, bits![0, 1, 1, 0, 0]);
 	/// ```
 	///
-	/// [`chunks_mut`]: Self::chunks_mut
-	/// [`rchunks_exact_mut`]: Self::rchunks_exact_mut
+	/// [`.chunks_mut()`]: Self::chunks_mut
+	/// [`.rchunks_exact_mut()`]: Self::rchunks_exact_mut
 	/// [`.remove_alias()`]: crate::slice::RChunksMut::remove_alias
 	#[inline]
 	pub fn rchunks_mut(&mut self, chunk_size: usize) -> RChunksMut<O, T> {
@@ -1091,15 +1101,16 @@ where
 	///
 	/// The chunks are slices and do not overlap. If `chunk_size` does not
 	/// divide the length of the slice, then the last up to `chunk_size-1` bits
-	/// will be omitted and can be retrieved from the `remainder` function of
+	/// will be omitted and can be retrieved from the [`.remainder()`] method of
 	/// the iterator.
 	///
-	/// Due to each chunk having exactly `chunk_size` bits, the compiler can
-	/// often optimize the resulting code better than in the case of [`chunks`].
+	/// Due to each chunk having exactly `chunk_size` bits, the compiler may be
+	/// able to optimize the resulting code better than in the case of
+	/// [`.rchunks()`].
 	///
-	/// See [`rchunks`] for a variant of this iterator that also returns the
-	/// remainder as a smaller chunk, and [`chunks_exact`] for the same iterator
-	/// but starting at the beginning of the slice.
+	/// See [`.rchunks()`] for a variant of this iterator that also returns the
+	/// remainder as a smaller chunk, and [`.chunks_exact()`] for the same
+	/// iterator but starting at the beginning of the slice.
 	///
 	/// # Original
 	///
@@ -1114,18 +1125,17 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut 0, 1, 1, 1, 0, 0, 1, 0];
-	/// let mut iter = bits.rchunks_exact(3);
-	///
-	/// assert_eq!(iter.next().unwrap(), &bits[5 ..]);
-	/// assert_eq!(iter.next().unwrap(), &bits[2 .. 5]);
+	/// let slice = bits![0, 0, 1, 1, 0];
+	/// let mut iter = slice.rchunks_exact(2);
+	/// assert_eq!(iter.next().unwrap(), bits![1, 0]);
+	/// assert_eq!(iter.next().unwrap(), bits![0, 1]);
 	/// assert!(iter.next().is_none());
-	/// assert_eq!(iter.remainder(), &bits[.. 2]);
+	/// assert_eq!(iter.remainder(), bits![0]);
 	/// ```
 	///
-	/// [`chunks`]: Self::chunks
-	/// [`rchunks`]: Self::rchunks
-	/// [`chunks_exact`]: Self::chunks_exact
+	/// [`.chunks_exact()`]: Self::chunks_exact
+	/// [`.rchunks()`]: Self::rchunks
+	/// [`.remainder()`]: crate::slice::ChunksExact::remainder
 	#[inline]
 	pub fn rchunks_exact(&self, chunk_size: usize) -> RChunksExact<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
@@ -1137,16 +1147,16 @@ where
 	///
 	/// The chunks are mutable slices, and do not overlap. If `chunk_size` does
 	/// not divide the length of the slice, then the last up to `chunk_size-1`
-	/// bits will be omitted and can be retrieved from the `into_remainder`
-	/// function of the iterator.
+	/// bits will be omitted and can be retrieved from the [`.into_remainder()`]
+	/// method of the iterator.
 	///
-	/// Due to each chunk having exactly `chunk_size` bits, the compiler can
-	/// often optimize the resulting code better than in the case of
-	/// [`chunks_mut`].
+	/// Due to each chunk having exactly `chunk_size` bits, the compiler may be
+	/// able to optimize the resulting code better than in the case of
+	/// [`.rchunks_mut()`].
 	///
-	/// See [`rchunks_mut`] for a variant of this iterator that also returns the
-	/// remainder as a smaller chunk, and [`chunks_exact_mut`] for the same
-	/// iterator but starting at the beginning of the slice.
+	/// See [`.rchunks_mut()`] for a variant of this iterator that also returns
+	/// the remainder as a smaller chunk, and [`.chunks_exact_mut()`] for the
+	/// same iterator but starting at the beginning of the slice.
 	///
 	/// # Original
 	///
@@ -1154,11 +1164,11 @@ where
 	///
 	/// # API Differences
 	///
-	/// This iterator marks each yielded reference as aliased, as iterators can
-	/// be used to yield multiple items into the same scope. If you are using
+	/// This iterator marks each yielded item as aliased, as iterators can be
+	/// used to yield multiple items into the same scope. If you are using
 	/// the iterator in a manner that ensures that all yielded items have
 	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
-	/// remove the marker from yielded references.
+	/// remove the alias marker from the yielded subslices.
 	///
 	/// # Panics
 	///
@@ -1169,17 +1179,18 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut Lsb0, u8; 0; 8];
-	/// for (idx, chunk) in bits.rchunks_exact_mut(3).enumerate() {
-	///   chunk.set(idx, true);
+	/// let v = bits![mut 0; 5];
+	///
+	/// for chunk in v.rchunks_exact_mut(2) {
+	///   chunk.set_all(true);
 	/// }
-	/// assert_eq!(bits.as_slice()[0], 0b001_010_00);
+	/// assert_eq!(v, bits![0, 1, 1, 1, 1]);
 	/// ```
 	///
-	/// [`chunks_mut`]: Self::chunks_mut
-	/// [`rchunks_mut`]: Self::rchunks_mut
-	/// [`chunks_exact_mut`]: Self::chunks_exact_mut
-	/// [`.remove_alias()`]: crate::slice::RChunksExactMut::remove_alias
+	/// [`.chunks_exact_mut()`]: Self::chunks_exact_mut
+	/// [`.into_remainder()`]: crate::slice::ChunksExactMut::into_remainder
+	/// [`.rchunks_mut()`]: Self::rchunks_mut
+	/// [`.remove_alias()`]: crate::slice::ChunksExactMut::remove_alias
 	#[inline]
 	pub fn rchunks_exact_mut(
 		&mut self,
@@ -1209,19 +1220,25 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![1, 1, 0, 0, 0, 0, 1, 1];
+	/// let v = bits![0, 0, 0, 1, 1, 1];
 	///
-	/// let (left, right) = bits.split_at(0);
-	/// assert!(left.is_empty());
-	/// assert_eq!(right, bits);
+	/// {
+	///   let (left, right) = v.split_at(0);
+	///   assert_eq!(left, bits![]);
+	///   assert_eq!(right, v);
+	/// }
 	///
-	/// let (left, right) = bits.split_at(2);
-	/// assert_eq!(left, &bits[.. 2]);
-	/// assert_eq!(right, &bits[2 ..]);
+	/// {
+	///   let (left, right) = v.split_at(2);
+	///   assert_eq!(left, bits![0, 0]);
+	///   assert_eq!(right, bits![0, 1, 1, 1]);
+	/// }
 	///
-	/// let (left, right) = bits.split_at(8);
-	/// assert_eq!(left, bits);
-	/// assert!(right.is_empty());
+	/// {
+	///   let (left, right) = v.split_at(6);
+	///   assert_eq!(left, v);
+	///   assert_eq!(right, bits![]);
+	/// }
 	/// ```
 	#[inline]
 	pub fn split_at(&self, mid: usize) -> (&Self, &Self) {
@@ -1242,15 +1259,17 @@ where
 	///
 	/// # API Differences
 	///
-	/// Because the partition point `mid` is permitted to occur in the interior
-	/// of a memory element `T`, this method is required to mark the returned
-	/// slices as being to aliased memory. This marking ensures that writes to
-	/// the covered memory use the appropriate synchronization behavior of your
-	/// build to avoid data races – by default, this makes all writes atomic; on
-	/// builds with the `atomic` feature disabled, this uses `Cell`s and
-	/// forbids the produced subslices from leaving the current thread.
+	/// The partition index `mid` may occur anywhere in the slice, and as a
+	/// result the two returned slices may both have write access to the memory
+	/// address containing `mid`. As such, the returned slices must be marked
+	/// with [`T::Alias`] in order to correctly manage memory access going
+	/// forward.
 	///
-	/// See the [`BitStore`] documentation for more information.
+	/// This marking is applied to all memory accesses in both slices,
+	/// regardless of whether any future accesses actually require it. To limit
+	/// the alias marking to only the addresses that need it, use
+	/// [`.bit_domain()`] or [`.bit_domain_mut()`] to split either slice into
+	/// its aliased and unaliased subslices.
 	///
 	/// # Panics
 	///
@@ -1261,17 +1280,22 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut Msb0, u8; 0; 8];
+	/// let v = bits![mut 0, 0, 0, 1, 1, 1];
 	/// // scoped to restrict the lifetime of the borrows
 	/// {
-	///   let (left, right) = bits.split_at_mut(3);
-	///   *left.get_mut(1).unwrap() = true;
-	///   *right.get_mut(2).unwrap() = true;
+	///   let (left, right) = v.split_at_mut(2);
+	///   assert_eq!(left, bits![0, 0]);
+	///   assert_eq!(right, bits![0, 1, 1, 1]);
+	///
+	///   left.set(1, true);
+	///   right.set(1, false);
 	/// }
-	/// assert_eq!(bits.as_slice()[0], 0b010_00100);
+	/// assert_eq!(v, bits![0, 1, 0, 0, 1, 1]);
 	/// ```
 	///
-	/// [`BitStore`]: crate::store::BitStore
+	/// [`T::Alias`]: crate::store::BitStore::Alias
+	/// [`.bit_domain`()]: Self::bit_domain
+	/// [`.bit_domain_mut`()]: Self::bit_domain_mut
 	#[inline]
 	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
 	//  so this will not be aliased.
@@ -1304,27 +1328,26 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![0, 1, 0, 0, 1, 0, 0, 0];
-	/// let mut iter = bits.split(|_pos, bit| *bit);
+	/// let slice = bits![0, 1, 1, 0];
+	/// let mut iter = slice.split(|pos, _bit| pos % 3 == 2);
 	///
-	/// assert_eq!(iter.next().unwrap(), &bits[.. 1]);
-	/// assert_eq!(iter.next().unwrap(), &bits[2 .. 4]);
-	/// assert_eq!(iter.next().unwrap(), &bits[5 ..]);
+	/// assert_eq!(iter.next().unwrap(), bits![0, 1]);
+	/// assert_eq!(iter.next().unwrap(), bits![0]);
 	/// assert!(iter.next().is_none());
 	/// ```
 	///
 	/// If the first bit is matched, an empty slice will be the first item
-	/// returned by the iterator. Similarly, if the last element in the slice is
+	/// returned by the iterator. Similarly, if the last bit in the slice is
 	/// matched, an empty slice will be the last item returned by the iterator:
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![0, 0, 0, 1];
-	/// let mut iter = bits.split(|_pos, bit| *bit);
+	/// let slice = bits![0, 0, 1];
+	/// let mut iter = slice.split(|_pos, bit| *bit);
 	///
-	/// assert_eq!(iter.next().unwrap(), &bits[.. 3]);
-	/// assert!(iter.next().unwrap().is_empty());
+	/// assert_eq!(iter.next().unwrap(), bits![0, 0]);
+	/// assert_eq!(iter.next().unwrap(), bits![]);
 	/// assert!(iter.next().is_none());
 	/// ```
 	///
@@ -1334,12 +1357,12 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![0, 0, 1, 1, 0, 0, 0, 0,];
-	/// let mut iter = bits.split(|pos, bit| *bit);
+	/// let slice = bits![1, 0, 0, 1];
+	/// let mut iter = slice.split(|_pos, bit| !*bit);
 	///
-	/// assert_eq!(iter.next().unwrap(), &bits[0 .. 2]);
-	/// assert!(iter.next().unwrap().is_empty());
-	/// assert_eq!(iter.next().unwrap(), &bits[4 .. 8]);
+	/// assert_eq!(iter.next().unwrap(), bits![1]);
+	/// assert_eq!(iter.next().unwrap(), bits![]);
+	/// assert_eq!(iter.next().unwrap(), bits![1]);
 	/// assert!(iter.next().is_none());
 	/// ```
 	#[inline]
@@ -1361,22 +1384,22 @@ where
 	/// decision, the predicate receives the index of each bit, as well as its
 	/// value.
 	///
-	/// This iterator marks each yielded reference as aliased, as iterators can
-	/// be used to yield multiple items into the same scope. If you are using
+	/// This iterator marks each yielded item as aliased, as iterators can be
+	/// used to yield multiple items into the same scope. If you are using
 	/// the iterator in a manner that ensures that all yielded items have
 	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
-	/// remove the marker from yielded references.
+	/// remove the alias marker from the yielded subslices.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut Msb0, u8; 0, 0, 1, 0, 0, 0, 1, 0];
-	/// for group in bits.split_mut(|_pos, bit| *bit) {
-	///   *group.get_mut(0).unwrap() = true;
+	/// let v = bits![mut 0, 0, 1, 0, 1, 0];
+	/// for group in v.split_mut(|_pos, bit| *bit) {
+	///   group.set(0, true);
 	/// }
-	/// assert_eq!(bits.as_slice()[0], 0b101_100_11);
+	/// assert_eq!(v, bits![1, 0, 1, 1, 1, 1]);
 	/// ```
 	///
 	/// [`.remove_alias()`]: crate::slice::SplitMut::remove_alias
@@ -1405,29 +1428,30 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut Msb0, u8; 0, 0, 0, 1, 0, 0, 0, 0];
-	/// let mut iter = bits.rsplit(|_pos, bit| *bit);
+	/// let slice = bits![1, 1, 1, 0, 1, 1];
+	/// let mut iter = slice.rsplit(|_pos, bit| !*bit);
 	///
-	/// assert_eq!(iter.next().unwrap(), &bits[4 ..]);
-	/// assert_eq!(iter.next().unwrap(), &bits[.. 3]);
+	/// assert_eq!(iter.next().unwrap(), bits![1; 2]);
+	/// assert_eq!(iter.next().unwrap(), bits![1; 3]);
 	/// assert!(iter.next().is_none());
 	/// ```
 	///
-	/// As with `split()`, if the first or last bit is matched, an empty slice
-	/// will be the first (or last) item returned by the iterator.
+	/// As with [`.split()`], if the first or last bit is matched, an empty
+	/// slice will be the first (or last) item returned by the iterator.
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut Msb0, u8; 1, 0, 0, 1, 0, 0, 0, 1];
-	/// let mut iter = bits.rsplit(|_pos, bit| *bit);
-	///
-	/// assert!(iter.next().unwrap().is_empty());
-	/// assert_eq!(iter.next().unwrap(), &bits[4 .. 7]);
-	/// assert_eq!(iter.next().unwrap(), &bits[1 .. 3]);
-	/// assert!(iter.next().unwrap().is_empty());
-	/// assert!(iter.next().is_none());
+	/// let v = bits![1, 0, 0, 1, 0, 0, 1];
+	/// let mut it = v.rsplit(|_pos, bit| *bit);
+	/// assert_eq!(it.next().unwrap(), bits![]);
+	/// assert_eq!(it.next().unwrap(), bits![0; 2]);
+	/// assert_eq!(it.next().unwrap(), bits![0; 2]);
+	/// assert_eq!(it.next().unwrap(), bits![]);
+	/// assert!(it.next().is_none());
 	/// ```
+	///
+	/// [`.split()`]: Self::split
 	#[inline]
 	pub fn rsplit<F>(&self, pred: F) -> RSplit<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
@@ -1448,22 +1472,22 @@ where
 	/// decision, the predicate receives the index of each bit, as well as its
 	/// value.
 	///
-	/// This iterator marks each yielded reference as aliased, as iterators can
-	/// be used to yield multiple items into the same scope. If you are using
+	/// This iterator marks each yielded item as aliased, as iterators can be
+	/// used to yield multiple items into the same scope. If you are using
 	/// the iterator in a manner that ensures that all yielded items have
 	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
-	/// remove the marker from yielded references.
+	/// remove the alias marker from the yielded subslices.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut Msb0, u8; 0, 0, 1, 0, 0, 0, 1, 0];
-	/// for group in bits.rsplit_mut(|_pos, bit| *bit) {
-	///   *group.get_mut(0).unwrap() = true;
+	/// let v = bits![mut 0, 0, 1, 0, 1, 0];
+	/// for group in v.rsplit_mut(|_pos, bit| *bit) {
+	///   group.set(0, true);
 	/// }
-	/// assert_eq!(bits.as_slice()[0], 0b101_100_11);
+	/// assert_eq!(v, bits![1, 0, 1, 1, 1, 1]);
 	/// ```
 	///
 	/// [`.remove_alias()`]: crate::slice::RSplitMut::remove_alias
@@ -1491,19 +1515,18 @@ where
 	///
 	/// # Examples
 	///
+	/// Print the slice split once by set bits (i.e., `[0, 0,]`, `[0, 1, 0]`):
+	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![1, 0, 1, 0, 0, 1, 0, 1];
-	/// for group in bits.splitn(2, |pos, _bit| pos % 3 == 2) {
-	/// # #[cfg(feature = "std")] {
-	///   println!("{}", group.len());
-	/// # }
+	/// let v = bits![0, 0, 1, 0, 1, 0];
+	///
+	/// for group in v.splitn(2, |_pos, bit| *bit) {
+	///   # #[cfg(feature = "std")] {
+	///   println!("{:b}", group);
+	///   # }
 	/// }
-	/// //  2
-	/// //  5
-	/// # //  [10]
-	/// # //  [00101]
 	/// ```
 	#[inline]
 	pub fn splitn<F>(&self, n: usize, pred: F) -> SplitN<O, T, F>
@@ -1512,8 +1535,8 @@ where
 	}
 
 	/// Returns an iterator over subslices separated by bits that match `pred`,
-	/// limited to returning at most `n` items. The matched element is not
-	/// contained in the subslices.
+	/// limited to returning at most `n` items. The matched bit is not contained
+	/// in the subslices.
 	///
 	/// The last item returned, if any, will contain the remainder of the slice.
 	///
@@ -1527,22 +1550,23 @@ where
 	/// decision, the predicate receives the index of each bit, as well as its
 	/// value.
 	///
-	/// This iterator marks each yielded reference as aliased, as iterators can
-	/// be used to yield multiple items into the same scope. If you are using
+	/// This iterator marks each yielded item as aliased, as iterators can be
+	/// used to yield multiple items into the same scope. If you are using
 	/// the iterator in a manner that ensures that all yielded items have
 	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
-	/// remove the marker from yielded references.
+	/// remove the alias marker from the yielded subslices.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut Msb0, u8; 0, 0, 1, 0, 0, 0, 1, 0];
-	/// for group in bits.splitn_mut(2, |_pos, bit| *bit) {
-	///   *group.get_mut(0).unwrap() = true;
+	/// let v = bits![mut 0, 0, 1, 0, 1, 0];
+	///
+	/// for group in v.splitn_mut(2, |_pos, bit| *bit) {
+	///   group.set(0, true);
 	/// }
-	/// assert_eq!(bits.as_slice()[0], 0b101_100_10);
+	/// assert_eq!(v, bits![1, 0, 1, 1, 1, 0]);
 	/// ```
 	///
 	/// [`.remove_alias()`]: crate::slice::SplitNMut::remove_alias
@@ -1552,8 +1576,8 @@ where
 		SplitNMut::new(self.alias_mut(), pred, n)
 	}
 
-	/// Returns an iterator over subslices separated by bits that match `pred`
-	/// limited to returining at most `n` items. This starts at the end of the
+	/// Returns an iterator over subslices separated by bits that match `pred`,
+	/// limited to returning at most `n` items. This starts at the end of the
 	/// slice and works backwards. The matched bit is not contained in the
 	/// subslices.
 	///
@@ -1571,19 +1595,19 @@ where
 	///
 	/// # Examples
 	///
+	/// Print the slice split once, starting from the end, by set bits (i.e.,
+	/// `[0]`, `[0, 0, 1, 0]`):
+	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![Msb0, u8; 1, 0, 1, 0, 0, 1, 0, 1];
-	/// for group in bits.rsplitn(2, |pos, _bit| pos % 3 == 2) {
-	/// # #[cfg(feature = "std")] {
-	///   println!("{}", group.len());
-	/// # }
+	/// let v = bits![0, 0, 1, 0, 1, 0];
+	///
+	/// for group in v.rsplitn(2, |_pos, bit| *bit) {
+	///   # #[cfg(feature = "std")] {
+	///   println!("{:b}", group);
+	///   # }
 	/// }
-	/// //  2
-	/// //  5
-	/// # //  [10]
-	/// # //  [00101]
 	/// ```
 	#[inline]
 	pub fn rsplitn<F>(&self, n: usize, pred: F) -> RSplitN<O, T, F>
@@ -1591,7 +1615,7 @@ where
 		RSplitN::new(self, pred, n)
 	}
 
-	/// Returns an iterator over subslices separated by bits that match `pred`
+	/// Returns an iterator over subslices separated by bits that match `pred`,
 	/// limited to returning at most `n` items. This starts at the end of the
 	/// slice and works backwards. The matched bit is not contained in the
 	/// subslices.
@@ -1608,22 +1632,23 @@ where
 	/// decision, the predicate receives the index of each bit, as well as its
 	/// value.
 	///
-	/// This iterator marks each yielded reference as aliased, as iterators can
-	/// be used to yield multiple items into the same scope. If you are using
+	/// This iterator marks each yielded item as aliased, as iterators can be
+	/// used to yield multiple items into the same scope. If you are using
 	/// the iterator in a manner that ensures that all yielded items have
 	/// disjoint lifetimes, you can use the [`.remove_alias()`] adapter on it to
-	/// remove the marker from yielded references.
+	/// remove the alias marker from the yielded subslices.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![mut Msb0, u8; 0, 0, 1, 0, 0, 0, 1, 0];
-	/// for group in bits.rsplitn_mut(2, |_pos, bit| *bit) {
-	///   *group.get_mut(0).unwrap() = true;
+	/// let v = bits![mut 0, 0, 1, 0, 1, 0];
+	///
+	/// for group in v.rsplitn_mut(2, |_pos, bit| *bit) {
+	///   group.set(0, true);
 	/// }
-	/// assert_eq!(bits.as_slice()[0], 0b101_000_11);
+	/// assert_eq!(v, bits![1, 0, 1, 0, 1, 1]);
 	/// ```
 	///
 	/// [`.remove_alias()`]: crate::slice::RSplitNMut::remove_alias
@@ -1691,13 +1716,11 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0b0100_1011u8;
-	/// let haystack = data.view_bits::<Msb0>();
-	/// let needle = &data.view_bits::<Lsb0>()[2 .. 5];
-	///
-	/// assert!(haystack.starts_with(&needle[.. 2]));
-	/// assert!(haystack.starts_with(needle));
-	/// assert!(!haystack.starts_with(&haystack[2 .. 4]));
+	/// let v = bits![0, 1, 0, 0];
+	/// assert!(v.starts_with(bits![0]));
+	/// assert!(v.starts_with(bits![0, 1]));
+	/// assert!(!v.starts_with(bits![1]));
+	/// assert!(!v.starts_with(bits![1, 0]));
 	/// ```
 	///
 	/// Always returns `true` if `needle` is an empty slice:
@@ -1705,9 +1728,10 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let empty = BitSlice::<LocalBits, usize>::empty();
-	/// assert!(0u8.view_bits::<LocalBits>().starts_with(empty));
-	/// assert!(empty.starts_with(empty));
+	/// let v = bits![0, 1, 0];
+	/// assert!(v.starts_with(bits![]));
+	/// let v = bits![];
+	/// assert!(v.starts_with(bits![]));
 	/// ```
 	#[inline]
 	pub fn starts_with<O2, T2>(&self, needle: &BitSlice<O2, T2>) -> bool
@@ -1730,13 +1754,11 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0b0100_1011u8;
-	/// let haystack = data.view_bits::<Lsb0>();
-	/// let needle = &data.view_bits::<Msb0>()[3 .. 6];
-	///
-	/// assert!(haystack.ends_with(&needle[1 ..]));
-	/// assert!(haystack.ends_with(needle));
-	/// assert!(!haystack.ends_with(&haystack[2 .. 4]));
+	/// let v = bits![0, 1, 0, 0];
+	/// assert!(v.ends_with(bits![0]));
+	/// assert!(v.ends_with(bits![0; 2]));
+	/// assert!(!v.ends_with(bits![1]));
+	/// assert!(!v.ends_with(bits![1, 0]));
 	/// ```
 	///
 	/// Always returns `true` if `needle` is an empty slice:
@@ -1744,9 +1766,10 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let empty = BitSlice::<LocalBits, usize>::empty();
-	/// assert!(0u8.view_bits::<LocalBits>().ends_with(empty));
-	/// assert!(empty.ends_with(empty));
+	/// let v = bits![0, 1, 0];
+	/// assert!(v.ends_with(bits![]));
+	/// let v = bits![];
+	/// assert!(v.ends_with(bits![]));
 	/// ```
 	#[inline]
 	pub fn ends_with<O2, T2>(&self, needle: &BitSlice<O2, T2>) -> bool
@@ -1760,9 +1783,9 @@ where
 	}
 
 	/// Rotates the slice in-place such that the first `by` bits of the slice
-	/// move to the end while the last `self.len() - by` bits move to the front.
-	/// After calling `rotate_left`, the bit previously at index `by` will
-	/// become the first bit in the slice.
+	/// move to the end while the last `self.len() - by` bits move to the
+	/// front. After calling `.rotate_left()`, the bit previously at index `by`
+	/// will become the first bit in the slice.
 	///
 	/// # Original
 	///
@@ -1775,17 +1798,16 @@ where
 	///
 	/// # Complexity
 	///
-	/// Takes linear (in `self.len()`) time.
+	/// Takes linear (in [`self.len()`]) time.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0xF0u8;
-	/// let bits = data.view_bits_mut::<Msb0>();
-	/// bits.rotate_left(2);
-	/// assert_eq!(data, 0xC3);
+	/// let a = bits![mut 0, 0, 1, 0, 1, 0];
+	/// a.rotate_left(2);
+	/// assert_eq!(a, bits![1, 0, 1, 0, 0, 0]);
 	/// ```
 	///
 	/// Rotating a subslice:
@@ -1793,11 +1815,12 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0xF0u8;
-	/// let bits = data.view_bits_mut::<Msb0>();
-	/// bits[1 .. 5].rotate_left(1);
-	/// assert_eq!(data, 0b1_1101_000);
+	/// let a = bits![mut 0, 0, 1, 0, 1, 1];
+	/// a[1 .. 5].rotate_left(1);
+	/// assert_eq!(a, bits![0, 1, 0, 1, 0, 1]);
 	/// ```
+	///
+	/// [`self.len()`]: Self::len
 	#[inline]
 	pub fn rotate_left(&mut self, mut by: usize) {
 		let len = self.len();
@@ -1836,8 +1859,8 @@ where
 
 	/// Rotates the slice in-place such that the first `self.len() - by` bits of
 	/// the slice move to the end while the last `by` bits move to the front.
-	/// After calling `rotate_right`, the bit previously at index `self.len() -
-	/// by` will become the first bit in the slice.
+	/// After calling `.rotate_right()`, the bit previously at index `self.len()
+	/// - by` will become the first bit in the slice.
 	///
 	/// # Original
 	///
@@ -1850,29 +1873,29 @@ where
 	///
 	/// # Complexity
 	///
-	/// Takes linear (in `self.len()`) time.
+	/// Takes linear (in [`self.len()`]) time.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0xF0u8;
-	/// let bits = data.view_bits_mut::<Msb0>();
-	/// bits.rotate_right(2);
-	/// assert_eq!(data, 0x3C);
+	/// let a = bits![mut 0, 0, 1, 1, 1, 0];
+	/// a.rotate_right(2);
+	/// assert_eq!(a, bits![1, 0, 0, 0, 1, 1]);
 	/// ```
 	///
-	/// Rotate a subslice:
+	/// Rotating a subslice:
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0xF0u8;
-	/// let bits = data.view_bits_mut::<Msb0>();
-	/// bits[1 .. 5].rotate_right(1);
-	/// assert_eq!(data, 0b1_0111_000);
+	/// let a = bits![mut 0, 0, 1, 0, 1, 1];
+	/// a[1 .. 5].rotate_right(1);
+	/// assert_eq!(a, bits![0, 1, 0, 1, 0, 1]);
 	/// ```
+	///
+	/// [`self.len()`]: Self::len
 	#[inline]
 	pub fn rotate_right(&mut self, mut by: usize) {
 		let len = self.len();
@@ -1898,112 +1921,10 @@ where
 		}
 	}
 
-	/// Copies the bits from `src` into `self`.
+	/// The name is preserved for API compatibility. See
+	/// [`.clone_from_bitslice()`].
 	///
-	/// The length of `src` must be the same as `self`.
-	///
-	/// If you are attempting to write an integer value into a `BitSlice`, see
-	/// the [`BitField::store`] trait function.
-	///
-	/// # Implementation
-	///
-	/// This method uses a specialization hack to detect when both `self` and
-	/// `src` are using `BitOrder` type arguments from `bitvec`, where
-	/// `BitSlice`s ordered by them have a `BitField` implementation. When this
-	/// is the case, `BitField`’s batch-access behavior allows for an
-	/// accelerated transfer. When either of the ordering type arguments `O` or
-	/// `O2` are from outside of `bitvec`, this acceleration cannot occur.
-	///
-	/// If you know that you are copying from and to `BitSlice`s with the *same*
-	/// type arguments, you should prefer [`.copy_from_bitslice()`]. That method
-	/// will attempt to use `memcpy` for the fastest possible copy operation
-	/// where permissible, and will fall back to this method when it cannot.
-	///
-	/// # Original
-	///
-	/// [`slice::clone_from_slice`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.clone_from_slice)
-	///
-	/// # API Differences
-	///
-	/// This method is renamed, as it takes a bit slice rather than an element
-	/// slice.
-	///
-	/// # Panics
-	///
-	/// This function will panic if the two slices have different lengths.
-	///
-	/// # Examples
-	///
-	/// Cloning two bits from a slice into another:
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let mut data = 0u8;
-	/// let bits = data.view_bits_mut::<Msb0>();
-	/// let src = 0x0Fu16.view_bits::<Lsb0>();
-	/// bits[.. 2].clone_from_bitslice(&src[2 .. 4]);
-	/// assert_eq!(data, 0xC0);
-	/// ```
-	///
-	/// Rust enforces that there can only be one mutable reference with no
-	/// immutable references to a particular piece of data in a particular
-	/// scope. Because of this, attempting to use `clone_from_bitslice` on a
-	/// single slice will result in a compile failure:
-	///
-	/// ```rust,compile_fail
-	/// use bitvec::prelude::*;
-	///
-	/// let mut data = 3u8;
-	/// let bits = data.view_bits_mut::<Msb0>();
-	/// bits[.. 2].clone_from_bitslice(&bits[6 ..]);
-	/// ```
-	///
-	/// To work around this, we can use [`split_at_mut`] to create two distinct
-	/// sub-slices from a slice:
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let mut data = 3u8;
-	/// let bits = data.view_bits_mut::<Msb0>();
-	/// let (head, tail) = bits.split_at_mut(4);
-	/// head.clone_from_bitslice(tail);
-	/// assert_eq!(data, 0x33);
-	/// ```
-	///
-	/// [`BitField::store`]: crate::field::BitField::store
-	/// [`split_at_mut`]: Self::split_at_mut
-	/// [`.copy_from_bitslice()`]: Self::copy_from_bitslice
-	#[inline]
-	pub fn clone_from_bitslice<O2, T2>(&mut self, src: &BitSlice<O2, T2>)
-	where
-		O2: BitOrder,
-		T2: BitStore,
-	{
-		assert_eq!(
-			self.len(),
-			src.len(),
-			"Cloning between slices requires equal lengths"
-		);
-
-		if TypeId::of::<O>() == TypeId::of::<O2>()
-			&& TypeId::of::<T>() == TypeId::of::<T2>()
-		{
-			let that = src as *const _ as *const _;
-			unsafe {
-				self.copy_from_bitslice(&*that);
-			}
-		}
-		else {
-			for (to, from) in
-				self.iter_mut().remove_alias().zip(src.iter().copied())
-			{
-				to.set(from);
-			}
-		}
-	}
-
+	/// [`.clone_from_bitslice()]: Self::clone_from_bitslice
 	#[doc(hidden)]
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
@@ -2016,159 +1937,10 @@ where
 		self.clone_from_bitslice(src)
 	}
 
-	/// Copies all bits from `src` into `self`.
+	/// The name is preserved for API compatibility. See
+	/// [`.copy_from_bitslice()`].
 	///
-	/// The length of `src` must be the same as `self`.
-	///
-	/// If you are attempting to write an integer value into a `BitSlice`, see
-	/// the [`BitField::store`] trait function.
-	///
-	/// # Implementation
-	///
-	/// This method attempts to use `memcpy` element-wise copy acceleration
-	/// where possible. This will only occur when both `src` and `self` are
-	/// exactly similar: in addition to having the same type parameters and
-	/// length, they must begin at the same offset in an element. Where this is
-	/// not possible, it delegates to [`.clone_from_bitslice()`], which has its
-	/// own set of acceleration tricks.
-	///
-	/// # Original
-	///
-	/// [`slice::copy_from_slice`](https://doc.rust-lang.org/stable/std/primitive.std.html#method.copy_from_slice)
-	///
-	/// # API Differences
-	///
-	/// This method is renamed, as it takes a bit slice rather than an element
-	/// slice.
-	///
-	/// # Panics
-	///
-	/// This function will panic if the two slices have different lengths.
-	///
-	/// # Examples
-	///
-	/// Copying two bits from a slice into another:
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let mut dst = bits![mut 0; 200];
-	/// let src = bits![1; 200];
-	///
-	/// assert!(dst.not_any());
-	/// dst.copy_from_bitslice(src);
-	/// assert!(dst.all());
-	/// ```
-	/// [`BitField::store`]: crate::field::BitField::store
-	/// [`.clone_from_bitslice()`]: Self::clone_from_bitslice
-	#[inline]
-	pub fn copy_from_bitslice(&mut self, src: &Self) {
-		assert_eq!(
-			self.len(),
-			src.len(),
-			"Copying between slices requires equal lengths"
-		);
-
-		let (d_head, s_head) = (self.bitptr().head(), src.bitptr().head());
-		//  Where the two slices have identical layouts (head index and length),
-		//  the copy can be done by using the memory domains.
-		if d_head == s_head {
-			match (self.domain_mut(), src.domain()) {
-				(
-					DomainMut::Enclave {
-						elem: d_elem, tail, ..
-					},
-					Domain::Enclave { elem: s_elem, .. },
-				) => {
-					let mask = O::mask(d_head, tail);
-					d_elem.clear_bits(mask);
-					d_elem.set_bits(mask & s_elem.load_value());
-				},
-				(
-					DomainMut::Region {
-						head: d_head,
-						body: d_body,
-						tail: d_tail,
-					},
-					Domain::Region {
-						head: s_head,
-						body: s_body,
-						tail: s_tail,
-					},
-				) => {
-					if let (Some((h_idx, dh_elem)), Some((_, sh_elem))) =
-						(d_head, s_head)
-					{
-						let mask = O::mask(h_idx, None);
-						dh_elem.clear_bits(mask);
-						dh_elem.set_bits(mask & sh_elem.load_value());
-					}
-					d_body.copy_from_slice(s_body);
-					if let (Some((dt_elem, t_idx)), Some((st_elem, _))) =
-						(d_tail, s_tail)
-					{
-						let mask = O::mask(None, t_idx);
-						dt_elem.clear_bits(mask);
-						dt_elem.set_bits(mask & st_elem.load_value());
-					}
-				},
-				_ => unreachable!(
-					"Slices with equal type parameters, lengths, and heads \
-					 will always have equal domains"
-				),
-			}
-		}
-		/* TODO(myrrlyn): Remove this when specialization stabilizes.
-
-		This section simulates access to specialization through partial
-		type-argument application. It detects accelerable type arguments (`O`
-		values provided by `bitvec`, where `BitSlice<O, _>` implements
-		`BitField`) and uses their batch load/store behavior to move more than
-		one bit per cycle.
-
-		Without language-level specialization, we cannot dispatch to
-		individually well-typed functions, so instead this block uses the
-		compiler’s `TypeId` API to inspect the type arguments passed to a
-		monomorphization and select the appropriate codegen for it. We know that
-		control will only enter any of these subsequent blocks when the type
-		argument to monomorphization matches the guard, rendering the
-		`transmute` calls type-level noöps.
-
-		This is only safe to do in `.copy_from_bitslice()`, not in
-		`.clone_from_bitslice()`, because `BitField`’s behavior will only be
-		correct when the two slices are matching in both their ordering and
-		storage type arguments. Mismatches will cause an observed shuffling of
-		sections as `BitField` reïnterprets raw bytes according to the machine
-		register selected.
-
-		Note also that the alias removal in the iterators is safe, because the
-		loops forbid the chunk references from overlapping their liveness with
-		each other, and `unalias_mut` has no effect when `T` is already an
-		aliased type.
-		*/
-		else if TypeId::of::<O>() == TypeId::of::<Lsb0>() {
-			let this: &mut BitSlice<Lsb0, T> =
-				unsafe { &mut *(self as *mut _ as *mut _) };
-			let that: &BitSlice<Lsb0, T> =
-				unsafe { &*(src as *const _ as *const _) };
-			this.sp_copy_from_bitslice(that);
-		}
-		else if TypeId::of::<O>() == TypeId::of::<Msb0>() {
-			let this: &mut BitSlice<Msb0, T> =
-				unsafe { &mut *(self as *mut _ as *mut _) };
-			let that: &BitSlice<Msb0, T> =
-				unsafe { &*(src as *const _ as *const _) };
-			this.sp_copy_from_bitslice(that);
-		}
-		else {
-			for (to, from) in
-				self.iter_mut().remove_alias().zip(src.iter().copied())
-			{
-				to.set(from);
-			}
-		}
-	}
-
+	/// [`.copy_from_bitslice()]: Self::copy_from_bitslice
 	#[doc(hidden)]
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
@@ -2182,7 +1954,7 @@ where
 	/// `src` is the range within `self` to copy from. `dest` is the starting
 	/// index of the range within `self` to copy to, which will have the same
 	/// length as `src`. The two ranges may overlap. The ends of the two ranges
-	/// must be less than or equal to `self.len()`.
+	/// must be less than or equal to [`self.len()`].
 	///
 	/// # Original
 	///
@@ -2195,16 +1967,19 @@ where
 	///
 	/// # Examples
 	///
-	/// Copying four bytes within a slice:
+	/// Copying four bits within a slice:
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let mut data = 0x07u8;
-	/// let bits = data.view_bits_mut::<Msb0>();
-	/// bits.copy_within(5 .., 0);
-	/// assert_eq!(data, 0xE7);
+	/// let bits = bits![mut 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0];
+	///
+	/// bits.copy_within(1 .. 5, 8);
+	///
+	/// assert_eq!(bits, bits![1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0]);
 	/// ```
+	///
+	/// [`self.len()`]: Self::len
 	#[inline]
 	pub fn copy_within<R>(&mut self, src: R, dest: usize)
 	where R: RangeBounds<usize> {
@@ -2219,59 +1994,14 @@ where
 		}
 	}
 
-	/// Swaps all bits in `self` with those in `other`.
+	/// The name is preserved for API compatibility. See
+	/// [`.swap_with_bitslice()`].
 	///
-	/// The length of `other` must be the same as `self`.
-	///
-	/// # Original
-	///
-	/// [`slice::swap_with_slice`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.swap_with_slice)
-	///
-	/// # API Differences
-	///
-	/// This method is renamed, as it takes a bit slice rather than an element
-	/// slice.
-	///
-	/// # Panics
-	///
-	/// This function will panic if the two slices have different lengths.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let mut one = [0xA5u8, 0x69];
-	/// let mut two = 0x1234u16;
-	/// let one_bits = one.view_bits_mut::<Msb0>();
-	/// let two_bits = two.view_bits_mut::<Lsb0>();
-	///
-	/// one_bits.swap_with_bitslice(two_bits);
-	///
-	/// assert_eq!(one, [0x2C, 0x48]);
-	/// # #[cfg(target_endian = "little")] {
-	/// assert_eq!(two, 0x96A5);
-	/// # }
-	/// ```
-	#[inline]
-	pub fn swap_with_bitslice<O2, T2>(&mut self, other: &mut BitSlice<O2, T2>)
-	where
-		O2: BitOrder,
-		T2: BitStore,
-	{
-		let len = self.len();
-		assert_eq!(len, other.len());
-		for (to, from) in self.iter_mut().zip(other.iter_mut()) {
-			let (this, that) = (*to, *from);
-			unsafe { BitMut::<O, T>::unalias(to) }.set(that);
-			unsafe { BitMut::<O2, T2>::unalias(from) }.set(this);
-		}
-	}
-
+	/// [`.swap_with_bitslice()]: Self::swap_with_bitslice
 	#[doc(hidden)]
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated = "Use `.swap_with_bitslice` to swap between bitslices"]
+	#[deprecated = "Use `.swap_with_bitslice()` to swap between bitslices"]
 	pub fn swap_with_slice<O2, T2>(&mut self, other: &mut BitSlice<O2, T2>)
 	where
 		O2: BitOrder,
@@ -2280,16 +2010,15 @@ where
 		self.swap_with_bitslice(other);
 	}
 
-	/// Transmute the bitslice to a bitslice of another type, ensuring alignment
-	/// of the types is maintained.
+	/// Transmute the bit-slice to a bit-slice of another type, ensuring
+	/// alignment of the types is maintained.
 	///
-	/// This method splits the bitslice into three distinct bitslices: prefix,
-	/// correctly aligned middle bitslice of a new type, and the suffix
-	/// bitslice. The method may make the middle bitslice the greatest
-	/// length possible for a given type and input bitslice, but only your
-	/// algorithm's performance should depend on that, not its correctness. It
-	/// is permissible for all of the input data to be returned as the prefix or
-	/// suffix bitslice.
+	/// This method splits the slice into three distinct slices: prefix,
+	/// correctly aligned middle slice of a new type, and the suffix slice. The
+	/// method may make the middle slice the greatest length possible for a
+	/// given type and input slice, but only your algorithm's performance should
+	/// depend on that, not its correctness. It is permissible for all of the
+	/// input data to be returned as the prefix or suffix slice.
 	///
 	/// # Original
 	///
@@ -2297,18 +2026,18 @@ where
 	///
 	/// # API Differences
 	///
-	/// Type `U` is **required** to have the same type family as type `T`.
-	/// Whatever `T` is of the fundamental integers, atomics, or `Cell`
-	/// wrappers, `U` must be a different width in the same family. Changing the
-	/// type family with this method is **unsound** and strictly forbidden.
-	/// Unfortunately, it cannot be guaranteed by this function, so you are
-	/// required to abide by this limitation.
+	/// Type `U` is **required** to have the same [`BitStore`] type family as
+	/// type `T`. If `T` is a fundamental integer, so must `U` be; if `T` is a
+	/// [`BitSafeAtom`], so must `U`, and likewise for [`BitSafeCell`]. Changing
+	/// the type family with this method is **unsound** and strictly forbidden.
+	/// Unfortunately, this cannot be encoded in the type system, so you are
+	/// required to abide by this limitation yourself.
 	///
 	/// # Safety
 	///
-	/// This method is essentially a `transmute` with respect to the elements in
-	/// the returned middle bitslice, so all the usual caveats pertaining to
-	/// `transmute::<T, U>` also apply here.
+	/// This method is essentially a [`mem::transmute`][mt] with respect to the
+	/// memory region in the retured middle slice, so all of the usual caveats
+	/// pertaining to [`mem::transmute::<T, U>`][mt] also apply here.
 	///
 	/// # Examples
 	///
@@ -2334,48 +2063,31 @@ where
 	///   }
 	/// }
 	/// ```
+	///
+	/// [mt]: core::mem::transmute
+	/// [`BitSafeAtom`]: crate::access::BitSafeAtomUsize
+	/// [`BitSafeCell`]: crate::access::BitSafeCellUsize
+	/// [`BitStore`]: crate::store::BitStore
 	#[inline]
 	pub unsafe fn align_to<U>(&self) -> (&Self, &BitSlice<O, U>, &Self)
 	where U: BitStore {
-		let bitptr = self.bitptr();
-		let bp_len = bitptr.len();
-		let (l, c, r) = bitptr.as_aliased_slice().align_to::<U::Alias>();
-		let l_start = bitptr.head().value() as usize;
-		let mut l = BitSlice::<O, T>::from_aliased_slice_unchecked(l);
-		if l.len() > l_start {
-			l = l.get_unchecked(l_start ..);
-		}
-		let mut c = BitSlice::<O, U>::from_aliased_slice_unchecked(c);
-		let c_len = cmp::min(c.len(), bp_len - l.len());
-		c = c.get_unchecked(.. c_len);
-		let mut r = BitSlice::<O, T>::from_aliased_slice_unchecked(r);
-		let r_len = bp_len - l.len() - c.len();
-		if r.len() > r_len {
-			r = r.get_unchecked(.. r_len);
-		}
+		let (l, c, r) = self.bitptr().align_to::<U>();
 		(
-			l.bitptr()
-				.pipe(dvl::remove_bitptr_alias::<T>)
-				.to_bitslice_ref(),
-			c.bitptr()
-				.pipe(dvl::remove_bitptr_alias::<U>)
-				.to_bitslice_ref(),
-			r.bitptr()
-				.pipe(dvl::remove_bitptr_alias::<T>)
-				.to_bitslice_ref(),
+			l.to_bitslice_ref(),
+			c.to_bitslice_ref(),
+			r.to_bitslice_ref(),
 		)
 	}
 
-	/// Transmute the bitslice to a bitslice of another type, ensuring alignment
-	/// of the types is maintained.
+	/// Transmute the bit-slice to a bit-slice of another type, ensuring
+	/// alignment of the types is maintained.
 	///
-	/// This method splits the bitslice into three distinct bitslices: prefix,
-	/// correctly aligned middle bitslice of a new type, and the suffix
-	/// bitslice. The method may make the middle bitslice the greatest
-	/// length possible for a given type and input bitslice, but only your
-	/// algorithm's performance should depend on that, not its correctness. It
-	/// is permissible for all of the input data to be returned as the prefix or
-	/// suffix bitslice.
+	/// This method splits the slice into three distinct slices: prefix,
+	/// correctly aligned middle slice of a new type, and the suffix slice. The
+	/// method may make the middle slice the greatest length possible for a
+	/// given type and input slice, but only your algorithm's performance should
+	/// depend on that, not its correctness. It is permissible for all of the
+	/// input data to be returned as the prefix or suffix slice.
 	///
 	/// # Original
 	///
@@ -2383,18 +2095,18 @@ where
 	///
 	/// # API Differences
 	///
-	/// Type `U` is **required** to have the same type family as type `T`.
-	/// Whatever `T` is of the fundamental integers, atomics, or `Cell`
-	/// wrappers, `U` must be a different width in the same family. Changing the
-	/// type family with this method is **unsound** and strictly forbidden.
-	/// Unfortunately, it cannot be guaranteed by this function, so you are
-	/// required to abide by this limitation.
+	/// Type `U` is **required** to have the same [`BitStore`] type family as
+	/// type `T`. If `T` is a fundamental integer, so must `U` be; if `T` is a
+	/// [`BitSafeAtom`], so must `U`, and likewise for [`BitSafeCell`]. Changing
+	/// the type family with this method is **unsound** and strictly forbidden.
+	/// Unfortunately, this cannot be encoded in the type system, so you are
+	/// required to abide by this limitation yourself.
 	///
 	/// # Safety
 	///
-	/// This method is essentially a `transmute` with respect to the elements in
-	/// the returned middle bitslice, so all the usual caveats pertaining to
-	/// `transmute::<T, U>` also apply here.
+	/// This method is essentially a [`mem::transmute`][mt] with respect to the
+	/// memory region in the retured middle slice, so all of the usual caveats
+	/// pertaining to [`mem::transmute::<T, U>`][mt] also apply here.
 	///
 	/// # Examples
 	///
@@ -2410,16 +2122,21 @@ where
 	///   //  same access and behavior as in `align_to`
 	/// }
 	/// ```
+	///
+	/// [mt]: core::mem::transmute
+	/// [`BitSafeAtom`]: crate::access::BitSafeAtomUsize
+	/// [`BitSafeCell`]: crate::access::BitSafeCellUsize
+	/// [`BitStore`]: crate::store::BitStore
 	#[inline]
 	pub unsafe fn align_to_mut<U>(
 		&mut self,
 	) -> (&mut Self, &mut BitSlice<O, U>, &mut Self)
 	where U: BitStore {
-		let (l, c, r) = self.align_to::<U>();
+		let (l, c, r) = self.bitptr().align_to::<U>();
 		(
-			l.bitptr().to_bitslice_mut(),
-			c.bitptr().to_bitslice_mut(),
-			r.bitptr().to_bitslice_mut(),
+			l.to_bitslice_mut(),
+			c.to_bitslice_mut(),
+			r.to_bitslice_mut(),
 		)
 	}
 }
@@ -2434,44 +2151,13 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// Copies `self` into a new [`BitVec`].
+	/// The name is preserved for API compatibility. See
+	/// [`.to_bitvec()`].
 	///
-	/// # Original
-	///
-	/// [`slice::to_vec`](https://doc.rust-lang.org/stable/std.primitive.slice.html#method.to_vec)
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// # #[cfg(feature = "stde")] {
-	/// use bitvec::prelude::*;
-	///
-	/// let bits = bits![0, 1, 0, 1];
-	/// let bv = bits.to_bitvec();
-	/// assert_eq!(bits, bv);
-	/// # }
-	/// ```
-	///
-	/// [`BitStore`]: crate::store::BitStore::Mem
-	/// [`BitVec`]: crate::vec::BitVec
+	/// [`.to_bitvec()]: Self::to_bitvec
 	#[inline]
-	pub fn to_bitvec(&self) -> BitVec<O, T::Mem> {
-		let vec: alloc::vec::Vec<_> =
-			self.as_slice().iter().map(BitStore::load_value).collect();
-		let mut bitptr = self.bitptr();
-		unsafe {
-			bitptr.set_pointer(vec.as_ptr() as *const T);
-		}
-		let ptr = bitptr.to_bitslice_ptr_mut::<O>();
-		let capa = vec.capacity();
-		core::mem::forget(vec);
-		unsafe { BitVec::from_raw_parts(ptr as *mut BitSlice<O, T::Mem>, capa) }
-	}
-
-	#[doc(hidden)]
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated(note = "Use `.to_bitvec` to convert a bit slice into a vector")]
+	#[deprecated = "Prefer `.to_bitvec()`"]
 	pub fn to_vec(&self) -> BitVec<O, T::Mem> {
 		self.to_bitvec()
 	}
@@ -2505,19 +2191,19 @@ where
 	/// bits![0, 1].repeat(BitSlice::<LocalBits, usize>::MAX_BITS);
 	/// ```
 	#[inline]
-	pub fn repeat(&self, n: usize) -> BitVec<O, T::Mem>
-	where
-		O: BitOrder,
-		T: BitStore,
-	{
+	pub fn repeat(&self, n: usize) -> BitVec<O, T::Mem> {
 		let len = self.len();
 		let total = len.checked_mul(n).expect("capacity overflow");
+
 		//  The memory has to be initialized before `.clone_from_bitslice` can
 		//  write into it.
 		let mut out = BitVec::repeat(false, total);
-		for span in (0 .. n).map(|rep| rep * len .. (rep + 1) * len) {
-			unsafe { out.get_unchecked_mut(span) }.clone_from_bitslice(self);
+
+		for chunk in out.chunks_exact_mut(len).remove_alias() {
+			//  TODO(myrrlyn): Specialize for `BitField` access
+			chunk.clone_from_bitslice(self);
 		}
+
 		out
 	}
 
@@ -2541,7 +2227,7 @@ where
 pub fn from_ref<O, T>(elem: &T) -> &BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitStore + BitRegister,
+	T: BitRegister + BitStore,
 {
 	BitSlice::from_element(elem)
 }
@@ -2559,7 +2245,7 @@ where
 pub fn from_mut<O, T>(elem: &mut T) -> &mut BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitStore + BitRegister,
+	T: BitRegister + BitStore,
 {
 	BitSlice::from_element_mut(elem)
 }
@@ -2632,7 +2318,7 @@ pub unsafe fn from_raw_parts<'a, O, T>(
 ) -> &'a BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitStore + BitMemory,
+	T: BitStore,
 {
 	super::bits_from_raw_parts(data, 0, len * T::Mem::BITS as usize)
 		.unwrap_or_else(|| {
@@ -2684,7 +2370,7 @@ pub unsafe fn from_raw_parts_mut<'a, O, T>(
 ) -> &'a mut BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitStore + BitMemory,
+	T: BitStore,
 {
 	super::bits_from_raw_parts_mut(data, 0, len * T::Mem::BITS as usize)
 		.unwrap_or_else(|| {
@@ -2773,7 +2459,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`SliceIndex::get_unchecked_mut`][gum]
+	/// [`SliceIndex::get_unchecked_mut`][orig]
 	///
 	/// # Safety
 	///
@@ -2782,7 +2468,7 @@ where
 	/// calling in order to prevent boundary escapes and the ensuing safety
 	/// violations.
 	///
-	/// [gum]: core::slice::SliceIndex::get_unchecked_mut
+	/// [orig]: core::slice::SliceIndex::get_unchecked_mut
 	/// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
 	unsafe fn get_unchecked_mut(
 		self,
@@ -2836,7 +2522,7 @@ where
 
 	#[inline]
 	unsafe fn get_unchecked(self, slice: &'a BitSlice<O, T>) -> Self::Immut {
-		if slice.bitptr().read::<O>(self) {
+		if slice.bitptr().read(self) {
 			&true
 		}
 		else {

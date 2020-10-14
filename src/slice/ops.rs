@@ -1,7 +1,4 @@
-/*! Operator implementations on [`BitSlice`].
-
-[`BitSlice`]: crate::slice::BitSlice
-!*/
+//! Port of the `[T]` operator implementations.
 
 use crate::{
 	access::BitAccess,
@@ -79,10 +76,10 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bits = bits![Msb0, u8; 0, 0, 0, 0, 0, 0, 0, 0, 1, 0];
-	/// assert!(!bits[7]); // --------------------------^  |  |
-	/// assert!( bits[8]); // -----------------------------^  |
-	/// assert!(!bits[9]); // --------------------------------^
+	/// let bits = bits![Msb0, u8; 0, 1, 0];
+	/// assert!(!bits[0]); // -----^  |  |
+	/// assert!( bits[1]); // --------^  |
+	/// assert!(!bits[2]); // -----------^
 	/// ```
 	///
 	/// If the index is greater than or equal to the length, indexing will

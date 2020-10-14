@@ -226,7 +226,10 @@ fn misc() {
 	assert_eq!(bv_1, bits![0, 0, 0, 0, 0, 1, 0, 1, 0, 1]);
 
 	let mut bv = bitvec![];
-	bv.extend_from_slice(&[false, false, true, true, false, true]);
+	#[allow(deprecated)]
+	{
+		bv.extend_from_slice(&[false, false, true, true, false, true]);
+	}
 	assert_eq!(bv, bits![0, 0, 1, 1, 0, 1]);
 }
 

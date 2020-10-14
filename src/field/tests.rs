@@ -100,5 +100,5 @@ fn wide_load() {
 #[should_panic]
 #[cfg(not(target_arch = "riscv64"))]
 fn check_panic() {
-	check("fail", 10, 8);
+	check::<u8>("fail", 10);
 }

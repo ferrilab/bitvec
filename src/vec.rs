@@ -23,6 +23,7 @@ dynamic resizing, and provide some specializations that cannot safely be done on
 
 use crate::{
 	boxed::BitBox,
+	domain::Domain,
 	index::BitIdx,
 	mem::{
 		BitMemory,
@@ -42,7 +43,6 @@ use alloc::vec::Vec;
 use core::{
 	mem::ManuallyDrop,
 	ptr::NonNull,
-	slice,
 };
 
 use tap::{
@@ -50,19 +50,14 @@ use tap::{
 	tap::Tap,
 };
 
-/** A vector of individual bits, allocated on the heap.
+/** A contiguous growable array of bits.
 
 This is a managed, heap-allocated, buffer that contains a [`BitSlice`] region.
-It is analagous to [`Vec<bool>`], and is written to be as close as possible to
-drop-in replacabale for it. This type contains little interesting behavior in
-its own right, dereferencing instead to `BitSlice` for manipulation of the
-buffer contents, and serves primarily as an interface to the allocator. If you
-require statically-allocated, fixed-size, owned buffers, you should use the
-[`BitArray`] type.
-
-Because `BitVec` directly owns its memory, and can guarantee that no other
-object in a program has access to its buffers, `BitVec` is able to override some
-behavior from [`BitSlice`] in more efficient manners.
+It is analagous to [`Vec<bool>`], and is written to be very nearly a drop-in
+replacement for it. This type contains little interesting behavior in its own
+right; most of its behavior is provided by dereferencing to its managed
+[`BitSlice`] buffer. It instead serves primarily as an interface to the
+allocator, and has some specialized behaviors for its fully-owned memory buffer.
 
 # Documentation
 
@@ -80,15 +75,15 @@ These sections look like this:
 # API Differences
 
 The buffer type [`Vec<bool>`] has no type parameters. `BitVec<O, T>` has the
-same two type parameters as [`BitSlice<O, T>`]. Otherwise, `BitVec` is able to
-implement the full API surface of `Vec<bool>`.
+same two type parameters as [`BitSlice<O, T>`][`BitSlice`]. Otherwise, `BitVec`
+is able to implement the full API surface of `Vec<bool>`.
 
 # Examples
 
-Because `BitVec` takes type parameters, but has default arguments, you will need
-to specify its type parameters when using its associated functions. The easiest
-way to do this is to declare bindings typed as `: BitVec`, which uses the
-default type arguments.
+Because `BitVec` takes type parameters, but has default type arguments for them,
+you will need to specify its type parameters when using its associated
+functions. The easiest way to do this is to declare bindings type as `: BitVec`,
+which uses the default type arguments.
 
 ```rust
 use bitvec::prelude::*;
@@ -183,11 +178,6 @@ is still present. Be aware of this possibility when using generic code to
 convert from `BitSlice` to `BitVec`. Fully-typed code does not need to be
 concerned with this possibility.
 
-# Type Parameters
-
-This takes the same two type parameters, [`BitOrder`] and [`BitStore`], as
-[`BitSlice`].
-
 # Capacity and Reällocation
 
 The capacity of a bit-vector is the amount of space allocated for any future
@@ -219,7 +209,7 @@ safe APIs will do so themselves.
 
 # Performance
 
-The choice of `T: BitStore` type parameter can impact your vector’s performance,
+The choice of [`BitStore`] type parameter can impact your vector’s performance,
 as the allocator operates in units of `T` rather than in bits. This means that
 larger register types will increase the amount of memory reserved in each call
 to the allocator, meaning fewer calls to [`.push()`] will actually cause a
@@ -234,11 +224,8 @@ Heap allocation can only occur at runtime, but the [`bitvec!`] macro will
 construct an appropriate [`BitSlice`] buffer at compile-time, and at run-time,
 only copy the buffer into a heap allocation.
 
-[`BitArray`]: crate::array::BitArray
-[`BitOrder`]: crate::order::BitOrder
 [`BitStore`]: crate::store::BitStore
 [`BitSlice`]: crate::slice::BitSlice
-[`BitSlice<O, T>`]: crate::slice::BitSlice
 [`BitVec::with_capacity`]: Self::with_capacity
 [`Index`]: core::ops::Index
 [`IndexMut`]: core::ops::IndexMut
@@ -262,7 +249,7 @@ where
 	capacity: usize,
 }
 
-/// Methods specific to `BitVec<_, T>`, and not present on `Vec<T>`.
+/// General-purpose functions not present on `Vec<T>`.
 impl<O, T> BitVec<O, T>
 where
 	O: BitOrder,
@@ -302,19 +289,15 @@ where
 		out
 	}
 
-	/// Clones a [`&BitSlice`] into a `BitVec`.
+	/// Copies the contents of a [`BitSlice`] into a new allocation.
 	///
-	/// # Original
+	/// This is an exact copy: the newly-created vector is initialized with a
+	/// direct copy of the `slice`’s underlying contents, and its handle is set
+	/// to use `slice`’s head index. Slices that do not begin at the zeroth bit
+	/// of the base element will thus create misaligned vectors.
 	///
-	/// [`<Vec<T: Clone> as Clone>::clone`](https://doc.rust-lang.org/alloc/vec/struct.Vec.html#impl-Clone)
-	///
-	/// # Effects
-	///
-	/// This performs a direct element-wise copy from the source slice to the
-	/// newly-allocated buffer, then sets the vector to have the same starting
-	/// bit as the slice did. This allows for faster behavior. If you require
-	/// that the vector start at the leading edge of the first element, use
-	/// [`force_align`] to guarantee this.
+	/// You can move the vector contents down to begin at the zero index of the
+	/// vector’s buffer with [`.force_align()`].
 	///
 	/// # Examples
 	///
@@ -324,20 +307,32 @@ where
 	/// let bits = bits![0, 1, 0, 1, 1, 0, 1, 1];
 	/// let bv = BitVec::from_bitslice(&bits[2 ..]);
 	/// assert_eq!(bv, bits[2 ..]);
+	/// assert_eq!(bits.as_slice(), bv.as_slice());
 	/// ```
 	///
-	/// [`&BitSlice`]: crate::slice::BitSlice
-	/// [`force_align`]: Self::force_align
+	/// [`BitSlice`]: crate::slice::BitSlice
+	/// [`.force_align()`]: Self::force_align
 	#[inline]
 	pub fn from_bitslice(slice: &BitSlice<O, T>) -> Self {
 		let mut bitptr = slice.bitptr();
-		let (base, elts) = (bitptr.pointer().to_const(), bitptr.elements());
-		let source = unsafe { slice::from_raw_parts(base, elts) };
 
-		let vec = elts
+		let mut vec = bitptr
+			.elements()
 			.pipe(Vec::with_capacity)
-			.pipe(ManuallyDrop::new)
-			.tap_mut(|v| v.extend(source.iter().map(BitStore::load_value)));
+			.pipe(ManuallyDrop::new);
+
+		match slice.domain() {
+			Domain::Enclave { elem, .. } => vec.push(elem.load_value()),
+			Domain::Region { head, body, tail } => {
+				if let Some((_, elem)) = head {
+					vec.push(elem.load_value());
+				}
+				vec.extend_from_slice(body);
+				if let Some((elem, _)) = tail {
+					vec.push(elem.load_value());
+				}
+			},
+		}
 
 		unsafe {
 			bitptr.set_pointer(vec.as_ptr() as *const T);
@@ -439,10 +434,9 @@ where
 
 	/// Copies all bits in a [`BitSlice`] into the `BitVec`.
 	///
-	/// The restriction of `other` to use the same type parameters as `self`
-	/// permits an acceleration of the copy from `other` into `self`. If you
-	/// cannot match type parameters, you should use the [`Extend`]
-	/// implementation.
+	/// # Type Parameters
+	///
+	/// This can extend from a [`BitSlice`] of any type arguments.
 	///
 	/// # Parameters
 	///
@@ -465,14 +459,16 @@ where
 	/// ```
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
-	/// [`Extend`]: #impl-Extend<%26'a bool>
-	/// [`.as_bitslice()`]: Self::as_bitslice
 	#[inline]
-	pub fn extend_from_bitslice(&mut self, other: &BitSlice<O, T>) {
+	pub fn extend_from_bitslice<O2, T2>(&mut self, other: &BitSlice<O2, T2>)
+	where
+		O2: BitOrder,
+		T2: BitStore,
+	{
 		let len = self.len();
 		let olen = other.len();
 		self.resize(len + olen, false);
-		unsafe { self.get_unchecked_mut(len ..) }.copy_from_bitslice(other);
+		unsafe { self.get_unchecked_mut(len ..) }.clone_from_bitslice(other);
 	}
 
 	/// Produces the allocation capacity of the underlying vector, measured in
@@ -495,6 +491,21 @@ where
 	#[inline]
 	pub fn alloc_capacity(&self) -> usize {
 		self.capacity
+	}
+
+	/// Gets the number of elements `T` that contain live bits of the vector.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bv = bitvec![LocalBits, u16; 1; 50];
+	/// assert_eq!(bv.elements(), 4);
+	/// ```
+	#[inline]
+	pub fn elements(&self) -> usize {
+		self.bitptr().elements()
 	}
 
 	/// Converts the vector into a [`BitBox<O, T>`].
@@ -523,33 +534,12 @@ where
 		unsafe {
 			bitptr.set_pointer(boxed.as_ptr());
 		}
-		unsafe { BitBox::from_raw(bitptr.to_bitslice_ptr_mut::<O>()) }
+		unsafe { BitBox::from_raw(bitptr.to_bitslice_ptr_mut()) }
 	}
 
-	/// Converts the vector back into an ordinary [vector] of memory elements.
+	/// Removes the bit-precision view, returning the underlying [`Vec`].
 	///
-	/// This does not affect the vector’s buffer, only the handle used to
-	/// control it.
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	///
-	/// # Returns
-	///
-	/// An ordinary [vector] containing all of the bit-vector’s memory buffer.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bv = bitvec![0; 5];
-	/// let vec = bv.into_vec();
-	/// assert_eq!(vec, [0]);
-	/// ```
-	///
-	/// [vector]: alloc::vec::Vec
+	/// [`Vec`]: alloc::vec::Vec
 	#[inline]
 	pub fn into_vec(self) -> Vec<T> {
 		let mut this = ManuallyDrop::new(self);
@@ -563,19 +553,35 @@ where
 		}
 	}
 
-	/// Gets the number of elements `T` that contain live bits of the vector.
+	/// Writes a value into every element that the vector considers live.
+	///
+	/// This unconditionally writes `element` into each live location in the
+	/// backing buffer, without altering the `BitVec`’s length or capacity.
+	///
+	/// It is unspecified what effects this has on the allocated but dead
+	/// elements in the buffer.
+	///
+	/// # Parameters
+	///
+	/// - `&mut self`
+	/// - `element`: The value which will be written to each live location in
+	///   the vector’s buffer.
 	///
 	/// # Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let bv = bitvec![LocalBits, u16; 1; 50];
-	/// assert_eq!(bv.elements(), 4);
+	/// let mut bv = bitvec![LocalBits, u8; 0; 10];
+	/// assert_eq!(bv.as_slice(), [0, 0]);
+	/// bv.set_elements(0xA5);
+	/// assert_eq!(bv.as_slice(), [0xA5, 0xA5]);
 	/// ```
 	#[inline]
-	pub fn elements(&self) -> usize {
-		self.bitptr().elements()
+	pub fn set_elements(&mut self, element: T) {
+		self.as_mut_slice()
+			.iter_mut()
+			.for_each(|elt| *elt = element);
 	}
 
 	/// Sets the uninitialized bits of the vector to a fixed value.
@@ -614,7 +620,7 @@ where
 		unsafe {
 			bp.set_head(BitIdx::ZERO);
 			bp.set_len(capa);
-			let bits = bp.to_bitslice_mut::<O>();
+			let bits = bp.to_bitslice_mut();
 			bits.get_unchecked_mut(.. head).set_all(value);
 			bits.get_unchecked_mut(tail ..).set_all(value);
 		}
@@ -654,37 +660,6 @@ where
 				bitptr.tap_mut(|bp| bp.set_head(BitIdx::ZERO)).to_nonnull();
 			self.copy_within_unchecked(head .. last, 0);
 		}
-	}
-
-	/// Writes a value into every element that the vector considers live.
-	///
-	/// This unconditionally writes `element` into each live location in the
-	/// backing buffer, without altering the `BitVec`’s length or capacity.
-	///
-	/// It is unspecified what effects this has on the allocated but dead
-	/// elements in the buffer.
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`
-	/// - `element`: The value which will be written to each live location in
-	///   the vector’s buffer.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let mut bv = bitvec![LocalBits, u8; 0; 10];
-	/// assert_eq!(bv.as_slice(), [0, 0]);
-	/// bv.set_elements(0xA5);
-	/// assert_eq!(bv.as_slice(), [0xA5, 0xA5]);
-	/// ```
-	#[inline]
-	pub fn set_elements(&mut self, element: T) {
-		self.as_mut_slice()
-			.iter_mut()
-			.for_each(|elt| *elt = element);
 	}
 
 	/// Writes a new length value into the pointer without any checks.
@@ -814,46 +789,22 @@ where
 
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
-	pub(crate) fn bitptr(&self) -> BitPtr<T> {
+	pub(crate) fn bitptr(&self) -> BitPtr<O, T> {
 		self.pointer.as_ptr().pipe(BitPtr::from_bitslice_ptr_mut)
 	}
 
-	/// Permits a function to modify the `Vec<T>` backing storage of a
-	/// `BitVec<_, T>`.
-	///
-	/// This produces a temporary `Vec<T::Mem>` structure governing the
-	/// `BitVec`’s buffer and allows a function to view it mutably. After the
-	/// callback returns, the `Vec` is written back into `self` and forgotten.
-	///
-	/// # Type Parameters
-	///
-	/// - `F`: A function which operates on a mutable borrow of a `Vec<T::Mem>`
-	///   buffer controller.
-	/// - `R`: The return type of the `F` function.
-	///
-	/// # Parameters
-	///
-	/// - `&mut self`
-	/// - `func`: A function which receives a mutable borrow of a `Vec<T::Mem>`
-	///   controlling `self`’s buffer.
-	///
-	/// # Returns
-	///
-	/// The return value of `func`. `func` is forbidden from borrowing any part
-	/// of the `Vec<T::Mem>` temporary view.
 	fn with_vec<F, R>(&mut self, func: F) -> R
-	where F: FnOnce(&mut ManuallyDrop<Vec<T::Mem>>) -> R {
+	where F: FnOnce(&mut ManuallyDrop<Vec<T>>) -> R {
 		let cap = self.capacity;
 		let mut bitptr = self.bitptr();
-		let (base, elts) =
-			(bitptr.pointer().to_mut() as *mut T::Mem, bitptr.elements());
+		let (base, elts) = (bitptr.pointer().to_mut(), bitptr.elements());
 
 		let mut vec = unsafe { Vec::from_raw_parts(base, elts, cap) }
 			.pipe(ManuallyDrop::new);
 		let out = func(&mut vec);
 
 		unsafe {
-			bitptr.set_pointer(vec.as_ptr() as *mut T);
+			bitptr.set_pointer(vec.as_ptr());
 		}
 		self.pointer = bitptr.to_nonnull();
 		self.capacity = vec.capacity();
@@ -866,7 +817,7 @@ mod iter;
 mod ops;
 mod traits;
 
-pub use iter::{
+pub use self::iter::{
 	Drain,
 	IntoIter,
 	Splice,

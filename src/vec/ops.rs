@@ -1,7 +1,4 @@
-/*! Operator implementations for [`BitVec`].
-
-[`BitVec`]: crate::vec::BitVec
-!*/
+//! Port of the `Vec<T>` operator implementations.
 
 use crate::{
 	mem::BitRegister,
@@ -11,20 +8,21 @@ use crate::{
 	vec::BitVec,
 };
 
-use alloc::vec::Vec;
-
-use core::ops::{
-	BitAnd,
-	BitAndAssign,
-	BitOr,
-	BitOrAssign,
-	BitXor,
-	BitXorAssign,
-	Deref,
-	DerefMut,
-	Index,
-	IndexMut,
-	Not,
+use core::{
+	mem::ManuallyDrop,
+	ops::{
+		BitAnd,
+		BitAndAssign,
+		BitOr,
+		BitOrAssign,
+		BitXor,
+		BitXorAssign,
+		Deref,
+		DerefMut,
+		Index,
+		IndexMut,
+		Not,
+	},
 };
 
 #[cfg(not(tarpaulin_include))]
@@ -147,9 +145,8 @@ where
 {
 	#[inline]
 	fn drop(&mut self) {
-		drop(unsafe {
-			Vec::from_raw_parts(self.as_mut_ptr(), 0, self.alloc_capacity())
-		})
+		//  Run the `Vec` destructor to deällocate the buffer.
+		self.with_vec(|slot| unsafe { ManuallyDrop::drop(slot) });
 	}
 }
 

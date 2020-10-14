@@ -1,11 +1,8 @@
 /*! Memory modeling.
 
-This module provides a [`BitStore`] trait, which describes the register width
-and alias condition of memory underlying a [`BitSlice`] region. This trait is
-used to handle all access to memory and transformation of alias status for the
-regions.
+This module provides the [`BitStore`] trait, which contains all of the logic
+required to perform memory accesses from a data structure handle.
 
-[`BitSlice`]: crate::slice::BitSlice
 [`BitStore`]: self::BitStore
 !*/
 
@@ -28,86 +25,59 @@ use core::{
 };
 
 #[cfg(feature = "atomic")]
-use core::sync::atomic::{
-	AtomicU16,
-	AtomicU32,
-	AtomicU8,
-	AtomicUsize,
-};
-
-#[cfg(all(feature = "atomic", target_pointer_width = "64"))]
-use core::sync::atomic::AtomicU64;
+use core::sync::atomic;
 
 /** Common interface for memory regions.
 
 This trait is implemented on the fundamental integers no wider than the target
-processor word size, their [`Cell`] wrappers, and (if present) their [`Atomic`]
-variants. Users provide this type as a parameter to their data structures in
-order to inform the structure of how it may access the memory it describes.
+processor word size, as well as on [write-incapable wrappers][`BitSafe`] over
+[`Cell`]s and [atoms] of those integers. This type is added to the [`bitvec`]
+data structures when they are created, and informs those structures as they use
+and perhaps alias the underlying memory.
 
 Currently, [`bitvec`] is only tested on 32- and 64- bit architectures. This
 means that `u8`, `u16`, `u32`, and `usize` unconditionally implement `BitStore`,
-but `u64` will only do so on 64-bit targets, and will be unavailable on 32-bit
-targets. This is a necessary restriction of `bitvec` internals. Please comment
-on [Issue #76](https://github.com/myrrlyn/bitvec/issues/76) if this affects you.
+but `u64` will only do so on 64-bit targets. This is a necessary restriction of
+`bitvec` internals. Please comment on [Issue #76] if this affects you.
 
-Specifically, this has the advantage that a [`BitSlice<_, Cell<_>>`] knows that
-it has a view of memory that will not undergo concurrent modification. As such,
-it can forego atomic accesses, and just use ordinary load/store instructions
-without fear of causing observable race conditions.
+Specifically, this trait allows any [`BitSlice`] to use alias-aware rules for
+thread-safety or memory access when they detect that multiple `BitSlice` handles
+may read or write to the same memory register address.
 
-The associated types [`Mem`] and [`Alias`] allow implementors to know the
-register width of the memory they describe (`Mem`) and to know the aliasing
-status of the region.
+The [`Mem`] associated type is always a bare integer, and indicates the register
+type that the structure uses. The [`Access`] associated type manages the
+instructions used to operate the memory bus when reading or writing from the
+underlying region, and the [`Alias`] associated type prevents writing to memory
+when a slice does not have write permission to an element, but some other slice
+might.
 
 # Generic Programming
 
-Generic programming with associated types is *hard*, especially when using them,
-as in this trait, to implement a closed graph of relationships between types.
-
-For example, this trait is implemented such that for any given type `T`,
-`T::Alias::Mem` == `T::Mem` == `T::NoAlias::Mem`, `T::Alias::Alias == T::Alias`,
-and `T::NoAlias::NoAlias == T::NoAlias`. Unfortunately, the Rust type system
-does not allow these relationships to be described, so generic programming that
-performs type transitions will *rapidly* become uncomfortable to use.
-
-Internally, [`bitvec`] makes use of type-manipulation functions that are known
-to be correct with respect to the implementations of `BitStore in order to ease
-implementation of library methods.
-
 You are not expected to do significant programming that is generic over the
-`BitStore memory parameter. When using a concrete type, the compiler will gladly
-reduce the abstract type associations into their instantiated selections,
-allowing monomorphized code to be *much* more convenient than generic.
+`BitStore` type parameter. When using a concrete type, the compiler will gladly
+reduce the abstract type associatons into their instantiated selections,
+allowing monomorphized code to be clearly and conveniently written.
 
-If you have a use case that involves generic programming over this trait, and
-you are encountering difficulties dealing with the type associations, please
-file an issue asking for support in this area.
+Generic programming with associated types, especially with the relationship
+graph used in this trait, rapidly becomes unwieldy. [`bitvec`] uses internal
+type-manipulation functions for convenience, in order to handle the growth of
+associated type spans in its work.
 
-# Supertraits
-
-This trait has requirements that better express its behavior:
-
-- `'static`: Implementors never contain references.
-- `Sealed` prevents it from being implemented by downstream libraries (`Sealed`
-  is a public trait in a private module, that only this crate can name).
-- [`Debug`] informs the compiler that other structures using this trait bound
-can correctly derive `Debug`.
-
+[Issue #76]: https://github.com/myrrlyn/bitvec/issues/76
+[atoms]: core::sync::atomic
+[`Access`]: Self::Access
 [`Alias`]: Self::Alias
-[`Atomic`]: core::sync::atomic
-[`BitSlice<_, Cell<_>>`]: crate::slice::BitSlice
+[`BitSafe`]: crate::access::BitSafe
+[`BitSlice`]: crate::slice::BitSlice
 [`Cell`]: core::cell::Cell
-[`Debug`]: core::fmt::Debug
 [`Mem`]: Self::Mem
-[`Sized`]: core::marker::Sized
 [`bitvec`]: crate
 **/
 pub trait BitStore: 'static + seal::Sealed + Debug {
-	/// The register type that the implementor describes.
+	/// The register type that the implementor uses.
 	type Mem: BitRegister + BitStore;
 
-	/// The type used to perform memory access to a `Self::Mem` region.
+	/// The type used to perform memory access to a `Self::Mem` register.
 	type Access: BitAccess<Item = Self::Mem>;
 
 	/// A sibling `BitStore` implementor used when a region becomes aliased.
@@ -185,7 +155,7 @@ pub trait BitStore: 'static + seal::Sealed + Debug {
 
 /// Batch implementation of `BitStore` for appropriate types.
 macro_rules! store {
-	($($t:ident => $cw:ident => $aw:ident => $a:ident),+ $(,)?) => { $(
+	($($t:ident => $cw:ident => $aw:ident => $a:path),+ $(,)?) => { $(
 		impl BitStore for $t {
 			type Mem = $t;
 			/// The unsigned integers will only be `BitStore` type parameters
@@ -238,6 +208,7 @@ macro_rules! store {
 			// If these are true for `R: BitRegister`, then they are true for `Cell<R>`.
 			#[doc(hidden)]
 			const __ALIAS_WIDTH: [(); 0] = [];
+
 			#[doc(hidden)]
 			const __ALIGNED_TO_SIZE: [(); 0] = [];
 		}
@@ -272,15 +243,15 @@ macro_rules! store {
 }
 
 store! {
-	u8 => BitSafeCellU8 => BitSafeAtomU8 => AtomicU8,
-	u16 => BitSafeCellU16 => BitSafeAtomU16 => AtomicU16,
-	u32 => BitSafeCellU32 => BitSafeAtomU32 => AtomicU32,
+	u8 => BitSafeCellU8 => BitSafeAtomU8 => atomic::AtomicU8,
+	u16 => BitSafeCellU16 => BitSafeAtomU16 => atomic::AtomicU16,
+	u32 => BitSafeCellU32 => BitSafeAtomU32 => atomic::AtomicU32,
 }
 
 #[cfg(target_pointer_width = "64")]
-store!(u64 => BitSafeCellU64 => BitSafeAtomU64 => AtomicU64);
+store!(u64 => BitSafeCellU64 => BitSafeAtomU64 => atomic::AtomicU64);
 
-store!(usize => BitSafeCellUsize => BitSafeAtomUsize => AtomicUsize);
+store!(usize => BitSafeCellUsize => BitSafeAtomUsize => atomic::AtomicUsize);
 
 #[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
 compile_fail!(concat!(

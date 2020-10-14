@@ -1,65 +1,65 @@
-/*! Batched bitfield access.
+/*! Batched load/store access to bitfields.
 
-This module provides batched, multiple-bit, access to a [`BitSlice`]. This
-functionality permits the use of `BitSlice` as a library-level implementation of
-the bitfield language feature found in C and C++.
+This module provides load/store access to bitfield regions that emulates the
+ordinary memory bus. This functionality enables any [`BitSlice`] span to be used
+as a memory region, and provides the basis of a library-level analogue to the
+bitfield language feature found in C and C++. Additionally, orderings that have
+contiguous positions can transfer more than one bit in an operation, allowing a
+performance acceleration over sequential bit-by-bit traversal.
 
-The [`BitField`] trait is not sealed against client implementation, as there is
-no useful way to automatically use a [`BitOrder`] implementation to provide a
-universal behavior. As such, the trait has some requirements that the compiler
-cannot enforce for client implementations.
+The [`BitField`] trait is open for implementation. Rust’s implementation rules
+currently disallow a crate to implement a foreign trait on a foreign type, even
+when parameterized over a local type. If you need such a `BitField`
+implementation with a new `BitOrder` type, please file an issue.
 
-# Batch Behavior
+# Batched Behavior
 
-The purpose of this trait is to provide access to arbitrary bit regions as if
-they were an ordinary memory location. As such, it is important for
-implementations of this trait to provide shift/mask register transfer behavior
-where possible, for as wide a span as possible in each action. Implementations
-of this trait should *not* use bit-by-bit iteration.
+The first purpose of [`BitField`] is to provide access to [`BitSlice`] regions
+as if they were an ordinary memory location. However, this can be done through
+the `BitSlice` sequential API. The second purpose of this trait is to accelerate
+such access by using the parallel memory bus to transfer more than one bit at a
+time when the region permits it. As such, implementors should provide a transfer
+behavior based on shift/mask operations wherever possible, for as wide a span in
+a memory element as possible.
 
 # Register Bit Order Preservation
 
-As a default assumption – user orderings *may* violate this, but *should* not –
-each element of slice memory used to store part of a value should not reorder
-the value bits. Transfer between slice memory and a CPU register should solely
-be an ordinary value load or store between memory and the register, and a
-shift/mask operation to select the part of the value that is live.
+As a default assumption, each element of the underlying memory region used to
+store part of a value should not reörder the bit-pattern of that value. While
+the [`BitOrder`] argument is used to determine which segments of the memory
+register are live for the purposes of this transfer, it should not be used to
+map each individual bit of the transferred value to a corresponding bit of the
+storage element. As an example, the [`Lsb0`] and [`Msb0`] implementations both
+store the value `12u8` in memory as a four-bit span with its two
+more-significant bits set and its two less-significant bits cleared; the
+difference is only in *which* bits of an element are used to store the span.
 
 # Endianness
 
 The `_le` and `_be` methods of [`BitField`] refer to the order in which
-`T:` [`BitStore`] elements of the slice are assigned significance when
-containing fragments of a stored data value. Within any `T` element, the order
-of its constituent bytes is *not* governed by the `BitField` trait method.
+successive `T` elements of a storage region are assigned numeric significance
+during a transfer. Within any particular `T` element, the ordering of its memory
+is not governed by the `BitField` trait.
 
 The provided [`BitOrder`] implementors [`Lsb0`] and [`Msb0`] use the local
-machine’s byte ordering. Other cursors *may* implement ordering of bytes within
-`T` elements differently, for instance by calling [`.to_be_bytes()`] before
-store and [`::from_be_bytes()`] after load.
+machine’s byte ordering, and do not reörder bytes during transfer.
 
 [`BitField`]: self::BitField
 [`BitOrder`]: crate::order::BitOrder
 [`BitSlice`]: crate::slice::BitSlice
-[`BitStore`]: crate::store::BitStore
 [`Lsb0`]: crate::order::Lsb0
 [`Msb0`]: crate::order::Msb0
-[`.to_be_bytes()`]: usize::to_be_bytes
-[`::from_be_bytes()`]: usize::from_be_bytes
 !*/
 
 use crate::{
 	access::BitAccess,
 	array::BitArray,
-	devel as dvl,
 	domain::{
 		Domain,
 		DomainMut,
 	},
 	index::BitMask,
-	mem::{
-		BitMemory,
-		BitRegister,
-	},
+	mem::BitMemory,
 	order::{
 		BitOrder,
 		Lsb0,
@@ -72,10 +72,6 @@ use crate::{
 
 use core::{
 	mem,
-	ops::{
-		Shl,
-		Shr,
-	},
 	ptr,
 };
 
@@ -84,35 +80,26 @@ use tap::pipe::Pipe;
 #[cfg(feature = "alloc")]
 use crate::{
 	boxed::BitBox,
+	mem::BitRegister,
 	vec::BitVec,
 };
 
 /** Performs C-style bitfield access through a [`BitSlice`].
 
-Bit orderings that permit batched access to regions of memory are enabled to
-load data from, and store data to, a [`BitStore`] with faster behavior than the
-default bit-by-bit traversal.
-
-This trait transfers data between a [`BitSlice`] and a local element. The trait
-functions always place the live bit region of the slice against the least
-significant bit edge of the local element (return value of [`load`], argument of
-[`store`]).
-
-Implementations are encouraged to preserve in-memory bit ordering within a
-memory element, so that call sites can provide a value pattern that the user can
-clearly see matches what they expect for memory ordering. These methods should
-only move data between locations, without modifying the data itself.
+This trait transfers data between a [`BitSlice`] region and a local integer. The
+trait functions always place the live bits of the value against the least
+significant bit edge of the local integer (the return value of [`load`], and the
+argument of [`store`]).
 
 Methods should be called as `bits[start .. end].load_or_store()`, where the
-range subslice selects no more than the [`M::BITS`] element width being
-transferred.
+range subslice selects no more than the [`M::BITS`] element width.
 
 [`BitSlice`]: crate::slice::BitSlice
-[`BitStore`]: crate::store::BitStore
 [`M::BITS`]: crate::mem::BitMemory::BITS
 [`load`]: Self::load
 [`store`]: Self::store
 **/
+#[cfg(not(tarpaulin_include))]
 pub trait BitField {
 	/// Loads the bits in the `self` region into a local value.
 	///
@@ -146,7 +133,6 @@ pub trait BitField {
 	/// [`load_le`]: Self::load_le
 	/// [`self.len()`]: crate::slice::BitSlice::len
 	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
 	fn load<M>(&self) -> M
 	where M: BitMemory {
 		#[cfg(target_endian = "little")]
@@ -190,7 +176,6 @@ pub trait BitField {
 	/// [`store_be`]: Self::store_be
 	/// [`store_le`]: Self::store_le
 	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
 	fn store<M>(&mut self, value: M)
 	where M: BitMemory {
 		#[cfg(target_endian = "little")]
@@ -339,8 +324,7 @@ where T: BitStore
 	#[inline]
 	fn load_le<M>(&self) -> M
 	where M: BitMemory {
-		let len = self.len();
-		check("load", len, M::BITS);
+		check::<M>("load", self.len());
 
 		match self.domain() {
 			//  In Lsb0, a `head` index counts distance from LSedge, and a
@@ -368,7 +352,7 @@ where T: BitStore
 					when `M` is not narrower than `T::Mem`, and the shift is
 					only needed when `M` occupies *more than one* `T::Mem` slot.
 					When `M` is exactly as wide as `T::Mem`, this loop either
-					does not runs (head and tail only), or runs once (single
+					does not run (head and tail only), or runs once (single
 					element), and thus the shift is unnecessary.
 
 					As a const-expression, this branch folds at compile-time to
@@ -394,8 +378,7 @@ where T: BitStore
 	#[inline]
 	fn load_be<M>(&self) -> M
 	where M: BitMemory {
-		let len = self.len();
-		check("load", len, M::BITS);
+		check::<M>("load", self.len());
 
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
@@ -429,12 +412,11 @@ where T: BitStore
 	#[inline]
 	fn store_le<M>(&mut self, mut value: M)
 	where M: BitMemory {
-		let len = self.len();
-		check("store", len, M::BITS);
+		check::<M>("store", self.len());
 
 		match self.domain_mut() {
 			DomainMut::Enclave { head, elem, tail } => {
-				set::<T, M>(elem, value, Lsb0::mask(head, tail), head.value())
+				set::<T, M>(elem, value, Lsb0::mask(head, tail), head.value());
 			},
 			DomainMut::Region { head, body, tail } => {
 				if let Some((head, elem)) = head {
@@ -443,7 +425,7 @@ where T: BitStore
 					value >>= T::Mem::BITS - shamt;
 				}
 
-				for elem in body {
+				for elem in body.iter_mut() {
 					*elem = resize(value);
 					if M::BITS > T::Mem::BITS {
 						value >>= T::Mem::BITS;
@@ -460,12 +442,11 @@ where T: BitStore
 	#[inline]
 	fn store_be<M>(&mut self, mut value: M)
 	where M: BitMemory {
-		let len = self.len();
-		check("store", len, M::BITS);
+		check::<M>("store", self.len());
 
 		match self.domain_mut() {
 			DomainMut::Enclave { head, elem, tail } => {
-				set::<T, M>(elem, value, Lsb0::mask(head, tail), head.value())
+				set::<T, M>(elem, value, Lsb0::mask(head, tail), head.value());
 			},
 			DomainMut::Region { head, body, tail } => {
 				if let Some((elem, tail)) = tail {
@@ -499,8 +480,7 @@ where T: BitStore
 	#[inline]
 	fn load_le<M>(&self) -> M
 	where M: BitMemory {
-		let len = self.len();
-		check("load", len, M::BITS);
+		check::<M>("load", self.len());
 
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => get::<T, M>(
@@ -539,8 +519,7 @@ where T: BitStore
 	#[inline]
 	fn load_be<M>(&self) -> M
 	where M: BitMemory {
-		let len = self.len();
-		check("load", len, M::BITS);
+		check::<M>("load", self.len());
 
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => get::<T, M>(
@@ -580,8 +559,7 @@ where T: BitStore
 	#[inline]
 	fn store_le<M>(&mut self, mut value: M)
 	where M: BitMemory {
-		let len = self.len();
-		check("store", len, M::BITS);
+		check::<M>("store", self.len());
 
 		match self.domain_mut() {
 			DomainMut::Enclave { head, elem, tail } => set::<T, M>(
@@ -618,8 +596,7 @@ where T: BitStore
 	#[inline]
 	fn store_be<M>(&mut self, mut value: M)
 	where M: BitMemory {
-		let len = self.len();
-		check("store", len, M::BITS);
+		check::<M>("store", self.len());
 
 		match self.domain_mut() {
 			DomainMut::Enclave { head, elem, tail } => set::<T, M>(
@@ -659,8 +636,7 @@ impl<O, V> BitField for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
-	V::Store: BitRegister,
-	BitSlice<O, V::Store>: BitField,
+	BitSlice<O, V::Mem>: BitField,
 {
 	#[inline]
 	fn load_le<M>(&self) -> M
@@ -754,10 +730,22 @@ where
 }
 
 /// Asserts that a slice length is within a memory element width.
+///
+/// # Panics
+///
+/// This panics if len is 0, or wider than [`M::BITS`].
+///
+/// [`M::BITS`]: crate::mem::BitMemory::BITS
 #[inline]
-fn check(action: &'static str, len: usize, width: u8) {
-	if !(1 ..= width as usize).contains(&len) {
-		panic!("Cannot {} {} bits from a {}-bit region", action, width, len);
+fn check<M>(action: &'static str, len: usize)
+where M: BitMemory {
+	if !(1 ..= M::BITS as usize).contains(&len) {
+		panic!(
+			"Cannot {} {} bits from a {}-bit region",
+			action,
+			M::BITS,
+			len
+		);
 	}
 }
 
@@ -801,15 +789,21 @@ This is the exact inverse of `set`.
 [`T::Mem`]: crate::store::BitStore::Mem
 **/
 #[inline]
+//  The trait resolution system fails here, and only resolves to `<&usize>` as
+//  the RHS operand.
+#[allow(clippy::op_ref)]
 fn get<T, M>(elem: &T, mask: BitMask<T::Mem>, shamt: u8) -> M
 where
 	T: BitStore,
 	M: BitMemory,
 {
+	//  Read the value out of the `elem` reference
 	elem.load_value()
-		.pipe(|val| mask & val)
-		.value()
-		.pipe(|val| Shr::<u8>::shr(val, shamt))
+		//  Mask it against the slot
+		.pipe(|val| val & &mask.value())
+		//  Shift it down to the LSedge
+		.pipe(|val| val >> &(shamt as usize))
+		//  And resize to the expected output
 		.pipe(resize::<T::Mem, M>)
 }
 
@@ -857,20 +851,19 @@ where
 	T: BitStore,
 	M: BitMemory,
 {
-	//  Mark the mask as aliased, to fit into the accessor reference.
-	let mask = dvl::alias_mask::<T>(mask);
-	//  Modify `value` to fit the accessor reference, by:
+	//  Convert the `mask` type to fit into the accessor.
+	let mask = unsafe { BitMask::new(mask.value()) };
 	let value = value
-		//  resizing from `M` to `T::Mem`,
+		//  Resize the value to the expected input
 		.pipe(resize::<M, T::Mem>)
-		//  marking it as `T::Alias::Mem`,
-		.pipe(dvl::alias_mem::<T>)
-		//  and shifting it left by `shamt` to be in the mask region,
-		.pipe(|val| Shl::<u8>::shl(val, shamt))
-		//  then masking it.
+		//  Shift it up from the LSedge
+		.pipe(|val| val << &(shamt as usize))
+		//  And mask it to the slot
 		.pipe(|val| mask & val);
 
+	//  Erase the slot
 	elem.clear_bits(mask);
+	//  And write the shift/masked value into it
 	elem.set_bits(value);
 }
 

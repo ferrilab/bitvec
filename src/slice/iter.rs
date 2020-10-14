@@ -1,7 +1,4 @@
-/*! [`BitSlice`] iterators.
-
-[`BitSlice`]: crate::slice::BitSlice
-!*/
+//! Iterators over `[T]`.
 
 use crate::{
 	index::BitIdx,
@@ -29,9 +26,9 @@ use core::{
 	ptr::NonNull,
 };
 
-/** Immutable [`BitSlice`] iterator
+/** Immutable [`BitSlice`] iterator.
 
-This struct is created by the [`iter`] method on [`BitSlice`]s.
+This struct is created by the [`.iter()`] method on [`BitSlice`]s.
 
 # Original
 
@@ -42,41 +39,35 @@ This struct is created by the [`iter`] method on [`BitSlice`]s.
 Basic usage:
 
 ```rust
-# #[cfg(feature = "std")] {
 use bitvec::prelude::*;
 
-// First, we declare a type which has `iter` method
-// to get the `Iter` struct (&BitSlice here):
-let data = 129u8;
-let bits = BitSlice::<LocalBits, _>::from_element(&data);
-
-// Then, we iterato over it:
+let bits = bits![0, 1];
 for bit in bits.iter() {
+  # #[cfg(feature = "std")]
   println!("{}", bit);
 }
-# }
 ```
 
 [`BitSlice`]: crate::slice::BitSlice
-[`iter`]: crate::slice::BitSlice::iter
+[`.iter()`]: crate::slice::BitSlice::iter
 **/
-#[derive(Debug)]
+#[repr(C)]
 pub struct Iter<'a, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
 	/// Address of the element with the first live bit.
-	base: *const T,
+	base: NonNull<T>,
 	/// Address of the element containing the first dead bit.
 	///
 	/// This address may or may not be dereferencable, but thanks to a rule in
-	/// the C++ (and thus LLVM) memory model emplaced specifically to allow
-	/// double-pointer iteration, creation of an address one element after the
-	/// end of a live region is required to be legal. It is not required to be
-	/// equal to a numerically-identical base address of a separate adjoining
-	/// region, but that is not important here.
-	last: *const T,
+	/// the C++ and LLVM memory models emplaced specifically to allow
+	/// double-pointer iteration, the creation of an address one element after
+	/// the end of a live region is required to be legial. It is not required to
+	/// be equal to a numerically-identical pointer that is the base address of
+	/// a separate adjoining region, but the distinction is not important here.
+	last: NonNull<T>,
 	/// Semantic index of the first live bit.
 	head: BitIdx<T::Mem>,
 	/// Semantic index of the first dead bit after the last live bit. This may
@@ -95,166 +86,13 @@ where
 	_ref: PhantomData<&'a BitSlice<O, T>>,
 }
 
-impl<'a, O, T> Iter<'a, O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	/// Views the underlying data as a subslice of the original data.
-	///
-	/// This has the same lifetime as the original [`BitSlice`], and so the
-	/// iterator can continue to be used while this exists.
-	///
-	/// # Original
-	///
-	/// [`Iter::as_slice`](core::slice::Iter::as_slice)
-	///
-	/// # API Differences
-	///
-	/// This is renamed, as its return type is not an element slice `&[T]` or
-	/// `&[bool]` but a [`BitSlice`].
-	///
-	/// # Examples
-	///
-	/// Basic usage:
-	///
-	/// ```rust
-	/// # #[cfg(feature = "std")] {
-	/// use bitvec::prelude::*;
-	///
-	/// // First, we declare a type which has the `iter` method
-	/// // to get the `Iter` struct (&BitSlice here):
-	/// let data = 129u8;
-	/// let bits = BitSlice::<Msb0, _>::from_element(&data);
-	///
-	/// // Then, we get the iterator:
-	/// let mut iter = bits.iter();
-	/// // So if we print what `as_bitslice` returns
-	/// // here, we have "[1, 0, 0, 0, 0, 0, 0, 1]":
-	/// println!("{:?}", iter.as_bitslice());
-	///
-	/// // Next, we move to the second element of the slice:
-	/// iter.next();
-	/// // Now `as_bitslice` returns "[0, 0, 0, 0, 0, 0, 1]":
-	/// println!("{:?}", iter.as_bitslice());
-	/// # }
-	/// ```
-	#[inline]
-	pub fn as_bitslice(&self) -> &'a BitSlice<O, T> {
-		unsafe { BitPtr::new_unchecked(self.base, self.head, self.len()) }
-			.to_bitslice_ref()
-	}
-
-	/* Allow the standard-library name to resolve, but instruct the user to
-	rename.
-
-	It is important not to use the name `slice` to refer to any `BitSlice`
-	regions, and to keep distinct the views of a `BitSlice` from the views of
-	the underlying `[T]` storage slice.
-	*/
-	#[inline]
-	#[doc(hidden)]
-	#[cfg(not(tarpaulin_include))]
-	#[deprecated(
-		note = "Use `.as_bitslice` on iterators to view the remaining data"
-	)]
-	pub fn as_slice(&self) -> &'a BitSlice<O, T> {
-		self.as_bitslice()
-	}
-
-	/// Removes the bit at the front of the iterator.
-	fn pop_front(&mut self) -> <Self as Iterator>::Item {
-		let out = unsafe { &*self.base }.get_bit::<O>(self.head);
-		let (head, incr) = self.head.incr();
-		self.base = unsafe { self.base.add(incr as usize) };
-		self.head = head;
-
-		if out { &true } else { &false }
-	}
-
-	/// Removes the bit at the back of the iterator.
-	fn pop_back(&mut self) -> <Self as Iterator>::Item {
-		let (tail, offset) = self.tail.decr();
-		self.last = unsafe { self.last.offset(-(offset as isize)) };
-		self.tail = tail;
-		if unsafe { &*self.last }.get_bit::<O>(self.tail) {
-			&true
-		}
-		else {
-			&false
-		}
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<O, T> Clone for Iter<'_, O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn clone(&self) -> Self {
-		*self
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<O, T> AsRef<BitSlice<O, T>> for Iter<'_, O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn as_ref(&self) -> &BitSlice<O, T> {
-		self.as_bitslice()
-	}
-}
-
-impl<'a, O, T> IntoIterator for &'a BitSlice<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	type IntoIter = Iter<'a, O, T>;
-	type Item = <Self::IntoIter as Iterator>::Item;
-
-	fn into_iter(self) -> Self::IntoIter {
-		let (addr, head, bits) = self.bitptr().raw_parts();
-		let base = addr.to_const();
-
-		let (elts, tail) = head.offset(bits as isize);
-		let last = unsafe { base.offset(elts) };
-
-		Self::IntoIter {
-			base,
-			last,
-			head,
-			tail,
-			_ref: PhantomData,
-		}
-	}
-}
-
-impl<O, T> Copy for Iter<'_, O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-}
-
 /** Mutable [`BitSlice`] iterator.
 
-This struct is created by the [`iter_mut`] method on [`BitSlice`]s.
+This struct is created by the [`.iter_mut()`] method on [`BitSlice`]s.
 
 # Original
 
-[`slice::IterMut`](core::slice::IterMut)
-
-# API Differences
-
-In addition to returning [`BitMut`] instead of `&mut bool`, all references
-produced from this iterator are marked as aliasing. This is necessary because
-the references receive the lifetime of the original [`BitSlice`], not of the iterator
-object, and the iterator is able to produce multiple live references in the same
-scope.
+[`slice::IterMut`](crate::slice::IterMut)
 
 # Examples
 
@@ -262,23 +100,18 @@ Basic usage:
 
 ```rust
 use bitvec::prelude::*;
-// First, we declare a type which has `iter_mut` method
-// to get the `IterMut` struct (&BitSlice here):
-let mut data = 0u8;
-let bits = data.view_bits_mut::<Msb0>();
 
-// Then, we iterate over it and modify bits:
-for (idx, mut bit) in bits.iter_mut().enumerate() {
-  *bit = idx % 3 == 0;
+let bits = bits![mut 0; 2];
+for mut bit in bits.iter_mut() {
+  *bit = true;
 }
-assert_eq!(data, 0b100_100_10);
+assert_eq!(bits, bits![1; 2]);
 ```
 
-[`BitMut`]: crate::slice::BitMut
 [`BitSlice`]: crate::slice::BitSlice
-[`iter_mut`]: crate::slice::BitSlice::iter_mut
+[`.iter_mut()`]: crate::slice::BitSlice::iter_mut
 **/
-#[derive(Debug)]
+#[repr(C)]
 pub struct IterMut<'a, O, T>
 where
 	O: BitOrder,
@@ -296,24 +129,33 @@ where
 	_ref: PhantomData<&'a mut BitSlice<O, T::Alias>>,
 }
 
-impl<'a, O, T> IterMut<'a, O, T>
+impl<'a, O, T> Iter<'a, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	/// The canonical empty iterator.
+	const EMPTY: Self = Self {
+		base: NonNull::dangling(),
+		last: NonNull::dangling(),
+		head: BitIdx::ZERO,
+		tail: BitIdx::ZERO,
+		_ref: PhantomData,
+	};
+
 	/// Views the underlying data as a subslice of the original data.
 	///
-	/// To avoid creating `&mut` references that alias the same *bits*, this is
-	/// forced to consume the iterator.
+	/// This has the same lifetime as the original [`BitSlice`], and so the
+	/// iterator can continue to be used while this exists.
 	///
 	/// # Original
 	///
-	/// [`IterMut::into_slice`](core::slice::IterMut::into_slice)
+	/// [`Iter::as_slice`](core::slice::Iter::as_slice)
 	///
 	/// # API Differences
 	///
-	/// This is renamed, as its return type is not an element slice `&mut [T]`
-	/// or `&mut [bool]` but a [`BitSlice`].
+	/// As this views a [`BitSlice`], rather than a `[T]` or `[bool]` slice, it
+	/// has been renamed.
 	///
 	/// # Examples
 	///
@@ -323,22 +165,143 @@ where
 	/// # #[cfg(feature = "std")] {
 	/// use bitvec::prelude::*;
 	///
-	/// // First, we declare a type which has `iter_mut` method
-	/// // to get the `IterMut` struct (&BitSlice here):
-	/// let mut data = 0u8;
-	/// let bits = data.view_bits_mut::<Lsb0>();
+	/// let bits = bits![0, 0, 1, 1];
+	///
+	/// // Get the iterator:
+	/// let mut iter = bits.iter();
+	/// // So if we print what `as_bitslice` returns
+	/// // here, we have "[0011]":
+	/// println!("{:b}", iter.as_bitslice());
+	///
+	/// // Next, we move to the second element of the slice:
+	/// iter.next();
+	/// // Now `as_bitslice` returns "[011]":
+	/// println!("{:b}", iter.as_bitslice());
+	/// # }
+	/// ```
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
+	#[inline]
+	pub fn as_bitslice(&self) -> &'a BitSlice<O, T> {
+		unsafe {
+			BitPtr::new_unchecked(self.base.as_ptr(), self.head, self.len())
+		}
+		.to_bitslice_ref()
+	}
+
+	/* Allow the standard-library name to resolve, but instruct the user to
+	rename.
+
+	It is important not to use the name `slice` to refer to any `BitSlice`
+	regions, and to keep distinct the views of a `BitSlice` from the views of
+	the underlying `[T]` storage slice.
+	*/
+	#[doc(hidden)]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	#[deprecated = "Use `.as_bitslice()` to view the underlying slice"]
+	pub fn as_slice(&self) -> &'a BitSlice<O, T> {
+		self.as_bitslice()
+	}
+
+	/// Removes the bit at the front of the iterator.
+	fn pop_front(&mut self) -> <Self as Iterator>::Item {
+		let base_raw = self.base.as_ptr() as *const T;
+		let out = unsafe { &*base_raw }.get_bit::<O>(self.head);
+		let (head, incr) = self.head.next();
+		self.set_base(unsafe { base_raw.add(incr as usize) as *mut T });
+		self.head = head;
+
+		if out { &true } else { &false }
+	}
+
+	/// Removes the bit at the back of the iterator.
+	fn pop_back(&mut self) -> <Self as Iterator>::Item {
+		let (tail, offset) = self.tail.prev();
+		self.set_last(unsafe { self.last.as_ptr().offset(-(offset as isize)) });
+		self.tail = tail;
+		if unsafe { &*self.last.as_ptr() }.get_bit::<O>(self.tail) {
+			&true
+		}
+		else {
+			&false
+		}
+	}
+
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	fn get_base(&self) -> *const T {
+		self.base.as_ptr() as *const T
+	}
+
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	fn get_last(&self) -> *const T {
+		self.last.as_ptr() as *const T
+	}
+
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	fn set_base(&mut self, base: *const T) {
+		self.base = unsafe { NonNull::new_unchecked(base as *mut T) }
+	}
+
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	fn set_last(&mut self, last: *const T) {
+		self.last = unsafe { NonNull::new_unchecked(last as *mut T) }
+	}
+}
+
+impl<'a, O, T> IterMut<'a, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	/// The canonical empty iterator.
+	const EMPTY: Self = Self {
+		base: NonNull::dangling(),
+		last: NonNull::dangling(),
+		head: BitIdx::ZERO,
+		tail: BitIdx::ZERO,
+		_ref: PhantomData,
+	};
+
+	/// Views the underlying data as a subslice of the original data.
+	///
+	/// To avoid creating `&mut` references that alias, this is forced to
+	/// consume the iterator.
+	///
+	/// # Original
+	///
+	/// [`IterMut::into_slice`](core::slice::IterMut::into_slice)
+	///
+	/// # API Differences
+	///
+	/// As this views a [`BitSlice`], rather than a `[T]` or `[bool]` slice, it
+	/// has been renamed.
+	///
+	/// # Examples
+	///
+	/// Basic usage:
+	///
+	/// ```rust
+	/// # #[cfg(feature = "std")] {
+	/// use bitvec::prelude::*;
+	///
+	/// let bits = bits![mut 0, 1, 0];
 	///
 	/// {
-	///   // Then, we get the iterator:
+	///   // Get the iterator:
 	///   let mut iter = bits.iter_mut();
 	///   // We move to the next element:
 	///   iter.next();
-	///   // So if we print what `into_bitslice` method
-	///   // returns here, we have "[0, 0, 0, 0, 0, 0, 0]":
-	///   println!("{:?}", iter.into_bitslice());
+	///   // So if we print what `into_bitslice`
+	///   // returns here, we have "[10]":
+	///   println!("{:b}", iter.into_slice());
 	/// }
 	///
-	/// // Now let's modify a value of the slice:
+	/// // Now let’s modify a value of the slice:
 	/// {
 	///   // First we get back the iterator:
 	///   let mut iter = bits.iter_mut();
@@ -346,9 +309,13 @@ where
 	///   // the slice returned by the `next` method:
 	///   *iter.next().unwrap() = true;
 	/// }
-	/// // Now data is "1":
-	/// assert_eq!(data, 1);
+	/// // Now bits is "[110]":
+	/// println!("{:b}", bits);
 	/// # }
+	/// ```
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
+	#[inline]
 	pub fn into_bitslice(self) -> &'a mut BitSlice<O, T::Alias> {
 		unsafe {
 			BitPtr::new_unchecked(
@@ -369,13 +336,18 @@ where
 	regions, and to keep distinct the views of a `BitSlice` from the views of
 	the underlying `[T]` storage slice.
 	*/
-	#[inline]
 	#[doc(hidden)]
+	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated = "Use `.into_bitslice()` on mutable iterators to view the \
-	                remaining data"]
+	#[deprecated = "Use `.into_bitslice()` to view the underlying slice"]
 	pub fn into_slice(self) -> &'a mut BitSlice<O, T::Alias> {
 		self.into_bitslice()
+	}
+
+	/// Used only for `Debug` printing.
+	#[cfg(not(tarpaulin_include))]
+	fn as_bitslice(&self) -> &BitSlice<O, T::Alias> {
+		unsafe { core::ptr::read(self) }.into_bitslice()
 	}
 
 	/// Removes the bit at the front of the iterator.
@@ -383,10 +355,8 @@ where
 		let out =
 			unsafe { BitMut::new_unchecked(self.base.as_ptr(), self.head) };
 
-		let (head, incr) = self.head.incr();
-		self.base = unsafe {
-			NonNull::new_unchecked(self.base.as_ptr().add(incr as usize))
-		};
+		let (head, incr) = self.head.next();
+		self.set_base(unsafe { self.base.as_ptr().add(incr as usize) });
 		self.head = head;
 
 		out
@@ -394,13 +364,118 @@ where
 
 	/// Removes the bit at the back of the iterator.
 	fn pop_back(&mut self) -> <Self as Iterator>::Item {
-		let (tail, decr) = self.tail.decr();
-		self.last = unsafe {
-			NonNull::new_unchecked(self.last.as_ptr().sub(decr as usize))
-		};
+		let (tail, decr) = self.tail.prev();
+		self.set_last(unsafe { self.last.as_ptr().sub(decr as usize) });
 		self.tail = tail;
 
 		unsafe { BitMut::new_unchecked(self.last.as_ptr(), self.tail) }
+	}
+
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	fn get_base(&self) -> *mut <T::Alias as BitStore>::Access {
+		self.base.as_ptr()
+	}
+
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	fn get_last(&self) -> *mut <T::Alias as BitStore>::Access {
+		self.last.as_ptr()
+	}
+
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	fn set_base(&mut self, base: *mut <T::Alias as BitStore>::Access) {
+		self.base = unsafe { NonNull::new_unchecked(base) }
+	}
+
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	fn set_last(&mut self, last: *mut <T::Alias as BitStore>::Access) {
+		self.last = unsafe { NonNull::new_unchecked(last) }
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<O, T> Clone for Iter<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline(always)]
+	fn clone(&self) -> Self {
+		*self
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<O, T> AsRef<BitSlice<O, T>> for Iter<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline(always)]
+	fn as_ref(&self) -> &BitSlice<O, T> {
+		self.as_bitslice()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<O, T> Debug for Iter<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline]
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		fmt.debug_tuple("Iter").field(&self.as_bitslice()).finish()
+	}
+}
+
+impl<O, T> Copy for Iter<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<O, T> Debug for IterMut<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline]
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		fmt.debug_tuple("IterMut")
+			.field(&self.as_bitslice())
+			.finish()
+	}
+}
+
+impl<'a, O, T> IntoIterator for &'a BitSlice<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	type IntoIter = Iter<'a, O, T>;
+	type Item = <Self::IntoIter as Iterator>::Item;
+
+	fn into_iter(self) -> Self::IntoIter {
+		let (addr, head, bits) = self.bitptr().raw_parts();
+		let addr = addr.to_mut();
+		let base = unsafe { NonNull::new_unchecked(addr) };
+
+		let (elts, tail) = head.offset(bits as isize);
+		let last = unsafe { NonNull::new_unchecked(addr.offset(elts)) };
+
+		Self::IntoIter {
+			base,
+			last,
+			head,
+			tail,
+			_ref: PhantomData,
+		}
 	}
 }
 
@@ -429,76 +504,6 @@ where
 			tail,
 			_ref: PhantomData,
 		}
-	}
-}
-
-impl<'a, O, T> Iter<'a, O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	/// The canonical empty iterator.
-	const EMPTY: Self = Self {
-		base: NonNull::dangling().as_ptr() as *const T,
-		last: NonNull::dangling().as_ptr() as *const T,
-		head: BitIdx::ZERO,
-		tail: BitIdx::ZERO,
-		_ref: PhantomData,
-	};
-
-	#[inline(always)]
-	fn get_base(&self) -> *const T {
-		self.base
-	}
-
-	#[inline(always)]
-	fn get_last(&self) -> *const T {
-		self.last
-	}
-
-	#[inline(always)]
-	fn set_base(&mut self, base: *const T) {
-		self.base = base
-	}
-
-	#[inline(always)]
-	fn set_last(&mut self, last: *const T) {
-		self.last = last
-	}
-}
-
-impl<'a, O, T> IterMut<'a, O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	/// The canonical empty iterator.
-	const EMPTY: Self = Self {
-		base: NonNull::dangling(),
-		last: NonNull::dangling(),
-		head: BitIdx::ZERO,
-		tail: BitIdx::ZERO,
-		_ref: PhantomData,
-	};
-
-	#[inline(always)]
-	fn get_base(&self) -> *mut <T::Alias as BitStore>::Access {
-		self.base.as_ptr()
-	}
-
-	#[inline(always)]
-	fn get_last(&self) -> *mut <T::Alias as BitStore>::Access {
-		self.last.as_ptr()
-	}
-
-	#[inline(always)]
-	fn set_base(&mut self, base: *mut <T::Alias as BitStore>::Access) {
-		self.base = unsafe { NonNull::new_unchecked(base) }
-	}
-
-	#[inline(always)]
-	fn set_last(&mut self, last: *mut <T::Alias as BitStore>::Access) {
-		self.last = unsafe { NonNull::new_unchecked(last) }
 	}
 }
 
@@ -720,14 +725,14 @@ macro_rules! group {
 
 /** An iterator over overlapping subslices of length `size`.
 
-This struct is created by the [`windows`] method on [`BitSlice`]s.
+This struct is created by the [`.windows()`] method on [`BitSlice`]s.
 
 # Original
 
 [`slice::Windows`](core::slice::Windows)
 
 [`BitSlice`]: crate::slice::BitSlice
-[`windows`]: crate::slice::BitSlice::windows
+[`.windows()`]: crate::slice::BitSlice::windows
 **/
 #[derive(Clone, Debug)]
 pub struct Windows<'a, O, T>
@@ -810,14 +815,14 @@ bits at a time), starting at the beginning of the slice.
 When the slice length is not evenly divided by the chunk size, the last slice of
 the iteration will be the remainder.
 
-This struct is created by the [`chunks`] method on [`BitSlice`]s.
+This struct is created by the [`.chunks()`] method on [`BitSlice`]s.
 
 # Original
 
 [`slice::Chunks`](core::slice::Chunks)
 
 [`BitSlice`]: crate::slice::BitSlice
-[`chunks`]: crate::slice::BitSlice::chunks
+[`.chunks()`]: crate::slice::BitSlice::chunks
 **/
 #[derive(Clone, Debug)]
 pub struct Chunks<'a, O, T>
@@ -915,7 +920,7 @@ group!(Chunks => &'a BitSlice<O, T> {
 When the slice length is not evenly divided by the chunk size, the last slice of
 the iteration will be the remainder.
 
-This struct is created by the [`chunks_mut`] method on [`BitSlice`]s.
+This struct is created by the [`.chunks_mut()`] method on [`BitSlice`]s.
 
 # Original
 
@@ -926,7 +931,7 @@ This struct is created by the [`chunks_mut`] method on [`BitSlice`]s.
 All slices yielded from this iterator are marked as aliased.
 
 [`BitSlice`]: crate::slice::BitSlice
-[`chunks_mut`]: crate::slice::BitSlice::chunks_mut
+[`.chunks_mut()`]: crate::slice::BitSlice::chunks_mut
 **/
 #[derive(Debug)]
 pub struct ChunksMut<'a, O, T>
@@ -1024,18 +1029,18 @@ group!(ChunksMut => &'a mut BitSlice<O, T::Alias> {
 bits at a time), starting at the beginning of the slice.
 
 When the slice length is not evenly divided by the chunk size, the last up to
-`chunk_size-1` bits will be ommitted but can be retrieved from the [`remainder`]
-function from the iterator.
+`chunk_size-1` bits will be ommitted but can be retrieved from the
+[`.remainder()`] function from the iterator.
 
-This struct is created by the [`chunks_exact`] method on [`BitSlice`]s.
+This struct is created by the [`.chunks_exact()`] method on [`BitSlice`]s.
 
 # Original
 
 [`slice::ChunksExact`](core::slice::ChunksExact)
 
 [`BitSlice`]: crate::slice::BitSlice
-[`chunks_exact`]: crate::slice::BitSlice::chunks_exact
-[`remainder`]: Self::remainder
+[`.chunks_exact()`]: crate::slice::BitSlice::chunks_exact
+[`.remainder()`]: Self::remainder
 **/
 #[derive(Clone, Debug)]
 pub struct ChunksExact<'a, O, T>
@@ -1148,9 +1153,9 @@ group!(ChunksExact => &'a BitSlice<O, T> {
 
 When the slice length is not evenly divided by the chunk size, the last up to
 `chunk_size-1` bits will be omitted but can be retrieved from the
-[`into_remainder`] function from the iterator.
+[`.into_remainder()`] function from the iterator.
 
-This struct is created by the [`chunks_exact_mut`] method on [`BitSlice`]s.
+This struct is created by the [`.chunks_exact_mut()`] method on [`BitSlice`]s.
 
 # Original
 
@@ -1161,8 +1166,8 @@ This struct is created by the [`chunks_exact_mut`] method on [`BitSlice`]s.
 All slices yielded from this iterator are marked as aliased.
 
 [`BitSlice`]: crate::slice::BitSlice
-[`chunks_exact_mut`]: crate::slice::BitSlice::chunks_exact_mut
-[`into_remainder`]: Self::into_remainder
+[`.chunks_exact_mut()`]: crate::slice::BitSlice::chunks_exact_mut
+[`.into_remainder()`]: Self::into_remainder
 **/
 #[derive(Debug)]
 pub struct ChunksExactMut<'a, O, T>
@@ -1281,17 +1286,17 @@ group!(ChunksExactMut => &'a mut BitSlice<O, T::Alias> {
 /** An iterator over a [`BitSlice`] in (non-overlapping) chunks (`chunk_size`
 bits at a time), starting at the end of the slice.
 
-When the slice length is not evenly divided by the chunk size, the last slice of
-the iteration will be the remainder.
+When the slice length is not evenly divided by the chunk size, the last
+slice of the iteration will be the remainder.
 
-This struct is created by the [`rchunks`] method on [`BitSlice`]s.
+This struct is created by the [`.rchunks()`] method on [`BitSlice`]s.
 
 # Original
 
 [`slice::RChunks`](core::slice::RChunks)
 
 [`BitSlice`]: crate::slice::BitSlice
-[`rchunks`]: crate::slice::BitSlice::rchunks
+[`.rchunks()`]: crate::slice::BitSlice::rchunks
 **/
 #[derive(Clone, Debug)]
 pub struct RChunks<'a, O, T>
@@ -1401,7 +1406,7 @@ group!(RChunks => &'a BitSlice<O, T> {
 When the slice length is not evenly divided by the chunk size, the last slice of
 the iteration will be the remainder.
 
-This struct is created by the [`rchunks_mut`] method on [`BitSlice`]s.
+This struct is created by the [`.rchunks_mut()`] method on [`BitSlice`]s.
 
 # Original
 
@@ -1412,7 +1417,7 @@ This struct is created by the [`rchunks_mut`] method on [`BitSlice`]s.
 All slices yielded from this iterator are marked as aliased.
 
 [`BitSlice`]: crate::slice::BitSlice
-[`rchunks_mut`]: crate::slice::BitSlice::rchunks_mut
+[`.rchunks_mut()`]: crate::slice::BitSlice::rchunks_mut
 **/
 #[derive(Debug)]
 pub struct RChunksMut<'a, O, T>
@@ -1503,18 +1508,18 @@ group!(RChunksMut => &'a mut BitSlice<O, T::Alias> {
 bits at a time), starting at the end of the slice.
 
 When the slice length is not evenly divided by the chunk size, the last up to
-`chunk_size-1` bits will be omitted but can be retrieved from the [`remainder`]
-function from the iterator.
+`chunk_size-1` bits will be omitted but can be retrieved from the
+[`.remainder()`] function from the iterator.
 
-This struct is created by the [`rchunks_exact`] method on [`BitSlice`]s.
+This struct is created by the [`.rchunks_exact()`] method on [`BitSlice`]s.
 
 # Original
 
 [`slice::RChunksExact`](core::slice::RChunksExact)
 
 [`BitSlice`]: crate::slice::BitSlice
-[`rchunks_exact`]: crate::slice::BitSlice::rchunks_exact
-[`remainder`]: Self::remainder
+[`.rchunks_exact()`]: crate::slice::BitSlice::rchunks_exact
+[`.remainder()`]: Self::remainder
 **/
 #[derive(Clone, Debug)]
 pub struct RChunksExact<'a, O, T>
@@ -1628,9 +1633,9 @@ group!(RChunksExact => &'a BitSlice<O, T> {
 
 When the slice length is not evenly divided by the chunk size, the last up to
 `chunk_size-1` bits will be omitted but can be retrieved from the
-[`into_remainder`] function from the iterator.
+[`.into_remainder()`] function from the iterator.
 
-This struct is created by the [`rchunks_exact_mut`] method on [`BitSlice`]s.
+This struct is created by the [`.rchunks_exact_mut()`] method on [`BitSlice`]s.
 
 # Original
 
@@ -1641,8 +1646,8 @@ This struct is created by the [`rchunks_exact_mut`] method on [`BitSlice`]s.
 All slices yielded from this iterator are marked as aliased.
 
 [`BitSlice`]: crate::slice::BitSlice
-[`into_remainder`]: Self::into_remainder
-[`rchunks_exact_mut`]: crate::slice::BitSlice::rchunks_exact_mut
+[`.into_remainder()`]: Self::into_remainder
+[`.rchunks_exact_mut()`]: crate::slice::BitSlice::rchunks_exact_mut
 **/
 #[derive(Debug)]
 pub struct RChunksExactMut<'a, O, T>
@@ -1768,7 +1773,6 @@ macro_rules! new_group {
 			T: BitStore
 		{
 			#[inline(always)]
-			#[cfg(not(tarpaulin_include))]
 			#[allow(clippy::redundant_field_names)]
 			pub(super) fn new(
 				slice: &'a $($m)? BitSlice<O, T>,
@@ -1886,7 +1890,7 @@ macro_rules! split {
 /** An iterator over subslices separated by bits that match a predicate
 function.
 
-This struct is created by the [`split`] method on [`BitSlice`]s.
+This struct is created by the [`.split()`] method on [`BitSlice`]s.
 
 # Original
 
@@ -1898,7 +1902,7 @@ In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
 [`BitSlice`]: crate::slice::BitSlice
-[`split`]: crate::slice::BitSlice::split
+[`.split()`]: crate::slice::BitSlice::split
 **/
 #[derive(Clone)]
 pub struct Split<'a, O, T, P>
@@ -1958,7 +1962,7 @@ split!(Split => &'a BitSlice<O, T> {
 /** An iterator over the mutable subslices which are separated by bits that
 match `pred`.
 
-This struct is created by the [`split_mut`] method on [`BitSlice`]s.
+This struct is created by the [`.split_mut()`] method on [`BitSlice`]s.
 
 # Original
 
@@ -1970,7 +1974,7 @@ In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
 [`BitSlice`]: crate::slice::BitSlice
-[`split_mut`]: crate::slice::BitSlice::split_mut
+[`.split_mut()`]: crate::slice::BitSlice::split_mut
 **/
 pub struct SplitMut<'a, O, T, P>
 where
@@ -2034,7 +2038,7 @@ split!(SplitMut => &'a mut BitSlice<O, T::Alias> {
 /** An iterator over subslices separated by bits that match a predicate
 function, starting from the end of the [`BitSlice`].
 
-This struct is created by the [`rsplit`] method on [`BitSlice`]s.
+This struct is created by the [`.rsplit()`] method on [`BitSlice`]s.
 
 # Original
 
@@ -2046,7 +2050,7 @@ In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
 [`BitSlice`]: crate::slice::BitSlice
-[`rsplit`]: crate::slice::BitSlice::rsplit
+[`.rsplit()`]: crate::slice::BitSlice::rsplit
 **/
 #[derive(Clone)]
 pub struct RSplit<'a, O, T, P>
@@ -2094,7 +2098,7 @@ split!(RSplit => &'a BitSlice<O, T> {
 /** An iterator over subslices separated by bits that match a predicate
 function, starting from the end of the [`BitSlice`].
 
-This struct is created by the [`rsplit_mut`] method on [`BitSlice`]s.
+This struct is created by the [`.rsplit_mut()`] method on [`BitSlice`]s.
 
 # Original
 
@@ -2106,7 +2110,7 @@ In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
 [`BitSlice`]: crate::slice::BitSlice
-[`rsplit_mut`]: crate::slice::BitSlice::rsplit_mut
+[`.rsplit_mut()`]: crate::slice::BitSlice::rsplit_mut
 **/
 pub struct RSplitMut<'a, O, T, P>
 where
@@ -2114,8 +2118,13 @@ where
 	T: BitStore,
 	P: FnMut(usize, &bool) -> bool,
 {
+	/// The [`BitSlice`] being split.
+	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	slice: &'a mut BitSlice<O, T::Alias>,
+	/// The function used to test whether a split should occur.
 	pred: P,
+	/// Whether the split is finished.
 	done: bool,
 }
 
@@ -2157,7 +2166,7 @@ trait SplitIter: DoubleEndedIterator {
 /** An iterator over subslices separated by bits that match a predicate
 function, limited to a given number of splits.
 
-This struct is created by the [`splitn`] method on [`BitSlice`]s.
+This struct is created by the [`.splitn()`] method on [`BitSlice`]s.
 
 # Original
 
@@ -2169,7 +2178,7 @@ In order to allow more than one bit of information for the split decision, the
 predicate receives the index of each bit, as well as its value.
 
 [`BitSlice`]: crate::slice::BitSlice
-[`splitn`]: crate::slice::BitSlice::splitn
+[`.splitn()`]: crate::slice::BitSlice::splitn
 **/
 pub struct SplitN<'a, O, T, P>
 where
@@ -2551,7 +2560,7 @@ macro_rules! noalias {
 noalias! {
 	IterMut => <usize as BitSliceIndex<'a, O, T::Alias>>::Mut
 	=> IterMutNoAlias => <usize as BitSliceIndex<'a, O, T>>::Mut
-	=> BitMut::unalias;
+	=> BitMut::remove_alias;
 
 	ChunksMut => &'a mut BitSlice<O, T::Alias>
 	=> ChunksMutNoAlias => &'a mut BitSlice<O, T>

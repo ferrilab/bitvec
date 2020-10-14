@@ -23,20 +23,24 @@ use crate::{
 use core::ops::RangeBounds;
 
 macro_rules! specialize {
-	($( $func:item )*) => {
-		impl<T> BitSlice<Lsb0, T> where T: BitStore {
+	($($func:item)*) => {
+		impl<T> BitSlice<Lsb0, T>
+		where T: BitStore {
 			$( #[inline] $func )*
 		}
 
-		impl<T> BitSlice<Msb0, T> where T: BitStore {
+		impl<T> BitSlice<Msb0, T>
+		where T: BitStore {
 			$( #[inline] $func )*
 		}
 	};
 }
 
 specialize! {
-	/// Specialized bit mover. This moves bits between two separate slices, and
-	/// does not need to be aware of region overlap.
+	/// Removes an alias marking.
+	///
+	/// This is only safe when the proxy is known to be the only handle to its
+	/// referent element during its lifetime.
 	pub(crate) fn sp_copy_from_bitslice(&mut self, src: &Self) {
 		assert_eq!(
 			self.len(),

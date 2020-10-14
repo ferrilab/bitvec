@@ -1,8 +1,19 @@
-/*! Descriptions of integer types
+/*! Memory element descriptions.
 
-This module describes the integer types used to hold bare data. This module
-governs the way the processor manipulates integer regions of memory, without
-concern for interaction with specifics of register or bus behavior.
+This module describes memory integers and processor registers used to hold and
+manipulate [`bitvec`] data buffers.
+
+The [`BitMemory`] trait adds descriptive information to the unsigned integers
+available in the language.
+
+The [`BitRegister`] trait marks the unsigned integers that correspond to
+processor registers, and can therefore be used for buffer control. The integers
+that are `BitMemory` but not `BitRegister` can be composed out of register
+values, but are unable to be used in buffer type parameters.
+
+[`BitMemory`]: self::BitMemory
+[`BitRegister`]: self::BitRegister
+[`bitvec`]: crate
 !*/
 
 use core::mem;
@@ -11,11 +22,11 @@ use funty::IsUnsigned;
 
 use radium::marker::BitOps;
 
-/** Description of an integer type.
+/** Description of an integer memory element.
 
 This trait provides information used to describe integer-typed regions of memory
-and enables other parts of the crate to adequately describe the memory bus. This
-trait has **no** bearing on the processor instructions or registers used to
+and enables other parts of the project to adequately describe the memory bus.
+This trait has **no** bearing on the processor instructions or registers used to
 interact with memory. It solely describes integers that can exist on a system.
 
 This trait cannot be implemented outside this crate.
@@ -24,24 +35,33 @@ pub trait BitMemory: IsUnsigned + seal::Sealed {
 	/// The bit width of the integer.
 	///
 	/// [`mem::size_of`] returns the size in bytes, and bytes are always eight
-	/// bits wide on architectures that Rust supports.
+	/// bits wide on architectures that Rust targets.
 	///
 	/// Issue #76904 will place this constant on the fundamental integers
 	/// directly, as a `u32`.
 	///
 	/// [`mem::size_of`]: core::mem::size_of
 	const BITS: u8 = mem::size_of::<Self>() as u8 * 8;
+
 	/// The number of bits required to store an index in the range `0 .. BITS`.
 	const INDX: u8 = Self::BITS.trailing_zeros() as u8;
+
 	/// A mask over all bits that can be used as an index within the element.
+	/// This is the value with the least significant `INDX`-many bits set high.
 	const MASK: u8 = Self::BITS - 1;
 }
 
-/// Marks that an integer can be used in a processor register.
+/** Description of a processor register.
+
+This trait provides information used to describe processor registers. It only
+needs to contain constant values for `1` and `!0`; the rest of its information
+is contained in the presence or absence of its implementation on particular
+integers.
+**/
 pub trait BitRegister: BitMemory + BitOps {
-	/// The value with only its least significant bit set to `1`.
+	/// The literal `1`.
 	const ONE: Self;
-	/// The value with all of its bits set to `1`.
+	/// The literal `!0`.
 	const ALL: Self;
 }
 

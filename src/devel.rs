@@ -1,89 +1,10 @@
-/*! Utilities needed to develop [`bitvec`] itself.
+//! Internal support utilities.
 
-This module contains required to perform generic programming in the [`bitvec`]
-type system. These are not part of the SemVer public API, as they are only
-required when interacting directly with the `bitvec` type system, and are not
-needed to use its data structures directly.
-
-This module is provided, under `feature = "devel"`, for the use of other crates
-that wish to safely perform generic programming with [`bitvec`] region types.
-
-[`bitvec`]: crate
-!*/
-
-#![allow(dead_code)]
-
-use crate::{
-	index::BitMask,
-	ptr::BitPtr,
-	store::BitStore,
+use core::ops::{
+	Bound,
+	Range,
+	RangeBounds,
 };
-
-use core::{
-	ops::{
-		Bound,
-		Range,
-		RangeBounds,
-	},
-	ptr::NonNull,
-};
-
-use tap::pipe::Pipe;
-
-/** Inserts an [`::Alias`] marker into a [`BitMask`]’s type parameter.
-
-[`BitMask`]: crate::index::BitMask
-[`::Alias`]: crate::store::BitStore::Alias
-**/
-#[inline(always)]
-#[cfg(not(tarpaulin_include))]
-pub fn alias_mask<T>(
-	x: BitMask<T::Mem>,
-) -> BitMask<<T::Alias as BitStore>::Mem>
-where T: BitStore {
-	unsafe { *(&x as *const _ as *const _) }
-}
-
-/** Inserts an [`::Alias`] marker into a [`T::Mem`] value’s type.
-
-[`T::Mem`]: crate::store::BitStore::Mem
-[`::Alias`]: crate::store::BitStore::Alias
-**/
-#[inline(always)]
-#[cfg(not(tarpaulin_include))]
-pub fn alias_mem<T>(x: T::Mem) -> <T::Alias as BitStore>::Mem
-where T: BitStore {
-	unsafe { *(&x as *const _ as *const _) }
-}
-
-/** Removes the `::Alias` marker from a [`BitPtr`]’s referent type.
-
-[`BitPtr`]: crate::ptr::BitPtr
-**/
-#[inline(always)]
-#[cfg(not(tarpaulin_include))]
-pub fn remove_bitptr_alias<T>(x: BitPtr<T::Alias>) -> BitPtr<T>
-where T: BitStore {
-	unsafe { *(&x as *const _ as *const _) }
-}
-
-/// Removes the `::Mem` marker from a memory value.
-#[inline(always)]
-#[cfg(feature = "serde")]
-#[cfg(not(tarpaulin_include))]
-pub fn remove_mem<T>(x: T::Mem) -> T
-where T: BitStore {
-	unsafe { core::ptr::read(&x as *const T::Mem as *const T) }
-}
-
-/// Gets a `NonNull<T>` base pointer from a `NonNull<[T]>` slice pointer.
-#[inline(always)]
-#[cfg(not(tarpaulin_include))]
-pub fn nonnull_slice_to_base<T>(mut nn_slice: NonNull<[T]>) -> NonNull<T> {
-	unsafe { nn_slice.as_mut() }
-		.pipe(<[T]>::as_mut_ptr)
-		.pipe(|p| unsafe { NonNull::new_unchecked(p) })
-}
 
 /** Normalizes any range into a basic `Range`.
 

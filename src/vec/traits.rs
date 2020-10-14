@@ -1,7 +1,4 @@
-/*! Trait implementations for [`BitVec`].
-
-[`BitVec`]: crate::vec::BitVec
-!*/
+//! Non-operator trait implementations.
 
 use crate::{
 	boxed::BitBox,
@@ -15,7 +12,6 @@ use crate::{
 use alloc::vec::Vec;
 
 use core::{
-	any,
 	borrow::{
 		Borrow,
 		BorrowMut,
@@ -37,8 +33,6 @@ use core::{
 		Hasher,
 	},
 };
-
-use tap::tap::Tap;
 
 #[cfg(not(tarpaulin_include))]
 impl<O, T> Borrow<BitSlice<O, T>> for BitVec<O, T>
@@ -70,34 +64,17 @@ where
 	T: BitRegister + BitStore,
 {
 	#[inline]
-	#[cfg(not(tarpaulin_include))]
 	fn clone(&self) -> Self {
-		Self::new().tap_mut(|bv| bv.clone_from(self))
+		let mut out = Self::repeat(false, self.len());
+		out.copy_from_bitslice(self.as_bitslice());
+		out
 	}
 
 	#[inline]
-	fn clone_from(&mut self, other: &Self) {
-		self.with_vec(|v| {
-			let src = other.as_slice();
-			unsafe {
-				v.set_len(0);
-			}
-			v.reserve(src.len());
-			/* `.copy_from_slice` cannot be used reliably until the owned
-			buffers are restricted to only bare integers, not alias wrappers.
-			While `BitVec<_, AtomicUsize>` is permitted to exist, it can be
-			borrowed as `&[AtomicUsize]` on a separate thread from this `Clone`
-			call, and modify the memory while cloning takes place. Once the
-			restriction is in place, this can be replaced with an ordinary copy.
-			*/
-			v.extend(src.iter().map(BitStore::load_value))
-		});
-		//  Copy the `other` region pointer, replacing its base address with our
-		//  own allocation address, and store that as our region pointer.
-		self.pointer = other
-			.bitptr()
-			.tap_mut(|bp| unsafe { bp.set_pointer(self.as_mut_ptr()) })
-			.to_nonnull();
+	fn clone_from(&mut self, source: &Self) {
+		self.clear();
+		self.resize(source.len(), false);
+		self.copy_from_bitslice(source.as_bitslice());
 	}
 }
 
@@ -305,11 +282,10 @@ where
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		self.bitptr()
-			.render(fmt, "Vec", Some(any::type_name::<O>()), &[(
-				"capacity",
-				&self.capacity() as &dyn Debug,
-			)])?;
+		self.bitptr().render(fmt, "Vec", &[(
+			"capacity",
+			&self.capacity() as &dyn Debug,
+		)])?;
 		fmt.write_str(" ")?;
 		Binary::fmt(self.as_bitslice(), fmt)
 	}

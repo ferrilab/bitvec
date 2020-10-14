@@ -2,19 +2,18 @@
 
 This module implements the Serde traits for the [`bitvec`] types.
 
+As [`BitArray`] does not use dynamic indexing for its starting index or its
+length, it implements [`Deserialize`] and [`Serialize`] by forwarding to the
+interior buffer, and adds no additional information. This also renders it
+incapable of deserializing a serialized [`BitSlice`]; it can only deserialize
+bare value sequences.
+
 [`BitSlice`] is able to implement [`Serialize`], but [`serde`] does not provide
-a mechanism for deserializing into data borrowed from the calling context. Thus,
-`BitSlice` can only deserialize into [`BitBox`] or [`BitVec`], when built with
-the `"alloc"` feature.
+a behavior to deserialize data into a buffer provided by the calling context, so
+it cannot deserialize into any of the owning structures.
 
-[`BitBox`] and [`BitVec`] implement serialization through [`BitSlice`], and
-deserialize `BitSlice`s into themselves.
-
-[`BitArray`] has different behavior: because it always spans the full memory
-buffer, and has no partial edge elements, it de/serializes the underlying memory
-array without any additional information. It is currently incapable of
-deserializing the stream produced by serializing [`BitSlice`], and can only
-deserialize the streams produced by `BitArray`s and ordinary arrays.
+[`BitBox`] and [`BitVec`] implement [`Serialize`] through [`BitSlice`], and can
+deserialize the [`BitSlice`] format into themselves.
 
 If you require de/serialization compatibility between [`BitArray`] and the other
 structures, please file an issue.
@@ -23,6 +22,7 @@ structures, please file an issue.
 [`BitBox`]: crate::boxed::BitBox
 [`BitSlice`]: crate::slice::BitSlice
 [`BitVec`]: crate::vec::BitVec
+[`Deserialize`]: serde::de::Deserialize
 [`Serialize`]: serde::ser::Serialize
 [`bitvec`]: crate
 [`serde`]: serde
@@ -32,12 +32,8 @@ structures, please file an issue.
 
 use crate::{
 	array::BitArray,
-	devel as dvl,
 	domain::Domain,
-	mem::{
-		BitMemory,
-		BitRegister,
-	},
+	mem::BitRegister,
 	order::BitOrder,
 	ptr::BitPtr,
 	slice::BitSlice,
@@ -54,7 +50,6 @@ use core::{
 	},
 	marker::PhantomData,
 	mem::ManuallyDrop,
-	ptr,
 };
 
 use serde::{
@@ -89,10 +84,11 @@ where
 	T: BitStore,
 	T::Mem: Serialize,
 {
+	#[inline]
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		let head = self.bitptr().head();
-		let mut state = serializer.serialize_struct("BitSet", 3)?;
+		let mut state = serializer.serialize_struct("BitSeq", 3)?;
 
 		state.serialize_field("head", &head.value())?;
 		state.serialize_field("bits", &(self.len() as u64))?;
@@ -107,6 +103,7 @@ where
 	T: BitStore,
 	T::Mem: Serialize,
 {
+	#[inline]
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		let mut state = serializer.serialize_seq(Some(self.len()))?;
@@ -117,16 +114,17 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> Serialize for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
-	V::Store: BitRegister,
-	<V::Store as BitStore>::Mem: Serialize,
+	V::Mem: Serialize,
 {
+	#[inline]
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
-		self.as_raw_slice().serialize(serializer)
+		self.as_slice().serialize(serializer)
 	}
 }
 
@@ -158,46 +156,20 @@ where
 	}
 }
 
-impl<'de, O, T> Deserialize<'de> for BitArray<O, T>
+#[cfg(not(tarpaulin_include))]
+impl<'de, O, V> Deserialize<'de> for BitArray<O, V>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
-	T::Mem: Deserialize<'de>,
+	V: BitView + Deserialize<'de>,
 {
+	#[inline]
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		deserializer
-			.pipe(<T::Mem as Deserialize<'de>>::deserialize)?
-			.pipe(dvl::remove_mem::<T>)
-			.pipe(Self::new)
-			.pipe(Ok)
+			.pipe(<V as Deserialize<'de>>::deserialize)
+			.map(Self::new)
 	}
 }
-
-macro_rules! deser_array {
-	($($n:expr),+ $(,)?) => { $(
-		impl<'de, O, T> Deserialize<'de> for BitArray<O, [T; $n]>
-		where
-			O: BitOrder,
-			T: BitRegister + BitStore,
-			T::Mem: Deserialize<'de>
-		{
-			fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-			where D: Deserializer<'de> {
-				deserializer
-					.pipe(<[T::Mem; $n] as Deserialize<'de>>::deserialize)?
-					.pipe(|arr| unsafe { ptr::read(&arr as *const [T::Mem; $n] as *const [T; $n]) })
-					.pipe(Self::new)
-					.pipe(Ok)
-			}
-		}
-	)+ };
-}
-
-deser_array!(
-	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-	21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
-);
 
 /** Aid for deserializing a protocol into a [`BitVec`].
 
@@ -208,23 +180,21 @@ deser_array!(
 struct BitVecVisitor<'de, O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
-	T::Mem: Deserialize<'de>,
+	T: BitRegister + BitStore + Deserialize<'de>,
 {
 	_lt: PhantomData<&'de ()>,
-	_bs: PhantomData<BitVec<O, T>>,
+	_bv: PhantomData<BitVec<O, T>>,
 }
 
 #[cfg(feature = "alloc")]
 impl<'de, O, T> BitVecVisitor<'de, O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
-	T::Mem: Deserialize<'de>,
+	T: BitRegister + BitStore + Deserialize<'de>,
 {
 	const THIS: Self = Self {
 		_lt: PhantomData,
-		_bs: PhantomData,
+		_bv: PhantomData,
 	};
 
 	/// Constructs a [`BitVec`] from deserialized components.
@@ -247,7 +217,7 @@ where
 		&self,
 		head: u8,
 		bits: usize,
-		data: Vec<T::Mem>,
+		data: Vec<T>,
 	) -> Result<<Self as Visitor<'de>>::Value, E>
 	where
 		E: de::Error,
@@ -267,7 +237,7 @@ where
 				)
 			})?,
 			//  Ensure that the `bits` counter is not lying about the data size.
-			cmp::min(bits, data.len().saturating_mul(T::Mem::BITS as usize)),
+			cmp::min(bits, data.len().saturating_mul(T::BITS as usize)),
 		)
 		//  Fail if the source cannot be encoded into a bit pointer.
 		.ok_or_else(|| {
@@ -275,11 +245,9 @@ where
 				Unexpected::Other("invalid bit-region source data"),
 				self,
 			)
-		})?
-		//  No more branches remain, only typesystem manipulation,
-		.pipe(BitPtr::to_bitslice_ptr_mut)
-		.pipe(|bp| unsafe { BitVec::from_raw_parts(bp, data.capacity()) })
-		.pipe(Ok)
+		})
+		.map(BitPtr::to_bitslice_ptr_mut)
+		.map(|bp| unsafe { BitVec::from_raw_parts(bp, data.capacity()) })
 	}
 }
 
@@ -287,18 +255,19 @@ where
 impl<'de, O, T> Visitor<'de> for BitVecVisitor<'de, O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
-	T::Mem: Deserialize<'de>,
+	T: BitRegister + BitStore + Deserialize<'de>,
 {
 	type Value = BitVec<O, T>;
 
+	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
-		fmt.write_str("a BitSet data series")
+		fmt.write_str("a BitSeq data series")
 	}
 
 	/// Visit a sequence of anonymous data elements. These must be in the order
-	/// `u8` (head-bit index), `u64` (length counter), `[T::Mem]` (data
-	/// contents).
+	/// `u8` (head-bit index), `u64` (length counter), `[T]` (data contents).
+	#[inline]
 	fn visit_seq<V>(self, mut seq: V) -> Result<Self::Value, V::Error>
 	where V: SeqAccess<'de> {
 		let head = seq
@@ -308,19 +277,19 @@ where
 			.next_element::<u64>()?
 			.ok_or_else(|| de::Error::invalid_length(1, &self))?;
 		let data = seq
-			.next_element::<Vec<T::Mem>>()?
+			.next_element::<Vec<T>>()?
 			.ok_or_else(|| de::Error::invalid_length(2, &self))?;
 
 		self.assemble(head, bits as usize, data)
 	}
 
 	/// Visit a map of named data elements. These may be in any order, and must
-	/// be the pairs `head: u8`, `bits: u64`, and `data: [T::Mem]`.
+	/// be the pairs `head: u8`, `bits: u64`, and `data: [T]`.
 	fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
 	where V: MapAccess<'de> {
 		let mut head: Option<u8> = None;
 		let mut bits: Option<u64> = None;
-		let mut data: Option<Vec<T::Mem>> = None;
+		let mut data: Option<Vec<T>> = None;
 
 		while let Some(key) = map.next_key()? {
 			match key {
@@ -355,11 +324,11 @@ where
 }
 
 #[cfg(feature = "alloc")]
+#[cfg(not(tarpaulin_include))]
 impl<'de, O, T> Deserialize<'de> for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
-	T::Mem: Deserialize<'de>,
+	T: BitRegister + BitStore + Deserialize<'de>,
 {
 	#[inline]
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -371,16 +340,16 @@ where
 }
 
 #[cfg(feature = "alloc")]
+#[cfg(not(tarpaulin_include))]
 impl<'de, O, T> Deserialize<'de> for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
-	T::Mem: Deserialize<'de>,
+	T: BitRegister + BitStore + Deserialize<'de>,
 {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		deserializer.deserialize_struct(
-			"BitSet",
+			"BitSeq",
 			&["head", "bits", "data"],
 			BitVecVisitor::THIS,
 		)
@@ -390,6 +359,8 @@ where
 #[cfg(test)]
 mod tests {
 	use crate::prelude::*;
+
+	use serde::Deserialize;
 
 	use serde_test::{
 		assert_ser_tokens,
@@ -405,7 +376,7 @@ mod tests {
 	macro_rules! bvtok {
 		( s $elts:expr, $head:expr, $bits:expr, $ty:ident $( , $data:expr )* ) => {
 			&[
-				Token::Struct { name: "BitSet", len: 3, },
+				Token::Struct { name: "BitSeq", len: 3, },
 				Token::Str("head"), Token::U8( $head ),
 				Token::Str("bits"), Token::U64( $bits ),
 				Token::Str("data"), Token::Seq { len: Some( $elts ) },
@@ -416,7 +387,7 @@ mod tests {
 		};
 		( d $elts:expr, $head:expr, $bits:expr, $ty:ident $( , $data:expr )* ) => {
 			&[
-				Token::Struct { name: "BitSet", len: 3, },
+				Token::Struct { name: "BitSeq", len: 3, },
 				Token::BorrowedStr("head"), Token::U8( $head ),
 				Token::BorrowedStr("bits"), Token::U64( $bits ),
 				Token::BorrowedStr("data"), Token::Seq { len: Some( $elts ) },
@@ -453,7 +424,6 @@ mod tests {
 	}
 
 	#[test]
-	#[cfg(feature = "alloc")]
 	fn wide() {
 		let src: &[u8] = &[0, !0];
 		let bs = src.view_bits::<LocalBits>();
@@ -479,5 +449,14 @@ mod tests {
 			"invalid value: integer `9`, expected a head-bit index less than \
 			 the deserialized element type’s bit width",
 		);
+	}
+
+	#[test]
+	fn trait_impls() {
+		const _: fn() = || {
+			fn assert_impl_all<'de, T: Deserialize<'de>>() {
+			}
+			assert_impl_all::<BitArray<LocalBits, [usize; 32]>>();
+		};
 	}
 }
