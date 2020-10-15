@@ -33,6 +33,7 @@ structures, please file an issue.
 use crate::{
 	array::BitArray,
 	domain::Domain,
+	index::BitIdxErr,
 	mem::BitRegister,
 	order::BitOrder,
 	ptr::BitPtr,
@@ -229,9 +230,9 @@ where
 			data.as_ptr() as *mut T,
 			//  Attempt to read the `head` index as a `BitIdx` bounded by the
 			//  destination type.
-			head.try_into().map_err(|_| {
+			head.try_into().map_err(|val: BitIdxErr<_>| {
 				de::Error::invalid_value(
-					Unexpected::Unsigned(head as u64),
+					Unexpected::Unsigned(val.value() as u64),
 					&"a head-bit index less than the deserialized element \
 					  type’s bit width",
 				)
@@ -309,6 +310,11 @@ where
 					}
 				},
 				f => {
+					/* Once a key is pulled from the map, a value **must** also
+					be pulled, otherwise `serde` will fail with its own error
+					rather than this one.
+					*/
+					let _ = map.next_value::<()>();
 					return Err(de::Error::unknown_field(f, &[
 						"head", "bits", "data",
 					]));
@@ -448,6 +454,89 @@ mod tests {
 			bvtok!(d 0, 9, 0, U8),
 			"invalid value: integer `9`, expected a head-bit index less than \
 			 the deserialized element type’s bit width",
+		);
+
+		for field in &["head", "bits"] {
+			assert_de_tokens_error::<BitVec<Msb0, u8>>(
+				&[
+					Token::Struct {
+						name: "BitSeq",
+						len: 2,
+					},
+					Token::BorrowedStr(field),
+					Token::U8(0),
+					Token::BorrowedStr(field),
+					Token::U8(1),
+					Token::StructEnd,
+				],
+				&format!("duplicate field `{}`", field),
+			);
+		}
+
+		assert_de_tokens_error::<BitVec<Msb0, u8>>(
+			&[
+				Token::Struct {
+					name: "BitSeq",
+					len: 2,
+				},
+				Token::BorrowedStr("data"),
+				Token::Seq { len: Some(1) },
+				Token::U8(2),
+				Token::SeqEnd,
+				Token::BorrowedStr("data"),
+				Token::Seq { len: Some(1) },
+				Token::U8(3),
+				Token::SeqEnd,
+				Token::StructEnd,
+			],
+			"duplicate field `data`",
+		);
+
+		assert_de_tokens_error::<BitVec<Msb0, u8>>(
+			&[
+				Token::Struct {
+					name: "BitSeq",
+					len: 1,
+				},
+				Token::BorrowedStr("garbage"),
+				Token::BorrowedStr("field"),
+				Token::StructEnd,
+			],
+			"unknown field `garbage`, expected one of `head`, `bits`, `data`",
+		);
+	}
+
+	#[test]
+	fn deser_seq() {
+		let bv = bitvec![Msb0, u8; 0, 1];
+		assert_de_tokens::<BitVec<Msb0, u8>>(&bv, &[
+			Token::Seq { len: Some(3) },
+			Token::U8(0),
+			Token::U64(2),
+			Token::Seq { len: Some(1) },
+			Token::U8(66),
+			Token::SeqEnd,
+			Token::SeqEnd,
+		]);
+
+		assert_de_tokens_error::<BitVec<Msb0, u8>>(
+			&[Token::Seq { len: Some(0) }, Token::SeqEnd],
+			"invalid length 0, expected a BitSeq data series",
+		);
+
+		assert_de_tokens_error::<BitVec<Msb0, u8>>(
+			&[Token::Seq { len: Some(1) }, Token::U8(0), Token::SeqEnd],
+			"invalid length 1, expected a BitSeq data series",
+		);
+
+		assert_de_tokens_error::<BitVec<Msb0, u8>>(
+			&[
+				Token::Seq { len: Some(2) },
+				Token::U8(0),
+				Token::U64(2),
+				Token::SeqEnd,
+			],
+			"invalid length 2, expected a BitSeq data series",
 		);
 	}
 
