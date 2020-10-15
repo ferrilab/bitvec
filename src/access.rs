@@ -374,6 +374,7 @@ macro_rules! safe {
 		/// [`bitvec`]: crate
 		#[derive(Debug)]
 		#[repr(transparent)]
+		#[cfg(not(tarpaulin_include))]
 		pub struct $cw {
 			inner: Cell<$t>,
 		}
@@ -394,10 +395,12 @@ macro_rules! safe {
 		#[derive(Debug)]
 		#[repr(transparent)]
 		#[cfg(feature = "atomic")]
+		#[cfg(not(tarpaulin_include))]
 		pub struct $aw {
 			inner: $a,
 		}
 
+		#[cfg(not(tarpaulin_include))]
 		impl BitSafe for $cw {
 			type Mem = $t;
 
@@ -408,6 +411,7 @@ macro_rules! safe {
 		}
 
 		#[cfg(feature = "atomic")]
+		#[cfg(not(tarpaulin_include))]
 		impl BitSafe for $aw {
 			type Mem = $t;
 

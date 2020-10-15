@@ -117,7 +117,7 @@ pub const fn elts<T>(bits: usize) -> usize {
 	bits / width + (bits % width != 0) as usize
 }
 
-/** Tests that a type is aligned to its size.
+/** Tests that a type is aligned to at least its size.
 
 This property is not necessarily true for all integers; for instance, `u64` on
 32-bit x86 is permitted to be 4-byte-aligned. `bitvec` requires this property to
@@ -129,11 +129,11 @@ hold for the pointer representation to correctly function.
 
 # Returns
 
-`0` if the alignment matches the size; `1` if they differ
+`0` if the alignment is at least the size; `1` if the alignment is less.
 **/
 #[doc(hidden)]
-pub(crate) const fn misaligned_to_size<T>() -> usize {
-	(mem::align_of::<T>() != mem::size_of::<T>()) as usize
+pub(crate) const fn aligned_to_size<T>() -> usize {
+	(mem::align_of::<T>() < mem::size_of::<T>()) as usize
 }
 
 /** Tests whether two types have compatible layouts.
@@ -163,4 +163,61 @@ pub(crate) const fn cmp_layout<A, B>() -> usize {
 mod seal {
 	#[doc(hidden)]
 	pub trait Sealed {}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::access::*;
+
+	#[test]
+	fn integer_properties() {
+		assert_eq!(aligned_to_size::<u8>(), 0);
+		assert_eq!(aligned_to_size::<BitSafeCellU8>(), 0);
+		assert_eq!(cmp_layout::<u8, BitSafeCellU8>(), 0);
+		#[cfg(feature = "atomic")]
+		{
+			assert_eq!(aligned_to_size::<BitSafeAtomU8>(), 0);
+			assert_eq!(cmp_layout::<u8, BitSafeAtomU8>(), 0);
+		}
+
+		assert_eq!(aligned_to_size::<u16>(), 0);
+		assert_eq!(aligned_to_size::<BitSafeCellU16>(), 0);
+		assert_eq!(cmp_layout::<u16, BitSafeCellU16>(), 0);
+		#[cfg(feature = "atomic")]
+		{
+			assert_eq!(aligned_to_size::<BitSafeAtomU16>(), 0);
+			assert_eq!(cmp_layout::<u16, BitSafeAtomU16>(), 0);
+		}
+
+		assert_eq!(aligned_to_size::<u32>(), 0);
+		assert_eq!(aligned_to_size::<BitSafeCellU32>(), 0);
+		assert_eq!(cmp_layout::<u32, BitSafeCellU32>(), 0);
+		#[cfg(feature = "atomic")]
+		{
+			assert_eq!(aligned_to_size::<BitSafeAtomU32>(), 0);
+			assert_eq!(cmp_layout::<u32, BitSafeAtomU32>(), 0);
+		}
+
+		assert_eq!(aligned_to_size::<usize>(), 0);
+		assert_eq!(aligned_to_size::<BitSafeCellU64>(), 0);
+		assert_eq!(cmp_layout::<u64, BitSafeCellU64>(), 0);
+		#[cfg(feature = "atomic")]
+		{
+			assert_eq!(aligned_to_size::<BitSafeAtomU64>(), 0);
+			assert_eq!(cmp_layout::<u64, BitSafeAtomU64>(), 0);
+		}
+
+		#[cfg(target_pointer_width = "64")]
+		{
+			assert_eq!(aligned_to_size::<u64>(), 0);
+			assert_eq!(aligned_to_size::<BitSafeCellUsize>(), 0);
+			assert_eq!(cmp_layout::<usize, BitSafeCellUsize>(), 0);
+			#[cfg(feature = "atomic")]
+			{
+				assert_eq!(aligned_to_size::<BitSafeAtomUsize>(), 0);
+				assert_eq!(cmp_layout::<usize, BitSafeAtomUsize>(), 0);
+			}
+		}
+	}
 }

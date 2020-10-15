@@ -184,10 +184,12 @@ macro_rules! store {
 			type Threadsafe = Self;
 
 			#[doc(hidden)]
-			const __ALIGNED_TO_SIZE: [(); 0] = [(); mem::misaligned_to_size::<Self>()];
+			const __ALIGNED_TO_SIZE: [(); 0]
+				= [(); mem::aligned_to_size::<Self>()];
 
 			#[doc(hidden)]
-			const __ALIAS_WIDTH: [(); 0] = [(); mem::cmp_layout::<Self::Mem, Self::Alias>()];
+			const __ALIAS_WIDTH: [(); 0]
+				= [(); mem::cmp_layout::<Self::Mem, Self::Alias>()];
 		}
 
 		impl BitStore for $cw {
@@ -200,12 +202,13 @@ macro_rules! store {
 				self.load()
 			}
 
-			/// Raw pointers are never threadsafe, so this prevents handles using
-			/// `Cell` wrappers from crossing thread boundaries.
+			/// Raw pointers are never threadsafe, so this prevents handles
+			/// using Cell` wrappers from crossing thread boundaries.
 			#[doc(hidden)]
 			type Threadsafe = *const Self;
 
-			// If these are true for `R: BitRegister`, then they are true for `Cell<R>`.
+			/// If these are true for `R: BitRegister`, then they are true for
+			/// `Cell<R>`.
 			#[doc(hidden)]
 			const __ALIAS_WIDTH: [(); 0] = [];
 
@@ -228,10 +231,12 @@ macro_rules! store {
 			type Threadsafe = Self;
 
 			#[doc(hidden)]
-			const __ALIGNED_TO_SIZE: [(); 0] = [(); mem::misaligned_to_size::<Self>()];
+			const __ALIGNED_TO_SIZE: [(); 0]
+				= [(); mem::aligned_to_size::<Self>()];
 
 			#[doc(hidden)]
-			const __ALIAS_WIDTH: [(); 0] = [(); mem::cmp_layout::<Self::Mem, Self::Alias>()];
+			const __ALIAS_WIDTH: [(); 0]
+				= [(); mem::cmp_layout::<Self::Mem, Self::Alias>()];
 		}
 
 		impl seal::Sealed for $t {}

@@ -2013,16 +2013,9 @@ where
 	/// Transmute the bit-slice to a bit-slice of another type, ensuring
 	/// alignment of the types is maintained.
 	///
-	/// This method splits the slice into three distinct slices: prefix,
-	/// correctly aligned middle slice of a new type, and the suffix slice. The
-	/// method may make the middle slice the greatest length possible for a
-	/// given type and input slice, but only your algorithm's performance should
-	/// depend on that, not its correctness. It is permissible for all of the
-	/// input data to be returned as the prefix or suffix slice.
-	///
 	/// # Original
 	///
-	/// [`slice::align_to`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.align_to)
+	/// [`slice::align_to`]
 	///
 	/// # API Differences
 	///
@@ -2032,6 +2025,22 @@ where
 	/// the type family with this method is **unsound** and strictly forbidden.
 	/// Unfortunately, this cannot be encoded in the type system, so you are
 	/// required to abide by this limitation yourself.
+	///
+	/// # Implementation
+	///
+	/// The algorithm used to implement this function attempts to create the
+	/// widest possible span for the middle slice. However, the slice divisions
+	/// must abide by the [`Domain`] restrictions: the left and right slices
+	/// produced by this function will include the head and tail elements of the
+	/// domain (if present), as well as the left and right subslices (if any)
+	/// produced by calling [`slice::align_to`] on the domain body (if present).
+	///
+	/// The standard library implementation currently maximizes the width of the
+	/// center slice, but its API does not guarantee this property, and retains
+	/// the right to produce pessimal slices. As such, this function cannot
+	/// guarantee maximal center slice width either, and you cannot rely on this
+	/// behavior for *correctness* of your work; it is only a possible
+	/// performance improvement.
 	///
 	/// # Safety
 	///
@@ -2068,7 +2077,10 @@ where
 	/// [`BitSafeAtom`]: crate::access::BitSafeAtomUsize
 	/// [`BitSafeCell`]: crate::access::BitSafeCellUsize
 	/// [`BitStore`]: crate::store::BitStore
+	/// [`Domain`]: crate::domain::Domain
+	/// [`slice::align_to`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.align_to
 	#[inline]
+	#[cfg(not(tarpaulin_include))] // This is a typecast over `BitPtr::align_to`
 	pub unsafe fn align_to<U>(&self) -> (&Self, &BitSlice<O, U>, &Self)
 	where U: BitStore {
 		let (l, c, r) = self.bitptr().align_to::<U>();
@@ -2082,16 +2094,9 @@ where
 	/// Transmute the bit-slice to a bit-slice of another type, ensuring
 	/// alignment of the types is maintained.
 	///
-	/// This method splits the slice into three distinct slices: prefix,
-	/// correctly aligned middle slice of a new type, and the suffix slice. The
-	/// method may make the middle slice the greatest length possible for a
-	/// given type and input slice, but only your algorithm's performance should
-	/// depend on that, not its correctness. It is permissible for all of the
-	/// input data to be returned as the prefix or suffix slice.
-	///
 	/// # Original
 	///
-	/// [`slice::align_to_mut`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.align_to_mut)
+	/// [`slice::align_to_mut`]
 	///
 	/// # API Differences
 	///
@@ -2101,6 +2106,23 @@ where
 	/// the type family with this method is **unsound** and strictly forbidden.
 	/// Unfortunately, this cannot be encoded in the type system, so you are
 	/// required to abide by this limitation yourself.
+	///
+	/// # Implementation
+	///
+	/// The algorithm used to implement this function attempts to create the
+	/// widest possible span for the middle slice. However, the slice divisions
+	/// must abide by the [`DomainMut`] restrictions: the left and right slices
+	/// produced by this function will include the head and tail elements of the
+	/// domain (if present), as well as the left and right subslices (if any)
+	/// produced by calling [`slice::align_to_mut`] on the domain body (if
+	/// present).
+	///
+	/// The standard library implementation currently maximizes the width of the
+	/// center slice, but its API does not guarantee this property, and retains
+	/// the right to produce pessimal slices. As such, this function cannot
+	/// guarantee maximal center slice width either, and you cannot rely on this
+	/// behavior for *correctness* of your work; it is only a possible
+	/// performance improvement.
 	///
 	/// # Safety
 	///
@@ -2127,7 +2149,10 @@ where
 	/// [`BitSafeAtom`]: crate::access::BitSafeAtomUsize
 	/// [`BitSafeCell`]: crate::access::BitSafeCellUsize
 	/// [`BitStore`]: crate::store::BitStore
+	/// [`DomainMut`]: crate::domain::DomainMut
+	/// [`slice::align_to_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.align_to_mut
 	#[inline]
+	#[cfg(not(tarpaulin_include))] // This is a typecast over `BitPtr::align_to`
 	pub unsafe fn align_to_mut<U>(
 		&mut self,
 	) -> (&mut Self, &mut BitSlice<O, U>, &mut Self)

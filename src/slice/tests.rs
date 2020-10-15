@@ -297,24 +297,23 @@ fn iterators() {
 
 #[test]
 fn alignment() {
-	let mut data = [0u16; 5];
-	let addr = &data as *const [u16; 5] as *const u16 as usize;
-	let bits = data.view_bits_mut::<LocalBits>();
+	let data = [0u32; 3];
+	let bits = data.view_bits::<Msb0>();
 
-	let (head, body, tail) = unsafe { bits[5 .. 75].align_to_mut::<u32>() };
+	let (l0, c0, r0) = unsafe { bits[10 .. 20].align_to::<u8>() };
+	assert_eq!(l0.bitptr(), bits[10 .. 20].bitptr());
+	assert!(c0.is_empty());
+	assert!(r0.is_empty());
 
-	//  `data` is aligned to the back half of a `u32`
-	if addr % 4 == 2 {
-		assert_eq!(head.len(), 11);
-		assert_eq!(body.len(), 59);
-		assert!(tail.is_empty());
-	}
-	//  `data` is aligned to the front half of a `u32`
-	else {
-		assert!(head.is_empty());
-		assert_eq!(body.len(), 64);
-		assert_eq!(tail.len(), 6);
-	}
+	let (l1, c1, r1) = unsafe { bits[10 .. 86].align_to::<u8>() };
+	assert_eq!(l1.len(), 22);
+	assert_eq!(r1.len(), 22);
+	assert_eq!(c1.len(), 32);
+
+	let (l2, c2, r2) = unsafe { c1.align_to::<u16>() };
+	assert!(l2.is_empty());
+	assert!(r2.is_empty());
+	assert_eq!(c1.len(), c2.len());
 }
 
 #[test]

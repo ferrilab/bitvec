@@ -14,6 +14,7 @@ for the project.
 
 use crate::{
 	access::BitAccess,
+	domain::Domain,
 	index::{
 		BitIdx,
 		BitTail,
@@ -26,7 +27,6 @@ use crate::{
 
 use core::{
 	any,
-	cmp,
 	fmt::{
 		self,
 		Debug,
@@ -38,7 +38,6 @@ use core::{
 		self,
 		NonNull,
 	},
-	slice,
 };
 
 use wyz::fmt::FmtForward;
@@ -831,38 +830,118 @@ where
 	/// Split the region descriptor into three descriptors, with the interior
 	/// set to a different register type.
 	///
-	/// This uses the [`slice::align_to`] implementation to create the three
-	/// appropriate slice descriptors, then converts them back into `BitPtr`s
-	/// that match the original constraints.
-	///
 	/// By placing the logic in `BitPtr` rather than in `BitSlice`, `BitSlice`
 	/// can safely call into it for both shared and exclusive references,
 	/// without running into any reference capability issues in the compiler.
+	///
+	/// # Type Parameters
+	///
+	/// - `U`: A second [`BitStore`] implementation. This **must** be of the
+	///   same type family as `T`; this restriction cannot be enforced in the
+	///   type system, but **must** hold at the call site.
 	///
 	/// # Safety
 	///
 	/// This can only be called within `BitSlice::align_to{,_mut}`.
 	///
+	/// # Algorithm
+	///
+	/// This uses the slice [`Domain`] to split the underlying slice into
+	/// regions that cannot (edge) and can (center) be reäligned. The center
+	/// slice is then reäligned to `U`, and the edge slices produced from *that*
+	/// are merged with the edge slices produced by the domain check.
+	///
+	/// This results in edge pointers returned from this function that correctly
+	/// handle partially-used edge elements as well as misaligned slice
+	/// locations.
+	///
+	/// [`BitStore`]: crate::store::BitStore
+	/// [`Domain`]: crate::domain::Domain
 	/// [`slice::align_to`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.align_to
 	pub(crate) unsafe fn align_to<U>(self) -> (Self, BitPtr<O, U>, Self)
 	where U: BitStore {
-		let head = self.head();
-		let total_bits = self.len();
+		match self.to_bitslice_ref().domain() {
+			Domain::Enclave { .. } => {
+				return (self, BitPtr::EMPTY, BitPtr::EMPTY);
+			},
+			Domain::Region { head, body, tail } => {
+				let (l, c, r) = body.align_to::<U::Mem>();
 
-		let (l, c, r) =
-			slice::from_raw_parts(self.pointer().to_const(), self.elements())
-				.align_to::<U>();
+				let t_bits = T::Mem::BITS as usize;
+				let u_bits = U::Mem::BITS as usize;
 
-		let l_bits = l.len() * T::Mem::BITS as usize - head.value() as usize;
-		let c_bits =
-			cmp::min(total_bits - l_bits, c.len() * U::Mem::BITS as usize);
-		let r_bits = total_bits - l_bits - c_bits;
+				let l_bits = l.len() * t_bits;
+				let c_bits = c.len() * u_bits;
+				let r_bits = r.len() * t_bits;
 
-		let l = BitPtr::new_unchecked(l.as_ptr(), head, l_bits);
-		let c = BitPtr::new_unchecked(c.as_ptr(), BitIdx::ZERO, c_bits);
-		let r = BitPtr::new_unchecked(r.as_ptr(), BitIdx::ZERO, r_bits);
+				let l_addr = l.as_ptr() as *const T;
+				let c_addr = c.as_ptr() as *const U;
+				let r_addr = r.as_ptr() as *const T;
 
-		(l, c, r)
+				let l_ptr = match head {
+					/* If the head exists, then the left span begins in it, and
+					runs for the remaining bits in it, and all the bits of `l`.
+					*/
+					Some((head, addr)) => BitPtr::new_unchecked(
+						addr,
+						head,
+						t_bits - head.value() as usize + l_bits,
+					),
+					//  If the head does not exist, then the left span only
+					//  covers `l`. If `l` is empty, then so is the span.
+					None => {
+						if l_bits == 0 {
+							BitPtr::EMPTY
+						}
+						else {
+							BitPtr::new_unchecked(l_addr, BitIdx::ZERO, l_bits)
+						}
+					},
+				};
+
+				let c_ptr = if c_bits == 0 {
+					BitPtr::EMPTY
+				}
+				else {
+					BitPtr::new_unchecked(c_addr, BitIdx::ZERO, c_bits)
+				};
+
+				/* Compute a pointer for the right-most return span.
+
+				The right span must contain the `r` slice produced above, as
+				well as the domain’s tail element, if produced. The right span
+				begins in:
+
+				- if `r` is not empty, then `r`
+				- else, if `tail` exists, then `tail.0`
+				- else, it is the empty pointer
+				*/
+				let r_ptr = match tail {
+					//  If the tail exists, then the right span extends into it.
+					Some((addr, tail)) => BitPtr::new_unchecked(
+						//  If the `r` slice exists, then the right span
+						//  *begins* in it.
+						if r.is_empty() { addr } else { r_addr },
+						BitIdx::ZERO,
+						tail.value() as usize + r_bits,
+					),
+					//  If the tail does not exist, then the right span is only
+					//  `r`.
+					None => {
+						//  If `r` exists, then the right span covers it.
+						if !r.is_empty() {
+							BitPtr::new_unchecked(r_addr, BitIdx::ZERO, r_bits)
+						}
+						//  Otherwise, the right span is empty.
+						else {
+							BitPtr::EMPTY
+						}
+					},
+				};
+
+				(l_ptr, c_ptr, r_ptr)
+			},
+		}
 	}
 
 	//  Encoded fields
