@@ -861,9 +861,7 @@ where
 	pub(crate) unsafe fn align_to<U>(self) -> (Self, BitPtr<O, U>, Self)
 	where U: BitStore {
 		match self.to_bitslice_ref().domain() {
-			Domain::Enclave { .. } => {
-				return (self, BitPtr::EMPTY, BitPtr::EMPTY);
-			},
+			Domain::Enclave { .. } => (self, BitPtr::EMPTY, BitPtr::EMPTY),
 			Domain::Region { head, body, tail } => {
 				let (l, c, r) = body.align_to::<U::Mem>();
 

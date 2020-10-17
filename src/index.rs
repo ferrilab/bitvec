@@ -1136,6 +1136,11 @@ where R: BitRegister
 	///
 	/// Prefer accumulating [`BitSel`] values using the `Sum` implementation.
 	///
+	/// # Safety
+	///
+	/// The `value` must be computed from a set of valid bit positions in the
+	/// caller’s context.
+	///
 	/// [`BitOrder::mask`]: crate::order::BitOrder::mask
 	/// [`BitSel`]: crate::index::BitSel
 	#[inline(always)]

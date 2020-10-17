@@ -374,7 +374,6 @@ macro_rules! safe {
 		/// [`bitvec`]: crate
 		#[derive(Debug)]
 		#[repr(transparent)]
-		#[cfg(not(tarpaulin_include))]
 		pub struct $cw {
 			inner: Cell<$t>,
 		}
@@ -395,12 +394,10 @@ macro_rules! safe {
 		#[derive(Debug)]
 		#[repr(transparent)]
 		#[cfg(feature = "atomic")]
-		#[cfg(not(tarpaulin_include))]
 		pub struct $aw {
 			inner: $a,
 		}
 
-		#[cfg(not(tarpaulin_include))]
 		impl BitSafe for $cw {
 			type Mem = $t;
 
@@ -411,7 +408,6 @@ macro_rules! safe {
 		}
 
 		#[cfg(feature = "atomic")]
-		#[cfg(not(tarpaulin_include))]
 		impl BitSafe for $aw {
 			type Mem = $t;
 
@@ -517,5 +513,26 @@ mod tests {
 			<Cell<u8> as BitAccess>::get_writers(true) as *const (),
 			<Cell<u8> as BitAccess>::set_bits as *const ()
 		);
+	}
+
+	#[test]
+	fn safe_wrappers() {
+		let bits = bits![mut Msb0, u8; 0; 24];
+		let (l, c) = bits.split_at_mut(4);
+		let (c, _) = c.split_at_mut(16);
+
+		let l_redge: &<<u8 as BitStore>::Alias as BitStore>::Access =
+			l.domain_mut().region().unwrap().2.unwrap().0;
+		let c_ledge: &<u8 as BitStore>::Alias =
+			c.domain().region().unwrap().0.unwrap().1;
+
+		assert_eq!(
+			l_redge as *const _ as *const u8,
+			c_ledge as *const _ as *const u8,
+		);
+
+		assert_eq!(c_ledge.load(), 0);
+		l_redge.set_bits(unsafe { BitMask::new(6) });
+		assert_eq!(c_ledge.load(), 6);
 	}
 }

@@ -363,7 +363,7 @@ otherwise completely unrelated.
 [`Lsb0`]: crate::order::Lsb0
 **/
 #[cfg(target_endian = "little")]
-pub use Lsb0 as LocalBits;
+pub use self::Lsb0 as LocalBits;
 
 /** A default bit ordering.
 
@@ -374,7 +374,7 @@ otherwise completely unrelated.
 [`Msb0`]: crate::order::Msb0
 **/
 #[cfg(target_endian = "big")]
-pub use Msb0 as LocalBits;
+pub use self::Msb0 as LocalBits;
 
 #[cfg(not(any(target_endian = "big", target_endian = "little")))]
 compile_fail!(concat!(
