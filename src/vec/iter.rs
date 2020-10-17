@@ -113,6 +113,38 @@ where
 	}
 }
 
+/** Collect a sequence of memory elements into a bit-vector.
+
+This is a short-hand for, and implemented as, `iter.collect::<Vec<_>>().into()`.
+
+This is not a standard-library API, and was added for [Issue #83].
+
+[Issue #83]: https://github.com/myrrlyn/bitvec/issues/83
+**/
+impl<O, T> FromIterator<T> for BitVec<O, T>
+where
+	O: BitOrder,
+	T: BitRegister + BitStore,
+{
+	#[inline]
+	fn from_iter<I>(iter: I) -> Self
+	where I: IntoIterator<Item = T> {
+		iter.into_iter().collect::<Vec<_>>().pipe(Self::from_vec)
+	}
+}
+
+impl<'a, O, T> FromIterator<&'a T> for BitVec<O, T>
+where
+	O: BitOrder,
+	T: BitRegister + BitStore,
+{
+	#[inline]
+	fn from_iter<I>(iter: I) -> Self
+	where I: IntoIterator<Item = &'a T> {
+		iter.into_iter().copied().collect()
+	}
+}
+
 impl<O, T> IntoIterator for BitVec<O, T>
 where
 	O: BitOrder,
