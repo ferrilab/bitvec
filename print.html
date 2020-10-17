@@ -1477,8 +1477,8 @@ where T: BitStore {
 <span class="boring">}
 </span></code></pre></pre>
 <p>As with the bit domains, these domains will inherit any aliasing markers from
-their source bitslice. The <code>::Access</code> associated type enables the mutable domain
-to produce shared references that allow mutation without adding an unnecessary
+their source bitslice. The <code>::Alias</code> associated type enables the mutable domain
+to produce references that allow mutation without adding an unnecessary
 aliasing marker. Rust strongly forbids the production of <code>&amp;mut</code> references to
 aliased memory elements, which is why the only <code>&amp;mut</code> reference in these views
 is to memory that is fully known to be unaliased.</p>
@@ -1486,6 +1486,11 @@ is to memory that is fully known to be unaliased.</p>
 <p>This deäliasing behavior is why <code>BitSlice</code>s are impossible to construct over
 memory that permits external aliases outside of <code>bitvec</code>’s control.</p>
 </blockquote>
+<p>The <code>DomainMut</code> structure will produce bare [atomic] or <a href="https://doc.rust-lang.org/stable/core/cell/struct.Cell.html"><code>Cell</code></a> types in the
+alias condition. This is necessary in order to avoid production of <code>&amp;mut</code>
+references which alias (as this is undefined in the Rust abstract machine,
+regardless of behavior), and safe because any other references to the same
+location will be similarly aliased and capable of handling external mutation.</p>
 <h2><a class="header" href="#llvm-suboptimizations" id="llvm-suboptimizations">LLVM Suboptimizations</a></h2>
 <p>LLVM considers a “racing read”, that is, any read from memory that could occur
 contemporaneously with an atomic write, to be undefined behavior. This is a
@@ -1497,13 +1502,13 @@ know this, so it considers any write to memory to touch <em>all</em> bits of the
 touched element, and any read from memory to view <em>all</em> bits of the fetched
 element.</p>
 <p><code>bitvec</code> exclusively<sup class="footnote-reference"><a href="#5">5</a></sup> writes to contended memory with the Rust functions
-<a href="https://doc.rust-lang.org/core/sync/atomic/struct.AtomicUsize.html#method.fetch_and"><code>AtomicT::fetch_and</code></a> and <a href="https://doc.rust-lang.org/core/sync/atomic/struct.AtomicUsize.html#method.fetch_or"><code>AtomicT::fetch_or</code></a>, which are mapped to the LLVM
+<a href="https://doc.rust-lang.org/stable/core/sync/atomic/struct.AtomicUsize.html#method.fetch_and"><code>AtomicT::fetch_and</code></a> and <a href="https://doc.rust-lang.org/stable/core/sync/atomic/struct.AtomicUsize.html#method.fetch_or"><code>AtomicT::fetch_or</code></a>, which are mapped to the LLVM
 instructions <a href="https://releases.llvm.org/10.0.0/docs/Atomics.html#libcalls-atomic"><code>__atomic_fetch_and_N</code></a> and
 <a href="https://releases.llvm.org/10.0.0/docs/Atomics.html#libcalls-atomic"><code>__atomic_fetch_or_N</code></a>. It uses bitmasks that <em><code>bitvec</code></em> can
 <a href="https://github.com/myrrlyn/bitvec/blob/HEAD/src/order.rs">guarantee</a> are non-intersecting, but this proof cannot be extended to
 even the Rust compiler, let alone LLVM. These bitmasks are applied to register
 values before using either of the <code>fetch_op</code> instructions, and after any reads
-that use <a href="https://doc.rust-lang.org/core/sync/atomic/struct.AtomicUsize.html#method.load"><code>AtomicT::load</code></a>/<a href="https://releases.llvm.org/10.0.0/docs/Atomics.html#libcalls-atomic"><code>__atomic_load_N</code></a>.</p>
+that use <a href="https://doc.rust-lang.org/stable/core/sync/atomic/struct.AtomicUsize.html#method.load"><code>AtomicT::load</code></a>/<a href="https://releases.llvm.org/10.0.0/docs/Atomics.html#libcalls-atomic"><code>__atomic_load_N</code></a>.</p>
 <p>If the <code>bitvec</code> mask proofs were extendible to LLVM, and LLVM were to expand its
 tracking of which bits of a memory address became <code>poison</code>ed by a memory write,
 and which bits of a fetched memory value became un-<code>poison</code>ed by a masking
