@@ -1065,6 +1065,58 @@ where
 		}
 	}
 
+	/// Enumerates all bits in a `BitSlice` that are set to `1`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bits = bits![0, 1, 0, 0, 1, 0, 0, 0, 1];
+	/// let mut indices = [1, 4, 8].iter().copied();
+	///
+	/// let mut iter_ones = bits.iter_ones();
+	/// let mut compose = bits.iter()
+	///   .copied()
+	///   .enumerate()
+	///   .filter_map(|(idx, bit)| if bit { Some(idx) } else { None });
+	///
+	/// for ((a, b), c) in iter_ones.zip(compose).zip(indices) {
+	///   assert_eq!(a, b);
+	///   assert_eq!(b, c);
+	/// }
+	/// ```
+	#[inline(always)]
+	pub fn iter_ones(&self) -> IterOnes<O, T> {
+		IterOnes::new(self)
+	}
+
+	/// Enumerates all bits in a `BitSlice` that are cleared to `0`.
+	///
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bits = bits![1, 0, 1, 1, 0, 1, 1, 1, 0];
+	/// let mut indices = [1, 4, 8].iter().copied();
+	///
+	/// let mut iter_zeros = bits.iter_zeros();
+	/// let mut compose = bits.iter()
+	///   .copied()
+	///   .enumerate()
+	///   .filter_map(|(idx, bit)| if !bit { Some(idx) } else { None });
+	///
+	/// for ((a, b), c) in iter_zeros.zip(compose).zip(indices) {
+	///   assert_eq!(a, b);
+	///   assert_eq!(b, c);
+	/// }
+	#[inline(always)]
+	pub fn iter_zeros(&self) -> IterZeros<O, T> {
+		IterZeros::new(self)
+	}
+
 	/// Copies the bits from `src` into `self`.
 	///
 	/// The length of `src` must be the same as `self.
@@ -2239,6 +2291,8 @@ pub use self::{
 		ChunksMut,
 		Iter,
 		IterMut,
+		IterOnes,
+		IterZeros,
 		RChunks,
 		RChunksExact,
 		RChunksExactMut,

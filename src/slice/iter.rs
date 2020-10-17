@@ -2369,6 +2369,283 @@ split_n!(SplitNMut => SplitMut => &'a mut BitSlice<O, T::Alias> );
 split_n!(RSplitN => RSplit => &'a BitSlice<O, T>);
 split_n!(RSplitNMut => RSplitMut => &'a mut BitSlice<O, T::Alias> );
 
+/** Enumerates bits in a [`BitSlice`] that are set to `1`.
+
+This struct is created by the [`.iter_ones()`] method on [`BitSlice`]s.
+
+[`BitSlice`]: crate::slice::BitSlice
+[`.iter_ones()`]: crate::slice::BitSlice::iter_ones
+**/
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
+pub struct IterOnes<'a, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	/// The remaining slice whose `1` bits are to be found.
+	inner: &'a BitSlice<O, T>,
+	/// The number of `1` bits remaining in `inner`.
+	count: usize,
+	/// The offset from the front of the original slice to current `inner`.
+	front: usize,
+}
+
+impl<'a, O, T> IterOnes<'a, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline]
+	#[cfg(not(tarpaulin_include))]
+	fn empty() -> Self {
+		Self {
+			inner: BitSlice::empty(),
+			count: 0,
+			front: 0,
+		}
+	}
+
+	#[inline]
+	pub(crate) fn new(slice: &'a BitSlice<O, T>) -> Self {
+		let count = slice.count_ones();
+		Self {
+			inner: slice,
+			count,
+			front: 0,
+		}
+	}
+}
+
+impl<O, T> Iterator for IterOnes<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	type Item = usize;
+
+	#[inline]
+	fn next(&mut self) -> Option<Self::Item> {
+		if self.count == 0 {
+			return None;
+		}
+		match self.inner.iter().copied().position(|b| b) {
+			Some(n) => {
+				//  Split on the far side of the found index. This is always
+				//  safe, as split(len) yields (self, empty).
+				let (_, rest) = unsafe { self.inner.split_at_unchecked(n + 1) };
+				self.inner = rest;
+				self.count -= 1;
+				let out = self.front + n;
+				//  Search resumes from the next index after the found.
+				self.front = out + 1;
+				Some(out)
+			},
+			None => {
+				*self = Self::empty();
+				None
+			},
+		}
+	}
+
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		(self.count, Some(self.count))
+	}
+
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	fn count(self) -> usize {
+		self.count
+	}
+
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	fn last(mut self) -> Option<Self::Item> {
+		self.next_back()
+	}
+}
+
+impl<O, T> DoubleEndedIterator for IterOnes<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline]
+	fn next_back(&mut self) -> Option<Self::Item> {
+		if self.count == 0 {
+			return None;
+		}
+		match self.inner.iter().copied().rposition(|b| b) {
+			Some(n) => {
+				let (rest, _) = unsafe { self.inner.split_at_unchecked(n) };
+				self.inner = rest;
+				self.count -= 1;
+				Some(self.front + n)
+			},
+			None => {
+				*self = Self::empty();
+				None
+			},
+		}
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<O, T> ExactSizeIterator for IterOnes<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline(always)]
+	fn len(&self) -> usize {
+		self.count
+	}
+}
+
+impl<O, T> FusedIterator for IterOnes<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
+
+/** Enumerates bits in a [`BitSlice`] that are cleared to `0`.
+
+This struct is created by the [`.iter_zeros()`] method on [`BitSlice`]s.
+
+[`BitSlice`]: crate::slice::BitSlice
+[`.iter_zeros()`]: crate::slice::BitSlice::iter_zeros
+**/
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
+pub struct IterZeros<'a, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	/// The remaining slice whose `0` bits are to be found.
+	inner: &'a BitSlice<O, T>,
+	/// The number of `0` bits remaining in `inner`.
+	count: usize,
+	/// The offset from the front of the original slice to current `inner`.
+	front: usize,
+}
+
+impl<'a, O, T> IterZeros<'a, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline]
+	#[cfg(not(tarpaulin_include))]
+	fn empty() -> Self {
+		Self {
+			inner: BitSlice::empty(),
+			count: 0,
+			front: 0,
+		}
+	}
+
+	#[inline]
+	pub(crate) fn new(slice: &'a BitSlice<O, T>) -> Self {
+		let count = slice.count_zeros();
+		Self {
+			inner: slice,
+			count,
+			front: 0,
+		}
+	}
+}
+
+impl<O, T> Iterator for IterZeros<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	type Item = usize;
+
+	#[inline]
+	fn next(&mut self) -> Option<Self::Item> {
+		if self.count == 0 {
+			return None;
+		}
+		match self.inner.iter().copied().position(|b| !b) {
+			Some(n) => {
+				let (_, rest) = unsafe { self.inner.split_at_unchecked(n + 1) };
+				self.inner = rest;
+				self.count -= 1;
+				let out = self.front + n;
+				self.front = out + 1;
+				Some(out)
+			},
+			None => {
+				*self = Self::empty();
+				None
+			},
+		}
+	}
+
+	#[inline(always)]
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		(self.count, Some(self.count))
+	}
+
+	#[inline(always)]
+	fn count(self) -> usize {
+		self.count
+	}
+
+	#[inline(always)]
+	fn last(mut self) -> Option<Self::Item> {
+		self.next_back()
+	}
+}
+
+impl<O, T> DoubleEndedIterator for IterZeros<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline]
+	fn next_back(&mut self) -> Option<Self::Item> {
+		if self.count == 0 {
+			return None;
+		}
+		match self.inner.iter().copied().rposition(|b| !b) {
+			Some(n) => {
+				let (rest, _) = unsafe { self.inner.split_at_unchecked(n) };
+				self.inner = rest;
+				self.count -= 1;
+				Some(self.front + n)
+			},
+			None => {
+				self.inner = BitSlice::empty();
+				self.count = 0;
+				None
+			},
+		}
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<O, T> ExactSizeIterator for IterZeros<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline(always)]
+	fn len(&self) -> usize {
+		self.count
+	}
+}
+
+impl<O, T> FusedIterator for IterZeros<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
+
 /* This macro has some very obnoxious call syntax that is necessary to handle
 the different iteration protocols used above.
 
@@ -2818,5 +3095,19 @@ mod tests {
 		assert!(rchunks.nth_back(1).is_none());
 
 		assert_eq!(rchunks.into_remainder().bitptr(), rest);
+	}
+
+	#[test]
+	fn iter_ones_zeros() {
+		//                          0  1  2  3  4  5  6  7
+		let bits = bits![0, 0, 1, 1, 0, 1, 0, 1];
+		let mut ones = bits.iter_ones();
+		let mut zeros = bits.iter_zeros();
+
+		assert_eq!(ones.next(), Some(2));
+		assert_eq!(zeros.next(), Some(0));
+
+		assert_eq!(ones.next_back(), Some(7));
+		assert_eq!(zeros.next_back(), Some(6));
 	}
 }
