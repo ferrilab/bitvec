@@ -789,9 +789,8 @@ where
 	/// ```
 	#[inline]
 	pub fn swap_remove(&mut self, index: usize) -> bool {
-		let len = self.len();
-		assert!(index < len, "Index {} out of bounds: {}", index, len);
-		let last = len - 1;
+		self.assert_in_bounds(index);
+		let last = self.len() - 1;
 		unsafe {
 			self.swap_unchecked(index, last);
 			self.set_len(last);
@@ -851,9 +850,8 @@ where
 	/// ```
 	#[inline]
 	pub fn remove(&mut self, index: usize) -> bool {
-		let len = self.len();
-		assert!(index < len, "Index {} out of bounds: {}", index, len);
-		let last = len - 1;
+		self.assert_in_bounds(index);
+		let last = self.len() - 1;
 		unsafe {
 			self.get_unchecked_mut(index ..).rotate_left(1);
 			self.set_len(last);

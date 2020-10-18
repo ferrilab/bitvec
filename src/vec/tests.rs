@@ -137,6 +137,10 @@ fn reservations() {
 
 #[test]
 fn iterators() {
+	let bv: BitVec<Msb0, u8> = [0xC3, 0x96].iter().collect();
+	assert_eq!(bv.count_ones(), 8);
+	assert_eq!(bv, bits![1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 0]);
+
 	let data = 0x35u8.view_bits::<Msb0>();
 	let bv: BitVec<Msb0, u8> = data.iter().collect();
 	assert_eq!(bv.count_ones(), 4);

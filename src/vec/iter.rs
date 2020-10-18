@@ -308,6 +308,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Debug for IntoIter<O, T>
 where
 	O: BitOrder,
@@ -483,13 +484,12 @@ where
 		self.drain.as_bitslice()
 	}
 
-	#[inline]
 	#[doc(hidden)]
-	#[allow(deprecated)]
+	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.as_bitslice()` to view the underlying slice"]
 	pub fn as_slice(&self) -> &BitSlice<O, T> {
-		self.drain.as_slice()
+		self.as_bitslice()
 	}
 
 	/// Attempts to overwrite the drained region with another iterator.

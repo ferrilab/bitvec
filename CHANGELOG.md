@@ -5,11 +5,12 @@ All notable changes will be documented in this file.
 This document is written according to the [Keep a Changelog][kac] style.
 
 1. [0.20.0](#0200)
+   1. [Added](#added)
    1. [Changed](#changed)
 1. [0.19.4](#0194)
    1. [Changed](#changed-1)
 1. [0.19.3](#0193)
-   1. [Added](#added)
+   1. [Added](#added-1)
 1. [0.19.2](#0192)
 1. [0.19.1](#0191)
 1. [0.19.0](#0190)
@@ -54,6 +55,55 @@ This document is written according to the [Keep a Changelog][kac] style.
 
 ## 0.20.0
 
+### Added
+
+- GitHub user [@arucil] requested in [Issue #83] that additional APIs be added
+  to match some of those found in the [`bit-set`] crate.
+
+  The methods `.iter_ones()` and `.iter_zeros()` now yield each index where the
+  stored bit is set to `1` or `0`, respectively.
+
+- Additionally, `BitVec` can be constructed from iterators of unsigned integers.
+  The implementation collects these integers into an ordinary `Vec`tor, then
+  converts it in-place into a `BitVec`.
+
+- Mutable iterators over `BitSlice` now have a method, `.remove_alias()`, which
+  removes the aliasing marker they use to access memory. This method may only be
+  used in loops that do not collect multiple yielded references to the slice
+  into the same scope.
+
+  This adapter permits loops that satisfy this condition to remove the
+  performance cost of alias-safed memory accesses where the user has ensured
+  that no alias conditions will exist.
+
+  As an example, the following loop may safely use `.remove_alias()`:
+
+  ```rust
+  use bitvec::prelude::*;
+
+  let bits = bits![mut 0; 10];
+  for chunk in bits.chunks_exact_mut(3).remove_alias() {
+    chunk.set_all(true);
+  }
+  ```
+
+  because the loop body creates and destroys exactly one subslice per iteration,
+  while this code cannot:
+
+  ```rust
+  use bitvec::prelude::*;
+
+  let bits = bits![mut 0; 10];
+  let mut iter = bits.chunks_exact_mut(3);
+  let a = iter.next().unwrap();
+  let b = iter.next().unwrap();
+  let c = iter.next().unwrap();
+  ```
+
+  because the three subslices `a`, `b`, and `c` cannot have their aliasing
+  markers removed, as they are permitted to perform racing accesses to the same
+  memory locations.
+
 ### Changed
 
 The types used when a `&mut BitSlice` aliases its underlying memory are now
@@ -85,7 +135,9 @@ their eponymous types, but forbid modifying the referent memory through an `&`
 shared reference.
 
 `bitvec` has no support for shared mutation of the same bit from multiple
-handles, and has no plans to add it.
+handles, and has no plans to add it. Such behavior is mutually exclusive with
+the `domain` module’s ability to safely access memory while bypassing the alias
+markers.
 
 ## 0.19.4
 
@@ -1001,6 +1053,7 @@ Initial implementation and release.
 [@Fotosmile]: https://github.com/Fotosmile
 [@GeorgeGkas]: https://github.com/GeorgeGkas
 [@ImmemorConsultrixContrarie]: https://github.com/ImmemorConsultrixContrarie
+[@arucil]: https://github.com/arucil
 [@caelunshun]: https://github.com/caelunshun
 [@geq1t]: https://github.com/geq1t
 [@jonas-schievink]: https://github.com/jonas-schievink
@@ -1033,10 +1086,12 @@ Initial implementation and release.
 [Issue #55]: https://github.com/myrrlyn/bitvec/issues/55
 [Issue #69]: https://github.com/myrrlyn/bitvec/issues/69
 [Issue #75]: https://github.com/myrrlyn/bitvec/issues/75
+[Issue #83]: https://github.com/myrrlyn/bitvec/issues/83
 [Pull Request #34]: https://github.com/myrrlyn/bitvec/pull/34
 [Pull Request #41]: https://github.com/myrrlyn/bitvec/pull/41
 [Pull Request #68]: https://github.com/myrrlyn/bitvec/pull/68
 [Rust PR #69373]: https://github.com/rust-lang/rust/pull/69373/
 [`Sync`]: https://doc.rust-lang.org/stable/core/marker/trait.Sync.html
+[`bit-set`]: https://crates.io/crates/bit-set
 [crate]: https://crates.io/crates/bitvec
 [kac]: https://keepachangelog.com/en/1.0.0/

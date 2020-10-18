@@ -754,8 +754,7 @@ where
 	/// [`self.len()`]: Self::len
 	#[inline]
 	pub fn set(&mut self, index: usize, value: bool) {
-		let len = self.len();
-		assert!(index < len, "Index out of range: {} >= {}", index, len);
+		self.assert_in_bounds(index);
 		unsafe {
 			self.set_unchecked(index, value);
 		}
@@ -1983,6 +1982,24 @@ where
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn bitptr(&self) -> BitPtr<O, T> {
 		self.as_bitptr().pipe(BitPtr::from_bitslice_ptr)
+	}
+
+	/// Asserts that `index` is less than [`self.len()`].
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `index`: The index to test against [`self.len()`].
+	///
+	/// # Panics
+	///
+	/// This method panics if `index` is not less than `self.len()`.
+	///
+	/// [`self.len()`]: Self::len
+	#[inline]
+	pub(crate) fn assert_in_bounds(&self, index: usize) {
+		let len = self.len();
+		assert!(index < len, "Index out of range: {} >= {}", index, len);
 	}
 
 	/// Marks an immutable slice as referring to aliased memory region.
