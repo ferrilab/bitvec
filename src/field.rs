@@ -88,16 +88,35 @@ use crate::{
 
 This trait transfers data between a [`BitSlice`] region and a local integer. The
 trait functions always place the live bits of the value against the least
-significant bit edge of the local integer (the return value of [`load`], and the
-argument of [`store`]).
+significant bit edge of the local integer (the return value of the load methods,
+and the argument value of the store methods).
 
 Methods should be called as `bits[start .. end].load_or_store()`, where the
 range subslice selects no more than the [`M::BITS`] element width.
 
+# Target-Specific Behavior
+
+When you are using this trait to manage memory that never leaves your machine,
+you can use the [`.load()`] and [`.store()`] methods. However, if you are using
+this trait to operate on a de/serialization buffer, where the exact bit pattern
+in memory is important to your work and/or you need to be aware of the processor
+byte endianness, you must not use these methods.
+
+Instead, use [`.load_le()`], [`.load_be()`], [`.store_le()`], or[`.store_be()`]
+directly.
+
+The un-suffixed methods choose their implementation based on the target
+processor byte endianness; the suffixed methods have a consistent and fixed
+behavior.
+
 [`BitSlice`]: crate::slice::BitSlice
 [`M::BITS`]: crate::mem::BitMemory::BITS
-[`load`]: Self::load
-[`store`]: Self::store
+[`.load()`]: Self::load
+[`.load_be()`]: Self::load_be
+[`.load_le()`]: Self::load_le
+[`.store()`]: Self::store
+[`.store_be()`]: Self::store_be
+[`.store_le()`]: Self::store_le
 **/
 #[cfg(not(tarpaulin_include))]
 pub trait BitField {
@@ -106,9 +125,17 @@ pub trait BitField {
 	/// This can load into any of the unsigned integers which implement
 	/// [`BitMemory`]. Any further transformation must be done by the user.
 	///
-	/// The default implementation of this function calls [`load_le`] on
-	/// little-endian byte-ordered CPUs, and [`load_be`] on big-endian
+	/// # Target-Specific Behavior
+	///
+	/// **THIS FUNCTION CHANGES BEHAVIOR FOR DIFFERENT TARGETS.**
+	///
+	/// The default implementation of this function calls [`.load_le()`] on
+	/// little-endian byte-ordered CPUs, and [`.load_be()`] on big-endian
 	/// byte-ordered CPUs.
+	///
+	/// If you are using this function from a region that crosses multiple
+	/// elements in memory, be aware that it will behave differently on
+	/// big-endian and little-endian target architectures.
 	///
 	/// # Parameters
 	///
@@ -129,8 +156,8 @@ pub trait BitField {
 	///
 	/// [`BitMemory`]: crate::mem::BitMemory
 	/// [`M::BITS`]: crate::mem::BitMemory::BITS
-	/// [`load_be`]: Self::load_be
-	/// [`load_le`]: Self::load_le
+	/// [`.load_be()`]: Self::load_be
+	/// [`.load_le()`]: Self::load_le
 	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn load<M>(&self) -> M
 	where M: BitMemory {
@@ -146,9 +173,17 @@ pub trait BitField {
 	/// This can store any of the unsigned integers which implement
 	/// [`BitMemory`]. Any other types must first be transformed by the user.
 	///
-	/// The default implementation of this function calls [`store_le`] on
-	/// little-endian byte-ordered CPUs, and [`store_be`] on big-endian
+	/// # Target-Specific Behavior
+	///
+	/// **THIS FUNCTION CHANGES BEHAVIOR FOR DIFFERENT TARGETS.**
+	///
+	/// The default implementation of this function calls [`.store_le()`] on
+	/// little-endian byte-ordered CPUs, and [`.store_be()`] on big-endian
 	/// byte-ordered CPUs.
+	///
+	/// If you are using this function to store into a region that crosses
+	/// multiple elements in memory, be aware that it will behave differently on
+	/// big-endian and little-endian target architectures.
 	///
 	/// # Parameters
 	///
@@ -172,9 +207,8 @@ pub trait BitField {
 	/// [`BitMemory`]: crate::mem::BitMemory
 	/// [`M::BITS`]: crate::mem::BitMemory::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
-	/// [`store_be`]: Self::store_be
-	/// [`store_le`]: Self::store_le
-	#[inline(always)]
+	/// [`.store_be()`]: Self::store_be
+	/// [`.store_le()`]: Self::store_le
 	fn store<M>(&mut self, value: M)
 	where M: BitMemory {
 		#[cfg(target_endian = "little")]

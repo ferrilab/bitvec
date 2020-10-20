@@ -48,7 +48,10 @@ of either the source [`BitSlice`] or destination `[u8]`. When `.read()` returns,
 `self` will have been updated to no longer include the leading segment copied
 out as bytes of `buf`.
 
+The implementation uses [`BitField::load_be`].
+
 [here]: https://doc.rust-lang.org/stable/std/primitive.slice.html#impl-Read
+[`BitField::load_be`]: crate::field::BitField::load_be
 [`BitSlice`]: crate::slice::BitSlice
 **/
 impl<'a, O, T> Read for &'a BitSlice<O, T>
@@ -60,7 +63,7 @@ where
 	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
 		let mut idx = 0;
 		for (byte, slot) in self.chunks_exact(8).zip(buf.iter_mut()) {
-			*slot = byte.load();
+			*slot = byte.load_be();
 			idx += 1;
 		}
 		*self = unsafe { self.get_unchecked(idx * 8 ..) };
@@ -75,7 +78,10 @@ exhaustion of either the source `[u8]` or destination [`BitSlice`]. When
 `.write()` returns, `self` will have been updated to no longer include the
 leading segment containing bytes copied in from `buf`.
 
+The implementation uses [`BitField::store_be`].
+
 [here]: https://doc.rust-lang.org/stable/std/primitive.slice.html#impl-Write
+[`BitField::store_be`]: crate::field::BitField::store_be
 [`BitSlice`]: crate::slice::BitSlice
 **/
 impl<'a, O, T> Write for &'a mut BitSlice<O, T>
@@ -91,7 +97,7 @@ where
 			.remove_alias()
 			.zip(buf.iter().copied())
 		{
-			slot.store(byte);
+			slot.store_be(byte);
 			idx += 1;
 		}
 		*self = unsafe { mem::take(self).get_unchecked_mut(idx * 8 ..) };
@@ -153,22 +159,7 @@ mod tests {
 		//  So the destination slice does not fill up.
 		assert_eq!(transfer_handle.as_mut_ptr() as *mut _, last_ptr);
 
-		if cfg!(target_endian = "little") {
-			assert_eq!(transfer[.. 3], [0x36, 0x8C, 0xC6][..]);
-			/* note the backwards nibbles here! ^^
-
-			When crossing element boundaries, `.load_le()` assumes that the
-			lesser memory address is less significant, and the greater memory
-			address is more significant. The last nibble of the first element
-			is therefore assumed to be numerically less significant than the
-			first nibble of the second word.
-
-			If this behavior surprises users, then an iterative copy may be more
-			appropriate than a `BitField`-based load/store behavior. A bitwise
-			crawl is slower, which is why `BitField` was chosen as the
-			implementation. But “quickly wrong” is worse than “slowly right”.
-			*/
-		}
+		assert_eq!(transfer[.. 3], [0x36, 0xC8, 0xC6][..]);
 	}
 
 	#[test]
