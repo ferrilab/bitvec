@@ -177,7 +177,6 @@ macro_rules! bit_domain {
 			/// enclave fields, as a tuple. Otherwise, it returns `None`.
 			///
 			/// [`Enclave`]: Self::Enclave
-			#[inline]
 			pub fn enclave(self) -> Option<(
 				BitIdx<T::Mem>,
 				&'a $($m)? BitSlice<O, T>,
@@ -203,7 +202,6 @@ macro_rules! bit_domain {
 			/// region fields, as a tuple. Otherwise, it returns `None`.
 			///
 			/// [`Region`]: Self::Region
-			#[inline]
 			pub fn region(self) -> Option<(
 				&'a $($m)? BitSlice<O, T>,
 				&'a $($m)? BitSlice<O, T::Mem>,
@@ -229,7 +227,6 @@ macro_rules! bit_domain {
 			/// A bit-domain view over the source slice.
 			///
 			/// [`BitSlice`]: crate::slice::BitSlice
-			#[inline]
 			pub(crate) fn new(slice: &'a $($m)? BitSlice<O, T>) -> Self {
 				let bitptr = slice.bitptr();
 				let h = bitptr.head();
@@ -246,7 +243,6 @@ macro_rules! bit_domain {
 				}
 			}
 
-			#[inline]
 			fn empty() -> Self {
 				Self::Region {
 					head: Default::default(),
@@ -255,7 +251,6 @@ macro_rules! bit_domain {
 				}
 			}
 
-			#[inline]
 			fn major(
 				slice: &'a $($m)? BitSlice<O, T>,
 				head: BitIdx<T::Mem>,
@@ -276,7 +271,6 @@ macro_rules! bit_domain {
 				}
 			}
 
-			#[inline]
 			fn minor(
 				slice: &'a $($m)? BitSlice<O, T>,
 				head: BitIdx<T::Mem>,
@@ -289,7 +283,6 @@ macro_rules! bit_domain {
 				}
 			}
 
-			#[inline]
 			fn partial_head(
 				slice: &'a $($m)? BitSlice<O, T>,
 				head: BitIdx<T::Mem>,
@@ -309,7 +302,6 @@ macro_rules! bit_domain {
 				}
 			}
 
-			#[inline]
 			fn partial_tail(
 				slice: &'a $($m)? BitSlice<O, T>,
 				/* This discarded head argument makes all constructor functions
@@ -335,7 +327,6 @@ macro_rules! bit_domain {
 				}
 			}
 
-			#[inline]
 			fn spanning(slice: &'a $($m)? BitSlice<O, T>) -> Self {
 				Self::Region {
 					head: Default::default(),
@@ -370,7 +361,6 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline(always)]
 	fn clone(&self) -> Self {
 		*self
 	}
@@ -504,7 +494,6 @@ macro_rules! domain {
 			/// enclave fields, as a tuple. Otherwise, it returns `None`.
 			///
 			/// [`Enclave`]: Self::Enclave
-			#[inline]
 			pub fn enclave(self) -> Option<(
 				BitIdx<T::Mem>,
 				&'a T $(::$a)?,
@@ -529,7 +518,6 @@ macro_rules! domain {
 			/// region fields, as a tuple. Otherwise, it returns `None`.
 			///
 			/// [`Region`]: Self::Region
-			#[inline]
 			pub fn region(self) -> Option<(
 				Option<(BitIdx<T::Mem>, &'a T $(::$a)?)>,
 				&'a $($m)? [T::Mem],
@@ -543,7 +531,6 @@ macro_rules! domain {
 				}
 			}
 
-			#[inline]
 			pub(crate) fn new<O>(slice: &'a $($m)? BitSlice<O, T>) -> Self
 			where O: BitOrder {
 				let bitptr = slice.bitptr();
@@ -562,7 +549,6 @@ macro_rules! domain {
 				}
 			}
 
-			#[inline]
 			fn empty() -> Self {
 				Self::Region {
 					head: None,
@@ -571,7 +557,6 @@ macro_rules! domain {
 				}
 			}
 
-			#[inline]
 			fn major(
 				base: *const T $(::$a)?,
 				elts: usize,
@@ -588,7 +573,6 @@ macro_rules! domain {
 				}
 			}
 
-			#[inline]
 			fn minor(
 				addr: *const T $(::$a)?,
 				head: BitIdx<T::Mem>,
@@ -601,7 +585,6 @@ macro_rules! domain {
 				}
 			}
 
-			#[inline]
 			fn partial_head(
 				base: *const T $(::$a)?,
 				elts: usize,
@@ -616,7 +599,6 @@ macro_rules! domain {
 				}
 			}
 
-			#[inline]
 			fn partial_tail(
 				base: *const T $(::$a)?,
 				elts: usize,
@@ -631,7 +613,6 @@ macro_rules! domain {
 				}
 			}
 
-			#[inline]
 			fn spanning(base: *const T $(::$a)?, elts: usize) -> Self {
 				Self::Region {
 					head: None,
@@ -657,7 +638,6 @@ domain!(DomainMut => mut @ Access);
 impl<T> Clone for Domain<'_, T>
 where T: BitStore
 {
-	#[inline(always)]
 	fn clone(&self) -> Self {
 		*self
 	}
@@ -668,7 +648,6 @@ where T: BitStore
 {
 	type Item = T::Mem;
 
-	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
 		match self {
 			Self::Enclave { elem, .. } => {
@@ -694,7 +673,6 @@ where T: BitStore
 impl<'a, T> DoubleEndedIterator for Domain<'a, T>
 where T: BitStore
 {
-	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		match self {
 			Self::Enclave { elem, .. } => {
@@ -720,7 +698,6 @@ where T: BitStore
 impl<T> ExactSizeIterator for Domain<'_, T>
 where T: BitStore
 {
-	#[inline]
 	fn len(&self) -> usize {
 		match self {
 			Self::Enclave { .. } => 1,
@@ -744,7 +721,6 @@ macro_rules! fmt {
 		impl<T> $f for Domain<'_, T>
 		where T: BitStore
 		{
-			#[inline]
 			fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 				fmt.debug_list()
 					.entries(self.into_iter().map(FmtForward::$fwd))

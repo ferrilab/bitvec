@@ -34,7 +34,6 @@ where
 {
 	type Output = Self;
 
-	#[inline]
 	fn bitand(mut self, rhs: Rhs) -> Self::Output {
 		*self.as_mut_bitslice() &= rhs;
 		self
@@ -48,7 +47,6 @@ where
 	T: BitRegister + BitStore,
 	BitSlice<O, T>: BitAndAssign<Rhs>,
 {
-	#[inline]
 	fn bitand_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() &= rhs;
 	}
@@ -63,7 +61,6 @@ where
 {
 	type Output = Self;
 
-	#[inline]
 	fn bitor(mut self, rhs: Rhs) -> Self::Output {
 		*self.as_mut_bitslice() |= rhs;
 		self
@@ -77,7 +74,6 @@ where
 	T: BitRegister + BitStore,
 	BitSlice<O, T>: BitOrAssign<Rhs>,
 {
-	#[inline]
 	fn bitor_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() |= rhs;
 	}
@@ -92,7 +88,6 @@ where
 {
 	type Output = Self;
 
-	#[inline]
 	fn bitxor(mut self, rhs: Rhs) -> Self::Output {
 		*self.as_mut_bitslice() ^= rhs;
 		self
@@ -106,7 +101,6 @@ where
 	T: BitRegister + BitStore,
 	BitSlice<O, T>: BitXorAssign<Rhs>,
 {
-	#[inline]
 	fn bitxor_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() ^= rhs;
 	}
@@ -120,7 +114,6 @@ where
 {
 	type Target = BitSlice<O, T>;
 
-	#[inline(always)]
 	fn deref(&self) -> &Self::Target {
 		self.as_bitslice()
 	}
@@ -132,7 +125,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline(always)]
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		self.as_mut_bitslice()
 	}
@@ -143,7 +135,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn drop(&mut self) {
 		//  Run the `Box` destructor to deällocate the buffer.
 		self.with_box(|slot| unsafe { ManuallyDrop::drop(slot) });
@@ -159,7 +150,6 @@ where
 {
 	type Output = <BitSlice<O, T> as Index<Idx>>::Output;
 
-	#[inline]
 	fn index(&self, index: Idx) -> &Self::Output {
 		self.as_bitslice().index(index)
 	}
@@ -172,7 +162,6 @@ where
 	T: BitRegister + BitStore,
 	BitSlice<O, T>: IndexMut<Idx>,
 {
-	#[inline]
 	fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
 		self.as_mut_bitslice().index_mut(index)
 	}
@@ -186,7 +175,6 @@ where
 {
 	type Output = Self;
 
-	#[inline]
 	fn not(mut self) -> Self::Output {
 		for elem in self.as_mut_slice().iter_mut() {
 			*elem = !*elem;

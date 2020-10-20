@@ -57,7 +57,6 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
 	fn cmp(&self, rhs: &Self) -> cmp::Ordering {
 		self.partial_cmp(rhs)
 			.expect("BitSlice has a total ordering")
@@ -126,7 +125,6 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
-	#[inline]
 	fn eq(&self, rhs: &BitSlice<O2, T2>) -> bool {
 		**self == rhs
 	}
@@ -140,7 +138,6 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
-	#[inline]
 	fn eq(&self, rhs: &BitSlice<O2, T2>) -> bool {
 		**self == rhs
 	}
@@ -156,7 +153,6 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
-	#[inline]
 	fn eq(&self, rhs: &&BitSlice<O2, T2>) -> bool {
 		*self == **rhs
 	}
@@ -170,7 +166,6 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
-	#[inline]
 	fn eq(&self, rhs: &&mut BitSlice<O2, T2>) -> bool {
 		*self == **rhs
 	}
@@ -190,7 +185,6 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
-	#[inline]
 	fn partial_cmp(&self, rhs: &BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		for (l, r) in self.iter().zip(rhs.iter()) {
 			match (l, r) {
@@ -212,7 +206,6 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
-	#[inline]
 	fn partial_cmp(&self, rhs: &BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		(*self).partial_cmp(rhs)
 	}
@@ -225,7 +218,6 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
-	#[inline]
 	fn partial_cmp(&self, rhs: &BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		(**self).partial_cmp(rhs)
 	}
@@ -240,7 +232,6 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
-	#[inline]
 	fn partial_cmp(&self, rhs: &&BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		(*self).partial_cmp(&**rhs)
 	}
@@ -253,7 +244,6 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
-	#[inline]
 	fn partial_cmp(&self, rhs: &&mut BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		(*self).partial_cmp(&**rhs)
 	}
@@ -268,7 +258,6 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
-	#[inline]
 	fn partial_cmp(&self, rhs: &&mut BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		(**self).partial_cmp(&**rhs)
 	}
@@ -281,7 +270,6 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
-	#[inline]
 	fn partial_cmp(&self, rhs: &&BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		(**self).partial_cmp(&**rhs)
 	}
@@ -295,7 +283,6 @@ where
 {
 	type Error = &'a [T];
 
-	#[inline]
 	fn try_from(slice: &'a [T]) -> Result<Self, Self::Error> {
 		BitSlice::from_slice(slice).ok_or(slice)
 	}
@@ -307,7 +294,6 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline(always)]
 	fn default() -> Self {
 		BitSlice::empty()
 	}
@@ -319,7 +305,6 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline(always)]
 	fn default() -> Self {
 		BitSlice::empty_mut()
 	}
@@ -330,7 +315,6 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		self.bitptr().render(fmt, "Slice", None)?;
 		fmt.write_str(" ")?;
@@ -344,7 +328,6 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(self, fmt)
 	}
@@ -514,7 +497,6 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
 	fn hash<H>(&self, hasher: &mut H)
 	where H: Hasher {
 		for bit in self {
@@ -548,7 +530,6 @@ where
 {
 	type Owned = BitVec<O, T>;
 
-	#[inline]
 	fn to_owned(&self) -> Self::Owned {
 		BitVec::from_bitslice(self)
 	}

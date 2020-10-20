@@ -80,7 +80,6 @@ pub trait BitView {
 	where O: BitOrder;
 
 	#[doc(hidden)]
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated(
 		since = "0.18.0",
@@ -110,7 +109,6 @@ pub trait BitView {
 	where O: BitOrder;
 
 	#[doc(hidden)]
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated(
 		since = "0.18.0",
@@ -139,20 +137,17 @@ where T: BitRegister + BitStore
 {
 	type Mem = T;
 
-	#[inline(always)]
 	fn view_bits<O>(&self) -> &BitSlice<O, T>
 	where O: BitOrder {
 		BitSlice::from_element(self)
 	}
 
-	#[inline(always)]
 	fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
 	where O: BitOrder {
 		BitSlice::from_element_mut(self)
 	}
 
 	#[doc(hidden)]
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	fn const_elts() -> usize {
 		1
@@ -164,13 +159,11 @@ where T: BitRegister + BitStore
 {
 	type Mem = T;
 
-	#[inline]
 	fn view_bits<O>(&self) -> &BitSlice<O, T>
 	where O: BitOrder {
 		BitSlice::from_slice(self).expect("slice was too long to view as bits")
 	}
 
-	#[inline]
 	fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
 	where O: BitOrder {
 		BitSlice::from_slice_mut(self)
@@ -192,20 +185,17 @@ where T: BitRegister + BitStore
 {
 	type Mem = T;
 
-	#[inline(always)]
 	fn view_bits<O>(&self) -> &BitSlice<O, T>
 	where O: BitOrder {
 		BitSlice::empty()
 	}
 
-	#[inline(always)]
 	fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
 	where O: BitOrder {
 		BitSlice::empty_mut()
 	}
 
 	#[doc(hidden)]
-	#[inline(always)]
 	fn const_elts() -> usize {
 		0
 	}
@@ -219,7 +209,6 @@ macro_rules! view_bits {
 		where T: BitRegister + BitStore {
 			type Mem = T;
 
-			#[inline]
 			fn view_bits<O>(&self) -> &BitSlice<O, T>
 			where O: BitOrder {
 				unsafe {
@@ -232,7 +221,6 @@ macro_rules! view_bits {
 				.to_bitslice_ref()
 			}
 
-			#[inline]
 			fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
 			where O: BitOrder {
 				unsafe {
@@ -246,7 +234,6 @@ macro_rules! view_bits {
 			}
 
 			#[doc(hidden)]
-			#[inline(always)]
 			fn const_elts() -> usize {
 				$n
 			}
@@ -365,7 +352,6 @@ where
 	A: AsRef<[T]>,
 	T: BitStore + BitRegister,
 {
-	#[inline]
 	fn as_bits<O>(&self) -> &BitSlice<O, T>
 	where O: BitOrder {
 		self.as_ref().view_bits::<O>()
@@ -378,7 +364,6 @@ where
 	A: AsMut<[T]>,
 	T: BitStore + BitRegister,
 {
-	#[inline]
 	fn as_bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
 	where O: BitOrder {
 		self.as_mut().view_bits_mut::<O>()

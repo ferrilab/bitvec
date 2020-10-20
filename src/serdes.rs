@@ -85,7 +85,6 @@ where
 	T: BitStore,
 	T::Mem: Serialize,
 {
-	#[inline]
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		let head = self.bitptr().head();
@@ -104,7 +103,6 @@ where
 	T: BitStore,
 	T::Mem: Serialize,
 {
-	#[inline]
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		let mut state = serializer.serialize_seq(Some(self.len()))?;
@@ -122,7 +120,6 @@ where
 	V: BitView,
 	V::Mem: Serialize,
 {
-	#[inline]
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		self.as_slice().serialize(serializer)
@@ -163,7 +160,6 @@ where
 	O: BitOrder,
 	V: BitView + Deserialize<'de>,
 {
-	#[inline]
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		deserializer
@@ -260,7 +256,6 @@ where
 {
 	type Value = BitVec<O, T>;
 
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.write_str("a BitSeq data series")
@@ -268,7 +263,6 @@ where
 
 	/// Visit a sequence of anonymous data elements. These must be in the order
 	/// `u8` (head-bit index), `u64` (length counter), `[T]` (data contents).
-	#[inline]
 	fn visit_seq<V>(self, mut seq: V) -> Result<Self::Value, V::Error>
 	where V: SeqAccess<'de> {
 		let head = seq
@@ -336,7 +330,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore + Deserialize<'de>,
 {
-	#[inline]
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		deserializer

@@ -67,13 +67,11 @@ impl<T> Address<T>
 where T: BitStore
 {
 	/// Views a numeric address as a typed data address.
-	#[inline(always)]
 	pub(crate) fn new(addr: usize) -> Option<Self> {
 		NonNull::new(addr as *mut T).map(|inner| Self { inner })
 	}
 
 	/// Views a numeric address as a typed data address.
-	#[inline(always)]
 	pub(crate) unsafe fn new_unchecked(addr: usize) -> Self {
 		Self {
 			inner: NonNull::new_unchecked(addr as *mut T),
@@ -81,19 +79,16 @@ where T: BitStore
 	}
 
 	/// Views the memory address as an access pointer.
-	#[inline(always)]
 	pub(crate) fn to_access(self) -> *const T::Access {
 		self.inner.as_ptr() as *const T::Access
 	}
 
 	/// Views the memory address as an immutable pointer.
-	#[inline(always)]
 	pub(crate) fn to_const(self) -> *const T {
 		self.inner.as_ptr() as *const T
 	}
 
 	/// Views the memory address as a mutable pointer.
-	#[inline(always)]
 	#[allow(clippy::wrong_self_convention)]
 	pub(crate) fn to_mut(self) -> *mut T {
 		self.inner.as_ptr()
@@ -106,7 +101,6 @@ where T: BitStore
 	}
 
 	/// Gets the numeric value of the address.
-	#[inline(always)]
 	pub(crate) fn value(self) -> usize {
 		self.inner.as_ptr() as usize
 	}
@@ -116,9 +110,8 @@ where T: BitStore
 impl<T> Clone for Address<T>
 where T: BitStore
 {
-	#[inline(always)]
 	fn clone(&self) -> Self {
-		Self { ..*self }
+		*self
 	}
 }
 
@@ -126,9 +119,8 @@ where T: BitStore
 impl<T> From<&T> for Address<T>
 where T: BitStore
 {
-	#[inline(always)]
 	fn from(addr: &T) -> Self {
-		(addr as *const T).into()
+		unsafe { Self::new_unchecked(addr as *const T as usize) }
 	}
 }
 
@@ -136,7 +128,6 @@ where T: BitStore
 impl<T> From<*const T> for Address<T>
 where T: BitStore
 {
-	#[inline]
 	fn from(addr: *const T) -> Self {
 		Self::new(addr as usize).expect("Cannot use a null pointer")
 	}
@@ -146,9 +137,8 @@ where T: BitStore
 impl<T> From<&mut T> for Address<T>
 where T: BitStore
 {
-	#[inline(always)]
 	fn from(addr: &mut T) -> Self {
-		(addr as *mut T).into()
+		Self { inner: addr.into() }
 	}
 }
 
@@ -156,7 +146,6 @@ where T: BitStore
 impl<T> From<*mut T> for Address<T>
 where T: BitStore
 {
-	#[inline]
 	fn from(addr: *mut T) -> Self {
 		Self::new(addr as usize).expect("Cannot use a null pointer")
 	}
@@ -166,7 +155,6 @@ where T: BitStore
 impl<T> Debug for Address<T>
 where T: BitStore
 {
-	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Pointer::fmt(self, fmt)
 	}
@@ -176,7 +164,6 @@ where T: BitStore
 impl<T> Pointer for Address<T>
 where T: BitStore
 {
-	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Pointer::fmt(&self.to_const(), fmt)
 	}
@@ -648,7 +635,6 @@ where
 	/// See [`::new`].
 	///
 	/// [`::new`]: Self::new
-	#[inline]
 	pub(crate) unsafe fn new_unchecked(
 		addr: impl Into<Address<T>>,
 		head: BitIdx<T::Mem>,
@@ -693,7 +679,6 @@ where
 	/// opaque handle.
 	///
 	/// [`mem::transmute`]: core::mem::transmute
-	#[inline]
 	pub(crate) fn from_bitslice_ptr(raw: *const BitSlice<O, T>) -> Self {
 		let slice_nn = match NonNull::new(raw as *const [()] as *mut [()]) {
 			Some(nn) => nn,
@@ -715,7 +700,6 @@ where
 	/// See [`::from_bitslice_ptr()`].
 	///
 	/// [`::from_bitslice_ptr()`]: Self::from_bitslice_ptr
-	#[inline(always)]
 	#[cfg(feature = "alloc")]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn from_bitslice_ptr_mut(raw: *mut BitSlice<O, T>) -> Self {
@@ -736,7 +720,7 @@ where
 	/// structure.
 	///
 	/// [`::from_bitslice_ptr()`]: Self::from_bitslice_ptr
-	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_bitslice_ptr(self) -> *const BitSlice<O, T> {
 		ptr::slice_from_raw_parts(
 			self.ptr.as_ptr() as *const u8 as *const (),
@@ -749,7 +733,6 @@ where
 	/// See [`.to_bitslice_ptr()`].
 	///
 	/// [`.to_bitslice_ptr()`]: Self::to_bitslice_ptr
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_bitslice_ptr_mut(self) -> *mut BitSlice<O, T> {
 		self.to_bitslice_ptr() as *mut BitSlice<O, T>
@@ -775,7 +758,6 @@ where
 	///
 	/// `self`, opacified as a bit-slice region reference rather than a `BitPtr`
 	/// structure.
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_bitslice_ref<'a>(self) -> &'a BitSlice<O, T> {
 		unsafe { &*self.to_bitslice_ptr() }
@@ -800,7 +782,6 @@ where
 	///
 	/// `self`, opacified as an exclusive bit-slice region reference rather than
 	/// a `BitPtr` structure.
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_bitslice_mut<'a>(self) -> &'a mut BitSlice<O, T> {
 		unsafe { &mut *self.to_bitslice_ptr_mut() }
@@ -820,7 +801,6 @@ where
 	/// `self`, marked as a `NonNull` pointer.
 	///
 	/// [`NonNull<BitSlice>`]: core::ptr::NonNull
-	#[inline]
 	#[cfg(feature = "alloc")]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_nonnull(self) -> NonNull<BitSlice<O, T>> {
@@ -955,7 +935,6 @@ where
 	/// The address of the starting element of the memory region. This address
 	/// is weakly typed so that it can be cast by call sites to the most useful
 	/// access type.
-	#[inline]
 	pub(crate) fn pointer(&self) -> Address<T> {
 		unsafe {
 			Address::new_unchecked(
@@ -977,7 +956,6 @@ where
 	/// None. The invariants of [`::new`] must be checked at the caller.
 	///
 	/// [`::new`]: Self::new
-	#[inline]
 	#[cfg(feature = "alloc")]
 	pub(crate) unsafe fn set_pointer(&mut self, addr: impl Into<Address<T>>) {
 		let addr = addr.into();
@@ -1048,7 +1026,6 @@ where
 	/// # Returns
 	///
 	/// A count of how many live bits the region pointer describes.
-	#[inline]
 	pub(crate) fn len(&self) -> usize {
 		self.len >> Self::LEN_HEAD_BITS
 	}
@@ -1066,7 +1043,6 @@ where
 	/// The `new_len` value is written directly into the `.bits` logical field.
 	///
 	/// [`REGION_MAX_BITS`]: Self::REGION_MAX_BITS
-	#[inline]
 	pub(crate) unsafe fn set_len(&mut self, new_len: usize) {
 		debug_assert!(
 			new_len <= Self::REGION_MAX_BITS,
@@ -1089,7 +1065,6 @@ where
 	/// - `.1`: The index of the first live bit in the first element of the
 	///   region.
 	/// - `.2`: The number of live bits in the region.
-	#[inline]
 	pub(crate) fn raw_parts(&self) -> (Address<T>, BitIdx<T::Mem>, usize) {
 		(self.pointer(), self.head(), self.len())
 	}
@@ -1132,7 +1107,6 @@ where
 	/// T::Mem::BITS`.
 	///
 	/// It will be zero only when `self` is empty.
-	#[inline]
 	pub(crate) fn tail(&self) -> BitTail<T::Mem> {
 		let (head, len) = (self.head(), self.len());
 
@@ -1170,7 +1144,6 @@ where
 	/// stepping.
 	///
 	/// [`T::Mem`]: crate::store::BitStore::Mem
-	#[inline]
 	pub(crate) unsafe fn incr_head(&mut self) {
 		//  Increment the cursor, permitting rollover to `T::Mem::BITS`.
 		let head = self.head().value() as usize + 1;
@@ -1211,7 +1184,6 @@ where
 	/// to the `O` ordering.
 	///
 	/// [`self.head()`]: Self::head
-	#[inline]
 	pub(crate) unsafe fn read(&self, index: usize) -> bool {
 		let (elt, bit) = self.head().offset(index as isize);
 		let base = self.pointer().to_const();
@@ -1238,7 +1210,6 @@ where
 	///
 	/// [`self.head()`]: Self::head
 	/// [`self.pointer()`]: Self::pointer
-	#[inline]
 	pub(crate) unsafe fn write(&self, index: usize, value: bool) {
 		let (elt, bit) = self.head().offset(index as isize);
 		let base = self.pointer().to_access();
@@ -1346,7 +1317,6 @@ where
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
 	/// [`Debug`]: core::fmt::Debug
-	#[inline]
 	pub(crate) fn render<'a>(
 		&'a self,
 		fmt: &'a mut Formatter,
@@ -1415,7 +1385,6 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline(always)]
 	fn default() -> Self {
 		Self::EMPTY
 	}
@@ -1427,7 +1396,6 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Pointer::fmt(self, fmt)
 	}
@@ -1439,7 +1407,6 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		self.render(fmt, "Ptr", None)
 	}
@@ -1454,10 +1421,24 @@ where
 
 #[cfg(test)]
 mod tests {
+	use super::*;
 	use crate::{
 		bits,
 		order::Msb0,
 	};
+	use core::mem;
+
+	#[test]
+	fn mem_size() {
+		assert_eq!(
+			mem::size_of::<BitPtr<Msb0, usize>>(),
+			2 * mem::size_of::<usize>()
+		);
+		assert_eq!(
+			mem::size_of::<Option<BitPtr<Msb0, usize>>>(),
+			2 * mem::size_of::<usize>()
+		);
+	}
 
 	#[test]
 	fn components() {

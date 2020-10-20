@@ -132,7 +132,6 @@ pub trait BitField {
 	/// [`load_be`]: Self::load_be
 	/// [`load_le`]: Self::load_le
 	/// [`self.len()`]: crate::slice::BitSlice::len
-	#[inline(always)]
 	fn load<M>(&self) -> M
 	where M: BitMemory {
 		#[cfg(target_endian = "little")]
@@ -321,7 +320,6 @@ pub trait BitField {
 impl<T> BitField for BitSlice<Lsb0, T>
 where T: BitStore
 {
-	#[inline]
 	fn load_le<M>(&self) -> M
 	where M: BitMemory {
 		check::<M>("load", self.len());
@@ -375,7 +373,6 @@ where T: BitStore
 		}
 	}
 
-	#[inline]
 	fn load_be<M>(&self) -> M
 	where M: BitMemory {
 		check::<M>("load", self.len());
@@ -409,7 +406,6 @@ where T: BitStore
 		}
 	}
 
-	#[inline]
 	fn store_le<M>(&mut self, mut value: M)
 	where M: BitMemory {
 		check::<M>("store", self.len());
@@ -439,7 +435,6 @@ where T: BitStore
 		}
 	}
 
-	#[inline]
 	fn store_be<M>(&mut self, mut value: M)
 	where M: BitMemory {
 		check::<M>("store", self.len());
@@ -477,7 +472,6 @@ where T: BitStore
 impl<T> BitField for BitSlice<Msb0, T>
 where T: BitStore
 {
-	#[inline]
 	fn load_le<M>(&self) -> M
 	where M: BitMemory {
 		check::<M>("load", self.len());
@@ -516,7 +510,6 @@ where T: BitStore
 		}
 	}
 
-	#[inline]
 	fn load_be<M>(&self) -> M
 	where M: BitMemory {
 		check::<M>("load", self.len());
@@ -556,7 +549,6 @@ where T: BitStore
 		}
 	}
 
-	#[inline]
 	fn store_le<M>(&mut self, mut value: M)
 	where M: BitMemory {
 		check::<M>("store", self.len());
@@ -593,7 +585,6 @@ where T: BitStore
 		}
 	}
 
-	#[inline]
 	fn store_be<M>(&mut self, mut value: M)
 	where M: BitMemory {
 		check::<M>("store", self.len());
@@ -638,25 +629,21 @@ where
 	V: BitView,
 	BitSlice<O, V::Mem>: BitField,
 {
-	#[inline]
 	fn load_le<M>(&self) -> M
 	where M: BitMemory {
 		self.as_bitslice().load_le()
 	}
 
-	#[inline]
 	fn load_be<M>(&self) -> M
 	where M: BitMemory {
 		self.as_bitslice().load_be()
 	}
 
-	#[inline]
 	fn store_le<M>(&mut self, value: M)
 	where M: BitMemory {
 		self.as_mut_bitslice().store_le(value)
 	}
 
-	#[inline]
 	fn store_be<M>(&mut self, value: M)
 	where M: BitMemory {
 		self.as_mut_bitslice().store_be(value)
@@ -671,25 +658,21 @@ where
 	T: BitRegister + BitStore,
 	BitSlice<O, T>: BitField,
 {
-	#[inline]
 	fn load_le<M>(&self) -> M
 	where M: BitMemory {
 		self.as_bitslice().load_le()
 	}
 
-	#[inline]
 	fn load_be<M>(&self) -> M
 	where M: BitMemory {
 		self.as_bitslice().load_be()
 	}
 
-	#[inline]
 	fn store_le<M>(&mut self, value: M)
 	where M: BitMemory {
 		self.as_mut_bitslice().store_le(value)
 	}
 
-	#[inline]
 	fn store_be<M>(&mut self, value: M)
 	where M: BitMemory {
 		self.as_mut_bitslice().store_be(value)
@@ -704,25 +687,21 @@ where
 	T: BitRegister + BitStore,
 	BitSlice<O, T>: BitField,
 {
-	#[inline]
 	fn load_le<M>(&self) -> M
 	where M: BitMemory {
 		self.as_bitslice().load_le()
 	}
 
-	#[inline]
 	fn load_be<M>(&self) -> M
 	where M: BitMemory {
 		self.as_bitslice().load_be()
 	}
 
-	#[inline]
 	fn store_le<M>(&mut self, value: M)
 	where M: BitMemory {
 		self.as_mut_bitslice().store_le(value)
 	}
 
-	#[inline]
 	fn store_be<M>(&mut self, value: M)
 	where M: BitMemory {
 		self.as_mut_bitslice().store_be(value)
@@ -736,7 +715,6 @@ where
 /// This panics if len is 0, or wider than [`M::BITS`].
 ///
 /// [`M::BITS`]: crate::mem::BitMemory::BITS
-#[inline]
 fn check<M>(action: &'static str, len: usize)
 where M: BitMemory {
 	if !(1 ..= M::BITS as usize).contains(&len) {
@@ -788,7 +766,6 @@ This is the exact inverse of `set`.
 [`BitStore`]: crate::store::BitStore
 [`T::Mem`]: crate::store::BitStore::Mem
 **/
-#[inline]
 //  The trait resolution system fails here, and only resolves to `<&usize>` as
 //  the RHS operand.
 #[allow(clippy::op_ref)]
@@ -845,7 +822,6 @@ This is the exact inverse of `get`.
 [`BitStore`]: crate::store::BitStore
 [`T::Mem`]: crate::store::BitStore::Mem
 **/
-#[inline]
 fn set<T, M>(elem: &T::Access, value: M, mask: BitMask<T::Mem>, shamt: u8)
 where
 	T: BitStore,
@@ -886,7 +862,6 @@ type.
 `value`, either zero-extended if `U` is wider than `T` or truncated if `U` is
 narrower than `T`.
 **/
-#[inline]
 fn resize<T, U>(value: T) -> U
 where
 	T: BitMemory,
@@ -904,7 +879,6 @@ where
 }
 
 /// Performs little-endian byte-order register resizing.
-#[inline(always)]
 #[cfg(target_endian = "little")]
 #[cfg(not(tarpaulin_include))]
 unsafe fn resize_inner<T, U>(
@@ -924,7 +898,6 @@ unsafe fn resize_inner<T, U>(
 }
 
 /// Performs big-endian byte-order register resizing.
-#[inline(always)]
 #[cfg(target_endian = "big")]
 #[cfg(not(tarpaulin_include))]
 unsafe fn resize_inner<T, U>(

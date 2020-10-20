@@ -140,7 +140,6 @@ where R: BitRegister
 	///
 	/// [`Self::LAST`]: Self::LAST
 	/// [`Self::ZERO`]: Self::ZERO
-	#[inline]
 	pub(crate) fn new(value: u8) -> Result<Self, BitIdxErr<R>> {
 		if value >= R::BITS {
 			return Err(BitIdxErr::new(value));
@@ -167,7 +166,6 @@ where R: BitRegister
 	///
 	/// [`Self::LAST`]: Self::LAST
 	/// [`Self::ZERO`]: Self::ZERO
-	#[inline]
 	pub(crate) unsafe fn new_unchecked(value: u8) -> Self {
 		debug_assert!(
 			value < R::BITS,
@@ -182,7 +180,6 @@ where R: BitRegister
 	}
 
 	/// Removes the index wrapper, leaving the internal counter.
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn value(self) -> u8 {
 		self.idx
@@ -198,7 +195,6 @@ where R: BitRegister
 	///
 	/// - `.0`: The next index after `self`.
 	/// - `.1`: Indicates that the new index is in the next register.
-	#[inline]
 	pub(crate) fn next(self) -> (Self, bool) {
 		let next = self.idx + 1;
 		(
@@ -217,7 +213,6 @@ where R: BitRegister
 	///
 	/// - `.0`: The previous index before `self`.
 	/// - `.1`: Indicates that the new index is in the previous register.
-	#[inline]
 	pub(crate) fn prev(self) -> (Self, bool) {
 		let prev = self.idx.wrapping_sub(1);
 		(
@@ -232,7 +227,6 @@ where R: BitRegister
 	/// constructor for a position counter.
 	///
 	/// [`O::at::<R>`]: crate::order::BitOrder::at
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn position<O>(self) -> BitPos<R>
 	where O: BitOrder {
@@ -245,7 +239,6 @@ where R: BitRegister
 	/// constructor for a bit selector.
 	///
 	/// [`O::select::<R>`]: crate::order::BitOrder::select
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn select<O>(self) -> BitSel<R>
 	where O: BitOrder {
@@ -257,7 +250,6 @@ where R: BitRegister
 	/// This is a type-cast over [`Self::select`].
 	///
 	/// [`Self::select`]: Self::select
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn mask<O>(self) -> BitMask<R>
 	where O: BitOrder {
@@ -289,7 +281,6 @@ where R: BitRegister
 	///
 	/// [`RangeBounds`]: core::ops::RangeBounds
 	/// [`Range<BitIdx<R>>`]: core::ops::Range
-	#[inline]
 	pub fn range(
 		self,
 		upto: BitTail<R>,
@@ -304,7 +295,6 @@ where R: BitRegister
 	}
 
 	/// Iterates over all possible index values.
-	#[inline]
 	pub fn range_all() -> impl Iterator<Item = Self>
 	+ DoubleEndedIterator
 	+ ExactSizeIterator
@@ -333,7 +323,6 @@ where R: BitRegister
 	/// - `.1`: The index of the destination bit within the destination element.
 	///
 	/// [`ptr::offset`]: https://doc.rust-lang.org/stable/std/primitive.pointer.html#method.offset
-	#[inline]
 	pub fn offset(self, by: isize) -> (isize, Self) {
 		let val = self.value();
 
@@ -408,7 +397,6 @@ where R: BitRegister
 	/// - `.1`: The tail counter of the span’s end point.
 	///
 	/// [`BitTail::span`]: crate::index::BitTail::span
-	#[inline]
 	pub fn span(self, len: usize) -> (usize, BitTail<R>) {
 		unsafe { BitTail::<R>::new_unchecked(self.value()) }.span(len)
 	}
@@ -420,7 +408,6 @@ where R: BitRegister
 {
 	type Error = BitIdxErr<R>;
 
-	#[inline(always)]
 	fn try_from(value: u8) -> Result<Self, Self::Error> {
 		Self::new(value)
 	}
@@ -430,7 +417,6 @@ where R: BitRegister
 impl<R> Binary for BitIdx<R>
 where R: BitRegister
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "{:0>1$b}", self.idx, R::INDX as usize)
 	}
@@ -440,7 +426,6 @@ where R: BitRegister
 impl<R> Debug for BitIdx<R>
 where R: BitRegister
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitIdx<{}>({:b})", any::type_name::<R>(), self)
 	}
@@ -450,7 +435,6 @@ where R: BitRegister
 impl<R> Display for BitIdx<R>
 where R: BitRegister
 {
-	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(&self, fmt)
 	}
@@ -487,7 +471,6 @@ where R: BitRegister
 	/// # Panics
 	///
 	/// Debug builds panic when `value` is a valid index for `R`.
-	#[inline(always)]
 	pub(crate) fn new(value: u8) -> Self {
 		debug_assert!(
 			value >= R::BITS,
@@ -502,7 +485,6 @@ where R: BitRegister
 	}
 
 	/// Removes the error wrapper, leaving the internal counter.
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn value(self) -> u8 {
 		self.err
@@ -513,7 +495,6 @@ where R: BitRegister
 impl<R> Debug for BitIdxErr<R>
 where R: BitRegister
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitIdxErr<{}>({})", any::type_name::<R>(), self.err)
 	}
@@ -523,7 +504,6 @@ where R: BitRegister
 impl<R> Display for BitIdxErr<R>
 where R: BitRegister
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(
 			fmt,
@@ -614,7 +594,6 @@ where R: BitRegister
 	///
 	/// [`Self::LAST`]: Self::LAST
 	/// [`Self::ZERO`]: Self::ZERO
-	#[inline]
 	pub fn new(value: u8) -> Option<Self> {
 		if value > R::BITS {
 			return None;
@@ -641,7 +620,6 @@ where R: BitRegister
 	///
 	/// [`Self::LAST`]: Self::LAST
 	/// [`Self::ZERO`]: Self::ZERO
-	#[inline]
 	pub(crate) unsafe fn new_unchecked(value: u8) -> Self {
 		debug_assert!(
 			value <= R::BITS,
@@ -656,7 +634,6 @@ where R: BitRegister
 	}
 
 	/// Removes the tail wrapper, leaving the internal counter.
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn value(self) -> u8 {
 		self.end
@@ -718,7 +695,6 @@ where R: BitRegister
 	///
 	/// [`BitIdx::ZERO`]: crate::index::BitIdx::ZERO
 	/// [`BitTail::LAST`]: crate::index::BitTail::LAST
-	#[inline]
 	pub(crate) fn span(self, len: usize) -> (usize, Self) {
 		if len == 0 {
 			return (0, self);
@@ -749,7 +725,6 @@ where R: BitRegister
 impl<R> Binary for BitTail<R>
 where R: BitRegister
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "{:0>1$b}", self.end, R::INDX as usize + 1)
 	}
@@ -759,7 +734,6 @@ where R: BitRegister
 impl<R> Debug for BitTail<R>
 where R: BitRegister
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitTail<{}>({:b})", any::type_name::<R>(), self)
 	}
@@ -769,7 +743,6 @@ where R: BitRegister
 impl<R> Display for BitTail<R>
 where R: BitRegister
 {
-	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(&self, fmt)
 	}
@@ -831,7 +804,6 @@ where R: BitRegister
 	///
 	/// This returns `Some(value)` when it is in the valid range `0 .. R::BITS`,
 	/// and `None` when it is not.
-	#[inline]
 	pub fn new(value: u8) -> Option<Self> {
 		if value >= R::BITS {
 			return None;
@@ -856,7 +828,6 @@ where R: BitRegister
 	/// If the `value` is outside the valid range, then the program is
 	/// incorrect. Debug builds will panic; release builds do not inspect the
 	/// `value`.
-	#[inline(always)]
 	pub unsafe fn new_unchecked(value: u8) -> Self {
 		debug_assert!(
 			value < R::BITS,
@@ -871,7 +842,6 @@ where R: BitRegister
 	}
 
 	/// Removes the position wrapper, leaving the internal counter.
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn value(self) -> u8 {
 		self.pos
@@ -880,7 +850,6 @@ where R: BitRegister
 	/// Computes the bit selector corresponding to `self`.
 	///
 	/// This is always `1 << self.pos`.
-	#[inline]
 	pub fn select(self) -> BitSel<R> {
 		unsafe { BitSel::new_unchecked(R::ONE << self.pos) }
 	}
@@ -890,7 +859,6 @@ where R: BitRegister
 	/// This is a type-cast over [`Self::select`].
 	///
 	/// [`Self::select`]: Self::select
-	#[inline]
 	pub fn mask(self) -> BitMask<R> {
 		self.select().mask()
 	}
@@ -909,7 +877,6 @@ where R: BitRegister
 impl<R> Binary for BitPos<R>
 where R: BitRegister
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "{:0>1$b}", self.pos, R::INDX as usize)
 	}
@@ -919,7 +886,6 @@ where R: BitRegister
 impl<R> Debug for BitPos<R>
 where R: BitRegister
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitPos<{}>({:b})", any::type_name::<R>(), self)
 	}
@@ -929,7 +895,6 @@ where R: BitRegister
 impl<R> Display for BitPos<R>
 where R: BitRegister
 {
-	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(&self, fmt)
 	}
@@ -992,7 +957,6 @@ where R: BitRegister
 	/// [`BitOrder::at`]: crate:order::BitOrder::at
 	/// [`BitOrder::select`]: crate::order::BitOrder::select
 	/// [`BitPos`]: crate::index::BitPos
-	#[inline]
 	pub fn new(value: R) -> Option<Self> {
 		if value.count_ones() != 1 {
 			return None;
@@ -1020,7 +984,6 @@ where R: BitRegister
 	/// implementation that is verified to be correct.
 	///
 	/// [`BitOrder::select`]: crate::order::BitOrder::select
-	#[inline]
 	pub unsafe fn new_unchecked(value: R) -> Self {
 		debug_assert!(
 			value.count_ones() == 1,
@@ -1032,14 +995,12 @@ where R: BitRegister
 	}
 
 	/// Removes the selector wrapper, leaving the internal counter.
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn value(self) -> R {
 		self.sel
 	}
 
 	/// Computes a bit-mask for `self`. This is a type-cast.
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn mask(self) -> BitMask<R> {
 		unsafe { BitMask::new(self.sel) }
@@ -1058,7 +1019,6 @@ where R: BitRegister
 impl<R> Binary for BitSel<R>
 where R: BitRegister
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "{:0>1$b}", self.sel, R::BITS as usize)
 	}
@@ -1068,7 +1028,6 @@ where R: BitRegister
 impl<R> Debug for BitSel<R>
 where R: BitRegister
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitSel<{}>({:b})", any::type_name::<R>(), self)
 	}
@@ -1078,7 +1037,6 @@ where R: BitRegister
 impl<R> Display for BitSel<R>
 where R: BitRegister
 {
-	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(&self, fmt)
 	}
@@ -1143,14 +1101,12 @@ where R: BitRegister
 	///
 	/// [`BitOrder::mask`]: crate::order::BitOrder::mask
 	/// [`BitSel`]: crate::index::BitSel
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub unsafe fn new(value: R) -> Self {
 		Self { mask: value }
 	}
 
 	/// Removes the mask wrapper, leaving the internal value.
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn value(self) -> R {
 		self.mask
@@ -1166,7 +1122,6 @@ where R: BitRegister
 	/// # Returns
 	///
 	/// Whether `self` is set high at `sel`.
-	#[inline(always)]
 	pub fn test(&self, sel: BitSel<R>) -> bool {
 		self.mask & sel.sel != R::ZERO
 	}
@@ -1181,7 +1136,6 @@ where R: BitRegister
 	/// # Effects
 	///
 	/// The bit at `sel` is set high in `self`.
-	#[inline(always)]
 	pub fn insert(&mut self, sel: BitSel<R>) {
 		self.mask |= sel.sel;
 	}
@@ -1196,7 +1150,6 @@ where R: BitRegister
 	/// # Returns
 	///
 	/// A copy of `self`, with `sel` set high.
-	#[inline(always)]
 	pub fn combine(self, sel: BitSel<R>) -> Self {
 		Self {
 			mask: self.mask | sel.sel,
@@ -1208,7 +1161,6 @@ where R: BitRegister
 impl<R> Binary for BitMask<R>
 where R: BitRegister
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "{:0>1$b}", self.mask, R::BITS as usize)
 	}
@@ -1218,7 +1170,6 @@ where R: BitRegister
 impl<R> Debug for BitMask<R>
 where R: BitRegister
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitMask<{}>({:b})", any::type_name::<R>(), self)
 	}
@@ -1228,7 +1179,6 @@ where R: BitRegister
 impl<R> Display for BitMask<R>
 where R: BitRegister
 {
-	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(&self, fmt)
 	}
@@ -1237,7 +1187,6 @@ where R: BitRegister
 impl<R> Sum<BitSel<R>> for BitMask<R>
 where R: BitRegister
 {
-	#[inline]
 	fn sum<I>(iter: I) -> Self
 	where I: Iterator<Item = BitSel<R>> {
 		iter.fold(Self::ZERO, Self::combine)
@@ -1249,7 +1198,6 @@ where R: BitRegister
 {
 	type Output = Self;
 
-	#[inline]
 	fn bitand(self, rhs: R) -> Self::Output {
 		Self {
 			mask: self.mask & rhs,
@@ -1262,7 +1210,6 @@ where R: BitRegister
 {
 	type Output = Self;
 
-	#[inline]
 	fn bitor(self, rhs: R) -> Self::Output {
 		Self {
 			mask: self.mask | rhs,
@@ -1275,7 +1222,6 @@ where R: BitRegister
 {
 	type Output = Self;
 
-	#[inline]
 	fn not(self) -> Self::Output {
 		Self { mask: !self.mask }
 	}
@@ -1310,6 +1256,7 @@ mod tests {
 			let tail = BitTail::<u8>::new(n).unwrap();
 			assert_eq!(tail.value(), n);
 		}
+		assert!(BitTail::<u8>::new(9).is_none());
 	}
 
 	#[test]
@@ -1367,5 +1314,28 @@ mod tests {
 		let end = BitIdx::<u8>::new(7).unwrap();
 		assert_eq!(end.next(), (BitIdx::new(0).unwrap(), true));
 		assert_eq!(end.prev(), (BitIdx::new(6).unwrap(), false));
+	}
+
+	#[test]
+	fn error() {
+		use crate::mem::BitMemory;
+
+		assert!(BitIdx::<u8>::new(<u8 as BitMemory>::MASK).is_ok());
+		assert!(BitIdx::<u8>::new(<u8 as BitMemory>::BITS).is_err());
+
+		assert!(BitIdx::<u16>::new(<u16 as BitMemory>::MASK).is_ok());
+		assert!(BitIdx::<u16>::new(<u16 as BitMemory>::BITS).is_err());
+
+		assert!(BitIdx::<u32>::new(<u32 as BitMemory>::MASK).is_ok());
+		assert!(BitIdx::<u32>::new(<u32 as BitMemory>::BITS).is_err());
+
+		assert!(BitIdx::<usize>::new(<usize as BitMemory>::MASK).is_ok());
+		assert!(BitIdx::<usize>::new(<usize as BitMemory>::BITS).is_err());
+
+		#[cfg(target_pointer_width = "64")]
+		{
+			assert!(BitIdx::<u64>::new(<u64 as BitMemory>::MASK).is_ok());
+			assert!(BitIdx::<u64>::new(<u64 as BitMemory>::BITS).is_err());
+		}
 	}
 }

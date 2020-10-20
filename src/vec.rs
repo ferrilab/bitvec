@@ -279,7 +279,6 @@ where
 	/// ```
 	///
 	/// [macro]: macro@crate::bitvec
-	#[inline]
 	pub fn repeat(bit: bool, len: usize) -> Self {
 		let mut out = Self::with_capacity(len);
 		unsafe {
@@ -312,7 +311,6 @@ where
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
 	/// [`.force_align()`]: Self::force_align
-	#[inline]
 	pub fn from_bitslice(slice: &BitSlice<O, T>) -> Self {
 		let mut bitptr = slice.bitptr();
 
@@ -372,7 +370,6 @@ where
 	///
 	/// [`BitSlice::MAX_ELTS`]: crate::slice::BitSlice::MAX_ELTS
 	/// [`Vec<T>`]: alloc::vec::Vec
-	#[inline]
 	pub fn from_vec(vec: Vec<T>) -> Self {
 		Self::try_from_vec(vec)
 			.expect("Vector was too long to be converted into a `BitVec`")
@@ -410,7 +407,6 @@ where
 	///
 	/// [`Vec`]: alloc::vec::Vec
 	/// [`Vec<T>`]: alloc::vec::Vec
-	#[inline]
 	pub fn try_from_vec(vec: Vec<T>) -> Result<Self, Vec<T>> {
 		let len = vec.len();
 		if len > BitSlice::<O, T>::MAX_ELTS {
@@ -459,7 +455,6 @@ where
 	/// ```
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
-	#[inline]
 	pub fn extend_from_bitslice<O2, T2>(&mut self, other: &BitSlice<O2, T2>)
 	where
 		O2: BitOrder,
@@ -488,7 +483,6 @@ where
 	/// `self`.
 	///
 	/// [`::from_raw_parts`]: Self::from_raw_parts
-	#[inline]
 	pub fn alloc_capacity(&self) -> usize {
 		self.capacity
 	}
@@ -503,7 +497,6 @@ where
 	/// let bv = bitvec![LocalBits, u16; 1; 50];
 	/// assert_eq!(bv.elements(), 4);
 	/// ```
-	#[inline]
 	pub fn elements(&self) -> usize {
 		self.bitptr().elements()
 	}
@@ -527,7 +520,6 @@ where
 	/// ```
 	///
 	/// [`BitBox<O, T>`]: crate::boxed::BitBox
-	#[inline]
 	pub fn into_boxed_bitslice(self) -> BitBox<O, T> {
 		let mut bitptr = self.bitptr();
 		let boxed = self.into_boxed_slice().pipe(ManuallyDrop::new);
@@ -540,7 +532,6 @@ where
 	/// Removes the bit-precision view, returning the underlying [`Vec`].
 	///
 	/// [`Vec`]: alloc::vec::Vec
-	#[inline]
 	pub fn into_vec(self) -> Vec<T> {
 		let mut this = ManuallyDrop::new(self);
 		let buf = this.as_mut_slice();
@@ -577,7 +568,6 @@ where
 	/// bv.set_elements(0xA5);
 	/// assert_eq!(bv.as_slice(), [0xA5, 0xA5]);
 	/// ```
-	#[inline]
 	pub fn set_elements(&mut self, element: T) {
 		self.as_mut_slice()
 			.iter_mut()
@@ -611,7 +601,6 @@ where
 	/// ```
 	///
 	/// [`.as_bitslice()`]: Self::as_bitslice
-	#[inline]
 	pub fn set_uninitialized(&mut self, value: bool) {
 		let head = self.bitptr().head().value() as usize;
 		let tail = head + self.len();
@@ -647,7 +636,6 @@ where
 	/// // to bits that are no longer used.
 	/// assert_eq!(bv.as_slice()[0] & 0xF0, 0xF0);
 	/// ```
-	#[inline]
 	pub fn force_align(&mut self) {
 		let bitptr = self.bitptr();
 		let head = bitptr.head().value() as usize;
@@ -663,10 +651,10 @@ where
 	}
 
 	/// Writes a new length value into the pointer without any checks.
-	#[inline]
 	pub(crate) unsafe fn set_len_unchecked(&mut self, new_len: usize) {
-		self.pointer =
-			self.bitptr().tap_mut(|bp| bp.set_len(new_len)).to_nonnull()
+		let mut bp = self.bitptr();
+		bp.set_len(new_len);
+		self.pointer = bp.to_nonnull();
 	}
 
 	/// Views the buffer’s contents as a [`BitSlice`].
@@ -687,7 +675,6 @@ where
 	/// ```
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
 		unsafe { &*self.pointer.as_ptr() }
@@ -712,7 +699,6 @@ where
 	/// ```
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
 		unsafe { &mut *self.pointer.as_ptr() }
@@ -750,7 +736,6 @@ where
 	/// [`UnsafeCell`]: core::cell::UnsafeCell
 	/// [`as_mut_bitptr`]: Self::as_mut_bitptr
 	/// [`bitvec`]: crate
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitptr(&self) -> *const BitSlice<O, T> {
 		self.pointer.as_ptr() as *const BitSlice<O, T>
@@ -781,13 +766,11 @@ where
 	/// ```
 	///
 	/// [`bitvec`]: crate
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitptr(&mut self) -> *mut BitSlice<O, T> {
 		self.pointer.as_ptr()
 	}
 
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn bitptr(&self) -> BitPtr<O, T> {
 		self.pointer.as_ptr().pipe(BitPtr::from_bitslice_ptr_mut)

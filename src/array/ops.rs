@@ -30,7 +30,6 @@ where
 {
 	type Output = Self;
 
-	#[inline]
 	fn bitand(mut self, rhs: Rhs) -> Self::Output {
 		*self.as_mut_bitslice() &= rhs;
 		self
@@ -44,7 +43,6 @@ where
 	V: BitView,
 	BitSlice<O, V::Mem>: BitAndAssign<Rhs>,
 {
-	#[inline]
 	fn bitand_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() &= rhs;
 	}
@@ -59,7 +57,6 @@ where
 {
 	type Output = Self;
 
-	#[inline]
 	fn bitor(mut self, rhs: Rhs) -> Self::Output {
 		*self.as_mut_bitslice() |= rhs;
 		self
@@ -73,7 +70,6 @@ where
 	V: BitView,
 	BitSlice<O, V::Mem>: BitOrAssign<Rhs>,
 {
-	#[inline]
 	fn bitor_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() |= rhs;
 	}
@@ -88,7 +84,6 @@ where
 {
 	type Output = Self;
 
-	#[inline]
 	fn bitxor(mut self, rhs: Rhs) -> Self::Output {
 		*self.as_mut_bitslice() ^= rhs;
 		self
@@ -102,7 +97,6 @@ where
 	V: BitView,
 	BitSlice<O, V::Mem>: BitXorAssign<Rhs>,
 {
-	#[inline]
 	fn bitxor_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() ^= rhs;
 	}
@@ -116,7 +110,6 @@ where
 {
 	type Target = BitSlice<O, V::Mem>;
 
-	#[inline(always)]
 	fn deref(&self) -> &Self::Target {
 		self.as_bitslice()
 	}
@@ -128,7 +121,6 @@ where
 	O: BitOrder,
 	V: BitView,
 {
-	#[inline(always)]
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		self.as_mut_bitslice()
 	}
@@ -143,7 +135,6 @@ where
 {
 	type Output = <BitSlice<O, V::Mem> as Index<Idx>>::Output;
 
-	#[inline]
 	fn index(&self, index: Idx) -> &Self::Output {
 		self.as_bitslice().index(index)
 	}
@@ -156,7 +147,6 @@ where
 	V: BitView,
 	BitSlice<O, V::Mem>: IndexMut<Idx>,
 {
-	#[inline]
 	fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
 		self.as_mut_bitslice().index_mut(index)
 	}
@@ -170,7 +160,6 @@ where
 {
 	type Output = Self;
 
-	#[inline]
 	fn not(mut self) -> Self::Output {
 		for elem in self.as_mut_slice() {
 			*elem = !*elem;

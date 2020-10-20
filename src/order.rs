@@ -202,7 +202,6 @@ pub unsafe trait BitOrder: 'static {
 	///
 	/// [`BitIdx`]: crate::index::BitIdx
 	/// [`Self::at`]: Self::at
-	#[inline]
 	fn select<R>(index: BitIdx<R>) -> BitSel<R>
 	where R: BitRegister {
 		Self::at::<R>(index).select()
@@ -240,7 +239,6 @@ pub unsafe trait BitOrder: 'static {
 	/// ```
 	///
 	/// [`Self::select`]: Self::select
-	#[inline]
 	fn mask<R>(
 		from: impl Into<Option<BitIdx<R>>>,
 		upto: impl Into<Option<BitTail<R>>>,
@@ -263,19 +261,16 @@ pub unsafe trait BitOrder: 'static {
 pub struct Lsb0;
 
 unsafe impl BitOrder for Lsb0 {
-	#[inline]
 	fn at<R>(index: BitIdx<R>) -> BitPos<R>
 	where R: BitRegister {
 		unsafe { BitPos::new_unchecked(index.value()) }
 	}
 
-	#[inline]
 	fn select<R>(index: BitIdx<R>) -> BitSel<R>
 	where R: BitRegister {
 		unsafe { BitSel::new_unchecked(R::ONE << index.value()) }
 	}
 
-	#[inline]
 	fn mask<R>(
 		from: impl Into<Option<BitIdx<R>>>,
 		upto: impl Into<Option<BitTail<R>>>,
@@ -309,13 +304,11 @@ unsafe impl BitOrder for Lsb0 {
 pub struct Msb0;
 
 unsafe impl BitOrder for Msb0 {
-	#[inline]
 	fn at<R>(index: BitIdx<R>) -> BitPos<R>
 	where R: BitRegister {
 		unsafe { BitPos::new_unchecked(R::MASK - index.value()) }
 	}
 
-	#[inline]
 	fn select<R>(index: BitIdx<R>) -> BitSel<R>
 	where R: BitRegister {
 		/* Shift the MSbit down by the index count. This is not equivalent to
@@ -326,7 +319,6 @@ unsafe impl BitOrder for Msb0 {
 		unsafe { BitSel::new_unchecked(msbit >> index.value()) }
 	}
 
-	#[inline]
 	fn mask<R>(
 		from: impl Into<Option<BitIdx<R>>>,
 		upto: impl Into<Option<BitTail<R>>>,

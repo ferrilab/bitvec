@@ -75,7 +75,6 @@ where
 	/// let a = bits![0, 0, 1];
 	/// assert_eq!(a.len(), 3);
 	/// ```
-	#[inline]
 	pub fn len(&self) -> usize {
 		self.bitptr().len()
 	}
@@ -94,7 +93,6 @@ where
 	/// let a = bits![0, 0, 1];
 	/// assert!(!a.is_empty());
 	/// ```
-	#[inline]
 	pub fn is_empty(&self) -> bool {
 		self.bitptr().len() == 0
 	}
@@ -114,7 +112,6 @@ where
 	/// let w = bits![];
 	/// assert_eq!(None, w.first());
 	/// ```
-	#[inline]
 	pub fn first(&self) -> Option<&bool> {
 		self.get(0)
 	}
@@ -147,7 +144,6 @@ where
 	/// ```
 	///
 	/// [`BitMut`]: crate::slice::BitMut
-	#[inline]
 	pub fn first_mut(&mut self) -> Option<BitMut<O, T>> {
 		self.get_mut(0)
 	}
@@ -171,7 +167,6 @@ where
 	///   assert_eq!(rest, bits![0; 2]);
 	/// }
 	/// ```
-	#[inline]
 	pub fn split_first(&self) -> Option<(&bool, &Self)> {
 		match self.len() {
 			0 => None,
@@ -216,7 +211,6 @@ where
 	/// ```
 	///
 	/// [`BitMut`]: crate::slice::BitMut
-	#[inline]
 	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
 	//  so this will not be aliased.
 	#[allow(clippy::type_complexity)]
@@ -251,7 +245,6 @@ where
 	///   assert_eq!(rest, bits![0; 2]);
 	/// }
 	/// ```
-	#[inline]
 	pub fn split_last(&self) -> Option<(&bool, &Self)> {
 		match self.len() {
 			0 => None,
@@ -296,7 +289,6 @@ where
 	/// ```
 	///
 	/// [`BitMut`]: crate::slice::BitSlice
-	#[inline]
 	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
 	//  so this will not be aliased.
 	#[allow(clippy::type_complexity)]
@@ -329,7 +321,6 @@ where
 	/// let w = bits![];
 	/// assert_eq!(None, w.last());
 	/// ```
-	#[inline]
 	pub fn last(&self) -> Option<&bool> {
 		match self.len() {
 			0 => None,
@@ -364,7 +355,6 @@ where
 	/// ```
 	///
 	/// [`BitMut`]: crate::slice::BitMut
-	#[inline]
 	pub fn last_mut(&mut self) -> Option<BitMut<O, T>> {
 		match self.len() {
 			0 => None,
@@ -394,7 +384,6 @@ where
 	/// assert_eq!(None, v.get(3));
 	/// assert_eq!(None, v.get(0 .. 4));
 	/// ```
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn get<'a, I>(&'a self, index: I) -> Option<I::Immut>
 	where I: BitSliceIndex<'a, O, T> {
@@ -430,7 +419,6 @@ where
 	///
 	/// [`BitMut`]: crate::slice::BitMut
 	/// [`.get()`]: Self::get
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn get_mut<'a, I>(&'a mut self, index: I) -> Option<I::Mut>
 	where I: BitSliceIndex<'a, O, T> {
@@ -461,7 +449,6 @@ where
 	///
 	/// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
 	/// [`.get()`]: Self::get
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[allow(clippy::missing_safety_doc)]
 	pub unsafe fn get_unchecked<'a, I>(&'a self, index: I) -> I::Immut
@@ -504,7 +491,6 @@ where
 	/// [`BitMut`]: crate::slice::BitMut
 	/// [`get_mut`]: Self::get_mut
 	/// [undefined behavior]: ../../reference/behavior-considered-undefined.html
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[allow(clippy::missing_safety_doc)]
 	pub unsafe fn get_unchecked_mut<'a, I>(&'a mut self, index: I) -> I::Mut
@@ -563,7 +549,6 @@ where
 	/// ```
 	///
 	/// [`.as_mut_bitptr()`]: Self::as_mut_bitptr
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.as_bitptr()` to access the region pointer"]
 	pub fn as_ptr(&self) -> *const Self {
@@ -613,7 +598,6 @@ where
 	/// }
 	/// assert_eq!(bits.as_slice()[0], 0b0100_1001);
 	/// ```
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.as_mut_bitptr()` to access the region pointer"]
 	pub fn as_mut_ptr(&mut self) -> *mut Self {
@@ -644,7 +628,6 @@ where
 	/// v.swap(1, 3);
 	/// assert_eq!(v, bits![0, 0, 1, 1]);
 	/// ```
-	#[inline]
 	pub fn swap(&mut self, a: usize, b: usize) {
 		self.assert_in_bounds(a);
 		self.assert_in_bounds(b);
@@ -668,7 +651,6 @@ where
 	/// v.reverse();
 	/// assert_eq!(v, bits![1, 1, 0]);
 	/// ```
-	#[inline]
 	pub fn reverse(&mut self) {
 		/* This would be better written as a recursive algorithm that swaps the
 		edge bits and recurses on `[1 .. len - 1]`, but Rust does not guarantee
@@ -720,7 +702,6 @@ where
 	/// assert_eq!(iterator.next(), Some(&true));
 	/// assert_eq!(iterator.next(), None);
 	/// ```
-	#[inline]
 	pub fn iter(&self) -> Iter<O, T> {
 		self.into_iter()
 	}
@@ -759,7 +740,6 @@ where
 	///
 	/// [`BitMut`]: crate::slice::BitMut
 	/// [`.remove_alias()`]: crate::slice::IterMut::remove_alias
-	#[inline]
 	pub fn iter_mut(&mut self) -> IterMut<O, T> {
 		self.into_iter()
 	}
@@ -798,7 +778,6 @@ where
 	/// let mut iter = slice.windows(4);
 	/// assert!(iter.next().is_none());
 	/// ```
-	#[inline]
 	pub fn windows(&self, size: usize) -> Windows<O, T> {
 		assert_ne!(size, 0, "Window width cannot be 0");
 		Windows::new(self, size)
@@ -838,7 +817,6 @@ where
 	///
 	/// [`.chunks_exact()`]: Self::chunks_exact
 	/// [`.rchunks()`]: Self::rchunks
-	#[inline]
 	pub fn chunks(&self, chunk_size: usize) -> Chunks<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
 		Chunks::new(self, chunk_size)
@@ -891,7 +869,6 @@ where
 	/// [`.chunks_exact_mut()`]: Self::chunks_exact_mut
 	/// [`.rchunks_mut()`]: Self::rchunks_mut
 	/// [`.remove_alias()`]: crate::slice::ChunksMut::remove_alias
-	#[inline]
 	pub fn chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
 		ChunksMut::new(self, chunk_size)
@@ -937,7 +914,6 @@ where
 	/// [`.chunks()`]: Self::chunks
 	/// [`.rchunks_exact()`]: Self::rchunks_exact
 	/// [`.remainder()`]: crate::slice::ChunksExact::remainder
-	#[inline]
 	pub fn chunks_exact(&self, chunk_size: usize) -> ChunksExact<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
 		ChunksExact::new(self, chunk_size)
@@ -992,7 +968,6 @@ where
 	/// [`.into_remainder()`]: crate::slice::ChunksExactMut::into_remainder
 	/// [`.rchunks_exact_mut()`]: Self::rchunks_exact_mut
 	/// [`.remove_alias()`]: crate::slice::ChunksExactMut::remove_alias
-	#[inline]
 	pub fn chunks_exact_mut(
 		&mut self,
 		chunk_size: usize,
@@ -1036,7 +1011,6 @@ where
 	///
 	/// [`.chunks()`]: Self::chunks
 	/// [`.rchunks_exact()`]: Self::rchunks_exact
-	#[inline]
 	pub fn rchunks(&self, chunk_size: usize) -> RChunks<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
 		RChunks::new(self, chunk_size)
@@ -1089,7 +1063,6 @@ where
 	/// [`.chunks_mut()`]: Self::chunks_mut
 	/// [`.rchunks_exact_mut()`]: Self::rchunks_exact_mut
 	/// [`.remove_alias()`]: crate::slice::RChunksMut::remove_alias
-	#[inline]
 	pub fn rchunks_mut(&mut self, chunk_size: usize) -> RChunksMut<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
 		RChunksMut::new(self, chunk_size)
@@ -1135,7 +1108,6 @@ where
 	/// [`.chunks_exact()`]: Self::chunks_exact
 	/// [`.rchunks()`]: Self::rchunks
 	/// [`.remainder()`]: crate::slice::ChunksExact::remainder
-	#[inline]
 	pub fn rchunks_exact(&self, chunk_size: usize) -> RChunksExact<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
 		RChunksExact::new(self, chunk_size)
@@ -1190,7 +1162,6 @@ where
 	/// [`.into_remainder()`]: crate::slice::ChunksExactMut::into_remainder
 	/// [`.rchunks_mut()`]: Self::rchunks_mut
 	/// [`.remove_alias()`]: crate::slice::ChunksExactMut::remove_alias
-	#[inline]
 	pub fn rchunks_exact_mut(
 		&mut self,
 		chunk_size: usize,
@@ -1239,7 +1210,6 @@ where
 	///   assert_eq!(right, bits![]);
 	/// }
 	/// ```
-	#[inline]
 	pub fn split_at(&self, mid: usize) -> (&Self, &Self) {
 		let len = self.len();
 		assert!(mid <= len, "Index {} out of bounds: {}", mid, len);
@@ -1295,7 +1265,6 @@ where
 	/// [`T::Alias`]: crate::store::BitStore::Alias
 	/// [`.bit_domain`()]: Self::bit_domain
 	/// [`.bit_domain_mut`()]: Self::bit_domain_mut
-	#[inline]
 	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
 	//  so this will not be aliased.
 	#[allow(clippy::type_complexity)]
@@ -1363,7 +1332,6 @@ where
 	/// assert_eq!(iter.next().unwrap(), bits![1]);
 	/// assert!(iter.next().is_none());
 	/// ```
-	#[inline]
 	pub fn split<F>(&self, pred: F) -> Split<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		Split::new(self, pred)
@@ -1401,7 +1369,6 @@ where
 	/// ```
 	///
 	/// [`.remove_alias()`]: crate::slice::SplitMut::remove_alias
-	#[inline]
 	pub fn split_mut<F>(&mut self, pred: F) -> SplitMut<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		SplitMut::new(self.alias_mut(), pred)
@@ -1450,7 +1417,6 @@ where
 	/// ```
 	///
 	/// [`.split()`]: Self::split
-	#[inline]
 	pub fn rsplit<F>(&self, pred: F) -> RSplit<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplit::new(self, pred)
@@ -1489,7 +1455,6 @@ where
 	/// ```
 	///
 	/// [`.remove_alias()`]: crate::slice::RSplitMut::remove_alias
-	#[inline]
 	pub fn rsplit_mut<F>(&mut self, pred: F) -> RSplitMut<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplitMut::new(self.alias_mut(), pred)
@@ -1526,7 +1491,6 @@ where
 	///   # }
 	/// }
 	/// ```
-	#[inline]
 	pub fn splitn<F>(&self, n: usize, pred: F) -> SplitN<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		SplitN::new(self, pred, n)
@@ -1568,7 +1532,6 @@ where
 	/// ```
 	///
 	/// [`.remove_alias()`]: crate::slice::SplitNMut::remove_alias
-	#[inline]
 	pub fn splitn_mut<F>(&mut self, n: usize, pred: F) -> SplitNMut<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		SplitNMut::new(self.alias_mut(), pred, n)
@@ -1607,7 +1570,6 @@ where
 	///   # }
 	/// }
 	/// ```
-	#[inline]
 	pub fn rsplitn<F>(&self, n: usize, pred: F) -> RSplitN<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplitN::new(self, pred, n)
@@ -1650,7 +1612,6 @@ where
 	/// ```
 	///
 	/// [`.remove_alias()`]: crate::slice::RSplitNMut::remove_alias
-	#[inline]
 	pub fn rsplitn_mut<F>(&mut self, n: usize, pred: F) -> RSplitNMut<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplitNMut::new(self.alias_mut(), pred, n)
@@ -1690,7 +1651,6 @@ where
 	///
 	/// [`any`]: Self::any
 	/// [`not_all`]: Self::not_all
-	#[inline]
 	pub fn contains<O2, T2>(&self, x: &BitSlice<O2, T2>) -> bool
 	where
 		O2: BitOrder,
@@ -1731,7 +1691,6 @@ where
 	/// let v = bits![];
 	/// assert!(v.starts_with(bits![]));
 	/// ```
-	#[inline]
 	pub fn starts_with<O2, T2>(&self, needle: &BitSlice<O2, T2>) -> bool
 	where
 		O2: BitOrder,
@@ -1769,7 +1728,6 @@ where
 	/// let v = bits![];
 	/// assert!(v.ends_with(bits![]));
 	/// ```
-	#[inline]
 	pub fn ends_with<O2, T2>(&self, needle: &BitSlice<O2, T2>) -> bool
 	where
 		O2: BitOrder,
@@ -1819,7 +1777,6 @@ where
 	/// ```
 	///
 	/// [`self.len()`]: Self::len
-	#[inline]
 	pub fn rotate_left(&mut self, mut by: usize) {
 		let len = self.len();
 		assert!(
@@ -1894,7 +1851,6 @@ where
 	/// ```
 	///
 	/// [`self.len()`]: Self::len
-	#[inline]
 	pub fn rotate_right(&mut self, mut by: usize) {
 		let len = self.len();
 		assert!(
@@ -1924,7 +1880,6 @@ where
 	///
 	/// [`.clone_from_bitslice()]: Self::clone_from_bitslice
 	#[doc(hidden)]
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.clone_from_bitslice()` to copy between bitslices"]
 	pub fn clone_from_slice<O2, T2>(&mut self, src: &BitSlice<O2, T2>)
@@ -1940,7 +1895,6 @@ where
 	///
 	/// [`.copy_from_bitslice()]: Self::copy_from_bitslice
 	#[doc(hidden)]
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.copy_from_bitslice()` to copy between bitslices"]
 	pub fn copy_from_slice(&mut self, src: &Self) {
@@ -1978,7 +1932,6 @@ where
 	/// ```
 	///
 	/// [`self.len()`]: Self::len
-	#[inline]
 	pub fn copy_within<R>(&mut self, src: R, dest: usize)
 	where R: RangeBounds<usize> {
 		let len = self.len();
@@ -1997,7 +1950,6 @@ where
 	///
 	/// [`.swap_with_bitslice()]: Self::swap_with_bitslice
 	#[doc(hidden)]
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.swap_with_bitslice()` to swap between bitslices"]
 	pub fn swap_with_slice<O2, T2>(&mut self, other: &mut BitSlice<O2, T2>)
@@ -2077,7 +2029,6 @@ where
 	/// [`BitStore`]: crate::store::BitStore
 	/// [`Domain`]: crate::domain::Domain
 	/// [`slice::align_to`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.align_to
-	#[inline]
 	#[cfg(not(tarpaulin_include))] // This is a typecast over `BitPtr::align_to`
 	pub unsafe fn align_to<U>(&self) -> (&Self, &BitSlice<O, U>, &Self)
 	where U: BitStore {
@@ -2149,7 +2100,6 @@ where
 	/// [`BitStore`]: crate::store::BitStore
 	/// [`DomainMut`]: crate::domain::DomainMut
 	/// [`slice::align_to_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.align_to_mut
-	#[inline]
 	#[cfg(not(tarpaulin_include))] // This is a typecast over `BitPtr::align_to`
 	pub unsafe fn align_to_mut<U>(
 		&mut self,
@@ -2178,7 +2128,6 @@ where
 	/// [`.to_bitvec()`].
 	///
 	/// [`.to_bitvec()]: Self::to_bitvec
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Prefer `.to_bitvec()`"]
 	pub fn to_vec(&self) -> BitVec<O, T::Mem> {
@@ -2213,7 +2162,6 @@ where
 	/// // this will panic at runtime
 	/// bits![0, 1].repeat(BitSlice::<LocalBits, usize>::MAX_BITS);
 	/// ```
-	#[inline]
 	pub fn repeat(&self, n: usize) -> BitVec<O, T::Mem> {
 		let len = self.len();
 		let total = len.checked_mul(n).expect("capacity overflow");
@@ -2245,7 +2193,6 @@ where
 
 [`BitSlice`]: crate::slice::BitSlice
 **/
-#[inline(always)]
 #[cfg(not(tarpaulin_include))]
 pub fn from_ref<O, T>(elem: &T) -> &BitSlice<O, T>
 where
@@ -2263,7 +2210,6 @@ where
 
 [`BitSlice`]: crate::slice::BitSlice
 **/
-#[inline(always)]
 #[cfg(not(tarpaulin_include))]
 pub fn from_mut<O, T>(elem: &mut T) -> &mut BitSlice<O, T>
 where
@@ -2333,7 +2279,6 @@ assert_eq!(bits.count_ones(), 3);
 [`NonNull::dangling()`]: core::ptr::NonNull::dangling
 [`UnsafeCell`]: core::cell::UnsafeCell
 **/
-#[inline]
 #[cfg(not(tarpaulin_include))]
 pub unsafe fn from_raw_parts<'a, O, T>(
 	data: *const T,
@@ -2385,7 +2330,6 @@ Behavior is undefined if any of the following conditions are violated:
 /// [`NonNull::dangling()`]: core::ptr::NonNull::dangling
 /// [`from_raw_parts`]: crate::slice::from_raw_parts
 /// [`&BitSlice`]: crate::slice::BitSlice
-#[inline]
 #[cfg(not(tarpaulin_include))]
 pub unsafe fn from_raw_parts_mut<'a, O, T>(
 	data: *mut T,
@@ -2523,7 +2467,6 @@ where
 	type Immut = &'a bool;
 	type Mut = BitMut<'a, O, T>;
 
-	#[inline]
 	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::Immut> {
 		if self < slice.len() {
 			Some(unsafe { self.get_unchecked(slice) })
@@ -2533,7 +2476,6 @@ where
 		}
 	}
 
-	#[inline]
 	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::Mut> {
 		if self < slice.len() {
 			Some(unsafe { self.get_unchecked_mut(slice) })
@@ -2543,7 +2485,6 @@ where
 		}
 	}
 
-	#[inline]
 	unsafe fn get_unchecked(self, slice: &'a BitSlice<O, T>) -> Self::Immut {
 		if slice.bitptr().read(self) {
 			&true
@@ -2553,7 +2494,6 @@ where
 		}
 	}
 
-	#[inline]
 	unsafe fn get_unchecked_mut(
 		self,
 		slice: &'a mut BitSlice<O, T>,
@@ -2565,14 +2505,12 @@ where
 		BitMut::new_unchecked(addr, bit)
 	}
 
-	#[inline]
 	fn index(self, slice: &'a BitSlice<O, T>) -> Self::Immut {
 		self.get(slice).unwrap_or_else(|| {
 			panic!("Index {} out of bounds: {}", self, slice.len())
 		})
 	}
 
-	#[inline]
 	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::Mut {
 		let len = slice.len();
 		self.get_mut(slice)
@@ -2588,18 +2526,14 @@ macro_rules! range_impl {
 			type Immut = &'a BitSlice<O, T>;
 			type Mut = &'a mut BitSlice<O, T>;
 
-			#[inline]
 			$get
 
-			#[inline]
 			fn get_mut(self, slice: Self::Mut) -> Option<Self::Mut> {
 				self.get(slice).map(|s| s.bitptr().to_bitslice_mut())
 			}
 
-			#[inline]
 			$unchecked
 
-			#[inline]
 			unsafe fn get_unchecked_mut(self, slice: Self::Mut) -> Self::Mut {
 				self.get_unchecked(slice).bitptr().to_bitslice_mut()
 			}
@@ -2613,7 +2547,6 @@ macro_rules! range_impl {
 					})
 			}
 
-			#[inline]
 			fn index_mut(self, slice: Self::Mut) -> Self::Mut {
 				self.index(slice).bitptr().to_bitslice_mut()
 			}
@@ -2626,32 +2559,26 @@ macro_rules! range_impl {
 			type Immut = &'a BitSlice<O, T>;
 			type Mut = &'a mut BitSlice<O, T>;
 
-			#[inline]
 			fn get(self, slice: Self::Immut) -> Option<Self::Immut> {
 				$func(self).get(slice)
 			}
 
-			#[inline]
 			fn get_mut(self, slice: Self::Mut) -> Option<Self::Mut> {
 				$func(self).get_mut(slice)
 			}
 
-			#[inline]
 			unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
 				$func(self).get_unchecked(slice)
 			}
 
-			#[inline]
 			unsafe fn get_unchecked_mut(self, slice: Self::Mut) -> Self::Mut {
 				$func(self).get_unchecked_mut(slice)
 			}
 
-			#[inline]
 			fn index(self, slice: Self::Immut) -> Self::Immut {
 				$func(self).index(slice)
 			}
 
-			#[inline]
 			fn index_mut(self, slice: Self::Mut) -> Self::Mut {
 				$func(self).index_mut(slice)
 			}
@@ -2746,32 +2673,26 @@ where
 	type Immut = &'a BitSlice<O, T>;
 	type Mut = &'a mut BitSlice<O, T>;
 
-	#[inline(always)]
 	fn get(self, slice: Self::Immut) -> Option<Self::Immut> {
 		Some(slice)
 	}
 
-	#[inline(always)]
 	fn get_mut(self, slice: Self::Mut) -> Option<Self::Mut> {
 		Some(slice)
 	}
 
-	#[inline(always)]
 	unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
 		slice
 	}
 
-	#[inline(always)]
 	unsafe fn get_unchecked_mut(self, slice: Self::Mut) -> Self::Mut {
 		slice
 	}
 
-	#[inline(always)]
 	fn index(self, slice: Self::Immut) -> Self::Immut {
 		slice
 	}
 
-	#[inline(always)]
 	fn index_mut(self, slice: Self::Mut) -> Self::Mut {
 		slice
 	}

@@ -26,12 +26,12 @@ macro_rules! specialize {
 	($($func:item)*) => {
 		impl<T> BitSlice<Lsb0, T>
 		where T: BitStore {
-			$( #[inline] $func )*
+			$( $func )*
 		}
 
 		impl<T> BitSlice<Msb0, T>
 		where T: BitStore {
-			$( #[inline] $func )*
+			$( $func )*
 		}
 	};
 }

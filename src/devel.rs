@@ -29,7 +29,6 @@ the function, and must be inspected by the caller.
 
 `bounds` normalized to an ordinary `Range`, optionally clamped to `end`.
 **/
-#[inline]
 pub fn normalize_range<R>(bounds: R, end: usize) -> Range<usize>
 where R: RangeBounds<usize> {
 	let min = match bounds.start_bound() {
@@ -59,7 +58,6 @@ range end be not greater than the ending marker (if provided).
 
 This panics if the range fails a requirement.
 **/
-#[inline]
 pub fn assert_range(range: Range<usize>, end: impl Into<Option<usize>>) {
 	if range.start > range.end {
 		panic!(

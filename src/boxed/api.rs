@@ -44,7 +44,7 @@ where
 	///
 	/// let boxed = BitBox::new(bits![0; 5]);
 	/// ```
-	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Prefer `::from_bitslice()`"]
 	pub fn new(x: &BitSlice<O, T>) -> Self {
 		Self::from_bitslice(x)
@@ -66,7 +66,6 @@ where
 	/// [`BitSlice`]: crate::slice::BitSlice
 	/// [`Unpin`]: core::marker::Unpin
 	/// [`::new`]: Self::new
-	#[inline]
 	pub fn pin(x: &BitSlice<O, T>) -> Pin<Self>
 	where
 		O: Unpin,
@@ -108,7 +107,6 @@ where
 	///
 	/// [`BitBox::into_raw`]: Self::into_raw
 	/// [`::into_raw`]: Self::into_raw
-	#[inline]
 	pub unsafe fn from_raw(raw: *mut BitSlice<O, T>) -> Self {
 		raw.pipe(BitPtr::from_bitslice_ptr_mut)
 			.to_nonnull()
@@ -154,7 +152,7 @@ where
 	/// [`BitSlice`]: crate::slice::BitSlice
 	/// [`Box`]: alloc::boxed::Box
 	/// [`::from_raw`]: Self::from_raw
-	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn into_raw(b: Self) -> *mut BitSlice<O, T> {
 		Self::leak(b)
 	}
@@ -196,7 +194,6 @@ where
 	/// [`BitBox::from_raw`]: Self::from_raw
 	/// [`BitSlice`]: crate::slice::BitSlice
 	/// [`Box`]: alloc::boxed::Box
-	#[inline]
 	pub fn leak<'a>(b: Self) -> &'a mut BitSlice<O, T>
 	where T: 'a {
 		b.pipe(ManuallyDrop::new).bitptr().to_bitslice_mut()
@@ -206,7 +203,6 @@ where
 	/// [`.into_bitvec()`].
 	///
 	/// [`.into_bitvec()]: Self::into_bitvec
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Prefer `.into_bitvec()`"]
 	pub fn into_vec(self) -> BitVec<O, T> {

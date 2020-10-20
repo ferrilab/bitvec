@@ -57,7 +57,6 @@ where
 	T: BitStore,
 	BitSlice<O, T>: BitField,
 {
-	#[inline]
 	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
 		let mut idx = 0;
 		for (byte, slot) in self.chunks_exact(8).zip(buf.iter_mut()) {
@@ -85,7 +84,6 @@ where
 	T: BitStore,
 	BitSlice<O, T>: BitField,
 {
-	#[inline]
 	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
 		let mut idx = 0;
 		for (slot, byte) in self
@@ -100,7 +98,6 @@ where
 		Ok(idx)
 	}
 
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	fn flush(&mut self) -> io::Result<()> {
 		Ok(())
@@ -122,14 +119,12 @@ where
 	T: BitRegister + BitStore,
 	BitSlice<O, T>: BitField,
 {
-	#[inline]
 	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
 		let len = self.len();
 		self.resize(len + buf.len() * 8, false);
 		unsafe { self.get_unchecked_mut(len ..) }.write(buf)
 	}
 
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	fn flush(&mut self) -> io::Result<()> {
 		Ok(())

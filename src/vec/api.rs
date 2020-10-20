@@ -54,7 +54,6 @@ where
 	///
 	/// let mut bv: BitVec = BitVec::new();
 	/// ```
-	#[inline]
 	pub fn new() -> Self {
 		Self {
 			pointer: BitPtr::<O, T>::EMPTY.to_nonnull(),
@@ -108,7 +107,6 @@ where
 	/// ```
 	///
 	/// [Capacity and reällocation]: #capacity-and-reallocation
-	#[inline]
 	pub fn with_capacity(capacity: usize) -> Self {
 		assert!(
 			capacity <= BitSlice::<O, T>::MAX_BITS,
@@ -164,7 +162,6 @@ where
 	///
 	/// [`::from_raw_parts()`]: Self::from_raw_parts
 	/// [`.alloc_capacity()`]: Self::alloc_capacity
-	#[inline]
 	pub fn into_raw_parts(self) -> (*mut BitSlice<O, T>, usize) {
 		let mut this = ManuallyDrop::new(self);
 		(this.as_mut_bitptr(), this.alloc_capacity())
@@ -265,7 +262,6 @@ where
 	/// [`bitvec`]: crate
 	/// [`.alloc_capacity()`]: Self::alloc_capacity
 	/// [`.into_raw_parts()`]: Self::into_raw_parts
-	#[inline]
 	pub unsafe fn from_raw_parts(
 		pointer: *mut BitSlice<O, T>,
 		capacity: usize,
@@ -305,7 +301,6 @@ where
 	///
 	/// [`Vec::<bool>::capacity()`]: alloc::vec::Vec::capacity
 	/// [`.alloc_capacity()`]: Self::alloc_capacity
-	#[inline]
 	pub fn capacity(&self) -> usize {
 		self.capacity
 			.checked_mul(T::Mem::BITS as usize)
@@ -339,7 +334,6 @@ where
 	/// bv.reserve(100);
 	/// assert!(bv.capacity() >= 101);
 	/// ```
-	#[inline]
 	pub fn reserve(&mut self, additional: usize) {
 		let len = self.len();
 		let new_len = len
@@ -391,7 +385,6 @@ where
 	/// ```
 	///
 	/// [`.reserve()`]: Self::reserve
-	#[inline]
 	pub fn reserve_exact(&mut self, additional: usize) {
 		let new_len = self
 			.len()
@@ -432,7 +425,6 @@ where
 	/// bv.shrink_to_fit();
 	/// assert!(bv.capacity() >= 3);
 	/// ```
-	#[inline]
 	pub fn shrink_to_fit(&mut self) {
 		self.with_vec(|v| v.shrink_to_fit());
 	}
@@ -475,7 +467,6 @@ where
 	///
 	/// [`Box<[T]>`]: alloc::boxed::Box
 	/// [`.into_boxed_bitslice()`]: Self::into_boxed_bitslice
-	#[inline]
 	pub fn into_boxed_slice(self) -> Box<[T]> {
 		self.into_vec().into_boxed_slice()
 	}
@@ -535,7 +526,6 @@ where
 	/// [`.as_bitslice()`]: Self::as_bitslice
 	/// [`.clear()`]: Self::clear
 	/// [`.drain()`]: Self::drain
-	#[inline]
 	pub fn truncate(&mut self, len: usize) {
 		if len < self.len() {
 			unsafe { self.set_len_unchecked(len) }
@@ -565,7 +555,6 @@ where
 	/// ```
 	///
 	/// [`.as_bitslice()`]: Self::as_bitslice
-	#[inline]
 	pub fn as_slice(&self) -> &[T] {
 		let bitptr = self.bitptr();
 		let (base, elts) = (bitptr.pointer().to_const(), bitptr.elements());
@@ -596,7 +585,6 @@ where
 	/// ```
 	///
 	/// [`.as_mut_bitslice()`]: Self::as_mut_bitslice
-	#[inline]
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
 		let bitptr = self.bitptr();
 		let (base, elts) = (bitptr.pointer().to_mut(), bitptr.elements());
@@ -639,7 +627,6 @@ where
 	/// [`UnsafeCell`]: core::cell::UnsafeCell
 	/// [`.as_bitptr()`]: Self::as_bitptr
 	/// [`.as_mut_ptr()`]: Self::as_mut_ptr
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_ptr(&self) -> *const T {
 		self.bitptr().pointer().to_const()
@@ -678,7 +665,6 @@ where
 	/// ```
 	///
 	/// [`.as_mut_bitptr()`]: Self::as_mut_bitptr
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_ptr(&mut self) -> *mut T {
 		self.bitptr().pointer().to_mut()
@@ -743,7 +729,6 @@ where
 	/// [`.extend()`]: Self::extend
 	/// [`.resize()`]: Self::resize
 	/// [`.truncate()`]: Self::truncate
-	#[inline]
 	pub unsafe fn set_len(&mut self, new_len: usize) {
 		assert!(
 			new_len <= BitSlice::<O, T>::MAX_BITS,
@@ -787,7 +772,6 @@ where
 	/// assert!(!bv.swap_remove(0));
 	/// assert_eq!(bv, bits![0, 1, 1]);
 	/// ```
-	#[inline]
 	pub fn swap_remove(&mut self, index: usize) -> bool {
 		self.assert_in_bounds(index);
 		let last = self.len() - 1;
@@ -820,7 +804,6 @@ where
 	/// bv.insert(2, true);
 	/// assert_eq!(bv, bits![0, 0, 1, 0, 0, 1, 0]);
 	/// ```
-	#[inline]
 	pub fn insert(&mut self, index: usize, value: bool) {
 		let len = self.len();
 		assert!(index <= len, "Index {} out of bounds: {}", index, len);
@@ -848,7 +831,6 @@ where
 	/// assert!(bv.remove(1));
 	/// assert_eq!(bv, bits![0, 0]);
 	/// ```
-	#[inline]
 	pub fn remove(&mut self, index: usize) -> bool {
 		self.assert_in_bounds(index);
 		let last = self.len() - 1;
@@ -884,7 +866,6 @@ where
 	/// bv.retain(|i, b| (i % 2 == 0) ^ b);
 	/// assert_eq!(bv, bits![0, 1, 0, 1]);
 	/// ```
-	#[inline]
 	pub fn retain<F>(&mut self, mut func: F)
 	where F: FnMut(usize, &bool) -> bool {
 		for n in (0 .. self.len()).rev() {
@@ -914,7 +895,6 @@ where
 	/// bv.push(true);
 	/// assert_eq!(bv.count_ones(), 1);
 	/// ```
-	#[inline]
 	pub fn push(&mut self, value: bool) {
 		let len = self.len();
 		assert!(
@@ -950,7 +930,6 @@ where
 	/// ```
 	///
 	/// [`None`]: core::option::Option::None
-	#[inline]
 	pub fn pop(&mut self) -> Option<bool> {
 		match self.len() {
 			0 => None,
@@ -985,7 +964,6 @@ where
 	/// assert_eq!(bv1.count_ones(), 10);
 	/// assert!(bv2.is_empty());
 	/// ```
-	#[inline]
 	pub fn append<O2, T2>(&mut self, other: &mut BitVec<O2, T2>)
 	where
 		O2: BitOrder,
@@ -1032,7 +1010,6 @@ where
 	/// ```
 	///
 	/// [`mem::forget`]: core::mem::forget
-	#[inline]
 	pub fn drain<R>(&mut self, range: R) -> Drain<O, T>
 	where R: RangeBounds<usize> {
 		Drain::new(self, range)
@@ -1058,7 +1035,6 @@ where
 	///
 	/// assert!(bv.is_empty());
 	/// ```
-	#[inline]
 	pub fn clear(&mut self) {
 		self.pointer = BitPtr::uninhabited(self.as_mut_ptr()).to_nonnull();
 	}
@@ -1078,7 +1054,6 @@ where
 	/// let a = bitvec![0, 1, 0];
 	/// assert_eq!(a.len(), 3);
 	/// ```
-	#[inline]
 	pub fn len(&self) -> usize {
 		self.as_bitslice().len()
 	}
@@ -1100,7 +1075,6 @@ where
 	/// bv.push(true);
 	/// assert!(!bv.is_empty());
 	/// ```
-	#[inline]
 	pub fn is_empty(&self) -> bool {
 		self.as_bitslice().is_empty()
 	}
@@ -1129,7 +1103,6 @@ where
 	/// assert_eq!(bv, bits![0]);
 	/// assert_eq!(bv2, bits![0, 1]);
 	/// ```
-	#[inline]
 	#[must_use = "use `.truncate()` if you don't need the other half"]
 	pub fn split_off(&mut self, at: usize) -> Self {
 		let len = self.len();
@@ -1180,7 +1153,6 @@ where
 	/// ```
 	///
 	/// [`.resize()`]: Self::resize
-	#[inline]
 	pub fn resize_with<F>(&mut self, new_len: usize, mut func: F)
 	where F: FnMut() -> bool {
 		let len = self.len();
@@ -1226,7 +1198,6 @@ where
 	///
 	/// [`BitBox`]: crate::boxed::BitBox
 	/// [`::leak()`]: crate::boxed::BitBox::leak
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn leak<'a>(self) -> &'a mut BitSlice<O, T> {
 		self.pipe(ManuallyDrop::new)
@@ -1263,7 +1234,6 @@ where
 	/// ```
 	///
 	/// [`.resize_with()`]: Self::resize_with
-	#[inline]
 	pub fn resize(&mut self, new_len: usize, value: bool) {
 		let len = self.len();
 		if new_len > len {
@@ -1282,7 +1252,6 @@ where
 	/// [`.extend_from_bitslice()`].
 	///
 	/// [`.extend_from_bitslice()]: Self::extend_from_bitslice
-	#[inline]
 	#[deprecated = "Prefer `.extend()`, or converting your `[bool]` into a \
 	                `BitSlice`"]
 	pub fn extend_from_slice(&mut self, other: &[bool]) {
@@ -1332,7 +1301,6 @@ where
 	///
 	/// [`Splice`]: crate::vec::Splice
 	/// [`.size_hint()`]: core::iter::Iterator::size_hint
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn splice<R, I>(
 		&mut self,

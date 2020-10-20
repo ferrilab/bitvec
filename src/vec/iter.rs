@@ -45,7 +45,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn extend<I>(&mut self, iter: I)
 	where I: IntoIterator<Item = bool> {
 		let mut iter = iter.into_iter();
@@ -77,7 +76,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn extend<I>(&mut self, iter: I)
 	where I: IntoIterator<Item = &'a bool> {
 		self.extend(iter.into_iter().copied());
@@ -89,7 +87,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn from_iter<I>(iter: I) -> Self
 	where I: IntoIterator<Item = bool> {
 		let iter = iter.into_iter();
@@ -106,7 +103,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn from_iter<I>(iter: I) -> Self
 	where I: IntoIterator<Item = &'a bool> {
 		iter.into_iter().copied().pipe(Self::from_iter)
@@ -126,7 +122,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn from_iter<I>(iter: I) -> Self
 	where I: IntoIterator<Item = T> {
 		iter.into_iter().collect::<Vec<_>>().pipe(Self::from_vec)
@@ -138,7 +133,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn from_iter<I>(iter: I) -> Self
 	where I: IntoIterator<Item = &'a T> {
 		iter.into_iter().copied().collect()
@@ -153,7 +147,6 @@ where
 	type IntoIter = IntoIter<O, T>;
 	type Item = bool;
 
-	#[inline(always)]
 	fn into_iter(self) -> Self::IntoIter {
 		IntoIter::new(self)
 	}
@@ -167,7 +160,6 @@ where
 	type IntoIter = <&'a BitSlice<O, T> as IntoIterator>::IntoIter;
 	type Item = <&'a BitSlice<O, T> as IntoIterator>::Item;
 
-	#[inline]
 	fn into_iter(self) -> Self::IntoIter {
 		self.as_bitslice().into_iter()
 	}
@@ -181,7 +173,6 @@ where
 	type IntoIter = <&'a mut BitSlice<O, T> as IntoIterator>::IntoIter;
 	type Item = <&'a mut BitSlice<O, T> as IntoIterator>::Item;
 
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	fn into_iter(self) -> Self::IntoIter {
 		self.as_mut_bitslice().into_iter()
@@ -224,7 +215,6 @@ where
 	/// Constructs an iterator over a [`BitVec`].
 	///
 	/// [`BitVec`]: crate::vec::BitVec
-	#[inline]
 	fn new(bv: BitVec<O, T>) -> Self {
 		//  Disarm the destructor,
 		let bv = ManuallyDrop::new(bv);
@@ -257,14 +247,12 @@ where
 	/// ```
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
 		self.iter.as_bitslice()
 	}
 
 	#[doc(hidden)]
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.as_bitslice()` to view the underlying slice"]
 	pub fn as_slice(&self) -> &BitSlice<O, T> {
@@ -293,14 +281,12 @@ where
 	/// ```
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
 		self.iter.as_bitslice().bitptr().to_bitslice_mut()
 	}
 
 	#[doc(hidden)]
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.as_mut_bitslice()` to view the underlying slice"]
 	pub fn as_mut_slice(&mut self) -> &mut BitSlice<O, T> {
@@ -314,7 +300,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_tuple("IntoIter")
 			.field(&self.as_bitslice())
@@ -330,27 +315,22 @@ where
 {
 	type Item = bool;
 
-	#[inline(always)]
 	fn next(&mut self) -> Option<Self::Item> {
 		self.iter.next().copied()
 	}
 
-	#[inline(always)]
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		self.iter.size_hint()
 	}
 
-	#[inline(always)]
 	fn count(self) -> usize {
 		self.len()
 	}
 
-	#[inline(always)]
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
 		self.iter.nth(n).copied()
 	}
 
-	#[inline(always)]
 	fn last(mut self) -> Option<Self::Item> {
 		self.next_back()
 	}
@@ -362,12 +342,10 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline(always)]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.iter.next_back().copied()
 	}
 
-	#[inline(always)]
 	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
 		self.iter.nth_back(n).copied()
 	}
@@ -379,7 +357,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline(always)]
 	fn len(&self) -> usize {
 		self.iter.len()
 	}
@@ -397,7 +374,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn drop(&mut self) {
 		//  Rebuild the `Vec` governing the allocation, and run its destructor.
 		drop(unsafe { Vec::from_raw_parts(self.base.as_ptr(), 0, self.capa) });
@@ -434,7 +410,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	pub(super) fn new<R>(source: &'a mut BitVec<O, T>, range: R) -> Self
 	where R: RangeBounds<usize> {
 		//  Hold the current vector size for bounds comparison.
@@ -478,14 +453,12 @@ where
 	/// element slice.
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &'a BitSlice<O, T> {
 		self.drain.as_bitslice()
 	}
 
 	#[doc(hidden)]
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.as_bitslice()` to view the underlying slice"]
 	pub fn as_slice(&self) -> &BitSlice<O, T> {
@@ -514,7 +487,6 @@ where
 	/// replacement `iter`ator, but is *not* extended to include the tail, even
 	/// if drained region is completely filled. This work is done in the
 	/// destructor.
-	#[inline]
 	fn fill<I>(&mut self, iter: &mut I) -> FillStatus
 	where I: Iterator<Item = bool> {
 		let bitvec = unsafe { self.source.as_mut() };
@@ -563,7 +535,6 @@ where
 	/// After completion, the tail segment will be relocated to begin
 	/// `additional` bits after the head segment ends. The drain iteration
 	/// cursor will not be modified.
-	#[inline]
 	unsafe fn move_tail(&mut self, additional: usize) {
 		if additional == 0 {
 			return;
@@ -598,7 +569,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline(always)]
 	fn as_ref(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
 	}
@@ -610,7 +580,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_tuple("Drain")
 			.field(&self.drain.as_bitslice())
@@ -626,27 +595,22 @@ where
 {
 	type Item = bool;
 
-	#[inline(always)]
 	fn next(&mut self) -> Option<Self::Item> {
 		self.drain.next().copied()
 	}
 
-	#[inline(always)]
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		self.drain.size_hint()
 	}
 
-	#[inline(always)]
 	fn count(self) -> usize {
 		self.len()
 	}
 
-	#[inline(always)]
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
 		self.drain.nth(n).copied()
 	}
 
-	#[inline(always)]
 	fn last(mut self) -> Option<Self::Item> {
 		self.next_back()
 	}
@@ -658,12 +622,10 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline(always)]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.drain.next_back().copied()
 	}
 
-	#[inline(always)]
 	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
 		self.drain.nth_back(n).copied()
 	}
@@ -675,7 +637,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline(always)]
 	fn len(&self) -> usize {
 		self.drain.len()
 	}
@@ -707,7 +668,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn drop(&mut self) {
 		//  Grab the tail range descriptor
 		let tail = self.tail.clone();
@@ -794,7 +754,6 @@ where
 {
 	type Item = bool;
 
-	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
 		self.drain.next().tap_some(|_| {
 			/* Attempt to write a bit into the now-vacated slot at the front of
@@ -815,13 +774,11 @@ where
 		})
 	}
 
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		self.drain.size_hint()
 	}
 
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	fn count(self) -> usize {
 		self.drain.len()
@@ -835,12 +792,10 @@ where
 	T: BitRegister + BitStore,
 	I: Iterator<Item = bool>,
 {
-	#[inline(always)]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.drain.next_back()
 	}
 
-	#[inline(always)]
 	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
 		self.drain.nth_back(n)
 	}
@@ -853,7 +808,6 @@ where
 	T: BitRegister + BitStore,
 	I: Iterator<Item = bool>,
 {
-	#[inline(always)]
 	fn len(&self) -> usize {
 		self.drain.len()
 	}
@@ -873,7 +827,6 @@ where
 	T: BitRegister + BitStore,
 	I: Iterator<Item = bool>,
 {
-	#[inline]
 	fn drop(&mut self) {
 		let tail = self.drain.tail.clone();
 		let tail_len = tail.end - tail.start;

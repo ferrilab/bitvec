@@ -130,7 +130,6 @@ where
 	///
 	/// The caller must produce `addr`’s value from a valid reference, and its
 	/// type from the correct access requirements at time of construction.
-	#[inline]
 	pub(crate) unsafe fn new_unchecked(
 		addr: *const T::Access,
 		head: BitIdx<T::Mem>,
@@ -146,7 +145,6 @@ where
 
 	/// Views the proxy as a `&BitSlice` of length 1, instead of a direct
 	/// proxy.
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
 		unsafe {
@@ -157,7 +155,6 @@ where
 
 	/// Views the proxy as a `&mut BitSlice` of length 1, instead of a direct
 	/// proxy.
-	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
 		unsafe {
@@ -190,7 +187,6 @@ where
 	/// - `value`: The new bit to write into the proxied slot.
 	///
 	/// [`DerefMut`]: core::ops::DerefMut
-	#[inline]
 	pub fn set(mut self, value: bool) {
 		self.write(value);
 		mem::forget(self);
@@ -199,7 +195,6 @@ where
 	/// Commits a bit into memory.
 	///
 	/// This is the internal function used to drive `.set()` and `.drop()`.
-	#[inline]
 	fn write(&mut self, value: bool) {
 		unsafe { (&*self.addr.as_ptr()).write_bit::<O>(self.head, value) }
 	}
@@ -210,7 +205,6 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		let bitptr = self.as_bitslice().bitptr();
 		bitptr.render(fmt, "Mut", &[("bit", &self.data as &dyn Debug)])
@@ -224,7 +218,6 @@ where
 {
 	type Target = bool;
 
-	#[inline]
 	fn deref(&self) -> &Self::Target {
 		&self.data
 	}
@@ -235,7 +228,6 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		&mut self.data
 	}
@@ -246,7 +238,6 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline(always)]
 	fn drop(&mut self) {
 		let value = self.data;
 		self.write(value);

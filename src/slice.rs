@@ -472,7 +472,6 @@ where
 	/// [`BitRegister`]: crate::mem::BitRegister
 	/// [`BitView`]: crate::view::BitView
 	/// [`.view_bits::<O>()`]: crate::view::BitView::view_bits
-	#[inline]
 	pub fn from_element(elem: &T) -> &Self {
 		unsafe {
 			BitPtr::new_unchecked(elem, BitIdx::ZERO, T::Mem::BITS as usize)
@@ -512,7 +511,6 @@ where
 	/// [`BitRegister`]: crate::mem::BitRegister
 	/// [`BitView`]: crate::view::BitView
 	/// [`.view_bits_mut::<O>()`]: crate::view::BitView::view_bits_mut
-	#[inline]
 	pub fn from_element_mut(elem: &mut T) -> &mut Self {
 		unsafe {
 			BitPtr::new_unchecked(elem, BitIdx::ZERO, T::Mem::BITS as usize)
@@ -557,7 +555,6 @@ where
 	/// [`BitView`]: crate::view::BitView
 	/// [`MAX_ELTS`]: Self::MAX_ELTS
 	/// [`.view_bits::<O>()`]: crate::view::BitView::view_bits
-	#[inline]
 	pub fn from_slice(slice: &[T]) -> Option<&Self> {
 		let elts = slice.len();
 		//  Starting at the zeroth bit makes this counter an exclusive cap, not
@@ -623,7 +620,6 @@ where
 	/// [`BitView`]: crate::view::BitView
 	/// [`MAX_ELTS`]: Self::MAX_ELTS
 	/// [`.view_bits_mut::<O>()`]: crate::view::BitView::view_bits_mut
-	#[inline]
 	pub fn from_slice_mut(slice: &mut [T]) -> Option<&mut Self> {
 		let elts = slice.len();
 		if elts >= Self::MAX_ELTS {
@@ -645,7 +641,6 @@ where
 	///
 	/// [`MAX_ELTS`]: Self::MAX_ELTS
 	/// [`::from_slice()`]: Self::from_slice
-	#[inline]
 	pub unsafe fn from_slice_unchecked(slice: &[T]) -> &Self {
 		let bits = slice.len().wrapping_mul(T::Mem::BITS as usize);
 		BitPtr::new_unchecked(slice.as_ptr(), BitIdx::ZERO, bits)
@@ -665,7 +660,6 @@ where
 	///
 	/// [`MAX_ELTS`]: Self::MAX_ELTS
 	/// [`::from_slice_mut()`]: Self::from_slice_mut
-	#[inline]
 	pub unsafe fn from_slice_unchecked_mut(slice: &mut [T]) -> &mut Self {
 		let bits = slice.len().wrapping_mul(T::Mem::BITS as usize);
 		BitPtr::new_unchecked(slice.as_ptr(), BitIdx::ZERO, bits)
@@ -691,7 +685,6 @@ where
 	/// let bits: &BitSlice = BitSlice::empty();
 	/// assert!(bits.is_empty());
 	/// ```
-	#[inline(always)]
 	pub fn empty<'a>() -> &'a Self {
 		BitPtr::EMPTY.to_bitslice_ref()
 	}
@@ -708,7 +701,6 @@ where
 	/// let bits: &mut BitSlice = BitSlice::empty_mut();
 	/// assert!(bits.is_empty());
 	/// ```
-	#[inline(always)]
 	pub fn empty_mut<'a>() -> &'a mut Self {
 		BitPtr::EMPTY.to_bitslice_mut()
 	}
@@ -752,7 +744,6 @@ where
 	/// ```
 	///
 	/// [`self.len()`]: Self::len
-	#[inline]
 	pub fn set(&mut self, index: usize, value: bool) {
 		self.assert_in_bounds(index);
 		unsafe {
@@ -789,7 +780,6 @@ where
 	/// assert!(bits[.. 2].any());
 	/// assert!(!bits[2 ..].any());
 	/// ```
-	#[inline]
 	pub fn any(&self) -> bool {
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
@@ -835,7 +825,6 @@ where
 	/// assert!(bits[.. 2].all());
 	/// assert!(!bits[2 ..].all());
 	/// ```
-	#[inline]
 	pub fn all(&self) -> bool {
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
@@ -891,7 +880,6 @@ where
 	/// assert!(!bits[.. 2].not_any());
 	/// assert!(bits[2 ..].not_any());
 	/// ```
-	#[inline(always)]
 	pub fn not_any(&self) -> bool {
 		!self.any()
 	}
@@ -924,7 +912,6 @@ where
 	/// assert!(!bits[.. 2].not_all());
 	/// assert!(bits[2 ..].not_all());
 	/// ```
-	#[inline(always)]
 	pub fn not_all(&self) -> bool {
 		!self.all()
 	}
@@ -967,7 +954,6 @@ where
 	///
 	/// [`.all()`]: Self::all
 	/// [`.not_any()`]: Self::not_any
-	#[inline]
 	pub fn some(&self) -> bool {
 		self.any() && self.not_all()
 	}
@@ -993,7 +979,6 @@ where
 	/// assert_eq!(bits[.. 2].count_ones(), 2);
 	/// assert_eq!(bits[2 ..].count_ones(), 0);
 	/// ```
-	#[inline]
 	pub fn count_ones(&self) -> usize {
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => (O::mask(head, tail)
@@ -1039,7 +1024,6 @@ where
 	/// assert_eq!(bits[.. 2].count_zeros(), 0);
 	/// assert_eq!(bits[2 ..].count_zeros(), 2);
 	/// ```
-	#[inline]
 	pub fn count_zeros(&self) -> usize {
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => (!O::mask(head, tail)
@@ -1085,7 +1069,6 @@ where
 	///   assert_eq!(b, c);
 	/// }
 	/// ```
-	#[inline(always)]
 	pub fn iter_ones(&self) -> IterOnes<O, T> {
 		IterOnes::new(self)
 	}
@@ -1111,7 +1094,6 @@ where
 	///   assert_eq!(a, b);
 	///   assert_eq!(b, c);
 	/// }
-	#[inline(always)]
 	pub fn iter_zeros(&self) -> IterZeros<O, T> {
 		IterZeros::new(self)
 	}
@@ -1188,7 +1170,6 @@ where
 	///
 	/// [`.copy_from_bitslice()`]: Self::copy_from_bitslice
 	/// [`.split_at_mut()`]: Self::split_at_mut
-	#[inline]
 	pub fn clone_from_bitslice<O2, T2>(&mut self, src: &BitSlice<O2, T2>)
 	where
 		O2: BitOrder,
@@ -1285,7 +1266,6 @@ where
 	///
 	/// [`.clone_from_bitslice()`]: Self::clone_from_bitslice
 	/// [`.split_at_mut()`]: Self::split_at_mut
-	#[inline]
 	pub fn copy_from_bitslice(&mut self, src: &Self) {
 		assert_eq!(
 			self.len(),
@@ -1427,7 +1407,6 @@ where
 	/// assert_eq!(two, 0x96A5);
 	/// # }
 	/// ```
-	#[inline]
 	pub fn swap_with_bitslice<O2, T2>(&mut self, other: &mut BitSlice<O2, T2>)
 	where
 		O2: BitOrder,
@@ -1467,7 +1446,6 @@ where
 	/// bits.shift_left(2);
 	/// assert_eq!(bits, bits![1, 1, 1, 1, 0, 0]);
 	/// ```
-	#[inline]
 	pub fn shift_left(&mut self, by: usize) {
 		let len = self.len();
 		if by == 0 {
@@ -1511,7 +1489,6 @@ where
 	/// bits.shift_right(2);
 	/// assert_eq!(bits, bits![0, 0, 1, 1, 1, 1]);
 	/// ```
-	#[inline]
 	pub fn shift_right(&mut self, by: usize) {
 		let len = self.len();
 		if by == 0 {
@@ -1552,7 +1529,6 @@ where
 	/// bits[.. 1].set_all(true);
 	/// assert_eq!(bits.as_slice(), &[0b1010_0100]);
 	/// ```
-	#[inline]
 	pub fn set_all(&mut self, value: bool) {
 		//  Grab the function pointers used to commit bit-masks into memory.
 		let setter = <T::Access>::get_writers(value);
@@ -1612,7 +1588,6 @@ where
 	///
 	/// [`BitMut`]: crate::slice::BitMut
 	/// [`IndexMut`]: core::ops::IndexMut
-	#[inline]
 	pub fn for_each<F>(&mut self, mut func: F)
 	where F: FnMut(usize, bool) -> bool {
 		for idx in 0 .. self.len() {
@@ -1778,7 +1753,6 @@ where
 	/// [`self.len()`]: Self::len
 	/// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
 	/// [`.set()`]: Self::set
-	#[inline]
 	pub unsafe fn set_unchecked(&mut self, index: usize, value: bool) {
 		self.bitptr().write(index, value);
 	}
@@ -1793,7 +1767,6 @@ where
 	///
 	/// [`self.len()`]: Self::len
 	/// [`.swap()`]: Self::swap
-	#[inline]
 	pub unsafe fn swap_unchecked(&mut self, a: usize, b: usize) {
 		let bit_a = *self.get_unchecked(a);
 		let bit_b = *self.get_unchecked(b);
@@ -1812,7 +1785,6 @@ where
 	///
 	/// [`self.len()`]: Self::len
 	/// [`.split_at()`]: Self::split_at
-	#[inline]
 	pub unsafe fn split_at_unchecked(&self, mid: usize) -> (&Self, &Self) {
 		match mid {
 			0 => (Self::empty(), self),
@@ -1831,7 +1803,6 @@ where
 	///
 	/// [`self.len()`]: Self::len
 	/// [`.split_at_mut()`]: Self::split_at_mut
-	#[inline]
 	#[allow(clippy::type_complexity)]
 	pub unsafe fn split_at_unchecked_mut(
 		&mut self,
@@ -1872,7 +1843,6 @@ where
 	/// [`self.len()`].
 	///
 	/// [`self.len()`]: Self::len
-	#[inline]
 	pub unsafe fn copy_within_unchecked<R>(&mut self, src: R, dest: usize)
 	where R: RangeBounds<usize> {
 		if TypeId::of::<O>() == TypeId::of::<Lsb0>() {
@@ -1905,51 +1875,40 @@ where
 }
 
 /// View conversions.
+#[cfg(not(tarpaulin_include))]
 impl<O, T> BitSlice<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
 	/// Views the `&BitSlice` reference as a `*const BitSlice` pointer.
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitptr(&self) -> *const Self {
 		self as *const Self
 	}
 
 	/// Views the `&mut BitSlice` reference as a `*mut BitSlice` pointer.
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitptr(&mut self) -> *mut Self {
 		self as *mut Self
 	}
 
 	/// Splits the slice into subslices at alias boundaries.
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
 	pub fn bit_domain(&self) -> BitDomain<O, T> {
 		BitDomain::new(self)
 	}
 
 	/// Splits the slice into subslices at alias boundaries.
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
 	pub fn bit_domain_mut(&mut self) -> BitDomainMut<O, T> {
 		BitDomainMut::new(self)
 	}
 
 	/// Views the underlying memory containing the slice, split at alias
 	/// boundaries.
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
 	pub fn domain(&self) -> Domain<T> {
 		Domain::new(self)
 	}
 
 	/// Views the underlying memory containing the slice, split at alias
 	/// boundaries.
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
 	pub fn domain_mut(&mut self) -> DomainMut<T> {
 		DomainMut::new(self)
 	}
@@ -1963,7 +1922,6 @@ where
 	///
 	/// [`.domain()`]: Self::domain
 	/// [`.domain_mut()`]: Self::domain_mut
-	#[inline]
 	pub fn as_slice(&self) -> &[T] {
 		let bitptr = self.bitptr();
 		let (base, elts) = (bitptr.pointer().to_const(), bitptr.elements());
@@ -1978,8 +1936,6 @@ where
 	T: BitStore,
 {
 	/// Type-cast the slice reference to its pointer structure.
-	#[inline]
-	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn bitptr(&self) -> BitPtr<O, T> {
 		self.as_bitptr().pipe(BitPtr::from_bitslice_ptr)
 	}
@@ -1996,21 +1952,18 @@ where
 	/// This method panics if `index` is not less than `self.len()`.
 	///
 	/// [`self.len()`]: Self::len
-	#[inline]
 	pub(crate) fn assert_in_bounds(&self, index: usize) {
 		let len = self.len();
 		assert!(index < len, "Index out of range: {} >= {}", index, len);
 	}
 
 	/// Marks an immutable slice as referring to aliased memory region.
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn alias(&self) -> &BitSlice<O, T::Alias> {
 		unsafe { &*(self.as_bitptr() as *const BitSlice<O, T::Alias>) }
 	}
 
 	/// Marks a mutable slice as describing an aliased memory region.
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn alias_mut(&mut self) -> &mut BitSlice<O, T::Alias> {
 		unsafe { &mut *(self.as_mut_bitptr() as *mut BitSlice<O, T::Alias>) }
@@ -2023,7 +1976,6 @@ where
 	/// This must only be used when the slice is either known to be unaliased,
 	/// or this call is combined with an operation that adds an aliasing marker
 	/// and the total number of aliasing markers must remain unchanged.
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) unsafe fn unalias_mut(
 		this: &mut BitSlice<O, T::Alias>,
@@ -2045,7 +1997,6 @@ where
 	/// Additionally, this is only safe when `T` is alias-safe.
 	///
 	/// [`.split_at_unchecked_mut()`]: Self::split_at_unchecked_mut
-	#[inline]
 	pub(crate) unsafe fn split_at_unchecked_mut_noalias(
 		&mut self,
 		mid: usize,
@@ -2075,8 +2026,6 @@ where
 	/// alias-safe, the subslices do not need to be additionally marked.
 	///
 	/// [`.split_at_mut()`]: Self::split_at_mut
-	#[inline]
-	#[cfg(not(tarpaulin_include))]
 	pub fn split_at_aliased_mut(
 		&mut self,
 		mid: usize,
@@ -2141,7 +2090,6 @@ where
 	/// ```
 	///
 	/// [`BitVec`]: crate::vec::BitVec
-	#[inline]
 	pub fn to_bitvec(&self) -> BitVec<O, T::Mem> {
 		let vec: alloc::vec::Vec<_> =
 			self.as_slice().iter().map(BitStore::load_value).collect();
@@ -2206,7 +2154,6 @@ permits safe shared mutation.
 [`T::Mem::BITS`]: crate::mem::BitMemory::BITS
 [`slice::from_raw_parts`]: core::slice::from_raw_parts
 **/
-#[inline]
 pub unsafe fn bits_from_raw_parts<'a, O, T>(
 	addr: *const T,
 	head: u8,
@@ -2270,7 +2217,6 @@ the returned value.
 [`T::Mem::BITS`]: crate::mem::BitMemory::BITS
 [`slice::from_raw_parts_mut`]: core::slice::from_raw_parts_mut
 **/
-#[inline]
 pub unsafe fn bits_from_raw_parts_mut<'a, O, T>(
 	addr: *mut T,
 	head: u8,

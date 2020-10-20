@@ -40,7 +40,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline(always)]
 	fn borrow(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
 	}
@@ -52,7 +51,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline(always)]
 	fn borrow_mut(&mut self) -> &mut BitSlice<O, T> {
 		self.as_mut_bitslice()
 	}
@@ -63,14 +61,12 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn clone(&self) -> Self {
 		let mut out = Self::repeat(false, self.len());
 		out.copy_from_bitslice(self.as_bitslice());
 		out
 	}
 
-	#[inline]
 	fn clone_from(&mut self, source: &Self) {
 		self.clear();
 		self.resize(source.len(), false);
@@ -91,7 +87,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
 		self.as_bitslice().cmp(other.as_bitslice())
 	}
@@ -105,7 +100,6 @@ where
 	T1: BitStore,
 	T2: BitRegister + BitStore,
 {
-	#[inline]
 	fn eq(&self, other: &BitVec<O2, T2>) -> bool {
 		self == other.as_bitslice()
 	}
@@ -119,7 +113,6 @@ where
 	T1: BitStore,
 	T2: BitRegister + BitStore,
 {
-	#[inline]
 	fn eq(&self, other: &BitVec<O2, T2>) -> bool {
 		*self == other.as_bitslice()
 	}
@@ -133,7 +126,6 @@ where
 	T1: BitStore,
 	T2: BitRegister + BitStore,
 {
-	#[inline]
 	fn eq(&self, other: &BitVec<O2, T2>) -> bool {
 		**self == other.as_bitslice()
 	}
@@ -146,7 +138,6 @@ where
 	T: BitRegister + BitStore,
 	Rhs: ?Sized + PartialEq<BitSlice<O, T>>,
 {
-	#[inline]
 	fn eq(&self, other: &Rhs) -> bool {
 		other == self.as_bitslice()
 	}
@@ -158,7 +149,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn partial_cmp(&self, other: &BitVec<O, T>) -> Option<cmp::Ordering> {
 		self.partial_cmp(other.as_bitslice())
 	}
@@ -171,7 +161,6 @@ where
 	T: BitRegister + BitStore,
 	Rhs: ?Sized + PartialOrd<BitSlice<O, T>>,
 {
-	#[inline]
 	fn partial_cmp(&self, other: &Rhs) -> Option<cmp::Ordering> {
 		other.partial_cmp(self.as_bitslice())
 	}
@@ -183,7 +172,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline(always)]
 	fn as_ref(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
 	}
@@ -195,7 +183,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline(always)]
 	fn as_mut(&mut self) -> &mut BitSlice<O, T> {
 		self.as_mut_bitslice()
 	}
@@ -207,7 +194,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline(always)]
 	fn from(slice: &'a BitSlice<O, T>) -> Self {
 		Self::from_bitslice(slice)
 	}
@@ -219,7 +205,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline(always)]
 	fn from(slice: &'a mut BitSlice<O, T>) -> Self {
 		Self::from_bitslice(slice)
 	}
@@ -231,7 +216,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline(always)]
 	fn from(boxed: BitBox<O, T>) -> Self {
 		boxed.into_bitvec()
 	}
@@ -243,7 +227,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline(always)]
 	fn into(self) -> Vec<T> {
 		self.into_vec()
 	}
@@ -257,7 +240,6 @@ where
 {
 	type Error = Vec<T>;
 
-	#[inline(always)]
 	fn try_from(vec: Vec<T>) -> Result<Self, Self::Error> {
 		Self::try_from_vec(vec)
 	}
@@ -269,7 +251,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline(always)]
 	fn default() -> Self {
 		Self::new()
 	}
@@ -280,7 +261,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		self.bitptr().render(fmt, "Vec", &[(
 			"capacity",
@@ -297,7 +277,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Display::fmt(self.as_bitslice(), fmt)
 	}
@@ -309,7 +288,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(self.as_bitslice(), fmt)
 	}
@@ -321,7 +299,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		LowerHex::fmt(self.as_bitslice(), fmt)
 	}
@@ -333,7 +310,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Octal::fmt(self.as_bitslice(), fmt)
 	}
@@ -345,7 +321,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		UpperHex::fmt(self.as_bitslice(), fmt)
 	}
@@ -357,7 +332,6 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-	#[inline]
 	fn hash<H>(&self, state: &mut H)
 	where H: Hasher {
 		self.as_bitslice().hash(state)

@@ -72,7 +72,6 @@ where <Self as Radium>::Item: BitRegister
 	/// The memory register at address `self` has the bit corresponding to the
 	/// `index` cursor under the `O` order cleared to `0`, and all other bits
 	/// are unchanged.
-	#[inline]
 	fn clear_bit<O>(&self, index: BitIdx<Self::Item>)
 	where O: BitOrder {
 		self.fetch_and(!index.select::<O>().value(), atomic::Ordering::Relaxed);
@@ -102,7 +101,6 @@ where <Self as Radium>::Item: BitRegister
 	/// selection type, not a bitwise-operation argument.
 	///
 	/// [`BitMask`]: crate::index::BitMask
-	#[inline]
 	fn clear_bits(&self, mask: BitMask<Self::Item>) {
 		self.fetch_and(!mask.value(), atomic::Ordering::Relaxed);
 	}
@@ -123,7 +121,6 @@ where <Self as Radium>::Item: BitRegister
 	/// The memory register at address `self` has the bit corresponding to the
 	/// `index` cursor under the `O` order set to `1`, and all other bits are
 	/// unchanged.
-	#[inline]
 	fn set_bit<O>(&self, index: BitIdx<Self::Item>)
 	where O: BitOrder {
 		self.fetch_or(index.select::<O>().value(), atomic::Ordering::Relaxed);
@@ -147,7 +144,6 @@ where <Self as Radium>::Item: BitRegister
 	/// All bits in `*self` that are selected (set to `1` in the `mask`) will be
 	/// cleared. All bits in `*self` that are not selected (cleared to `0` in
 	/// the `mask`) are unchanged.
-	#[inline]
 	fn set_bits(&self, mask: BitMask<Self::Item>) {
 		self.fetch_or(mask.value(), atomic::Ordering::Relaxed);
 	}
@@ -168,7 +164,6 @@ where <Self as Radium>::Item: BitRegister
 	/// The memory register at address `self` has the bit corresponding to the
 	/// `index` cursor under the `O` order inverted, and all other bits are
 	/// unchanged.
-	#[inline]
 	fn invert_bit<O>(&self, index: BitIdx<Self::Item>)
 	where O: BitOrder {
 		self.fetch_xor(index.select::<O>().value(), atomic::Ordering::Relaxed);
@@ -192,7 +187,6 @@ where <Self as Radium>::Item: BitRegister
 	/// All bits in `*self` that are selected (set to `1` in the `mask`) will be
 	/// inverted. All bits in `*self` that are not selected (cleared to `0` in
 	/// the `mask`) are unchanged.
-	#[inline]
 	fn invert_bits(&self, mask: BitMask<Self::Item>) {
 		self.fetch_xor(mask.value(), atomic::Ordering::Relaxed);
 	}
@@ -214,7 +208,6 @@ where <Self as Radium>::Item: BitRegister
 	/// The memory register at address `self` has the bit corresponding to the
 	/// `index` cursor under the `O` order written with the new `value`, and all
 	/// other bits are unchanged.
-	#[inline]
 	fn write_bit<O>(&self, index: BitIdx<Self::Item>, value: bool)
 	where O: BitOrder {
 		if value {
@@ -243,7 +236,6 @@ where <Self as Radium>::Item: BitRegister
 	/// All bits in `*self` that are selected (set to `1` in the `mask`) will be
 	/// written with the new `value`. All bits in `*self` that are not selected
 	/// (cleared to `0` in the `mask`) are unchanged.
-	#[inline]
 	fn write_bits(&self, mask: BitMask<Self::Item>, value: bool) {
 		if value {
 			self.set_bits(mask);
@@ -272,7 +264,6 @@ where <Self as Radium>::Item: BitRegister
 	///
 	/// [`clear_bit`]: Self::clear_bit
 	/// [`set_bit`]: Self::set_bit
-	#[inline]
 	fn get_writer<O>(value: bool) -> for<'a> fn(&'a Self, BitIdx<Self::Item>)
 	where O: BitOrder {
 		if value {
@@ -298,7 +289,6 @@ where <Self as Radium>::Item: BitRegister
 	///
 	/// [`clear_bits`]: Self::clear_bits
 	/// [`set_bits`]: Self::set_bits
-	#[inline]
 	fn get_writers(value: bool) -> for<'a> fn(&'a Self, BitMask<Self::Item>) {
 		if value {
 			Self::set_bits
@@ -328,7 +318,6 @@ where <Self as Radium>::Item: BitRegister
 	/// As this directly permits the modification of memory outside the logical
 	/// ownership of the caller, this method risks behavior that violates the
 	/// Rust memory model, even if it may not be technically undefined.
-	#[inline]
 	fn store_value(&self, value: Self::Item) {
 		self.store(value, atomic::Ordering::Relaxed);
 	}
@@ -401,7 +390,7 @@ macro_rules! safe {
 		impl BitSafe for $cw {
 			type Mem = $t;
 
-			#[inline(always)]
+			#[cfg(not(tarpaulin_include))]
 			fn load(&self) -> $t {
 				self.inner.get()
 			}
@@ -411,7 +400,7 @@ macro_rules! safe {
 		impl BitSafe for $aw {
 			type Mem = $t;
 
-			#[inline(always)]
+			#[cfg(not(tarpaulin_include))]
 			fn load(&self) -> $t {
 				self.inner.load(atomic::Ordering::Relaxed)
 			}

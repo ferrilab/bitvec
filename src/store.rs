@@ -130,7 +130,6 @@ pub trait BitStore: 'static + seal::Sealed + Debug {
 	/// A copy of the memory element at `*self`, with all bits not selected (set
 	/// to `0`) in `mask` erased and all bits selected (set to `1`) in `mask`
 	/// preserved.
-	#[inline]
 	fn get_bits(&self, mask: BitMask<Self::Mem>) -> Self::Mem {
 		self.load_value() & mask.value()
 	}
@@ -175,7 +174,6 @@ macro_rules! store {
 			#[cfg(not(feature = "atomic"))]
 			type Alias = $cw;
 
-			#[inline(always)]
 			fn load_value(&self) -> $t {
 				*self
 			}
@@ -197,7 +195,6 @@ macro_rules! store {
 			type Access = Cell<$t>;
 			type Alias = $cw;
 
-			#[inline(always)]
 			fn load_value(&self) -> $t {
 				self.load()
 			}
@@ -222,7 +219,6 @@ macro_rules! store {
 			type Access = $a;
 			type Alias = $aw;
 
-			#[inline(always)]
 			fn load_value(&self) -> $t {
 				self.load()
 			}
