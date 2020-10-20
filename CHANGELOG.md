@@ -739,8 +739,8 @@ GitHub user [@schomatis] for the report.
 
 ## 0.11.0
 
-This contains the last (planned) compiler version upgrade, to `1.34.0`, and the
-last major feature add before `1.0`: Serde-powered de/serialization.
+~~This contains the last (planned) compiler version upgrade, to `1.34.0`, and~~
+~~the last major feature add before `1.0`: Serde-powered de/serialization.~~
 
 Deserialization is not possible without access to an allocator, so it is behind
 a feature gate, `serde`, which depends on the `alloc` feature.
@@ -841,7 +841,7 @@ Thanks to GitHub user [@geq1t] for the report!
 
 This version was a complete rewrite of the entire crate. The minimum compiler
 version has been upgraded to `1.31.0`. The crate is written against the Rust
-2018 edition of the language. It will be a `1.0` release after polishing.
+2018 edition of the language. ~~It will be a `1.0` release after polishing.~~
 
 ### Added <!-- omit in toc -->
 
@@ -984,7 +984,7 @@ where A: Endian,
     D: Endian,
     E: Bits,
 {
-    fn eq(&self, rhs: E) { … }
+    fn eq(&self, rhs: C) { … }
 }
 ```
 
