@@ -381,37 +381,33 @@ project specifies an allocator.
 
 ## `atomic` Feature
 
-This feature selects atomic memory accesses for aliased memory, thus allowing
-safe concurrent multiprocessing. It is a default feature so that split
-[`BitSlice`]s are thread-safe by default, just as split integer slices are.
+This feature configures whether `bitvec` will attempt to use atomic instructions
+when accessing aliased memory addresses. For a given integer type `T`, if
+`bitvec` is able to use atomic instructions to access it, then
+[`&/mut BitSlice<O, T>`] references are safe to move across thread boundaries.
+If `bitvec` cannot use atomic instructions, either because this feature is
+disabled or because this feature is enabled but the target processor does not
+provide the necessary instructions, then `&/mut BitSlice<O, T>` references lose
+their ability to cross threads.
 
-You **must** disable this feature if your target processor is lacking any atomic
-types not wider than the processor word. For example, 32-bit targets may use the
-`"atomic"` feature even though they do not have [`AtomicU64`], but targets such
-as `riscv32imc-unknown-none-elf` must disable it entirely as they do not have
-even [`AtomicU8`]. To the author’s knowledge, there are no targets that have
-`AtomicU8` but not [`AtomicUsize`]. If you require more precise atomic control
-than merely “not wider than the processor word”, file an issue.
+`bitvec` uses the [`radium`] project to determine whether atomic instructions
+are available for a given integer type `T` on a target processor. The `"atomic"`
+feature does not **guarantee** atomicity; it can only **attempt** atomicity. If
+`radium` reports that a given integer cannot be accessed atomically on a target,
+then `bitvec` will fall back to non-atomic, non-threadsafe, behavior for that
+integer.
 
-Disabling this feature completely removes atomic instructions from the crate,
-even for targets that support them, and strictly uses [`Cell`] memory access.
+You may disable this feature to unconditionally use [`Cell`]-based memory access
+to aliased locations, thereby disabling multithreading support in
+[`&/mut BitSlice`] and ensuring that memory access always uses ordinary
+load/store instructions.
 
-`bitvec` is tested to build on all targets listed in its CI manifest. `bitvec`
-will likely work on targets that are not listed, but is not proäctively assured
-to do so. If you are building for a target that `bitvec` does not explicitly
-support, you may encounter [`radium`] errors that attempt to use certain
-`AtomicT` symbols that do not exist. In this event, please file an issue or a
-pull request with `radium` to update it for your target. I maintain both, and
-will update both `radium` and `bitvec` accordingly.
-
-> Note: see the documentation on [`BitSlice::split_at_mut`] and the [`domain`]
-> module for more information on how `bitvec` detects alias conditions and
-> manages thread safety.
-
-This is a default feature so that splitting a [`BitSlice`] still results in
-concurrency-safe behavior. If you do not need hardware concurrency, then you can
-disable this feature to remove the production of instructions that lock the
-memory bus during mutable access.
+Currently, the targets for which `bitvec` is tested have either no atomic
+instructions at all, or have atomic instructions available for all integer types
+that can be used as the `T` in a [`BitSlice<O, T>`]. `bitvec`’s encoding
+restrictions forbid the use of `u64` on targets with 32-bit processor words, so
+the 32-bit processors that have `AtomicU32` but not `AtomicU64` do not display
+aliasing behavior that varies by integer width.
 
 ## `serde` Feature
 
@@ -580,6 +576,7 @@ synchronization control.
 [`BitField`]: https://docs.rs/bitvec/latest/bitvec/fields/trait.BitField.html "BitField API reference"
 [`BitOrder`]: https://docs.rs/bitvec/latest/bitvec/order/trait.BitOrder.html "BitOrder API reference"
 [`BitSlice`]: https://docs.rs/bitvec/latest/bitvec/slice/struct.BitSlice.html "BitSlice API reference"
+[`BitSlice<O, T>`]: https://docs.rs/bitvec/latest/bitvec/slice/struct.BitSlice.html "BitSlice API reference"
 [`BitSlice::split_at_mut`]: https://docs.rs/bitvec/latest/bitvec/slice/struct.BitSlice.html#method.split_at_mut "BitSlice::split_at_mut API reference"
 [`BitStore`]: https://docs.rs/bitvec/latest/bitvec/store/trait.BitStore.html "BitStore API reference"
 [`BitVec`]: https://docs.rs/bitvec/latest/bitvec/vec/struct.BitVec.html "BitVec API reference"

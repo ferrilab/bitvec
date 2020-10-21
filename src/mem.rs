@@ -173,51 +173,26 @@ mod tests {
 	#[test]
 	fn integer_properties() {
 		assert_eq!(aligned_to_size::<u8>(), 0);
-		assert_eq!(aligned_to_size::<BitSafeCellU8>(), 0);
-		assert_eq!(cmp_layout::<u8, BitSafeCellU8>(), 0);
-		#[cfg(feature = "atomic")]
-		{
-			assert_eq!(aligned_to_size::<BitSafeAtomU8>(), 0);
-			assert_eq!(cmp_layout::<u8, BitSafeAtomU8>(), 0);
-		}
+		assert_eq!(aligned_to_size::<BitSafeU8>(), 0);
+		assert_eq!(cmp_layout::<u8, BitSafeU8>(), 0);
 
 		assert_eq!(aligned_to_size::<u16>(), 0);
-		assert_eq!(aligned_to_size::<BitSafeCellU16>(), 0);
-		assert_eq!(cmp_layout::<u16, BitSafeCellU16>(), 0);
-		#[cfg(feature = "atomic")]
-		{
-			assert_eq!(aligned_to_size::<BitSafeAtomU16>(), 0);
-			assert_eq!(cmp_layout::<u16, BitSafeAtomU16>(), 0);
-		}
+		assert_eq!(aligned_to_size::<BitSafeU16>(), 0);
+		assert_eq!(cmp_layout::<u16, BitSafeU16>(), 0);
 
 		assert_eq!(aligned_to_size::<u32>(), 0);
-		assert_eq!(aligned_to_size::<BitSafeCellU32>(), 0);
-		assert_eq!(cmp_layout::<u32, BitSafeCellU32>(), 0);
-		#[cfg(feature = "atomic")]
-		{
-			assert_eq!(aligned_to_size::<BitSafeAtomU32>(), 0);
-			assert_eq!(cmp_layout::<u32, BitSafeAtomU32>(), 0);
-		}
+		assert_eq!(aligned_to_size::<BitSafeU32>(), 0);
+		assert_eq!(cmp_layout::<u32, BitSafeU32>(), 0);
 
 		assert_eq!(aligned_to_size::<usize>(), 0);
-		assert_eq!(aligned_to_size::<BitSafeCellU64>(), 0);
-		assert_eq!(cmp_layout::<u64, BitSafeCellU64>(), 0);
-		#[cfg(feature = "atomic")]
-		{
-			assert_eq!(aligned_to_size::<BitSafeAtomU64>(), 0);
-			assert_eq!(cmp_layout::<u64, BitSafeAtomU64>(), 0);
-		}
+		assert_eq!(aligned_to_size::<BitSafeUsize>(), 0);
+		assert_eq!(cmp_layout::<usize, BitSafeUsize>(), 0);
 
 		#[cfg(target_pointer_width = "64")]
 		{
 			assert_eq!(aligned_to_size::<u64>(), 0);
-			assert_eq!(aligned_to_size::<BitSafeCellUsize>(), 0);
-			assert_eq!(cmp_layout::<usize, BitSafeCellUsize>(), 0);
-			#[cfg(feature = "atomic")]
-			{
-				assert_eq!(aligned_to_size::<BitSafeAtomUsize>(), 0);
-				assert_eq!(cmp_layout::<usize, BitSafeAtomUsize>(), 0);
-			}
+			assert_eq!(aligned_to_size::<BitSafeU64>(), 0);
+			assert_eq!(cmp_layout::<u64, BitSafeU64>(), 0);
 		}
 	}
 }

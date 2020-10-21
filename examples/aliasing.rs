@@ -43,7 +43,7 @@ taint to only the affected addresses.
 use bitvec::{
 	access::{
 		BitSafe,
-		BitSafeAtomU8,
+		BitSafeU8,
 	},
 	prelude::*,
 };
@@ -79,18 +79,18 @@ fn main() {
 
 	//  Now, like the wise Solomon, we are going to cut this slice in half.
 	let (left, right): (
-		&'static mut BitSlice<LocalBits, BitSafeAtomU8>,
-		&'static mut BitSlice<LocalBits, BitSafeAtomU8>,
+		&'static mut BitSlice<LocalBits, BitSafeU8>,
+		&'static mut BitSlice<LocalBits, BitSafeU8>,
 	) = bits.split_at_mut(bits.len() / 2);
 
 	/* If you look at the `.split_at_mut` docs, you’ll see that it returns a
 	slice typed as `&mut BitSlice<O, T::Alias>`. If you follow that into the
 	`BitStore` trait docs, you’ll see in the `u8` implementation that
-	`type Alias = BitSafeAtomU8;`. If you see `type Alias = BitSafeCellU8;`,
-	then this example won’t compile! Turn on `feature = "atomic"` in your build
+	`type Alias = BitSafeU8;`. If you see `type Alias = BitSafeCellU8;`, then
+	this example won’t compile! Turn on `feature = "atomic"` in your build
 	settings.
 
-	`BitSafeAtomU8` is *still `Send`*, so we can still move these slices across
+	`BitSafeU8` is *still `Send`*, so we can still move these slices across
 	threads!
 
 	`&mut BitSlice` implements `Not`, and it does so by writing batched masks to

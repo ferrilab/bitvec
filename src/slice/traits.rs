@@ -505,19 +505,62 @@ where
 	}
 }
 
+/** Conditionally mark `BitSlice` as `Send` based on its `T` type argument.
+
+In order for `BitSlice` to be `Send` (that is, `&mut BitSlice` can be moved
+across thread boundaries), it must be capable of writing to memory without
+invalidating any other `&BitSlice` handles that alias the same memory address.
+
+This is true when `T` is one of the fundamental integers, because no other
+`&BitSlice` handle is able to observe mutations, or when `T` is a `BitSafe` type
+that implements atomic read-modify-write instructions, because other `&BitSlice`
+types will be protected from data races by the hardware.
+
+When `T` is a non-atomic `BitSafe` type, `BitSlice` cannot be `Send`, because
+one `&mut BitSlice` moved across a thread boundary may cause mutation that
+another `&BitSlice` may observe, but the instructions used to access memory do
+not guard against data races.
+
+A `&mut BitSlice` over aliased memory addresses is equivalent to either a
+`&Cell` or `&AtomicT`, depending on what the [`radium`] crate makes available
+for the register width.
+
+[`radium`]: radium::types
+**/
 unsafe impl<O, T> Send for BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
-	T::Threadsafe: Send,
+	T: BitStore + Sync,
 {
 }
 
+/** Conditionally mark `BitSlice` as `Sync` based on its `T` type argument.
+
+In order for `BitSlice` to be `Sync` (that is, `&BitSlice` can be copied across
+thread boundaries), it must be capable of reading from memory without being
+invalidated by any other `&mut BitSlice` handles that alias the same memory
+address.
+
+This is true when `T` is one of the fundamental integers, because no other
+`&mut BitSlice` handle can exist to effect mutations, or when `T` is a `BitSafe`
+type that implements atomic read-modify-write instructions, because it will
+guard against other `&mut BitSlice` modifications in hardware.
+
+When `T` is a non-atomic `BitSafe` type, `BitSlice` cannot be `Sync`, because
+one `&BitSlice` moved across a thread boundary may read from memory that is
+modified by the originally-owning thread, but the instructions used to access
+memory do not guard against such data races.
+
+A `&BitSlice` over aliased memory addresses is equivalent to either a `&Cell`
+or `&AtomicT`, depending on what the [`radium`] crate makes available for the
+register width.
+
+[`radium`]: radium::types
+**/
 unsafe impl<O, T> Sync for BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitStore,
-	T::Threadsafe: Sync,
+	T: BitStore + Sync,
 {
 }
 

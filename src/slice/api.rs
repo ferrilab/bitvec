@@ -1970,11 +1970,11 @@ where
 	/// # API Differences
 	///
 	/// Type `U` is **required** to have the same [`BitStore`] type family as
-	/// type `T`. If `T` is a fundamental integer, so must `U` be; if `T` is a
-	/// [`BitSafeAtom`], so must `U`, and likewise for [`BitSafeCell`]. Changing
-	/// the type family with this method is **unsound** and strictly forbidden.
-	/// Unfortunately, this cannot be encoded in the type system, so you are
-	/// required to abide by this limitation yourself.
+	/// type `T`. If `T` is a fundamental integer, so must `U` be; if `T` is an
+	/// [`::Alias`] type, then so must `U`. Changing the type family with this
+	/// method is **unsound** and strictly forbidden. Unfortunately, this cannot
+	/// be encoded in the type system, so you are required to abide by this
+	/// limitation yourself.
 	///
 	/// # Implementation
 	///
@@ -2024,11 +2024,10 @@ where
 	/// ```
 	///
 	/// [mt]: core::mem::transmute
-	/// [`BitSafeAtom`]: crate::access::BitSafeAtomUsize
-	/// [`BitSafeCell`]: crate::access::BitSafeCellUsize
 	/// [`BitStore`]: crate::store::BitStore
 	/// [`Domain`]: crate::domain::Domain
 	/// [`slice::align_to`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.align_to
+	/// [`::Alias`]: crate::store::BitStore::Alias
 	#[cfg(not(tarpaulin_include))] // This is a typecast over `BitPtr::align_to`
 	pub unsafe fn align_to<U>(&self) -> (&Self, &BitSlice<O, U>, &Self)
 	where U: BitStore {
@@ -2050,11 +2049,11 @@ where
 	/// # API Differences
 	///
 	/// Type `U` is **required** to have the same [`BitStore`] type family as
-	/// type `T`. If `T` is a fundamental integer, so must `U` be; if `T` is a
-	/// [`BitSafeAtom`], so must `U`, and likewise for [`BitSafeCell`]. Changing
-	/// the type family with this method is **unsound** and strictly forbidden.
-	/// Unfortunately, this cannot be encoded in the type system, so you are
-	/// required to abide by this limitation yourself.
+	/// type `T`. If `T` is a fundamental integer, so must `U` be; if `T` is an
+	/// [`::Alias`] type, then so must `U`. Changing the type family with this
+	/// method is **unsound** and strictly forbidden. Unfortunately, this cannot
+	/// be encoded in the type system, so you are required to abide by this
+	/// limitation yourself.
 	///
 	/// # Implementation
 	///
@@ -2095,11 +2094,10 @@ where
 	/// ```
 	///
 	/// [mt]: core::mem::transmute
-	/// [`BitSafeAtom`]: crate::access::BitSafeAtomUsize
-	/// [`BitSafeCell`]: crate::access::BitSafeCellUsize
 	/// [`BitStore`]: crate::store::BitStore
 	/// [`DomainMut`]: crate::domain::DomainMut
 	/// [`slice::align_to_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.align_to_mut
+	/// [`::Alias`]: crate::store::BitStore::Alias
 	#[cfg(not(tarpaulin_include))] // This is a typecast over `BitPtr::align_to`
 	pub unsafe fn align_to_mut<U>(
 		&mut self,
