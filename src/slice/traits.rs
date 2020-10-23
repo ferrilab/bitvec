@@ -386,7 +386,9 @@ macro_rules! fmt {
 				Rust does not yet grant access to trait constants for use in
 				constant expressions within generics.
 				*/
-				const W: usize = <usize as BitMemory>::BITS as usize / $blksz;
+				const D: usize = <usize as BitMemory>::BITS as usize / $blksz;
+				const M: usize = <usize as BitMemory>::BITS as usize % $blksz;
+				const W: usize = D + M;
 				let mut w: [u8; W + 2] = [b'0'; W + 2];
 				//  Write the prefix symbol into the buffer.
 				w[1] = $pfx;
@@ -408,8 +410,7 @@ macro_rules! fmt {
 					The enumeration provides the offset from the buffer start
 					for writing the computed digit into the text accumulator.
 					*/
-					for (index, chunk) in bits.rchunks($blksz).rev().enumerate()
-					{
+					for chunk in bits.rchunks($blksz).rev() {
 						/* Copy the bits of the slice into the temporary, in
 						Msb0 order, at the LSedge of the temporary. This will
 						translate the bit sequence into the binary digit that
@@ -425,7 +426,7 @@ macro_rules! fmt {
 						ASCII hexadecimal glyph, and write the glyph into the
 						text accumulator.
 						*/
-						w[2 + index] = match val {
+						w[end] = match val {
 							v @ 0 ..= 9 => b'0' + v,
 							v @ 10 ..= 16 => $base + (v - 10),
 							_ => unsafe { core::hint::unreachable_unchecked() },
