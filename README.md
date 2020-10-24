@@ -109,7 +109,7 @@ provides the best analogue that Rust can offer.
 
 # Usage
 
-**Minimum Supported Rust Version:** `1.44.0`
+**Minimum Supported Rust Version:** `1.47.0`
 
 `bitvec` does not have a firm MSRV policy. The MSRV is advanced as needed to
 simplify the library’s ongoing development. `bitvec` tracks the evolution of the
@@ -123,7 +123,7 @@ To use `bitvec`, depend on it in your Cargo manifest:
 # Cargo.toml
 
 [dependencies]
-bitvec = "0.19"
+bitvec = "0.20"
 ```
 
 and import its prelude into any module that needs it:
@@ -357,7 +357,7 @@ its manifest looks like this:
 # Your Cargo.toml
 
 [dependencies.bitvec]
-version = "0.19"
+version = "0.20"
 features = [
   "alloc",
   "atomic",

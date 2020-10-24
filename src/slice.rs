@@ -1661,8 +1661,11 @@ where
 	/// bit position of their heads, then computes the shift distance, in bits,
 	/// between them.
 	///
-	/// This computation presumes that the bits are counted in the same
-	/// direction as are bytes in the abstract memory map.
+	/// This computation uses the [`Lsb0`] ordering to count positions: the
+	/// distance from the most significant bit of one element to the least
+	/// significant bit of the next element higher is 1, and the distance from
+	/// the least significant element of one element to the most significant bit
+	/// of the next element lower is -1.
 	///
 	/// # Parameters
 	///
@@ -1674,7 +1677,27 @@ where
 	///
 	/// The electrical bit distance between the heads of `self` and `other`.
 	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let data = [0u8; 2];
+	/// let lsb0 = data.view_bits::<Lsb0>();
+	/// let msb0 = data.view_bits::<Msb0>();
+	///
+	/// // Lsb0 [ 7 6 5 4 3 2 1 0 ] [ f e d c b a 9 8 ]
+	/// // Msb0 [ 0 1 2 3 4 5 6 7 ] [ 8 9 a b c d e f ]
+	/// //        ^ MSbit       ^ LSbit
+	/// //      ^ address `n`       ^ address `n + 1`
+	/// assert_eq!(msb0[0 ..].electrical_distance(&msb0[15 ..]), 1);
+	/// assert_eq!(msb0[15 ..].electrical_distance(&msb0[0 ..]), -1);
+	/// assert_eq!(lsb0[7 ..].electrical_distance(&lsb0[8 ..]), 1);
+	/// assert_eq!(lsb0[8 ..].electrical_distance(&lsb0[7 ..]), -1);
+	/// ```
+	///
 	/// [`BitOrder`]: crate::order::BitOrder
+	/// [`Lsb0`]: crate::order::Lsb0
 	pub fn electrical_distance(&self, other: &Self) -> isize {
 		let this = self.bitptr();
 		let that = other.bitptr();
@@ -2091,13 +2114,17 @@ where
 	///
 	/// [`BitVec`]: crate::vec::BitVec
 	pub fn to_bitvec(&self) -> BitVec<O, T::Mem> {
-		let vec: alloc::vec::Vec<_> =
-			self.as_slice().iter().map(BitStore::load_value).collect();
-		let mut bitptr = self.bitptr();
-		unsafe {
-			bitptr.set_pointer(vec.as_ptr() as *const T);
-		}
-		let ptr = bitptr.to_bitslice_ptr_mut();
+		use tap::tap::Tap;
+		let vec = alloc::vec::Vec::with_capacity(self.bitptr().elements())
+			.tap_mut(|vec| {
+				vec.extend(self.as_slice().iter().map(BitStore::load_value))
+			});
+		let ptr = self
+			.bitptr()
+			.tap_mut(|bp| unsafe {
+				bp.set_pointer(vec.as_ptr() as *const T);
+			})
+			.to_bitslice_ptr_mut();
 		let capa = vec.capacity();
 		core::mem::forget(vec);
 		unsafe { BitVec::from_raw_parts(ptr as *mut BitSlice<O, T::Mem>, capa) }

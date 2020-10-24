@@ -1274,16 +1274,9 @@ where
 	///    is in its element. `A.ptr_diff(B)` thus produces negative element and
 	///    bit distances: `(-1, -5)`.
 	pub(crate) unsafe fn ptr_diff(&self, other: &Self) -> (isize, i8) {
-		let self_ptr = self.pointer();
-		let other_ptr = other.pointer();
-		//  FIXME(myrrlyn): `core::ptr::offset_from` stabilizes in 1.47.
-		//  let elts = other_ptr.to_const().offset_from(self_ptr.to_const());
-		let elts = other_ptr
-			.value()
-			.wrapping_sub(self_ptr.value())
-			//  Pointers are byte-addressed, so remember to divide the byte
-			//  distance by the element width.
-			.wrapping_div(core::mem::size_of::<T>()) as isize;
+		let self_ptr = self.pointer().to_const();
+		let other_ptr = other.pointer().to_const();
+		let elts = other_ptr.offset_from(self_ptr);
 		let bits = other.head().value() as i8 - self.head().value() as i8;
 		(elts, bits)
 	}
