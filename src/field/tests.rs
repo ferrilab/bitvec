@@ -1,6 +1,7 @@
 //! Tests for the `field` module.
 
 use super::*;
+use crate::prelude::*;
 
 #[test]
 fn get_value() {
@@ -101,4 +102,31 @@ fn wide_load() {
 #[cfg(not(target_arch = "riscv64"))]
 fn check_panic() {
 	check::<u8>("fail", 10);
+}
+
+#[test]
+#[cfg(feature = "alloc")]
+fn wrappers() {
+	let mut a = bitarr![Msb0, u8; 0; 8];
+	let b = bits![1; 8];
+	let mut c = bitbox![0; 8];
+	let mut d = bitvec![0; 8];
+
+	a.store_le::<u8>(b.load_le::<u8>());
+	a.store_be::<u8>(b.load_be::<u8>());
+	assert_eq!(a[.. 8], b);
+	assert_eq!(a.load_le::<u8>(), !0);
+	assert_eq!(a.load_be::<u8>(), !0);
+
+	c.store_le::<u8>(b.load_le::<u8>());
+	c.store_be::<u8>(b.load_be::<u8>());
+	assert_eq!(c, b);
+	assert_eq!(c.load_le::<u8>(), !0);
+	assert_eq!(c.load_be::<u8>(), !0);
+
+	d.store_le::<u8>(b.load_le::<u8>());
+	d.store_be::<u8>(b.load_be::<u8>());
+	assert_eq!(d, b);
+	assert_eq!(d.load_le::<u8>(), !0);
+	assert_eq!(d.load_be::<u8>(), !0);
 }

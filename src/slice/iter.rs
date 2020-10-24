@@ -26,6 +26,32 @@ use core::{
 	ptr::NonNull,
 };
 
+impl<'a, O, T> IntoIterator for &'a BitSlice<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	type IntoIter = Iter<'a, O, T>;
+	type Item = <Self::IntoIter as Iterator>::Item;
+
+	fn into_iter(self) -> Self::IntoIter {
+		Iter::new(self)
+	}
+}
+
+impl<'a, O, T> IntoIterator for &'a mut BitSlice<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	type IntoIter = IterMut<'a, O, T>;
+	type Item = <Self::IntoIter as Iterator>::Item;
+
+	fn into_iter(self) -> Self::IntoIter {
+		IterMut::new(self)
+	}
+}
+
 /** Immutable [`BitSlice`] iterator.
 
 This struct is created by the [`.iter()`] method on [`BitSlice`]s.
@@ -86,49 +112,6 @@ where
 	_ref: PhantomData<&'a BitSlice<O, T>>,
 }
 
-/** Mutable [`BitSlice`] iterator.
-
-This struct is created by the [`.iter_mut()`] method on [`BitSlice`]s.
-
-# Original
-
-[`slice::IterMut`](crate::slice::IterMut)
-
-# Examples
-
-Basic usage:
-
-```rust
-use bitvec::prelude::*;
-
-let bits = bits![mut 0; 2];
-for mut bit in bits.iter_mut() {
-  *bit = true;
-}
-assert_eq!(bits, bits![1; 2]);
-```
-
-[`BitSlice`]: crate::slice::BitSlice
-[`.iter_mut()`]: crate::slice::BitSlice::iter_mut
-**/
-#[repr(C)]
-pub struct IterMut<'a, O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	/// Address of the element with the first live bit.
-	base: NonNull<<T::Alias as BitStore>::Access>,
-	/// Address of the element with the first dead bit. See `Iter.last`.
-	last: NonNull<<T::Alias as BitStore>::Access>,
-	/// Index of the first live bit in `*base`.
-	head: BitIdx<<T::Alias as BitStore>::Mem>,
-	/// Index of the first dead bit in `*last`. See `Iter.tail`.
-	tail: BitIdx<<T::Alias as BitStore>::Mem>,
-	/// `IterMut` is semantically an aliasing `&mut BitSlice`.
-	_ref: PhantomData<&'a mut BitSlice<O, T::Alias>>,
-}
-
 impl<'a, O, T> Iter<'a, O, T>
 where
 	O: BitOrder,
@@ -142,6 +125,24 @@ where
 		tail: BitIdx::ZERO,
 		_ref: PhantomData,
 	};
+
+	/// Constructs a new slice iterator from a slice reference.
+	fn new(slice: &'a BitSlice<O, T>) -> Self {
+		let (addr, head, bits) = slice.bitptr().raw_parts();
+		let addr = addr.to_mut();
+		let base = unsafe { NonNull::new_unchecked(addr) };
+
+		let (elts, tail) = head.offset(bits as isize);
+		let last = unsafe { NonNull::new_unchecked(addr.offset(elts)) };
+
+		Self {
+			base,
+			last,
+			head,
+			tail,
+			_ref: PhantomData,
+		}
+	}
 
 	/// Views the underlying data as a subslice of the original data.
 	///
@@ -196,7 +197,6 @@ where
 	the underlying `[T]` storage slice.
 	*/
 	#[doc(hidden)]
-	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.as_bitslice()` to view the underlying slice"]
 	pub fn as_slice(&self) -> &'a BitSlice<O, T> {
 		self.as_bitslice()
@@ -226,25 +226,102 @@ where
 		}
 	}
 
-	#[cfg(not(tarpaulin_include))]
 	fn get_base(&self) -> *const T {
 		self.base.as_ptr() as *const T
 	}
 
-	#[cfg(not(tarpaulin_include))]
 	fn get_last(&self) -> *const T {
 		self.last.as_ptr() as *const T
 	}
 
-	#[cfg(not(tarpaulin_include))]
 	fn set_base(&mut self, base: *const T) {
 		self.base = unsafe { NonNull::new_unchecked(base as *mut T) }
 	}
 
-	#[cfg(not(tarpaulin_include))]
 	fn set_last(&mut self, last: *const T) {
 		self.last = unsafe { NonNull::new_unchecked(last as *mut T) }
 	}
+}
+
+impl<O, T> Clone for Iter<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	fn clone(&self) -> Self {
+		*self
+	}
+}
+
+impl<O, T> AsRef<BitSlice<O, T>> for Iter<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	fn as_ref(&self) -> &BitSlice<O, T> {
+		self.as_bitslice()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<O, T> Debug for Iter<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		fmt.debug_tuple("Iter").field(&self.as_bitslice()).finish()
+	}
+}
+
+impl<O, T> Copy for Iter<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
+
+/** Mutable [`BitSlice`] iterator.
+
+This struct is created by the [`.iter_mut()`] method on [`BitSlice`]s.
+
+# Original
+
+[`slice::IterMut`](crate::slice::IterMut)
+
+# Examples
+
+Basic usage:
+
+```rust
+use bitvec::prelude::*;
+
+let bits = bits![mut 0; 2];
+for mut bit in bits.iter_mut() {
+  *bit = true;
+}
+assert_eq!(bits, bits![1; 2]);
+```
+
+[`BitSlice`]: crate::slice::BitSlice
+[`.iter_mut()`]: crate::slice::BitSlice::iter_mut
+**/
+#[repr(C)]
+pub struct IterMut<'a, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	/// Address of the element with the first live bit.
+	base: NonNull<<T::Alias as BitStore>::Access>,
+	/// Address of the element with the first dead bit. See `Iter.last`.
+	last: NonNull<<T::Alias as BitStore>::Access>,
+	/// Index of the first live bit in `*base`.
+	head: BitIdx<<T::Alias as BitStore>::Mem>,
+	/// Index of the first dead bit in `*last`. See `Iter.tail`.
+	tail: BitIdx<<T::Alias as BitStore>::Mem>,
+	/// `IterMut` is semantically an aliasing `&mut BitSlice`.
+	_ref: PhantomData<&'a mut BitSlice<O, T::Alias>>,
 }
 
 impl<'a, O, T> IterMut<'a, O, T>
@@ -260,6 +337,26 @@ where
 		tail: BitIdx::ZERO,
 		_ref: PhantomData,
 	};
+
+	/// Constructs a new slice mutable iterator from a slice reference.
+	fn new(slice: &'a mut BitSlice<O, T>) -> Self {
+		let (addr, head, bits) = slice.alias().bitptr().raw_parts();
+
+		let addr = addr.to_access()
+			as *mut <<T as BitStore>::Alias as BitStore>::Access;
+		let base = unsafe { NonNull::new_unchecked(addr) };
+
+		let (elts, tail) = head.offset(bits as isize);
+		let last = unsafe { NonNull::new_unchecked(addr.offset(elts)) };
+
+		Self {
+			base,
+			last,
+			head,
+			tail,
+			_ref: PhantomData,
+		}
+	}
 
 	/// Views the underlying data as a subslice of the original data.
 	///
@@ -330,15 +427,13 @@ where
 	the underlying `[T]` storage slice.
 	*/
 	#[doc(hidden)]
-	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.into_bitslice()` to view the underlying slice"]
 	pub fn into_slice(self) -> &'a mut BitSlice<O, T::Alias> {
 		self.into_bitslice()
 	}
 
 	/// Used only for `Debug` printing.
-	#[cfg(not(tarpaulin_include))]
-	fn as_bitslice(&self) -> &BitSlice<O, T::Alias> {
+	pub(super) fn as_bitslice(&self) -> &BitSlice<O, T::Alias> {
 		unsafe { core::ptr::read(self) }.into_bitslice()
 	}
 
@@ -363,65 +458,21 @@ where
 		unsafe { BitMut::new_unchecked(self.last.as_ptr(), self.tail) }
 	}
 
-	#[cfg(not(tarpaulin_include))]
 	fn get_base(&self) -> *mut <T::Alias as BitStore>::Access {
 		self.base.as_ptr()
 	}
 
-	#[cfg(not(tarpaulin_include))]
 	fn get_last(&self) -> *mut <T::Alias as BitStore>::Access {
 		self.last.as_ptr()
 	}
 
-	#[cfg(not(tarpaulin_include))]
 	fn set_base(&mut self, base: *mut <T::Alias as BitStore>::Access) {
 		self.base = unsafe { NonNull::new_unchecked(base) }
 	}
 
-	#[cfg(not(tarpaulin_include))]
 	fn set_last(&mut self, last: *mut <T::Alias as BitStore>::Access) {
 		self.last = unsafe { NonNull::new_unchecked(last) }
 	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<O, T> Clone for Iter<'_, O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn clone(&self) -> Self {
-		*self
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<O, T> AsRef<BitSlice<O, T>> for Iter<'_, O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn as_ref(&self) -> &BitSlice<O, T> {
-		self.as_bitslice()
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<O, T> Debug for Iter<'_, O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		fmt.debug_tuple("Iter").field(&self.as_bitslice()).finish()
-	}
-}
-
-impl<O, T> Copy for Iter<'_, O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
 }
 
 #[cfg(not(tarpaulin_include))]
@@ -434,60 +485,6 @@ where
 		fmt.debug_tuple("IterMut")
 			.field(&self.as_bitslice())
 			.finish()
-	}
-}
-
-impl<'a, O, T> IntoIterator for &'a BitSlice<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	type IntoIter = Iter<'a, O, T>;
-	type Item = <Self::IntoIter as Iterator>::Item;
-
-	fn into_iter(self) -> Self::IntoIter {
-		let (addr, head, bits) = self.bitptr().raw_parts();
-		let addr = addr.to_mut();
-		let base = unsafe { NonNull::new_unchecked(addr) };
-
-		let (elts, tail) = head.offset(bits as isize);
-		let last = unsafe { NonNull::new_unchecked(addr.offset(elts)) };
-
-		Self::IntoIter {
-			base,
-			last,
-			head,
-			tail,
-			_ref: PhantomData,
-		}
-	}
-}
-
-impl<'a, O, T> IntoIterator for &'a mut BitSlice<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	type IntoIter = IterMut<'a, O, T>;
-	type Item = <Self::IntoIter as Iterator>::Item;
-
-	fn into_iter(self) -> Self::IntoIter {
-		let (addr, head, bits) = self.alias().bitptr().raw_parts();
-
-		let addr = addr.to_access()
-			as *mut <<T as BitStore>::Alias as BitStore>::Access;
-		let base = unsafe { NonNull::new_unchecked(addr) };
-
-		let (elts, tail) = head.offset(bits as isize);
-		let last = unsafe { NonNull::new_unchecked(addr.offset(elts)) };
-
-		Self::IntoIter {
-			base,
-			last,
-			head,
-			tail,
-			_ref: PhantomData,
-		}
 	}
 }
 
@@ -2330,7 +2327,7 @@ This struct is created by the [`.iter_ones()`] method on [`BitSlice`]s.
 [`BitSlice`]: crate::slice::BitSlice
 [`.iter_ones()`]: crate::slice::BitSlice::iter_ones
 **/
-#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct IterOnes<'a, O, T>
 where
 	O: BitOrder,
@@ -2338,8 +2335,6 @@ where
 {
 	/// The remaining slice whose `1` bits are to be found.
 	inner: &'a BitSlice<O, T>,
-	/// The number of `1` bits remaining in `inner`.
-	count: usize,
 	/// The offset from the front of the original slice to current `inner`.
 	front: usize,
 }
@@ -2349,20 +2344,22 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[cfg(not(tarpaulin_include))]
-	fn empty() -> Self {
+	pub(crate) fn new(slice: &'a BitSlice<O, T>) -> Self {
 		Self {
-			inner: BitSlice::empty(),
-			count: 0,
+			inner: slice,
 			front: 0,
 		}
 	}
+}
 
-	pub(crate) fn new(slice: &'a BitSlice<O, T>) -> Self {
-		let count = slice.count_ones();
+impl<O, T> Default for IterOnes<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	fn default() -> Self {
 		Self {
-			inner: slice,
-			count,
+			inner: Default::default(),
 			front: 0,
 		}
 	}
@@ -2376,39 +2373,33 @@ where
 	type Item = usize;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		if self.count == 0 {
-			return None;
-		}
 		match self.inner.iter().copied().position(|b| b) {
 			Some(n) => {
 				//  Split on the far side of the found index. This is always
 				//  safe, as split(len) yields (self, empty).
 				let (_, rest) = unsafe { self.inner.split_at_unchecked(n + 1) };
 				self.inner = rest;
-				self.count -= 1;
 				let out = self.front + n;
 				//  Search resumes from the next index after the found.
 				self.front = out + 1;
 				Some(out)
 			},
 			None => {
-				*self = Self::empty();
+				*self = Default::default();
 				None
 			},
 		}
 	}
 
-	#[cfg(not(tarpaulin_include))]
 	fn size_hint(&self) -> (usize, Option<usize>) {
-		(self.count, Some(self.count))
+		let len = self.len();
+		(len, Some(len))
 	}
 
-	#[cfg(not(tarpaulin_include))]
 	fn count(self) -> usize {
-		self.count
+		self.len()
 	}
 
-	#[cfg(not(tarpaulin_include))]
 	fn last(mut self) -> Option<Self::Item> {
 		self.next_back()
 	}
@@ -2420,32 +2411,27 @@ where
 	T: BitStore,
 {
 	fn next_back(&mut self) -> Option<Self::Item> {
-		if self.count == 0 {
-			return None;
-		}
 		match self.inner.iter().copied().rposition(|b| b) {
 			Some(n) => {
 				let (rest, _) = unsafe { self.inner.split_at_unchecked(n) };
 				self.inner = rest;
-				self.count -= 1;
 				Some(self.front + n)
 			},
 			None => {
-				*self = Self::empty();
+				*self = Default::default();
 				None
 			},
 		}
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> ExactSizeIterator for IterOnes<'_, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
 	fn len(&self) -> usize {
-		self.count
+		self.inner.count_ones()
 	}
 }
 
@@ -2463,7 +2449,7 @@ This struct is created by the [`.iter_zeros()`] method on [`BitSlice`]s.
 [`BitSlice`]: crate::slice::BitSlice
 [`.iter_zeros()`]: crate::slice::BitSlice::iter_zeros
 **/
-#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct IterZeros<'a, O, T>
 where
 	O: BitOrder,
@@ -2471,8 +2457,6 @@ where
 {
 	/// The remaining slice whose `0` bits are to be found.
 	inner: &'a BitSlice<O, T>,
-	/// The number of `0` bits remaining in `inner`.
-	count: usize,
 	/// The offset from the front of the original slice to current `inner`.
 	front: usize,
 }
@@ -2482,20 +2466,22 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[cfg(not(tarpaulin_include))]
-	fn empty() -> Self {
+	pub(crate) fn new(slice: &'a BitSlice<O, T>) -> Self {
 		Self {
-			inner: BitSlice::empty(),
-			count: 0,
+			inner: slice,
 			front: 0,
 		}
 	}
+}
 
-	pub(crate) fn new(slice: &'a BitSlice<O, T>) -> Self {
-		let count = slice.count_zeros();
+impl<O, T> Default for IterZeros<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	fn default() -> Self {
 		Self {
-			inner: slice,
-			count,
+			inner: Default::default(),
 			front: 0,
 		}
 	}
@@ -2509,31 +2495,28 @@ where
 	type Item = usize;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		if self.count == 0 {
-			return None;
-		}
 		match self.inner.iter().copied().position(|b| !b) {
 			Some(n) => {
 				let (_, rest) = unsafe { self.inner.split_at_unchecked(n + 1) };
 				self.inner = rest;
-				self.count -= 1;
 				let out = self.front + n;
 				self.front = out + 1;
 				Some(out)
 			},
 			None => {
-				*self = Self::empty();
+				*self = Default::default();
 				None
 			},
 		}
 	}
 
 	fn size_hint(&self) -> (usize, Option<usize>) {
-		(self.count, Some(self.count))
+		let len = self.len();
+		(len, Some(len))
 	}
 
 	fn count(self) -> usize {
-		self.count
+		self.len()
 	}
 
 	fn last(mut self) -> Option<Self::Item> {
@@ -2547,33 +2530,27 @@ where
 	T: BitStore,
 {
 	fn next_back(&mut self) -> Option<Self::Item> {
-		if self.count == 0 {
-			return None;
-		}
 		match self.inner.iter().copied().rposition(|b| !b) {
 			Some(n) => {
 				let (rest, _) = unsafe { self.inner.split_at_unchecked(n) };
 				self.inner = rest;
-				self.count -= 1;
 				Some(self.front + n)
 			},
 			None => {
-				self.inner = BitSlice::empty();
-				self.count = 0;
+				*self = Default::default();
 				None
 			},
 		}
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> ExactSizeIterator for IterZeros<'_, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
 	fn len(&self) -> usize {
-		self.count
+		self.inner.count_zeros()
 	}
 }
 
@@ -2798,244 +2775,4 @@ noalias! {
 	RSplitNMut (P) => &'a mut BitSlice<O, T::Alias>
 	=> RSplitNMutNoAlias => &'a mut BitSlice<O, T>
 	=> BitSlice::unalias_mut;
-}
-
-#[cfg(test)]
-mod tests {
-	use crate::prelude::*;
-
-	#[test]
-	fn iter() {
-		let bits = bits![Lsb0, u8; 0, 1, 1, 0, 1, 0, 0, 1];
-		let mut iter = bits.iter();
-
-		assert_eq!(iter.as_bitslice(), bits);
-		assert_eq!(iter.next(), Some(&false));
-		assert_eq!(iter.as_bitslice(), &bits[1 ..]);
-		assert_eq!(iter.next(), Some(&true));
-
-		assert_eq!(iter.as_bitslice(), &bits[2 ..]);
-		assert_eq!(iter.next_back(), Some(&true));
-		assert_eq!(iter.as_bitslice(), &bits[2 .. 7]);
-		assert_eq!(iter.next_back(), Some(&false));
-
-		assert_eq!(iter.as_bitslice(), &bits[2 .. 6]);
-		assert_eq!(iter.next(), Some(&true));
-		assert_eq!(iter.as_bitslice(), &bits[3 .. 6]);
-		assert_eq!(iter.next(), Some(&false));
-
-		assert_eq!(iter.as_bitslice(), &bits[4 .. 6]);
-		assert_eq!(iter.next_back(), Some(&false));
-		assert_eq!(iter.as_bitslice(), &bits[4 .. 5]);
-
-		assert_eq!(iter.next_back(), Some(&true));
-		assert!(iter.as_bitslice().is_empty());
-		assert!(iter.next().is_none());
-		assert!(iter.next_back().is_none());
-	}
-
-	#[test]
-	fn iter_mut() {
-		let bits = bits![mut Msb0, u8; 0, 1, 1, 0, 1, 0, 0, 1];
-		let mut iter = bits.iter_mut();
-
-		*iter.next().unwrap() = true;
-		*iter.nth_back(1).unwrap() = true;
-		*iter.nth(2).unwrap() = true;
-		*iter.next_back().unwrap() = true;
-
-		assert_eq!(iter.into_bitslice().bitptr(), bits[4 .. 5].bitptr());
-	}
-
-	#[test]
-	fn windows() {
-		let bits = bits![LocalBits, u8; 0; 8];
-
-		let mut windows = bits.windows(5);
-		assert_eq!(windows.next().unwrap().bitptr(), bits[.. 5].bitptr());
-		assert_eq!(windows.next_back().unwrap().bitptr(), bits[3 ..].bitptr());
-
-		let mut windows = bits.windows(3);
-		assert_eq!(windows.nth(2).unwrap().bitptr(), bits[2 .. 5].bitptr());
-		assert_eq!(windows.nth_back(2).unwrap().bitptr(), bits[3 .. 6].bitptr());
-		assert!(windows.next().is_none());
-		assert!(windows.next_back().is_none());
-		assert!(windows.nth(1).is_none());
-		assert!(windows.nth_back(1).is_none());
-	}
-
-	#[test]
-	fn chunks() {
-		let bits = bits![Lsb0, u16; 0; 16];
-
-		let mut chunks = bits.chunks(5);
-		assert_eq!(chunks.next().unwrap().bitptr(), bits[.. 5].bitptr());
-		assert_eq!(chunks.next_back().unwrap().bitptr(), bits[15 ..].bitptr());
-
-		let mut chunks = bits.chunks(3);
-		assert_eq!(chunks.nth(2).unwrap().bitptr(), bits[6 .. 9].bitptr());
-		assert_eq!(chunks.nth_back(2).unwrap().bitptr(), bits[9 .. 12].bitptr());
-	}
-
-	#[test]
-	fn chunks_mut() {
-		let bits = bits![mut Msb0, u16; 0; 16];
-
-		let (one, two, three, four) = (
-			bits[.. 5].bitptr(),
-			bits[15 ..].bitptr(),
-			bits[6 .. 9].bitptr(),
-			bits[9 .. 12].bitptr(),
-		);
-
-		let mut chunks = bits.chunks_mut(5);
-		assert_eq!(chunks.next().unwrap().bitptr(), one);
-		assert_eq!(chunks.next_back().unwrap().bitptr(), two);
-
-		let mut chunks = bits.chunks_mut(3);
-		assert_eq!(chunks.nth(2).unwrap().bitptr(), three);
-		assert_eq!(chunks.nth_back(2).unwrap().bitptr(), four);
-	}
-
-	#[test]
-	fn chunks_exact() {
-		let bits = bits![Lsb0, u32; 0; 32];
-
-		let mut chunks = bits.chunks_exact(5);
-		assert_eq!(chunks.remainder().bitptr(), bits[30 ..].bitptr());
-		assert_eq!(chunks.next().unwrap().bitptr(), bits[.. 5].bitptr());
-		assert_eq!(
-			chunks.next_back().unwrap().bitptr(),
-			bits[25 .. 30].bitptr(),
-		);
-		assert_eq!(chunks.nth(1).unwrap().bitptr(), bits[10 .. 15].bitptr());
-		assert_eq!(
-			chunks.nth_back(1).unwrap().bitptr(),
-			bits[15 .. 20].bitptr(),
-		);
-
-		assert!(chunks.next().is_none());
-		assert!(chunks.next_back().is_none());
-		assert!(chunks.nth(1).is_none());
-		assert!(chunks.nth_back(1).is_none());
-	}
-
-	#[test]
-	fn chunks_exact_mut() {
-		let bits = bits![mut Msb0, u32; 0; 32];
-
-		let (one, two, three, four, rest) = (
-			bits[.. 5].bitptr(),
-			bits[10 .. 15].bitptr(),
-			bits[15 .. 20].bitptr(),
-			bits[25 .. 30].bitptr(),
-			bits[30 ..].bitptr(),
-		);
-
-		let mut chunks = bits.chunks_exact_mut(5);
-		assert_eq!(chunks.next().unwrap().bitptr(), one);
-		assert_eq!(chunks.next_back().unwrap().bitptr(), four);
-		assert_eq!(chunks.nth(1).unwrap().bitptr(), two);
-		assert_eq!(chunks.nth_back(1).unwrap().bitptr(), three);
-
-		assert!(chunks.next().is_none());
-		assert!(chunks.next_back().is_none());
-		assert!(chunks.nth(1).is_none());
-		assert!(chunks.nth_back(1).is_none());
-
-		assert_eq!(chunks.into_remainder().bitptr(), rest);
-	}
-
-	#[test]
-	fn rchunks() {
-		let bits = bits![Lsb0, u16; 0; 16];
-
-		let mut rchunks = bits.rchunks(5);
-		assert_eq!(rchunks.next().unwrap().bitptr(), bits[11 ..].bitptr());
-		assert_eq!(rchunks.next_back().unwrap().bitptr(), bits[.. 1].bitptr());
-
-		let mut rchunks = bits.rchunks(3);
-		assert_eq!(rchunks.nth(2).unwrap().bitptr(), bits[7 .. 10].bitptr());
-		assert_eq!(rchunks.nth_back(2).unwrap().bitptr(), bits[4 .. 7].bitptr());
-	}
-
-	#[test]
-	fn rchunks_mut() {
-		let bits = bits![mut Msb0, u16; 0; 16];
-
-		let (one, two, three, four) = (
-			bits[11 ..].bitptr(),
-			bits[.. 1].bitptr(),
-			bits[7 .. 10].bitptr(),
-			bits[4 .. 7].bitptr(),
-		);
-
-		let mut rchunks = bits.rchunks_mut(5);
-		assert_eq!(rchunks.next().unwrap().bitptr(), one);
-		assert_eq!(rchunks.next_back().unwrap().bitptr(), two);
-
-		let mut rchunks = bits.rchunks_mut(3);
-		assert_eq!(rchunks.nth(2).unwrap().bitptr(), three);
-		assert_eq!(rchunks.nth_back(2).unwrap().bitptr(), four);
-	}
-
-	#[test]
-	fn rchunks_exact() {
-		let bits = bits![Lsb0, u32; 0; 32];
-
-		let mut rchunks = bits.rchunks_exact(5);
-		assert_eq!(rchunks.remainder().bitptr(), bits[.. 2].bitptr());
-		assert_eq!(rchunks.next().unwrap().bitptr(), bits[27 ..].bitptr());
-		assert_eq!(rchunks.next_back().unwrap().bitptr(), bits[2 .. 7].bitptr(),);
-		assert_eq!(rchunks.nth(1).unwrap().bitptr(), bits[17 .. 22].bitptr());
-		assert_eq!(
-			rchunks.nth_back(1).unwrap().bitptr(),
-			bits[12 .. 17].bitptr(),
-		);
-
-		assert!(rchunks.next().is_none());
-		assert!(rchunks.next_back().is_none());
-		assert!(rchunks.nth(1).is_none());
-		assert!(rchunks.nth_back(1).is_none());
-	}
-
-	#[test]
-	fn rchunks_exact_mut() {
-		let bits = bits![mut Msb0, u32; 0; 32];
-
-		let (rest, one, two, three, four) = (
-			bits[.. 2].bitptr(),
-			bits[2 .. 7].bitptr(),
-			bits[12 .. 17].bitptr(),
-			bits[17 .. 22].bitptr(),
-			bits[27 ..].bitptr(),
-		);
-
-		let mut rchunks = bits.rchunks_exact_mut(5);
-		assert_eq!(rchunks.next().unwrap().bitptr(), four);
-		assert_eq!(rchunks.next_back().unwrap().bitptr(), one);
-		assert_eq!(rchunks.nth(1).unwrap().bitptr(), three);
-		assert_eq!(rchunks.nth_back(1).unwrap().bitptr(), two);
-
-		assert!(rchunks.next().is_none());
-		assert!(rchunks.next_back().is_none());
-		assert!(rchunks.nth(1).is_none());
-		assert!(rchunks.nth_back(1).is_none());
-
-		assert_eq!(rchunks.into_remainder().bitptr(), rest);
-	}
-
-	#[test]
-	fn iter_ones_zeros() {
-		//                          0  1  2  3  4  5  6  7
-		let bits = bits![0, 0, 1, 1, 0, 1, 0, 1];
-		let mut ones = bits.iter_ones();
-		let mut zeros = bits.iter_zeros();
-
-		assert_eq!(ones.next(), Some(2));
-		assert_eq!(zeros.next(), Some(0));
-
-		assert_eq!(ones.next_back(), Some(7));
-		assert_eq!(zeros.next_back(), Some(6));
-	}
 }

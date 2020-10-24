@@ -4,6 +4,8 @@
 
 use crate::prelude::*;
 
+use tap::conv::TryConv;
+
 #[test]
 fn construction() {
 	#[cfg(not(miri))]
@@ -53,6 +55,24 @@ fn construction() {
 		},
 		Some(data.view_bits_mut::<LocalBits>())
 	);
+
+	let mut data = [0u16; 2];
+	assert!((&data[..]).try_conv::<&BitSlice<Msb0, _>>().is_ok());
+	assert!((&mut data[..]).try_conv::<&mut BitSlice<Msb0, _>>().is_ok());
+}
+
+#[test]
+fn cmp() {
+	let data = 0x45u8;
+	let bits = data.view_bits::<Msb0>();
+	let a = &bits[.. 3]; // 010
+	let b = &bits[.. 4]; // 0100
+	let c = &bits[.. 5]; // 01000
+	let d = &bits[4 ..]; // 0101
+
+	assert!(a < b); // by length
+	assert!(b < c); // by length
+	assert!(c < d); // by different bit
 }
 
 #[test]
@@ -86,6 +106,16 @@ fn get_set() {
 	a.swap_with_bitslice(b);
 	assert_eq!(a, bits![1, 0]);
 	assert_eq!(b, bits![0, 1]);
+
+	let mut proxy = a.get_mut(0).unwrap();
+	let proxy_slice = proxy.as_mut_bitslice();
+	assert_eq!(proxy_slice, bits![1]);
+}
+
+#[test]
+#[should_panic = "Index 1 out of bounds: 1"]
+fn index_out_of_bounds() {
+	bits![0][1];
 }
 
 #[test]
@@ -297,11 +327,12 @@ fn iterators() {
 
 #[test]
 fn alignment() {
-	let data = [0u32; 3];
-	let bits = data.view_bits::<Msb0>();
+	let mut data = [0u32; 3];
+	let bits = data.view_bits_mut::<Msb0>();
 
-	let (l0, c0, r0) = unsafe { bits[10 .. 20].align_to::<u8>() };
-	assert_eq!(l0.bitptr(), bits[10 .. 20].bitptr());
+	let bp = bits[10 .. 20].bitptr();
+	let (l0, c0, r0) = unsafe { bits[10 .. 20].align_to_mut::<u8>() };
+	assert_eq!(l0.bitptr(), bp);
 	assert!(c0.is_empty());
 	assert!(r0.is_empty());
 
@@ -326,12 +357,19 @@ fn repetition() {
 
 #[test]
 fn pointer_offset() {
-	let data = [0u16; 2];
-	let bits = data.view_bits::<Msb0>();
+	let data = [0u8; 2];
+	let lsb0 = data.view_bits::<Lsb0>();
+	let msb0 = data.view_bits::<Msb0>();
 
-	let a = &bits[10 .. 11];
-	let b = &bits[20 .. 21];
-	assert_eq!(a.offset_from(b), 10);
+	assert_eq!(msb0[2 ..].offset_from(&msb0[12 ..]), 10);
+	assert_eq!(msb0[5 ..].offset_from(&msb0[10 ..]), 5);
+	assert_eq!(msb0[8 ..].offset_from(&msb0[4 ..]), -4);
+	assert_eq!(msb0[14 ..].offset_from(&msb0[1 ..]), -13);
+
+	assert_eq!(msb0[0 ..].electrical_distance(&msb0[15 ..]), 1);
+	assert_eq!(msb0[15 ..].electrical_distance(&msb0[0 ..]), -1);
+	assert_eq!(lsb0[7 ..].electrical_distance(&lsb0[8 ..]), 1);
+	assert_eq!(lsb0[8 ..].electrical_distance(&lsb0[7 ..]), -1);
 }
 
 #[test]
@@ -371,4 +409,569 @@ fn rotate() {
 	bits.rotate_right(6);
 
 	assert_eq!(bits, bits![0, 1, 0, 0, 1, 0]);
+}
+
+#[test]
+fn unspecialized() {
+	use crate::{
+		index::{
+			BitIdx,
+			BitPos,
+		},
+		mem::BitRegister,
+		prelude::*,
+	};
+
+	pub struct Swizzle;
+
+	unsafe impl BitOrder for Swizzle {
+		fn at<R>(index: BitIdx<R>) -> BitPos<R>
+		where R: BitRegister {
+			match R::BITS {
+				8 => BitPos::new(index.value() ^ 0b100).unwrap(),
+				16 => BitPos::new(index.value() ^ 0b1100).unwrap(),
+				32 => BitPos::new(index.value() ^ 0b11100).unwrap(),
+				64 => BitPos::new(index.value() ^ 0b111100).unwrap(),
+				_ => unreachable!("No other integers are supported"),
+			}
+		}
+	}
+
+	let mut data = [!0u8, 0];
+	let bits = data.view_bits_mut::<Swizzle>();
+
+	bits.copy_within(4 .. 12, 8);
+	bits.copy_within(.. 4, 12);
+	assert!(bits.all());
+	assert_eq!(bits[.. 8], bits[8 ..]);
+
+	//  Dodge the memcpy accelerant
+	bits[.. 8].copy_from_bitslice(&bits![Swizzle, u8; 0; 9][1 ..]);
+	assert_eq!(bits, [0u8, !0].view_bits::<Swizzle>());
+}
+
+#[test]
+#[allow(deprecated)]
+fn misc() {
+	let bits = bits![mut 0, 1, 0, 0];
+
+	let bitptr_1 = bits.as_bitptr();
+	let bitptr_2 = bits.as_ptr();
+	assert_eq!(bitptr_1, bitptr_2);
+
+	let bitptr_1 = bits.as_mut_bitptr();
+	let bitptr_2 = bits.as_mut_ptr();
+	assert_eq!(bitptr_1, bitptr_2);
+
+	let a = bits![mut 0; 4];
+	let b = bits![mut 0, 1, 0, 1];
+	let c = bits![mut 0, 0, 1, 1];
+
+	a.clone_from_slice(b);
+	assert_eq!(a, b);
+	b.swap_with_slice(c);
+	a.copy_from_slice(b);
+	assert_eq!(a, b);
+
+	#[cfg(feature = "alloc")]
+	{
+		assert_eq!(a.to_vec(), bitvec![0, 0, 1, 1]);
+	}
+}
+
+#[test]
+#[allow(deprecated)]
+fn iter() {
+	let bits = bits![Lsb0, u8; 0, 1, 1, 0, 1, 0, 0, 1];
+	let mut iter = bits.iter();
+
+	assert_eq!(iter.as_bitslice(), bits);
+	assert_eq!(iter.as_slice(), bits);
+	assert_eq!(iter.next(), Some(&false));
+	assert_eq!(iter.as_bitslice(), &bits[1 ..]);
+	assert_eq!(iter.next(), Some(&true));
+
+	assert_eq!(iter.as_bitslice(), &bits[2 ..]);
+	assert_eq!(iter.next_back(), Some(&true));
+	assert_eq!(iter.as_bitslice(), &bits[2 .. 7]);
+	assert_eq!(iter.next_back(), Some(&false));
+
+	assert_eq!(iter.as_bitslice(), &bits[2 .. 6]);
+	assert_eq!(iter.next(), Some(&true));
+	assert_eq!(iter.as_bitslice(), &bits[3 .. 6]);
+	assert_eq!(iter.next(), Some(&false));
+
+	assert_eq!(iter.as_bitslice(), &bits[4 .. 6]);
+	assert_eq!(iter.next_back(), Some(&false));
+	assert_eq!(iter.as_bitslice(), &bits[4 .. 5]);
+
+	assert_eq!(iter.next_back(), Some(&true));
+	assert!(iter.as_bitslice().is_empty());
+	assert!(iter.next().is_none());
+	assert!(iter.next_back().is_none());
+
+	let iter2 = iter.clone();
+	let bits: &BitSlice<_, _> = iter2.as_ref();
+	assert!(bits.is_empty());
+}
+
+#[test]
+#[allow(deprecated)]
+fn iter_mut() {
+	let bits = bits![mut Msb0, u8; 0, 1, 1, 0, 1, 0, 0, 1];
+	let mut iter = bits.iter_mut();
+
+	*iter.next().unwrap() = true;
+	*iter.nth_back(1).unwrap() = true;
+	*iter.nth(2).unwrap() = true;
+	*iter.next_back().unwrap() = true;
+
+	assert_eq!(iter.into_bitslice().bitptr(), bits[4 .. 5].bitptr());
+
+	let bitptr = bits.bitptr();
+	assert_eq!(bits.iter_mut().into_slice().bitptr(), bitptr);
+	assert_eq!(bits.iter_mut().as_bitslice().bitptr(), bitptr);
+}
+
+#[test]
+fn windows() {
+	let bits = bits![LocalBits, u8; 0; 8];
+
+	let mut windows = bits.windows(5);
+	assert_eq!(windows.next().unwrap().bitptr(), bits[.. 5].bitptr());
+	assert_eq!(windows.next_back().unwrap().bitptr(), bits[3 ..].bitptr());
+
+	let mut windows = bits.windows(3);
+	assert_eq!(windows.nth(2).unwrap().bitptr(), bits[2 .. 5].bitptr());
+	assert_eq!(windows.nth_back(2).unwrap().bitptr(), bits[3 .. 6].bitptr());
+	assert!(windows.next().is_none());
+	assert!(windows.next_back().is_none());
+	assert!(windows.nth(1).is_none());
+	assert!(windows.nth_back(1).is_none());
+}
+
+#[test]
+fn chunks() {
+	let bits = bits![Lsb0, u16; 0; 16];
+
+	let mut chunks = bits.chunks(5);
+	assert_eq!(chunks.next().unwrap().bitptr(), bits[.. 5].bitptr());
+	assert_eq!(chunks.next_back().unwrap().bitptr(), bits[15 ..].bitptr());
+
+	let mut chunks = bits.chunks(3);
+	assert_eq!(chunks.nth(2).unwrap().bitptr(), bits[6 .. 9].bitptr());
+	assert_eq!(chunks.nth_back(2).unwrap().bitptr(), bits[9 .. 12].bitptr());
+}
+
+#[test]
+fn chunks_mut() {
+	let bits = bits![mut Msb0, u16; 0; 16];
+
+	let (one, two, three, four) = (
+		bits[.. 5].bitptr(),
+		bits[15 ..].bitptr(),
+		bits[6 .. 9].bitptr(),
+		bits[9 .. 12].bitptr(),
+	);
+
+	let mut chunks = bits.chunks_mut(5);
+	assert_eq!(chunks.next().unwrap().bitptr(), one);
+	assert_eq!(chunks.next_back().unwrap().bitptr(), two);
+
+	let mut chunks = bits.chunks_mut(3);
+	assert_eq!(chunks.nth(2).unwrap().bitptr(), three);
+	assert_eq!(chunks.nth_back(2).unwrap().bitptr(), four);
+}
+
+#[test]
+fn chunks_exact() {
+	let bits = bits![Lsb0, u32; 0; 32];
+
+	let mut chunks = bits.chunks_exact(5);
+	assert_eq!(chunks.remainder().bitptr(), bits[30 ..].bitptr());
+	assert_eq!(chunks.next().unwrap().bitptr(), bits[.. 5].bitptr());
+	assert_eq!(
+		chunks.next_back().unwrap().bitptr(),
+		bits[25 .. 30].bitptr(),
+	);
+	assert_eq!(chunks.nth(1).unwrap().bitptr(), bits[10 .. 15].bitptr());
+	assert_eq!(
+		chunks.nth_back(1).unwrap().bitptr(),
+		bits[15 .. 20].bitptr(),
+	);
+
+	assert!(chunks.next().is_none());
+	assert!(chunks.next_back().is_none());
+	assert!(chunks.nth(1).is_none());
+	assert!(chunks.nth_back(1).is_none());
+}
+
+#[test]
+fn chunks_exact_mut() {
+	let bits = bits![mut Msb0, u32; 0; 32];
+
+	let (one, two, three, four, rest) = (
+		bits[.. 5].bitptr(),
+		bits[10 .. 15].bitptr(),
+		bits[15 .. 20].bitptr(),
+		bits[25 .. 30].bitptr(),
+		bits[30 ..].bitptr(),
+	);
+
+	let mut chunks = bits.chunks_exact_mut(5);
+	assert_eq!(chunks.next().unwrap().bitptr(), one);
+	assert_eq!(chunks.next_back().unwrap().bitptr(), four);
+	assert_eq!(chunks.nth(1).unwrap().bitptr(), two);
+	assert_eq!(chunks.nth_back(1).unwrap().bitptr(), three);
+
+	assert!(chunks.next().is_none());
+	assert!(chunks.next_back().is_none());
+	assert!(chunks.nth(1).is_none());
+	assert!(chunks.nth_back(1).is_none());
+
+	assert_eq!(chunks.into_remainder().bitptr(), rest);
+}
+
+#[test]
+fn rchunks() {
+	let bits = bits![Lsb0, u16; 0; 16];
+
+	let mut rchunks = bits.rchunks(5);
+	assert_eq!(rchunks.next().unwrap().bitptr(), bits[11 ..].bitptr());
+	assert_eq!(rchunks.next_back().unwrap().bitptr(), bits[.. 1].bitptr());
+
+	let mut rchunks = bits.rchunks(3);
+	assert_eq!(rchunks.nth(2).unwrap().bitptr(), bits[7 .. 10].bitptr());
+	assert_eq!(rchunks.nth_back(2).unwrap().bitptr(), bits[4 .. 7].bitptr());
+}
+
+#[test]
+fn rchunks_mut() {
+	let bits = bits![mut Msb0, u16; 0; 16];
+
+	let (one, two, three, four) = (
+		bits[11 ..].bitptr(),
+		bits[.. 1].bitptr(),
+		bits[7 .. 10].bitptr(),
+		bits[4 .. 7].bitptr(),
+	);
+
+	let mut rchunks = bits.rchunks_mut(5);
+	assert_eq!(rchunks.next().unwrap().bitptr(), one);
+	assert_eq!(rchunks.next_back().unwrap().bitptr(), two);
+
+	let mut rchunks = bits.rchunks_mut(3);
+	assert_eq!(rchunks.nth(2).unwrap().bitptr(), three);
+	assert_eq!(rchunks.nth_back(2).unwrap().bitptr(), four);
+}
+
+#[test]
+fn rchunks_exact() {
+	let bits = bits![Lsb0, u32; 0; 32];
+
+	let mut rchunks = bits.rchunks_exact(5);
+	assert_eq!(rchunks.remainder().bitptr(), bits[.. 2].bitptr());
+	assert_eq!(rchunks.next().unwrap().bitptr(), bits[27 ..].bitptr());
+	assert_eq!(rchunks.next_back().unwrap().bitptr(), bits[2 .. 7].bitptr(),);
+	assert_eq!(rchunks.nth(1).unwrap().bitptr(), bits[17 .. 22].bitptr());
+	assert_eq!(
+		rchunks.nth_back(1).unwrap().bitptr(),
+		bits[12 .. 17].bitptr(),
+	);
+
+	assert!(rchunks.next().is_none());
+	assert!(rchunks.next_back().is_none());
+	assert!(rchunks.nth(1).is_none());
+	assert!(rchunks.nth_back(1).is_none());
+}
+
+#[test]
+fn rchunks_exact_mut() {
+	let bits = bits![mut Msb0, u32; 0; 32];
+
+	let (rest, one, two, three, four) = (
+		bits[.. 2].bitptr(),
+		bits[2 .. 7].bitptr(),
+		bits[12 .. 17].bitptr(),
+		bits[17 .. 22].bitptr(),
+		bits[27 ..].bitptr(),
+	);
+
+	let mut rchunks = bits.rchunks_exact_mut(5);
+	assert_eq!(rchunks.next().unwrap().bitptr(), four);
+	assert_eq!(rchunks.next_back().unwrap().bitptr(), one);
+	assert_eq!(rchunks.nth(1).unwrap().bitptr(), three);
+	assert_eq!(rchunks.nth_back(1).unwrap().bitptr(), two);
+
+	assert!(rchunks.next().is_none());
+	assert!(rchunks.next_back().is_none());
+	assert!(rchunks.nth(1).is_none());
+	assert!(rchunks.nth_back(1).is_none());
+
+	assert_eq!(rchunks.into_remainder().bitptr(), rest);
+}
+
+#[test]
+fn iter_ones_zeros() {
+	//                          0  1  2  3  4  5  6  7
+	let bits = bits![0, 0, 1, 1, 0, 1, 0, 1];
+	let mut ones = bits.iter_ones();
+	let mut zeros = bits.iter_zeros();
+
+	assert_eq!(ones.next(), Some(2));
+	assert_eq!(zeros.next(), Some(0));
+	assert_eq!(ones.next_back(), Some(7));
+	assert_eq!(zeros.next_back(), Some(6));
+
+	assert_eq!(ones.size_hint(), (2, Some(2)));
+	assert_eq!(zeros.size_hint(), (2, Some(2)));
+	assert_eq!(ones.clone().count(), 2);
+	assert_eq!(zeros.clone().count(), 2);
+
+	assert_eq!(ones.clone().last(), Some(5));
+	assert_eq!(zeros.clone().last(), Some(4));
+
+	assert!(ones.nth(2).is_none());
+	assert!(zeros.nth(2).is_none());
+	assert!(ones.nth_back(0).is_none());
+	assert!(zeros.nth_back(0).is_none());
+}
+
+#[cfg(feature = "alloc")]
+mod format {
+	use crate::prelude::*;
+
+	#[cfg(not(feature = "std"))]
+	use alloc::format;
+
+	#[test]
+	fn binary() {
+		let data = [0u8, 0x0F, !0];
+		let bits = data.view_bits::<Msb0>();
+
+		assert_eq!(format!("{:b}", &bits[.. 0]), "[]");
+		assert_eq!(format!("{:#b}", &bits[.. 0]), "[]");
+
+		assert_eq!(format!("{:b}", &bits[9 .. 15]), "[000111]");
+		assert_eq!(
+			format!("{:#b}", &bits[9 .. 15]),
+			"[
+    0b000111,
+]"
+		);
+
+		assert_eq!(format!("{:b}", &bits[4 .. 20]), "[0000, 00001111, 1111]");
+		assert_eq!(
+			format!("{:#b}", &bits[4 .. 20]),
+			"[
+    0b0000,
+    0b00001111,
+    0b1111,
+]"
+		);
+
+		assert_eq!(format!("{:b}", &bits[4 ..]), "[0000, 00001111, 11111111]");
+		assert_eq!(
+			format!("{:#b}", &bits[4 ..]),
+			"[
+    0b0000,
+    0b00001111,
+    0b11111111,
+]"
+		);
+
+		assert_eq!(format!("{:b}", &bits[.. 20]), "[00000000, 00001111, 1111]");
+		assert_eq!(
+			format!("{:#b}", &bits[.. 20]),
+			"[
+    0b00000000,
+    0b00001111,
+    0b1111,
+]"
+		);
+
+		assert_eq!(format!("{:b}", bits), "[00000000, 00001111, 11111111]");
+		assert_eq!(
+			format!("{:#b}", bits),
+			"[
+    0b00000000,
+    0b00001111,
+    0b11111111,
+]"
+		);
+	}
+
+	#[test]
+	fn octal() {
+		let data = [0u8, 0x0F, !0];
+		let bits = data.view_bits::<Msb0>();
+
+		assert_eq!(format!("{:o}", &bits[.. 0]), "[]");
+		assert_eq!(format!("{:#o}", &bits[.. 0]), "[]");
+
+		assert_eq!(format!("{:o}", &bits[9 .. 15]), "[07]");
+		assert_eq!(
+			format!("{:#o}", &bits[9 .. 15]),
+			"[
+    0o07,
+]"
+		);
+
+		//  …0_000 00_001_111 1_111…
+		assert_eq!(format!("{:o}", &bits[4 .. 20]), "[00, 017, 17]");
+		assert_eq!(
+			format!("{:#o}", &bits[4 .. 20]),
+			"[
+    0o00,
+    0o017,
+    0o17,
+]"
+		);
+
+		assert_eq!(format!("{:o}", &bits[4 ..]), "[00, 017, 377]");
+		assert_eq!(
+			format!("{:#o}", &bits[4 ..]),
+			"[
+    0o00,
+    0o017,
+    0o377,
+]"
+		);
+
+		assert_eq!(format!("{:o}", &bits[.. 20]), "[000, 017, 17]");
+		assert_eq!(
+			format!("{:#o}", &bits[.. 20]),
+			"[
+    0o000,
+    0o017,
+    0o17,
+]"
+		);
+
+		assert_eq!(format!("{:o}", bits), "[000, 017, 377]");
+		assert_eq!(
+			format!("{:#o}", bits),
+			"[
+    0o000,
+    0o017,
+    0o377,
+]"
+		);
+	}
+
+	#[test]
+	fn hex_lower() {
+		let data = [0u8, 0x0F, !0];
+		let bits = data.view_bits::<Msb0>();
+
+		assert_eq!(format!("{:x}", &bits[.. 0]), "[]");
+		assert_eq!(format!("{:#x}", &bits[.. 0]), "[]");
+
+		//  …00_0111 …
+		assert_eq!(format!("{:x}", &bits[9 .. 15]), "[07]");
+		assert_eq!(
+			format!("{:#x}", &bits[9 .. 15]),
+			"[
+    0x07,
+]"
+		);
+
+		//  …0000 00001111 1111…
+		assert_eq!(format!("{:x}", &bits[4 .. 20]), "[0, 0f, f]");
+		assert_eq!(
+			format!("{:#x}", &bits[4 .. 20]),
+			"[
+    0x0,
+    0x0f,
+    0xf,
+]"
+		);
+
+		assert_eq!(format!("{:x}", &bits[4 ..]), "[0, 0f, ff]");
+		assert_eq!(
+			format!("{:#x}", &bits[4 ..]),
+			"[
+    0x0,
+    0x0f,
+    0xff,
+]"
+		);
+
+		assert_eq!(format!("{:x}", &bits[.. 20]), "[00, 0f, f]");
+		assert_eq!(
+			format!("{:#x}", &bits[.. 20]),
+			"[
+    0x00,
+    0x0f,
+    0xf,
+]"
+		);
+
+		assert_eq!(format!("{:x}", bits), "[00, 0f, ff]");
+		assert_eq!(
+			format!("{:#x}", bits),
+			"[
+    0x00,
+    0x0f,
+    0xff,
+]"
+		);
+	}
+
+	#[test]
+	fn hex_upper() {
+		let data = [0u8, 0x0F, !0];
+		let bits = data.view_bits::<Msb0>();
+
+		assert_eq!(format!("{:X}", &bits[.. 0]), "[]");
+		assert_eq!(format!("{:#X}", &bits[.. 0]), "[]");
+
+		assert_eq!(format!("{:X}", &bits[9 .. 15]), "[07]");
+		assert_eq!(
+			format!("{:#X}", &bits[9 .. 15]),
+			"[
+    0x07,
+]"
+		);
+
+		assert_eq!(format!("{:X}", &bits[4 .. 20]), "[0, 0F, F]");
+		assert_eq!(
+			format!("{:#X}", &bits[4 .. 20]),
+			"[
+    0x0,
+    0x0F,
+    0xF,
+]"
+		);
+
+		assert_eq!(format!("{:X}", &bits[4 ..]), "[0, 0F, FF]");
+		assert_eq!(
+			format!("{:#X}", &bits[4 ..]),
+			"[
+    0x0,
+    0x0F,
+    0xFF,
+]"
+		);
+
+		assert_eq!(format!("{:X}", &bits[.. 20]), "[00, 0F, F]");
+		assert_eq!(
+			format!("{:#X}", &bits[.. 20]),
+			"[
+    0x00,
+    0x0F,
+    0xF,
+]"
+		);
+
+		assert_eq!(format!("{:X}", bits), "[00, 0F, FF]");
+		assert_eq!(
+			format!("{:#X}", bits),
+			"[
+    0x00,
+    0x0F,
+    0xFF,
+]"
+		);
+	}
 }

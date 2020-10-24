@@ -118,7 +118,6 @@ behavior.
 [`.store_be()`]: Self::store_be
 [`.store_le()`]: Self::store_le
 **/
-#[cfg(not(tarpaulin_include))]
 pub trait BitField {
 	/// Loads the bits in the `self` region into a local value.
 	///
@@ -431,7 +430,9 @@ where T: BitStore
 				}
 
 				if let Some((elem, tail)) = tail {
-					accum <<= tail.value();
+					//  If the tail is at the limit, then none of the above
+					//  branches entered, and the shift would fail. Clamp to 0.
+					accum <<= tail.value() & M::MASK;
 					accum |= get::<T, M>(elem, Lsb0::mask(None, tail), 0);
 				}
 
@@ -480,7 +481,9 @@ where T: BitStore
 			DomainMut::Region { head, body, tail } => {
 				if let Some((elem, tail)) = tail {
 					set::<T, M>(elem, value, Lsb0::mask(None, tail), 0);
-					value >>= tail.value()
+					//  If the tail is at the limit, then none of the below
+					//  branches will enter, and the shift will fail. Clamp to 0
+					value >>= tail.value() & M::MASK;
 				}
 
 				for elem in body.iter_mut().rev() {
@@ -656,7 +659,6 @@ where T: BitStore
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> BitField for BitArray<O, V>
 where
 	O: BitOrder,
@@ -685,7 +687,6 @@ where
 }
 
 #[cfg(feature = "alloc")]
-#[cfg(not(tarpaulin_include))]
 impl<O, T> BitField for BitBox<O, T>
 where
 	O: BitOrder,
@@ -714,7 +715,6 @@ where
 }
 
 #[cfg(feature = "alloc")]
-#[cfg(not(tarpaulin_include))]
 impl<O, T> BitField for BitVec<O, T>
 where
 	O: BitOrder,
@@ -856,13 +856,14 @@ This is the exact inverse of `get`.
 [`BitStore`]: crate::store::BitStore
 [`T::Mem`]: crate::store::BitStore::Mem
 **/
+#[allow(clippy::op_ref)]
 fn set<T, M>(elem: &T::Access, value: M, mask: BitMask<T::Mem>, shamt: u8)
 where
 	T: BitStore,
 	M: BitMemory,
 {
 	//  Convert the `mask` type to fit into the accessor.
-	let mask = unsafe { BitMask::new(mask.value()) };
+	let mask = BitMask::new(mask.value());
 	let value = value
 		//  Resize the value to the expected input
 		.pipe(resize::<M, T::Mem>)
@@ -914,7 +915,6 @@ where
 
 /// Performs little-endian byte-order register resizing.
 #[cfg(target_endian = "little")]
-#[cfg(not(tarpaulin_include))]
 unsafe fn resize_inner<T, U>(
 	src: &T,
 	dst: &mut U,
@@ -933,7 +933,6 @@ unsafe fn resize_inner<T, U>(
 
 /// Performs big-endian byte-order register resizing.
 #[cfg(target_endian = "big")]
-#[cfg(not(tarpaulin_include))]
 unsafe fn resize_inner<T, U>(
 	src: &T,
 	dst: &mut U,

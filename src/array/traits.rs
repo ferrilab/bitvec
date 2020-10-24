@@ -35,7 +35,6 @@ use core::{
 	},
 };
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> Borrow<BitSlice<O, V::Mem>> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -46,7 +45,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> BorrowMut<BitSlice<O, V::Mem>> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -74,7 +72,6 @@ where
 {
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> Ord for BitArray<O, V>
 where
 	O: BitOrder,
@@ -85,7 +82,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V, T> PartialEq<BitArray<O, V>> for BitSlice<O, T>
 where
 	O: BitOrder,
@@ -97,7 +93,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V, Rhs> PartialEq<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -110,7 +105,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V, T> PartialOrd<BitArray<O, V>> for BitSlice<O, T>
 where
 	O: BitOrder,
@@ -122,7 +116,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V, Rhs> PartialOrd<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -135,7 +128,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> AsRef<BitSlice<O, V::Mem>> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -146,7 +138,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> AsMut<BitSlice<O, V::Mem>> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -157,7 +148,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> From<V> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -219,7 +209,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> Default for BitArray<O, V>
 where
 	O: BitOrder,
@@ -230,7 +219,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> Binary for BitArray<O, V>
 where
 	O: BitOrder,
@@ -253,18 +241,16 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> Display for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		Binary::fmt(self.as_bitslice(), fmt)
+		Display::fmt(self.as_bitslice(), fmt)
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> LowerHex for BitArray<O, V>
 where
 	O: BitOrder,
@@ -275,7 +261,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> Octal for BitArray<O, V>
 where
 	O: BitOrder,
@@ -286,7 +271,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> UpperHex for BitArray<O, V>
 where
 	O: BitOrder,
@@ -322,7 +306,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<'a, O, V> IntoIterator for &'a BitArray<O, V>
 where
 	O: BitOrder,
@@ -336,7 +319,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<'a, O, V> IntoIterator for &'a mut BitArray<O, V>
 where
 	O: BitOrder,
@@ -377,7 +359,6 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[cfg(not(tarpaulin_include))]
 	fn err<A>(inner: &'a BitSlice<O, T>) -> Result<A, Self> {
 		Err(Self { inner })
 	}
@@ -416,49 +397,4 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-}
-
-#[cfg(test)]
-mod tests {
-	use crate::prelude::*;
-	use core::convert::TryInto;
-	use tap::conv::TryConv;
-
-	#[test]
-	fn convert() {
-		let arr: BitArray<Lsb0, _> = 2u8.into();
-		assert!(arr.any());
-
-		let bits = bits![Msb0, u8; 1; 128];
-		let arr: BitArray<Msb0, [u8; 16]> = bits.try_into().unwrap();
-		assert!(arr.all());
-
-		let bits = bits![Lsb0, u32; 0; 64];
-		let arr: &BitArray<Lsb0, [u32; 2]> = bits.try_into().unwrap();
-		assert!(arr.not_any());
-
-		let bits = bits![mut Msb0, u16; 0; 64];
-		let arr: &mut BitArray<Msb0, [u16; 4]> = bits.try_into().unwrap();
-		assert!(arr.not_any());
-
-		let bits = bits![mut LocalBits, usize; 0; 4];
-		assert!((&*bits).try_conv::<&BitArray<LocalBits, usize>>().is_err());
-		assert!(bits.try_conv::<&mut BitArray<LocalBits, usize>>().is_err());
-	}
-
-	#[test]
-	#[cfg(feature = "std")]
-	fn format() {
-		let text = format!("{:?}", bitarr![Msb0, u8; 0, 1, 0, 0]);
-		assert!(
-			text.starts_with("BitArray<bitvec::order::Msb0, u8> { addr: 0x"),
-			"{}",
-			text
-		);
-		assert!(
-			text.ends_with(", head: 000, bits: 8 } [01000000]"),
-			"{}",
-			text
-		);
-	}
 }

@@ -1075,7 +1075,6 @@ where
 
 	/// Enumerates all bits in a `BitSlice` that are cleared to `0`.
 	///
-	///
 	/// # Examples
 	///
 	/// ```rust
@@ -1094,6 +1093,7 @@ where
 	///   assert_eq!(a, b);
 	///   assert_eq!(b, c);
 	/// }
+	/// ```
 	pub fn iter_zeros(&self) -> IterZeros<O, T> {
 		IterZeros::new(self)
 	}
@@ -1981,13 +1981,11 @@ where
 	}
 
 	/// Marks an immutable slice as referring to aliased memory region.
-	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn alias(&self) -> &BitSlice<O, T::Alias> {
 		unsafe { &*(self.as_bitptr() as *const BitSlice<O, T::Alias>) }
 	}
 
 	/// Marks a mutable slice as describing an aliased memory region.
-	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn alias_mut(&mut self) -> &mut BitSlice<O, T::Alias> {
 		unsafe { &mut *(self.as_mut_bitptr() as *mut BitSlice<O, T::Alias>) }
 	}

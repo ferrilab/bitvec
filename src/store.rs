@@ -24,6 +24,8 @@ use core::{
 	fmt::Debug,
 };
 
+use tap::pipe::Pipe;
+
 /** Common interface for memory regions.
 
 This trait is implemented on the fundamental integers no wider than the target
@@ -107,28 +109,9 @@ pub trait BitStore: 'static + seal::Sealed + Debug {
 	/// The value of the bit in `*self` corresponding to `index`.
 	fn get_bit<O>(&self, index: BitIdx<Self::Mem>) -> bool
 	where O: BitOrder {
-		unsafe { BitMask::new(self.load_value()) }.test(index.select::<O>())
-	}
-
-	/// Fetches any number of bits from a memory element.
-	///
-	/// The mask provided to this method must be constructed from indices that
-	/// are valid in the caller’s context. As the mask is already computed by
-	/// the caller, this does not take an ordering type parameter.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	/// - `mask`: A mask of any number of bits. This is a selection mask of bits
-	///   to read.
-	///
-	/// # Returns
-	///
-	/// A copy of the memory element at `*self`, with all bits not selected (set
-	/// to `0`) in `mask` erased and all bits selected (set to `1`) in `mask`
-	/// preserved.
-	fn get_bits(&self, mask: BitMask<Self::Mem>) -> Self::Mem {
-		self.load_value() & mask.value()
+		self.load_value()
+			.pipe(BitMask::new)
+			.test(index.select::<O>())
 	}
 
 	/// Require that all implementors are aligned to their width.

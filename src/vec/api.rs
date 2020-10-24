@@ -627,7 +627,6 @@ where
 	/// [`UnsafeCell`]: core::cell::UnsafeCell
 	/// [`.as_bitptr()`]: Self::as_bitptr
 	/// [`.as_mut_ptr()`]: Self::as_mut_ptr
-	#[cfg(not(tarpaulin_include))]
 	pub fn as_ptr(&self) -> *const T {
 		self.bitptr().pointer().to_const()
 	}
@@ -665,7 +664,6 @@ where
 	/// ```
 	///
 	/// [`.as_mut_bitptr()`]: Self::as_mut_bitptr
-	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_ptr(&mut self) -> *mut T {
 		self.bitptr().pointer().to_mut()
 	}
@@ -1055,7 +1053,7 @@ where
 	/// assert_eq!(a.len(), 3);
 	/// ```
 	pub fn len(&self) -> usize {
-		self.as_bitslice().len()
+		self.bitptr().len()
 	}
 
 	/// Returns `true` if the vector contains no bits.
@@ -1076,7 +1074,7 @@ where
 	/// assert!(!bv.is_empty());
 	/// ```
 	pub fn is_empty(&self) -> bool {
-		self.as_bitslice().is_empty()
+		self.bitptr().len() == 0
 	}
 
 	/// Splits the collection into two at the given index.
@@ -1198,7 +1196,6 @@ where
 	///
 	/// [`BitBox`]: crate::boxed::BitBox
 	/// [`::leak()`]: crate::boxed::BitBox::leak
-	#[cfg(not(tarpaulin_include))]
 	pub fn leak<'a>(self) -> &'a mut BitSlice<O, T> {
 		self.pipe(ManuallyDrop::new)
 			.as_mut_bitslice()
@@ -1301,7 +1298,6 @@ where
 	///
 	/// [`Splice`]: crate::vec::Splice
 	/// [`.size_hint()`]: core::iter::Iterator::size_hint
-	#[cfg(not(tarpaulin_include))]
 	pub fn splice<R, I>(
 		&mut self,
 		range: R,

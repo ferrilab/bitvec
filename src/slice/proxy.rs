@@ -145,7 +145,6 @@ where
 
 	/// Views the proxy as a `&BitSlice` of length 1, instead of a direct
 	/// proxy.
-	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
 		unsafe {
 			BitPtr::new_unchecked(self.addr.as_ptr() as *const T, self.head, 1)
@@ -155,7 +154,6 @@ where
 
 	/// Views the proxy as a `&mut BitSlice` of length 1, instead of a direct
 	/// proxy.
-	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
 		unsafe {
 			BitPtr::new_unchecked(self.addr.as_ptr() as *mut T, self.head, 1)
@@ -274,6 +272,9 @@ mod tests {
 	#[test]
 	#[cfg(feature = "alloc")]
 	fn format() {
+		#[cfg(not(feature = "std"))]
+		use alloc::format;
+
 		let bits = bits![mut Msb0, u8; 0];
 		let mut bit = bits.get_mut(0).unwrap();
 

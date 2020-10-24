@@ -158,7 +158,6 @@ where
 	data: V,
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> BitArray<O, V>
 where
 	O: BitOrder,

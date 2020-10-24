@@ -251,7 +251,6 @@ macro_rules! safe {
 			#[cfg(not(feature = "atomic"))]
 			type Rad = core::cell::Cell<$t>;
 
-			#[inline(always)]
 			fn load(&self) -> $t {
 				radium::Radium::load(
 					&self.inner,
@@ -323,7 +322,7 @@ mod tests {
 	fn safe_wrappers() {
 		let bits = bits![mut Msb0, u8; 0; 24];
 		let (l, c) = bits.split_at_mut(4);
-		let (c, _) = c.split_at_mut(16);
+		let (c, _) = c.split_at_aliased_mut(16);
 
 		//  Get a write-capable shared reference to the base address,
 		let l_redge: &<<u8 as BitStore>::Alias as BitStore>::Access =
@@ -341,7 +340,7 @@ mod tests {
 		//  The center reference can only read,
 		assert_eq!(c_ledge.load(), 0);
 		//  while the left reference can write,
-		l_redge.set_bits(unsafe { BitMask::new(6) });
+		l_redge.set_bits(BitMask::new(6));
 		//  and be observed by the center.
 		assert_eq!(c_ledge.load(), 6);
 	}

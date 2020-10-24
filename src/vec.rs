@@ -525,8 +525,8 @@ where
 		let boxed = self.into_boxed_slice().pipe(ManuallyDrop::new);
 		unsafe {
 			bitptr.set_pointer(boxed.as_ptr());
+			BitBox::from_raw(bitptr.to_bitslice_ptr_mut())
 		}
-		unsafe { BitBox::from_raw(bitptr.to_bitslice_ptr_mut()) }
 	}
 
 	/// Removes the bit-precision view, returning the underlying [`Vec`].
@@ -675,7 +675,6 @@ where
 	/// ```
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
-	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
 		unsafe { &*self.pointer.as_ptr() }
 	}
@@ -699,7 +698,6 @@ where
 	/// ```
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
-	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
 		unsafe { &mut *self.pointer.as_ptr() }
 	}
@@ -736,7 +734,6 @@ where
 	/// [`UnsafeCell`]: core::cell::UnsafeCell
 	/// [`as_mut_bitptr`]: Self::as_mut_bitptr
 	/// [`bitvec`]: crate
-	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitptr(&self) -> *const BitSlice<O, T> {
 		self.pointer.as_ptr() as *const BitSlice<O, T>
 	}
@@ -766,12 +763,10 @@ where
 	/// ```
 	///
 	/// [`bitvec`]: crate
-	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitptr(&mut self) -> *mut BitSlice<O, T> {
 		self.pointer.as_ptr()
 	}
 
-	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn bitptr(&self) -> BitPtr<O, T> {
 		self.pointer.as_ptr().pipe(BitPtr::from_bitslice_ptr_mut)
 	}

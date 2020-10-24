@@ -104,6 +104,7 @@ where
 		Ok(idx)
 	}
 
+	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	fn flush(&mut self) -> io::Result<()> {
 		Ok(())
@@ -131,6 +132,7 @@ where
 		unsafe { self.get_unchecked_mut(len ..) }.write(buf)
 	}
 
+	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	fn flush(&mut self) -> io::Result<()> {
 		Ok(())

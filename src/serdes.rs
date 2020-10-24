@@ -113,7 +113,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> Serialize for BitArray<O, V>
 where
 	O: BitOrder,
@@ -127,7 +126,6 @@ where
 }
 
 #[cfg(feature = "alloc")]
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Serialize for BitBox<O, T>
 where
 	O: BitOrder,
@@ -141,7 +139,6 @@ where
 }
 
 #[cfg(feature = "alloc")]
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Serialize for BitVec<O, T>
 where
 	O: BitOrder,
@@ -154,7 +151,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<'de, O, V> Deserialize<'de> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -256,7 +252,6 @@ where
 {
 	type Value = BitVec<O, T>;
 
-	#[cfg(not(tarpaulin_include))]
 	fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.write_str("a BitSeq data series")
 	}
@@ -324,7 +319,6 @@ where
 }
 
 #[cfg(feature = "alloc")]
-#[cfg(not(tarpaulin_include))]
 impl<'de, O, T> Deserialize<'de> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -339,7 +333,6 @@ where
 }
 
 #[cfg(feature = "alloc")]
-#[cfg(not(tarpaulin_include))]
 impl<'de, O, T> Deserialize<'de> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -433,11 +426,22 @@ mod tests {
 	#[cfg(feature = "alloc")]
 	fn deser() {
 		let bv = bitvec![Msb0, u8; 0, 1, 1, 0, 1, 0];
+		let bb = bv.clone().into_boxed_bitslice();
 		assert_de_tokens(&bv, bvtok![d 1, 0, 6, U8, 0b0110_1000]);
 		//  test that the bits outside the bits domain don't matter in deser
 		assert_de_tokens(&bv, bvtok![d 1, 0, 6, U8, 0b0110_1001]);
-		assert_de_tokens(&bv, bvtok![d 1, 0, 6, U8, 0b0110_1010]);
-		assert_de_tokens(&bv, bvtok![d 1, 0, 6, U8, 0b0110_1011]);
+		assert_de_tokens(&bb, bvtok![d 1, 0, 6, U8, 0b0110_1010]);
+		assert_de_tokens(&bb, bvtok![d 1, 0, 6, U8, 0b0110_1011]);
+	}
+
+	#[test]
+	#[cfg(feature = "alloc")]
+	fn ser() {
+		let bv = bitvec![Msb0, u8; 0, 1, 1, 0, 1, 0];
+		let bb = bv.clone().into_boxed_bitslice();
+
+		assert_ser_tokens(&bv, bvtok![s 1, 0, 6, U8, 0b0110_1000]);
+		assert_ser_tokens(&bb, bvtok![s 1, 0, 6, U8, 0b0110_1000]);
 	}
 
 	#[test]

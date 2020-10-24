@@ -38,7 +38,6 @@ use core::{
 
 use tap::pipe::Pipe;
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Borrow<BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -49,7 +48,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> BorrowMut<BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -60,7 +58,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Clone for BitBox<O, T>
 where
 	O: BitOrder,
@@ -78,7 +75,6 @@ where
 {
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Ord for BitBox<O, T>
 where
 	O: BitOrder,
@@ -89,7 +85,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<BitBox<O2, T2>> for BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -102,7 +97,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<BitBox<O2, T2>> for &BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -115,7 +109,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<BitBox<O2, T2>> for &mut BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -128,7 +121,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> PartialEq<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -140,18 +132,18 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, T> PartialOrd<BitBox<O, T>> for BitSlice<O, T>
+impl<O1, O2, T1, T2> PartialOrd<BitBox<O2, T2>> for BitSlice<O1, T1>
 where
-	O: BitOrder,
-	T: BitRegister + BitStore,
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitRegister + BitStore,
 {
-	fn partial_cmp(&self, other: &BitBox<O, T>) -> Option<cmp::Ordering> {
+	fn partial_cmp(&self, other: &BitBox<O2, T2>) -> Option<cmp::Ordering> {
 		self.partial_cmp(other.as_bitslice())
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> PartialOrd<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -163,7 +155,30 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
+impl<'a, O1, O2, T1, T2> PartialOrd<BitBox<O2, T2>> for &'a BitSlice<O1, T1>
+where
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitRegister + BitStore,
+{
+	fn partial_cmp(&self, other: &BitBox<O2, T2>) -> Option<cmp::Ordering> {
+		self.partial_cmp(other.as_bitslice())
+	}
+}
+
+impl<'a, O1, O2, T1, T2> PartialOrd<BitBox<O2, T2>> for &'a mut BitSlice<O1, T1>
+where
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitRegister + BitStore,
+{
+	fn partial_cmp(&self, other: &BitBox<O2, T2>) -> Option<cmp::Ordering> {
+		self.partial_cmp(other.as_bitslice())
+	}
+}
+
 impl<O, T> AsRef<BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -174,7 +189,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> AsMut<BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -185,7 +199,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<'a, O, T> From<&'a BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -196,7 +209,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> From<BitVec<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -207,7 +219,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Into<Box<[T]>> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -218,7 +229,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> TryFrom<Box<[T]>> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -231,7 +241,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Default for BitBox<O, T>
 where
 	O: BitOrder,
@@ -250,13 +259,12 @@ where
 	T: BitRegister + BitStore,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		self.bitptr().render(fmt, "Box", None)?;
+		Pointer::fmt(self, fmt)?;
 		fmt.write_str(" ")?;
 		Binary::fmt(self.as_bitslice(), fmt)
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Display for BitBox<O, T>
 where
 	O: BitOrder,
@@ -267,7 +275,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Binary for BitBox<O, T>
 where
 	O: BitOrder,
@@ -278,7 +285,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> LowerHex for BitBox<O, T>
 where
 	O: BitOrder,
@@ -289,7 +295,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Octal for BitBox<O, T>
 where
 	O: BitOrder,
@@ -300,7 +305,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Pointer for BitBox<O, T>
 where
 	O: BitOrder,
@@ -311,7 +315,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> UpperHex for BitBox<O, T>
 where
 	O: BitOrder,
@@ -334,6 +337,21 @@ where
 	}
 }
 
+/// This is not present on `Box<[T]>`, but is needed to fit into the general
+/// operator implementations.
+impl<O, T> IntoIterator for BitBox<O, T>
+where
+	O: BitOrder,
+	T: BitRegister + BitStore,
+{
+	type IntoIter = <crate::vec::BitVec<O, T> as IntoIterator>::IntoIter;
+	type Item = <Self::IntoIter as Iterator>::Item;
+
+	fn into_iter(self) -> Self::IntoIter {
+		self.into_bitvec().into_iter()
+	}
+}
+
 unsafe impl<O, T> Send for BitBox<O, T>
 where
 	O: BitOrder,
@@ -353,35 +371,4 @@ where
 	O: BitOrder,
 	T: BitRegister + BitStore,
 {
-}
-
-#[cfg(test)]
-mod tests {
-	use crate::prelude::*;
-	use core::convert::TryInto;
-
-	#[test]
-	fn convert() {
-		let boxed: BitBox = bits![1; 64].into();
-		assert!(boxed.all());
-
-		let boxed: BitBox<Lsb0, u32> = bitvec![Lsb0, u32; 0; 64].into();
-		assert!(boxed.not_any());
-		let boxed: Box<[u32]> = boxed.into();
-		assert_eq!(&boxed[..], &[0; 2]);
-
-		let _: BitBox<Lsb0, u32> = boxed.try_into().unwrap();
-	}
-
-	#[test]
-	#[cfg(feature = "std")]
-	fn format() {
-		let text = format!("{:?}", bitbox![Msb0, u8; 0, 1, 0, 0]);
-		assert!(
-			text.starts_with("BitBox<bitvec::order::Msb0, u8> { addr: 0x"),
-			"{}",
-			text
-		);
-		assert!(text.ends_with(", head: 000, bits: 4 } [0100]"), "{}", text);
-	}
 }

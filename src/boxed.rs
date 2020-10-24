@@ -354,7 +354,6 @@ where
 	/// let bb = bitbox![0, 1, 1, 0];
 	/// let bits = bb.as_bitslice();
 	/// ```
-	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
 		self.bitptr().to_bitslice_ref()
 	}
@@ -372,7 +371,6 @@ where
 	/// let bits = bv.as_mut_bitslice();
 	/// bits.set(0, true);
 	/// ```
-	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
 		self.bitptr().to_bitslice_mut()
 	}

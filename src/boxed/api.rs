@@ -44,7 +44,6 @@ where
 	///
 	/// let boxed = BitBox::new(bits![0; 5]);
 	/// ```
-	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Prefer `::from_bitslice()`"]
 	pub fn new(x: &BitSlice<O, T>) -> Self {
 		Self::from_bitslice(x)
@@ -152,7 +151,6 @@ where
 	/// [`BitSlice`]: crate::slice::BitSlice
 	/// [`Box`]: alloc::boxed::Box
 	/// [`::from_raw`]: Self::from_raw
-	#[cfg(not(tarpaulin_include))]
 	pub fn into_raw(b: Self) -> *mut BitSlice<O, T> {
 		Self::leak(b)
 	}
@@ -203,7 +201,6 @@ where
 	/// [`.into_bitvec()`].
 	///
 	/// [`.into_bitvec()]: Self::into_bitvec
-	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Prefer `.into_bitvec()`"]
 	pub fn into_vec(self) -> BitVec<O, T> {
 		self.into_bitvec()

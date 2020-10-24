@@ -295,7 +295,7 @@ unsafe impl BitOrder for Lsb0 {
 		//     at LSedge and low.
 		//  3. Invert. The mask bits are at LSedge and high; all else are low.
 		//  4. Shift left by the `from` distance from LSedge.
-		unsafe { BitMask::new(!(R::ALL << ct) << from) }
+		BitMask::new(!(R::ALL << ct) << from)
 	}
 }
 
@@ -342,7 +342,7 @@ unsafe impl BitOrder for Msb0 {
 		//  2. Shift right by the number of bits in the mask. The mask bits are
 		// at MSedge and low.  3. Invert. The mask bits are at MSedge and high;
 		// all else are low.  4. Shift right by the `from` distance from MSedge.
-		unsafe { BitMask::new(!(R::ALL >> ct) >> from) }
+		BitMask::new(!(R::ALL >> ct) >> from)
 	}
 }
 

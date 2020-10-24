@@ -34,7 +34,8 @@ use core::{
 	},
 };
 
-#[cfg(not(tarpaulin_include))]
+use tap::tap::Tap;
+
 impl<O, T> Borrow<BitSlice<O, T>> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -45,7 +46,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> BorrowMut<BitSlice<O, T>> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -62,9 +62,7 @@ where
 	T: BitRegister + BitStore,
 {
 	fn clone(&self) -> Self {
-		let mut out = Self::repeat(false, self.len());
-		out.copy_from_bitslice(self.as_bitslice());
-		out
+		Self::new().tap_mut(|bv| bv.clone_from(self))
 	}
 
 	fn clone_from(&mut self, source: &Self) {
@@ -81,7 +79,6 @@ where
 {
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Ord for BitVec<O, T>
 where
 	O: BitOrder,
@@ -92,7 +89,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<BitVec<O2, T2>> for BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -105,7 +101,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<BitVec<O2, T2>> for &BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -118,7 +113,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<BitVec<O2, T2>> for &mut BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -131,7 +125,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> PartialEq<Rhs> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -143,18 +136,42 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, T> PartialOrd<BitVec<O, T>> for BitSlice<O, T>
+impl<O1, O2, T1, T2> PartialOrd<BitVec<O2, T2>> for BitSlice<O1, T1>
 where
-	O: BitOrder,
-	T: BitRegister + BitStore,
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitRegister + BitStore,
 {
-	fn partial_cmp(&self, other: &BitVec<O, T>) -> Option<cmp::Ordering> {
+	fn partial_cmp(&self, other: &BitVec<O2, T2>) -> Option<cmp::Ordering> {
 		self.partial_cmp(other.as_bitslice())
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
+impl<'a, O1, O2, T1, T2> PartialOrd<BitVec<O2, T2>> for &'a BitSlice<O1, T1>
+where
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitRegister + BitStore,
+{
+	fn partial_cmp(&self, other: &BitVec<O2, T2>) -> Option<cmp::Ordering> {
+		self.partial_cmp(other.as_bitslice())
+	}
+}
+
+impl<'a, O1, O2, T1, T2> PartialOrd<BitVec<O2, T2>> for &'a mut BitSlice<O1, T1>
+where
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitRegister + BitStore,
+{
+	fn partial_cmp(&self, other: &BitVec<O2, T2>) -> Option<cmp::Ordering> {
+		self.partial_cmp(other.as_bitslice())
+	}
+}
+
 impl<O, T, Rhs> PartialOrd<Rhs> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -166,7 +183,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> AsRef<BitSlice<O, T>> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -177,7 +193,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> AsMut<BitSlice<O, T>> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -188,7 +203,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<'a, O, T> From<&'a BitSlice<O, T>> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -199,7 +213,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<'a, O, T> From<&'a mut BitSlice<O, T>> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -210,7 +223,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> From<BitBox<O, T>> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -221,7 +233,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Into<Vec<T>> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -232,7 +243,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> TryFrom<Vec<T>> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -245,7 +255,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Default for BitVec<O, T>
 where
 	O: BitOrder,
@@ -271,7 +280,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Display for BitVec<O, T>
 where
 	O: BitOrder,
@@ -282,7 +290,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Binary for BitVec<O, T>
 where
 	O: BitOrder,
@@ -293,7 +300,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> LowerHex for BitVec<O, T>
 where
 	O: BitOrder,
@@ -304,7 +310,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Octal for BitVec<O, T>
 where
 	O: BitOrder,
@@ -315,7 +320,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> UpperHex for BitVec<O, T>
 where
 	O: BitOrder,

@@ -3,17 +3,39 @@
 use crate::prelude::*;
 
 use core::{
+	borrow::{
+		Borrow,
+		BorrowMut,
+	},
+	cmp::Ordering,
+	convert::TryInto,
 	iter,
 	ptr,
 };
 
+#[cfg(not(feature = "std"))]
+use alloc::{
+	format,
+	vec,
+	vec::Vec,
+};
+
+#[cfg(feature = "std")]
 use std::panic::catch_unwind;
 
 #[test]
 fn from_vec() {
-	let bv = BitVec::<Msb0, u8>::from_vec(vec![0, 1, 2, 3]);
+	let mut bv = BitVec::<Msb0, u8>::from_vec(vec![0, 1, 2, 3]);
+	let _ = bv.as_bitptr();
+	let bp_mut = bv.as_mut_bitptr();
 	assert_eq!(bv.len(), 32);
 	assert_eq!(bv.count_ones(), 4);
+
+	let capa = bv.alloc_capacity();
+	let bits = bv.leak();
+	assert_eq!(bits as *mut _, bp_mut);
+	let bv = unsafe { BitVec::from_raw_parts(bits, capa) };
+	assert_eq!(bv.as_slice(), &[0, 1, 2, 3]);
 }
 
 #[test]
@@ -36,8 +58,11 @@ fn push() {
 
 #[test]
 fn inspect() {
-	let bv = bitvec![LocalBits, u16; 0; 40];
+	let mut bv = bitvec![LocalBits, u16; 0; 40];
 	assert_eq!(bv.elements(), 3);
+
+	assert_eq!(bv.as_ptr(), bv.as_slice().as_ptr());
+	assert_eq!(bv.as_mut_ptr(), bv.as_mut_slice().as_mut_ptr());
 }
 
 #[test]
@@ -85,6 +110,7 @@ fn from_null() {
 }
 
 #[test]
+#[cfg(feature = "std")]
 fn reservations() {
 	let mut bv = bitvec![1; 40];
 	assert!(bv.capacity() >= 40);
@@ -136,6 +162,7 @@ fn reservations() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn iterators() {
 	let bv: BitVec<Msb0, u8> = [0xC3, 0x96].iter().collect();
 	assert_eq!(bv.count_ones(), 8);
@@ -164,9 +191,34 @@ fn iterators() {
 		assert_eq!(*l, *r);
 	}
 
+	let mut bv = bv;
+	*(&mut bv).into_iter().next().unwrap() = true;
+
 	let mut iter = bv.into_iter();
-	assert!(!iter.next().unwrap());
+	assert!(iter.next().unwrap());
+	assert_eq!(iter.as_slice(), data[1 ..]);
 	assert_eq!(iter.as_bitslice(), data[1 ..]);
+	assert_eq!(iter.as_mut_slice(), data[1 ..]);
+	assert_eq!(iter.as_mut_bitslice(), data[1 ..]);
+
+	assert_eq!(iter.size_hint(), (7, Some(7)));
+	assert_eq!(bitvec![0; 10].into_iter().count(), 10);
+	assert!(bitvec![0, 0, 1, 0].into_iter().nth(2).unwrap());
+	assert!(bitvec![0, 1].into_iter().last().unwrap());
+	assert!(bitvec![0, 0, 1].into_iter().next_back().unwrap());
+	assert!(bitvec![0, 1, 0, 0].into_iter().nth_back(2).unwrap());
+
+	let mut bv = bitvec![0, 0, 0, 1, 1, 1, 0, 0, 0];
+	let mut drain = bv.drain(3 .. 6);
+	let mid = bits![1; 3];
+	assert_eq!(drain.as_slice(), mid);
+	assert_eq!(drain.as_bitslice(), mid);
+	let drain_span: &BitSlice = drain.as_ref();
+	assert_eq!(drain_span, mid);
+
+	assert!(drain.nth(1).unwrap());
+	assert!(drain.last().unwrap());
+	assert_eq!(bitvec![0, 0, 1, 1, 0, 0,].drain(2 .. 4).count(), 2);
 
 	let mut bv = bitvec![0, 0, 1, 0, 1, 1, 0, 1, 0, 0];
 	let mut splice = bv.splice(2 .. 8, iter::repeat(false).take(4));
@@ -178,9 +230,21 @@ fn iterators() {
 	assert_eq!(bv, bits![0; 8]);
 
 	let mut bv = bitvec![0, 1, 1, 1, 1, 0];
-	let splice = bv.splice(1 .. 5, iter::once(false));
-	drop(splice);
+	let splice = bv.splice(1 .. 5, Some(false));
+	assert_eq!(splice.count(), 4);
 	assert_eq!(bv, bits![0; 3]);
+
+	//  Attempt to hit branches in the Splice destructor.
+
+	let mut bv = bitvec![0, 0, 0, 1, 1, 1];
+	drop(bv.splice(3 .., Some(false)));
+	assert_eq!(bv, bits![0; 4]);
+
+	let mut bv = bitvec![0, 0, 0, 1, 1, 1];
+	let mut splice = bv.splice(3 .., [false; 2].iter().copied());
+	assert!(splice.next().unwrap());
+	assert!(splice.last().unwrap());
+	assert_eq!(bv, bits![0; 5]);
 }
 
 #[test]
@@ -263,7 +327,56 @@ fn vec_splice() {
 }
 
 #[test]
+fn ops() {
+	let a = bitvec![0, 0, 1, 1];
+	let b = bitvec![0, 1, 0, 1];
+
+	let c = a.clone() & b.clone();
+	assert_eq!(c, bits![0, 0, 0, 1]);
+	let d = a.clone() | b.clone();
+	assert_eq!(d, bits![0, 1, 1, 1]);
+	let e = a.clone() ^ b.clone();
+	assert_eq!(e, bits![0, 1, 1, 0]);
+	let f = !e;
+	assert_eq!(f, bits![1, 0, 0, 1]);
+}
+
+#[test]
+fn traits() {
+	let mut bv = bitvec![0, 0, 1, 1];
+	let bits: &BitSlice = bv.borrow();
+	assert_eq!(bv, bits);
+	let bits: &mut BitSlice = bv.borrow_mut();
+	assert_eq!(bits, bits![0, 0, 1, 1]);
+	assert!(bv.as_bitslice().eq(&bv));
+
+	let bv2 = bitvec![0, 1, 0, 1];
+	assert_eq!(bv.cmp(&bv2), Ordering::Less);
+	assert!(!bv.eq(&bv2));
+	assert_eq!((&bv.as_bitslice()).partial_cmp(&bv2), Some(Ordering::Less));
+
+	let _: &BitSlice = bv.as_ref();
+	let _: &mut BitSlice = bv.as_mut();
+
+	let bv: BitVec = bits![mut 0, 1, 0, 1].into();
+	assert_eq!(bv, bits![0, 1, 0, 1]);
+	let bv: BitVec = bitbox![0, 1, 0, 1].into();
+	assert_eq!(bv, bits![0, 1, 0, 1]);
+	let vec: Vec<usize> = bv.into();
+	assert_eq!(vec.len(), 1);
+	let bv: Result<BitVec, Vec<usize>> = vec.try_into();
+	assert!(bv.is_ok());
+}
+
+#[test]
 fn format() {
+	let bv = bitvec![0, 0, 1, 1, 0, 1, 0, 1];
+	assert_eq!(format!("{}", bv), format!("{}", bv.as_bitslice()));
+	assert_eq!(format!("{:b}", bv), format!("{:b}", bv.as_bitslice()));
+	assert_eq!(format!("{:o}", bv), format!("{:o}", bv.as_bitslice()));
+	assert_eq!(format!("{:x}", bv), format!("{:x}", bv.as_bitslice()));
+	assert_eq!(format!("{:X}", bv), format!("{:X}", bv.as_bitslice()));
+
 	let text = format!("{:?}", bitvec![Msb0, u8; 0, 1, 0, 0]);
 	assert!(
 		text.starts_with("BitVec<bitvec::order::Msb0, u8> { addr: 0x"),

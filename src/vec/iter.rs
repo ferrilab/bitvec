@@ -37,7 +37,10 @@ use core::{
 
 use tap::{
 	pipe::Pipe,
-	tap::TapOptional,
+	tap::{
+		Tap,
+		TapOptional,
+	},
 };
 
 impl<O, T> Extend<bool> for BitVec<O, T>
@@ -89,12 +92,7 @@ where
 {
 	fn from_iter<I>(iter: I) -> Self
 	where I: IntoIterator<Item = bool> {
-		let iter = iter.into_iter();
-		let mut out = match iter.size_hint() {
-			(n, None) | (_, Some(n)) => Self::with_capacity(n),
-		};
-		out.extend(iter);
-		out
+		Self::new().tap_mut(|bv| bv.extend(iter.into_iter()))
 	}
 }
 
@@ -173,7 +171,6 @@ where
 	type IntoIter = <&'a mut BitSlice<O, T> as IntoIterator>::IntoIter;
 	type Item = <&'a mut BitSlice<O, T> as IntoIterator>::Item;
 
-	#[cfg(not(tarpaulin_include))]
 	fn into_iter(self) -> Self::IntoIter {
 		self.as_mut_bitslice().into_iter()
 	}
@@ -247,13 +244,11 @@ where
 	/// ```
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
-	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
 		self.iter.as_bitslice()
 	}
 
 	#[doc(hidden)]
-	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.as_bitslice()` to view the underlying slice"]
 	pub fn as_slice(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
@@ -281,13 +276,11 @@ where
 	/// ```
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
-	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
 		self.iter.as_bitslice().bitptr().to_bitslice_mut()
 	}
 
 	#[doc(hidden)]
-	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.as_mut_bitslice()` to view the underlying slice"]
 	pub fn as_mut_slice(&mut self) -> &mut BitSlice<O, T> {
 		self.as_mut_bitslice()
@@ -307,7 +300,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Iterator for IntoIter<O, T>
 where
 	O: BitOrder,
@@ -336,7 +328,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> DoubleEndedIterator for IntoIter<O, T>
 where
 	O: BitOrder,
@@ -351,7 +342,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> ExactSizeIterator for IntoIter<O, T>
 where
 	O: BitOrder,
@@ -453,13 +443,11 @@ where
 	/// element slice.
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
-	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &'a BitSlice<O, T> {
 		self.drain.as_bitslice()
 	}
 
 	#[doc(hidden)]
-	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.as_bitslice()` to view the underlying slice"]
 	pub fn as_slice(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
@@ -563,7 +551,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> AsRef<BitSlice<O, T>> for Drain<'_, O, T>
 where
 	O: BitOrder,
@@ -587,7 +574,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Iterator for Drain<'_, O, T>
 where
 	O: BitOrder,
@@ -616,7 +602,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> DoubleEndedIterator for Drain<'_, O, T>
 where
 	O: BitOrder,
@@ -631,7 +616,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> ExactSizeIterator for Drain<'_, O, T>
 where
 	O: BitOrder,
@@ -774,18 +758,19 @@ where
 		})
 	}
 
-	#[cfg(not(tarpaulin_include))]
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		self.drain.size_hint()
 	}
 
-	#[cfg(not(tarpaulin_include))]
 	fn count(self) -> usize {
-		self.drain.len()
+		self.len()
+	}
+
+	fn last(mut self) -> Option<Self::Item> {
+		self.next_back()
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T, I> DoubleEndedIterator for Splice<'_, O, T, I>
 where
 	O: BitOrder,
@@ -801,7 +786,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T, I> ExactSizeIterator for Splice<'_, O, T, I>
 where
 	O: BitOrder,

@@ -25,7 +25,6 @@ use core::{
 	},
 };
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitAnd<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -35,12 +34,11 @@ where
 	type Output = Self;
 
 	fn bitand(mut self, rhs: Rhs) -> Self::Output {
-		*self.as_mut_bitslice() &= rhs;
+		self &= rhs;
 		self
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitAndAssign<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -52,7 +50,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitOr<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -62,12 +59,11 @@ where
 	type Output = Self;
 
 	fn bitor(mut self, rhs: Rhs) -> Self::Output {
-		*self.as_mut_bitslice() |= rhs;
+		self |= rhs;
 		self
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitOrAssign<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -79,7 +75,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitXor<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -89,12 +84,11 @@ where
 	type Output = Self;
 
 	fn bitxor(mut self, rhs: Rhs) -> Self::Output {
-		*self.as_mut_bitslice() ^= rhs;
+		self ^= rhs;
 		self
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitXorAssign<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -106,7 +100,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Deref for BitBox<O, T>
 where
 	O: BitOrder,
@@ -119,7 +112,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> DerefMut for BitBox<O, T>
 where
 	O: BitOrder,
@@ -141,7 +133,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T, Idx> Index<Idx> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -155,7 +146,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T, Idx> IndexMut<Idx> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -167,7 +157,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Not for BitBox<O, T>
 where
 	O: BitOrder,

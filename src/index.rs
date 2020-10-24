@@ -227,7 +227,6 @@ where R: BitRegister
 	/// constructor for a position counter.
 	///
 	/// [`O::at::<R>`]: crate::order::BitOrder::at
-	#[cfg(not(tarpaulin_include))]
 	pub fn position<O>(self) -> BitPos<R>
 	where O: BitOrder {
 		O::at::<R>(self)
@@ -239,7 +238,6 @@ where R: BitRegister
 	/// constructor for a bit selector.
 	///
 	/// [`O::select::<R>`]: crate::order::BitOrder::select
-	#[cfg(not(tarpaulin_include))]
 	pub fn select<O>(self) -> BitSel<R>
 	where O: BitOrder {
 		O::select::<R>(self)
@@ -250,7 +248,6 @@ where R: BitRegister
 	/// This is a type-cast over [`Self::select`].
 	///
 	/// [`Self::select`]: Self::select
-	#[cfg(not(tarpaulin_include))]
 	pub fn mask<O>(self) -> BitMask<R>
 	where O: BitOrder {
 		self.select::<O>().mask()
@@ -402,7 +399,6 @@ where R: BitRegister
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<R> TryFrom<u8> for BitIdx<R>
 where R: BitRegister
 {
@@ -413,7 +409,6 @@ where R: BitRegister
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<R> Binary for BitIdx<R>
 where R: BitRegister
 {
@@ -422,16 +417,14 @@ where R: BitRegister
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<R> Debug for BitIdx<R>
 where R: BitRegister
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		write!(fmt, "BitIdx<{}>({:b})", any::type_name::<R>(), self)
+		write!(fmt, "BitIdx<{}>({})", any::type_name::<R>(), self)
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<R> Display for BitIdx<R>
 where R: BitRegister
 {
@@ -491,7 +484,6 @@ where R: BitRegister
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<R> Debug for BitIdxErr<R>
 where R: BitRegister
 {
@@ -721,7 +713,6 @@ where R: BitRegister
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<R> Binary for BitTail<R>
 where R: BitRegister
 {
@@ -730,16 +721,14 @@ where R: BitRegister
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<R> Debug for BitTail<R>
 where R: BitRegister
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		write!(fmt, "BitTail<{}>({:b})", any::type_name::<R>(), self)
+		write!(fmt, "BitTail<{}>({})", any::type_name::<R>(), self)
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<R> Display for BitTail<R>
 where R: BitRegister
 {
@@ -873,7 +862,6 @@ where R: BitRegister
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<R> Binary for BitPos<R>
 where R: BitRegister
 {
@@ -882,16 +870,14 @@ where R: BitRegister
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<R> Debug for BitPos<R>
 where R: BitRegister
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		write!(fmt, "BitPos<{}>({:b})", any::type_name::<R>(), self)
+		write!(fmt, "BitPos<{}>({})", any::type_name::<R>(), self)
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<R> Display for BitPos<R>
 where R: BitRegister
 {
@@ -1001,9 +987,8 @@ where R: BitRegister
 	}
 
 	/// Computes a bit-mask for `self`. This is a type-cast.
-	#[cfg(not(tarpaulin_include))]
 	pub fn mask(self) -> BitMask<R> {
-		unsafe { BitMask::new(self.sel) }
+		BitMask::new(self.sel)
 	}
 
 	/// Iterates over all possible selector values.
@@ -1015,7 +1000,6 @@ where R: BitRegister
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<R> Binary for BitSel<R>
 where R: BitRegister
 {
@@ -1024,16 +1008,14 @@ where R: BitRegister
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<R> Debug for BitSel<R>
 where R: BitRegister
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		write!(fmt, "BitSel<{}>({:b})", any::type_name::<R>(), self)
+		write!(fmt, "BitSel<{}>({})", any::type_name::<R>(), self)
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<R> Display for BitSel<R>
 where R: BitRegister
 {
@@ -1101,8 +1083,7 @@ where R: BitRegister
 	///
 	/// [`BitOrder::mask`]: crate::order::BitOrder::mask
 	/// [`BitSel`]: crate::index::BitSel
-	#[cfg(not(tarpaulin_include))]
-	pub unsafe fn new(value: R) -> Self {
+	pub fn new(value: R) -> Self {
 		Self { mask: value }
 	}
 
@@ -1157,7 +1138,6 @@ where R: BitRegister
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<R> Binary for BitMask<R>
 where R: BitRegister
 {
@@ -1166,16 +1146,14 @@ where R: BitRegister
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<R> Debug for BitMask<R>
 where R: BitRegister
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		write!(fmt, "BitMask<{}>({:b})", any::type_name::<R>(), self)
+		write!(fmt, "BitMask<{}>({})", any::type_name::<R>(), self)
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<R> Display for BitMask<R>
 where R: BitRegister
 {
@@ -1265,7 +1243,7 @@ mod tests {
 
 		for n in 0 .. 8 {
 			let pos = BitPos::<u8>::new(n).unwrap();
-			let mask: BitMask<u8> = unsafe { BitMask::new(1 << n) };
+			let mask: BitMask<u8> = BitMask::new(1 << n);
 			assert_eq!(pos.mask(), mask);
 		}
 	}
@@ -1337,5 +1315,39 @@ mod tests {
 			assert!(BitIdx::<u64>::new(<u64 as BitMemory>::MASK).is_ok());
 			assert!(BitIdx::<u64>::new(<u64 as BitMemory>::BITS).is_err());
 		}
+	}
+
+	#[test]
+	#[cfg(feature = "alloc")]
+	fn format() {
+		#[cfg(not(feature = "std"))]
+		use alloc::format;
+
+		assert_eq!(format!("{:?}", BitIdx::<u16>::ZERO), "BitIdx<u16>(0000)");
+
+		assert_eq!(
+			format!("{:?}", BitIdxErr::<u16>::new(20)),
+			"BitIdxErr<u16>(20)"
+		);
+
+		assert_eq!(
+			format!("{:?}", BitTail::<u32>::ZERO),
+			"BitTail<u32>(000000)"
+		);
+
+		assert_eq!(
+			format!("{:?}", BitPos::<u8>::new(0).unwrap()),
+			"BitPos<u8>(000)"
+		);
+
+		assert_eq!(
+			format!("{:?}", BitSel::<u16>::new(32).unwrap()),
+			"BitSel<u16>(0000000000100000)"
+		);
+
+		assert_eq!(
+			format!("{:?}", BitMask::<u8>::new(8) | 32),
+			"BitMask<u8>(00101000)"
+		);
 	}
 }

@@ -117,7 +117,6 @@ where
 
 //  ref-to-val equality
 
-#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<BitSlice<O2, T2>> for &BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -130,7 +129,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<BitSlice<O2, T2>> for &mut BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -145,7 +143,6 @@ where
 
 //  val-to-ref equality
 
-#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<&BitSlice<O2, T2>> for BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -158,7 +155,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<&mut BitSlice<O2, T2>> for BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -275,7 +271,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<'a, O, T> TryFrom<&'a [T]> for &'a BitSlice<O, T>
 where
 	O: BitOrder,
@@ -288,7 +283,19 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
+impl<'a, O, T> TryFrom<&'a mut [T]> for &'a mut BitSlice<O, T>
+where
+	O: BitOrder,
+	T: BitRegister + BitStore,
+{
+	type Error = &'a mut [T];
+
+	fn try_from(slice: &'a mut [T]) -> Result<Self, Self::Error> {
+		let slice_ptr = slice as *mut [T];
+		BitSlice::from_slice_mut(slice).ok_or(unsafe { &mut *slice_ptr })
+	}
+}
+
 impl<O, T> Default for &BitSlice<O, T>
 where
 	O: BitOrder,
@@ -299,7 +306,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Default for &mut BitSlice<O, T>
 where
 	O: BitOrder,
@@ -322,7 +328,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Display for BitSlice<O, T>
 where
 	O: BitOrder,
@@ -566,7 +571,6 @@ where
 }
 
 #[cfg(feature = "alloc")]
-#[cfg(not(tarpaulin_include))]
 impl<O, T> ToOwned for BitSlice<O, T>
 where
 	O: BitOrder,
@@ -576,264 +580,5 @@ where
 
 	fn to_owned(&self) -> Self::Owned {
 		BitVec::from_bitslice(self)
-	}
-}
-
-#[cfg(test)]
-mod tests {
-	use crate::prelude::*;
-
-	#[test]
-	fn cmp() {
-		let data = 0x45u8;
-		let bits = data.view_bits::<Msb0>();
-		let a = &bits[.. 3]; // 010
-		let b = &bits[.. 4]; // 0100
-		let c = &bits[.. 5]; // 01000
-		let d = &bits[4 ..]; // 0101
-
-		assert!(a < b); // by length
-		assert!(b < c); // by length
-		assert!(c < d); // by different bit
-	}
-}
-
-#[cfg(all(test, feature = "alloc"))]
-mod format {
-	use crate::prelude::*;
-
-	//  The `format!` macro is not in the `alloc` prelude.
-	#[cfg(not(feature = "std"))]
-	use alloc::format;
-
-	#[test]
-	fn binary() {
-		let data = [0u8, 0x0F, !0];
-		let bits = data.view_bits::<Msb0>();
-
-		assert_eq!(format!("{:b}", &bits[.. 0]), "[]");
-		assert_eq!(format!("{:#b}", &bits[.. 0]), "[]");
-
-		assert_eq!(format!("{:b}", &bits[9 .. 15]), "[000111]");
-		assert_eq!(
-			format!("{:#b}", &bits[9 .. 15]),
-			"[
-    0b000111,
-]"
-		);
-
-		assert_eq!(format!("{:b}", &bits[4 .. 20]), "[0000, 00001111, 1111]");
-		assert_eq!(
-			format!("{:#b}", &bits[4 .. 20]),
-			"[
-    0b0000,
-    0b00001111,
-    0b1111,
-]"
-		);
-
-		assert_eq!(format!("{:b}", &bits[4 ..]), "[0000, 00001111, 11111111]");
-		assert_eq!(
-			format!("{:#b}", &bits[4 ..]),
-			"[
-    0b0000,
-    0b00001111,
-    0b11111111,
-]"
-		);
-
-		assert_eq!(format!("{:b}", &bits[.. 20]), "[00000000, 00001111, 1111]");
-		assert_eq!(
-			format!("{:#b}", &bits[.. 20]),
-			"[
-    0b00000000,
-    0b00001111,
-    0b1111,
-]"
-		);
-
-		assert_eq!(format!("{:b}", bits), "[00000000, 00001111, 11111111]");
-		assert_eq!(
-			format!("{:#b}", bits),
-			"[
-    0b00000000,
-    0b00001111,
-    0b11111111,
-]"
-		);
-	}
-
-	#[test]
-	fn octal() {
-		let data = [0u8, 0x0F, !0];
-		let bits = data.view_bits::<Msb0>();
-
-		assert_eq!(format!("{:o}", &bits[.. 0]), "[]");
-		assert_eq!(format!("{:#o}", &bits[.. 0]), "[]");
-
-		assert_eq!(format!("{:o}", &bits[9 .. 15]), "[07]");
-		assert_eq!(
-			format!("{:#o}", &bits[9 .. 15]),
-			"[
-    0o07,
-]"
-		);
-
-		//  …0_000 00_001_111 1_111…
-		assert_eq!(format!("{:o}", &bits[4 .. 20]), "[00, 017, 17]");
-		assert_eq!(
-			format!("{:#o}", &bits[4 .. 20]),
-			"[
-    0o00,
-    0o017,
-    0o17,
-]"
-		);
-
-		assert_eq!(format!("{:o}", &bits[4 ..]), "[00, 017, 377]");
-		assert_eq!(
-			format!("{:#o}", &bits[4 ..]),
-			"[
-    0o00,
-    0o017,
-    0o377,
-]"
-		);
-
-		assert_eq!(format!("{:o}", &bits[.. 20]), "[000, 017, 17]");
-		assert_eq!(
-			format!("{:#o}", &bits[.. 20]),
-			"[
-    0o000,
-    0o017,
-    0o17,
-]"
-		);
-
-		assert_eq!(format!("{:o}", bits), "[000, 017, 377]");
-		assert_eq!(
-			format!("{:#o}", bits),
-			"[
-    0o000,
-    0o017,
-    0o377,
-]"
-		);
-	}
-
-	#[test]
-	fn hex_lower() {
-		let data = [0u8, 0x0F, !0];
-		let bits = data.view_bits::<Msb0>();
-
-		assert_eq!(format!("{:x}", &bits[.. 0]), "[]");
-		assert_eq!(format!("{:#x}", &bits[.. 0]), "[]");
-
-		//  …00_0111 …
-		assert_eq!(format!("{:x}", &bits[9 .. 15]), "[07]");
-		assert_eq!(
-			format!("{:#x}", &bits[9 .. 15]),
-			"[
-    0x07,
-]"
-		);
-
-		//  …0000 00001111 1111…
-		assert_eq!(format!("{:x}", &bits[4 .. 20]), "[0, 0f, f]");
-		assert_eq!(
-			format!("{:#x}", &bits[4 .. 20]),
-			"[
-    0x0,
-    0x0f,
-    0xf,
-]"
-		);
-
-		assert_eq!(format!("{:x}", &bits[4 ..]), "[0, 0f, ff]");
-		assert_eq!(
-			format!("{:#x}", &bits[4 ..]),
-			"[
-    0x0,
-    0x0f,
-    0xff,
-]"
-		);
-
-		assert_eq!(format!("{:x}", &bits[.. 20]), "[00, 0f, f]");
-		assert_eq!(
-			format!("{:#x}", &bits[.. 20]),
-			"[
-    0x00,
-    0x0f,
-    0xf,
-]"
-		);
-
-		assert_eq!(format!("{:x}", bits), "[00, 0f, ff]");
-		assert_eq!(
-			format!("{:#x}", bits),
-			"[
-    0x00,
-    0x0f,
-    0xff,
-]"
-		);
-	}
-
-	#[test]
-	fn hex_upper() {
-		let data = [0u8, 0x0F, !0];
-		let bits = data.view_bits::<Msb0>();
-
-		assert_eq!(format!("{:X}", &bits[.. 0]), "[]");
-		assert_eq!(format!("{:#X}", &bits[.. 0]), "[]");
-
-		assert_eq!(format!("{:X}", &bits[9 .. 15]), "[07]");
-		assert_eq!(
-			format!("{:#X}", &bits[9 .. 15]),
-			"[
-    0x07,
-]"
-		);
-
-		assert_eq!(format!("{:X}", &bits[4 .. 20]), "[0, 0F, F]");
-		assert_eq!(
-			format!("{:#X}", &bits[4 .. 20]),
-			"[
-    0x0,
-    0x0F,
-    0xF,
-]"
-		);
-
-		assert_eq!(format!("{:X}", &bits[4 ..]), "[0, 0F, FF]");
-		assert_eq!(
-			format!("{:#X}", &bits[4 ..]),
-			"[
-    0x0,
-    0x0F,
-    0xFF,
-]"
-		);
-
-		assert_eq!(format!("{:X}", &bits[.. 20]), "[00, 0F, F]");
-		assert_eq!(
-			format!("{:#X}", &bits[.. 20]),
-			"[
-    0x00,
-    0x0F,
-    0xF,
-]"
-		);
-
-		assert_eq!(format!("{:X}", bits), "[00, 0F, FF]");
-		assert_eq!(
-			format!("{:#X}", bits),
-			"[
-    0x00,
-    0x0F,
-    0xFF,
-]"
-		);
 	}
 }

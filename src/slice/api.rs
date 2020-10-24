@@ -384,7 +384,6 @@ where
 	/// assert_eq!(None, v.get(3));
 	/// assert_eq!(None, v.get(0 .. 4));
 	/// ```
-	#[cfg(not(tarpaulin_include))]
 	pub fn get<'a, I>(&'a self, index: I) -> Option<I::Immut>
 	where I: BitSliceIndex<'a, O, T> {
 		index.get(self)
@@ -419,7 +418,6 @@ where
 	///
 	/// [`BitMut`]: crate::slice::BitMut
 	/// [`.get()`]: Self::get
-	#[cfg(not(tarpaulin_include))]
 	pub fn get_mut<'a, I>(&'a mut self, index: I) -> Option<I::Mut>
 	where I: BitSliceIndex<'a, O, T> {
 		index.get_mut(self)
@@ -449,7 +447,6 @@ where
 	///
 	/// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
 	/// [`.get()`]: Self::get
-	#[cfg(not(tarpaulin_include))]
 	#[allow(clippy::missing_safety_doc)]
 	pub unsafe fn get_unchecked<'a, I>(&'a self, index: I) -> I::Immut
 	where I: BitSliceIndex<'a, O, T> {
@@ -491,7 +488,6 @@ where
 	/// [`BitMut`]: crate::slice::BitMut
 	/// [`get_mut`]: Self::get_mut
 	/// [undefined behavior]: ../../reference/behavior-considered-undefined.html
-	#[cfg(not(tarpaulin_include))]
 	#[allow(clippy::missing_safety_doc)]
 	pub unsafe fn get_unchecked_mut<'a, I>(&'a mut self, index: I) -> I::Mut
 	where I: BitSliceIndex<'a, O, T> {
@@ -549,7 +545,6 @@ where
 	/// ```
 	///
 	/// [`.as_mut_bitptr()`]: Self::as_mut_bitptr
-	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.as_bitptr()` to access the region pointer"]
 	pub fn as_ptr(&self) -> *const Self {
 		self.as_bitptr()
@@ -598,7 +593,6 @@ where
 	/// }
 	/// assert_eq!(bits.as_slice()[0], 0b0100_1001);
 	/// ```
-	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.as_mut_bitptr()` to access the region pointer"]
 	pub fn as_mut_ptr(&mut self) -> *mut Self {
 		self.as_mut_bitptr()
@@ -1880,7 +1874,6 @@ where
 	///
 	/// [`.clone_from_bitslice()]: Self::clone_from_bitslice
 	#[doc(hidden)]
-	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.clone_from_bitslice()` to copy between bitslices"]
 	pub fn clone_from_slice<O2, T2>(&mut self, src: &BitSlice<O2, T2>)
 	where
@@ -1895,7 +1888,6 @@ where
 	///
 	/// [`.copy_from_bitslice()]: Self::copy_from_bitslice
 	#[doc(hidden)]
-	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.copy_from_bitslice()` to copy between bitslices"]
 	pub fn copy_from_slice(&mut self, src: &Self) {
 		self.copy_from_bitslice(src)
@@ -1950,7 +1942,6 @@ where
 	///
 	/// [`.swap_with_bitslice()]: Self::swap_with_bitslice
 	#[doc(hidden)]
-	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.swap_with_bitslice()` to swap between bitslices"]
 	pub fn swap_with_slice<O2, T2>(&mut self, other: &mut BitSlice<O2, T2>)
 	where
@@ -2028,7 +2019,6 @@ where
 	/// [`Domain`]: crate::domain::Domain
 	/// [`slice::align_to`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.align_to
 	/// [`::Alias`]: crate::store::BitStore::Alias
-	#[cfg(not(tarpaulin_include))] // This is a typecast over `BitPtr::align_to`
 	pub unsafe fn align_to<U>(&self) -> (&Self, &BitSlice<O, U>, &Self)
 	where U: BitStore {
 		let (l, c, r) = self.bitptr().align_to::<U>();
@@ -2098,7 +2088,6 @@ where
 	/// [`DomainMut`]: crate::domain::DomainMut
 	/// [`slice::align_to_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.align_to_mut
 	/// [`::Alias`]: crate::store::BitStore::Alias
-	#[cfg(not(tarpaulin_include))] // This is a typecast over `BitPtr::align_to`
 	pub unsafe fn align_to_mut<U>(
 		&mut self,
 	) -> (&mut Self, &mut BitSlice<O, U>, &mut Self)
@@ -2126,7 +2115,6 @@ where
 	/// [`.to_bitvec()`].
 	///
 	/// [`.to_bitvec()]: Self::to_bitvec
-	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Prefer `.to_bitvec()`"]
 	pub fn to_vec(&self) -> BitVec<O, T::Mem> {
 		self.to_bitvec()
@@ -2191,7 +2179,6 @@ where
 
 [`BitSlice`]: crate::slice::BitSlice
 **/
-#[cfg(not(tarpaulin_include))]
 pub fn from_ref<O, T>(elem: &T) -> &BitSlice<O, T>
 where
 	O: BitOrder,
@@ -2208,7 +2195,6 @@ where
 
 [`BitSlice`]: crate::slice::BitSlice
 **/
-#[cfg(not(tarpaulin_include))]
 pub fn from_mut<O, T>(elem: &mut T) -> &mut BitSlice<O, T>
 where
 	O: BitOrder,
@@ -2277,7 +2263,6 @@ assert_eq!(bits.count_ones(), 3);
 [`NonNull::dangling()`]: core::ptr::NonNull::dangling
 [`UnsafeCell`]: core::cell::UnsafeCell
 **/
-#[cfg(not(tarpaulin_include))]
 pub unsafe fn from_raw_parts<'a, O, T>(
 	data: *const T,
 	len: usize,
@@ -2328,7 +2313,6 @@ Behavior is undefined if any of the following conditions are violated:
 /// [`NonNull::dangling()`]: core::ptr::NonNull::dangling
 /// [`from_raw_parts`]: crate::slice::from_raw_parts
 /// [`&BitSlice`]: crate::slice::BitSlice
-#[cfg(not(tarpaulin_include))]
 pub unsafe fn from_raw_parts_mut<'a, O, T>(
 	data: *mut T,
 	len: usize,

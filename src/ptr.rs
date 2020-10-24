@@ -62,7 +62,6 @@ where T: BitStore
 	inner: NonNull<T>,
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<T> Address<T>
 where T: BitStore
 {
@@ -96,6 +95,7 @@ where T: BitStore
 
 	/// Gets the memory address as a non-null pointer.
 	#[cfg(feature = "alloc")]
+	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_nonnull(self) -> NonNull<T> {
 		self.inner
 	}
@@ -115,7 +115,6 @@ where T: BitStore
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<T> From<&T> for Address<T>
 where T: BitStore
 {
@@ -124,7 +123,6 @@ where T: BitStore
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<T> From<*const T> for Address<T>
 where T: BitStore
 {
@@ -133,7 +131,6 @@ where T: BitStore
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<T> From<&mut T> for Address<T>
 where T: BitStore
 {
@@ -142,7 +139,6 @@ where T: BitStore
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<T> From<*mut T> for Address<T>
 where T: BitStore
 {
@@ -701,7 +697,6 @@ where
 	///
 	/// [`::from_bitslice_ptr()`]: Self::from_bitslice_ptr
 	#[cfg(feature = "alloc")]
-	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn from_bitslice_ptr_mut(raw: *mut BitSlice<O, T>) -> Self {
 		Self::from_bitslice_ptr(raw as *const BitSlice<O, T>)
 	}
@@ -720,7 +715,6 @@ where
 	/// structure.
 	///
 	/// [`::from_bitslice_ptr()`]: Self::from_bitslice_ptr
-	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_bitslice_ptr(self) -> *const BitSlice<O, T> {
 		ptr::slice_from_raw_parts(
 			self.ptr.as_ptr() as *const u8 as *const (),
@@ -733,7 +727,6 @@ where
 	/// See [`.to_bitslice_ptr()`].
 	///
 	/// [`.to_bitslice_ptr()`]: Self::to_bitslice_ptr
-	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_bitslice_ptr_mut(self) -> *mut BitSlice<O, T> {
 		self.to_bitslice_ptr() as *mut BitSlice<O, T>
 	}
@@ -758,7 +751,6 @@ where
 	///
 	/// `self`, opacified as a bit-slice region reference rather than a `BitPtr`
 	/// structure.
-	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_bitslice_ref<'a>(self) -> &'a BitSlice<O, T> {
 		unsafe { &*self.to_bitslice_ptr() }
 	}
@@ -782,7 +774,6 @@ where
 	///
 	/// `self`, opacified as an exclusive bit-slice region reference rather than
 	/// a `BitPtr` structure.
-	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_bitslice_mut<'a>(self) -> &'a mut BitSlice<O, T> {
 		unsafe { &mut *self.to_bitslice_ptr_mut() }
 	}
@@ -802,7 +793,6 @@ where
 	///
 	/// [`NonNull<BitSlice>`]: core::ptr::NonNull
 	#[cfg(feature = "alloc")]
-	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_nonnull(self) -> NonNull<BitSlice<O, T>> {
 		self.to_bitslice_mut().into()
 	}
@@ -1343,7 +1333,7 @@ where
 	T: BitStore,
 {
 	fn clone(&self) -> Self {
-		Self { ..*self }
+		*self
 	}
 }
 
@@ -1383,7 +1373,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Debug for BitPtr<O, T>
 where
 	O: BitOrder,
@@ -1394,7 +1383,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, T> Pointer for BitPtr<O, T>
 where
 	O: BitOrder,
@@ -1445,7 +1433,10 @@ mod tests {
 
 	#[test]
 	#[cfg(feature = "alloc")]
-	fn render() {
+	fn format() {
+		#[cfg(not(feature = "std"))]
+		use alloc::format;
+
 		let bits = bits![Msb0, u8; 0, 1, 0, 0];
 
 		let render = format!("{:?}", bits.bitptr());

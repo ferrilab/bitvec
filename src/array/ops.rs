@@ -21,7 +21,6 @@ use core::ops::{
 	Not,
 };
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V, Rhs> BitAnd<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -31,12 +30,11 @@ where
 	type Output = Self;
 
 	fn bitand(mut self, rhs: Rhs) -> Self::Output {
-		*self.as_mut_bitslice() &= rhs;
+		self &= rhs;
 		self
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V, Rhs> BitAndAssign<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -48,7 +46,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V, Rhs> BitOr<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -58,12 +55,11 @@ where
 	type Output = Self;
 
 	fn bitor(mut self, rhs: Rhs) -> Self::Output {
-		*self.as_mut_bitslice() |= rhs;
+		self |= rhs;
 		self
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V, Rhs> BitOrAssign<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -75,7 +71,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V, Rhs> BitXor<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -85,12 +80,11 @@ where
 	type Output = Self;
 
 	fn bitxor(mut self, rhs: Rhs) -> Self::Output {
-		*self.as_mut_bitslice() ^= rhs;
+		self ^= rhs;
 		self
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V, Rhs> BitXorAssign<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -102,7 +96,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> Deref for BitArray<O, V>
 where
 	O: BitOrder,
@@ -115,7 +108,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> DerefMut for BitArray<O, V>
 where
 	O: BitOrder,
@@ -126,7 +118,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V, Idx> Index<Idx> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -140,7 +131,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V, Idx> IndexMut<Idx> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -152,7 +142,6 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<O, V> Not for BitArray<O, V>
 where
 	O: BitOrder,

@@ -179,7 +179,6 @@ where T: BitRegister + BitStore
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<T> BitView for [T; 0]
 where T: BitRegister + BitStore
 {
@@ -196,6 +195,7 @@ where T: BitRegister + BitStore
 	}
 
 	#[doc(hidden)]
+	#[cfg(not(tarpaulin_include))]
 	fn const_elts() -> usize {
 		0
 	}
@@ -204,7 +204,6 @@ where T: BitRegister + BitStore
 //  Replace with a const-generic once that becomes available.
 macro_rules! view_bits {
 	($($n:expr),+ $(,)?) => { $(
-		#[cfg(not(tarpaulin_include))]
 		impl<T> BitView for [T; $n]
 		where T: BitRegister + BitStore {
 			type Mem = T;
@@ -367,5 +366,18 @@ where
 	fn as_bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
 	where O: BitOrder {
 		self.as_mut().view_bits_mut::<O>()
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::prelude::*;
+
+	#[test]
+	fn impls() {
+		let mut data = [0u8; 3];
+		let bits = data[..].view_bits_mut::<Msb0>();
+		assert_eq!(bits.len(), 24);
+		assert!(bits.not_any());
 	}
 }
