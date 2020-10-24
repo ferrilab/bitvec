@@ -36,8 +36,8 @@ clean:
 
 # Produces coverage statistics for the (non-doc) test suite.
 cover: format check lint
-	@cargo +nightly tarpaulin --all-features -o Lcov -l --output-dir target/tarpaulin --lib --tests --ignore-tests --ignore-panics &>/dev/null &
-	cargo +nightly tarpaulin --all-features -o Html -l --output-dir target/tarpaulin --lib --tests --ignore-tests --ignore-panics
+	@cargo +nightly tarpaulin --all-features -o Lcov -l --output-dir target/tarpaulin --ignore-tests --ignore-panics &>/dev/null &
+	cargo +nightly tarpaulin --all-features -o Html -l --output-dir target/tarpaulin --ignore-tests --ignore-panics
 	@tokei
 
 # This runs the cross-compile battery on a development machine. It is not
@@ -60,12 +60,17 @@ cross:
 	@# parallel -v 'rustup target add {}' :::: ci/target_local.txt
 	parallel -v 'cargo check --no-default-features --target {}' :::: ci/target_local.txt
 
+cross_seq:
+	xargs -n1 -I'{}' env ENABLE_CROSS=1 TARGET='{}' ci/script.sh < ci/target_test.txt
+	xargs -n1 -I'{}' env ENABLE_CROSS=1 TARGET='{}' DISABLE_TESTS=1 ci/script.sh < ci/target_notest.txt
+	xargs -n1 -I'{}' cargo check --no-default-features --target '{}' < ci/target_local.txt
+
 # Runs the development routines.
 dev: format lint doc test cover
 
 # Builds the crate documentation.
-doc:
-	@cargo +nightly doc --all-features
+doc *ARGS:
+	@cargo +nightly doc --all-features {{ARGS}}
 
 # Runs the formatter on all Rust files.
 format:
@@ -96,6 +101,7 @@ publish: checkout
 # Runs the test suites.
 test *ARGS: check lint
 	cargo test --no-default-features -q --lib --tests {{ARGS}}
+	cargo test --no-default-features --features alloc -q --lib --tests {{ARGS}}
 	cargo test --all-features -q --lib --tests {{ARGS}}
 	cargo test --all-features -q --doc {{ARGS}}
 	@cargo run --all-features --example aliasing &>/dev/null
