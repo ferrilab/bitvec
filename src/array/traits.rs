@@ -239,7 +239,7 @@ where
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		self.bitptr().render(fmt, "Array", None)?;
 		fmt.write_str(" ")?;
-		Binary::fmt(self.as_bitslice(), fmt)
+		Display::fmt(self, fmt)
 	}
 }
 

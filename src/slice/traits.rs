@@ -321,7 +321,7 @@ where
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		self.bitptr().render(fmt, "Slice", None)?;
 		fmt.write_str(" ")?;
-		Binary::fmt(self, fmt)
+		Display::fmt(self, fmt)
 	}
 }
 
@@ -390,7 +390,7 @@ macro_rules! fmt {
 				*/
 				const D: usize = <usize as BitMemory>::BITS as usize / $blksz;
 				const M: usize = <usize as BitMemory>::BITS as usize % $blksz;
-				const W: usize = D + M;
+				const W: usize = D + (M != 0) as usize;
 				let mut w: [u8; W + 2] = [b'0'; W + 2];
 				//  Write the prefix symbol into the buffer.
 				w[1] = $pfx;
