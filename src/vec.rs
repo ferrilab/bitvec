@@ -432,13 +432,21 @@ where
 	///
 	/// # Type Parameters
 	///
-	/// This can extend from a [`BitSlice`] of any type arguments.
+	/// This can extend from a [`BitSlice`] of any type arguments. Where the
+	/// source `&BitSlice` matches `self`’s type parameters, the implementation
+	/// is able to attempt to accelerate the copy; however, if the type
+	/// parameters do not match, then the implementation falls back to a
+	/// bit-by-bit iteration and is equivalent to the `Extend` implementation.
+	///
+	/// You should only use this method when the type parameters match and there
+	/// is a possibility of copy acceleration. Otherwise, `.extend()` is the
+	/// correct API.
 	///
 	/// # Parameters
 	///
 	/// - `&mut self`
-	/// - `other`: A [`BitSlice`] reference of the same type parameters as
-	///   `self`.
+	/// - `other`: A [`BitSlice`] reference, ideally of the same type parameters
+	///   as `self`.
 	///
 	/// # Behavior
 	///
@@ -455,6 +463,7 @@ where
 	/// ```
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
+	//  Implementation note: per #85, users want this method to stay generic.
 	pub fn extend_from_bitslice<O2, T2>(&mut self, other: &BitSlice<O2, T2>)
 	where
 		O2: BitOrder,
