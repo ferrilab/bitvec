@@ -134,15 +134,9 @@ a `&[u8]`. Prior to `0.20`, `u8::Alias` was an `AtomicU8` or a `Cell<u8>`,
 either of which permit modification through `&` shared references. Doing so
 while a `&[u8]` reference views the referent memory is undefined behavior.
 
-Now, `u8::Alias` is either `BitSafeAtomU8` or `BitSafeCellU8`, both of which can
-be found in the `access` module. These types retain the load/store behavior of
-their eponymous types, but forbid modifying the referent memory through an `&`
-shared reference.
-
-`bitvec` has no support for shared mutation of the same bit from multiple
-handles, and has no plans to add it. Such behavior is mutually exclusive with
-the `domain` module’s ability to safely access memory while bypassing the alias
-markers.
+Now, `u8::Alias` is `BitSafeU8`, which can be found in the `access` module.
+This type family retains the load/store behavior of their eponymous types, but
+forbids modifying the referent memory through an `&` shared reference.
 
 ## 0.19.4
 

@@ -117,11 +117,16 @@ impl<O, V> Serialize for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
-	V::Mem: Serialize,
+	<V::Store as BitStore>::Mem: Serialize,
 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
-		self.as_slice().serialize(serializer)
+		let ary = self.as_slice();
+		let mut state = serializer.serialize_seq(Some(ary.len()))?;
+		for elem in ary.iter().map(BitStore::load_value) {
+			state.serialize_element(&elem)?;
+		}
+		state.end()
 	}
 }
 

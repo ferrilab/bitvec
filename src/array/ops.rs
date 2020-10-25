@@ -4,6 +4,7 @@ use crate::{
 	array::BitArray,
 	order::BitOrder,
 	slice::BitSlice,
+	store::BitStore,
 	view::BitView,
 };
 
@@ -25,7 +26,7 @@ impl<O, V, Rhs> BitAnd<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
-	BitSlice<O, V::Mem>: BitAndAssign<Rhs>,
+	BitSlice<O, V::Store>: BitAndAssign<Rhs>,
 {
 	type Output = Self;
 
@@ -39,7 +40,7 @@ impl<O, V, Rhs> BitAndAssign<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
-	BitSlice<O, V::Mem>: BitAndAssign<Rhs>,
+	BitSlice<O, V::Store>: BitAndAssign<Rhs>,
 {
 	fn bitand_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() &= rhs;
@@ -50,7 +51,7 @@ impl<O, V, Rhs> BitOr<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
-	BitSlice<O, V::Mem>: BitOrAssign<Rhs>,
+	BitSlice<O, V::Store>: BitOrAssign<Rhs>,
 {
 	type Output = Self;
 
@@ -64,7 +65,7 @@ impl<O, V, Rhs> BitOrAssign<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
-	BitSlice<O, V::Mem>: BitOrAssign<Rhs>,
+	BitSlice<O, V::Store>: BitOrAssign<Rhs>,
 {
 	fn bitor_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() |= rhs;
@@ -75,7 +76,7 @@ impl<O, V, Rhs> BitXor<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
-	BitSlice<O, V::Mem>: BitXorAssign<Rhs>,
+	BitSlice<O, V::Store>: BitXorAssign<Rhs>,
 {
 	type Output = Self;
 
@@ -89,7 +90,7 @@ impl<O, V, Rhs> BitXorAssign<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
-	BitSlice<O, V::Mem>: BitXorAssign<Rhs>,
+	BitSlice<O, V::Store>: BitXorAssign<Rhs>,
 {
 	fn bitxor_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() ^= rhs;
@@ -101,7 +102,7 @@ where
 	O: BitOrder,
 	V: BitView,
 {
-	type Target = BitSlice<O, V::Mem>;
+	type Target = BitSlice<O, V::Store>;
 
 	fn deref(&self) -> &Self::Target {
 		self.as_bitslice()
@@ -122,9 +123,9 @@ impl<O, V, Idx> Index<Idx> for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
-	BitSlice<O, V::Mem>: Index<Idx>,
+	BitSlice<O, V::Store>: Index<Idx>,
 {
-	type Output = <BitSlice<O, V::Mem> as Index<Idx>>::Output;
+	type Output = <BitSlice<O, V::Store> as Index<Idx>>::Output;
 
 	fn index(&self, index: Idx) -> &Self::Output {
 		self.as_bitslice().index(index)
@@ -135,7 +136,7 @@ impl<O, V, Idx> IndexMut<Idx> for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
-	BitSlice<O, V::Mem>: IndexMut<Idx>,
+	BitSlice<O, V::Store>: IndexMut<Idx>,
 {
 	fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
 		self.as_mut_bitslice().index_mut(index)
@@ -151,7 +152,7 @@ where
 
 	fn not(mut self) -> Self::Output {
 		for elem in self.as_mut_slice() {
-			*elem = !*elem;
+			elem.store_value(!elem.load_value());
 		}
 		self
 	}

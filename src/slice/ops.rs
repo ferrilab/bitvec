@@ -153,7 +153,7 @@ where
 					elem.invert_bits(O::mask(head, None));
 				}
 				for elem in body {
-					*elem = !*elem;
+					elem.store_value(!elem.load_value());
 				}
 				if let Some((elem, tail)) = tail {
 					elem.invert_bits(O::mask(None, tail));

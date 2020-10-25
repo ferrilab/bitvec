@@ -32,7 +32,6 @@ as type inference is permitted here, it is less useful in this position.
 use bitvec::prelude::*;
 
 bitarr![Msb0, u8; 0, 1];
-bitarr![Msb0; 0, 1];
 bitarr![0, 1];
 bitarr![0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0];
 bitarr![Msb0, u8; 1; 5];
@@ -164,16 +163,14 @@ macro_rules! bitarr {
 [`vec!`].
 
 `bits!` can be invoked in a number of ways. It takes the name of a [`BitOrder`]
-implementation, the name of a [`BitStore`]-implementing core type (which can be
-any of the fundamental integers, their `Cell` wrappers, or their `Atomic`
-sibling types), and zero or more expressions which are used to build the bits.
-Each value expression corresponds to one bit. If the expression evaluates to
-`0`, it is the zero bit; otherwise, it is the `1` bit.
+implementation, the name of an unsigned integer, and zero or more expressions
+which are used to build the bits. Each value expression corresponds to one bit.
+If the expression evaluates to `0`, it is the zero bit; otherwise, it is the `1`
+bit.
 
-`bits!` can be invoked with no type specifiers, a [`BitOrder`] specifier only,
-or both a `BitOrder` and a [`BitStore`] specifier. It cannot be invoked with a
-`BitStore` but no `BitOrder`, as the macro grammar is incapable of
-distinguishing between these two.
+`bits!` can be invoked with no type specifiers, or both a `BitOrder` and a
+[`BitStore`] specifier. If the type specifiers are absent, it uses the default
+types set on [`BitSlice`].
 
 In addition, a `mut` marker may be used as the first argument to produce an
 `&mut BitSlice` handle instead of a `&BitSlice` handle.
@@ -188,8 +185,6 @@ use bitvec::prelude::*;
 
 bits![Msb0, u8; 0, 1];
 bits![mut Lsb0, u8; 0, 1,];
-bits![Msb0; 0, 1];
-bits![mut Lsb0; 0, 1,];
 bits![0, 1];
 bits![mut 0, 1,];
 bits![0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0];
@@ -319,15 +314,12 @@ macro_rules! bits {
 
 `bitvec!` can be invoked in a number of ways. It takes the name of a
 [`BitOrder`] implementation, the name of a [`BitStore`]-implementing
-fundamental, and zero or more fundamentals (integer, floating-point, or boolean)
-which are used to build the bits. Each fundamental literal corresponds to one
-bit, and is considered to represent `1` if it is any other value than exactly
-zero.
+unsigned integer, and zero or more integer literals or run-time expressions.
+Each literal corresponds to one bit, and is considered to represent `1` if it is
+any other value than exactly zero.
 
-`bitvec!` can be invoked with no specifiers, a [`BitOrder`] specifier, or a
-`BitOrder` and a [`BitStore`] specifier. It cannot be invoked with a `BitStore`
-specifier but no `BitOrder` specifier, due to overlap in how those tokens are
-matched by the macro system.
+`bitvec!` can be invoked with no specifiers, or a `BitOrder` and a [`BitStore`]
+specifier.
 
 Like [`vec!`], `bitvec!` supports bit lists `[0, 1, …]` and repetition markers
 `[1; n]`.
@@ -339,12 +331,10 @@ use bitvec::prelude::*;
 
 bitvec![Msb0, u8; 0, 1];
 bitvec![Lsb0, u8; 0, 1,];
-bitvec![Msb0; 0, 1];
-bitvec![Lsb0; 0, 1,];
 bitvec![0, 1];
 bitvec![0, 1,];
-bitvec![Msb0, u8; 1; 5];
-bitvec![Lsb0; 0; 5];
+bitvec![Msb0, u16; 1; 5];
+bitvec![Lsb0, u16; 0; 5];
 bitvec![1; 5];
 ```
 

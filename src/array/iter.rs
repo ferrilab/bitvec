@@ -72,13 +72,13 @@ where
 	/// # Original
 	///
 	/// [`IntoIter::as_slice`](core::array::IntoIter::as_slice)
-	pub fn as_bitslice(&self) -> &BitSlice<O, V::Mem> {
+	pub fn as_bitslice(&self) -> &BitSlice<O, V::Store> {
 		unsafe { self.array.as_bitslice().get_unchecked(self.alive.clone()) }
 	}
 
 	#[doc(hidden)]
 	#[deprecated = "Use `.as_bitslice()` to view the underlying slice"]
-	pub fn as_slice(&self) -> &BitSlice<O, V::Mem> {
+	pub fn as_slice(&self) -> &BitSlice<O, V::Store> {
 		self.as_bitslice()
 	}
 
@@ -87,7 +87,7 @@ where
 	/// # Original
 	///
 	/// [`IntoIter::as_mut_slice`](core::array::IntoIter::as_mut_slice)
-	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, V::Mem> {
+	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, V::Store> {
 		unsafe {
 			self.array
 				.as_mut_bitslice()
@@ -97,7 +97,7 @@ where
 
 	#[doc(hidden)]
 	#[deprecated = "Use `.as_mut_bitslice()` to view the underlying slice"]
-	pub fn as_mut_slice(&mut self) -> &mut BitSlice<O, V::Mem> {
+	pub fn as_mut_slice(&mut self) -> &mut BitSlice<O, V::Store> {
 		self.as_mut_bitslice()
 	}
 

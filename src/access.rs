@@ -214,6 +214,10 @@ pub trait BitSafe {
 	/// Reads the value out of memory only if a shared reference to the location
 	/// can be produced.
 	fn load(&self) -> Self::Mem;
+
+	/// Writes a value into memory only if an exclusive reference to the
+	/// location can be produced.
+	fn store(&mut self, value: Self::Mem);
 }
 
 macro_rules! safe {
@@ -254,6 +258,14 @@ macro_rules! safe {
 			fn load(&self) -> $t {
 				radium::Radium::load(
 					&self.inner,
+					core::sync::atomic::Ordering::Relaxed,
+				)
+			}
+
+			fn store(&mut self, value: $t) {
+				radium::Radium::store(
+					&self.inner,
+					value,
 					core::sync::atomic::Ordering::Relaxed,
 				)
 			}
@@ -320,16 +332,17 @@ mod tests {
 
 	#[test]
 	fn safe_wrappers() {
+		use super::BitSafe;
+
 		let bits = bits![mut Msb0, u8; 0; 24];
-		let (l, c) = bits.split_at_mut(4);
-		let (c, _) = c.split_at_aliased_mut(16);
+		let (l, c): (&mut BitSlice<Msb0, BitSafeU8>, _) = bits.split_at_mut(4);
+		let (c, _): (&mut BitSlice<Msb0, BitSafeU8>, _) = c.split_at_mut(16);
 
 		//  Get a write-capable shared reference to the base address,
-		let l_redge: &<<u8 as BitStore>::Alias as BitStore>::Access =
+		let l_redge: &<BitSafeU8 as BitSafe>::Rad =
 			l.domain_mut().region().unwrap().2.unwrap().0;
 		//  and a write-incapable shared reference to the same base address.
-		let c_ledge: &<u8 as BitStore>::Alias =
-			c.domain().region().unwrap().0.unwrap().1;
+		let c_ledge: &BitSafeU8 = c.domain().region().unwrap().0.unwrap().1;
 
 		//  The split location means that the two subdomains share a location.
 		assert_eq!(

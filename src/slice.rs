@@ -438,16 +438,15 @@ where
 	_mem: [()],
 }
 
-/// Constructors are limited to only the integers, and not their aliased
-/// wrappers.
+/// General-purpose functions not present on `[T]`.
 impl<O, T> BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	/// Constructs a shared `&BitSlice` reference over a shared element.
 	///
-	/// The [`BitView`] trait, implemented on all [`BitRegister`] implementors,
+	/// The [`BitView`] trait, implemented on all [`BitStore`] implementors,
 	/// provides a method [`.view_bits::<O>()`] which delegates to this function
 	/// and may be more convenient for you to write.
 	///
@@ -469,7 +468,7 @@ where
 	/// assert_eq!(bits.len(), 8);
 	/// ```
 	///
-	/// [`BitRegister`]: crate::mem::BitRegister
+	/// [`BitStore`]: crate::store::BitStore
 	/// [`BitView`]: crate::view::BitView
 	/// [`.view_bits::<O>()`]: crate::view::BitView::view_bits
 	pub fn from_element(elem: &T) -> &Self {
@@ -481,7 +480,7 @@ where
 
 	/// Constructs an exclusive `&mut BitSlice` reference over an element.
 	///
-	/// The [`BitView`] trait, implemented on all [`BitRegister`] implementors,
+	/// The [`BitView`] trait, implemented on all [`BitStore`] implementors,
 	/// provides a method [`.view_bits_mut::<O>()`] which delegates to this
 	/// function and may be more convenient for you to write.
 	///
@@ -508,7 +507,7 @@ where
 	/// assert_eq!(elem, 1);
 	/// ```
 	///
-	/// [`BitRegister`]: crate::mem::BitRegister
+	/// [`BitStore`]: crate::store::BitStore
 	/// [`BitView`]: crate::view::BitView
 	/// [`.view_bits_mut::<O>()`]: crate::view::BitView::view_bits_mut
 	pub fn from_element_mut(elem: &mut T) -> &mut Self {
@@ -665,14 +664,7 @@ where
 		BitPtr::new_unchecked(slice.as_ptr(), BitIdx::ZERO, bits)
 			.to_bitslice_mut()
 	}
-}
 
-/// General-purpose functions not present on `[T]`.
-impl<O, T> BitSlice<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
 	/// Produces the empty slice reference.
 	///
 	/// This is equivalent to `&[]` for ordinary slices.
@@ -751,6 +743,66 @@ where
 		}
 	}
 
+	/// Writes a new bit at a given index.
+	///
+	/// This method supports writing through a shared reference to a bit that
+	/// may be observed by other `BitSlice` handles. It is only present when the
+	/// `T` type parameter supports such shared mutation (measured by the
+	/// [`Radium`] trait).
+	///
+	/// # Parameters
+	///
+	/// - `&self`
+	/// - `index`: The bit index at which to write. It must be in the range `0
+	///   .. self.len()`.
+	/// - `value`: The value to be written; `true` for `1` or `false` for `0`.
+	///
+	/// # Effects
+	///
+	/// If `index` is valid, then the bit to which it refers is set to `value`.
+	/// If `T` is an [atomic], this will lock the memory bus for the referent
+	/// address, and may cause stalls.
+	///
+	/// # Panics
+	///
+	/// This method panics if `index` is not less than [`self.len()`].
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	/// use core::cell::Cell;
+	///
+	/// let byte = Cell::new(0u8);
+	/// let bits = byte.view_bits::<Msb0>();
+	/// let bits_2 = bits;
+	///
+	/// bits.set_aliased(1, true);
+	/// assert!(bits_2[1]);
+	/// ```
+	///
+	/// This example panics when it attempts to set a bit that is out of bounds.
+	///
+	/// ```rust,should_panic
+	/// use bitvec::prelude::*;
+	/// use core::cell::Cell;
+	///
+	/// let byte = Cell::new(0u8);
+	/// let bits = byte.view_bits::<Lsb0>();
+	/// bits.set_aliased(8, false);
+	/// ```
+	///
+	/// [atomic]: core::sync::atomic
+	/// [`Radium`]: radium::Radium
+	/// [`self.len()`]: Self::len
+	pub fn set_aliased(&self, index: usize, value: bool)
+	where T: radium::Radium {
+		self.assert_in_bounds(index);
+		unsafe {
+			self.set_aliased_unchecked(index, value);
+		}
+	}
+
 	/// Tests if *any* bit in the slice is set (logical `∨`).
 	///
 	/// # Truth Table
@@ -788,7 +840,10 @@ where
 			Domain::Region { head, body, tail } => {
 				head.map_or(false, |(head, elem)| {
 					O::mask(head, None) & elem.load_value() != BitMask::ZERO
-				}) || body.iter().copied().any(|e| e != T::Mem::ZERO)
+				}) || body
+					.iter()
+					.map(BitStore::load_value)
+					.any(|e| e != T::Mem::ZERO)
 					|| tail.map_or(false, |(elem, tail)| {
 						O::mask(None, tail) & elem.load_value() != BitMask::ZERO
 					})
@@ -844,7 +899,10 @@ where
 			Domain::Region { head, body, tail } => {
 				head.map_or(true, |(head, elem)| {
 					!O::mask(head, None) | elem.load_value() == BitMask::ALL
-				}) && body.iter().copied().all(|e| e == T::Mem::ALL)
+				}) && body
+					.iter()
+					.map(BitStore::load_value)
+					.all(|e| e == T::Mem::ALL)
 					&& tail.map_or(true, |(elem, tail)| {
 						!O::mask(None, tail) | elem.load_value() == BitMask::ALL
 					})
@@ -992,7 +1050,7 @@ where
 						.count_ones() as usize
 				}) + body
 					.iter()
-					.copied()
+					.map(BitStore::load_value)
 					.map(|e| e.count_ones() as usize)
 					.sum::<usize>() + tail.map_or(0, |(elem, tail)| {
 					(O::mask(None, tail) & elem.load_value())
@@ -1037,7 +1095,7 @@ where
 						.count_zeros() as usize
 				}) + body
 					.iter()
-					.copied()
+					.map(BitStore::load_value)
 					.map(|e| e.count_zeros() as usize)
 					.sum::<usize>() + tail.map_or(0, |(elem, tail)| {
 					(!O::mask(None, tail) | elem.load_value())
@@ -1307,7 +1365,9 @@ where
 						dh_elem.clear_bits(mask);
 						dh_elem.set_bits(mask & sh_elem.load_value());
 					}
-					d_body.copy_from_slice(s_body);
+					for (dst, src) in d_body.iter_mut().zip(s_body.iter()) {
+						dst.store_value(src.load_value())
+					}
 					if let (Some((dt_elem, t_idx)), Some((st_elem, _))) =
 						(d_tail, s_tail)
 					{
@@ -1743,7 +1803,6 @@ where
 	/// The bit at `index` is set to `value`. If `index` is out of bounds, then
 	/// the memory access is incorrect, and its behavior is unspecified.
 	///
-	///
 	/// # Safety
 	///
 	/// This method is **not** safe. It performs raw pointer arithmetic to seek
@@ -1777,6 +1836,55 @@ where
 	/// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
 	/// [`.set()`]: Self::set
 	pub unsafe fn set_unchecked(&mut self, index: usize, value: bool) {
+		self.bitptr().write(index, value);
+	}
+
+	/// Writes a new bit at a given index, without doing bounds checking.
+	///
+	/// This method supports writing through a shared reference to a bit that
+	/// may be observed by other `BitSlice` handles. It is only present when the
+	/// `T` type parameter supports such shared mutation (measured by the
+	/// [`Radium`] trait).
+	///
+	/// # Effects
+	///
+	/// The bit at `index` is set to `value`. If `index` is out of bounds, then
+	/// the memory access is incorrect, and its behavior is unspecified. If `T`
+	/// is an [atomic], this will lock the memory bus for the referent
+	/// address, and may cause stalls.
+	///
+	/// # Safety
+	///
+	/// This method is **not** safe. It performs raw pointer arithmetic to seek
+	/// from the start of the slice to the requested index, and set the bit
+	/// there. It does not inspect the length of `self`, and it is free to
+	/// perform out-of-bounds memory *write* access.
+	///
+	/// Use this method **only** when you have already performed the bounds
+	/// check, and can guarantee that the call occurs with a safely in-bounds
+	/// index.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	/// use core::cell::Cell;
+	///
+	/// let byte = Cell::new(0u8);
+	/// let bits = byte.view_bits::<Msb0>();
+	/// let bits_2 = bits;
+	///
+	/// let (first, _) = bits.split_at(1);
+	/// assert_eq!(first.len(), 1);
+	/// unsafe { first.set_aliased_unchecked(2, true); }
+	///
+	/// assert!(bits_2[2]);
+	/// ```
+	///
+	/// [atomic]: core::sync::atomic
+	/// [`Radium`]: radium::Radium
+	pub unsafe fn set_aliased_unchecked(&self, index: usize, value: bool)
+	where T: radium::Radium {
 		self.bitptr().write(index, value);
 	}
 

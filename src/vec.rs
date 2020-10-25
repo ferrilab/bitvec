@@ -325,7 +325,7 @@ where
 				if let Some((_, elem)) = head {
 					vec.push(elem.load_value());
 				}
-				vec.extend_from_slice(body);
+				vec.extend(body.iter().map(BitStore::load_value));
 				if let Some((elem, _)) = tail {
 					vec.push(elem.load_value());
 				}

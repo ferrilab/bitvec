@@ -377,7 +377,7 @@ where T: BitStore
 					accum = get::<T, M>(elem, Lsb0::mask(None, tail), 0);
 				}
 
-				for elem in body.iter().rev().copied() {
+				for elem in body.iter().rev().map(BitStore::load_value) {
 					/* Rust does not allow the use of shift instructions of
 					exactly a type width to clear a value. This loop only enters
 					when `M` is not narrower than `T::Mem`, and the shift is
@@ -422,7 +422,7 @@ where T: BitStore
 						get::<T, M>(elem, Lsb0::mask(head, None), head.value());
 				}
 
-				for elem in body.iter().copied() {
+				for elem in body.iter().map(BitStore::load_value) {
 					if M::BITS > T::Mem::BITS {
 						accum <<= T::Mem::BITS;
 					}
@@ -457,7 +457,7 @@ where T: BitStore
 				}
 
 				for elem in body.iter_mut() {
-					*elem = resize(value);
+					elem.store_value(resize(value));
 					if M::BITS > T::Mem::BITS {
 						value >>= T::Mem::BITS;
 					}
@@ -487,7 +487,7 @@ where T: BitStore
 				}
 
 				for elem in body.iter_mut().rev() {
-					*elem = resize(value);
+					elem.store_value(resize(value));
 					if M::BITS > T::Mem::BITS {
 						value >>= T::Mem::BITS;
 					}
@@ -530,7 +530,7 @@ where T: BitStore
 					);
 				}
 
-				for elem in body.iter().rev().copied() {
+				for elem in body.iter().rev().map(BitStore::load_value) {
 					if M::BITS > T::Mem::BITS {
 						accum <<= T::Mem::BITS;
 					}
@@ -564,7 +564,7 @@ where T: BitStore
 					accum = get::<T, M>(elem, Msb0::mask(head, None), 0);
 				}
 
-				for elem in body.iter().copied() {
+				for elem in body.iter().map(BitStore::load_value) {
 					if M::BITS > T::Mem::BITS {
 						accum <<= T::Mem::BITS;
 					}
@@ -604,7 +604,7 @@ where T: BitStore
 				}
 
 				for elem in body.iter_mut() {
-					*elem = resize(value);
+					elem.store_value(resize(value));
 					if M::BITS > T::Mem::BITS {
 						value >>= T::Mem::BITS;
 					}
@@ -645,7 +645,7 @@ where T: BitStore
 				}
 
 				for elem in body.iter_mut().rev() {
-					*elem = resize(value);
+					elem.store_value(resize(value));
 					if M::BITS > T::Mem::BITS {
 						value >>= T::Mem::BITS;
 					}
@@ -663,7 +663,7 @@ impl<O, V> BitField for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
-	BitSlice<O, V::Mem>: BitField,
+	BitSlice<O, V::Store>: BitField,
 {
 	fn load_le<M>(&self) -> M
 	where M: BitMemory {

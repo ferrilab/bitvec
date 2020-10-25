@@ -110,6 +110,13 @@ fn get_set() {
 	let mut proxy = a.get_mut(0).unwrap();
 	let proxy_slice = proxy.as_mut_bitslice();
 	assert_eq!(proxy_slice, bits![1]);
+
+	let byte = core::cell::Cell::new(0u8);
+	let shared = byte.view_bits::<Lsb0>();
+	let shared_2 = shared;
+
+	shared.set_aliased(0, true);
+	assert!(shared_2[0]);
 }
 
 #[test]

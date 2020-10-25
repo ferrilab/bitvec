@@ -150,7 +150,7 @@ macro_rules! bit_domain {
 				/// can safely remove its aliasing protections.
 				///
 				/// [`BitSlice`]: crate::slice::BitSlice
-				body: &'a $($m)? BitSlice<O, T::Mem>,
+				body: &'a $($m)? BitSlice<O, T::Unalias>,
 				/// Any bits that partially fill the last element of the slice
 				/// region.
 				///
@@ -204,7 +204,7 @@ macro_rules! bit_domain {
 			/// [`Region`]: Self::Region
 			pub fn region(self) -> Option<(
 				&'a $($m)? BitSlice<O, T>,
-				&'a $($m)? BitSlice<O, T::Mem>,
+				&'a $($m)? BitSlice<O, T::Unalias>,
 				&'a $($m)? BitSlice<O, T>,
 			)> {
 				if let Self::Region { head, body, tail } = self {
@@ -471,7 +471,7 @@ macro_rules! domain {
 				/// As such, a [`BitSlice`] that was marked as entirely aliased,
 				/// but contains interior unaliased elements, can safely remove
 				/// its aliasing protections.
-				body: &'a $($m)? [T::Mem],
+				body: &'a $($m)? [T::Unalias],
 				/// If the `BitSlice` ended in the interior of its last element,
 				/// this contains the ending index and the last address.
 				tail: Option<(&'a T $(::$a)?, BitTail<T::Mem>)>,
@@ -520,7 +520,7 @@ macro_rules! domain {
 			/// [`Region`]: Self::Region
 			pub fn region(self) -> Option<(
 				Option<(BitIdx<T::Mem>, &'a T $(::$a)?)>,
-				&'a $($m)? [T::Mem],
+				&'a $($m)? [T::Unalias],
 				Option<(&'a T $(::$a)?, BitTail<T::Mem>)>,
 			)> {
 				if let Self::Region { head, body, tail } = self {
@@ -659,7 +659,7 @@ where T: BitStore
 				}
 				if let Some((elem, rest)) = body.split_first() {
 					*body = rest;
-					return Some(*elem);
+					return elem.load_value().into();
 				}
 				if let Some((elem, _)) = *tail {
 					return elem.load_value().pipe(Some).tap(|_| *tail = None);
@@ -684,7 +684,7 @@ where T: BitStore
 				}
 				if let Some((elem, rest)) = body.split_last() {
 					*body = rest;
-					return Some(*elem);
+					return elem.load_value().into();
 				}
 				if let Some((_, elem)) = *head {
 					return elem.load_value().pipe(Some).tap(|_| *head = None);

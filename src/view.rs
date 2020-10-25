@@ -58,8 +58,8 @@ view.
 [`BitRegister`]: crate::mem::BitRegister
 **/
 pub trait BitView {
-	/// The region’s register type.
-	type Mem: BitRegister + BitStore;
+	/// The region’s storage type.
+	type Store: BitStore;
 
 	/// Views a memory region as a [`BitSlice`].
 	///
@@ -76,7 +76,7 @@ pub trait BitView {
 	/// A `&BitSlice` view over the region at `*self`.
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
-	fn view_bits<O>(&self) -> &BitSlice<O, Self::Mem>
+	fn view_bits<O>(&self) -> &BitSlice<O, Self::Store>
 	where O: BitOrder;
 
 	#[doc(hidden)]
@@ -85,7 +85,7 @@ pub trait BitView {
 		since = "0.18.0",
 		note = "The method is renamed to `.view_bits`"
 	)]
-	fn bits<O>(&self) -> &BitSlice<O, Self::Mem>
+	fn bits<O>(&self) -> &BitSlice<O, Self::Store>
 	where O: BitOrder {
 		self.view_bits::<O>()
 	}
@@ -105,7 +105,7 @@ pub trait BitView {
 	/// A `&mut BitSlice` view over the region at `*self`.
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
-	fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, Self::Mem>
+	fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, Self::Store>
 	where O: BitOrder;
 
 	#[doc(hidden)]
@@ -114,7 +114,7 @@ pub trait BitView {
 		since = "0.18.0",
 		note = "The method is renamed to `.view_bits_mut`"
 	)]
-	fn bits_mut<O>(&mut self) -> &BitSlice<O, Self::Mem>
+	fn bits_mut<O>(&mut self) -> &BitSlice<O, Self::Store>
 	where O: BitOrder {
 		self.view_bits_mut::<O>()
 	}
@@ -123,7 +123,7 @@ pub trait BitView {
 	#[doc(hidden)]
 	fn const_bits() -> usize
 	where Self: Sized {
-		Self::const_elts() << <Self::Mem as BitMemory>::INDX
+		Self::const_elts() << <<Self::Store as BitStore>::Mem as BitMemory>::INDX
 	}
 
 	/// Produces the number of memory elements that the implementing type holds.
@@ -133,9 +133,9 @@ pub trait BitView {
 }
 
 impl<T> BitView for T
-where T: BitRegister + BitStore
+where T: BitStore
 {
-	type Mem = T;
+	type Store = T;
 
 	fn view_bits<O>(&self) -> &BitSlice<O, T>
 	where O: BitOrder {
@@ -155,9 +155,9 @@ where T: BitRegister + BitStore
 }
 
 impl<T> BitView for [T]
-where T: BitRegister + BitStore
+where T: BitStore
 {
-	type Mem = T;
+	type Store = T;
 
 	fn view_bits<O>(&self) -> &BitSlice<O, T>
 	where O: BitOrder {
@@ -180,9 +180,9 @@ where T: BitRegister + BitStore
 }
 
 impl<T> BitView for [T; 0]
-where T: BitRegister + BitStore
+where T: BitStore
 {
-	type Mem = T;
+	type Store = T;
 
 	fn view_bits<O>(&self) -> &BitSlice<O, T>
 	where O: BitOrder {
@@ -205,8 +205,8 @@ where T: BitRegister + BitStore
 macro_rules! view_bits {
 	($($n:expr),+ $(,)?) => { $(
 		impl<T> BitView for [T; $n]
-		where T: BitRegister + BitStore {
-			type Mem = T;
+		where T: BitStore {
+			type Store = T;
 
 			fn view_bits<O>(&self) -> &BitSlice<O, T>
 			where O: BitOrder {
@@ -275,7 +275,7 @@ and are aware of the behavior conflicts that may arise.
 [`BitSlice`]: crate::slice::BitSlice
 **/
 pub trait AsBits<T>
-where T: BitRegister + BitStore
+where T: BitStore
 {
 	/// Views memory as a slice of immutable bits.
 	///
@@ -324,7 +324,7 @@ and are aware of the behavior conflicts that may arise.
 [`BitSlice`]: crate::slice::BitSlice
 **/
 pub trait AsBitsMut<T>
-where T: BitRegister + BitStore
+where T: BitStore
 {
 	/// Views memory as a slice of mutable bits.
 	///

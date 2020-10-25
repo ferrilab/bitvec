@@ -472,7 +472,7 @@ macro_rules! fmt {
 							}
 							.pipe(&mut writer);
 						}
-						for elem in body.iter() {
+						for elem in body.iter().map(BitStore::load_value) {
 							elem.view_bits::<O>().pipe(&mut writer);
 						}
 						if let Some((elem, tail)) = tail {

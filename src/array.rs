@@ -152,7 +152,7 @@ where
 	O: BitOrder,
 	V: BitView,
 {
-	/// The ordering of bits within a register `V::Mem`.
+	/// The ordering of bits within a storage element `V::Store`.
 	_ord: PhantomData<O>,
 	/// The wrapped data store.
 	data: V,
@@ -206,32 +206,32 @@ where
 	/// Views the array as a [`BitSlice`].
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
-	pub fn as_bitslice(&self) -> &BitSlice<O, V::Mem> {
+	pub fn as_bitslice(&self) -> &BitSlice<O, V::Store> {
 		self.data.view_bits::<O>()
 	}
 
 	/// Views the array as a mutable [`BitSlice`].
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
-	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, V::Mem> {
+	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, V::Store> {
 		self.data.view_bits_mut::<O>()
 	}
 
 	/// Views the array as a slice of its underlying memory registers.
-	pub fn as_slice(&self) -> &[V::Mem] {
+	pub fn as_slice(&self) -> &[V::Store] {
 		unsafe {
 			slice::from_raw_parts(
-				&self.data as *const V as *const V::Mem,
+				&self.data as *const V as *const V::Store,
 				V::const_elts(),
 			)
 		}
 	}
 
 	/// Views the array as a mutable slice of its underlying memory registers.
-	pub fn as_mut_slice(&mut self) -> &mut [V::Mem] {
+	pub fn as_mut_slice(&mut self) -> &mut [V::Store] {
 		unsafe {
 			slice::from_raw_parts_mut(
-				&mut self.data as *mut V as *mut V::Mem,
+				&mut self.data as *mut V as *mut V::Store,
 				V::const_elts(),
 			)
 		}

@@ -35,22 +35,22 @@ use core::{
 	},
 };
 
-impl<O, V> Borrow<BitSlice<O, V::Mem>> for BitArray<O, V>
+impl<O, V> Borrow<BitSlice<O, V::Store>> for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
 {
-	fn borrow(&self) -> &BitSlice<O, V::Mem> {
+	fn borrow(&self) -> &BitSlice<O, V::Store> {
 		self.as_bitslice()
 	}
 }
 
-impl<O, V> BorrowMut<BitSlice<O, V::Mem>> for BitArray<O, V>
+impl<O, V> BorrowMut<BitSlice<O, V::Store>> for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
 {
-	fn borrow_mut(&mut self) -> &mut BitSlice<O, V::Mem> {
+	fn borrow_mut(&mut self) -> &mut BitSlice<O, V::Store> {
 		self.as_mut_bitslice()
 	}
 }
@@ -98,7 +98,7 @@ where
 	O: BitOrder,
 	V: BitView,
 	Rhs: ?Sized,
-	BitSlice<O, V::Mem>: PartialEq<Rhs>,
+	BitSlice<O, V::Store>: PartialEq<Rhs>,
 {
 	fn eq(&self, other: &Rhs) -> bool {
 		self.as_bitslice() == other
@@ -121,29 +121,29 @@ where
 	O: BitOrder,
 	V: BitView,
 	Rhs: ?Sized,
-	BitSlice<O, V::Mem>: PartialOrd<Rhs>,
+	BitSlice<O, V::Store>: PartialOrd<Rhs>,
 {
 	fn partial_cmp(&self, other: &Rhs) -> Option<cmp::Ordering> {
 		self.as_bitslice().partial_cmp(other)
 	}
 }
 
-impl<O, V> AsRef<BitSlice<O, V::Mem>> for BitArray<O, V>
+impl<O, V> AsRef<BitSlice<O, V::Store>> for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
 {
-	fn as_ref(&self) -> &BitSlice<O, V::Mem> {
+	fn as_ref(&self) -> &BitSlice<O, V::Store> {
 		self.as_bitslice()
 	}
 }
 
-impl<O, V> AsMut<BitSlice<O, V::Mem>> for BitArray<O, V>
+impl<O, V> AsMut<BitSlice<O, V::Store>> for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
 {
-	fn as_mut(&mut self) -> &mut BitSlice<O, V::Mem> {
+	fn as_mut(&mut self) -> &mut BitSlice<O, V::Store> {
 		self.as_mut_bitslice()
 	}
 }
@@ -158,14 +158,14 @@ where
 	}
 }
 
-impl<'a, O, V> TryFrom<&'a BitSlice<O, V::Mem>> for BitArray<O, V>
+impl<'a, O, V> TryFrom<&'a BitSlice<O, V::Store>> for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
 {
-	type Error = TryFromBitSliceError<'a, O, V::Mem>;
+	type Error = TryFromBitSliceError<'a, O, V::Store>;
 
-	fn try_from(src: &'a BitSlice<O, V::Mem>) -> Result<Self, Self::Error> {
+	fn try_from(src: &'a BitSlice<O, V::Store>) -> Result<Self, Self::Error> {
 		if src.len() != V::const_bits() {
 			return Self::Error::err(src);
 		}
@@ -175,14 +175,14 @@ where
 	}
 }
 
-impl<'a, O, V> TryFrom<&'a BitSlice<O, V::Mem>> for &'a BitArray<O, V>
+impl<'a, O, V> TryFrom<&'a BitSlice<O, V::Store>> for &'a BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
 {
-	type Error = TryFromBitSliceError<'a, O, V::Mem>;
+	type Error = TryFromBitSliceError<'a, O, V::Store>;
 
-	fn try_from(src: &'a BitSlice<O, V::Mem>) -> Result<Self, Self::Error> {
+	fn try_from(src: &'a BitSlice<O, V::Store>) -> Result<Self, Self::Error> {
 		let bitptr = src.bitptr();
 		//  This pointer cast can only happen if the slice is exactly as long as
 		//  the array, and is aligned to the front of the element.
@@ -193,14 +193,16 @@ where
 	}
 }
 
-impl<'a, O, V> TryFrom<&'a mut BitSlice<O, V::Mem>> for &'a mut BitArray<O, V>
+impl<'a, O, V> TryFrom<&'a mut BitSlice<O, V::Store>> for &'a mut BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
 {
-	type Error = TryFromBitSliceError<'a, O, V::Mem>;
+	type Error = TryFromBitSliceError<'a, O, V::Store>;
 
-	fn try_from(src: &'a mut BitSlice<O, V::Mem>) -> Result<Self, Self::Error> {
+	fn try_from(
+		src: &'a mut BitSlice<O, V::Store>,
+	) -> Result<Self, Self::Error> {
 		let bitptr = src.bitptr();
 		if src.len() != V::const_bits() || bitptr.head() != BitIdx::ZERO {
 			return Self::Error::err(&*src);
@@ -311,8 +313,8 @@ where
 	O: BitOrder,
 	V: BitView,
 {
-	type IntoIter = <&'a BitSlice<O, V::Mem> as IntoIterator>::IntoIter;
-	type Item = <&'a BitSlice<O, V::Mem> as IntoIterator>::Item;
+	type IntoIter = <&'a BitSlice<O, V::Store> as IntoIterator>::IntoIter;
+	type Item = <&'a BitSlice<O, V::Store> as IntoIterator>::Item;
 
 	fn into_iter(self) -> Self::IntoIter {
 		self.as_bitslice().into_iter()
@@ -324,8 +326,8 @@ where
 	O: BitOrder,
 	V: BitView,
 {
-	type IntoIter = <&'a mut BitSlice<O, V::Mem> as IntoIterator>::IntoIter;
-	type Item = <&'a mut BitSlice<O, V::Mem> as IntoIterator>::Item;
+	type IntoIter = <&'a mut BitSlice<O, V::Store> as IntoIterator>::IntoIter;
+	type Item = <&'a mut BitSlice<O, V::Store> as IntoIterator>::Item;
 
 	fn into_iter(self) -> Self::IntoIter {
 		self.as_mut_bitslice().into_iter()
