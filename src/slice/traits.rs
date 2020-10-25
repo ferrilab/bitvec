@@ -2,10 +2,7 @@
 
 use crate::{
 	domain::Domain,
-	mem::{
-		BitMemory,
-		BitRegister,
-	},
+	mem::BitMemory,
 	order::{
 		BitOrder,
 		Lsb0,
@@ -274,7 +271,7 @@ where
 impl<'a, O, T> TryFrom<&'a [T]> for &'a BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	type Error = &'a [T];
 
@@ -286,7 +283,7 @@ where
 impl<'a, O, T> TryFrom<&'a mut [T]> for &'a mut BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	type Error = &'a mut [T];
 
@@ -574,7 +571,7 @@ where
 impl<O, T> ToOwned for BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	type Owned = BitVec<O, T>;
 

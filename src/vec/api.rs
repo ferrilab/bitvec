@@ -1,10 +1,7 @@
 //! Port of the `Vec<T>` inherent API.
 
 use crate::{
-	mem::{
-		BitMemory,
-		BitRegister,
-	},
+	mem::BitMemory,
 	order::BitOrder,
 	ptr::BitPtr,
 	slice::BitSlice,
@@ -32,12 +29,14 @@ use core::{
 	slice,
 };
 
+use funty::IsInteger;
+
 use tap::pipe::Pipe;
 
 impl<O, T> BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	/// Constructs a new, empty, `BitVec<O, T>`.
 	///
@@ -901,8 +900,8 @@ where
 			len,
 			BitSlice::<O, T>::MAX_BITS,
 		);
-		if self.is_empty() || self.bitptr().tail().value() == T::BITS {
-			self.with_vec(|v| v.push(T::ZERO));
+		if self.is_empty() || self.bitptr().tail().value() == T::Mem::BITS {
+			self.with_vec(|v| v.push(T::Mem::ZERO));
 		}
 		unsafe {
 			self.set_len_unchecked(len + 1);
@@ -965,7 +964,7 @@ where
 	pub fn append<O2, T2>(&mut self, other: &mut BitVec<O2, T2>)
 	where
 		O2: BitOrder,
-		T2: BitRegister + BitStore,
+		T2: BitStore,
 	{
 		let this_len = self.len();
 		let new_len = this_len + other.len();

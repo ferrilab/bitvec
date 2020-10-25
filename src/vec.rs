@@ -45,6 +45,8 @@ use core::{
 	ptr::NonNull,
 };
 
+use funty::IsInteger;
+
 use tap::{
 	pipe::Pipe,
 	tap::Tap,
@@ -241,7 +243,7 @@ only copy the buffer into a heap allocation.
 pub struct BitVec<O = Lsb0, T = usize>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	/// Region pointer describing the live portion of the owned buffer.
 	pointer: NonNull<BitSlice<O, T>>,
@@ -253,7 +255,7 @@ where
 impl<O, T> BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	/// Constructs a `BitVec` from a value repeated many times.
 	///
@@ -284,7 +286,7 @@ where
 		unsafe {
 			out.set_len(len);
 		}
-		out.set_elements(if bit { T::ALL } else { T::ZERO });
+		out.set_elements(if bit { T::Mem::ALL } else { T::Mem::ZERO });
 		out
 	}
 
@@ -577,10 +579,10 @@ where
 	/// bv.set_elements(0xA5);
 	/// assert_eq!(bv.as_slice(), [0xA5, 0xA5]);
 	/// ```
-	pub fn set_elements(&mut self, element: T) {
+	pub fn set_elements(&mut self, element: T::Mem) {
 		self.as_mut_slice()
 			.iter_mut()
-			.for_each(|elt| *elt = element);
+			.for_each(|elt| elt.store_value(element));
 	}
 
 	/// Sets the uninitialized bits of the vector to a fixed value.
@@ -781,17 +783,20 @@ where
 	}
 
 	fn with_vec<F, R>(&mut self, func: F) -> R
-	where F: FnOnce(&mut ManuallyDrop<Vec<T>>) -> R {
+	where F: FnOnce(&mut ManuallyDrop<Vec<T::Mem>>) -> R {
 		let cap = self.capacity;
 		let mut bitptr = self.bitptr();
-		let (base, elts) = (bitptr.pointer().to_mut(), bitptr.elements());
+		let (base, elts) = (
+			bitptr.pointer().to_mut().cast::<T::Mem>(),
+			bitptr.elements(),
+		);
 
 		let mut vec = unsafe { Vec::from_raw_parts(base, elts, cap) }
 			.pipe(ManuallyDrop::new);
 		let out = func(&mut vec);
 
 		unsafe {
-			bitptr.set_pointer(vec.as_ptr());
+			bitptr.set_pointer(vec.as_ptr().cast::<T>());
 		}
 		self.pointer = bitptr.to_nonnull();
 		self.capacity = vec.capacity();

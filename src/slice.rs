@@ -2219,7 +2219,7 @@ where
 	/// ```
 	///
 	/// [`BitVec`]: crate::vec::BitVec
-	pub fn to_bitvec(&self) -> BitVec<O, T::Mem> {
+	pub fn to_bitvec(&self) -> BitVec<O, T::Unalias> {
 		use tap::tap::Tap;
 		let vec = alloc::vec::Vec::with_capacity(self.bitptr().elements())
 			.tap_mut(|vec| {
@@ -2233,7 +2233,9 @@ where
 			.to_bitslice_ptr_mut();
 		let capa = vec.capacity();
 		core::mem::forget(vec);
-		unsafe { BitVec::from_raw_parts(ptr as *mut BitSlice<O, T::Mem>, capa) }
+		unsafe {
+			BitVec::from_raw_parts(ptr as *mut BitSlice<O, T::Unalias>, capa)
+		}
 	}
 }
 

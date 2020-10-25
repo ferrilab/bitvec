@@ -26,7 +26,6 @@ underlying buffer, but much less than a bit-by-bit traversal.
 
 use crate::{
 	field::BitField,
-	mem::BitRegister,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
@@ -123,7 +122,7 @@ parameters of the [`BitVec`], and the position of its tail.
 impl<O, T> Write for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 	BitSlice<O, T>: BitField,
 {
 	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {

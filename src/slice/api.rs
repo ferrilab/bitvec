@@ -3,10 +3,7 @@
 use crate::{
 	array::BitArray,
 	devel as dvl,
-	mem::{
-		BitMemory,
-		BitRegister,
-	},
+	mem::BitMemory,
 	order::BitOrder,
 	ptr::BitPtr,
 	slice::{
@@ -2116,7 +2113,7 @@ where
 	///
 	/// [`.to_bitvec()]: Self::to_bitvec
 	#[deprecated = "Prefer `.to_bitvec()`"]
-	pub fn to_vec(&self) -> BitVec<O, T::Mem> {
+	pub fn to_vec(&self) -> BitVec<O, T::Unalias> {
 		self.to_bitvec()
 	}
 
@@ -2182,7 +2179,7 @@ where
 pub fn from_ref<O, T>(elem: &T) -> &BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	BitSlice::from_element(elem)
 }
@@ -2198,7 +2195,7 @@ where
 pub fn from_mut<O, T>(elem: &mut T) -> &mut BitSlice<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	BitSlice::from_element_mut(elem)
 }

@@ -34,7 +34,7 @@ use crate::{
 	array::BitArray,
 	domain::Domain,
 	index::BitIdxErr,
-	mem::BitRegister,
+	mem::BitMemory,
 	order::BitOrder,
 	ptr::BitPtr,
 	slice::BitSlice,
@@ -134,7 +134,7 @@ where
 impl<O, T> Serialize for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 	T::Mem: Serialize,
 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -147,7 +147,7 @@ where
 impl<O, T> Serialize for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 	T::Mem: Serialize,
 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -178,7 +178,7 @@ where
 struct BitVecVisitor<'de, O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore + Deserialize<'de>,
+	T: BitStore + Deserialize<'de>,
 {
 	_lt: PhantomData<&'de ()>,
 	_bv: PhantomData<BitVec<O, T>>,
@@ -188,7 +188,7 @@ where
 impl<'de, O, T> BitVecVisitor<'de, O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore + Deserialize<'de>,
+	T: BitStore + Deserialize<'de>,
 {
 	const THIS: Self = Self {
 		_lt: PhantomData,
@@ -235,7 +235,7 @@ where
 				)
 			})?,
 			//  Ensure that the `bits` counter is not lying about the data size.
-			cmp::min(bits, data.len().saturating_mul(T::BITS as usize)),
+			cmp::min(bits, data.len().saturating_mul(T::Mem::BITS as usize)),
 		)
 		//  Fail if the source cannot be encoded into a bit pointer.
 		.ok_or_else(|| {
@@ -253,7 +253,7 @@ where
 impl<'de, O, T> Visitor<'de> for BitVecVisitor<'de, O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore + Deserialize<'de>,
+	T: BitStore + Deserialize<'de>,
 {
 	type Value = BitVec<O, T>;
 
@@ -327,7 +327,7 @@ where
 impl<'de, O, T> Deserialize<'de> for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore + Deserialize<'de>,
+	T: BitStore + Deserialize<'de>,
 {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
@@ -341,7 +341,7 @@ where
 impl<'de, O, T> Deserialize<'de> for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore + Deserialize<'de>,
+	T: BitStore + Deserialize<'de>,
 {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {

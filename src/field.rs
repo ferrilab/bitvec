@@ -80,7 +80,6 @@ use tap::pipe::Pipe;
 #[cfg(feature = "alloc")]
 use crate::{
 	boxed::BitBox,
-	mem::BitRegister,
 	vec::BitVec,
 };
 
@@ -690,7 +689,7 @@ where
 impl<O, T> BitField for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 	BitSlice<O, T>: BitField,
 {
 	fn load_le<M>(&self) -> M
@@ -718,7 +717,7 @@ where
 impl<O, T> BitField for BitVec<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 	BitSlice<O, T>: BitField,
 {
 	fn load_le<M>(&self) -> M

@@ -2,7 +2,6 @@
 
 use crate::{
 	boxed::BitBox,
-	mem::BitRegister,
 	order::BitOrder,
 	ptr::BitPtr,
 	slice::BitSlice,
@@ -21,7 +20,7 @@ use tap::pipe::Pipe;
 impl<O, T> BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	/// Allocates memory on the heap and then copies `x` into it.
 	///

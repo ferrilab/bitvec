@@ -2,7 +2,6 @@
 
 use crate::{
 	boxed::BitBox,
-	mem::BitRegister,
 	order::BitOrder,
 	ptr::BitPtr,
 	slice::BitSlice,
@@ -41,7 +40,7 @@ use tap::pipe::Pipe;
 impl<O, T> Borrow<BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	fn borrow(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
@@ -51,7 +50,7 @@ where
 impl<O, T> BorrowMut<BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	fn borrow_mut(&mut self) -> &mut BitSlice<O, T> {
 		self.as_mut_bitslice()
@@ -61,7 +60,7 @@ where
 impl<O, T> Clone for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	fn clone(&self) -> Self {
 		self.as_bitslice().pipe(Self::from_bitslice)
@@ -71,14 +70,14 @@ where
 impl<O, T> Eq for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 }
 
 impl<O, T> Ord for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
 		self.as_bitslice().cmp(other.as_bitslice())
@@ -90,7 +89,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 	T1: BitStore,
-	T2: BitRegister + BitStore,
+	T2: BitStore,
 {
 	fn eq(&self, other: &BitBox<O2, T2>) -> bool {
 		self == other.as_bitslice()
@@ -102,7 +101,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 	T1: BitStore,
-	T2: BitRegister + BitStore,
+	T2: BitStore,
 {
 	fn eq(&self, other: &BitBox<O2, T2>) -> bool {
 		*self == other.as_bitslice()
@@ -114,7 +113,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 	T1: BitStore,
-	T2: BitRegister + BitStore,
+	T2: BitStore,
 {
 	fn eq(&self, other: &BitBox<O2, T2>) -> bool {
 		**self == other.as_bitslice()
@@ -124,7 +123,7 @@ where
 impl<O, T, Rhs> PartialEq<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 	Rhs: ?Sized + PartialEq<BitSlice<O, T>>,
 {
 	fn eq(&self, other: &Rhs) -> bool {
@@ -137,7 +136,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 	T1: BitStore,
-	T2: BitRegister + BitStore,
+	T2: BitStore,
 {
 	fn partial_cmp(&self, other: &BitBox<O2, T2>) -> Option<cmp::Ordering> {
 		self.partial_cmp(other.as_bitslice())
@@ -147,7 +146,7 @@ where
 impl<O, T, Rhs> PartialOrd<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 	Rhs: ?Sized + PartialOrd<BitSlice<O, T>>,
 {
 	fn partial_cmp(&self, other: &Rhs) -> Option<cmp::Ordering> {
@@ -160,7 +159,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 	T1: BitStore,
-	T2: BitRegister + BitStore,
+	T2: BitStore,
 {
 	fn partial_cmp(&self, other: &BitBox<O2, T2>) -> Option<cmp::Ordering> {
 		self.partial_cmp(other.as_bitslice())
@@ -172,7 +171,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 	T1: BitStore,
-	T2: BitRegister + BitStore,
+	T2: BitStore,
 {
 	fn partial_cmp(&self, other: &BitBox<O2, T2>) -> Option<cmp::Ordering> {
 		self.partial_cmp(other.as_bitslice())
@@ -182,7 +181,7 @@ where
 impl<O, T> AsRef<BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	fn as_ref(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
@@ -192,7 +191,7 @@ where
 impl<O, T> AsMut<BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	fn as_mut(&mut self) -> &mut BitSlice<O, T> {
 		self.as_mut_bitslice()
@@ -202,7 +201,7 @@ where
 impl<'a, O, T> From<&'a BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	fn from(slice: &'a BitSlice<O, T>) -> Self {
 		Self::from_bitslice(slice)
@@ -212,7 +211,7 @@ where
 impl<O, T> From<BitVec<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	fn from(bv: BitVec<O, T>) -> Self {
 		bv.into_boxed_bitslice()
@@ -222,7 +221,7 @@ where
 impl<O, T> Into<Box<[T]>> for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	fn into(self) -> Box<[T]> {
 		self.into_boxed_slice()
@@ -232,7 +231,7 @@ where
 impl<O, T> TryFrom<Box<[T]>> for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	type Error = Box<[T]>;
 
@@ -244,7 +243,7 @@ where
 impl<O, T> Default for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	fn default() -> Self {
 		Self {
@@ -256,7 +255,7 @@ where
 impl<O, T> Debug for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Pointer::fmt(self, fmt)?;
@@ -268,7 +267,7 @@ where
 impl<O, T> Display for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Display::fmt(self.as_bitslice(), fmt)
@@ -278,7 +277,7 @@ where
 impl<O, T> Binary for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(self.as_bitslice(), fmt)
@@ -288,7 +287,7 @@ where
 impl<O, T> LowerHex for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		LowerHex::fmt(self.as_bitslice(), fmt)
@@ -298,7 +297,7 @@ where
 impl<O, T> Octal for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Octal::fmt(self.as_bitslice(), fmt)
@@ -308,7 +307,7 @@ where
 impl<O, T> Pointer for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		self.bitptr().render(fmt, "Box", None)
@@ -318,7 +317,7 @@ where
 impl<O, T> UpperHex for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		UpperHex::fmt(self.as_bitslice(), fmt)
@@ -329,7 +328,7 @@ where
 impl<O, T> Hash for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	fn hash<H>(&self, state: &mut H)
 	where H: Hasher {
@@ -342,7 +341,7 @@ where
 impl<O, T> IntoIterator for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 	type IntoIter = <crate::vec::BitVec<O, T> as IntoIterator>::IntoIter;
 	type Item = <Self::IntoIter as Iterator>::Item;
@@ -355,20 +354,20 @@ where
 unsafe impl<O, T> Send for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 }
 
 unsafe impl<O, T> Sync for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 }
 
 impl<O, T> Unpin for BitBox<O, T>
 where
 	O: BitOrder,
-	T: BitRegister + BitStore,
+	T: BitStore,
 {
 }
