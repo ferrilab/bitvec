@@ -100,11 +100,6 @@ use core::{
 
 use tap::pipe::Pipe;
 
-radium::has_atomic_any! {
-	use core::sync::atomic;
-	use radium::Radium;
-}
-
 /** Common interface for memory regions.
 
 This trait is used to describe how [`BitSlice`] regions interact with the memory
@@ -312,135 +307,140 @@ store!(u64 => BitSafeU64);
 
 store!(usize => BitSafeUsize);
 
-radium::has_atomic_8! {
-	impl BitStore for atomic::AtomicU8 {
-		type Mem = u8;
-		type Access = Self;
-		type Alias = Self;
-		type Unalias = Self;
+radium::if_atomic! {
+	if atomic(8) {
+		use core::sync::atomic;
 
-		fn load_value(&self) -> Self::Mem {
-			Radium::load(self, atomic::Ordering::Relaxed)
+		impl BitStore for atomic::AtomicU8 {
+			type Mem = u8;
+			type Access = Self;
+			type Alias = Self;
+			type Unalias = Self;
+
+			fn load_value(&self) -> Self::Mem {
+				self.load(atomic::Ordering::Relaxed)
+			}
+
+			fn store_value(&mut self, value: Self::Mem) {
+				self.store(value, atomic::Ordering::Relaxed);
+			}
+
+			#[doc(hidden)]
+			const __ALIGNED_TO_SIZE: [(); 0]
+				= [(); mem::aligned_to_size::<Self>()];
+
+			#[doc(hidden)]
+			const __ALIAS_WIDTH: [(); 0] = [];
 		}
 
-		fn store_value(&mut self, value: Self::Mem) {
-			Radium::store(&*self, value, atomic::Ordering::Relaxed);
-		}
-
-		#[doc(hidden)]
-		const __ALIGNED_TO_SIZE: [(); 0]
-			= [(); mem::aligned_to_size::<Self>()];
-
-		#[doc(hidden)]
-		const __ALIAS_WIDTH: [(); 0] = [];
+		impl seal::Sealed for atomic::AtomicU8 {}
 	}
 
-	impl seal::Sealed for atomic::AtomicU8 {}
-}
+	if atomic(16) {
+		impl BitStore for atomic::AtomicU16 {
+			type Mem = u16;
+			type Access = Self;
+			type Alias = Self;
+			type Unalias = Self;
 
-radium::has_atomic_16! {
-	impl BitStore for atomic::AtomicU16 {
-		type Mem = u16;
-		type Access = Self;
-		type Alias = Self;
-		type Unalias = Self;
+			fn load_value(&self) -> Self::Mem {
+				self.load(atomic::Ordering::Relaxed)
+			}
 
-		fn load_value(&self) -> Self::Mem {
-			Radium::load(self, atomic::Ordering::Relaxed)
+			fn store_value(&mut self, value: Self::Mem) {
+				self.store(value, atomic::Ordering::Relaxed);
+			}
+
+			#[doc(hidden)]
+			const __ALIGNED_TO_SIZE: [(); 0]
+				= [(); mem::aligned_to_size::<Self>()];
+
+			#[doc(hidden)]
+			const __ALIAS_WIDTH: [(); 0] = [];
 		}
 
-		fn store_value(&mut self, value: Self::Mem) {
-			Radium::store(&*self, value, atomic::Ordering::Relaxed);
-		}
-
-		#[doc(hidden)]
-		const __ALIGNED_TO_SIZE: [(); 0]
-			= [(); mem::aligned_to_size::<Self>()];
-
-		#[doc(hidden)]
-		const __ALIAS_WIDTH: [(); 0] = [];
+		impl seal::Sealed for atomic::AtomicU16 {}
 	}
 
-	impl seal::Sealed for atomic::AtomicU16 {}
-}
+	if atomic(32) {
+		impl BitStore for atomic::AtomicU32 {
+			type Mem = u32;
+			type Access = Self;
+			type Alias = Self;
+			type Unalias = Self;
 
-radium::has_atomic_32! {
-	impl BitStore for atomic::AtomicU32 {
-		type Mem = u32;
-		type Access = Self;
-		type Alias = Self;
-		type Unalias = Self;
+			fn load_value(&self) -> Self::Mem {
+				self.load(atomic::Ordering::Relaxed)
+			}
 
-		fn load_value(&self) -> Self::Mem {
-			Radium::load(self, atomic::Ordering::Relaxed)
+			fn store_value(&mut self, value: Self::Mem) {
+				self.store(value, atomic::Ordering::Relaxed);
+			}
+
+			#[doc(hidden)]
+			const __ALIGNED_TO_SIZE: [(); 0]
+				= [(); mem::aligned_to_size::<Self>()];
+
+			#[doc(hidden)]
+			const __ALIAS_WIDTH: [(); 0] = [];
 		}
 
-		fn store_value(&mut self, value: Self::Mem) {
-			Radium::store(&*self, value, atomic::Ordering::Relaxed);
-		}
-
-		#[doc(hidden)]
-		const __ALIGNED_TO_SIZE: [(); 0]
-			= [(); mem::aligned_to_size::<Self>()];
-
-		#[doc(hidden)]
-		const __ALIAS_WIDTH: [(); 0] = [];
+		impl seal::Sealed for atomic::AtomicU32 {}
 	}
 
-	impl seal::Sealed for atomic::AtomicU32 {}
-}
+	if atomic(64) {
+		#[cfg(target_pointer_width = "64")]
+		impl BitStore for atomic::AtomicU64 {
+			type Mem = u64;
+			type Access = Self;
+			type Alias = Self;
+			type Unalias = Self;
 
-#[cfg(target_pointer_width = "64")]
-radium::has_atomic_64! {
-	impl BitStore for atomic::AtomicU64 {
-		type Mem = u64;
-		type Access = Self;
-		type Alias = Self;
-		type Unalias = Self;
+			fn load_value(&self) -> Self::Mem {
+				self.load(atomic::Ordering::Relaxed)
+			}
 
-		fn load_value(&self) -> Self::Mem {
-			Radium::load(self, atomic::Ordering::Relaxed)
+			fn store_value(&mut self, value: Self::Mem) {
+				self.store(value, atomic::Ordering::Relaxed);
+			}
+
+			#[doc(hidden)]
+			const __ALIGNED_TO_SIZE: [(); 0]
+				= [(); mem::aligned_to_size::<Self>()];
+
+			#[doc(hidden)]
+			const __ALIAS_WIDTH: [(); 0] = [];
 		}
 
-		fn store_value(&mut self, value: Self::Mem) {
-			Radium::store(&*self, value, atomic::Ordering::Relaxed);
-		}
-
-		#[doc(hidden)]
-		const __ALIGNED_TO_SIZE: [(); 0]
-			= [(); mem::aligned_to_size::<Self>()];
-
-		#[doc(hidden)]
-		const __ALIAS_WIDTH: [(); 0] = [];
+		#[cfg(target_pointer_width = "64")]
+		impl seal::Sealed for atomic::AtomicU64 {}
 	}
 
-	impl seal::Sealed for atomic::AtomicU64 {}
-}
+	if atomic(size) {
+		impl BitStore for atomic::AtomicUsize {
+			type Mem = usize;
+			type Access = Self;
+			type Alias = Self;
+			type Unalias = Self;
 
-radium::has_atomic_ptr! {
-	impl BitStore for atomic::AtomicUsize {
-		type Mem = usize;
-		type Access = Self;
-		type Alias = Self;
-		type Unalias = Self;
+			fn load_value(&self) -> Self::Mem {
+				self.load(atomic::Ordering::Relaxed)
+			}
 
-		fn load_value(&self) -> Self::Mem {
-			Radium::load(self, atomic::Ordering::Relaxed)
+			fn store_value(&mut self, value: Self::Mem) {
+				self.store(value, atomic::Ordering::Relaxed);
+			}
+
+			#[doc(hidden)]
+			const __ALIGNED_TO_SIZE: [(); 0]
+				= [(); mem::aligned_to_size::<Self>()];
+
+			#[doc(hidden)]
+			const __ALIAS_WIDTH: [(); 0] = [];
 		}
 
-		fn store_value(&mut self, value: Self::Mem) {
-			Radium::store(&*self, value, atomic::Ordering::Relaxed);
-		}
-
-		#[doc(hidden)]
-		const __ALIGNED_TO_SIZE: [(); 0]
-			= [(); mem::aligned_to_size::<Self>()];
-
-		#[doc(hidden)]
-		const __ALIAS_WIDTH: [(); 0] = [];
+		impl seal::Sealed for atomic::AtomicUsize {}
 	}
-
-	impl seal::Sealed for atomic::AtomicUsize {}
 }
 
 #[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
