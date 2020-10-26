@@ -99,7 +99,3 @@ repository = "myrrlyn/bitvec"
 
 [badges.maintenance]
 status = "actively-developed"
-
-[patch.crates-io.radium]
-git = "https://github.com/mystor/radium.git"
-branch = "master"
