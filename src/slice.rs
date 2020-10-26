@@ -1912,16 +1912,28 @@ where
 	///
 	/// # Safety
 	///
-	/// `mid` must not be greater than [`self.len()`].
+	/// `mid` must not be greater than [`self.len()`]. If this condition is
+	/// violated, the function behavior is *unspecified*.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bits = bits![0, 0, 0, 1, 1, 1];
+	/// let (l, r) = unsafe { bits.split_at_unchecked(3) };
+	/// assert!(l.not_any());
+	/// assert!(r.all());
+	///
+	/// let (l, r) = unsafe { bits.split_at_unchecked(6) };
+	/// assert_eq!(l, bits);
+	/// assert!(r.is_empty());
+	/// ```
 	///
 	/// [`self.len()`]: Self::len
 	/// [`.split_at()`]: Self::split_at
 	pub unsafe fn split_at_unchecked(&self, mid: usize) -> (&Self, &Self) {
-		match mid {
-			0 => (Self::empty(), self),
-			n if n == self.len() => (self, Self::empty()),
-			_ => (self.get_unchecked(.. mid), self.get_unchecked(mid ..)),
-		}
+		(self.get_unchecked(.. mid), self.get_unchecked(mid ..))
 	}
 
 	/// Divides one mutable slice into two at an index.
@@ -1941,16 +1953,10 @@ where
 	) -> (&mut BitSlice<O, T::Alias>, &mut BitSlice<O, T::Alias>)
 	{
 		let bp = self.alias_mut().bitptr();
-		match mid {
-			0 => (BitSlice::empty_mut(), bp.to_bitslice_mut()),
-			n if n == self.len() => {
-				(bp.to_bitslice_mut(), BitSlice::empty_mut())
-			},
-			_ => (
-				bp.to_bitslice_mut().get_unchecked_mut(.. mid),
-				bp.to_bitslice_mut().get_unchecked_mut(mid ..),
-			),
-		}
+		(
+			bp.to_bitslice_mut().get_unchecked_mut(.. mid),
+			bp.to_bitslice_mut().get_unchecked_mut(mid ..),
+		)
 	}
 
 	/// Copies bits from one part of the slice to another part of itself,

@@ -1176,6 +1176,14 @@ where
 	///
 	/// Panics if `mid > len`.
 	///
+	/// # Behavior
+	///
+	/// When `mid` is `0` or `self.len()`, then the left or right return values,
+	/// respectively, are empty slices. Empty slice references produced by this
+	/// method are specified to have the address information you would expect:
+	/// a left empty slice has the same base address and start bit as `self`,
+	/// and a right empty slice will have its address raised by `self.len()`.
+	///
 	/// # Examples
 	///
 	/// ```rust
@@ -1234,6 +1242,14 @@ where
 	/// # Panics
 	///
 	/// Panics if `mid > len`.
+	///
+	/// # Behavior
+	///
+	/// When `mid` is `0` or `self.len()`, then the left or right return values,
+	/// respectively, are empty slices. Empty slice references produced by this
+	/// method are specified to have the address information you would expect:
+	/// a left empty slice has the same base address and start bit as `self`,
+	/// and a right empty slice will have its address raised by `self.len()`.
 	///
 	/// # Examples
 	///

@@ -2,7 +2,11 @@
 
 #![cfg(test)]
 
-use crate::prelude::*;
+use crate::{
+	index::BitIdx,
+	prelude::*,
+	ptr::BitPtr,
+};
 
 use tap::conv::TryConv;
 
@@ -251,6 +255,18 @@ fn split() {
 	left.set_all(true);
 	right.set_all(false);
 	assert_eq!(data, 0b1111_0000u8);
+
+	let data = 0u8;
+	let bits = data.view_bits::<Lsb0>();
+	let base = bits.as_slice().as_ptr();
+	let base_ptr = unsafe { BitPtr::new_unchecked(base, BitIdx::ZERO, 0) };
+	let next_ptr =
+		unsafe { BitPtr::new_unchecked(base.add(1), BitIdx::ZERO, 0) };
+	let (l, _) = bits.split_at(0);
+	let (_, r) = bits.split_at(8);
+	let (l_ptr, r_ptr) = (l.bitptr(), r.bitptr());
+	assert_eq!(l_ptr, base_ptr);
+	assert_eq!(r_ptr, next_ptr);
 }
 
 #[test]
