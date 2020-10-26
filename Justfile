@@ -88,7 +88,7 @@ loop action:
 
 # Looks for undefined behavior in the (non-doc) test suite.
 miri *ARGS:
-	cargo +nightly miri test {{ARGS}}
+	cargo +nightly miri test --all-features -q --lib --tests {{ARGS}}
 
 # Packages the crate in preparation for publishing on crates.io
 package:
@@ -108,4 +108,4 @@ test *ARGS: check lint
 	@cargo run --all-features --example ipv4 &>/dev/null
 	@cargo run --all-features --example sieve &>/dev/null
 	@cargo run --all-features --example tour &>/dev/null
-	cargo +nightly miri test {{ARGS}}
+	just miri
