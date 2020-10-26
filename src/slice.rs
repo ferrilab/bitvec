@@ -1545,11 +1545,7 @@ where
 	/// [`split_at`]: #method.split_at
 	#[inline]
 	pub unsafe fn split_at_unchecked(&self, mid: usize) -> (&Self, &Self) {
-		match mid {
-			0 => (Self::empty(), self),
-			n if n == self.len() => (self, Self::empty()),
-			_ => (self.get_unchecked(.. mid), self.get_unchecked(mid ..)),
-		}
+		(self.get_unchecked(.. mid), self.get_unchecked(mid ..))
 	}
 
 	/// Splits a mutable slice at some mid-point, without checking boundary
@@ -1600,16 +1596,10 @@ where
 	) -> (&mut BitSlice<O, T::Alias>, &mut BitSlice<O, T::Alias>)
 	{
 		let bp = self.alias_mut().bitptr();
-		match mid {
-			0 => (BitSlice::empty_mut(), bp.to_bitslice_mut()),
-			n if n == self.len() => {
-				(bp.to_bitslice_mut(), BitSlice::empty_mut())
-			},
-			_ => (
-				bp.to_bitslice_mut().get_unchecked_mut(.. mid),
-				bp.to_bitslice_mut().get_unchecked_mut(mid ..),
-			),
-		}
+		(
+			bp.to_bitslice_mut().get_unchecked_mut(.. mid),
+			bp.to_bitslice_mut().get_unchecked_mut(mid ..),
+		)
 	}
 
 	/// Splits a mutable slice at some mid-point, without checking boundary

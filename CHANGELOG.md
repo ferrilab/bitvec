@@ -49,6 +49,13 @@ This document is written according to the [Keep a Changelog][kac] style.
 1. [0.2.0](#020)
 1. [0.1.0](#010)
 
+## 0.19.4
+
+Per [Issue #86], the empty slices returned from the `.split_at()` family of
+methods correctly compute their address and head information, rather than use
+the canonical empty slice. Thanks to GitHub user [@sharksforarms] for the
+report.
+
 ## 0.19.3
 
 This release has no API changes, and is being issued as a patch rather than a
@@ -972,6 +979,7 @@ Initial implementation and release.
 [@overminder]: https://github.com/overminder
 [@ratorx]: https://github.com/ratorx
 [@schomatis]: https://github.com/schomatis
+[@sharksforarms]: https://github.com/sharksforarms
 [@torce]: https://github.com/torce
 [Issue #7]: https://github.com/myrrlyn/bitvec/issues/7
 [Issue #8]: https://github.com/myrrlyn/bitvec/issues/8
@@ -992,6 +1000,7 @@ Initial implementation and release.
 [Issue #55]: https://github.com/myrrlyn/bitvec/issues/55
 [Issue #69]: https://github.com/myrrlyn/bitvec/issues/69
 [Issue #75]: https://github.com/myrrlyn/bitvec/issues/75
+[Issue #86]: https://github.com/myrrlyn/bitvec/issues/86
 [Pull Request #34]: https://github.com/myrrlyn/bitvec/pull/34
 [Pull Request #41]: https://github.com/myrrlyn/bitvec/pull/41
 [Pull Request #68]: https://github.com/myrrlyn/bitvec/pull/68
