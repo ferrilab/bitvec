@@ -61,7 +61,11 @@ where
 	V: BitView,
 {
 	fn clone(&self) -> Self {
-		unsafe { core::ptr::read(self) }
+		let mut out = Self::zeroed();
+		for (dst, src) in out.as_mut_slice().iter_mut().zip(self.as_slice()) {
+			dst.store_value(src.load_value());
+		}
+		out
 	}
 }
 
