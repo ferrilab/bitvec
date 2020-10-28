@@ -77,6 +77,19 @@ fn cmp() {
 	assert!(a < b); // by length
 	assert!(b < c); // by length
 	assert!(c < d); // by different bit
+
+	let bits = bits![Msb0, u8;
+		1, 0, 1, 1, 0, 0,
+		1, 0, 1, 1, 0, 0,
+	];
+	let (l, r) = bits.split_at(6);
+	assert_eq!(l, r, "{:b} {:b}", l.load::<u8>(), r.load::<u8>());
+	let bits = bits![Lsb0, u8;
+		1, 1, 0, 0, 1, 0,
+		1, 1, 0, 0, 1, 0,
+	];
+	let (l, r) = bits.split_at(6);
+	assert_eq!(l, r);
 }
 
 #[test]

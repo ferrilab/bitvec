@@ -22,25 +22,19 @@ use crate::{
 
 use core::ops::RangeBounds;
 
-macro_rules! specialize {
-	($($func:item)*) => {
-		impl<T> BitSlice<Lsb0, T>
-		where T: BitStore {
-			$( $func )*
-		}
+/** Order-specialized function implementations.
 
-		impl<T> BitSlice<Msb0, T>
-		where T: BitStore {
-			$( $func )*
-		}
-	};
-}
+These functions use [`BitField`] to provide batched load/store behavior.
+Where loads or stores cross a `T` element boundary, they use the `_le`
+behavior to ensure that bits stay in the correct order relative to each
+other, even as they may change position within an element.
 
-specialize! {
-	/// Removes an alias marking.
-	///
-	/// This is only safe when the proxy is known to be the only handle to its
-	/// referent element during its lifetime.
+[`BitField`]: crate::field::BitField
+**/
+impl<T> BitSlice<Lsb0, T>
+where T: BitStore
+{
+	/// Accelerates copies between disjoint slices with batch loads.
 	pub(crate) fn sp_copy_from_bitslice(&mut self, src: &Self) {
 		assert_eq!(
 			self.len(),
@@ -54,18 +48,19 @@ specialize! {
 			.remove_alias()
 			.zip(src.chunks(chunk_size))
 		{
-			to.store::<usize>(from.load::<usize>())
+			to.store_le::<usize>(from.load_le::<usize>())
 		}
 	}
 
-	/// Specialized *internal* bit mover. This moves bits within a single slice,
-	/// and must be aware of region overlap.
+	/// Accelerates possibly-overlapping copies within a single slice with batch
+	/// loads.
 	pub(crate) unsafe fn sp_copy_within_unchecked<R>(
 		&mut self,
 		src: R,
 		dest: usize,
-	)
-	where R:RangeBounds<usize> {
+	) where
+		R: RangeBounds<usize>,
+	{
 		let source = dvl::normalize_range(src, self.len());
 		let rev = source.contains(&dest);
 		let dest = dest .. dest + source.len();
@@ -92,32 +87,111 @@ specialize! {
 		let to: *mut Self = self.get_unchecked_mut(dest) as *mut _;
 		let chunk_size = <usize as BitMemory>::BITS as usize;
 		if rev {
-			for (src, dst) in (&*from).alias()
+			for (src, dst) in (&*from)
+				.alias()
 				.rchunks(chunk_size)
 				.zip((&mut *to).rchunks_mut(chunk_size))
 			{
-				dst.store::<usize>(src.load::<usize>());
+				dst.store_le::<usize>(src.load_le::<usize>());
 			}
 		}
 		else {
-			for (src, dst) in (&*from).alias()
+			for (src, dst) in (&*from)
+				.alias()
 				.chunks(chunk_size)
 				.zip((&mut *to).chunks_mut(chunk_size))
 			{
-				dst.store::<usize>(src.load::<usize>());
+				dst.store_le::<usize>(src.load_le::<usize>());
 			}
 		}
 	}
 
-	/// Specialized equality checker.
+	/// Accelerates equality checking with batch loads.
 	pub(crate) fn sp_eq(&self, other: &Self) -> bool {
 		if self.len() != other.len() {
 			return false;
 		}
-
 		let chunk_size = <usize as BitMemory>::BITS as usize;
 		self.chunks(chunk_size)
 			.zip(other.chunks(chunk_size))
-			.all(|(a, b)| a.load::<usize>() == b.load::<usize>())
+			.all(|(a, b)| a.load_le::<usize>() == b.load_le::<usize>())
+	}
+}
+
+/** Order-specialized function implementations.
+
+These functions use [`BitField`] to provide batched load/store behavior.
+Where loads or stores cross a `T` element boundary, they use the `_be`
+behavior to ensure that bits stay in the correct order relative to each
+other, even as they may change position within an element.
+
+[`BitField`]: crate::field::BitField
+**/
+impl<T> BitSlice<Msb0, T>
+where T: BitStore
+{
+	/// Accelerates copies between disjoint slices with batch loads.
+	pub(crate) fn sp_copy_from_bitslice(&mut self, src: &Self) {
+		assert_eq!(
+			self.len(),
+			src.len(),
+			"Copying between slices requires equal lengths"
+		);
+
+		let chunk_size = <usize as BitMemory>::BITS as usize;
+		for (to, from) in self
+			.chunks_mut(chunk_size)
+			.remove_alias()
+			.zip(src.chunks(chunk_size))
+		{
+			to.store_be::<usize>(from.load_be::<usize>())
+		}
+	}
+
+	/// Accelerates possibly-overlapping copies within a single slice with batch
+	/// loads.
+	pub(crate) unsafe fn sp_copy_within_unchecked<R>(
+		&mut self,
+		src: R,
+		dest: usize,
+	) where
+		R: RangeBounds<usize>,
+	{
+		let source = dvl::normalize_range(src, self.len());
+		let rev = source.contains(&dest);
+		let dest = dest .. dest + source.len();
+
+		let from: *const Self = self.get_unchecked(source) as *const _;
+		let to: *mut Self = self.get_unchecked_mut(dest) as *mut _;
+		let chunk_size = <usize as BitMemory>::BITS as usize;
+		if rev {
+			for (src, dst) in (&*from)
+				.alias()
+				.rchunks(chunk_size)
+				.zip((&mut *to).rchunks_mut(chunk_size))
+			{
+				dst.store_be::<usize>(src.load_be::<usize>());
+			}
+		}
+		else {
+			for (src, dst) in (&*from)
+				.alias()
+				.chunks(chunk_size)
+				.zip((&mut *to).chunks_mut(chunk_size))
+			{
+				dst.store_be::<usize>(src.load_be::<usize>());
+			}
+		}
+	}
+
+	/// Accelerates equality checking with batch loads.
+	pub(crate) fn sp_eq(&self, other: &Self) -> bool {
+		if self.len() != other.len() {
+			return false;
+		}
+		let chunk_size = <usize as BitMemory>::BITS as usize;
+		self.chunks(chunk_size)
+			.zip(other.chunks(chunk_size))
+			.all(|(a, b)| a.load_be::<usize>() == b.load_be::<usize>())
 	}
 }
