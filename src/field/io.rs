@@ -91,9 +91,7 @@ where
 {
 	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
 		let mut idx = 0;
-		for (slot, byte) in self
-			.chunks_exact_mut(8)
-			.remove_alias()
+		for (slot, byte) in unsafe { self.chunks_exact_mut(8).remove_alias() }
 			.zip(buf.iter().copied())
 		{
 			slot.store_be(byte);

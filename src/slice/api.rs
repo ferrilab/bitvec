@@ -2169,7 +2169,7 @@ where
 		//  write into it.
 		let mut out = BitVec::repeat(false, total);
 
-		for chunk in out.chunks_exact_mut(len).remove_alias() {
+		for chunk in unsafe { out.chunks_exact_mut(len).remove_alias() } {
 			//  TODO(myrrlyn): Specialize for `BitField` access
 			chunk.clone_from_bitslice(self);
 		}

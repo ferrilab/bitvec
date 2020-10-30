@@ -1248,8 +1248,8 @@ where
 			}
 		}
 		else {
-			for (to, from) in
-				self.iter_mut().remove_alias().zip(src.iter().copied())
+			for (to, from) in unsafe { self.iter_mut().remove_alias() }
+				.zip(src.iter().copied())
 			{
 				to.set(from);
 			}
@@ -1425,8 +1425,8 @@ where
 			this.sp_copy_from_bitslice(that);
 		}
 		else {
-			for (to, from) in
-				self.iter_mut().remove_alias().zip(src.iter().copied())
+			for (to, from) in unsafe { self.iter_mut().remove_alias() }
+				.zip(src.iter().copied())
 			{
 				to.set(from);
 			}

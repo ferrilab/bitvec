@@ -2636,7 +2636,7 @@ macro_rules! noalias {
 			///
 			/// [`T::Alias`]: crate::store::BitStore::Alias
 			/// [`T::Mem`]: crate::store::BitStore::Mem
-			pub fn remove_alias(self) -> $to <'a, O, T $( , $p )? > {
+			pub unsafe fn remove_alias(self) -> $to <'a, O, T $( , $p )? > {
 				$to ::new(self)
 			}
 		}

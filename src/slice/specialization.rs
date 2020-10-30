@@ -43,9 +43,7 @@ where T: BitStore
 		);
 
 		let chunk_size = <usize as BitMemory>::BITS as usize;
-		for (to, from) in self
-			.chunks_mut(chunk_size)
-			.remove_alias()
+		for (to, from) in unsafe { self.chunks_mut(chunk_size).remove_alias() }
 			.zip(src.chunks(chunk_size))
 		{
 			to.store_le::<usize>(from.load_le::<usize>())
@@ -139,9 +137,7 @@ where T: BitStore
 		);
 
 		let chunk_size = <usize as BitMemory>::BITS as usize;
-		for (to, from) in self
-			.chunks_mut(chunk_size)
-			.remove_alias()
+		for (to, from) in unsafe { self.chunks_mut(chunk_size).remove_alias() }
 			.zip(src.chunks(chunk_size))
 		{
 			to.store_be::<usize>(from.load_be::<usize>())
