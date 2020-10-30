@@ -63,6 +63,11 @@ This document is written according to the [Keep a Changelog][kac] style.
   The methods `.iter_ones()` and `.iter_zeros()` now yield each index where the
   stored bit is set to `1` or `0`, respectively.
 
+- `BitArray` implements `IntoIterator`, matching the standard library’s
+  still-unstable implementation and, more importantly, allowing `BitArray` to be
+  used as the right-hand-side argument to the crate’s binary operator
+  implementations.
+
 - Additionally, `BitVec` can be constructed from iterators of unsigned integers.
   The implementation collects these integers into an ordinary `Vec`tor, then
   converts it in-place into a `BitVec`.

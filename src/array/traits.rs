@@ -1,7 +1,10 @@
 //! Non-operator trait implementations.
 
 use crate::{
-	array::BitArray,
+	array::{
+		iter::IntoIter,
+		BitArray,
+	},
 	index::BitIdx,
 	order::BitOrder,
 	slice::BitSlice,
@@ -51,6 +54,16 @@ where
 {
 	fn borrow_mut(&mut self) -> &mut BitSlice<O, V::Mem> {
 		self.as_mut_bitslice()
+	}
+}
+
+impl<O, V> Clone for BitArray<O, V>
+where
+	O: BitOrder,
+	V: BitView,
+{
+	fn clone(&self) -> Self {
+		unsafe { core::ptr::read(self) }
 	}
 }
 
@@ -293,6 +306,19 @@ where
 	fn hash<H>(&self, hasher: &mut H)
 	where H: Hasher {
 		self.as_bitslice().hash(hasher)
+	}
+}
+
+impl<O, V> IntoIterator for BitArray<O, V>
+where
+	O: BitOrder,
+	V: BitView,
+{
+	type IntoIter = IntoIter<O, V>;
+	type Item = bool;
+
+	fn into_iter(self) -> Self::IntoIter {
+		IntoIter::new(self)
 	}
 }
 

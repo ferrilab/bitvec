@@ -146,7 +146,7 @@ behavior of ordinary arrays `[T; N]` as they stand today.
 [`.as_bitslice()`]: Self::as_bitslice
 **/
 #[repr(transparent)]
-#[derive(Clone, Copy)]
+#[derive(Copy)]
 pub struct BitArray<O = Lsb0, V = [usize; 1]>
 where
 	O: BitOrder,
@@ -249,38 +249,11 @@ where
 	}
 }
 
+mod iter;
 mod ops;
 mod traits;
 
+pub use self::iter::IntoIter;
+
 #[cfg(test)]
-mod tests {
-	use crate::prelude::*;
-
-	#[test]
-	fn create_arrays() {
-		macro_rules! make {
-			($($elts:literal),+ $(,)?) => { $(
-				let _ = BitArray::<LocalBits, [u8; $elts]>::zeroed();
-				let _ = BitArray::<LocalBits, [u16; $elts]>::zeroed();
-				let _ = BitArray::<LocalBits, [u32; $elts]>::zeroed();
-				let _ = BitArray::<LocalBits, [usize; $elts]>::zeroed();
-
-				#[cfg(target_pointer_width = "64")] {
-				let _ = BitArray::<LocalBits, [u64; $elts]>::zeroed();
-				}
-			)+ };
-		}
-
-		make!(
-			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
-			19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
-		);
-	}
-
-	#[test]
-	fn wrap_unwrap() {
-		let data: [u8; 15] = *b"Saluton, mondo!";
-		let bits = BitArray::<LocalBits, _>::new(data);
-		assert_eq!(bits.value(), data);
-	}
-}
+mod tests;
