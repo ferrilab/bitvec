@@ -6,83 +6,85 @@
 #[doc(hidden)]
 pub mod internal;
 
-/** Constructs a [`BitArray`] wrapper out of a literal array in source code,
-like [`bits!`].
+/** Constructs a new [`BitArray`] from a bit-pattern description.
 
-As with all macro constructors, `bitarr!` can be invoked with either a sequence
-of individual bit expressions (`expr, expr`) or a repeated bit (`expr; count`).
-Additionally, the bit-ordering and element type can be provided as optional
-prefix arguments.
+This macro takes a superset of the [`vec!`] argument syntax: it may be invoked
+with either a sequence of bit expressions, or a single bit expression and a
+repetition counter. Additionally, you may provide the names of a [`BitOrder`]
+and a [`BitStore`] implementor as the `BitArray`’s type arguments.
 
-The produced value is of type `BitArray<O, [T; N]>`, and is subject to
-[`BitArray`]’s restricitons of element `T` length `N`. For instance, attempting
-to produce a bit array that fills more than 32 `T` elements will fail.
+# Argument Rules
 
-In addition, `bitarr!` can be used to produce a type name instead of a value by
-using the syntax `bitarr!(for N [, in [O,] T])`. This syntax allows the
-production of a monomorphized `BitArray<O, V>` type that is capable of holding
-`N` bits. It can be used to type static sites such as `struct` fields and
-`const` or `static` declarations, and in these positions must specify both type
-arguments as well as the length. It can also be used to type `let`-bindings, but
-as type inference is permitted here, it is less useful in this position.
+Bit expressions must be integer literals. Ambiguity restrictions in the macro
+syntax forbid the use of identifiers to existing variables, even `const` values.
+These are converted to `bool` through the expression `$val != 0`. Any non-zero
+enteger becomes `true`, and `0` becomes `false`.
 
-# Repetition Behavior
+You may use any name or path to a [`BitOrder`] implementation. However, the
+identifier tokens `Lsb0`, `Msb0`, and `LocalBits` are matched directly and
+specialized to have compile-time constructions, whereäs any other name or path
+will not be known to the macro, and will execute at runtime.
 
-The repetition syntax `expr; count` sets all bits in the underlying memory to
-the bit value of `expr`. Since `BitArray` rounds its length up to the next
-storage element, a small repetition sch as `bitarr![1; 5]` still sets *all*
-elements of the underlying storage to `!0`; it does not attempt to restrict the
-set bits to only those specified by the repetition length.
+The [`BitStore`] argument **must** be the name of an unsigned integer
+fundamental, an atomic, or a `Cell<>` wrapper of that unsigned integer. These
+are matched by token, not by type, and no other identifier is accepted. Using
+any other token will cause the macro to fail.
+
+# Type Name Construction
+
+In addition to the value construction, this macro can also construct the name of
+a [`BitArray`] type that contains a requested number of bits. This is useful
+for typing a binding before constructing a value for it.
+
+The argument syntax for this is a `for $BITS`, optionally followed by `, $TYPE`
+or `, $ORDER, $TYPE`. `$BITS` may be any constant-evaluable `usize` expression.
+`$ORDER` and `TYPE` may be any valid names or paths for the appropriate trait
+implementations.
 
 # Examples
 
 ```rust
 use bitvec::prelude::*;
+use core::cell::Cell;
 
-bitarr![Msb0, u8; 0, 1];
-bitarr![0, 1];
-bitarr![0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0];
-bitarr![Msb0, u8; 1; 5];
-bitarr![1; 5];
+radium::if_atomic! { if atomic(32) {
+  use core::sync::atomic::AtomicU32;
+} }
+
+let a: BitArray = bitarr![0, 1, 0, 1, 2];
+assert_eq!(a.count_ones(), 3);
+
+let b: BitArray = bitarr![2; 5];
+assert!(b.all());
+assert!(b.len() >= 5);
+
+let c = bitarr![Lsb0, Cell<u16>; 0, 1, 0, 0, 1];
+let d = bitarr![Msb0, AtomicU32; 0, 0, 1, 0, 1];
+
+let e: bitarr!(for 20, in LocalBits, u8) = bitarr![LocalBits, u8; 0; 20];
 ```
-
-This example shows how the `for N, in O, T` syntax can be used to type locations
-that cannot use inference:
-
-```rust
-use bitvec::prelude::*;
-
-struct ContainsBitfield {
-  data: bitarr!(for 10, in Msb0, u8),
-}
-
-fn zero() -> ContainsBitfield {
-  ContainsBitfield { data: bitarr![Msb0, u8; 0; 10] }
-}
-```
-
-The order/store type parameters must be repeated in the macros to construct both
-the typename and the value. Mismatches will result in a compiler error.
 
 [`BitArray`]: crate::array::BitArray
-[`bits!`]: crate::bits
+[`BitOrder`]: crate::order::BitOrder
+[`BitStore`]: crate::store::BitStore
+[`vec!`]: macro@alloc::vec
 **/
 #[macro_export]
 macro_rules! bitarr {
 	//  Type constructors
 
-	(for $len:literal, in $order:ty, $store:ident) => {
+	(for $len:expr, in $order:ty, $store:ident) => {
 		$crate::array::BitArray::<
 			$order,
 			[$store; $crate::mem::elts::<$store>($len)],
 		>
 	};
 
-	(for $len:literal, in $store:ident) => {
+	(for $len:expr, in $store:ident) => {
 		$crate::bitarr!(for $len, in $crate::order::Lsb0, $store)
 	};
 
-	(for $len:literal) => {
+	(for $len:expr) => {
 		$crate::bitarr!(for $len, in usize)
 	};
 
@@ -232,41 +234,60 @@ macro_rules! bitarr {
 	};
 }
 
-/** Constructs a [`BitSlice`] handle out of a literal array in source code, like
-[`vec!`].
+/** Creates a borrowed [`BitSlice`] in the local scope.
 
-`bits!` can be invoked in a number of ways. It takes the name of a [`BitOrder`]
-implementation, the name of an unsigned integer, and zero or more expressions
-which are used to build the bits. Each value expression corresponds to one bit.
-If the expression evaluates to `0`, it is the zero bit; otherwise, it is the `1`
-bit.
+This macro constructs a [`BitArray`] temporary and then immediately borrows it
+as a `BitSlice`. The compiler should extend the lifetime of the underlying
+`BitArray` for the duration of the expression’s lifetime.
 
-`bits!` can be invoked with no type specifiers, or both a `BitOrder` and a
-[`BitStore`] specifier. If the type specifiers are absent, it uses the default
-types set on [`BitSlice`].
+This macro takes a superset of the [`vec!`] argument syntax: it may be invoked
+with either a sequence of bit expressions, or a single bit expression and a
+repetiton counter. Additionally, you may provide the names of a [`BitOrder`] and
+a [`BitStore`] implementor as the `BitArray`’s type arguments. You may also use
+`mut` as the first argument of the macro in order to produce an `&mut BitSlice`
+reference rather than a `&BitSlice` immutable reference.
 
-In addition, a `mut` marker may be used as the first argument to produce an
-`&mut BitSlice` handle instead of a `&BitSlice` handle.
+# Argument Rules
 
-Like [`vec!`], `bits!` supports bit lists `[0, 1, …]` and repetition markers
-`[1; n]`.
+Bit expressions must be integer literals. Ambiguity restrictions in the macro
+syntax forbid the use of identifiers to existing variables, even `const` values.
+These are converted to `bool` through the expression `$val != 0`. Any non-zero
+enteger becomes `true`, and `0` becomes `false`.
+
+You may use any name or path to a [`BitOrder`] implementation. However, the
+identifier tokens `Lsb0`, `Msb0`, and `LocalBits` are matched directly and
+specialized to have compile-time constructions, whereäs any other name or path
+will not be known to the macro, and will execute at runtime.
+
+The [`BitStore`] argument **must** be the name of an unsigned integer
+fundamental, an atomic, or a `Cell<>` wrapper of that unsigned integer. These
+are matched by token, not by type, and no other identifier is accepted. Using
+any other token will cause the macro to fail.
 
 # Examples
 
 ```rust
 use bitvec::prelude::*;
+use core::cell::Cell;
 
-bits![Msb0, u8; 0, 1];
-bits![mut Lsb0, u8; 0, 1,];
-bits![0, 1];
-bits![mut 0, 1,];
-bits![0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0];
-bits![Msb0, u8; 1; 5];
-bits![mut Lsb0; 0; 5];
-bits![1; 5];
-bits![mut LocalBits; 0, 1,];
+radium::if_atomic! { if atomic(16) {
+  use core::sync::atomic::AtomicU32;
+} }
+
+let a: &BitSlice = bits![0, 1, 0, 1, 2];
+assert_eq!(a.count_ones(), 3);
+
+let b: &mut BitSlice = bits![mut 2; 5];
+assert!(b.all());
+assert_eq!(b.len(), 5);
+
+let c = bits![Lsb0, Cell<u16>; 0, 1, 0, 0, 1];
+c.set_aliased(0, true);
+let d = bits![Msb0, AtomicU32; 0, 0, 1, 0, 1];
+d.set_aliased(0, true);
 ```
 
+[`BitArray`]: crate::array::BitArray
 [`BitOrder`]: crate::order::BitOrder
 [`BitSlice`]: crate::slice::BitSlice
 [`BitStore`]: crate::store::BitStore
@@ -407,33 +428,49 @@ macro_rules! bits {
 	};
 }
 
-/** Constructs a [`BitVec`] out of a literal array in source code, like
-[`vec!`].
+/** Constructs a new [`BitVec`] from a bit-pattern description.
 
-`bitvec!` can be invoked in a number of ways. It takes the name of a
-[`BitOrder`] implementation, the name of a [`BitStore`]-implementing
-unsigned integer, and zero or more integer literals or run-time expressions.
-Each literal corresponds to one bit, and is considered to represent `1` if it is
-any other value than exactly zero.
+This macro takes a superset of the [`vec!`] argument syntax: it may be invoked
+with either a sequence of bit expressions, or a single bit expression and a
+repetition counter. Additionally, you may provide the names of a [`BitOrder`]
+and a [`BitStore`] implementor as the `BitVec`’s type arguments.
 
-`bitvec!` can be invoked with no specifiers, or a `BitOrder` and a [`BitStore`]
-specifier.
+# Argument Rules
 
-Like [`vec!`], `bitvec!` supports bit lists `[0, 1, …]` and repetition markers
-`[1; n]`.
+Bit expressions must be integer literals. Ambiguity restrictions in the macro
+syntax forbid the use of identifiers to existing variables, even `const` values.
+These are converted to `bool` through the expression `$val != 0`. Any non-zero
+enteger becomes `true`, and `0` becomes `false`.
+
+You may use any name or path to a [`BitOrder`] implementation. However, the
+identifier tokens `Lsb0`, `Msb0`, and `LocalBits` are matched directly and
+specialized to have compile-time constructions, whereäs any other name or path
+will not be known to the macro, and will execute at runtime.
+
+The [`BitStore`] argument **must** be the name of an unsigned integer
+fundamental, an atomic, or a `Cell<>` wrapper of that unsigned integer. These
+are matched by token, not by type, and no other identifier as accepted. Using
+any other token will cause the macro to fail.
 
 # Examples
 
 ```rust
 use bitvec::prelude::*;
+use core::cell::Cell;
 
-bitvec![Msb0, u8; 0, 1];
-bitvec![Lsb0, u8; 0, 1,];
-bitvec![0, 1];
-bitvec![0, 1,];
-bitvec![Msb0, u16; 1; 5];
-bitvec![Lsb0, u16; 0; 5];
-bitvec![1; 5];
+radium::if_atomic! { if atomic(32) {
+  use core::sync::atomic::AtomicU32;
+} }
+
+let a: BitVec = bitvec![0, 1, 0, 1, 2];
+assert_eq!(a.count_ones(), 3);
+
+let b: BitVec = bitvec![2; 5];
+assert!(b.all());
+assert_eq!(b.len(), 5);
+
+let c = bitvec![Lsb0, Cell<u16>; 0, 1, 0, 0, 1];
+let d = bitvec![Msb0, AtomicU32; 0, 0, 1, 0, 1];
 ```
 
 [`BitOrder`]: crate::order::BitOrder
@@ -471,17 +508,14 @@ macro_rules! bitvec {
 	}};
 }
 
-/** Constructs a [`BitBox`] out of a literal array in source code, like
-[`bitvec!`].
+/** Constructs a new [`BitBox`] from a bit-pattern description.
 
-This has exactly the same syntax as [`bitvec!`], and in fact is a thin wrapper
-around `bitvec!` that calls [`.into_boxed_slice()`] on the produced [`BitVec`]
-to freeze it.
+This forwards all its arguments to [`bitvec!`], and then calls
+[`.into_boxed_bitslice()`] on the result to freeze the allocation.
 
 [`BitBox`]: crate::boxed::BitBox
-[`BitVec`]: crate::vec::BitVec
 [`bitvec!`]: macro@crate::bitvec
-[`.into_boxed_slice()`]: crate::vec::BitVec::into_boxed_slice
+[`.into_boxed_bitslice()`]: crate::vec::BitVec::into_boxed_bitslice
 **/
 #[macro_export]
 #[cfg(feature = "alloc")]

@@ -139,9 +139,8 @@ This type family retains the load/store behavior of their eponymous types, but
 forbids modifying the referent memory through an `&` shared reference.
 
 In addition, the restriction of `bitvec` types to be only constructed from
-ordinary integers is lifted. The construction macros can only accept unsigned
-integers, but the atomic and `Cell` types can be used in the functions that
-construct `bitvec` types.
+ordinary integers is lifted. The construction macros are rewritten to support
+these types.
 
 ## 0.19.4
 
