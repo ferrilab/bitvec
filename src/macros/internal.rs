@@ -10,119 +10,187 @@ public-API constructor macros.
 
 #![doc(hidden)]
 
-/** Accumulates a stream of bit expressions into a compacted array of elements.
+#[doc(hidden)]
+pub use core;
 
-This macro constructs a well-ordered `[T; N]` array expression usable in `const`
-contexts. Callers may then use that expression as the source slice over which to
-construct `bitvec` types.
+#[doc(hidden)]
+pub use funty;
+
+/** Encodes a sequence of bits into an array of `BitStore` types.
+
+This is able to encode a bitstream into any of the fundamental integers, their
+atomics, and their cells. It always produces an array of the requested type,
+even if the array is one element long.
 **/
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __bits_store_array {
-	//  Reroute `usize` to the correct concrete type, and mark the alias.
-	//  The `@ usz` causes `as usize` to be appended to exprs as needed.
-	($order:tt, usize; $($val:expr),*) => {{
+macro_rules! __encode_bits {
+	//  Capture the `BitStore` storage arguments literally. The macro cannot
+	//  accept unknown typenames, as it must use them to chunk the bitstream.
+
+	($ord:tt, u8; $($val:expr),*) => {
+		$crate::__encode_bits!($ord, u8 as u8; $($val),*)
+	};
+	($ord:tt, Cell<u8>; $($val:expr),*) => {
+		$crate::__encode_bits!($ord, Cell<u8> as u8; $($val),*)
+	};
+	($ord:tt, AtomicU8; $($val:expr),*) => {
+		$crate::__encode_bits!($ord, AtomicU8 as u8; $($val),*)
+	};
+
+	($ord:tt, u16; $($val:expr),*) => {
+		$crate::__encode_bits!($ord, u16 as u16; $($val),*)
+	};
+	($ord:tt, Cell<u16>; $($val:expr),*) => {
+		$crate::__encode_bits!($ord, Cell<u16> as u16; $($val),*)
+	};
+	($ord:tt, AtomicU16; $($val:expr),*) => {
+		$crate::__encode_bits!($ord, AtomicU16 as u16; $($val),*)
+	};
+
+	($ord:tt, u32; $($val:expr),*) => {
+		$crate::__encode_bits!($ord, u32 as u32; $($val),*)
+	};
+	($ord:tt, Cell<u32>; $($val:expr),*) => {
+		$crate::__encode_bits!($ord, Cell<u32> as u32; $($val),*)
+	};
+	($ord:tt, AtomicU32; $($val:expr),*) => {
+		$crate::__encode_bits!($ord, AtomicU32 as u32; $($val),*)
+	};
+
+	($ord:tt, u64; $($val:expr),*) => {
+		$crate::__encode_bits!($ord, u64 as u64; $($val),*)
+	};
+	($ord:tt, Cell<u64>; $($val:expr),*) => {
+		$crate::__encode_bits!($ord, Cell<u64> as u64; $($val),*)
+	};
+	($ord:tt, AtomicU64; $($val:expr),*) => {
+		$crate::__encode_bits!($ord, AtomicU64 as u64; $($val),*)
+	};
+
+	($ord:tt, usize; $($val:expr),*) => {
+		$crate::__encode_bits!($ord, usize as usize; $($val),*)
+	};
+	($ord:tt, Cell<usize>; $($val:expr),*) => {
+		$crate::__encode_bits!($ord, Cell<usize> as usize; $($val),*)
+	};
+	($ord:tt, AtomicUsize; $($val:expr),*) => {
+		$crate::__encode_bits!($ord, AtomicUsize as usize; $($val),*)
+	};
+
+	//  Capture `$typ as usize`, and forward them to the correct known-width
+	//  integer for construction.
+	($ord:tt, $typ:ty as usize; $($val:expr),*) => {{
 		const LEN: usize = $crate::__count_elts!(usize; $($val),*);
 
-		//  Attributes are not currently allowed on expressions, only items and
-		//  statements, so the routing here must bind to a name.
 		#[cfg(target_pointer_width = "32")]
-		let out: [usize; LEN] = $crate::__bits_store_array!(
-			$order, u32 @ usz; $($val),*
+		let out: [$typ; LEN] = $crate::__encode_bits!(
+			$ord, $typ as u32 as usize; $($val),*
 		);
 
 		#[cfg(target_pointer_width = "64")]
-		let out: [usize; LEN] = $crate::__bits_store_array!(
-			$order, u64 @ usz; $($val),*
+		let out: [$typ; LEN] = $crate::__encode_bits!(
+			$ord, $typ as u64 as usize; $($val),*
 		);
 
 		out
 	}};
 
-	//  General entry point.
-	($order:tt, $store:ident $(@ $usz:ident )?; $($val:expr),*) => {
-		$crate::__bits_store_array!(
-			 $order, $store $(@ $usz)?, []; $($val,)*
+	/* All matchers above forward to this matcher, which then forwards to those
+	below.
+
+	This block extends the bitstream with 64 `0` literals, ensuring that *any*
+	provided bitstream can fit into the chunking matchers for subdivision.
+	*/
+	($ord:tt, $typ:ty as $uint:ident $(as $usz:ident)?; $($val:expr),*) => {
+		$crate::__encode_bits!(
+			$ord, $typ as $uint $(as $usz)?, []; $($val,)*
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 16
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 32
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 48
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0  // 64
-		);
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 64
+		)
 	};
 
-	/* NOTE: These have to be first. They (ab)use a quirk of `macro_rules!`
-	where `:expr` captures are considered a single `:tt` after being matched.
-	Even if the `:expr` matcher was a literal `0`, after being wrapped by the
-	`:expr` fragment, it is no longer considered to match a literal `0`, so
-	these patterns will only match the extra padding `0`s added at the end.
+	/* These two blocks are the last invoked. They require a sequence of chunked
+	element candidates (the `$elem` token is actually an opaque cluster of bit
+	expressions), followed by literal `0` tokens. Tokens provided by the caller
+	are already opaque; only the zeros created in the previous arm are visible.
 
-	Once the user-provided `$val` expressions are all consumed, the remaining
-	`0` tokens inserted by the arm above are all removed, ensuring that the
-	produced array has no wasted elements.
+	As such, these enter only when the caller-provided bit tokens are exhausted.
+
+	Once entered, these matchers convert each tuple of bit expressions into the
+	requested storage type, and collect them into an array. This array is the
+	return value of the originally-called macro.
 	*/
-	($order:tt, $store:ident @ usz, [$( ($($elt:tt),*) )*]; $(0),*) => {
+	($ord:tt, $typ:ty as $uint:ident as usize, [$( ( $($elem:tt),* ) )*]; $(0,)*) => {
+		//  `usize` must be constructed as a fixed-width integer, converted into
+		//  `usize`, and *then* converted into the final storage type.
+		[$(<$typ as From<usize>>::from(
+			$crate::__make_elem!($ord, $uint as $uint; $($elem),*) as usize
+		)),*]
+	};
+	($ord:tt, $typ:ty as $uint:ident, [$( ( $($elem:tt),* ) )*]; $(0,)*) => {
 		[$(
-			$crate::__elt_from_bits!($order, $store; $($elt),*) as usize
+			$crate::__make_elem!($ord, $typ as $uint; $($elem),*)
 		),*]
 	};
 
-	($order:tt, $store:ident, [$( ($($elt:tt),*) )*]; $(0),*) => {
-		[$(
-			$crate::__elt_from_bits!($order, $store; $($elt),*)
-		),*]
-	};
+	/* These matchers chunk a stream of bit expressions into storage elements.
 
-	// Matchers for each size of word. The end of the word may be padded out
-	// with `0`s.
+	On each entry, one element’s worth of bit tokens are pulled from the front
+	of the stream (possibly including the literal `0` tokens provided above) and
+	appended to the accumulator array as a n-tuple of bit expressions. This
+	process continues until no more caller-provided bitstream tokens remain, at
+	which point recursion traps in the above matchers, terminating the chunking
+	and proceeding to element construction.
+	*/
 	(
-		$order:tt, u8 $(@ $usz:ident)?, [$($w:tt)*];
-		$a0:tt, $b0:tt, $c0:tt, $d0:tt, $e0:tt, $f0:tt, $g0:tt, $h0:tt
-		$(, $($t:tt)*)?
+		$ord:tt, $typ:tt as u8, [$( $elem:tt )*];
+		$a0:tt, $b0:tt, $c0:tt, $d0:tt, $e0:tt, $f0:tt, $g0:tt, $h0:tt,
+		$($t:tt)*
 	) => {
-		$crate::__bits_store_array!(
-			$order, u8 $(@ $usz)?, [$($w)* (
+		$crate::__encode_bits!(
+			$ord, $typ as u8, [$($elem)* (
 				$a0, $b0, $c0, $d0, $e0, $f0, $g0, $h0
-			)];
-			$($($t)*)?
+			)]; $($t)*
 		)
 	};
 
 	(
-		$order:tt, u16 $(@ $usz:ident)?, [$($w:tt)*];
+		$ord:tt, $typ:tt as u16, [$( $elem:tt )*];
 		$a0:tt, $b0:tt, $c0:tt, $d0:tt, $e0:tt, $f0:tt, $g0:tt, $h0:tt,
-		$a1:tt, $b1:tt, $c1:tt, $d1:tt, $e1:tt, $f1:tt, $g1:tt, $h1:tt
-		$(, $($t:tt)*)?
+		$a1:tt, $b1:tt, $c1:tt, $d1:tt, $e1:tt, $f1:tt, $g1:tt, $h1:tt,
+		$($t:tt)*
 	) => {
-		$crate::__bits_store_array!(
-			$order, u16 $(@ $usz)?, [$($w)* (
+		$crate::__encode_bits!(
+			$ord, $typ as u16, [$($elem)* (
 				$a0, $b0, $c0, $d0, $e0, $f0, $g0, $h0,
 				$a1, $b1, $c1, $d1, $e1, $f1, $g1, $h1
-			)];
-			$($($t)*)?
+			)]; $($t)*
 		)
 	};
 
 	(
-		$order:tt, u32 $(@ $usz:ident)?, [$($w:tt)*];
+		$ord:tt, $typ:tt as u32 $(as $usz:ident)?, [$( $elem:tt )*];
 		$a0:tt, $b0:tt, $c0:tt, $d0:tt, $e0:tt, $f0:tt, $g0:tt, $h0:tt,
 		$a1:tt, $b1:tt, $c1:tt, $d1:tt, $e1:tt, $f1:tt, $g1:tt, $h1:tt,
 		$a2:tt, $b2:tt, $c2:tt, $d2:tt, $e2:tt, $f2:tt, $g2:tt, $h2:tt,
-		$a3:tt, $b3:tt, $c3:tt, $d3:tt, $e3:tt, $f3:tt, $g3:tt, $h3:tt
-		$(, $($t:tt)*)?
+		$a3:tt, $b3:tt, $c3:tt, $d3:tt, $e3:tt, $f3:tt, $g3:tt, $h3:tt,
+		$($t:tt)*
 	) => {
-		$crate::__bits_store_array!(
-			$order, u32 $(@ $usz)?, [$($w)* (
+		$crate::__encode_bits!(
+			$ord, $typ as u32 $(as $usz)?, [$($elem)* (
 				$a0, $b0, $c0, $d0, $e0, $f0, $g0, $h0,
 				$a1, $b1, $c1, $d1, $e1, $f1, $g1, $h1,
 				$a2, $b2, $c2, $d2, $e2, $f2, $g2, $h2,
 				$a3, $b3, $c3, $d3, $e3, $f3, $g3, $h3
-			)];
-			$($($t)*)?
+			)]; $($t)*
 		)
 	};
 
 	(
-		$order:tt, u64 $(@ $usz:ident)?, [$($w:tt)*];
+		$ord:tt, $typ:tt as u64 $(as $usz:ident)?, [$( $elem:tt )*];
 		$a0:tt, $b0:tt, $c0:tt, $d0:tt, $e0:tt, $f0:tt, $g0:tt, $h0:tt,
 		$a1:tt, $b1:tt, $c1:tt, $d1:tt, $e1:tt, $f1:tt, $g1:tt, $h1:tt,
 		$a2:tt, $b2:tt, $c2:tt, $d2:tt, $e2:tt, $f2:tt, $g2:tt, $h2:tt,
@@ -130,11 +198,11 @@ macro_rules! __bits_store_array {
 		$a4:tt, $b4:tt, $c4:tt, $d4:tt, $e4:tt, $f4:tt, $g4:tt, $h4:tt,
 		$a5:tt, $b5:tt, $c5:tt, $d5:tt, $e5:tt, $f5:tt, $g5:tt, $h5:tt,
 		$a6:tt, $b6:tt, $c6:tt, $d6:tt, $e6:tt, $f6:tt, $g6:tt, $h6:tt,
-		$a7:tt, $b7:tt, $c7:tt, $d7:tt, $e7:tt, $f7:tt, $g7:tt, $h7:tt
-		$(, $($t:tt)*)?
+		$a7:tt, $b7:tt, $c7:tt, $d7:tt, $e7:tt, $f7:tt, $g7:tt, $h7:tt,
+		$($t:tt)*
 	) => {
-		$crate::__bits_store_array!(
-			$order, u64 $(@ $usz)?, [$($w)* (
+		$crate::__encode_bits!(
+			$ord, $typ as u64 $(as $usz)?, [$($elem)* (
 				$a0, $b0, $c0, $d0, $e0, $f0, $g0, $h0,
 				$a1, $b1, $c1, $d1, $e1, $f1, $g1, $h1,
 				$a2, $b2, $c2, $d2, $e2, $f2, $g2, $h2,
@@ -143,8 +211,7 @@ macro_rules! __bits_store_array {
 				$a5, $b5, $c5, $d5, $e5, $f5, $g5, $h5,
 				$a6, $b6, $c6, $d6, $e6, $f6, $g6, $h6,
 				$a7, $b7, $c7, $d7, $e7, $f7, $g7, $h7
-			)];
-			$($($t)*)?
+			)]; $($t)*
 		)
 	};
 }
@@ -171,81 +238,74 @@ macro_rules! __count {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __count_elts {
-	($t:ident; $($val:expr),*) => {{
+	($t:ty; $($val:expr),*) => {{
 		$crate::mem::elts::<$t>($crate::__count!($($val),*))
 	}};
 }
 
-/// Construct a `T` element from an array of `u8`.
+/** Constructs a `T: BitStore` element from a byte-chunked sequence of bits.
+
+# Arguments
+
+- one of `Lsb0`, `Msb0`, `LocalBits`, or some path to a `BitOrder` implementor:
+  the ordering parameter to use. Token matching against the three named
+  orderings allows immediate work; unknown tokens invoke their trait
+  implementation.
+- `$typ` as `$uint`: Any `BitStore` implementor and its `::Mem` type.
+- A sequence of any number of `(`, eight expressions, then `)`. These cluster
+  bits into bytes, bytes into `$uint`, and then `$uint` into `$typ`.
+
+# Returns
+
+Exactly one `$typ`, whose bit-pattern is set to the provided sequence according
+to the provided ordering.
+**/
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __elt_from_bits {
-	//  Known orderings can be performed immediately.
-	(
-		Lsb0, $store:ident;
-		$(
-			$a:expr, $b:expr, $c:expr, $d:expr,
-			$e:expr, $f:expr, $g:expr, $h:expr
-		),*
-	) => {
-		$crate::__ty_from_bytes!(
-			Lsb0, $store, [$($crate::macros::internal::u8_from_le_bits(
+macro_rules! __make_elem {
+	//  Token-matching ordering names can use specialized work.
+	(Lsb0, $typ:ty as $uint:ident; $(
+		$a:expr, $b:expr, $c:expr, $d:expr,
+		$e:expr, $f:expr, $g:expr, $h:expr
+	),*) => {
+		<$typ as From<$uint>>::from($crate::__ty_from_bytes!(
+			Lsb0, $uint, [$($crate::macros::internal::u8_from_le_bits(
 				$a != 0, $b != 0, $c != 0, $d != 0,
 				$e != 0, $f != 0, $g != 0, $h != 0,
 			)),*]
-		)
+		))
 	};
-	(
-		Msb0, $store:ident;
-		$(
-			$a:expr, $b:expr, $c:expr, $d:expr,
-			$e:expr, $f:expr, $g:expr, $h:expr
-		),*
-	) => {
-		$crate::__ty_from_bytes!(
-			Msb0, $store, [$($crate::macros::internal::u8_from_be_bits(
+	(Msb0, $typ:ty as $uint:ident; $(
+		$a:expr, $b:expr, $c:expr, $d:expr,
+		$e:expr, $f:expr, $g:expr, $h:expr
+	),*) => {
+		<$typ as From<$uint>>::from($crate::__ty_from_bytes!(
+			Msb0, $uint, [$($crate::macros::internal::u8_from_be_bits(
 				$a != 0, $b != 0, $c != 0, $d != 0,
 				$e != 0, $f != 0, $g != 0, $h != 0,
 			)),*]
-		)
+		))
 	};
-	(
-		LocalBits, $store:ident;
-		$(
-			$a:expr, $b:expr, $c:expr, $d:expr,
-			$e:expr, $f:expr, $g:expr, $h:expr
-		),*
-	) => {
-		$crate::__ty_from_bytes!(
-			LocalBits, $store, [$($crate::macros::internal::u8_from_ne_bits(
+	(LocalBits, $typ:ty as $uint:ident; $(
+		$a:expr, $b:expr, $c:expr, $d:expr,
+		$e:expr, $f:expr, $g:expr, $h:expr
+	),*) => {
+		<$typ as From<$uint>>::from($crate::__ty_from_bytes!(
+			LocalBits, $uint, [$($crate::macros::internal::u8_from_ne_bits(
 				$a != 0, $b != 0, $c != 0, $d != 0,
 				$e != 0, $f != 0, $g != 0, $h != 0,
 			)),*]
-		)
+		))
 	};
-
-	//  TODO(myrrlyn): Replace this with something that can const-fold.
-	(
-		$order:tt, $store:ident;
-		$(
-			$a:expr, $b:expr, $c:expr, $d:expr,
-			$e:expr, $f:expr, $g:expr, $h:expr
-		),*
-	) => {{
-		let mut tmp: $store = 0;
-		let _tmp_bits = $crate::slice::BitSlice::<$order, $store>::from_element_mut(&mut tmp);
+	//  Otherwise, invoke `BitOrder` for each bit and accumulate.
+	($ord:tt, $typ:ty as $uint:ident; $($bit:expr),* $(,)?) => {{
+		let mut tmp: $uint = 0;
+		let _bits = $crate::slice::BitSlice::<$ord, $uint>::from_element_mut(
+			&mut tmp
+		);
 		let mut _idx = 0;
-		$(
-			_tmp_bits.set(_idx, $a != 0); _idx += 1;
-			_tmp_bits.set(_idx, $b != 0); _idx += 1;
-			_tmp_bits.set(_idx, $c != 0); _idx += 1;
-			_tmp_bits.set(_idx, $d != 0); _idx += 1;
-			_tmp_bits.set(_idx, $e != 0); _idx += 1;
-			_tmp_bits.set(_idx, $f != 0); _idx += 1;
-			_tmp_bits.set(_idx, $g != 0); _idx += 1;
-			_tmp_bits.set(_idx, $h != 0); _idx += 1;
-		)*
-		tmp
+		$( _bits.set(_idx, $bit != 0); _idx += 1; )*
+		<$typ as From<$uint>>::from(tmp)
 	}};
 }
 
@@ -253,8 +313,11 @@ macro_rules! __elt_from_bits {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __extend_bool {
-	($val:expr, $typ:ident) => {
-		[0 as $typ, !0][($val != 0) as usize]
+	($val:expr, $typ:tt) => {
+		$typ::from([
+			<<$typ as BitStore>::Mem as $crate::macros::internal::funty::IsInteger>::ZERO,
+			<<$typ as BitStore>::Mem as $crate::mem::BitRegister>::ALL,
+		][($val != 0) as usize])
 	};
 }
 
