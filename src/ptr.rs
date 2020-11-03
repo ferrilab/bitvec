@@ -17,6 +17,7 @@ use crate::{
 	domain::Domain,
 	index::{
 		BitIdx,
+		BitIdxErr,
 		BitTail,
 	},
 	mem::BitMemory,
@@ -27,9 +28,15 @@ use crate::{
 
 use core::{
 	any,
+	convert::{
+		Infallible,
+		TryFrom,
+		TryInto,
+	},
 	fmt::{
 		self,
 		Debug,
+		Display,
 		Formatter,
 		Pointer,
 	},
@@ -41,6 +48,9 @@ use core::{
 };
 
 use wyz::fmt::FmtForward;
+
+#[cfg(feature = "std")]
+use std::error::Error;
 
 /** A weakly-typed memory address.
 
@@ -62,12 +72,19 @@ where T: BitStore
 	inner: NonNull<T>,
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> Address<T>
 where T: BitStore
 {
 	/// Views a numeric address as a typed data address.
-	pub(crate) fn new(addr: usize) -> Option<Self> {
-		NonNull::new(addr as *mut T).map(|inner| Self { inner })
+	pub(crate) fn new(addr: usize) -> Result<Self, AddressError<T>> {
+		let align_mask = core::mem::align_of::<T>() - 1;
+		if addr & align_mask != 0 {
+			return Err(AddressError::Misaligned(addr as *const T));
+		}
+		NonNull::new(addr as *mut T)
+			.map(|inner| Self { inner })
+			.ok_or(AddressError::Null)
 	}
 
 	/// Views a numeric address as a typed data address.
@@ -95,9 +112,14 @@ where T: BitStore
 
 	/// Gets the memory address as a non-null pointer.
 	#[cfg(feature = "alloc")]
-	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_nonnull(self) -> NonNull<T> {
 		self.inner
+	}
+
+	/// Gets the memory address as a non-null byte pointer.
+	#[cfg(feature = "alloc")]
+	pub(crate) fn to_nonnull_u8(self) -> NonNull<u8> {
+		unsafe { NonNull::new_unchecked(self.to_mut() as *mut u8) }
 	}
 
 	/// Gets the numeric value of the address.
@@ -123,11 +145,13 @@ where T: BitStore
 	}
 }
 
-impl<T> From<*const T> for Address<T>
+impl<T> TryFrom<*const T> for Address<T>
 where T: BitStore
 {
-	fn from(addr: *const T) -> Self {
-		Self::new(addr as usize).expect("Cannot use a null pointer")
+	type Error = AddressError<T>;
+
+	fn try_from(addr: *const T) -> Result<Self, Self::Error> {
+		Self::new(addr as usize)
 	}
 }
 
@@ -139,11 +163,13 @@ where T: BitStore
 	}
 }
 
-impl<T> From<*mut T> for Address<T>
+impl<T> TryFrom<*mut T> for Address<T>
 where T: BitStore
 {
-	fn from(addr: *mut T) -> Self {
-		Self::new(addr as usize).expect("Cannot use a null pointer")
+	type Error = AddressError<T>;
+
+	fn try_from(addr: *mut T) -> Result<Self, Self::Error> {
+		Self::new(addr as usize)
 	}
 }
 
@@ -151,6 +177,7 @@ where T: BitStore
 impl<T> Debug for Address<T>
 where T: BitStore
 {
+	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Pointer::fmt(self, fmt)
 	}
@@ -166,6 +193,48 @@ where T: BitStore
 }
 
 impl<T> Copy for Address<T> where T: BitStore
+{
+}
+
+/// An error produced when operating on `BitStore` memory addresses.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub(crate) enum AddressError<T>
+where T: BitStore
+{
+	/// The null address cannot be used.
+	Null,
+	/// The address was misaligned for the type.
+	Misaligned(*const T),
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<T> Display for AddressError<T>
+where T: BitStore
+{
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		match *self {
+			Self::Null => fmt.write_str("Cannot use a null pointer"),
+			Self::Misaligned(ptr) => write!(
+				fmt,
+				"Address {:p} must clear its least {} bits to be aligned for {}",
+				ptr,
+				T::Mem::INDX - 3,
+				any::type_name::<T>(),
+			),
+		}
+	}
+}
+
+unsafe impl<T> Send for AddressError<T> where T: BitStore
+{
+}
+
+unsafe impl<T> Sync for AddressError<T> where T: BitStore
+{
+}
+
+#[cfg(feature = "std")]
+impl<T> Error for AddressError<T> where T: BitStore
 {
 }
 
@@ -230,12 +299,14 @@ pub fn bitslice_from_raw_parts<O, T>(
 	addr: *const T,
 	head: BitIdx<T::Mem>,
 	bits: usize,
-) -> Option<*const BitSlice<O, T>>
+) -> Result<*const BitSlice<O, T>, BitPtrError<O, T>>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	BitPtr::new(addr, head, bits).map(BitPtr::to_bitslice_ptr)
+	BitPtr::new(addr, head, bits)
+		.map(BitPtr::to_bitslice_ptr)
+		.map_err(Into::into)
 }
 
 /** Performs the same functionality as [`ptr::bitslice_from_raw_parts], except
@@ -303,12 +374,14 @@ pub fn bitslice_from_raw_parts_mut<O, T>(
 	addr: *mut T,
 	head: BitIdx<T::Mem>,
 	bits: usize,
-) -> Option<*mut BitSlice<O, T>>
+) -> Result<*mut BitSlice<O, T>, BitPtrError<O, T>>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	BitPtr::new(addr, head, bits).map(BitPtr::to_bitslice_ptr_mut)
+	BitPtr::new(addr, head, bits)
+		.map(BitPtr::to_bitslice_ptr_mut)
+		.map_err(Into::into)
 }
 
 /** Encoded handle to a bit-precision memory region.
@@ -537,23 +610,22 @@ where
 	///
 	/// # Panics
 	///
-	/// This function panics if `addr` is not well-aligned to `T`. All addresses
-	/// received from the Rust allocation system are required to satisfy this
-	/// constraint.
+	/// This function panics if `addr` is null or misaligned. All pointers
+	/// received from the allocation system are required to satisfy this
+	/// constraint, so a failure is an exceptional program fault rather than an
+	/// expected logical mistake.
 	#[cfg(feature = "alloc")]
-	pub(crate) fn uninhabited(addr: impl Into<Address<T>>) -> Self {
-		let addr = addr.into();
-		assert!(
-			addr.value().trailing_zeros() as usize >= Self::PTR_HEAD_BITS,
-			"Pointer {:p} does not satisfy minimum alignment requirements {}",
-			addr.to_const(),
-			Self::PTR_HEAD_BITS
-		);
+	pub(crate) fn uninhabited<A>(addr: A) -> Self
+	where
+		A: TryInto<Address<T>>,
+		A::Error: Display,
+	{
 		Self {
-			ptr: match NonNull::new(addr.to_mut() as *mut u8) {
-				Some(nn) => nn,
-				None => return Self::EMPTY,
-			},
+			ptr: addr
+				.try_into()
+				.map_err(FmtForward::fmt_display)
+				.unwrap()
+				.to_nonnull_u8(),
 			len: 0,
 			_or: PhantomData,
 			_ty: PhantomData,
@@ -587,28 +659,29 @@ where
 	/// in the caller’s memory space. The caller is responsible for ensuring
 	/// that the slice of memory the produced `BitPtr<T>` describes is all
 	/// governable in the caller’s context.
-	pub(crate) fn new(
-		addr: impl Into<Address<T>>,
+	pub(crate) fn new<A>(
+		addr: A,
 		head: BitIdx<T::Mem>,
 		bits: usize,
-	) -> Option<Self>
+	) -> Result<Self, BitPtrError<O, T>>
+	where
+		A: TryInto<Address<T>>,
+		BitPtrError<O, T>: From<A::Error>,
 	{
-		let addr = addr.into();
+		let addr = addr.try_into()?;
 
-		if addr.to_const().is_null()
-			|| (addr.value().trailing_zeros() as usize) < Self::PTR_HEAD_BITS
-			|| bits > Self::REGION_MAX_BITS
-		{
-			return None;
+		if bits > Self::REGION_MAX_BITS {
+			return Err(BitPtrError::TooLong(bits));
 		}
 
 		let elts = head.span(bits).0;
-		let last = addr.to_const().wrapping_add(elts);
-		if last < addr.to_const() {
-			return None;
+		let addr_raw = addr.to_const();
+		let last = addr_raw.wrapping_add(elts);
+		if last < addr_raw {
+			return Err(BitPtrError::TooHigh(addr_raw));
 		}
 
-		Some(unsafe { Self::new_unchecked(addr, head, bits) })
+		Ok(unsafe { Self::new_unchecked(addr, head, bits) })
 	}
 
 	/// Creates a new `BitPtr<T>` from its components, without any validity
@@ -631,13 +704,16 @@ where
 	/// See [`::new`].
 	///
 	/// [`::new`]: Self::new
-	pub(crate) unsafe fn new_unchecked(
-		addr: impl Into<Address<T>>,
+	pub(crate) unsafe fn new_unchecked<A>(
+		addr: A,
 		head: BitIdx<T::Mem>,
 		bits: usize,
 	) -> Self
+	where
+		A: TryInto<Address<T>>,
+		A::Error: Debug,
 	{
-		let (addr, head) = (addr.into(), head.value() as usize);
+		let (addr, head) = (addr.try_into().unwrap(), head.value() as usize);
 
 		let ptr_data = addr.value() & Self::PTR_ADDR_MASK;
 		let ptr_head = head >> Self::LEN_HEAD_BITS;
@@ -947,12 +1023,12 @@ where
 	///
 	/// [`::new`]: Self::new
 	#[cfg(feature = "alloc")]
-	pub(crate) unsafe fn set_pointer(&mut self, addr: impl Into<Address<T>>) {
-		let addr = addr.into();
-		if addr.to_const().is_null() {
-			*self = Self::EMPTY;
-			return;
-		}
+	pub(crate) unsafe fn set_pointer<A>(&mut self, addr: A)
+	where
+		A: TryInto<Address<T>>,
+		A::Error: Debug,
+	{
+		let addr = addr.try_into().unwrap();
 		let mut addr_value = addr.value();
 		addr_value &= Self::PTR_ADDR_MASK;
 		addr_value |= self.ptr.as_ptr() as usize & Self::PTR_HEAD_MASK;
@@ -1400,24 +1476,148 @@ where
 {
 }
 
+/// An error produced when creating `BitPtr` encoded references.
+#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+pub enum BitPtrError<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	/// `BitPtr` cannot accept the null address.
+	Null,
+	/// `BitPtr` requires well-aligned addresses.
+	Misaligned(PhantomData<O>, *const T),
+	/// `BitPtr` requires valid head indices.
+	InvalidHead(BitIdxErr<T::Mem>),
+	/// `BitPtr` domains have a length ceiling.
+	TooLong(usize),
+	/// `BitPtr` domains have an address ceiling.
+	TooHigh(*const T),
+}
+
+impl<O, T> From<AddressError<T>> for BitPtrError<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	fn from(err: AddressError<T>) -> Self {
+		match err {
+			AddressError::Null => Self::Null,
+			AddressError::Misaligned(t) => Self::Misaligned(PhantomData, t),
+		}
+	}
+}
+
+impl<O, T> From<BitIdxErr<T::Mem>> for BitPtrError<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	fn from(err: BitIdxErr<T::Mem>) -> Self {
+		Self::InvalidHead(err)
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<O, T> From<Infallible> for BitPtrError<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	fn from(_: Infallible) -> Self {
+		Self::Null
+	}
+}
+
+impl<O, T> Debug for BitPtrError<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		let oname = any::type_name::<O>();
+		let tname = any::type_name::<T>();
+		write!(fmt, "BitPtrError<{}, {}>::", oname, tname,)?;
+		match self {
+			Self::Null => fmt.write_str("Null"),
+			Self::Misaligned(_, ptr) => write!(fmt, "Misaligned({:p})", *ptr),
+			Self::InvalidHead(head) => write!(fmt, "InvalidHead({})", head),
+			Self::TooLong(len) => {
+				fmt.debug_tuple("TooLong").field(&len).finish()
+			},
+			Self::TooHigh(addr) => {
+				fmt.debug_tuple("TooHigh").field(&addr).finish()
+			},
+		}
+	}
+}
+
+impl<O, T> Display for BitPtrError<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		match self {
+			Self::Null => Display::fmt(&AddressError::<T>::Null, fmt),
+			Self::Misaligned(_, ptr) => {
+				Display::fmt(&AddressError::Misaligned(*ptr), fmt)
+			},
+			Self::InvalidHead(head) => Display::fmt(head, fmt),
+			Self::TooLong(len) => write!(
+				fmt,
+				"Length {} is too long to encode in a bit slice, which can \
+				 only accept {} bits",
+				len,
+				BitPtr::<O, T>::REGION_MAX_BITS
+			),
+			Self::TooHigh(addr) => {
+				write!(fmt, "Address {:p} would wrap the address space", addr)
+			},
+		}
+	}
+}
+
+unsafe impl<O, T> Send for BitPtrError<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
+
+unsafe impl<O, T> Sync for BitPtrError<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
+
+#[cfg(feature = "std")]
+impl<O, T> Error for BitPtrError<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use crate::{
 		bits,
-		order::Msb0,
+		order::LocalBits,
 	};
 	use core::mem;
 
 	#[test]
 	fn mem_size() {
 		assert_eq!(
-			mem::size_of::<BitPtr<Msb0, usize>>(),
-			2 * mem::size_of::<usize>()
+			mem::size_of::<BitPtr<LocalBits, usize>>(),
+			mem::size_of::<*const [usize]>()
 		);
 		assert_eq!(
-			mem::size_of::<Option<BitPtr<Msb0, usize>>>(),
-			2 * mem::size_of::<usize>()
+			mem::size_of::<Option<BitPtr<LocalBits, usize>>>(),
+			mem::size_of::<*const [usize]>()
 		);
 	}
 

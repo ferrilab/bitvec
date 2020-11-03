@@ -276,7 +276,7 @@ where
 	type Error = &'a [T];
 
 	fn try_from(slice: &'a [T]) -> Result<Self, Self::Error> {
-		BitSlice::from_slice(slice).ok_or(slice)
+		BitSlice::from_slice(slice).map_err(|_| slice)
 	}
 }
 
@@ -289,7 +289,7 @@ where
 
 	fn try_from(slice: &'a mut [T]) -> Result<Self, Self::Error> {
 		let slice_ptr = slice as *mut [T];
-		BitSlice::from_slice_mut(slice).ok_or(unsafe { &mut *slice_ptr })
+		BitSlice::from_slice_mut(slice).map_err(|_| unsafe { &mut *slice_ptr })
 	}
 }
 

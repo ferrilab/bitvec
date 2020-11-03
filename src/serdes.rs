@@ -238,7 +238,7 @@ where
 			cmp::min(bits, data.len().saturating_mul(T::Mem::BITS as usize)),
 		)
 		//  Fail if the source cannot be encoded into a bit pointer.
-		.ok_or_else(|| {
+		.map_err(|_| {
 			de::Error::invalid_value(
 				Unexpected::Other("invalid bit-region source data"),
 				self,

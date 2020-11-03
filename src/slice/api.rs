@@ -2285,11 +2285,11 @@ where
 	T: BitStore,
 {
 	super::bits_from_raw_parts(data, 0, len * T::Mem::BITS as usize)
-		.unwrap_or_else(|| {
+		.unwrap_or_else(|err| {
 			panic!(
 				"Failed to construct `&{}BitSlice` from invalid pointer {:p} \
-				 or element count {}",
-				"", data, len
+				 or element count {}: {}",
+				"", data, len, err
 			)
 		})
 }
@@ -2335,11 +2335,11 @@ where
 	T: BitStore,
 {
 	super::bits_from_raw_parts_mut(data, 0, len * T::Mem::BITS as usize)
-		.unwrap_or_else(|| {
+		.unwrap_or_else(|err| {
 			panic!(
 				"Failed to construct `&{}BitSlice` from invalid pointer {:p} \
-				 or element count {}",
-				"mut ", data, len
+				 or element count {}: {}",
+				"mut", data, len, err
 			)
 		})
 }

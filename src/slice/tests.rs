@@ -27,7 +27,7 @@ fn construction() {
 				BitSlice::<LocalBits, u8>::MAX_ELTS,
 			)
 		})
-		.is_none()
+		.is_err()
 	);
 
 	#[cfg(not(miri))]
@@ -38,18 +38,18 @@ fn construction() {
 				BitSlice::<LocalBits, u8>::MAX_ELTS,
 			)
 		})
-		.is_none()
+		.is_err()
 	);
 
 	assert_eq!(
 		unsafe { crate::slice::bits_from_raw_parts(&data, 0, 8) },
-		Some(bits)
+		Ok(bits)
 	);
 	assert!(
 		unsafe {
 			crate::slice::bits_from_raw_parts::<LocalBits, _>(&data, 0, !0)
 		}
-		.is_none()
+		.is_err()
 	);
 
 	let mut data = 0u8;
@@ -57,7 +57,7 @@ fn construction() {
 		unsafe {
 			crate::slice::bits_from_raw_parts_mut(&mut data as *mut _, 0, 8)
 		},
-		Some(data.view_bits_mut::<LocalBits>())
+		Ok(data.view_bits_mut::<LocalBits>())
 	);
 
 	let mut data = [0u16; 2];

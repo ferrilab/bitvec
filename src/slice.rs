@@ -63,7 +63,10 @@ use crate::{
 		Lsb0,
 		Msb0,
 	},
-	ptr::BitPtr,
+	ptr::{
+		BitPtr,
+		BitPtrError,
+	},
 	store::BitStore,
 };
 
@@ -529,9 +532,10 @@ where
 	///
 	/// # Returns
 	///
-	/// If `slice` does not have fewer than [`MAX_ELTS`] elements, this returns
-	/// `None`. Otherwise, it returns a shared `&BitSlice` over the `slice`
-	/// elements.
+	/// A `&BitSlice` view of the provided slice. The error condition is only
+	/// encountered if the source slice is too long to be encoded in a
+	/// `&BitSlice` handle, but such a slice is likely impossible to produce
+	/// without causing errors long before calling this function.
 	///
 	/// # Conditions
 	///
@@ -554,14 +558,16 @@ where
 	/// [`BitView`]: crate::view::BitView
 	/// [`MAX_ELTS`]: Self::MAX_ELTS
 	/// [`.view_bits::<O>()`]: crate::view::BitView::view_bits
-	pub fn from_slice(slice: &[T]) -> Option<&Self> {
+	pub fn from_slice(slice: &[T]) -> Result<&Self, BitPtrError<O, T>> {
 		let elts = slice.len();
 		//  Starting at the zeroth bit makes this counter an exclusive cap, not
-		//  an inclusive cap.
+		//  an inclusive cap. This is also pretty much impossible to hit.
 		if elts >= Self::MAX_ELTS {
-			return None;
+			return Err(BitPtrError::TooLong(
+				elts.saturating_mul(T::Mem::BITS as usize),
+			));
 		}
-		Some(unsafe { Self::from_slice_unchecked(slice) })
+		Ok(unsafe { Self::from_slice_unchecked(slice) })
 	}
 
 	/// Constructs an exclusive `&mut BitSlice` reference over a slice.
@@ -576,9 +582,10 @@ where
 	///
 	/// # Returns
 	///
-	/// If `slice` does not have fewer than [`MAX_ELTS`] elements, this returns
-	/// `None`. Otherwise, it returns an exclusive `&mut BitSlice` over the
-	/// `slice` elements.
+	/// A `&mut BitSlice` view of the provided slice. The error condition is
+	/// only encountered if the source slice is too long to be encoded in a
+	/// `&mut BitSlice` handle, but such a slice is likely impossible to produce
+	/// without causing errors long before calling this function.
 	///
 	/// Note that the original `slice` reference will be inaccessible for the
 	/// duration of the returned slice handle’s lifetime.
@@ -619,12 +626,16 @@ where
 	/// [`BitView`]: crate::view::BitView
 	/// [`MAX_ELTS`]: Self::MAX_ELTS
 	/// [`.view_bits_mut::<O>()`]: crate::view::BitView::view_bits_mut
-	pub fn from_slice_mut(slice: &mut [T]) -> Option<&mut Self> {
+	pub fn from_slice_mut(
+		slice: &mut [T],
+	) -> Result<&mut Self, BitPtrError<O, T>> {
 		let elts = slice.len();
 		if elts >= Self::MAX_ELTS {
-			return None;
+			return Err(BitPtrError::TooLong(
+				elts.saturating_mul(T::Mem::BITS as usize),
+			));
 		}
-		Some(unsafe { Self::from_slice_unchecked_mut(slice) })
+		Ok(unsafe { Self::from_slice_unchecked_mut(slice) })
 	}
 
 	/// Converts a slice reference into a `BitSlice` reference without checking
@@ -661,7 +672,7 @@ where
 	/// [`::from_slice_mut()`]: Self::from_slice_mut
 	pub unsafe fn from_slice_unchecked_mut(slice: &mut [T]) -> &mut Self {
 		let bits = slice.len().wrapping_mul(T::Mem::BITS as usize);
-		BitPtr::new_unchecked(slice.as_ptr(), BitIdx::ZERO, bits)
+		BitPtr::new_unchecked(slice.as_mut_ptr(), BitIdx::ZERO, bits)
 			.to_bitslice_mut()
 	}
 
@@ -1520,9 +1531,9 @@ where
 
 		unsafe {
 			self.copy_within_unchecked(by .., 0);
+			let trunc = len - by;
+			self.get_unchecked_mut(trunc ..).set_all(false);
 		}
-		let trunc = len - by;
-		self[trunc ..].set_all(false);
 	}
 
 	/// Shifts the contents of a bit-slice right (towards index `self.len()`).
@@ -1564,8 +1575,8 @@ where
 		let trunc = len - by;
 		unsafe {
 			self.copy_within_unchecked(.. trunc, by);
+			self.get_unchecked_mut(.. by).set_all(false);
 		}
-		self[.. by].set_all(false);
 	}
 
 	/// Sets all bits in the slice to a value.
@@ -2299,12 +2310,12 @@ pub unsafe fn bits_from_raw_parts<'a, O, T>(
 	addr: *const T,
 	head: u8,
 	bits: usize,
-) -> Option<&'a BitSlice<O, T>>
+) -> Result<&'a BitSlice<O, T>, BitPtrError<O, T>>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	let head = crate::index::BitIdx::new(head).ok()?;
+	let head = crate::index::BitIdx::new(head)?;
 	BitPtr::new(addr, head, bits).map(BitPtr::to_bitslice_ref)
 }
 
@@ -2362,12 +2373,12 @@ pub unsafe fn bits_from_raw_parts_mut<'a, O, T>(
 	addr: *mut T,
 	head: u8,
 	bits: usize,
-) -> Option<&'a mut BitSlice<O, T>>
+) -> Result<&'a mut BitSlice<O, T>, BitPtrError<O, T>>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	let head = crate::index::BitIdx::new(head).ok()?;
+	let head = crate::index::BitIdx::new(head)?;
 	BitPtr::new(addr, head, bits).map(BitPtr::to_bitslice_mut)
 }
 
