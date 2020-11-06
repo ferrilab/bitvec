@@ -709,7 +709,11 @@ where T: BitStore
 
 				if let Some((head, elem)) = head {
 					let shamt = head.value();
-					accum <<= T::Mem::BITS - shamt;
+					if M::BITS > T::Mem::BITS - shamt {
+						accum <<= T::Mem::BITS - shamt;
+					} else {
+						accum = M::ZERO;
+					}
 					accum |= get::<T, M>(elem, Lsb0::mask(head, None), shamt);
 				}
 
@@ -787,9 +791,12 @@ where T: BitStore
 				}
 
 				if let Some((elem, tail)) = tail {
-					//  If the tail is at the limit, then none of the above
-					//  branches entered, and the shift would fail. Clamp to 0.
-					accum <<= tail.value() & M::MASK;
+					let shamt = tail.value();
+					if M::BITS > shamt {
+						accum <<= shamt;
+					} else {
+						accum = M::ZERO;
+					}
 					accum |= get::<T, M>(elem, Lsb0::mask(None, tail), 0);
 				}
 
@@ -835,7 +842,11 @@ where T: BitStore
 				if let Some((head, elem)) = head {
 					let shamt = head.value();
 					set::<T, M>(elem, value, Lsb0::mask(head, None), shamt);
-					value >>= T::Mem::BITS - shamt;
+					if M::BITS > T::Mem::BITS - shamt {
+						value >>= T::Mem::BITS - shamt;
+					} else {
+						value = M::ZERO;
+					}
 				}
 
 				for elem in body.iter_mut() {
@@ -888,9 +899,12 @@ where T: BitStore
 			DomainMut::Region { head, body, tail } => {
 				if let Some((elem, tail)) = tail {
 					set::<T, M>(elem, value, Lsb0::mask(None, tail), 0);
-					//  If the tail is at the limit, then none of the below
-					//  branches will enter, and the shift will fail. Clamp to 0
-					value >>= tail.value() & M::MASK;
+					let shamt = tail.value();
+					if M::BITS > shamt {
+						value >>= shamt;
+					} else {
+						value = M::ZERO;
+					}
 				}
 
 				for elem in body.iter_mut().rev() {
@@ -990,7 +1004,12 @@ where T: BitStore
 				}
 
 				if let Some((head, elem)) = head {
-					accum <<= T::Mem::BITS - head.value();
+					let shamt = T::Mem::BITS - head.value();
+					if M::BITS > shamt {
+						accum <<= shamt;
+					} else {
+						accum = M::ZERO;
+					}
 					accum |= get::<T, M>(elem, Msb0::mask(head, None), 0);
 				}
 
@@ -1069,12 +1088,16 @@ where T: BitStore
 				}
 
 				if let Some((elem, tail)) = tail {
-					let width = tail.value();
-					accum <<= width;
+					let shamt = tail.value();
+					if M::BITS > shamt {
+						accum <<= shamt;
+					} else {
+						accum = M::ZERO;
+					}
 					accum |= get::<T, M>(
 						elem,
 						Msb0::mask(None, tail),
-						T::Mem::BITS - width,
+						T::Mem::BITS - shamt,
 					);
 				}
 
@@ -1122,7 +1145,12 @@ where T: BitStore
 			DomainMut::Region { head, body, tail } => {
 				if let Some((head, elem)) = head {
 					set::<T, M>(elem, value, Msb0::mask(head, None), 0);
-					value >>= T::Mem::BITS - head.value();
+					let shamt = T::Mem::BITS - head.value();
+					if M::BITS > shamt {
+						value >>= shamt;
+					} else {
+						value = M::ZERO;
+					}
 				}
 
 				for elem in body.iter_mut() {
@@ -1188,7 +1216,11 @@ where T: BitStore
 						Msb0::mask(None, tail),
 						T::Mem::BITS - tail.value(),
 					);
-					value >>= tail.value();
+					if M::BITS > tail.value() {
+						value >>= tail.value();
+					} else {
+						value = M::ZERO;
+					}
 				}
 
 				for elem in body.iter_mut().rev() {
