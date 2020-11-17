@@ -13,11 +13,13 @@ information is:
 - Twitter: [@myrrlyn](https://twitter.com/myrrlyn)
 - Mastodon: [@myrrlyn@cybre.space](https://cybre.space/myrrlyn)
 - Reddit: [/u/myrrlyn](https://reddit.com/u/myrrlyn)
+- Discord: `@myrrlyn#0611`. I am present in the Rust Programming Language and in
+  the Rust Programming Language Community servers. If you are in either, you can
+  ping me in them, or DM me.
 
-I am not active on any IRC channels at this time. I am on Discord in the Rust
-channel, so you may be able to reach me there, but I don’t know offhand how to
-give out Discord profile links. I have a very consistent username scheme and so
-anywhere you see my name, it’s *probably* me and I’ll *probably* respond to it.
+I am not active on any IRC channels at this time. I have a very consistent
+username scheme and so anywhere you see my name, it’s *probably* me and I’ll
+*probably* respond to it.
 
 ## Preconditions
 
