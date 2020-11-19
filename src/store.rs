@@ -252,10 +252,12 @@ macro_rules! store {
 			type Alias = Self;
 			type Unalias = $base;
 
+			#[inline(always)]
 			fn load_value(&self) -> Self::Mem {
 				self.load()
 			}
 
+			#[inline(always)]
 			fn store_value(&mut self, value: Self::Mem) {
 				self.store(value);
 			}
@@ -274,10 +276,12 @@ macro_rules! store {
 			type Alias = Self;
 			type Unalias = Self;
 
+			#[inline(always)]
 			fn load_value(&self) -> Self::Mem {
 				self.get()
 			}
 
+			#[inline(always)]
 			fn store_value(&mut self, value: Self::Mem) {
 				self.set(value);
 			}
@@ -463,9 +467,33 @@ mod seal {
 
 #[cfg(test)]
 mod tests {
+	use super::*;
 	use crate::prelude::*;
 	use core::cell::Cell;
 	use static_assertions::*;
+
+	#[test]
+	fn load_store() {
+		let mut word = 0usize;
+
+		word.store_value(39usize);
+		assert_eq!(word.load_value(), 39usize);
+
+		let safe: &mut BitSafeUsize =
+			unsafe { &mut *(&mut word as *mut _ as *mut _) };
+		safe.store_value(57usize);
+		assert_eq!(safe.load_value(), 57);
+
+		let mut cell = Cell::new(0usize);
+		cell.store_value(39);
+		assert_eq!(cell.load_value(), 39);
+
+		radium::if_atomic!(if atomic(size) {
+			let mut atom = AtomicUsize::new(0);
+			atom.store_value(39);
+			assert_eq!(atom.load_value(), 39usize);
+		});
+	}
 
 	/// Unaliased `BitSlice`s are universally threadsafe, because they satisfy
 	/// Rust’s unysnchronized mutation rules.

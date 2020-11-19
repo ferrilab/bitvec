@@ -4,8 +4,6 @@
 
 use crate::prelude::*;
 
-use core::convert::TryInto;
-
 use tap::conv::TryConv;
 
 #[test]
@@ -57,21 +55,22 @@ fn convert() {
 	assert!(arr.any());
 
 	let bits = bits![Msb0, u8; 1; 128];
-	let arr: BitArray<Msb0, [u8; 16]> = bits.try_into().unwrap();
+	let arr = bits.try_conv::<BitArray<Msb0, [u8; 16]>>().unwrap();
 	assert!(arr.all());
 
 	let bits = bits![Lsb0, u32; 0; 64];
-	let arr: &BitArray<Lsb0, [u32; 2]> = bits.try_into().unwrap();
+	let arr = bits.try_conv::<&BitArray<Lsb0, [u32; 2]>>().unwrap();
 	assert!(arr.not_any());
 
 	let bits = bits![mut Msb0, u16; 0; 64];
-	let arr: &mut BitArray<Msb0, [u16; 4]> = bits.try_into().unwrap();
+	let arr = bits.try_conv::<&mut BitArray<Msb0, [u16; 4]>>().unwrap();
 	assert!(arr.not_any());
 
 	let bits = bits![mut LocalBits, usize; 0; 4];
 	assert!((&*bits).try_conv::<&BitArray<LocalBits, usize>>().is_err());
 	assert!(bits.try_conv::<&mut BitArray<LocalBits, usize>>().is_err());
 }
+
 #[test]
 #[allow(deprecated)]
 fn iter() {

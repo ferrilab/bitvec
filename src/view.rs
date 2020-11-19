@@ -83,7 +83,7 @@ pub trait BitView {
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated(
 		since = "0.18.0",
-		note = "The method is renamed to `.view_bits`"
+		note = "The method is renamed to `.view_bits()`"
 	)]
 	fn bits<O>(&self) -> &BitSlice<O, Self::Store>
 	where O: BitOrder {
@@ -112,7 +112,7 @@ pub trait BitView {
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated(
 		since = "0.18.0",
-		note = "The method is renamed to `.view_bits_mut`"
+		note = "The method is renamed to `.view_bits_mut()`"
 	)]
 	fn bits_mut<O>(&mut self) -> &BitSlice<O, Self::Store>
 	where O: BitOrder {
@@ -233,6 +233,7 @@ macro_rules! view_bits {
 			}
 
 			#[doc(hidden)]
+			#[cfg(not(tarpaulin_include))]
 			fn const_elts() -> usize {
 				$n
 			}
@@ -375,9 +376,26 @@ mod tests {
 
 	#[test]
 	fn impls() {
-		let mut data = [0u8; 3];
-		let bits = data[..].view_bits_mut::<Msb0>();
-		assert_eq!(bits.len(), 24);
-		assert!(bits.not_any());
+		let mut byte = 0u8;
+		let mut bytes = [0u8; 2];
+		assert!(byte.view_bits::<LocalBits>().not_any());
+		assert!(byte.view_bits_mut::<LocalBits>().not_any());
+		assert!(bytes.view_bits::<LocalBits>().not_any());
+		assert!(bytes.view_bits_mut::<LocalBits>().not_any());
+		assert!(bytes[..].view_bits::<LocalBits>().not_any());
+		assert!(bytes[..].view_bits_mut::<LocalBits>().not_any());
+
+		let mut blank: [u8; 0] = [];
+		assert!(blank.view_bits::<LocalBits>().is_empty());
+		assert!(blank.view_bits_mut::<LocalBits>().is_empty());
+
+		assert_eq!(<u8 as BitView>::const_bits(), 8);
+		assert_eq!(<u16 as BitView>::const_bits(), 16);
+		assert_eq!(<u32 as BitView>::const_bits(), 32);
+
+		#[cfg(target_pointer_width = "64")]
+		{
+			assert_eq!(<u64 as BitView>::const_bits(), 64);
+		}
 	}
 }

@@ -227,6 +227,7 @@ where R: BitRegister
 	/// constructor for a position counter.
 	///
 	/// [`O::at::<R>`]: crate::order::BitOrder::at
+	#[cfg(not(tarpaulin_include))]
 	pub fn position<O>(self) -> BitPos<R>
 	where O: BitOrder {
 		O::at::<R>(self)
@@ -238,6 +239,7 @@ where R: BitRegister
 	/// constructor for a bit selector.
 	///
 	/// [`O::select::<R>`]: crate::order::BitOrder::select
+	#[cfg(not(tarpaulin_include))]
 	pub fn select<O>(self) -> BitSel<R>
 	where O: BitOrder {
 		O::select::<R>(self)
@@ -248,6 +250,7 @@ where R: BitRegister
 	/// This is a type-cast over [`Self::select`].
 	///
 	/// [`Self::select`]: Self::select
+	#[cfg(not(tarpaulin_include))]
 	pub fn mask<O>(self) -> BitMask<R>
 	where O: BitOrder {
 		self.select::<O>().mask()
@@ -296,7 +299,7 @@ where R: BitRegister
 	+ DoubleEndedIterator
 	+ ExactSizeIterator
 	+ FusedIterator {
-		(0 .. R::BITS).map(|val| unsafe { Self::new_unchecked(val) })
+		BitIdx::ZERO.range(BitTail::LAST)
 	}
 
 	/// Computes the jump distance for some number of bits away from a starting
@@ -425,9 +428,11 @@ where R: BitRegister
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> Display for BitIdx<R>
 where R: BitRegister
 {
+	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(&self, fmt)
 	}
@@ -729,9 +734,11 @@ where R: BitRegister
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> Display for BitTail<R>
 where R: BitRegister
 {
+	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(&self, fmt)
 	}
@@ -848,6 +855,7 @@ where R: BitRegister
 	/// This is a type-cast over [`Self::select`].
 	///
 	/// [`Self::select`]: Self::select
+	#[cfg(not(tarpaulin_include))]
 	pub fn mask(self) -> BitMask<R> {
 		self.select().mask()
 	}
@@ -878,9 +886,11 @@ where R: BitRegister
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> Display for BitPos<R>
 where R: BitRegister
 {
+	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(&self, fmt)
 	}
@@ -987,6 +997,8 @@ where R: BitRegister
 	}
 
 	/// Computes a bit-mask for `self`. This is a type-cast.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn mask(self) -> BitMask<R> {
 		BitMask::new(self.sel)
 	}
@@ -1016,9 +1028,11 @@ where R: BitRegister
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> Display for BitSel<R>
 where R: BitRegister
 {
+	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(&self, fmt)
 	}
@@ -1154,9 +1168,11 @@ where R: BitRegister
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> Display for BitMask<R>
 where R: BitRegister
 {
+	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(&self, fmt)
 	}
@@ -1212,142 +1228,358 @@ mod tests {
 		Lsb0,
 		Msb0,
 	};
+	use tap::conv::TryConv;
 
 	#[test]
-	fn index_fns() {
+	fn index_ctors() {
+		for n in 0 .. 8 {
+			assert!(BitIdx::<u8>::new(n).is_ok());
+			assert!(n.try_conv::<BitIdx<u8>>().is_ok());
+		}
 		assert!(BitIdx::<u8>::new(8).is_err());
-
-		for n in 0 .. 8 {
-			let idx = BitIdx::<u8>::new(n).unwrap();
-			assert_eq!(idx.value(), n);
-			assert_eq!(idx.position::<Lsb0>().value(), n);
-			assert_eq!(idx.position::<Msb0>().value(), 7 - n);
-
-			assert_eq!(idx.mask::<Lsb0>().value(), 1 << n);
-			assert_eq!(idx.mask::<Msb0>().value(), 128 >> n);
+		assert!(8u8.try_conv::<BitIdx<u8>>().is_err());
+		for n in 0 .. 16 {
+			assert!(BitIdx::<u16>::new(n).is_ok());
 		}
-	}
-
-	#[test]
-	fn tail_fns() {
-		for n in 0 .. 8 {
-			let tail = BitTail::<u8>::new(n).unwrap();
-			assert_eq!(tail.value(), n);
+		assert!(BitIdx::<u16>::new(16).is_err());
+		for n in 0 .. 32 {
+			assert!(BitIdx::<u32>::new(n).is_ok());
 		}
-		assert!(BitTail::<u8>::new(9).is_none());
-	}
-
-	#[test]
-	fn position_fns() {
-		assert!(BitPos::<u8>::new(8).is_none());
-
-		for n in 0 .. 8 {
-			let pos = BitPos::<u8>::new(n).unwrap();
-			let mask: BitMask<u8> = BitMask::new(1 << n);
-			assert_eq!(pos.mask(), mask);
-		}
-	}
-
-	#[test]
-	fn select_fns() {
-		assert!(BitSel::<u8>::new(1).is_some());
-		assert!(BitSel::<u8>::new(3).is_none());
-
-		for (n, sel) in BitSel::<u8>::range_all().enumerate() {
-			assert_eq!(sel, BitSel::<u8>::new((1 << n) as u8).unwrap());
-		}
-	}
-
-	#[test]
-	fn fold_masks() {
-		assert_eq!(
-			BitSel::<u8>::range_all()
-				.map(BitSel::mask)
-				.fold(BitMask::<u8>::ZERO, |accum, mask| accum | mask.value()),
-			BitMask::<u8>::ALL
-		);
-
-		assert_eq!(!BitMask::<u8>::ALL, BitMask::ZERO);
-	}
-
-	#[test]
-	fn offset() {
-		let (elts, idx) =
-			BitIdx::<u32>::new(31).unwrap().offset(isize::max_value());
-		assert_eq!(elts, (isize::max_value() >> 5) + 1);
-		assert_eq!(idx, BitIdx::new(30).unwrap());
-	}
-
-	#[test]
-	fn span() {
-		let start = BitTail::<u8>::new(4).unwrap();
-		assert_eq!(start.span(0), (0, start));
-
-		assert_eq!(start.span(4), (1, BitTail::<u8>::new(8).unwrap()));
-		assert_eq!(start.span(8), (2, start));
-	}
-
-	#[test]
-	fn walk() {
-		let end = BitIdx::<u8>::new(7).unwrap();
-		assert_eq!(end.next(), (BitIdx::new(0).unwrap(), true));
-		assert_eq!(end.prev(), (BitIdx::new(6).unwrap(), false));
-	}
-
-	#[test]
-	fn error() {
-		use crate::mem::BitMemory;
-
-		assert!(BitIdx::<u8>::new(<u8 as BitMemory>::MASK).is_ok());
-		assert!(BitIdx::<u8>::new(<u8 as BitMemory>::BITS).is_err());
-
-		assert!(BitIdx::<u16>::new(<u16 as BitMemory>::MASK).is_ok());
-		assert!(BitIdx::<u16>::new(<u16 as BitMemory>::BITS).is_err());
-
-		assert!(BitIdx::<u32>::new(<u32 as BitMemory>::MASK).is_ok());
-		assert!(BitIdx::<u32>::new(<u32 as BitMemory>::BITS).is_err());
-
-		assert!(BitIdx::<usize>::new(<usize as BitMemory>::MASK).is_ok());
-		assert!(BitIdx::<usize>::new(<usize as BitMemory>::BITS).is_err());
+		assert!(BitIdx::<u32>::new(32).is_err());
 
 		#[cfg(target_pointer_width = "64")]
 		{
-			assert!(BitIdx::<u64>::new(<u64 as BitMemory>::MASK).is_ok());
-			assert!(BitIdx::<u64>::new(<u64 as BitMemory>::BITS).is_err());
+			for n in 0 .. 64 {
+				assert!(BitIdx::<u64>::new(n).is_ok());
+			}
+			assert!(BitIdx::<u64>::new(64).is_err());
 		}
+
+		if cfg!(target_pointer_width = "32") {
+			for n in 0 .. 32 {
+				assert!(BitIdx::<usize>::new(n).is_ok());
+			}
+			assert!(BitIdx::<usize>::new(32).is_err());
+		}
+		else if cfg!(target_pointer_width = "64") {
+			for n in 0 .. 64 {
+				assert!(BitIdx::<usize>::new(n).is_ok());
+			}
+			assert!(BitIdx::<usize>::new(64).is_err());
+		}
+	}
+
+	#[test]
+	fn tail_ctors() {
+		for n in 0 ..= 8 {
+			assert!(BitTail::<u8>::new(n).is_some());
+		}
+		assert!(BitTail::<u8>::new(9).is_none());
+		for n in 0 ..= 16 {
+			assert!(BitTail::<u16>::new(n).is_some());
+		}
+		assert!(BitTail::<u16>::new(17).is_none());
+		for n in 0 ..= 32 {
+			assert!(BitTail::<u32>::new(n).is_some());
+		}
+		assert!(BitTail::<u32>::new(33).is_none());
+
+		#[cfg(target_pointer_width = "64")]
+		{
+			for n in 0 ..= 64 {
+				assert!(BitTail::<u64>::new(n).is_some());
+			}
+			assert!(BitTail::<u64>::new(65).is_none());
+		}
+
+		if cfg!(target_pointer_width = "32") {
+			for n in 0 ..= 32 {
+				assert!(BitTail::<usize>::new(n).is_some());
+			}
+			assert!(BitTail::<usize>::new(33).is_none());
+		}
+		else if cfg!(target_pointer_width = "64") {
+			for n in 0 ..= 64 {
+				assert!(BitTail::<usize>::new(n).is_some());
+			}
+			assert!(BitTail::<usize>::new(65).is_none());
+		}
+	}
+
+	#[test]
+	fn position_ctors() {
+		for n in 0 .. 8 {
+			assert!(BitPos::<u8>::new(n).is_some());
+		}
+		assert!(BitPos::<u8>::new(8).is_none());
+		for n in 0 .. 16 {
+			assert!(BitPos::<u16>::new(n).is_some());
+		}
+		assert!(BitPos::<u16>::new(16).is_none());
+		for n in 0 .. 32 {
+			assert!(BitPos::<u32>::new(n).is_some());
+		}
+		assert!(BitPos::<u32>::new(32).is_none());
+
+		#[cfg(target_pointer_width = "64")]
+		{
+			for n in 0 .. 64 {
+				assert!(BitPos::<u64>::new(n).is_some());
+			}
+			assert!(BitPos::<u64>::new(64).is_none());
+		}
+
+		if cfg!(target_pointer_width = "32") {
+			for n in 0 .. 32 {
+				assert!(BitPos::<usize>::new(n).is_some());
+			}
+			assert!(BitPos::<usize>::new(32).is_none());
+		}
+		else if cfg!(target_pointer_width = "64") {
+			for n in 0 .. 64 {
+				assert!(BitPos::<usize>::new(n).is_some());
+			}
+			assert!(BitPos::<usize>::new(64).is_none());
+		}
+	}
+
+	#[test]
+	fn select_ctors() {
+		for n in 0 .. 8 {
+			assert!(BitSel::<u8>::new(1 << n).is_some());
+		}
+		assert!(BitSel::<u8>::new(3).is_none());
+		for n in 0 .. 16 {
+			assert!(BitSel::<u16>::new(1 << n).is_some());
+		}
+		assert!(BitSel::<u16>::new(3).is_none());
+		for n in 0 .. 32 {
+			assert!(BitSel::<u32>::new(1 << n).is_some());
+		}
+		assert!(BitSel::<u32>::new(3).is_none());
+
+		#[cfg(target_pointer_width = "64")]
+		{
+			for n in 0 .. 64 {
+				assert!(BitSel::<u64>::new(1 << n).is_some());
+			}
+			assert!(BitSel::<u64>::new(3).is_none());
+		}
+
+		if cfg!(target_pointer_width = "32") {
+			for n in 0 .. 32 {
+				assert!(BitSel::<usize>::new(1 << n).is_some());
+			}
+			assert!(BitSel::<usize>::new(3).is_none());
+		}
+		else if cfg!(target_pointer_width = "64") {
+			for n in 0 .. 64 {
+				assert!(BitSel::<usize>::new(1 << n).is_some());
+			}
+			assert!(BitSel::<usize>::new(3).is_none());
+		}
+	}
+
+	#[test]
+	fn ranges() {
+		let mut range = BitIdx::<u16>::range_all();
+		assert_eq!(range.next(), BitIdx::new(0).ok());
+		assert_eq!(range.next_back(), BitIdx::new(15).ok());
+		assert_eq!(range.count(), 14);
+
+		let mut range = BitTail::<u8>::range_from(BitIdx::new(1).unwrap());
+		assert_eq!(range.next(), BitTail::new(1));
+		assert_eq!(range.next_back(), BitTail::new(8));
+		assert_eq!(range.count(), 6);
+
+		let mut range = BitPos::<u8>::range_all();
+		assert_eq!(range.next(), BitPos::new(0));
+		assert_eq!(range.next_back(), BitPos::new(7));
+		assert_eq!(range.count(), 6);
+
+		let mut range = BitSel::<u8>::range_all();
+		assert_eq!(range.next(), BitSel::new(1));
+		assert_eq!(range.next_back(), BitSel::new(128));
+		assert_eq!(range.count(), 6);
+	}
+
+	#[test]
+	fn index_cycle() {
+		let six = BitIdx::<u8>::new(6).unwrap();
+		let (seven, step) = six.next();
+		assert_eq!(seven, BitIdx::new(7).unwrap());
+		assert!(!step);
+		let (zero, step) = seven.next();
+		assert_eq!(zero, BitIdx::ZERO);
+		assert!(step);
+		let (seven, step) = zero.prev();
+		assert_eq!(seven, BitIdx::new(7).unwrap());
+		assert!(step);
+		let (six, step) = seven.prev();
+		assert_eq!(six, BitIdx::new(6).unwrap());
+		assert!(!step);
+
+		let fourteen = BitIdx::<u16>::new(14).unwrap();
+		let (fifteen, step) = fourteen.next();
+		assert_eq!(fifteen, BitIdx::new(15).unwrap());
+		assert!(!step);
+		let (zero, step) = fifteen.next();
+		assert_eq!(zero, BitIdx::ZERO);
+		assert!(step);
+		let (fifteen, step) = zero.prev();
+		assert_eq!(fifteen, BitIdx::new(15).unwrap());
+		assert!(step);
+		let (fourteen, step) = fifteen.prev();
+		assert_eq!(fourteen, BitIdx::new(14).unwrap());
+		assert!(!step);
+	}
+
+	#[test]
+	fn jumps() {
+		let (jump, head) = BitIdx::<u8>::new(1).unwrap().offset(2);
+		assert_eq!(jump, 0);
+		assert_eq!(head, BitIdx::new(3).unwrap());
+
+		let (jump, head) = BitIdx::<u8>::LAST.offset(1);
+		assert_eq!(jump, 1);
+		assert_eq!(head, BitIdx::ZERO);
+
+		let (jump, head) = BitIdx::<u16>::new(10).unwrap().offset(40);
+		// 10 is in 0..16; 10+40 is in 48..64
+		assert_eq!(jump, 3);
+		assert_eq!(head, BitIdx::new(2).unwrap());
+
+		let (jump, head) = BitIdx::<u8>::LAST.offset(isize::MAX);
+		assert_eq!(jump, ((isize::MAX as usize + 1) >> 3) as isize);
+		assert_eq!(head, BitIdx::LAST.prev().0);
+
+		let (elts, tail) = BitIdx::<u8>::new(4).unwrap().span(0);
+		assert_eq!(elts, 0);
+		assert_eq!(tail, BitTail::new(4).unwrap());
+
+		let (elts, tail) = BitIdx::<u8>::new(3).unwrap().span(3);
+		assert_eq!(elts, 1);
+		assert_eq!(tail, BitTail::new(6).unwrap());
+
+		let (elts, tail) = BitIdx::<u16>::new(10).unwrap().span(40);
+		assert_eq!(elts, 4);
+		assert_eq!(tail, BitTail::new(2).unwrap());
+	}
+
+	#[test]
+	fn mask_operators() {
+		let mut mask = BitIdx::<u8>::new(2)
+			.unwrap()
+			.range(BitTail::new(5).unwrap())
+			.map(BitIdx::select::<Lsb0>)
+			.sum::<BitMask<u8>>();
+		assert_eq!(mask, BitMask::new(28));
+		assert_eq!(mask & 25, BitMask::new(24));
+		assert_eq!(mask | 32, BitMask::new(60));
+		assert_eq!(!mask, BitMask::new(!28));
+		let yes = BitSel::<u8>::new(16).unwrap();
+		let no = BitSel::<u8>::new(64).unwrap();
+		assert!(mask.test(yes));
+		assert!(!mask.test(no));
+		mask.insert(no);
+		assert!(mask.test(no));
 	}
 
 	#[test]
 	#[cfg(feature = "alloc")]
-	fn format() {
+	fn render() {
 		#[cfg(not(feature = "std"))]
 		use alloc::format;
 
-		assert_eq!(format!("{:?}", BitIdx::<u16>::ZERO), "BitIdx<u16>(0000)");
+		assert_eq!(format!("{:?}", BitIdx::<u8>::LAST), "BitIdx<u8>(111)");
+		assert_eq!(format!("{:?}", BitIdx::<u16>::LAST), "BitIdx<u16>(1111)");
+		assert_eq!(format!("{:?}", BitIdx::<u32>::LAST), "BitIdx<u32>(11111)");
 
 		assert_eq!(
-			format!("{:?}", BitIdxErr::<u16>::new(20)),
-			"BitIdxErr<u16>(20)"
+			format!("{:?}", BitIdx::<u8>::new(8).unwrap_err()),
+			"BitIdxErr<u8>(8)",
+		);
+		assert_eq!(
+			format!("{:?}", BitIdx::<u16>::new(16).unwrap_err()),
+			"BitIdxErr<u16>(16)",
+		);
+		assert_eq!(
+			format!("{:?}", BitIdx::<u32>::new(32).unwrap_err()),
+			"BitIdxErr<u32>(32)",
+		);
+
+		assert_eq!(format!("{:?}", BitTail::<u8>::LAST), "BitTail<u8>(1000)");
+		assert_eq!(format!("{:?}", BitTail::<u16>::LAST), "BitTail<u16>(10000)");
+		assert_eq!(
+			format!("{:?}", BitTail::<u32>::LAST),
+			"BitTail<u32>(100000)",
 		);
 
 		assert_eq!(
-			format!("{:?}", BitTail::<u32>::ZERO),
-			"BitTail<u32>(000000)"
+			format!("{:?}", BitIdx::<u8>::LAST.position::<Msb0>()),
+			"BitPos<u8>(000)",
+		);
+		assert_eq!(
+			format!("{:?}", BitIdx::<u16>::LAST.position::<Lsb0>()),
+			"BitPos<u16>(1111)",
+		);
+		assert_eq!(
+			format!("{:?}", BitIdx::<u32>::LAST.position::<Msb0>()),
+			"BitPos<u32>(00000)",
 		);
 
 		assert_eq!(
-			format!("{:?}", BitPos::<u8>::new(0).unwrap()),
-			"BitPos<u8>(000)"
+			format!("{:?}", BitIdx::<u8>::LAST.select::<Msb0>()),
+			"BitSel<u8>(00000001)",
+		);
+		assert_eq!(
+			format!("{:?}", BitIdx::<u16>::LAST.select::<Lsb0>()),
+			"BitSel<u16>(1000000000000000)",
+		);
+		assert_eq!(
+			format!("{:?}", BitIdx::<u32>::LAST.select::<Msb0>()),
+			"BitSel<u32>(00000000000000000000000000000001)",
 		);
 
 		assert_eq!(
-			format!("{:?}", BitSel::<u16>::new(32).unwrap()),
-			"BitSel<u16>(0000000000100000)"
+			format!("{:?}", BitMask::<u8>::new(1 | 4 | 32)),
+			"BitMask<u8>(00100101)",
+		);
+		assert_eq!(
+			format!("{:?}", BitMask::<u16>::new(1 | 4 | 32)),
+			"BitMask<u16>(0000000000100101)",
+		);
+		assert_eq!(
+			format!("{:?}", BitMask::<u32>::new(1 | 4 | 32)),
+			"BitMask<u32>(00000000000000000000000000100101)",
 		);
 
-		assert_eq!(
-			format!("{:?}", BitMask::<u8>::new(8) | 32),
-			"BitMask<u8>(00101000)"
-		);
+		#[cfg(target_pointer_width = "64")]
+		{
+			assert_eq!(
+				format!("{:?}", BitIdx::<u64>::LAST),
+				"BitIdx<u64>(111111)",
+			);
+			assert_eq!(
+				format!("{:?}", BitIdx::<u64>::new(64).unwrap_err()),
+				"BitIdxErr<u64>(64)",
+			);
+			assert_eq!(
+				format!("{:?}", BitTail::<u64>::LAST),
+				"BitTail<u64>(1000000)",
+			);
+			assert_eq!(
+				format!("{:?}", BitIdx::<u64>::LAST.position::<Lsb0>()),
+				"BitPos<u64>(111111)",
+			);
+			assert_eq!(
+				format!("{:?}",BitIdx::<u64>::LAST.select::<Lsb0>()),
+				"BitSel<u64>(1000000000000000000000000000000000000000000000000000000000000000)",
+			);
+			assert_eq!(
+				format!("{:?}", BitMask::<u64>::new(1 | 4 | 32)),
+				"BitMask<u64>(0000000000000000000000000000000000000000000000000000000000100101)",
+			);
+		}
 	}
 }

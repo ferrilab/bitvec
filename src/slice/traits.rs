@@ -389,6 +389,7 @@ macro_rules! fmt {
 				constant expressions within generics.
 				*/
 				const D: usize = <usize as BitMemory>::BITS as usize / $blksz;
+				#[allow(clippy::modulo_one)]
 				const M: usize = <usize as BitMemory>::BITS as usize % $blksz;
 				const W: usize = D + (M != 0) as usize;
 				let mut w: [u8; W + 2] = [b'0'; W + 2];

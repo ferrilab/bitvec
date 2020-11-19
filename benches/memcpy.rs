@@ -6,7 +6,10 @@ iteration, as element load/stores are faster than reading and writing each bit
 in an element individually.
 !*/
 
-use bitvec::prelude::*;
+use bitvec::{
+	mem::BitMemory,
+	prelude::*,
+};
 
 use criterion::{
 	criterion_group,

@@ -851,10 +851,7 @@ where
 			Domain::Region { head, body, tail } => {
 				head.map_or(false, |(head, elem)| {
 					O::mask(head, None) & elem.load_value() != BitMask::ZERO
-				}) || body
-					.iter()
-					.map(BitStore::load_value)
-					.any(|e| e != T::Mem::ZERO)
+				}) || body.iter().any(|e| e.load_value() != T::Mem::ZERO)
 					|| tail.map_or(false, |(elem, tail)| {
 						O::mask(None, tail) & elem.load_value() != BitMask::ZERO
 					})

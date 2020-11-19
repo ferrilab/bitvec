@@ -202,6 +202,7 @@ pub unsafe trait BitOrder: 'static {
 	///
 	/// [`BitIdx`]: crate::index::BitIdx
 	/// [`Self::at`]: Self::at
+	#[cfg(not(tarpaulin_include))]
 	fn select<R>(index: BitIdx<R>) -> BitSel<R>
 	where R: BitRegister {
 		Self::at::<R>(index).select()
@@ -550,9 +551,10 @@ where
 	for from in BitIdx::<R>::range_all() {
 		for upto in BitTail::<R>::range_from(from) {
 			let mask = O::mask(from, upto);
-			let check = BitIdx::<R>::range(from, upto)
-				.map(O::at::<R>)
-				.map(BitPos::<R>::select)
+			let check = from
+				.range(upto)
+				.map(O::at)
+				.map(BitPos::select)
 				.sum::<BitMask<R>>();
 			assert_eq!(
 				mask,
@@ -574,27 +576,10 @@ where
 #[cfg(all(test, not(miri)))]
 mod tests {
 	use super::*;
-	use crate::mem::BitRegister;
 
 	#[test]
 	fn verify_impls() {
 		verify::<Lsb0>(cfg!(feature = "testing"));
 		verify::<Msb0>(cfg!(feature = "testing"));
-	}
-
-	#[test]
-	fn custom_order() {
-		struct AmericanDateStyle;
-		unsafe impl BitOrder for AmericanDateStyle {
-			fn at<R>(idx: BitIdx<R>) -> BitPos<R>
-			where R: BitRegister {
-				let val = idx.value();
-				let new = val ^ 4;
-				BitPos::new(new).unwrap_or_else(|| {
-					panic!("Attempted to solve {} -> {}", val, new)
-				})
-			}
-		}
-		verify::<AmericanDateStyle>(cfg!(feature = "testing"));
 	}
 }

@@ -77,6 +77,7 @@ where
 	}
 
 	#[doc(hidden)]
+	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.as_bitslice()` to view the underlying slice"]
 	pub fn as_slice(&self) -> &BitSlice<O, V::Store> {
 		self.as_bitslice()
@@ -96,6 +97,7 @@ where
 	}
 
 	#[doc(hidden)]
+	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.as_mut_bitslice()` to view the underlying slice"]
 	pub fn as_mut_slice(&mut self) -> &mut BitSlice<O, V::Store> {
 		self.as_mut_bitslice()

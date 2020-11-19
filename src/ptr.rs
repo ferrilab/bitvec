@@ -72,7 +72,6 @@ where T: BitStore
 	inner: NonNull<T>,
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<T> Address<T>
 where T: BitStore
 {
@@ -86,7 +85,12 @@ where T: BitStore
 			.map(|inner| Self { inner })
 			.ok_or(AddressError::Null)
 	}
+}
 
+#[cfg(not(tarpaulin_include))]
+impl<T> Address<T>
+where T: BitStore
+{
 	/// Views a numeric address as a typed data address.
 	pub(crate) unsafe fn new_unchecked(addr: usize) -> Self {
 		Self {
@@ -111,13 +115,13 @@ where T: BitStore
 	}
 
 	/// Gets the memory address as a non-null pointer.
-	#[cfg(feature = "alloc")]
+	#[cfg(any(feature = "alloc", test))]
 	pub(crate) fn to_nonnull(self) -> NonNull<T> {
 		self.inner
 	}
 
 	/// Gets the memory address as a non-null byte pointer.
-	#[cfg(feature = "alloc")]
+	#[cfg(any(feature = "alloc", test))]
 	pub(crate) fn to_nonnull_u8(self) -> NonNull<u8> {
 		unsafe { NonNull::new_unchecked(self.to_mut() as *mut u8) }
 	}
@@ -137,6 +141,7 @@ where T: BitStore
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> From<&T> for Address<T>
 where T: BitStore
 {
@@ -145,6 +150,7 @@ where T: BitStore
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> TryFrom<*const T> for Address<T>
 where T: BitStore
 {
@@ -155,6 +161,7 @@ where T: BitStore
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> From<&mut T> for Address<T>
 where T: BitStore
 {
@@ -163,6 +170,7 @@ where T: BitStore
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> TryFrom<*mut T> for Address<T>
 where T: BitStore
 {
@@ -207,7 +215,6 @@ where T: BitStore
 	Misaligned(*const T),
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<T> Display for AddressError<T>
 where T: BitStore
 {
@@ -614,7 +621,8 @@ where
 	/// received from the allocation system are required to satisfy this
 	/// constraint, so a failure is an exceptional program fault rather than an
 	/// expected logical mistake.
-	#[cfg(feature = "alloc")]
+	#[cfg(any(feature = "alloc", test))]
+	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn uninhabited<A>(addr: A) -> Self
 	where
 		A: TryInto<Address<T>>,
@@ -674,9 +682,9 @@ where
 			return Err(BitPtrError::TooLong(bits));
 		}
 
-		let elts = head.span(bits).0;
+		let elts = head.offset(bits as isize).0;
 		let addr_raw = addr.to_const();
-		let last = addr_raw.wrapping_add(elts);
+		let last = addr_raw.wrapping_add(elts as usize);
 		if last < addr_raw {
 			return Err(BitPtrError::TooHigh(addr_raw));
 		}
@@ -756,8 +764,7 @@ where
 			Some(nn) => nn,
 			None => return Self::EMPTY,
 		};
-		let ptr =
-			unsafe { NonNull::new_unchecked(slice_nn.as_ptr() as *mut u8) };
+		let ptr = slice_nn.cast::<u8>();
 		let len = unsafe { slice_nn.as_ref() }.len();
 		Self {
 			ptr,
@@ -772,7 +779,9 @@ where
 	/// See [`::from_bitslice_ptr()`].
 	///
 	/// [`::from_bitslice_ptr()`]: Self::from_bitslice_ptr
-	#[cfg(feature = "alloc")]
+	#[inline(always)]
+	#[cfg(any(feature = "alloc", test))]
+	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn from_bitslice_ptr_mut(raw: *mut BitSlice<O, T>) -> Self {
 		Self::from_bitslice_ptr(raw as *const BitSlice<O, T>)
 	}
@@ -803,6 +812,8 @@ where
 	/// See [`.to_bitslice_ptr()`].
 	///
 	/// [`.to_bitslice_ptr()`]: Self::to_bitslice_ptr
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_bitslice_ptr_mut(self) -> *mut BitSlice<O, T> {
 		self.to_bitslice_ptr() as *mut BitSlice<O, T>
 	}
@@ -827,6 +838,8 @@ where
 	///
 	/// `self`, opacified as a bit-slice region reference rather than a `BitPtr`
 	/// structure.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_bitslice_ref<'a>(self) -> &'a BitSlice<O, T> {
 		unsafe { &*self.to_bitslice_ptr() }
 	}
@@ -850,6 +863,8 @@ where
 	///
 	/// `self`, opacified as an exclusive bit-slice region reference rather than
 	/// a `BitPtr` structure.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_bitslice_mut<'a>(self) -> &'a mut BitSlice<O, T> {
 		unsafe { &mut *self.to_bitslice_ptr_mut() }
 	}
@@ -868,7 +883,8 @@ where
 	/// `self`, marked as a `NonNull` pointer.
 	///
 	/// [`NonNull<BitSlice>`]: core::ptr::NonNull
-	#[cfg(feature = "alloc")]
+	#[cfg(any(feature = "alloc", test))]
+	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_nonnull(self) -> NonNull<BitSlice<O, T>> {
 		self.to_bitslice_mut().into()
 	}
@@ -909,6 +925,8 @@ where
 		match self.to_bitslice_ref().domain() {
 			Domain::Enclave { .. } => (self, BitPtr::EMPTY, BitPtr::EMPTY),
 			Domain::Region { head, body, tail } => {
+				//  Reälign the fully-spanning center slice, creating edge
+				//  slices of the original type to merge with `head` and `tail`.
 				let (l, c, r) = body.align_to::<U::Mem>();
 
 				let t_bits = T::Mem::BITS as usize;
@@ -922,6 +940,16 @@ where
 				let c_addr = c.as_ptr() as *const U;
 				let r_addr = r.as_ptr() as *const T;
 
+				/* Compute a pointer for the left-most return span.
+
+				The left span must contain the domain’s head element, if
+				produced, as well as the `l` slice produced above. The left span
+				begins in:
+
+				- if `head` exists, then `head.1`
+				- else, if `l` is not empty, then `l`
+				- else, it is the empty pointer
+				*/
 				let l_ptr = match head {
 					/* If the head exists, then the left span begins in it, and
 					runs for the remaining bits in it, and all the bits of `l`.
@@ -1022,7 +1050,7 @@ where
 	/// None. The invariants of [`::new`] must be checked at the caller.
 	///
 	/// [`::new`]: Self::new
-	#[cfg(feature = "alloc")]
+	#[cfg(any(feature = "alloc", test))]
 	pub(crate) unsafe fn set_pointer<A>(&mut self, addr: A)
 	where
 		A: TryInto<Address<T>>,
@@ -1070,7 +1098,7 @@ where
 	///
 	/// `head` is written into the `.head` logical field, without affecting
 	/// `.addr` or `.bits`.
-	#[cfg(feature = "alloc")]
+	#[cfg(any(feature = "alloc", test))]
 	pub(crate) unsafe fn set_head(&mut self, head: BitIdx<T::Mem>) {
 		let head = head.value() as usize;
 		let mut ptr = self.ptr.as_ptr() as usize;
@@ -1495,6 +1523,7 @@ where
 	TooHigh(*const T),
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> From<AddressError<T>> for BitPtrError<O, T>
 where
 	O: BitOrder,
@@ -1508,6 +1537,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> From<BitIdxErr<T::Mem>> for BitPtrError<O, T>
 where
 	O: BitOrder,
@@ -1603,11 +1633,100 @@ where
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::{
-		bits,
-		order::LocalBits,
+	use crate::prelude::*;
+	use core::{
+		mem,
+		ptr,
 	};
-	use core::mem;
+
+	#[test]
+	fn ctor() {
+		assert!(matches!(Address::<u8>::new(0), Err(AddressError::Null)));
+		assert!(matches!(
+			Address::<u16>::new(3),
+			Err(AddressError::Misaligned(addr)) if addr as usize == 3
+		));
+
+		let data = 0u8;
+		assert!(BitPtr::<LocalBits, _>::new(&data, BitIdx::ZERO, 5).is_ok());
+		assert!(matches!(
+			BitPtr::<LocalBits, _>::new(&data, BitIdx::ZERO, (!0 >> 3) + 1),
+			Err(BitPtrError::TooLong(_))
+		));
+		assert!(matches!(
+			BitPtr::<LocalBits, _>::new(!0usize as *const u8, BitIdx::ZERO, 8),
+			Err(BitPtrError::TooHigh(_))
+		));
+
+		//  Double check the null pointers, but they are in practice impossible
+		//  to construct.
+		assert_eq!(
+			BitPtr::from_bitslice_ptr(ptr::slice_from_raw_parts(
+				ptr::null::<()>(),
+				1
+			) as *mut BitSlice<LocalBits, u8>),
+			BitPtr::<LocalBits, u8>::EMPTY,
+		);
+	}
+
+	#[test]
+	fn recast() {
+		let data = 0u32;
+		let bitptr =
+			BitPtr::<LocalBits, _>::new(&data, BitIdx::ZERO, 32).unwrap();
+		let raw_ptr = bitptr.to_bitslice_ptr();
+		assert_eq!(bitptr, BitPtr::from_bitslice_ptr(raw_ptr));
+	}
+
+	#[test]
+	fn realign() {
+		let data = [0u8; 10];
+		let bits = data.view_bits::<LocalBits>();
+
+		let (l, c, r) = unsafe { bits.bitptr().align_to::<u16>() };
+		assert_eq!(l.len() + c.len() + r.len(), 80);
+
+		let (l, c, r) = unsafe { bits[4 ..].bitptr().align_to::<u16>() };
+		assert_eq!(l.len() + c.len() + r.len(), 76);
+
+		let (l, c, r) = unsafe { bits[.. 76].bitptr().align_to::<u16>() };
+		assert_eq!(l.len() + c.len() + r.len(), 76);
+
+		let (l, c, r) = unsafe { bits[8 ..].bitptr().align_to::<u16>() };
+		assert_eq!(l.len() + c.len() + r.len(), 72);
+
+		let (l, c, r) = unsafe { bits[.. 72].bitptr().align_to::<u16>() };
+		assert_eq!(l.len() + c.len() + r.len(), 72);
+
+		let (l, c, r) = unsafe { bits[4 .. 76].bitptr().align_to::<u16>() };
+		assert_eq!(l.len() + c.len() + r.len(), 72);
+	}
+
+	#[test]
+	fn modify() {
+		let (a, b) = (0u16, 1u16);
+
+		let mut bitptr = a.view_bits::<LocalBits>().bitptr();
+		let mut expected = (&a as *const _ as usize, 16usize << 3);
+
+		assert_eq!(bitptr.pointer().to_const(), &a as *const _);
+		assert_eq!(bitptr.ptr.as_ptr() as usize, expected.0);
+		assert_eq!(bitptr.len, expected.1);
+
+		expected.0 = &b as *const _ as usize;
+		unsafe {
+			bitptr.set_pointer(&b as *const _);
+		}
+		assert_eq!(bitptr.pointer().to_const(), &b as *const _);
+		assert_eq!(bitptr.ptr.as_ptr() as usize, expected.0);
+		assert_eq!(bitptr.len, expected.1);
+
+		let orig_head = bitptr.head();
+		unsafe {
+			bitptr.set_head(orig_head.next().0);
+		}
+		assert_eq!(bitptr.head(), orig_head.next().0);
+	}
 
 	#[test]
 	fn mem_size() {
@@ -1622,52 +1741,22 @@ mod tests {
 	}
 
 	#[test]
-	fn components() {
-		let bits = bits![Msb0, u8; 0; 24];
-		let partial = bits[2 .. 22].bitptr();
-		assert_eq!(partial.pointer(), bits.bitptr().pointer());
-		assert_eq!(partial.elements(), 3);
-		assert_eq!(partial.head().value(), 2);
-		assert_eq!(partial.len(), 20);
-	}
-
-	#[test]
 	#[cfg(feature = "alloc")]
-	fn format() {
+	fn render() {
 		#[cfg(not(feature = "std"))]
 		use alloc::format;
 
-		let bits = bits![Msb0, u8; 0, 1, 0, 0];
-
-		let render = format!("{:?}", bits.bitptr());
-		assert!(
-			render.starts_with("BitPtr<bitvec::order::Msb0, u8> { addr: 0x")
+		assert_eq!(
+			format!("{}", Address::<u8>::new(0).unwrap_err()),
+			"Cannot use a null pointer"
 		);
-		assert!(render.ends_with(", head: 000, bits: 4 }"));
-
-		let render = format!("{:#?}", bits);
-		assert!(render.starts_with("BitSlice<bitvec::order::Msb0, u8> {"));
-		assert!(render.ends_with("} [\n    0b0100,\n]"), "{}", render);
-	}
-
-	#[test]
-	fn ptr_diff() {
-		let bits = bits![Msb0, u8; 0; 16];
-
-		let a = bits[2 .. 3].bitptr();
-		let b = bits[12 .. 13].bitptr();
-		assert_eq!(unsafe { a.ptr_diff(&b) }, (1, 2));
-
-		let a = bits[5 .. 6].bitptr();
-		let b = bits[10 .. 11].bitptr();
-		assert_eq!(unsafe { a.ptr_diff(&b) }, (1, -3));
-
-		let a = bits[8 .. 9].bitptr();
-		let b = bits[4 .. 5].bitptr();
-		assert_eq!(unsafe { a.ptr_diff(&b) }, (-1, 4));
-
-		let a = bits[14 .. 15].bitptr();
-		let b = bits[1 .. 2].bitptr();
-		assert_eq!(unsafe { a.ptr_diff(&b) }, (-1, -5));
+		assert_eq!(
+			format!("{}", Address::<u16>::new(0x13579).unwrap_err()),
+			"Address 0x13579 must clear its least 1 bits to be aligned for u16"
+		);
+		assert_eq!(
+			format!("{}", Address::<u32>::new(0x13579).unwrap_err()),
+			"Address 0x13579 must clear its least 2 bits to be aligned for u32"
+		);
 	}
 }

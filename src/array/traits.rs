@@ -35,6 +35,7 @@ use core::{
 	},
 };
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> Borrow<BitSlice<O, V::Store>> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -45,6 +46,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> BorrowMut<BitSlice<O, V::Store>> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -132,6 +134,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> AsRef<BitSlice<O, V::Store>> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -142,6 +145,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> AsMut<BitSlice<O, V::Store>> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -152,6 +156,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> From<V> for BitArray<O, V>
 where
 	O: BitOrder,
@@ -215,6 +220,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> Default for BitArray<O, V>
 where
 	O: BitOrder,
@@ -225,6 +231,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> Binary for BitArray<O, V>
 where
 	O: BitOrder,
@@ -247,6 +254,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> Display for BitArray<O, V>
 where
 	O: BitOrder,
@@ -257,6 +265,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> LowerHex for BitArray<O, V>
 where
 	O: BitOrder,
@@ -267,6 +276,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> Octal for BitArray<O, V>
 where
 	O: BitOrder,
@@ -277,6 +287,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> UpperHex for BitArray<O, V>
 where
 	O: BitOrder,

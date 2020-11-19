@@ -1,4 +1,4 @@
-//! Tests for the constructor macros and their internal delegates.
+//! Unit tests for the `macros` module.
 
 #![cfg(test)]
 
@@ -27,7 +27,7 @@ fn compile_bitarr_typedef() {
 }
 
 #[test]
-fn compile_bitarr_value() {
+fn compile_bitarr() {
 	let uint: BitArray<Lsb0, [u8; 1]> = bitarr![Lsb0, u8; 1, 0, 1, 0];
 	assert_eq!(uint.value(), [5u8]);
 	let cell: BitArray<Lsb0, [Cell<u8>; 1]> =

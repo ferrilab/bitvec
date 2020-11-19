@@ -13,6 +13,7 @@ use bitvec::{
 		BitPos,
 	},
 	mem::BitRegister,
+	order::verify,
 	prelude::*,
 };
 
@@ -34,5 +35,5 @@ unsafe impl BitOrder for Swizzle {
 #[test]
 #[cfg(not(miri))]
 fn check_impl() {
-	bitvec::order::verify::<Swizzle>(cfg!(feature = "testing"));
+	verify::<Swizzle>(cfg!(feature = "testing"));
 }

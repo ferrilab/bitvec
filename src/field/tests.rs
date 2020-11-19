@@ -1,4 +1,4 @@
-//! Tests for the `field` module.
+//! Unit tests for the `field` module.
 
 use super::*;
 use crate::prelude::*;
@@ -83,10 +83,20 @@ fn byte_fields() {
 	assert_eq!(data, [0x0D, 0xBC, 0xA0]);
 	assert_eq!(data.view_bits::<Msb0>()[4 .. 20].load_le::<u16>(), 0xABCD);
 
+	data.view_bits_mut::<Msb0>()[.. 8].set_all(false);
+	data.view_bits_mut::<Msb0>()[2 .. 6].store_le(5u8);
+	assert_eq!(data[0], 20);
+	assert_eq!(data.view_bits::<Msb0>()[2 .. 6].load_le::<u8>(), 5);
+
 	data = [0; 3];
 	data.view_bits_mut::<Lsb0>()[4 .. 20].store_le(0xABCDu16);
 	assert_eq!(data, [0xD0, 0xBC, 0x0A]);
 	assert_eq!(data.view_bits::<Lsb0>()[4 .. 20].load_le::<u16>(), 0xABCD);
+
+	data.view_bits_mut::<Lsb0>()[.. 8].set_all(false);
+	data.view_bits_mut::<Lsb0>()[2 .. 6].store_le(5u8);
+	assert_eq!(data[0], 20);
+	assert_eq!(data.view_bits::<Lsb0>()[2 .. 6].load_le::<u8>(), 5);
 }
 
 #[test]

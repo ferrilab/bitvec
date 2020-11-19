@@ -429,6 +429,7 @@ pub use self::u8_from_le_bits as u8_from_ne_bits;
 pub use self::u8_from_be_bits as u8_from_ne_bits;
 
 #[doc(hidden)]
+#[cfg(not(tarpaulin_include))]
 #[deprecated = "Ordering-only macro constructors are deprecated. Specify a \
                 storage type as well, or remove the ordering and use the \
                 default."]
