@@ -237,7 +237,7 @@ macro_rules! store {
 
 			#[doc(hidden)]
 			const __ALIAS_WIDTH: [(); 0]
-				= [(); mem::cmp_layout::<Self::Mem, Self::Alias>()];
+				= [(); mem::cmp_layout::<Self, Self::Alias>()];
 		}
 
 		/// This type is only ever produced by calling [`.split_at_mut()`] on
@@ -267,7 +267,8 @@ macro_rules! store {
 				= [(); mem::aligned_to_size::<Self>()];
 
 			#[doc(hidden)]
-			const __ALIAS_WIDTH: [(); 0] = [];
+			const __ALIAS_WIDTH: [(); 0]
+				= [(); mem::cmp_layout::<Self, Self::Unalias>()];
 		}
 
 		impl BitStore for Cell<$base> {
@@ -311,141 +312,48 @@ store!(u64 => BitSafeU64);
 
 store!(usize => BitSafeUsize);
 
-radium::if_atomic! {
-	if atomic(8) {
-		use core::sync::atomic;
+macro_rules! atomic_store {
+	($($w:tt , $base:ty => $atom:ident);+ $(;)?) => { $(
+		radium::if_atomic!(if atomic($w) {
+			use core::sync::atomic::$atom;
 
-		impl BitStore for atomic::AtomicU8 {
-			type Mem = u8;
-			type Access = Self;
-			type Alias = Self;
-			type Unalias = Self;
+			impl BitStore for $atom {
+				type Mem = $base;
+				type Access = Self;
+				type Alias = Self;
+				type Unalias = Self;
 
-			fn load_value(&self) -> Self::Mem {
-				self.load(atomic::Ordering::Relaxed)
+				fn load_value(&self) -> Self::Mem {
+					self.load(core::sync::atomic::Ordering::Relaxed)
+				}
+
+				fn store_value(&mut self, value: Self::Mem) {
+					self.store(value, core::sync::atomic::Ordering::Relaxed);
+				}
+
+				#[doc(hidden)]
+				const __ALIGNED_TO_SIZE: [(); 0]
+					= [(); mem::aligned_to_size::<Self>()];
+
+				#[doc(hidden)]
+				const __ALIAS_WIDTH: [(); 0] = [];
 			}
 
-			fn store_value(&mut self, value: Self::Mem) {
-				self.store(value, atomic::Ordering::Relaxed);
-			}
-
-			#[doc(hidden)]
-			const __ALIGNED_TO_SIZE: [(); 0]
-				= [(); mem::aligned_to_size::<Self>()];
-
-			#[doc(hidden)]
-			const __ALIAS_WIDTH: [(); 0] = [];
-		}
-
-		impl seal::Sealed for atomic::AtomicU8 {}
-	}
-
-	if atomic(16) {
-		impl BitStore for atomic::AtomicU16 {
-			type Mem = u16;
-			type Access = Self;
-			type Alias = Self;
-			type Unalias = Self;
-
-			fn load_value(&self) -> Self::Mem {
-				self.load(atomic::Ordering::Relaxed)
-			}
-
-			fn store_value(&mut self, value: Self::Mem) {
-				self.store(value, atomic::Ordering::Relaxed);
-			}
-
-			#[doc(hidden)]
-			const __ALIGNED_TO_SIZE: [(); 0]
-				= [(); mem::aligned_to_size::<Self>()];
-
-			#[doc(hidden)]
-			const __ALIAS_WIDTH: [(); 0] = [];
-		}
-
-		impl seal::Sealed for atomic::AtomicU16 {}
-	}
-
-	if atomic(32) {
-		impl BitStore for atomic::AtomicU32 {
-			type Mem = u32;
-			type Access = Self;
-			type Alias = Self;
-			type Unalias = Self;
-
-			fn load_value(&self) -> Self::Mem {
-				self.load(atomic::Ordering::Relaxed)
-			}
-
-			fn store_value(&mut self, value: Self::Mem) {
-				self.store(value, atomic::Ordering::Relaxed);
-			}
-
-			#[doc(hidden)]
-			const __ALIGNED_TO_SIZE: [(); 0]
-				= [(); mem::aligned_to_size::<Self>()];
-
-			#[doc(hidden)]
-			const __ALIAS_WIDTH: [(); 0] = [];
-		}
-
-		impl seal::Sealed for atomic::AtomicU32 {}
-	}
-
-	if atomic(64) {
-		#[cfg(target_pointer_width = "64")]
-		impl BitStore for atomic::AtomicU64 {
-			type Mem = u64;
-			type Access = Self;
-			type Alias = Self;
-			type Unalias = Self;
-
-			fn load_value(&self) -> Self::Mem {
-				self.load(atomic::Ordering::Relaxed)
-			}
-
-			fn store_value(&mut self, value: Self::Mem) {
-				self.store(value, atomic::Ordering::Relaxed);
-			}
-
-			#[doc(hidden)]
-			const __ALIGNED_TO_SIZE: [(); 0]
-				= [(); mem::aligned_to_size::<Self>()];
-
-			#[doc(hidden)]
-			const __ALIAS_WIDTH: [(); 0] = [];
-		}
-
-		#[cfg(target_pointer_width = "64")]
-		impl seal::Sealed for atomic::AtomicU64 {}
-	}
-
-	if atomic(size) {
-		impl BitStore for atomic::AtomicUsize {
-			type Mem = usize;
-			type Access = Self;
-			type Alias = Self;
-			type Unalias = Self;
-
-			fn load_value(&self) -> Self::Mem {
-				self.load(atomic::Ordering::Relaxed)
-			}
-
-			fn store_value(&mut self, value: Self::Mem) {
-				self.store(value, atomic::Ordering::Relaxed);
-			}
-
-			#[doc(hidden)]
-			const __ALIGNED_TO_SIZE: [(); 0]
-				= [(); mem::aligned_to_size::<Self>()];
-
-			#[doc(hidden)]
-			const __ALIAS_WIDTH: [(); 0] = [];
-		}
-
-		impl seal::Sealed for atomic::AtomicUsize {}
-	}
+			impl seal::Sealed for $atom {}
+		});
+	)+ };
 }
+
+atomic_store! {
+	8, u8 => AtomicU8;
+	16, u16 => AtomicU16;
+	32, u32 => AtomicU32;
+}
+
+#[cfg(target_pointer_width = "64")]
+atomic_store!(64, u64 => AtomicU64);
+
+atomic_store!(size, usize => AtomicUsize);
 
 #[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
 compile_fail!(concat!(
