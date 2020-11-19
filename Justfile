@@ -14,8 +14,8 @@ build:
 	cargo build --no-default-features
 	cargo build --no-default-features --features alloc
 	cargo build --all-features
-	@cargo build --all-features --example sieve
-	@cargo build --all-features --example tour
+	cargo build --all-features --example sieve
+	cargo build --all-features --example tour
 
 # Checks the library for syntax and HIR errors.
 check:
@@ -35,9 +35,8 @@ clean:
 	cargo clean
 
 # Produces coverage statistics for the (non-doc) test suite.
-cover: format check lint
-	@cargo +nightly tarpaulin --all-features -o Lcov -l --output-dir target/tarpaulin --ignore-tests --ignore-panics &>/dev/null &
-	cargo +nightly tarpaulin --all-features -o Html -l --output-dir target/tarpaulin --ignore-tests --ignore-panics
+cover *ARGS: format check lint
+	cargo +nightly tarpaulin -- {{ARGS}}
 	@tokei
 
 # This runs the cross-compile battery on a development machine. It is not
@@ -70,11 +69,11 @@ dev: format lint doc test cover
 
 # Builds the crate documentation.
 doc *ARGS:
-	@cargo +nightly doc --all-features {{ARGS}}
+	cargo +nightly doc --all-features {{ARGS}}
 
 # Runs the formatter on all Rust files.
 format:
-	@cargo +nightly fmt -- --config-path rustfmt-nightly.toml
+	cargo +nightly fmt -- --config-path rustfmt-nightly.toml
 
 # Runs the linter.
 lint: check
@@ -83,8 +82,8 @@ lint: check
 	cargo clippy --all-features
 
 # Continually runs some recipe from this file.
-loop action:
-	watchexec -w src -- "just {{action}}"
+loop +ACTIONS:
+	watchexec -w src -- "just {{ACTIONS}}"
 
 # Looks for undefined behavior in the (non-doc) test suite.
 miri *ARGS:
@@ -104,8 +103,8 @@ test *ARGS: check lint
 	cargo test --no-default-features --features alloc -q --lib --tests {{ARGS}}
 	cargo test --all-features -q --lib --tests {{ARGS}}
 	cargo test --all-features -q --doc {{ARGS}}
-	@cargo run --all-features --example aliasing &>/dev/null
-	@cargo run --all-features --example ipv4 &>/dev/null
-	@cargo run --all-features --example sieve &>/dev/null
-	@cargo run --all-features --example tour &>/dev/null
+	cargo run --all-features --example aliasing &>/dev/null
+	cargo run --all-features --example ipv4 &>/dev/null
+	cargo run --all-features --example sieve &>/dev/null
+	cargo run --all-features --example tour &>/dev/null
 	just miri

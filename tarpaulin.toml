@@ -1,0 +1,23 @@
+################################################################################
+#                            Coverage Configuration                            #
+#                                                                              #
+# This file controls the behavior of `cargo-tarpaulin`, used to produce        #
+# coverage reports for the project.
+################################################################################
+
+[coverage]
+all-features = true
+count = true
+ignore-panics = true
+ignore-tests = true
+run-types = [
+	"Tests",
+]
+
+[report]
+out = [
+	"Html",
+	"Lcov",
+	"Xml",
+]
+output-dir = "target/tarpaulin"
