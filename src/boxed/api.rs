@@ -3,7 +3,7 @@
 use crate::{
 	boxed::BitBox,
 	order::BitOrder,
-	ptr::BitPtr,
+	ptr::BitSpan,
 	slice::BitSlice,
 	store::BitStore,
 	vec::BitVec,
@@ -106,7 +106,7 @@ where
 	/// [`BitBox::into_raw`]: Self::into_raw
 	/// [`::into_raw`]: Self::into_raw
 	pub unsafe fn from_raw(raw: *mut BitSlice<O, T>) -> Self {
-		raw.pipe(BitPtr::from_bitslice_ptr_mut)
+		raw.pipe(BitSpan::from_bitslice_ptr_mut)
 			.to_nonnull()
 			.pipe(|pointer| Self { pointer })
 	}
@@ -193,7 +193,7 @@ where
 	/// [`Box`]: alloc::boxed::Box
 	pub fn leak<'a>(b: Self) -> &'a mut BitSlice<O, T>
 	where T: 'a {
-		b.pipe(ManuallyDrop::new).bitptr().to_bitslice_mut()
+		b.pipe(ManuallyDrop::new).bit_span().to_bitslice_mut()
 	}
 
 	/// The name is preserved for API compatibility. See

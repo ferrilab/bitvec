@@ -26,8 +26,8 @@ use std::panic::catch_unwind;
 #[test]
 fn from_vec() {
 	let mut bv = BitVec::<Msb0, u8>::from_vec(vec![0, 1, 2, 3]);
-	let _ = bv.as_bitptr();
-	let bp_mut = bv.as_mut_bitptr();
+	let _ = bv.as_bitspan();
+	let bp_mut = bv.as_mut_bitspan();
 	assert_eq!(bv.len(), 32);
 	assert_eq!(bv.count_ones(), 4);
 

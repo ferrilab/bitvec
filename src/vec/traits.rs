@@ -270,7 +270,7 @@ where
 	T: BitStore,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		self.bitptr().render(fmt, "Vec", &[(
+		self.bit_span().render(fmt, "Vec", &[(
 			"capacity",
 			&self.capacity() as &dyn Debug,
 		)])?;

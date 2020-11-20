@@ -5,7 +5,7 @@ use crate::{
 	devel as dvl,
 	mem::BitMemory,
 	order::BitOrder,
-	ptr::BitPtr,
+	ptr::BitSpan,
 	slice::{
 		iter::{
 			Chunks,
@@ -73,7 +73,7 @@ where
 	/// assert_eq!(a.len(), 3);
 	/// ```
 	pub fn len(&self) -> usize {
-		self.bitptr().len()
+		self.bit_span().len()
 	}
 
 	/// Returns `true` if the slice has a length of 0.
@@ -91,7 +91,7 @@ where
 	/// assert!(!a.is_empty());
 	/// ```
 	pub fn is_empty(&self) -> bool {
-		self.bitptr().len() == 0
+		self.bit_span().len() == 0
 	}
 
 	/// Returns the first bit of the slice, or `None` if it is empty.
@@ -499,7 +499,7 @@ where
 	/// The caller must also ensure that the memory the pointer
 	/// (non-transitively) points to is never written to using this pointer or
 	/// any pointer derived from it. If you need to mutate the contents of the
-	/// slice, use [`.as_mut_bitptr()`].
+	/// slice, use [`.as_mut_bitspan()`].
 	///
 	/// Modifying the container referenced by this slice may cause its
 	/// buffer to be reällocated, which would also make any pointers to it
@@ -541,10 +541,10 @@ where
 	/// }
 	/// ```
 	///
-	/// [`.as_mut_bitptr()`]: Self::as_mut_bitptr
-	#[deprecated = "Use `.as_bitptr()` to access the region pointer"]
+	/// [`.as_mut_bitspan()`]: Self::as_mut_bitspan
+	#[deprecated = "Use `.as_bitspan()` to access the region pointer"]
 	pub fn as_ptr(&self) -> *const Self {
-		self.as_bitptr()
+		self.as_bitspan()
 	}
 
 	/// Returns an unsafe mutable pointer to the slice’s region.
@@ -590,9 +590,9 @@ where
 	/// }
 	/// assert_eq!(bits.as_slice()[0], 0b0100_1001);
 	/// ```
-	#[deprecated = "Use `.as_mut_bitptr()` to access the region pointer"]
+	#[deprecated = "Use `.as_mut_bitspan()` to access the region pointer"]
 	pub fn as_mut_ptr(&mut self) -> *mut Self {
-		self.as_mut_bitptr()
+		self.as_mut_bitspan()
 	}
 
 	/// Swaps two bits in the slice.
@@ -651,20 +651,20 @@ where
 		Begin with raw pointer manipulation. That’s how you know this is a good
 		function.
 		*/
-		let mut bitptr = self.bitptr();
+		let mut bitspan = self.bit_span();
 		//  The length does not need to be encoded into, and decoded back out
 		//  of, the pointer at each iteration. It is just a loop counter.
-		let mut len = bitptr.len();
+		let mut len = bitspan.len();
 		//  Reversing 1 or 0 bits has no effect.
 		while len > 1 {
 			unsafe {
 				//  Bring `len` from one past the last to the last exactly.
 				len -= 1;
 				//  Swap the 0 and last indices.
-				bitptr.to_bitslice_mut().swap_unchecked(0, len);
+				bitspan.to_bitslice_mut().swap_unchecked(0, len);
 
 				//  Move the pointer upwards by one bit.
-				bitptr.incr_head();
+				bitspan.incr_head();
 				//  `incr_head` slides the tail up by one, so decrease it again.
 				len -= 1;
 
@@ -2034,7 +2034,7 @@ where
 	/// [`::Alias`]: crate::store::BitStore::Alias
 	pub unsafe fn align_to<U>(&self) -> (&Self, &BitSlice<O, U>, &Self)
 	where U: BitStore {
-		let (l, c, r) = self.bitptr().align_to::<U>();
+		let (l, c, r) = self.bit_span().align_to::<U>();
 		(
 			l.to_bitslice_ref(),
 			c.to_bitslice_ref(),
@@ -2105,7 +2105,7 @@ where
 		&mut self,
 	) -> (&mut Self, &mut BitSlice<O, U>, &mut Self)
 	where U: BitStore {
-		let (l, c, r) = self.bitptr().align_to::<U>();
+		let (l, c, r) = self.bit_span().align_to::<U>();
 		(
 			l.to_bitslice_mut(),
 			c.to_bitslice_mut(),
@@ -2481,7 +2481,7 @@ where
 	}
 
 	unsafe fn get_unchecked(self, slice: &'a BitSlice<O, T>) -> Self::Immut {
-		if slice.bitptr().read(self) {
+		if slice.bit_span().read(self) {
 			&true
 		}
 		else {
@@ -2494,9 +2494,9 @@ where
 		slice: &'a mut BitSlice<O, T>,
 	) -> Self::Mut
 	{
-		let bitptr = slice.bitptr();
-		let (elt, bit) = bitptr.head().offset(self as isize);
-		let addr = bitptr.pointer().to_access().offset(elt);
+		let bitspan = slice.bit_span();
+		let (elt, bit) = bitspan.head().offset(self as isize);
+		let addr = bitspan.pointer().to_access().offset(elt);
 		BitMut::new_unchecked(addr, bit)
 	}
 
@@ -2524,13 +2524,13 @@ macro_rules! range_impl {
 			$get
 
 			fn get_mut(self, slice: Self::Mut) -> Option<Self::Mut> {
-				self.get(slice).map(|s| s.bitptr().to_bitslice_mut())
+				self.get(slice).map(|s| s.bit_span().to_bitslice_mut())
 			}
 
 			$unchecked
 
 			unsafe fn get_unchecked_mut(self, slice: Self::Mut) -> Self::Mut {
-				self.get_unchecked(slice).bitptr().to_bitslice_mut()
+				self.get_unchecked(slice).bit_span().to_bitslice_mut()
 			}
 
 			fn index(self, slice: Self::Immut) -> Self::Immut {
@@ -2543,7 +2543,7 @@ macro_rules! range_impl {
 			}
 
 			fn index_mut(self, slice: Self::Mut) -> Self::Mut {
-				self.index(slice).bitptr().to_bitslice_mut()
+				self.index(slice).bit_span().to_bitslice_mut()
 			}
 		}
 	};
@@ -2593,11 +2593,11 @@ range_impl!(Range<usize> {
 	}
 
 	unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
-		let (addr, head, _) = slice.bitptr().raw_parts();
+		let (addr, head, _) = slice.bit_span().raw_parts();
 
 		let (skip, new_head) = head.offset(self.start as isize);
 
-		BitPtr::new_unchecked(
+		BitSpan::new_unchecked(
 			addr.to_const().offset(skip),
 			new_head,
 			self.end - self.start,
@@ -2617,11 +2617,11 @@ range_impl!(RangeFrom<usize> {
 	}
 
 	unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
-		let (addr, head, bits) = slice.bitptr().raw_parts();
+		let (addr, head, bits) = slice.bit_span().raw_parts();
 
 		let (skip, new_head) = head.offset(self.start as isize);
 
-		BitPtr::new_unchecked(
+		BitSpan::new_unchecked(
 			addr.to_const().offset(skip),
 			new_head,
 			bits - self.start,
@@ -2642,7 +2642,7 @@ range_impl!(RangeTo<usize> {
 	}
 
 	unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
-		slice.bitptr().tap_mut(|bp| bp.set_len(self.end)).to_bitslice_ref()
+		slice.bit_span().tap_mut(|bp| bp.set_len(self.end)).to_bitslice_ref()
 	}
 });
 

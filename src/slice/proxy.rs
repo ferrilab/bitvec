@@ -23,7 +23,7 @@ use crate::{
 		BitOrder,
 		Lsb0,
 	},
-	ptr::BitPtr,
+	ptr::BitSpan,
 	slice::BitSlice,
 	store::BitStore,
 };
@@ -147,7 +147,7 @@ where
 	/// proxy.
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
 		unsafe {
-			BitPtr::new_unchecked(self.addr.as_ptr() as *const T, self.head, 1)
+			BitSpan::new_unchecked(self.addr.as_ptr() as *const T, self.head, 1)
 		}
 		.to_bitslice_ref()
 	}
@@ -156,7 +156,7 @@ where
 	/// proxy.
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
 		unsafe {
-			BitPtr::new_unchecked(self.addr.as_ptr() as *mut T, self.head, 1)
+			BitSpan::new_unchecked(self.addr.as_ptr() as *mut T, self.head, 1)
 		}
 		.to_bitslice_mut()
 	}
@@ -204,8 +204,8 @@ where
 	T: BitStore,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		let bitptr = self.as_bitslice().bitptr();
-		bitptr.render(fmt, "Mut", &[("bit", &self.data as &dyn Debug)])
+		let bitspan = self.as_bitslice().bit_span();
+		bitspan.render(fmt, "Mut", &[("bit", &self.data as &dyn Debug)])
 	}
 }
 

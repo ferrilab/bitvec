@@ -64,8 +64,8 @@ use crate::{
 		Msb0,
 	},
 	ptr::{
-		BitPtr,
-		BitPtrError,
+		BitSpan,
+		BitSpanError,
 	},
 	store::BitStore,
 };
@@ -476,7 +476,7 @@ where
 	/// [`.view_bits::<O>()`]: crate::view::BitView::view_bits
 	pub fn from_element(elem: &T) -> &Self {
 		unsafe {
-			BitPtr::new_unchecked(elem, BitIdx::ZERO, T::Mem::BITS as usize)
+			BitSpan::new_unchecked(elem, BitIdx::ZERO, T::Mem::BITS as usize)
 		}
 		.to_bitslice_ref()
 	}
@@ -515,7 +515,7 @@ where
 	/// [`.view_bits_mut::<O>()`]: crate::view::BitView::view_bits_mut
 	pub fn from_element_mut(elem: &mut T) -> &mut Self {
 		unsafe {
-			BitPtr::new_unchecked(elem, BitIdx::ZERO, T::Mem::BITS as usize)
+			BitSpan::new_unchecked(elem, BitIdx::ZERO, T::Mem::BITS as usize)
 		}
 		.to_bitslice_mut()
 	}
@@ -558,12 +558,12 @@ where
 	/// [`BitView`]: crate::view::BitView
 	/// [`MAX_ELTS`]: Self::MAX_ELTS
 	/// [`.view_bits::<O>()`]: crate::view::BitView::view_bits
-	pub fn from_slice(slice: &[T]) -> Result<&Self, BitPtrError<O, T>> {
+	pub fn from_slice(slice: &[T]) -> Result<&Self, BitSpanError<O, T>> {
 		let elts = slice.len();
 		//  Starting at the zeroth bit makes this counter an exclusive cap, not
 		//  an inclusive cap. This is also pretty much impossible to hit.
 		if elts >= Self::MAX_ELTS {
-			return Err(BitPtrError::TooLong(
+			return Err(BitSpanError::TooLong(
 				elts.saturating_mul(T::Mem::BITS as usize),
 			));
 		}
@@ -628,10 +628,10 @@ where
 	/// [`.view_bits_mut::<O>()`]: crate::view::BitView::view_bits_mut
 	pub fn from_slice_mut(
 		slice: &mut [T],
-	) -> Result<&mut Self, BitPtrError<O, T>> {
+	) -> Result<&mut Self, BitSpanError<O, T>> {
 		let elts = slice.len();
 		if elts >= Self::MAX_ELTS {
-			return Err(BitPtrError::TooLong(
+			return Err(BitSpanError::TooLong(
 				elts.saturating_mul(T::Mem::BITS as usize),
 			));
 		}
@@ -653,7 +653,7 @@ where
 	/// [`::from_slice()`]: Self::from_slice
 	pub unsafe fn from_slice_unchecked(slice: &[T]) -> &Self {
 		let bits = slice.len().wrapping_mul(T::Mem::BITS as usize);
-		BitPtr::new_unchecked(slice.as_ptr(), BitIdx::ZERO, bits)
+		BitSpan::new_unchecked(slice.as_ptr(), BitIdx::ZERO, bits)
 			.to_bitslice_ref()
 	}
 
@@ -672,7 +672,7 @@ where
 	/// [`::from_slice_mut()`]: Self::from_slice_mut
 	pub unsafe fn from_slice_unchecked_mut(slice: &mut [T]) -> &mut Self {
 		let bits = slice.len().wrapping_mul(T::Mem::BITS as usize);
-		BitPtr::new_unchecked(slice.as_mut_ptr(), BitIdx::ZERO, bits)
+		BitSpan::new_unchecked(slice.as_mut_ptr(), BitIdx::ZERO, bits)
 			.to_bitslice_mut()
 	}
 
@@ -689,7 +689,7 @@ where
 	/// assert!(bits.is_empty());
 	/// ```
 	pub fn empty<'a>() -> &'a Self {
-		BitPtr::EMPTY.to_bitslice_ref()
+		BitSpan::EMPTY.to_bitslice_ref()
 	}
 
 	/// Produces the empty mutable slice reference.
@@ -705,7 +705,7 @@ where
 	/// assert!(bits.is_empty());
 	/// ```
 	pub fn empty_mut<'a>() -> &'a mut Self {
-		BitPtr::EMPTY.to_bitslice_mut()
+		BitSpan::EMPTY.to_bitslice_mut()
 	}
 
 	/// Writes a new bit at a given index.
@@ -1339,7 +1339,7 @@ where
 			"Copying between slices requires equal lengths"
 		);
 
-		let (d_head, s_head) = (self.bitptr().head(), src.bitptr().head());
+		let (d_head, s_head) = (self.bit_span().head(), src.bit_span().head());
 		//  Where the two slices have identical layouts (head index and length),
 		//  the copy can be done by using the memory domains.
 		if d_head == s_head {
@@ -1718,7 +1718,8 @@ where
 	///
 	/// [`.electrical_distance()]`: crate::slice::BitSlice::electrical_distance
 	pub fn offset_from(&self, other: &Self) -> isize {
-		let (elts, bits) = unsafe { self.bitptr().ptr_diff(&other.bitptr()) };
+		let (elts, bits) =
+			unsafe { self.bit_span().ptr_diff(&other.bit_span()) };
 		elts.saturating_mul(T::Mem::BITS as isize)
 			.saturating_add(bits as isize)
 	}
@@ -1767,15 +1768,15 @@ where
 	/// [`BitOrder`]: crate::order::BitOrder
 	/// [`Lsb0`]: crate::order::Lsb0
 	pub fn electrical_distance(&self, other: &Self) -> isize {
-		let this = self.bitptr();
-		let that = other.bitptr();
+		let this = self.bit_span();
+		let that = other.bit_span();
 		let (elts, bits) = unsafe {
-			let this = BitPtr::<O, T>::new_unchecked(
+			let this = BitSpan::<O, T>::new_unchecked(
 				this.pointer(),
 				BitIdx::new_unchecked(this.head().position::<O>().value()),
 				1,
 			);
-			let that = BitPtr::<O, T>::new_unchecked(
+			let that = BitSpan::<O, T>::new_unchecked(
 				that.pointer(),
 				BitIdx::new_unchecked(that.head().position::<O>().value()),
 				1,
@@ -1844,7 +1845,7 @@ where
 	/// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
 	/// [`.set()`]: Self::set
 	pub unsafe fn set_unchecked(&mut self, index: usize, value: bool) {
-		self.bitptr().write(index, value);
+		self.bit_span().write(index, value);
 	}
 
 	/// Writes a new bit at a given index, without doing bounds checking.
@@ -1893,7 +1894,7 @@ where
 	/// [`Radium`]: radium::Radium
 	pub unsafe fn set_aliased_unchecked(&self, index: usize, value: bool)
 	where T: radium::Radium {
-		self.bitptr().write(index, value);
+		self.bit_span().write(index, value);
 	}
 
 	/// Swaps two bits in the slice.
@@ -1960,7 +1961,7 @@ where
 		mid: usize,
 	) -> (&mut BitSlice<O, T::Alias>, &mut BitSlice<O, T::Alias>)
 	{
-		let bp = self.alias_mut().bitptr();
+		let bp = self.alias_mut().bit_span();
 		(
 			bp.to_bitslice_mut().get_unchecked_mut(.. mid),
 			bp.to_bitslice_mut().get_unchecked_mut(mid ..),
@@ -2027,12 +2028,12 @@ where
 	T: BitStore,
 {
 	/// Views the `&BitSlice` reference as a `*const BitSlice` pointer.
-	pub fn as_bitptr(&self) -> *const Self {
+	pub fn as_bitspan(&self) -> *const Self {
 		self as *const Self
 	}
 
 	/// Views the `&mut BitSlice` reference as a `*mut BitSlice` pointer.
-	pub fn as_mut_bitptr(&mut self) -> *mut Self {
+	pub fn as_mut_bitspan(&mut self) -> *mut Self {
 		self as *mut Self
 	}
 
@@ -2068,8 +2069,8 @@ where
 	/// [`.domain()`]: Self::domain
 	/// [`.domain_mut()`]: Self::domain_mut
 	pub fn as_slice(&self) -> &[T] {
-		let bitptr = self.bitptr();
-		let (base, elts) = (bitptr.pointer().to_const(), bitptr.elements());
+		let bitspan = self.bit_span();
+		let (base, elts) = (bitspan.pointer().to_const(), bitspan.elements());
 		unsafe { slice::from_raw_parts(base, elts) }
 	}
 }
@@ -2081,8 +2082,8 @@ where
 	T: BitStore,
 {
 	/// Type-cast the slice reference to its pointer structure.
-	pub(crate) fn bitptr(&self) -> BitPtr<O, T> {
-		self.as_bitptr().pipe(BitPtr::from_bitslice_ptr)
+	pub(crate) fn bit_span(&self) -> BitSpan<O, T> {
+		self.as_bitspan().pipe(BitSpan::from_bitslice_ptr)
 	}
 
 	/// Asserts that `index` is less than [`self.len()`].
@@ -2104,12 +2105,12 @@ where
 
 	/// Marks an immutable slice as referring to aliased memory region.
 	pub(crate) fn alias(&self) -> &BitSlice<O, T::Alias> {
-		unsafe { &*(self.as_bitptr() as *const BitSlice<O, T::Alias>) }
+		unsafe { &*(self.as_bitspan() as *const BitSlice<O, T::Alias>) }
 	}
 
 	/// Marks a mutable slice as describing an aliased memory region.
 	pub(crate) fn alias_mut(&mut self) -> &mut BitSlice<O, T::Alias> {
-		unsafe { &mut *(self.as_mut_bitptr() as *mut BitSlice<O, T::Alias>) }
+		unsafe { &mut *(self.as_mut_bitspan() as *mut BitSlice<O, T::Alias>) }
 	}
 
 	/// Removes the aliasing marker from a mutable slice handle.
@@ -2194,7 +2195,7 @@ where
 	/// |-------------:|----------------------:|
 	/// |32 bits       |     `0x1fff_ffff`     |
 	/// |64 bits       |`0x1fff_ffff_ffff_ffff`|
-	pub const MAX_BITS: usize = BitPtr::<O, T>::REGION_MAX_BITS;
+	pub const MAX_BITS: usize = BitSpan::<O, T>::REGION_MAX_BITS;
 	/// The inclusive maximum length that a slice `[T]` can be for
 	/// `BitSlice<_, T>` to cover it.
 	///
@@ -2209,7 +2210,7 @@ where
 	/// |       16|    `0x0200_0001`    |`0x0200_0000_0000_0001`|
 	/// |       32|    `0x0100_0001`    |`0x0100_0000_0000_0001`|
 	/// |       64|    `0x0080_0001`    |`0x0080_0000_0000_0001`|
-	pub const MAX_ELTS: usize = BitPtr::<O, T>::REGION_MAX_ELTS;
+	pub const MAX_ELTS: usize = BitSpan::<O, T>::REGION_MAX_ELTS;
 }
 
 #[cfg(feature = "alloc")]
@@ -2235,12 +2236,12 @@ where
 	/// [`BitVec`]: crate::vec::BitVec
 	pub fn to_bitvec(&self) -> BitVec<O, T::Unalias> {
 		use tap::tap::Tap;
-		let vec = alloc::vec::Vec::with_capacity(self.bitptr().elements())
+		let vec = alloc::vec::Vec::with_capacity(self.bit_span().elements())
 			.tap_mut(|vec| {
 				vec.extend(self.as_slice().iter().map(BitStore::load_value))
 			});
 		let ptr = self
-			.bitptr()
+			.bit_span()
 			.tap_mut(|bp| unsafe {
 				bp.set_pointer(vec.as_ptr() as *const T);
 			})
@@ -2307,13 +2308,13 @@ pub unsafe fn bits_from_raw_parts<'a, O, T>(
 	addr: *const T,
 	head: u8,
 	bits: usize,
-) -> Result<&'a BitSlice<O, T>, BitPtrError<O, T>>
+) -> Result<&'a BitSlice<O, T>, BitSpanError<O, T>>
 where
 	O: BitOrder,
 	T: BitStore,
 {
 	let head = crate::index::BitIdx::new(head)?;
-	BitPtr::new(addr, head, bits).map(BitPtr::to_bitslice_ref)
+	BitSpan::new(addr, head, bits).map(BitSpan::to_bitslice_ref)
 }
 
 /** Constructs a mutable [`BitSlice`] reference from its component data.
@@ -2370,13 +2371,13 @@ pub unsafe fn bits_from_raw_parts_mut<'a, O, T>(
 	addr: *mut T,
 	head: u8,
 	bits: usize,
-) -> Result<&'a mut BitSlice<O, T>, BitPtrError<O, T>>
+) -> Result<&'a mut BitSlice<O, T>, BitSpanError<O, T>>
 where
 	O: BitOrder,
 	T: BitStore,
 {
 	let head = crate::index::BitIdx::new(head)?;
-	BitPtr::new(addr, head, bits).map(BitPtr::to_bitslice_mut)
+	BitSpan::new(addr, head, bits).map(BitSpan::to_bitslice_mut)
 }
 
 mod api;

@@ -192,13 +192,13 @@ where
 	type Error = TryFromBitSliceError<'a, O, V::Store>;
 
 	fn try_from(src: &'a BitSlice<O, V::Store>) -> Result<Self, Self::Error> {
-		let bitptr = src.bitptr();
+		let bitspan = src.bit_span();
 		//  This pointer cast can only happen if the slice is exactly as long as
 		//  the array, and is aligned to the front of the element.
-		if src.len() != V::const_bits() || bitptr.head() != BitIdx::ZERO {
+		if src.len() != V::const_bits() || bitspan.head() != BitIdx::ZERO {
 			return Self::Error::err(src);
 		}
-		Ok(unsafe { &*(bitptr.pointer().to_const() as *const BitArray<O, V>) })
+		Ok(unsafe { &*(bitspan.pointer().to_const() as *const BitArray<O, V>) })
 	}
 }
 
@@ -212,11 +212,11 @@ where
 	fn try_from(
 		src: &'a mut BitSlice<O, V::Store>,
 	) -> Result<Self, Self::Error> {
-		let bitptr = src.bitptr();
-		if src.len() != V::const_bits() || bitptr.head() != BitIdx::ZERO {
+		let bitspan = src.bit_span();
+		if src.len() != V::const_bits() || bitspan.head() != BitIdx::ZERO {
 			return Self::Error::err(&*src);
 		}
-		Ok(unsafe { &mut *(bitptr.pointer().to_mut() as *mut BitArray<O, V>) })
+		Ok(unsafe { &mut *(bitspan.pointer().to_mut() as *mut BitArray<O, V>) })
 	}
 }
 
@@ -248,7 +248,7 @@ where
 	V: BitView,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		self.bitptr().render(fmt, "Array", None)?;
+		self.bit_span().render(fmt, "Array", None)?;
 		fmt.write_str(" ")?;
 		Display::fmt(self, fmt)
 	}

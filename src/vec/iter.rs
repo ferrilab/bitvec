@@ -223,9 +223,9 @@ where
 		let bv = ManuallyDrop::new(bv);
 		//  Construct a `BitSlice` iterator over the region, and detach its
 		//  lifetime.
-		let iter = bv.as_bitslice().bitptr().to_bitslice_ref().iter();
+		let iter = bv.as_bitslice().bit_span().to_bitslice_ref().iter();
 		//  Only the allocation’s base and capacity need to be kept for `Drop`.
-		let base = bv.bitptr().pointer().to_nonnull();
+		let base = bv.bit_span().pointer().to_nonnull();
 		let capa = bv.alloc_capacity();
 		Self { base, capa, iter }
 	}
@@ -283,7 +283,7 @@ where
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
-		self.iter.as_bitslice().bitptr().to_bitslice_mut()
+		self.iter.as_bitslice().bit_span().to_bitslice_mut()
 	}
 
 	#[doc(hidden)]
@@ -425,7 +425,7 @@ where
 				.as_bitslice()
 				.get_unchecked(drain)
 				//  Detach the region from the `source` borrow.
-				.bitptr()
+				.bit_span()
 				.to_bitslice_ref()
 				.iter()
 		};

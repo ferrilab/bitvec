@@ -22,7 +22,7 @@ will find all primes less than ten million, and print the primes below 625 in a
 square 25x25.
 !*/
 
-//  Impl notes: If this executable starts segfaulting, `BitPtr::len` might be
+//  Impl notes: If this executable starts segfaulting, `BitSpan::len` might be
 //  the culprit. Replace the bare + and - in that function with .saturating_ops
 //  and see if that solves it.
 //

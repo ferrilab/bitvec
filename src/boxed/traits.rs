@@ -3,7 +3,7 @@
 use crate::{
 	boxed::BitBox,
 	order::BitOrder,
-	ptr::BitPtr,
+	ptr::BitSpan,
 	slice::BitSlice,
 	store::BitStore,
 	vec::BitVec,
@@ -247,7 +247,7 @@ where
 {
 	fn default() -> Self {
 		Self {
-			pointer: BitPtr::EMPTY.to_nonnull(),
+			pointer: BitSpan::EMPTY.to_nonnull(),
 		}
 	}
 }
@@ -310,7 +310,7 @@ where
 	T: BitStore,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		self.bitptr().render(fmt, "Box", None)
+		self.bit_span().render(fmt, "Box", None)
 	}
 }
 

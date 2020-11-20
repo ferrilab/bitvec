@@ -290,10 +290,10 @@ use bitvec::{
 };
 
 let data = 0xF0u8;
-let bitptr: *const BitSlice<Msb0, u8>
+let bitspan: *const BitSlice<Msb0, u8>
   = bp::bitslice_from_raw_parts(&data, BitIdx::ZERO, 4).unwrap();
-assert_eq!(unsafe { &*bitptr }.len(), 4);
-assert!(unsafe { &*bitptr }.all());
+assert_eq!(unsafe { &*bitspan }.len(), 4);
+assert!(unsafe { &*bitspan }.all());
 ```
 
 [`BitSlice`]: crate::slice::BitSlice
@@ -306,13 +306,13 @@ pub fn bitslice_from_raw_parts<O, T>(
 	addr: *const T,
 	head: BitIdx<T::Mem>,
 	bits: usize,
-) -> Result<*const BitSlice<O, T>, BitPtrError<O, T>>
+) -> Result<*const BitSlice<O, T>, BitSpanError<O, T>>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	BitPtr::new(addr, head, bits)
-		.map(BitPtr::to_bitslice_ptr)
+	BitSpan::new(addr, head, bits)
+		.map(BitSpan::to_bitslice_ptr)
 		.map_err(Into::into)
 }
 
@@ -364,10 +364,10 @@ use bitvec::{
 };
 
 let mut data = 0x00u8;
-let bitptr: *mut BitSlice<Msb0, u8>
+let bitspan: *mut BitSlice<Msb0, u8>
   = bp::bitslice_from_raw_parts_mut(&mut data, BitIdx::ZERO, 4).unwrap();
-assert_eq!(unsafe { &*bitptr }.len(), 4);
-unsafe { &mut *bitptr }.set_all(true);
+assert_eq!(unsafe { &*bitspan }.len(), 4);
+unsafe { &mut *bitspan }.set_all(true);
 assert_eq!(data, 0xF0);
 ```
 
@@ -381,13 +381,13 @@ pub fn bitslice_from_raw_parts_mut<O, T>(
 	addr: *mut T,
 	head: BitIdx<T::Mem>,
 	bits: usize,
-) -> Result<*mut BitSlice<O, T>, BitPtrError<O, T>>
+) -> Result<*mut BitSlice<O, T>, BitSpanError<O, T>>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	BitPtr::new(addr, head, bits)
-		.map(BitPtr::to_bitslice_ptr_mut)
+	BitSpan::new(addr, head, bits)
+		.map(BitSpan::to_bitslice_ptr_mut)
 		.map_err(Into::into)
 }
 
@@ -396,7 +396,7 @@ where
 Rust slices use a pointer/length encoding to represent regions of memory.
 References to slices of data, `&[T]`, have the ABI layout `(*const T, usize)`.
 
-`BitPtr` encodes a base address, a first-bit index, and a length counter, into
+`BitSpan` encodes a base address, a first-bit index, and a length counter, into
 the Rust slice reference layout using this structure. This permits [`bitvec`] to
 use an opaque reference type in its implementation of Rust interfaces that
 require references, rather than immediate value types.
@@ -410,7 +410,7 @@ syntax, so the below description of the structure layout is in C++.
 
 ```cpp
 template <typename T>
-struct BitPtr {
+struct BitSpan {
   uintptr_t ptr_head : __builtin_ctzll(alignof(T));
   uintptr_t ptr_addr : sizeof(uintptr_T) * 8 - __builtin_ctzll(alignof(T));
 
@@ -419,7 +419,7 @@ struct BitPtr {
 };
 ```
 
-This means that the `BitPtr<O, T>` has three *logical* fields, stored in four
+This means that the `BitSpan<O, T>` has three *logical* fields, stored in four
 segments, across the two *structural* fields of the type. The widths and
 placements of each segment are functions of the size of `*const T`, `usize`, and
 of the alignment of the `T` referent buffer element type.
@@ -458,17 +458,17 @@ and its remaining bits stored in the least significant edge of the `ptr` field.
 
 All but the lowest three bits of the `len` field are used to store a counter of
 live bits in the referent region. When this is zero, the region is empty.
-Because it is missing three bits, a `BitPtr` has only ⅛ of the index space of
+Because it is missing three bits, a `BitSpan` has only ⅛ of the index space of
 a `usize` value.
 
 # Significant Values
 
-The following values represent significant instances of the `BitPtr` type.
+The following values represent significant instances of the `BitSpan` type.
 
 ## Null Slice
 
-The fully-zeroed slot is not a valid member of the `BitPtr<O, T>` type; it is
-reserved instead as the sentinel value for `Option::<BitPtr<O, T>>::None`.
+The fully-zeroed slot is not a valid member of the `BitSpan<O, T>` type; it is
+reserved instead as the sentinel value for `Option::<BitSpan<O, T>>::None`.
 
 ## Canonical Empty Slice
 
@@ -481,20 +481,20 @@ regardless of address.
 ### Uninhabited Slices
 
 Any empty pointer with a non-[`dangling()`] base address is considered to be an
-uninhabited region. `BitPtr` never discards its address information, even as
+uninhabited region. `BitSpan` never discards its address information, even as
 operations may alter or erase its head-index or length values.
 
 # Type Parameters
 
 - `O`: The ordering within the register type. The bit-ordering used within a
   region colors all pointers to the region, and orderings can never mix.
-- `T`: The memory type of the referent region. `BitPtr<O, T>` is a specialized
+- `T`: The memory type of the referent region. `BitSpan<O, T>` is a specialized
   `*[T]` slice pointer, and operates on memory in terms of the `T` type for
   access instructions and pointer calculation.
 
 # Safety
 
-`BitPtr` values may only be constructed from pointers provided by the
+`BitSpan` values may only be constructed from pointers provided by the
 surrounding program.
 
 # Undefined Behavior
@@ -510,7 +510,7 @@ be manipulated in any way by user code outside of the APIs it offers to this
 [`dangling()`]: core::ptr::NonNull::dangling
 **/
 #[repr(C)]
-pub struct BitPtr<O, T>
+pub struct BitSpan<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -519,10 +519,10 @@ where
 	///
 	/// This stores the address of the zeroth element of the slice, as well as
 	/// the high bits of the head bit cursor. It is typed as a [`NonNull<u8>`]
-	/// in order to provide null-value optimizations to `Option<BitPtr<T>>`, and
-	/// because the presence of head-bit cursor information in the lowest bits
-	/// means that the bit pattern will not uphold alignment properties required
-	/// by `NonNull<T>`.
+	/// in order to provide null-value optimizations to `Option<BitSpan<O, T>>`,
+	/// and because the presence of head-bit cursor information in the lowest
+	/// bits means that the bit pattern will not uphold alignment properties
+	/// required by `NonNull<T>`.
 	///
 	/// This field cannot be treated as the address of the zeroth byte of the
 	/// slice domain, because the owning handle’s [`BitOrder`] implementation
@@ -543,7 +543,7 @@ where
 	_ty: PhantomData<Address<T>>,
 }
 
-impl<O, T> BitPtr<O, T>
+impl<O, T> BitSpan<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -582,10 +582,10 @@ where
 		T::Mem::INDX as usize - Self::LEN_HEAD_BITS;
 	/// Marks the bits of `self.ptr` that hold part of the `head` logical field.
 	pub(crate) const PTR_HEAD_MASK: usize = !Self::PTR_ADDR_MASK;
-	/// The inclusive-maximum number of bits that a `BitPtr` can cover.
+	/// The inclusive-maximum number of bits that a `BitSpan` can cover.
 	pub(crate) const REGION_MAX_BITS: usize = !0 >> Self::LEN_HEAD_BITS;
 	/// The inclusive-maximum number of elements that the region described by a
-	/// `BitPtr` can cover in memory.
+	/// `BitSpan` can cover in memory.
 	///
 	/// This is the number of elements required to store [`REGION_MAX_BITS`],
 	/// plus one because a region could start in the middle of its base element
@@ -601,7 +601,7 @@ where
 
 	//  Constructors
 
-	/// Constructs an empty `BitPtr` at a bare pointer.
+	/// Constructs an empty `BitSpan` at a bare pointer.
 	///
 	/// This is used when the region has no contents, but the pointer
 	/// information must be retained.
@@ -613,7 +613,7 @@ where
 	///
 	/// # Returns
 	///
-	/// A zero-length `BitPtr` pointing to `addr`.
+	/// A zero-length `BitSpan` pointing to `addr`.
 	///
 	/// # Panics
 	///
@@ -640,14 +640,14 @@ where
 		}
 	}
 
-	/// Constructs a new `BitPtr` from its components.
+	/// Constructs a new `BitSpan` from its components.
 	///
 	/// # Parameters
 	///
 	/// - `addr`: A well-aligned pointer to a storage element.
 	/// - `head`: The bit index of the first live bit in the element under
 	///   `*addr`.
-	/// - `bits`: The number of live bits in the region the produced `BitPtr<T>`
+	/// - `bits`: The number of live bits in the region the produced `BitSpan`
 	///   describes.
 	///
 	/// # Returns
@@ -656,7 +656,7 @@ where
 	///
 	/// - `addr` is the null pointer, or is not adequately aligned for `T`.
 	/// - `bits` is greater than `Self::REGION_MAX_BITS`, and cannot be encoded
-	///   into a `BitPtr`.
+	///   into a `BitSpan`.
 	/// - addr` is so high in the address space that the element slice wraps
 	///   around the address space boundary.
 	///
@@ -665,43 +665,43 @@ where
 	/// The caller must provide an `addr` pointer and a `bits` counter which
 	/// describe a `[T]` region which is correctly aligned and validly allocated
 	/// in the caller’s memory space. The caller is responsible for ensuring
-	/// that the slice of memory the produced `BitPtr<T>` describes is all
+	/// that the slice of memory the produced `BitSpan` describes is all
 	/// governable in the caller’s context.
 	pub(crate) fn new<A>(
 		addr: A,
 		head: BitIdx<T::Mem>,
 		bits: usize,
-	) -> Result<Self, BitPtrError<O, T>>
+	) -> Result<Self, BitSpanError<O, T>>
 	where
 		A: TryInto<Address<T>>,
-		BitPtrError<O, T>: From<A::Error>,
+		BitSpanError<O, T>: From<A::Error>,
 	{
 		let addr = addr.try_into()?;
 
 		if bits > Self::REGION_MAX_BITS {
-			return Err(BitPtrError::TooLong(bits));
+			return Err(BitSpanError::TooLong(bits));
 		}
 
 		let elts = head.offset(bits as isize).0;
 		let addr_raw = addr.to_const();
 		let last = addr_raw.wrapping_add(elts as usize);
 		if last < addr_raw {
-			return Err(BitPtrError::TooHigh(addr_raw));
+			return Err(BitSpanError::TooHigh(addr_raw));
 		}
 
 		Ok(unsafe { Self::new_unchecked(addr, head, bits) })
 	}
 
-	/// Creates a new `BitPtr<T>` from its components, without any validity
+	/// Creates a new `BitSpan` from its components, without any validity
 	/// checks.
 	///
 	/// # Safety
 	///
 	/// ***ABSOLUTELY NONE.*** This function *only* packs its arguments into the
-	/// bit pattern of the `BitPtr<T>` type. It should only be used in contexts
-	/// where a previously extant `BitPtr<T>` was constructed with ancestry
-	/// known to have survived [`::new`], and any manipulations of its raw
-	/// components are known to be valid for reconstruction.
+	/// bit pattern of the `BitSpan` type. It should only be used in
+	/// contexts where a previously extant `BitSpan` was constructed with
+	/// ancestry known to have survived [`::new`], and any manipulations of its
+	/// raw components are known to be valid for reconstruction.
 	///
 	/// # Parameters
 	///
@@ -742,7 +742,7 @@ where
 
 	//  Converters
 
-	/// Converts an opaque `*BitSlice` wide pointer back into a `BitPtr`.
+	/// Converts an opaque `*BitSlice` wide pointer back into a `BitSpan`.
 	///
 	/// This should compile down to a noöp, but the implementation should
 	/// nevertheless be an explicit deconstruction and reconstruction rather
@@ -755,7 +755,7 @@ where
 	///
 	/// # Returns
 	///
-	/// `raw`, interpreted as a `BitPtr` so that it can be used as more than an
+	/// `raw`, interpreted as a `BitSpan` so that it can be used as more than an
 	/// opaque handle.
 	///
 	/// [`mem::transmute`]: core::mem::transmute
@@ -774,7 +774,7 @@ where
 		}
 	}
 
-	/// Converts an opaque `*BitSlice` wide pointer back into a `BitPtr`.
+	/// Converts an opaque `*BitSlice` wide pointer back into a `BitSpan`.
 	///
 	/// See [`::from_bitslice_ptr()`].
 	///
@@ -786,7 +786,7 @@ where
 		Self::from_bitslice_ptr(raw as *const BitSlice<O, T>)
 	}
 
-	/// Casts the `BitPtr` to an opaque `*BitSlice` pointer.
+	/// Casts the `BitSpan` to an opaque `*BitSlice` pointer.
 	///
 	/// This is the inverse of [`::from_bitslice_ptr()`].
 	///
@@ -796,7 +796,7 @@ where
 	///
 	/// # Returns
 	///
-	/// `self`, opacified as a `*BitSlice` raw pointer rather than a `BitPtr`
+	/// `self`, opacified as a `*BitSlice` raw pointer rather than a `BitSpan`
 	/// structure.
 	///
 	/// [`::from_bitslice_ptr()`]: Self::from_bitslice_ptr
@@ -807,7 +807,7 @@ where
 		) as *const BitSlice<O, T>
 	}
 
-	/// Casts the `BitPtr` to an opaque `*BitSlice` pointer.
+	/// Casts the `BitSpan` to an opaque `*BitSlice` pointer.
 	///
 	/// See [`.to_bitslice_ptr()`].
 	///
@@ -818,7 +818,7 @@ where
 		self.to_bitslice_ptr() as *mut BitSlice<O, T>
 	}
 
-	/// Casts the `BitPtr` to a `&BitSlice` reference.
+	/// Casts the `BitSpan` to a `&BitSlice` reference.
 	///
 	/// This requires that the pointer be to a validly-allocated region that
 	/// is not destroyed for the duration of the provided lifetime.
@@ -836,15 +836,15 @@ where
 	///
 	/// # Returns
 	///
-	/// `self`, opacified as a bit-slice region reference rather than a `BitPtr`
-	/// structure.
+	/// `self`, opacified as a bit-slice region reference rather than a
+	/// `BitSpan` structure.
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_bitslice_ref<'a>(self) -> &'a BitSlice<O, T> {
 		unsafe { &*self.to_bitslice_ptr() }
 	}
 
-	/// Casts the `BitPtr` to a `&mut BitSlice` reference.
+	/// Casts the `BitSpan` to a `&mut BitSlice` reference.
 	///
 	/// This requires that the pointer be to a validly-allocated region that is
 	/// not destroyed for the duration of the provided lifetime. Additionally,
@@ -862,7 +862,7 @@ where
 	/// # Returns
 	///
 	/// `self`, opacified as an exclusive bit-slice region reference rather than
-	/// a `BitPtr` structure.
+	/// a `BitSpan` structure.
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_bitslice_mut<'a>(self) -> &'a mut BitSlice<O, T> {
@@ -892,7 +892,7 @@ where
 	/// Split the region descriptor into three descriptors, with the interior
 	/// set to a different register type.
 	///
-	/// By placing the logic in `BitPtr` rather than in `BitSlice`, `BitSlice`
+	/// By placing the logic in `BitSpan` rather than in `BitSlice`, `BitSlice`
 	/// can safely call into it for both shared and exclusive references,
 	/// without running into any reference capability issues in the compiler.
 	///
@@ -920,10 +920,10 @@ where
 	/// [`BitStore`]: crate::store::BitStore
 	/// [`Domain`]: crate::domain::Domain
 	/// [`slice::align_to`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.align_to
-	pub(crate) unsafe fn align_to<U>(self) -> (Self, BitPtr<O, U>, Self)
+	pub(crate) unsafe fn align_to<U>(self) -> (Self, BitSpan<O, U>, Self)
 	where U: BitStore {
 		match self.to_bitslice_ref().domain() {
-			Domain::Enclave { .. } => (self, BitPtr::EMPTY, BitPtr::EMPTY),
+			Domain::Enclave { .. } => (self, BitSpan::EMPTY, BitSpan::EMPTY),
 			Domain::Region { head, body, tail } => {
 				//  Reälign the fully-spanning center slice, creating edge
 				//  slices of the original type to merge with `head` and `tail`.
@@ -954,7 +954,7 @@ where
 					/* If the head exists, then the left span begins in it, and
 					runs for the remaining bits in it, and all the bits of `l`.
 					*/
-					Some((head, addr)) => BitPtr::new_unchecked(
+					Some((head, addr)) => BitSpan::new_unchecked(
 						addr,
 						head,
 						t_bits - head.value() as usize + l_bits,
@@ -963,19 +963,19 @@ where
 					//  covers `l`. If `l` is empty, then so is the span.
 					None => {
 						if l_bits == 0 {
-							BitPtr::EMPTY
+							BitSpan::EMPTY
 						}
 						else {
-							BitPtr::new_unchecked(l_addr, BitIdx::ZERO, l_bits)
+							BitSpan::new_unchecked(l_addr, BitIdx::ZERO, l_bits)
 						}
 					},
 				};
 
 				let c_ptr = if c_bits == 0 {
-					BitPtr::EMPTY
+					BitSpan::EMPTY
 				}
 				else {
-					BitPtr::new_unchecked(c_addr, BitIdx::ZERO, c_bits)
+					BitSpan::new_unchecked(c_addr, BitIdx::ZERO, c_bits)
 				};
 
 				/* Compute a pointer for the right-most return span.
@@ -990,7 +990,7 @@ where
 				*/
 				let r_ptr = match tail {
 					//  If the tail exists, then the right span extends into it.
-					Some((addr, tail)) => BitPtr::new_unchecked(
+					Some((addr, tail)) => BitSpan::new_unchecked(
 						//  If the `r` slice exists, then the right span
 						//  *begins* in it.
 						if r.is_empty() { addr } else { r_addr },
@@ -1002,11 +1002,11 @@ where
 					None => {
 						//  If `r` exists, then the right span covers it.
 						if !r.is_empty() {
-							BitPtr::new_unchecked(r_addr, BitIdx::ZERO, r_bits)
+							BitSpan::new_unchecked(r_addr, BitIdx::ZERO, r_bits)
 						}
 						//  Otherwise, the right span is empty.
 						else {
-							BitPtr::EMPTY
+							BitSpan::EMPTY
 						}
 					},
 				};
@@ -1043,7 +1043,7 @@ where
 	/// # Parameters
 	///
 	/// - `&mut self`
-	/// - `ptr`: The new address of the `BitPtr<T>`’s domain.
+	/// - `ptr`: The new address of the `BitSpan`’s domain.
 	///
 	/// # Safety
 	///
@@ -1323,8 +1323,8 @@ where
 	/// # Parameters
 	///
 	/// - `&self`
-	/// - `other`: A reference to another `BitPtr<O, T>`. This function is
-	///   undefined if it is not produced from the same region as `self`.
+	/// - `other`: A reference to another `BitSpan`. This function is undefined
+	///   if it is not produced from the same region as `self`.
 	///
 	/// # Returns
 	///
@@ -1431,7 +1431,7 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> Clone for BitPtr<O, T>
+impl<O, T> Clone for BitSpan<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -1441,20 +1441,20 @@ where
 	}
 }
 
-impl<O, T> Eq for BitPtr<O, T>
+impl<O, T> Eq for BitSpan<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
 }
 
-impl<O, T, U> PartialEq<BitPtr<O, U>> for BitPtr<O, T>
+impl<O, T, U> PartialEq<BitSpan<O, U>> for BitSpan<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 	U: BitStore,
 {
-	fn eq(&self, other: &BitPtr<O, U>) -> bool {
+	fn eq(&self, other: &BitSpan<O, U>) -> bool {
 		let (addr_a, head_a, bits_a) = self.raw_parts();
 		let (addr_b, head_b, bits_b) = other.raw_parts();
 		//  Since ::BITS is an associated const, the compiler will automatically
@@ -1467,7 +1467,7 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> Default for BitPtr<O, T>
+impl<O, T> Default for BitSpan<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -1477,7 +1477,7 @@ where
 	}
 }
 
-impl<O, T> Debug for BitPtr<O, T>
+impl<O, T> Debug for BitSpan<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -1487,7 +1487,7 @@ where
 	}
 }
 
-impl<O, T> Pointer for BitPtr<O, T>
+impl<O, T> Pointer for BitSpan<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -1497,34 +1497,34 @@ where
 	}
 }
 
-impl<O, T> Copy for BitPtr<O, T>
+impl<O, T> Copy for BitSpan<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
 }
 
-/// An error produced when creating `BitPtr` encoded references.
+/// An error produced when creating `BitSpan` encoded references.
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
-pub enum BitPtrError<O, T>
+pub enum BitSpanError<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// `BitPtr` cannot accept the null address.
+	/// `BitSpan` cannot accept the null address.
 	Null,
-	/// `BitPtr` requires well-aligned addresses.
+	/// `BitSpan` requires well-aligned addresses.
 	Misaligned(PhantomData<O>, *const T),
-	/// `BitPtr` requires valid head indices.
+	/// `BitSpan` requires valid head indices.
 	InvalidHead(BitIdxErr<T::Mem>),
-	/// `BitPtr` domains have a length ceiling.
+	/// `BitSpan` domains have a length ceiling.
 	TooLong(usize),
-	/// `BitPtr` domains have an address ceiling.
+	/// `BitSpan` domains have an address ceiling.
 	TooHigh(*const T),
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> From<AddressError<T>> for BitPtrError<O, T>
+impl<O, T> From<AddressError<T>> for BitSpanError<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -1538,7 +1538,7 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> From<BitIdxErr<T::Mem>> for BitPtrError<O, T>
+impl<O, T> From<BitIdxErr<T::Mem>> for BitSpanError<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -1549,7 +1549,7 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> From<Infallible> for BitPtrError<O, T>
+impl<O, T> From<Infallible> for BitSpanError<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -1559,7 +1559,7 @@ where
 	}
 }
 
-impl<O, T> Debug for BitPtrError<O, T>
+impl<O, T> Debug for BitSpanError<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -1567,7 +1567,7 @@ where
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		let oname = any::type_name::<O>();
 		let tname = any::type_name::<T>();
-		write!(fmt, "BitPtrError<{}, {}>::", oname, tname,)?;
+		write!(fmt, "BitSpanError<{}, {}>::", oname, tname,)?;
 		match self {
 			Self::Null => fmt.write_str("Null"),
 			Self::Misaligned(_, ptr) => write!(fmt, "Misaligned({:p})", *ptr),
@@ -1582,7 +1582,7 @@ where
 	}
 }
 
-impl<O, T> Display for BitPtrError<O, T>
+impl<O, T> Display for BitSpanError<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -1599,7 +1599,7 @@ where
 				"Length {} is too long to encode in a bit slice, which can \
 				 only accept {} bits",
 				len,
-				BitPtr::<O, T>::REGION_MAX_BITS
+				BitSpan::<O, T>::REGION_MAX_BITS
 			),
 			Self::TooHigh(addr) => {
 				write!(fmt, "Address {:p} would wrap the address space", addr)
@@ -1608,14 +1608,14 @@ where
 	}
 }
 
-unsafe impl<O, T> Send for BitPtrError<O, T>
+unsafe impl<O, T> Send for BitSpanError<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
 }
 
-unsafe impl<O, T> Sync for BitPtrError<O, T>
+unsafe impl<O, T> Sync for BitSpanError<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -1623,7 +1623,7 @@ where
 }
 
 #[cfg(feature = "std")]
-impl<O, T> Error for BitPtrError<O, T>
+impl<O, T> Error for BitSpanError<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -1648,34 +1648,34 @@ mod tests {
 		));
 
 		let data = 0u8;
-		assert!(BitPtr::<LocalBits, _>::new(&data, BitIdx::ZERO, 5).is_ok());
+		assert!(BitSpan::<LocalBits, _>::new(&data, BitIdx::ZERO, 5).is_ok());
 		assert!(matches!(
-			BitPtr::<LocalBits, _>::new(&data, BitIdx::ZERO, (!0 >> 3) + 1),
-			Err(BitPtrError::TooLong(_))
+			BitSpan::<LocalBits, _>::new(&data, BitIdx::ZERO, (!0 >> 3) + 1),
+			Err(BitSpanError::TooLong(_))
 		));
 		assert!(matches!(
-			BitPtr::<LocalBits, _>::new(!0usize as *const u8, BitIdx::ZERO, 8),
-			Err(BitPtrError::TooHigh(_))
+			BitSpan::<LocalBits, _>::new(!0usize as *const u8, BitIdx::ZERO, 8),
+			Err(BitSpanError::TooHigh(_))
 		));
 
 		//  Double check the null pointers, but they are in practice impossible
 		//  to construct.
 		assert_eq!(
-			BitPtr::from_bitslice_ptr(ptr::slice_from_raw_parts(
+			BitSpan::from_bitslice_ptr(ptr::slice_from_raw_parts(
 				ptr::null::<()>(),
 				1
 			) as *mut BitSlice<LocalBits, u8>),
-			BitPtr::<LocalBits, u8>::EMPTY,
+			BitSpan::<LocalBits, u8>::EMPTY,
 		);
 	}
 
 	#[test]
 	fn recast() {
 		let data = 0u32;
-		let bitptr =
-			BitPtr::<LocalBits, _>::new(&data, BitIdx::ZERO, 32).unwrap();
-		let raw_ptr = bitptr.to_bitslice_ptr();
-		assert_eq!(bitptr, BitPtr::from_bitslice_ptr(raw_ptr));
+		let bitspan =
+			BitSpan::<LocalBits, _>::new(&data, BitIdx::ZERO, 32).unwrap();
+		let raw_ptr = bitspan.to_bitslice_ptr();
+		assert_eq!(bitspan, BitSpan::from_bitslice_ptr(raw_ptr));
 	}
 
 	#[test]
@@ -1683,22 +1683,22 @@ mod tests {
 		let data = [0u8; 10];
 		let bits = data.view_bits::<LocalBits>();
 
-		let (l, c, r) = unsafe { bits.bitptr().align_to::<u16>() };
+		let (l, c, r) = unsafe { bits.bit_span().align_to::<u16>() };
 		assert_eq!(l.len() + c.len() + r.len(), 80);
 
-		let (l, c, r) = unsafe { bits[4 ..].bitptr().align_to::<u16>() };
+		let (l, c, r) = unsafe { bits[4 ..].bit_span().align_to::<u16>() };
 		assert_eq!(l.len() + c.len() + r.len(), 76);
 
-		let (l, c, r) = unsafe { bits[.. 76].bitptr().align_to::<u16>() };
+		let (l, c, r) = unsafe { bits[.. 76].bit_span().align_to::<u16>() };
 		assert_eq!(l.len() + c.len() + r.len(), 76);
 
-		let (l, c, r) = unsafe { bits[8 ..].bitptr().align_to::<u16>() };
+		let (l, c, r) = unsafe { bits[8 ..].bit_span().align_to::<u16>() };
 		assert_eq!(l.len() + c.len() + r.len(), 72);
 
-		let (l, c, r) = unsafe { bits[.. 72].bitptr().align_to::<u16>() };
+		let (l, c, r) = unsafe { bits[.. 72].bit_span().align_to::<u16>() };
 		assert_eq!(l.len() + c.len() + r.len(), 72);
 
-		let (l, c, r) = unsafe { bits[4 .. 76].bitptr().align_to::<u16>() };
+		let (l, c, r) = unsafe { bits[4 .. 76].bit_span().align_to::<u16>() };
 		assert_eq!(l.len() + c.len() + r.len(), 72);
 	}
 
@@ -1706,36 +1706,36 @@ mod tests {
 	fn modify() {
 		let (a, b) = (0u16, 1u16);
 
-		let mut bitptr = a.view_bits::<LocalBits>().bitptr();
+		let mut bitspan = a.view_bits::<LocalBits>().bit_span();
 		let mut expected = (&a as *const _ as usize, 16usize << 3);
 
-		assert_eq!(bitptr.pointer().to_const(), &a as *const _);
-		assert_eq!(bitptr.ptr.as_ptr() as usize, expected.0);
-		assert_eq!(bitptr.len, expected.1);
+		assert_eq!(bitspan.pointer().to_const(), &a as *const _);
+		assert_eq!(bitspan.ptr.as_ptr() as usize, expected.0);
+		assert_eq!(bitspan.len, expected.1);
 
 		expected.0 = &b as *const _ as usize;
 		unsafe {
-			bitptr.set_pointer(&b as *const _);
+			bitspan.set_pointer(&b as *const _);
 		}
-		assert_eq!(bitptr.pointer().to_const(), &b as *const _);
-		assert_eq!(bitptr.ptr.as_ptr() as usize, expected.0);
-		assert_eq!(bitptr.len, expected.1);
+		assert_eq!(bitspan.pointer().to_const(), &b as *const _);
+		assert_eq!(bitspan.ptr.as_ptr() as usize, expected.0);
+		assert_eq!(bitspan.len, expected.1);
 
-		let orig_head = bitptr.head();
+		let orig_head = bitspan.head();
 		unsafe {
-			bitptr.set_head(orig_head.next().0);
+			bitspan.set_head(orig_head.next().0);
 		}
-		assert_eq!(bitptr.head(), orig_head.next().0);
+		assert_eq!(bitspan.head(), orig_head.next().0);
 	}
 
 	#[test]
 	fn mem_size() {
 		assert_eq!(
-			mem::size_of::<BitPtr<LocalBits, usize>>(),
+			mem::size_of::<BitSpan<LocalBits, usize>>(),
 			mem::size_of::<*const [usize]>()
 		);
 		assert_eq!(
-			mem::size_of::<Option<BitPtr<LocalBits, usize>>>(),
+			mem::size_of::<Option<BitSpan<LocalBits, usize>>>(),
 			mem::size_of::<*const [usize]>()
 		);
 	}

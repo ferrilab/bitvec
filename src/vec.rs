@@ -33,7 +33,7 @@ use crate::{
 		BitOrder,
 		Lsb0,
 	},
-	ptr::BitPtr,
+	ptr::BitSpan,
 	slice::BitSlice,
 	store::BitStore,
 };
@@ -314,9 +314,9 @@ where
 	/// [`BitSlice`]: crate::slice::BitSlice
 	/// [`.force_align()`]: Self::force_align
 	pub fn from_bitslice(slice: &BitSlice<O, T>) -> Self {
-		let mut bitptr = slice.bitptr();
+		let mut bitspan = slice.bit_span();
 
-		let mut vec = bitptr
+		let mut vec = bitspan
 			.elements()
 			.pipe(Vec::with_capacity)
 			.pipe(ManuallyDrop::new);
@@ -335,12 +335,12 @@ where
 		}
 
 		unsafe {
-			bitptr.set_pointer(vec.as_ptr() as *const T);
+			bitspan.set_pointer(vec.as_ptr() as *const T);
 		}
 
 		let capacity = vec.capacity();
 		Self {
-			pointer: bitptr.to_nonnull(),
+			pointer: bitspan.to_nonnull(),
 			capacity,
 		}
 	}
@@ -419,7 +419,7 @@ where
 		let (base, capacity) = (vec.as_ptr(), vec.capacity());
 		Ok(Self {
 			pointer: unsafe {
-				BitPtr::new_unchecked(
+				BitSpan::new_unchecked(
 					base,
 					BitIdx::ZERO,
 					len * T::Mem::BITS as usize,
@@ -509,7 +509,7 @@ where
 	/// assert_eq!(bv.elements(), 4);
 	/// ```
 	pub fn elements(&self) -> usize {
-		self.bitptr().elements()
+		self.bit_span().elements()
 	}
 
 	/// Converts the vector into a [`BitBox<O, T>`].
@@ -532,11 +532,11 @@ where
 	///
 	/// [`BitBox<O, T>`]: crate::boxed::BitBox
 	pub fn into_boxed_bitslice(self) -> BitBox<O, T> {
-		let mut bitptr = self.bitptr();
+		let mut bitspan = self.bit_span();
 		let boxed = self.into_boxed_slice().pipe(ManuallyDrop::new);
 		unsafe {
-			bitptr.set_pointer(boxed.as_ptr());
-			BitBox::from_raw(bitptr.to_bitslice_ptr_mut())
+			bitspan.set_pointer(boxed.as_ptr());
+			BitBox::from_raw(bitspan.to_bitslice_ptr_mut())
 		}
 	}
 
@@ -613,10 +613,10 @@ where
 	///
 	/// [`.as_bitslice()`]: Self::as_bitslice
 	pub fn set_uninitialized(&mut self, value: bool) {
-		let head = self.bitptr().head().value() as usize;
+		let head = self.bit_span().head().value() as usize;
 		let tail = head + self.len();
 		let capa = self.capacity();
-		let mut bp = self.bitptr();
+		let mut bp = self.bit_span();
 		unsafe {
 			bp.set_head(BitIdx::ZERO);
 			bp.set_len(capa);
@@ -648,22 +648,22 @@ where
 	/// assert_eq!(bv.as_slice()[0] & 0xF0, 0xF0);
 	/// ```
 	pub fn force_align(&mut self) {
-		let bitptr = self.bitptr();
-		let head = bitptr.head().value() as usize;
+		let bitspan = self.bit_span();
+		let head = bitspan.head().value() as usize;
 		if head == 0 {
 			return;
 		}
-		let last = bitptr.len() + head;
+		let last = bitspan.len() + head;
 		unsafe {
 			self.pointer =
-				bitptr.tap_mut(|bp| bp.set_head(BitIdx::ZERO)).to_nonnull();
+				bitspan.tap_mut(|bp| bp.set_head(BitIdx::ZERO)).to_nonnull();
 			self.copy_within_unchecked(head .. last, 0);
 		}
 	}
 
 	/// Writes a new length value into the pointer without any checks.
 	pub(crate) unsafe fn set_len_unchecked(&mut self, new_len: usize) {
-		let mut bp = self.bitptr();
+		let mut bp = self.bit_span();
 		bp.set_len(new_len);
 		self.pointer = bp.to_nonnull();
 	}
@@ -723,7 +723,7 @@ where
 	/// The caller must also ensure that the memory the pointer
 	/// (non-transitively) points to is never written to (except inside an
 	/// [`UnsafeCell`]) using this pointer or any pointer derived from it. If
-	/// you need to mutate the contents of the region, use [`as_mut_bitptr`].
+	/// you need to mutate the contents of the region, use [`as_mut_bitspan`].
 	///
 	/// This pointer is an opaque crate-internal type. Its in-memory
 	/// representation is unsafe to modify in any way. The only safe action to
@@ -736,16 +736,16 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let bv = bitvec![0; 20];
-	/// let ptr = bv.as_bitptr();
+	/// let ptr = bv.as_bitspan();
 	///
 	/// let bits = unsafe { &*ptr };
 	/// assert_eq!(bv, bits);
 	/// ```
 	///
 	/// [`UnsafeCell`]: core::cell::UnsafeCell
-	/// [`as_mut_bitptr`]: Self::as_mut_bitptr
+	/// [`as_mut_bitspan`]: Self::as_mut_bitspan
 	/// [`bitvec`]: crate
-	pub fn as_bitptr(&self) -> *const BitSlice<O, T> {
+	pub fn as_bitspan(&self) -> *const BitSlice<O, T> {
 		self.pointer.as_ptr() as *const BitSlice<O, T>
 	}
 
@@ -767,28 +767,28 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![0; 20];
-	/// let ptr = bv.as_mut_bitptr();
+	/// let ptr = bv.as_mut_bitspan();
 	///
 	/// let bits = unsafe { &mut *ptr };
 	/// assert_eq!(bv, bits);
 	/// ```
 	///
 	/// [`bitvec`]: crate
-	pub fn as_mut_bitptr(&mut self) -> *mut BitSlice<O, T> {
+	pub fn as_mut_bitspan(&mut self) -> *mut BitSlice<O, T> {
 		self.pointer.as_ptr()
 	}
 
-	pub(crate) fn bitptr(&self) -> BitPtr<O, T> {
-		self.pointer.as_ptr().pipe(BitPtr::from_bitslice_ptr_mut)
+	pub(crate) fn bit_span(&self) -> BitSpan<O, T> {
+		self.pointer.as_ptr().pipe(BitSpan::from_bitslice_ptr_mut)
 	}
 
 	fn with_vec<F, R>(&mut self, func: F) -> R
 	where F: FnOnce(&mut ManuallyDrop<Vec<T::Mem>>) -> R {
 		let cap = self.capacity;
-		let mut bitptr = self.bitptr();
+		let mut bitspan = self.bit_span();
 		let (base, elts) = (
-			bitptr.pointer().to_mut().cast::<T::Mem>(),
-			bitptr.elements(),
+			bitspan.pointer().to_mut().cast::<T::Mem>(),
+			bitspan.elements(),
 		);
 
 		let mut vec = unsafe { Vec::from_raw_parts(base, elts, cap) }
@@ -796,9 +796,9 @@ where
 		let out = func(&mut vec);
 
 		unsafe {
-			bitptr.set_pointer(vec.as_ptr().cast::<T>());
+			bitspan.set_pointer(vec.as_ptr().cast::<T>());
 		}
-		self.pointer = bitptr.to_nonnull();
+		self.pointer = bitspan.to_nonnull();
 		self.capacity = vec.capacity();
 		out
 	}

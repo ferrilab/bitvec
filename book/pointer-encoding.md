@@ -69,7 +69,7 @@ C++ looks like this:
 
 ```cpp
 template <typename T>
-struct BitPtr<T> {
+struct BitSpan<T> {
   static_assert(
     std::is_unsigned<T>
     && sizeof(T) <= sizeof(size_t)
@@ -91,7 +91,7 @@ In Rust, the structure is declared as
 //  src/pointer.rs
 
 #[repr(C)]
-pub struct BitPtr<T>
+pub struct BitSpan<T>
 where T: BitStore {
   ptr: NonNull<u8>,
   len: usize,
@@ -102,7 +102,7 @@ where T: BitStore {
 and the logical components must be accessed through get/set functions, rather
 than through compiler-generated field stubs.
 
-By marking the pointer as `NonNull`, `BitPtr` declares that it will never be a
+By marking the pointer as `NonNull`, `BitSpan` declares that it will never be a
 null pointer and becomes subject to the same peephole optimization that allows
 `mem::size_of::<Option<&T>>() == mem::size_of::<&T>()`. By marking it as
 unconditionally a pointer to `u8`, we declare that all low bits of the address
@@ -111,8 +111,8 @@ encoding is using them to select a byte within the `T`).
 
 ## Significant Values
 
-The null value, `{ ptr: 0, len: 0 }`, is not valid in `BitPtr<T>`, but rather is
-used to mark `Option::<BitPtr<T>>::None`.
+The null value, `{ ptr: 0, len: 0 }`, is not valid in `BitSpan<T>`, but rather is
+used to mark `Option::<BitSpan<T>>::None`.
 
 ### Empty Slices
 

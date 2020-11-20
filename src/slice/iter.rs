@@ -4,7 +4,7 @@ use crate::{
 	index::BitIdx,
 	mem::BitMemory,
 	order::BitOrder,
-	ptr::BitPtr,
+	ptr::BitSpan,
 	slice::{
 		proxy::BitMut,
 		BitSlice,
@@ -128,7 +128,7 @@ where
 
 	/// Constructs a new slice iterator from a slice reference.
 	fn new(slice: &'a BitSlice<O, T>) -> Self {
-		let (addr, head, bits) = slice.bitptr().raw_parts();
+		let (addr, head, bits) = slice.bit_span().raw_parts();
 		let addr = addr.to_mut();
 		let base = unsafe { NonNull::new_unchecked(addr) };
 
@@ -184,7 +184,7 @@ where
 	/// [`BitSlice`]: crate::slice::BitSlice
 	pub fn as_bitslice(&self) -> &'a BitSlice<O, T> {
 		unsafe {
-			BitPtr::new_unchecked(self.base.as_ptr(), self.head, self.len())
+			BitSpan::new_unchecked(self.base.as_ptr(), self.head, self.len())
 		}
 		.to_bitslice_ref()
 	}
@@ -340,7 +340,7 @@ where
 
 	/// Constructs a new slice mutable iterator from a slice reference.
 	fn new(slice: &'a mut BitSlice<O, T>) -> Self {
-		let (addr, head, bits) = slice.alias().bitptr().raw_parts();
+		let (addr, head, bits) = slice.alias().bit_span().raw_parts();
 
 		let addr = addr.to_access()
 			as *mut <<T as BitStore>::Alias as BitStore>::Access;
@@ -408,7 +408,7 @@ where
 	/// [`BitSlice`]: crate::slice::BitSlice
 	pub fn into_bitslice(self) -> &'a mut BitSlice<O, T::Alias> {
 		unsafe {
-			BitPtr::new_unchecked(
+			BitSpan::new_unchecked(
 				self.base.as_ptr()
 					as *const <<T as BitStore>::Alias as BitStore>::Access
 					as *const <T as BitStore>::Alias,

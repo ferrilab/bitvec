@@ -36,7 +36,7 @@ use crate::{
 	index::BitIdxErr,
 	mem::BitMemory,
 	order::BitOrder,
-	ptr::BitPtr,
+	ptr::BitSpan,
 	slice::BitSlice,
 	store::BitStore,
 	view::BitView,
@@ -87,7 +87,7 @@ where
 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
-		let head = self.bitptr().head();
+		let head = self.bit_span().head();
 		let mut state = serializer.serialize_struct("BitSeq", 3)?;
 
 		state.serialize_field("head", &head.value())?;
@@ -208,7 +208,7 @@ where
 	///
 	/// The result of assembling the deserialized components into a [`BitVec`].
 	/// This can fail if the `head` is invalid, or if the deserialized data
-	/// cannot be encoded into a `BitPtr`.
+	/// cannot be encoded into a `BitSpan`.
 	///
 	/// [`BitVec`]: crate::vec::BitVec
 	fn assemble<E>(
@@ -223,7 +223,7 @@ where
 		//  Disable the destructor on the deserialized buffer
 		let data = ManuallyDrop::new(data);
 		//  Assemble a region pointer
-		BitPtr::new(
+		BitSpan::new(
 			data.as_ptr() as *mut T,
 			//  Attempt to read the `head` index as a `BitIdx` bounded by the
 			//  destination type.
@@ -244,7 +244,7 @@ where
 				self,
 			)
 		})
-		.map(BitPtr::to_bitslice_ptr_mut)
+		.map(BitSpan::to_bitslice_ptr_mut)
 		.map(|bp| unsafe { BitVec::from_raw_parts(bp, data.capacity()) })
 	}
 }

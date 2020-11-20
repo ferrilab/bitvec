@@ -3,7 +3,7 @@
 use crate::{
 	mem::BitMemory,
 	order::BitOrder,
-	ptr::BitPtr,
+	ptr::BitSpan,
 	slice::BitSlice,
 	store::BitStore,
 	vec::{
@@ -55,7 +55,7 @@ where
 	/// ```
 	pub fn new() -> Self {
 		Self {
-			pointer: BitPtr::<O, T>::EMPTY.to_nonnull(),
+			pointer: BitSpan::<O, T>::EMPTY.to_nonnull(),
 			capacity: 0,
 		}
 	}
@@ -118,7 +118,7 @@ where
 			.pipe(Vec::<T>::with_capacity)
 			.pipe(ManuallyDrop::new);
 		let (ptr, capacity) = (vec.as_ptr(), vec.capacity());
-		let pointer = ptr.pipe(BitPtr::uninhabited).pipe(BitPtr::to_nonnull);
+		let pointer = ptr.pipe(BitSpan::uninhabited).pipe(BitSpan::to_nonnull);
 		Self { pointer, capacity }
 	}
 
@@ -151,10 +151,10 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let bv = bitvec![1; 70];
-	/// let (bitptr, capa) = bv.into_raw_parts();
+	/// let (bitspan, capa) = bv.into_raw_parts();
 	///
 	/// let rebuilt = unsafe {
-	///   BitVec::from_raw_parts(bitptr, capa)
+	///   BitVec::from_raw_parts(bitspan, capa)
 	/// };
 	/// assert_eq!(rebuilt, bits![1; 70]);
 	/// ```
@@ -163,7 +163,7 @@ where
 	/// [`.alloc_capacity()`]: Self::alloc_capacity
 	pub fn into_raw_parts(self) -> (*mut BitSlice<O, T>, usize) {
 		let mut this = ManuallyDrop::new(self);
-		(this.as_mut_bitptr(), this.alloc_capacity())
+		(this.as_mut_bitspan(), this.alloc_capacity())
 	}
 
 	/// Creates a `BitVec<O, T>` directly from the raw components of another
@@ -269,7 +269,7 @@ where
 		if (pointer as *mut [()]).is_null() {
 			panic!("Attempted to reconstruct a `BitVec` from a null pointer");
 		}
-		let pointer = pointer.pipe(BitPtr::from_bitslice_ptr_mut).to_nonnull();
+		let pointer = pointer.pipe(BitSpan::from_bitslice_ptr_mut).to_nonnull();
 		Self { pointer, capacity }
 	}
 
@@ -307,7 +307,7 @@ where
 			//  Don’t forget to subtract any dead bits in the front of the base!
 			//  This has to be saturating, becase a non-zero head on a zero
 			//  capacity underflows.
-			.saturating_sub(self.bitptr().head().value() as usize)
+			.saturating_sub(self.bit_span().head().value() as usize)
 	}
 
 	/// Reserves capacity for at least `additional` more bits to be inserted in
@@ -344,9 +344,9 @@ where
 			new_len,
 			BitSlice::<O, T>::MAX_BITS
 		);
-		let bitptr = self.bitptr();
-		let head = bitptr.head();
-		let elts = bitptr.elements();
+		let bitspan = self.bit_span();
+		let head = bitspan.head();
+		let elts = bitspan.elements();
 		//  Only reserve if the request needs new elements.
 		if let Some(extra) = head.span(new_len).0.checked_sub(elts) {
 			self.with_vec(|v| v.reserve(extra));
@@ -395,9 +395,9 @@ where
 			new_len,
 			BitSlice::<O, T>::MAX_BITS
 		);
-		let bitptr = self.bitptr();
-		let head = bitptr.head();
-		let elts = bitptr.elements();
+		let bitspan = self.bit_span();
+		let head = bitspan.head();
+		let elts = bitspan.elements();
 		//  Only reserve if the request needs new elements.
 		if let Some(extra) = head.span(new_len).0.checked_sub(elts) {
 			self.with_vec(|v| v.reserve_exact(extra));
@@ -555,8 +555,8 @@ where
 	///
 	/// [`.as_bitslice()`]: Self::as_bitslice
 	pub fn as_slice(&self) -> &[T] {
-		let bitptr = self.bitptr();
-		let (base, elts) = (bitptr.pointer().to_const(), bitptr.elements());
+		let bitspan = self.bit_span();
+		let (base, elts) = (bitspan.pointer().to_const(), bitspan.elements());
 		unsafe { slice::from_raw_parts(base, elts) }
 	}
 
@@ -585,8 +585,8 @@ where
 	///
 	/// [`.as_mut_bitslice()`]: Self::as_mut_bitslice
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
-		let bitptr = self.bitptr();
-		let (base, elts) = (bitptr.pointer().to_mut(), bitptr.elements());
+		let bitspan = self.bit_span();
+		let (base, elts) = (bitspan.pointer().to_mut(), bitspan.elements());
 		unsafe { slice::from_raw_parts_mut(base, elts) }
 	}
 
@@ -608,7 +608,7 @@ where
 	///
 	/// # Analogue
 	///
-	/// See [`.as_bitptr()`] for a `&BitVec -> *const BitSlice` transform.
+	/// See [`.as_bitspan()`] for a `&BitVec -> *const BitSlice` transform.
 	///
 	/// # Examples
 	///
@@ -624,10 +624,10 @@ where
 	/// ```
 	///
 	/// [`UnsafeCell`]: core::cell::UnsafeCell
-	/// [`.as_bitptr()`]: Self::as_bitptr
+	/// [`.as_bitspan()`]: Self::as_bitspan
 	/// [`.as_mut_ptr()`]: Self::as_mut_ptr
 	pub fn as_ptr(&self) -> *const T {
-		self.bitptr().pointer().to_const()
+		self.bit_span().pointer().to_const()
 	}
 
 	/// Returns an unsafe mutable pointer to the vector’s buffer.
@@ -643,7 +643,8 @@ where
 	///
 	/// # Analogue
 	///
-	/// See [`.as_mut_bitptr()`] for a `&mut BitVec -> *mut BitSlice` transform.
+	/// See [`.as_mut_bitspan()`] for a `&mut BitVec -> *mut BitSlice`
+	/// transform.
 	///
 	/// # Eaxmples
 	///
@@ -662,9 +663,9 @@ where
 	/// assert!(bv.all());
 	/// ```
 	///
-	/// [`.as_mut_bitptr()`]: Self::as_mut_bitptr
+	/// [`.as_mut_bitspan()`]: Self::as_mut_bitspan
 	pub fn as_mut_ptr(&mut self) -> *mut T {
-		self.bitptr().pointer().to_mut()
+		self.bit_span().pointer().to_mut()
 	}
 
 	/// Forces the length of the vector to `new_len`.
@@ -900,7 +901,7 @@ where
 			len,
 			BitSlice::<O, T>::MAX_BITS,
 		);
-		if self.is_empty() || self.bitptr().tail().value() == T::Mem::BITS {
+		if self.is_empty() || self.bit_span().tail().value() == T::Mem::BITS {
 			self.with_vec(|v| v.push(T::Mem::ZERO));
 		}
 		unsafe {
@@ -1033,7 +1034,7 @@ where
 	/// assert!(bv.is_empty());
 	/// ```
 	pub fn clear(&mut self) {
-		self.pointer = BitPtr::uninhabited(self.as_mut_ptr()).to_nonnull();
+		self.pointer = BitSpan::uninhabited(self.as_mut_ptr()).to_nonnull();
 	}
 
 	/// Returns the number of bits in the vector, also referred to as its
@@ -1052,7 +1053,7 @@ where
 	/// assert_eq!(a.len(), 3);
 	/// ```
 	pub fn len(&self) -> usize {
-		self.bitptr().len()
+		self.bit_span().len()
 	}
 
 	/// Returns `true` if the vector contains no bits.
@@ -1073,7 +1074,7 @@ where
 	/// assert!(!bv.is_empty());
 	/// ```
 	pub fn is_empty(&self) -> bool {
-		self.bitptr().len() == 0
+		self.bit_span().len() == 0
 	}
 
 	/// Splits the collection into two at the given index.
@@ -1198,7 +1199,7 @@ where
 	pub fn leak<'a>(self) -> &'a mut BitSlice<O, T> {
 		self.pipe(ManuallyDrop::new)
 			.as_mut_bitslice()
-			.bitptr()
+			.bit_span()
 			.to_bitslice_mut()
 	}
 

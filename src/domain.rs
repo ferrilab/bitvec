@@ -228,9 +228,9 @@ macro_rules! bit_domain {
 			///
 			/// [`BitSlice`]: crate::slice::BitSlice
 			pub(crate) fn new(slice: &'a $($m)? BitSlice<O, T>) -> Self {
-				let bitptr = slice.bitptr();
-				let h = bitptr.head();
-				let (e, t) = h.span(bitptr.len());
+				let bitspan = slice.bit_span();
+				let h = bitspan.head();
+				let (e, t) = h.span(bitspan.len());
 				let w = T::Mem::BITS;
 
 				match (h.value(), e, t.value()) {
@@ -533,12 +533,12 @@ macro_rules! domain {
 
 			pub(crate) fn new<O>(slice: &'a $($m)? BitSlice<O, T>) -> Self
 			where O: BitOrder {
-				let bitptr = slice.bitptr();
-				let head = bitptr.head();
-				let elts = bitptr.elements();
-				let tail = bitptr.tail();
+				let bitspan = slice.bit_span();
+				let head = bitspan.head();
+				let elts = bitspan.elements();
+				let tail = bitspan.tail();
 				let bits = T::Mem::BITS;
-				let base = bitptr.pointer().to_const() as *const _;
+				let base = bitspan.pointer().to_const() as *const _;
 				match (head.value(), elts, tail.value()) {
 					(_, 0, _) => Self::empty(),
 					(0, _, t) if t == bits => Self::spanning(base, elts),

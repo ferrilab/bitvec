@@ -5,7 +5,7 @@
 use crate::{
 	index::BitIdx,
 	prelude::*,
-	ptr::BitPtr,
+	ptr::BitSpan,
 };
 
 use tap::conv::TryConv;
@@ -272,12 +272,12 @@ fn split() {
 	let data = 0u8;
 	let bits = data.view_bits::<Lsb0>();
 	let base = bits.as_slice().as_ptr();
-	let base_ptr = unsafe { BitPtr::new_unchecked(base, BitIdx::ZERO, 0) };
+	let base_ptr = unsafe { BitSpan::new_unchecked(base, BitIdx::ZERO, 0) };
 	let next_ptr =
-		unsafe { BitPtr::new_unchecked(base.add(1), BitIdx::ZERO, 0) };
+		unsafe { BitSpan::new_unchecked(base.add(1), BitIdx::ZERO, 0) };
 	let (l, _) = bits.split_at(0);
 	let (_, r) = bits.split_at(8);
-	let (l_ptr, r_ptr) = (l.bitptr(), r.bitptr());
+	let (l_ptr, r_ptr) = (l.bit_span(), r.bit_span());
 	assert_eq!(l_ptr, base_ptr);
 	assert_eq!(r_ptr, next_ptr);
 }
@@ -366,9 +366,9 @@ fn alignment() {
 	let mut data = [0u32; 3];
 	let bits = data.view_bits_mut::<Msb0>();
 
-	let bp = bits[10 .. 20].bitptr();
+	let bp = bits[10 .. 20].bit_span();
 	let (l0, c0, r0) = unsafe { bits[10 .. 20].align_to_mut::<u8>() };
-	assert_eq!(l0.bitptr(), bp);
+	assert_eq!(l0.bit_span(), bp);
 	assert!(c0.is_empty());
 	assert!(r0.is_empty());
 
@@ -491,13 +491,13 @@ fn unspecialized() {
 fn misc() {
 	let bits = bits![mut 0, 1, 0, 0];
 
-	let bitptr_1 = bits.as_bitptr();
-	let bitptr_2 = bits.as_ptr();
-	assert_eq!(bitptr_1, bitptr_2);
+	let bitspan_1 = bits.as_bitspan();
+	let bitspan_2 = bits.as_ptr();
+	assert_eq!(bitspan_1, bitspan_2);
 
-	let bitptr_1 = bits.as_mut_bitptr();
-	let bitptr_2 = bits.as_mut_ptr();
-	assert_eq!(bitptr_1, bitptr_2);
+	let bitspan_1 = bits.as_mut_bitspan();
+	let bitspan_2 = bits.as_mut_ptr();
+	assert_eq!(bitspan_1, bitspan_2);
 
 	let a = bits![mut 0; 4];
 	let b = bits![mut 0, 1, 0, 1];
@@ -562,11 +562,11 @@ fn iter_mut() {
 	*iter.nth(2).unwrap() = true;
 	*iter.next_back().unwrap() = true;
 
-	assert_eq!(iter.into_bitslice().bitptr(), bits[4 .. 5].bitptr());
+	assert_eq!(iter.into_bitslice().bit_span(), bits[4 .. 5].bit_span());
 
-	let bitptr = bits.bitptr();
-	assert_eq!(bits.iter_mut().into_slice().bitptr(), bitptr);
-	assert_eq!(bits.iter_mut().as_bitslice().bitptr(), bitptr);
+	let bitspan = bits.bit_span();
+	assert_eq!(bits.iter_mut().into_slice().bit_span(), bitspan);
+	assert_eq!(bits.iter_mut().as_bitslice().bit_span(), bitspan);
 }
 
 #[test]
@@ -574,12 +574,18 @@ fn windows() {
 	let bits = bits![LocalBits, u8; 0; 8];
 
 	let mut windows = bits.windows(5);
-	assert_eq!(windows.next().unwrap().bitptr(), bits[.. 5].bitptr());
-	assert_eq!(windows.next_back().unwrap().bitptr(), bits[3 ..].bitptr());
+	assert_eq!(windows.next().unwrap().bit_span(), bits[.. 5].bit_span());
+	assert_eq!(
+		windows.next_back().unwrap().bit_span(),
+		bits[3 ..].bit_span()
+	);
 
 	let mut windows = bits.windows(3);
-	assert_eq!(windows.nth(2).unwrap().bitptr(), bits[2 .. 5].bitptr());
-	assert_eq!(windows.nth_back(2).unwrap().bitptr(), bits[3 .. 6].bitptr());
+	assert_eq!(windows.nth(2).unwrap().bit_span(), bits[2 .. 5].bit_span());
+	assert_eq!(
+		windows.nth_back(2).unwrap().bit_span(),
+		bits[3 .. 6].bit_span()
+	);
 	assert!(windows.next().is_none());
 	assert!(windows.next_back().is_none());
 	assert!(windows.nth(1).is_none());
@@ -591,12 +597,18 @@ fn chunks() {
 	let bits = bits![Lsb0, u16; 0; 16];
 
 	let mut chunks = bits.chunks(5);
-	assert_eq!(chunks.next().unwrap().bitptr(), bits[.. 5].bitptr());
-	assert_eq!(chunks.next_back().unwrap().bitptr(), bits[15 ..].bitptr());
+	assert_eq!(chunks.next().unwrap().bit_span(), bits[.. 5].bit_span());
+	assert_eq!(
+		chunks.next_back().unwrap().bit_span(),
+		bits[15 ..].bit_span()
+	);
 
 	let mut chunks = bits.chunks(3);
-	assert_eq!(chunks.nth(2).unwrap().bitptr(), bits[6 .. 9].bitptr());
-	assert_eq!(chunks.nth_back(2).unwrap().bitptr(), bits[9 .. 12].bitptr());
+	assert_eq!(chunks.nth(2).unwrap().bit_span(), bits[6 .. 9].bit_span());
+	assert_eq!(
+		chunks.nth_back(2).unwrap().bit_span(),
+		bits[9 .. 12].bit_span()
+	);
 }
 
 #[test]
@@ -604,19 +616,19 @@ fn chunks_mut() {
 	let bits = bits![mut Msb0, u16; 0; 16];
 
 	let (one, two, three, four) = (
-		bits[.. 5].bitptr(),
-		bits[15 ..].bitptr(),
-		bits[6 .. 9].bitptr(),
-		bits[9 .. 12].bitptr(),
+		bits[.. 5].bit_span(),
+		bits[15 ..].bit_span(),
+		bits[6 .. 9].bit_span(),
+		bits[9 .. 12].bit_span(),
 	);
 
 	let mut chunks = bits.chunks_mut(5);
-	assert_eq!(chunks.next().unwrap().bitptr(), one);
-	assert_eq!(chunks.next_back().unwrap().bitptr(), two);
+	assert_eq!(chunks.next().unwrap().bit_span(), one);
+	assert_eq!(chunks.next_back().unwrap().bit_span(), two);
 
 	let mut chunks = bits.chunks_mut(3);
-	assert_eq!(chunks.nth(2).unwrap().bitptr(), three);
-	assert_eq!(chunks.nth_back(2).unwrap().bitptr(), four);
+	assert_eq!(chunks.nth(2).unwrap().bit_span(), three);
+	assert_eq!(chunks.nth_back(2).unwrap().bit_span(), four);
 }
 
 #[test]
@@ -624,16 +636,16 @@ fn chunks_exact() {
 	let bits = bits![Lsb0, u32; 0; 32];
 
 	let mut chunks = bits.chunks_exact(5);
-	assert_eq!(chunks.remainder().bitptr(), bits[30 ..].bitptr());
-	assert_eq!(chunks.next().unwrap().bitptr(), bits[.. 5].bitptr());
+	assert_eq!(chunks.remainder().bit_span(), bits[30 ..].bit_span());
+	assert_eq!(chunks.next().unwrap().bit_span(), bits[.. 5].bit_span());
 	assert_eq!(
-		chunks.next_back().unwrap().bitptr(),
-		bits[25 .. 30].bitptr(),
+		chunks.next_back().unwrap().bit_span(),
+		bits[25 .. 30].bit_span(),
 	);
-	assert_eq!(chunks.nth(1).unwrap().bitptr(), bits[10 .. 15].bitptr());
+	assert_eq!(chunks.nth(1).unwrap().bit_span(), bits[10 .. 15].bit_span());
 	assert_eq!(
-		chunks.nth_back(1).unwrap().bitptr(),
-		bits[15 .. 20].bitptr(),
+		chunks.nth_back(1).unwrap().bit_span(),
+		bits[15 .. 20].bit_span(),
 	);
 
 	assert!(chunks.next().is_none());
@@ -647,25 +659,25 @@ fn chunks_exact_mut() {
 	let bits = bits![mut Msb0, u32; 0; 32];
 
 	let (one, two, three, four, rest) = (
-		bits[.. 5].bitptr(),
-		bits[10 .. 15].bitptr(),
-		bits[15 .. 20].bitptr(),
-		bits[25 .. 30].bitptr(),
-		bits[30 ..].bitptr(),
+		bits[.. 5].bit_span(),
+		bits[10 .. 15].bit_span(),
+		bits[15 .. 20].bit_span(),
+		bits[25 .. 30].bit_span(),
+		bits[30 ..].bit_span(),
 	);
 
 	let mut chunks = bits.chunks_exact_mut(5);
-	assert_eq!(chunks.next().unwrap().bitptr(), one);
-	assert_eq!(chunks.next_back().unwrap().bitptr(), four);
-	assert_eq!(chunks.nth(1).unwrap().bitptr(), two);
-	assert_eq!(chunks.nth_back(1).unwrap().bitptr(), three);
+	assert_eq!(chunks.next().unwrap().bit_span(), one);
+	assert_eq!(chunks.next_back().unwrap().bit_span(), four);
+	assert_eq!(chunks.nth(1).unwrap().bit_span(), two);
+	assert_eq!(chunks.nth_back(1).unwrap().bit_span(), three);
 
 	assert!(chunks.next().is_none());
 	assert!(chunks.next_back().is_none());
 	assert!(chunks.nth(1).is_none());
 	assert!(chunks.nth_back(1).is_none());
 
-	assert_eq!(chunks.into_remainder().bitptr(), rest);
+	assert_eq!(chunks.into_remainder().bit_span(), rest);
 }
 
 #[test]
@@ -673,12 +685,18 @@ fn rchunks() {
 	let bits = bits![Lsb0, u16; 0; 16];
 
 	let mut rchunks = bits.rchunks(5);
-	assert_eq!(rchunks.next().unwrap().bitptr(), bits[11 ..].bitptr());
-	assert_eq!(rchunks.next_back().unwrap().bitptr(), bits[.. 1].bitptr());
+	assert_eq!(rchunks.next().unwrap().bit_span(), bits[11 ..].bit_span());
+	assert_eq!(
+		rchunks.next_back().unwrap().bit_span(),
+		bits[.. 1].bit_span()
+	);
 
 	let mut rchunks = bits.rchunks(3);
-	assert_eq!(rchunks.nth(2).unwrap().bitptr(), bits[7 .. 10].bitptr());
-	assert_eq!(rchunks.nth_back(2).unwrap().bitptr(), bits[4 .. 7].bitptr());
+	assert_eq!(rchunks.nth(2).unwrap().bit_span(), bits[7 .. 10].bit_span());
+	assert_eq!(
+		rchunks.nth_back(2).unwrap().bit_span(),
+		bits[4 .. 7].bit_span()
+	);
 }
 
 #[test]
@@ -686,19 +704,19 @@ fn rchunks_mut() {
 	let bits = bits![mut Msb0, u16; 0; 16];
 
 	let (one, two, three, four) = (
-		bits[11 ..].bitptr(),
-		bits[.. 1].bitptr(),
-		bits[7 .. 10].bitptr(),
-		bits[4 .. 7].bitptr(),
+		bits[11 ..].bit_span(),
+		bits[.. 1].bit_span(),
+		bits[7 .. 10].bit_span(),
+		bits[4 .. 7].bit_span(),
 	);
 
 	let mut rchunks = bits.rchunks_mut(5);
-	assert_eq!(rchunks.next().unwrap().bitptr(), one);
-	assert_eq!(rchunks.next_back().unwrap().bitptr(), two);
+	assert_eq!(rchunks.next().unwrap().bit_span(), one);
+	assert_eq!(rchunks.next_back().unwrap().bit_span(), two);
 
 	let mut rchunks = bits.rchunks_mut(3);
-	assert_eq!(rchunks.nth(2).unwrap().bitptr(), three);
-	assert_eq!(rchunks.nth_back(2).unwrap().bitptr(), four);
+	assert_eq!(rchunks.nth(2).unwrap().bit_span(), three);
+	assert_eq!(rchunks.nth_back(2).unwrap().bit_span(), four);
 }
 
 #[test]
@@ -706,13 +724,19 @@ fn rchunks_exact() {
 	let bits = bits![Lsb0, u32; 0; 32];
 
 	let mut rchunks = bits.rchunks_exact(5);
-	assert_eq!(rchunks.remainder().bitptr(), bits[.. 2].bitptr());
-	assert_eq!(rchunks.next().unwrap().bitptr(), bits[27 ..].bitptr());
-	assert_eq!(rchunks.next_back().unwrap().bitptr(), bits[2 .. 7].bitptr(),);
-	assert_eq!(rchunks.nth(1).unwrap().bitptr(), bits[17 .. 22].bitptr());
+	assert_eq!(rchunks.remainder().bit_span(), bits[.. 2].bit_span());
+	assert_eq!(rchunks.next().unwrap().bit_span(), bits[27 ..].bit_span());
 	assert_eq!(
-		rchunks.nth_back(1).unwrap().bitptr(),
-		bits[12 .. 17].bitptr(),
+		rchunks.next_back().unwrap().bit_span(),
+		bits[2 .. 7].bit_span(),
+	);
+	assert_eq!(
+		rchunks.nth(1).unwrap().bit_span(),
+		bits[17 .. 22].bit_span()
+	);
+	assert_eq!(
+		rchunks.nth_back(1).unwrap().bit_span(),
+		bits[12 .. 17].bit_span(),
 	);
 
 	assert!(rchunks.next().is_none());
@@ -726,25 +750,25 @@ fn rchunks_exact_mut() {
 	let bits = bits![mut Msb0, u32; 0; 32];
 
 	let (rest, one, two, three, four) = (
-		bits[.. 2].bitptr(),
-		bits[2 .. 7].bitptr(),
-		bits[12 .. 17].bitptr(),
-		bits[17 .. 22].bitptr(),
-		bits[27 ..].bitptr(),
+		bits[.. 2].bit_span(),
+		bits[2 .. 7].bit_span(),
+		bits[12 .. 17].bit_span(),
+		bits[17 .. 22].bit_span(),
+		bits[27 ..].bit_span(),
 	);
 
 	let mut rchunks = bits.rchunks_exact_mut(5);
-	assert_eq!(rchunks.next().unwrap().bitptr(), four);
-	assert_eq!(rchunks.next_back().unwrap().bitptr(), one);
-	assert_eq!(rchunks.nth(1).unwrap().bitptr(), three);
-	assert_eq!(rchunks.nth_back(1).unwrap().bitptr(), two);
+	assert_eq!(rchunks.next().unwrap().bit_span(), four);
+	assert_eq!(rchunks.next_back().unwrap().bit_span(), one);
+	assert_eq!(rchunks.nth(1).unwrap().bit_span(), three);
+	assert_eq!(rchunks.nth_back(1).unwrap().bit_span(), two);
 
 	assert!(rchunks.next().is_none());
 	assert!(rchunks.next_back().is_none());
 	assert!(rchunks.nth(1).is_none());
 	assert!(rchunks.nth_back(1).is_none());
 
-	assert_eq!(rchunks.into_remainder().bitptr(), rest);
+	assert_eq!(rchunks.into_remainder().bit_span(), rest);
 }
 
 #[test]

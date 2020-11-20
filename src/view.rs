@@ -36,7 +36,7 @@ use crate::{
 		BitRegister,
 	},
 	order::BitOrder,
-	ptr::BitPtr,
+	ptr::BitSpan,
 	slice::BitSlice,
 	store::BitStore,
 };
@@ -211,7 +211,7 @@ macro_rules! view_bits {
 			fn view_bits<O>(&self) -> &BitSlice<O, T>
 			where O: BitOrder {
 				unsafe {
-					BitPtr::new_unchecked(
+					BitSpan::new_unchecked(
 						self.as_ptr(),
 						BitIdx::ZERO,
 						$n * T::Mem::BITS as usize,
@@ -223,7 +223,7 @@ macro_rules! view_bits {
 			fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
 			where O: BitOrder {
 				unsafe {
-					BitPtr::new_unchecked(
+					BitSpan::new_unchecked(
 						self.as_mut_ptr(),
 						BitIdx::ZERO,
 						$n * T::Mem::BITS as usize,
