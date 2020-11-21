@@ -47,7 +47,10 @@ use core::{
 	},
 };
 
-use tap::tap::Tap;
+use tap::{
+	pipe::Pipe,
+	tap::Tap,
+};
 
 #[cfg(feature = "alloc")]
 use crate::vec::BitVec;
@@ -651,7 +654,7 @@ where
 		Begin with raw pointer manipulation. That’s how you know this is a good
 		function.
 		*/
-		let mut bitspan = self.bit_span();
+		let mut bitspan = self.bit_span_mut();
 		//  The length does not need to be encoded into, and decoded back out
 		//  of, the pointer at each iteration. It is just a loop counter.
 		let mut len = bitspan.len();
@@ -2105,7 +2108,7 @@ where
 		&mut self,
 	) -> (&mut Self, &mut BitSlice<O, U>, &mut Self)
 	where U: BitStore {
-		let (l, c, r) = self.bit_span().align_to::<U>();
+		let (l, c, r) = self.bit_span_mut().align_to::<U>();
 		(
 			l.to_bitslice_mut(),
 			c.to_bitslice_mut(),
@@ -2524,13 +2527,19 @@ macro_rules! range_impl {
 			$get
 
 			fn get_mut(self, slice: Self::Mut) -> Option<Self::Mut> {
-				self.get(slice).map(|s| s.bit_span().to_bitslice_mut())
+				self.get(slice).map(|s| unsafe {
+					s.bit_span().assert_mut()
+				}
+				.to_bitslice_mut())
 			}
 
 			$unchecked
 
 			unsafe fn get_unchecked_mut(self, slice: Self::Mut) -> Self::Mut {
-				self.get_unchecked(slice).bit_span().to_bitslice_mut()
+				self.get_unchecked(slice)
+					.bit_span()
+					.assert_mut()
+					.to_bitslice_mut()
 			}
 
 			fn index(self, slice: Self::Immut) -> Self::Immut {
@@ -2543,7 +2552,10 @@ macro_rules! range_impl {
 			}
 
 			fn index_mut(self, slice: Self::Mut) -> Self::Mut {
-				self.index(slice).bit_span().to_bitslice_mut()
+				self.index(slice).bit_span().pipe(|span| unsafe {
+					span.assert_mut()
+				})
+				.to_bitslice_mut()
 			}
 		}
 	};

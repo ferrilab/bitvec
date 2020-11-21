@@ -58,6 +58,10 @@ use crate::{
 		BitMemory,
 		BitRegister,
 	},
+	mutability::{
+		Const,
+		Mut,
+	},
 	order::{
 		BitOrder,
 		Lsb0,
@@ -689,7 +693,7 @@ where
 	/// assert!(bits.is_empty());
 	/// ```
 	pub fn empty<'a>() -> &'a Self {
-		BitSpan::EMPTY.to_bitslice_ref()
+		BitSpan::<O, T, Const>::EMPTY.to_bitslice_ref()
 	}
 
 	/// Produces the empty mutable slice reference.
@@ -1771,12 +1775,12 @@ where
 		let this = self.bit_span();
 		let that = other.bit_span();
 		let (elts, bits) = unsafe {
-			let this = BitSpan::<O, T>::new_unchecked(
+			let this = BitSpan::<O, T, _>::new_unchecked(
 				this.pointer(),
 				BitIdx::new_unchecked(this.head().position::<O>().value()),
 				1,
 			);
-			let that = BitSpan::<O, T>::new_unchecked(
+			let that = BitSpan::<O, T, _>::new_unchecked(
 				that.pointer(),
 				BitIdx::new_unchecked(that.head().position::<O>().value()),
 				1,
@@ -1845,7 +1849,7 @@ where
 	/// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
 	/// [`.set()`]: Self::set
 	pub unsafe fn set_unchecked(&mut self, index: usize, value: bool) {
-		self.bit_span().write(index, value);
+		self.bit_span_mut().write(index, value);
 	}
 
 	/// Writes a new bit at a given index, without doing bounds checking.
@@ -1894,7 +1898,7 @@ where
 	/// [`Radium`]: radium::Radium
 	pub unsafe fn set_aliased_unchecked(&self, index: usize, value: bool)
 	where T: radium::Radium {
-		self.bit_span().write(index, value);
+		unsafe { self.bit_span().assert_mut() }.write(index, value);
 	}
 
 	/// Swaps two bits in the slice.
@@ -1961,7 +1965,7 @@ where
 		mid: usize,
 	) -> (&mut BitSlice<O, T::Alias>, &mut BitSlice<O, T::Alias>)
 	{
-		let bp = self.alias_mut().bit_span();
+		let bp = self.alias_mut().bit_span_mut();
 		(
 			bp.to_bitslice_mut().get_unchecked_mut(.. mid),
 			bp.to_bitslice_mut().get_unchecked_mut(mid ..),
@@ -2082,8 +2086,13 @@ where
 	T: BitStore,
 {
 	/// Type-cast the slice reference to its pointer structure.
-	pub(crate) fn bit_span(&self) -> BitSpan<O, T> {
+	pub(crate) fn bit_span(&self) -> BitSpan<O, T, Const> {
 		self.as_bitspan().pipe(BitSpan::from_bitslice_ptr)
+	}
+
+	/// Type-cast the slice reference to its pointer structure.
+	pub(crate) fn bit_span_mut(&mut self) -> BitSpan<O, T, Mut> {
+		self.as_mut_bitspan().pipe(BitSpan::from_bitslice_ptr_mut)
 	}
 
 	/// Asserts that `index` is less than [`self.len()`].
@@ -2195,7 +2204,7 @@ where
 	/// |-------------:|----------------------:|
 	/// |32 bits       |     `0x1fff_ffff`     |
 	/// |64 bits       |`0x1fff_ffff_ffff_ffff`|
-	pub const MAX_BITS: usize = BitSpan::<O, T>::REGION_MAX_BITS;
+	pub const MAX_BITS: usize = BitSpan::<O, T, Const>::REGION_MAX_BITS;
 	/// The inclusive maximum length that a slice `[T]` can be for
 	/// `BitSlice<_, T>` to cover it.
 	///
@@ -2210,7 +2219,7 @@ where
 	/// |       16|    `0x0200_0001`    |`0x0200_0000_0000_0001`|
 	/// |       32|    `0x0100_0001`    |`0x0100_0000_0000_0001`|
 	/// |       64|    `0x0080_0001`    |`0x0080_0000_0000_0001`|
-	pub const MAX_ELTS: usize = BitSpan::<O, T>::REGION_MAX_ELTS;
+	pub const MAX_ELTS: usize = BitSpan::<O, T, Const>::REGION_MAX_ELTS;
 }
 
 #[cfg(feature = "alloc")]
@@ -2236,18 +2245,21 @@ where
 	/// [`BitVec`]: crate::vec::BitVec
 	pub fn to_bitvec(&self) -> BitVec<O, T::Unalias> {
 		use tap::tap::Tap;
+		//  Create an allocation and copy `*self` into it.
 		let vec = alloc::vec::Vec::with_capacity(self.bit_span().elements())
 			.tap_mut(|vec| {
 				vec.extend(self.as_slice().iter().map(BitStore::load_value))
 			});
-		let ptr = self
-			.bit_span()
-			.tap_mut(|bp| unsafe {
-				bp.set_pointer(vec.as_ptr() as *const T);
-			})
-			.to_bitslice_ptr_mut();
+		//  Create a new span descriptor using `self` metadata, pointing at the
+		//  allocation.
+		let new_ptr = self.bit_span().tap_mut(|bp| unsafe {
+			bp.set_pointer(vec.as_ptr() as *const T);
+		});
+		//  `*self` was immutable, but `*vec` is mutable.
+		let ptr = unsafe { new_ptr.assert_mut() }.to_bitslice_ptr_mut();
 		let capa = vec.capacity();
 		core::mem::forget(vec);
+		// `*vec` is also known to be unaliased at this point.
 		unsafe {
 			BitVec::from_raw_parts(ptr as *mut BitSlice<O, T::Unalias>, capa)
 		}

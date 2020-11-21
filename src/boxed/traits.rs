@@ -2,6 +2,7 @@
 
 use crate::{
 	boxed::BitBox,
+	mutability::Mut,
 	order::BitOrder,
 	ptr::BitSpan,
 	slice::BitSlice,
@@ -247,7 +248,7 @@ where
 {
 	fn default() -> Self {
 		Self {
-			pointer: BitSpan::EMPTY.to_nonnull(),
+			pointer: BitSpan::<O, T, Mut>::EMPTY.to_nonnull(),
 		}
 	}
 }

@@ -21,6 +21,11 @@ use crate::{
 		BitTail,
 	},
 	mem::BitMemory,
+	mutability::{
+		Const,
+		Mut,
+		Mutability,
+	},
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
@@ -66,35 +71,50 @@ can be reïnterpreted according to [`bitvec`]’s rules and needs.
 #[doc(hidden)]
 #[repr(transparent)]
 #[derive(Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) struct Address<T>
-where T: BitStore
+pub(crate) struct Address<T, M>
+where
+	T: BitStore,
+	M: Mutability,
 {
 	inner: NonNull<T>,
+	_mut: PhantomData<M>,
 }
 
-impl<T> Address<T>
-where T: BitStore
+impl<T, M> Address<T, M>
+where
+	T: BitStore,
+	M: Mutability,
 {
+	pub(crate) const DANGLING: Self = Self {
+		inner: NonNull::dangling(),
+		_mut: PhantomData,
+	};
+
 	/// Views a numeric address as a typed data address.
 	pub(crate) fn new(addr: usize) -> Result<Self, AddressError<T>> {
 		let align_mask = core::mem::align_of::<T>() - 1;
 		if addr & align_mask != 0 {
 			return Err(AddressError::Misaligned(addr as *const T));
 		}
-		NonNull::new(addr as *mut T)
-			.map(|inner| Self { inner })
-			.ok_or(AddressError::Null)
+		let inner = NonNull::new(addr as *mut T).ok_or(AddressError::Null)?;
+		Ok(Self {
+			inner,
+			_mut: PhantomData,
+		})
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T> Address<T>
-where T: BitStore
+impl<T, M> Address<T, M>
+where
+	T: BitStore,
+	M: Mutability,
 {
 	/// Views a numeric address as a typed data address.
 	pub(crate) unsafe fn new_unchecked(addr: usize) -> Self {
 		Self {
 			inner: NonNull::new_unchecked(addr as *mut T),
+			_mut: PhantomData,
 		}
 	}
 
@@ -108,12 +128,6 @@ where T: BitStore
 		self.inner.as_ptr() as *const T
 	}
 
-	/// Views the memory address as a mutable pointer.
-	#[allow(clippy::wrong_self_convention)]
-	pub(crate) fn to_mut(self) -> *mut T {
-		self.inner.as_ptr()
-	}
-
 	/// Gets the memory address as a non-null pointer.
 	#[cfg(any(feature = "alloc", test))]
 	pub(crate) fn to_nonnull(self) -> NonNull<T> {
@@ -123,7 +137,7 @@ where T: BitStore
 	/// Gets the memory address as a non-null byte pointer.
 	#[cfg(any(feature = "alloc", test))]
 	pub(crate) fn to_nonnull_u8(self) -> NonNull<u8> {
-		unsafe { NonNull::new_unchecked(self.to_mut() as *mut u8) }
+		self.inner.cast::<u8>()
 	}
 
 	/// Gets the numeric value of the address.
@@ -132,9 +146,21 @@ where T: BitStore
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<T> Clone for Address<T>
+impl<T> Address<T, Mut>
 where T: BitStore
+{
+	/// Views the memory address as a mutable pointer.
+	#[allow(clippy::wrong_self_convention)]
+	pub(crate) fn to_mut(self) -> *mut T {
+		self.inner.as_ptr()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<T, M> Clone for Address<T, M>
+where
+	T: BitStore,
+	M: Mutability,
 {
 	fn clone(&self) -> Self {
 		*self
@@ -142,7 +168,7 @@ where T: BitStore
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T> From<&T> for Address<T>
+impl<T> From<&T> for Address<T, Const>
 where T: BitStore
 {
 	fn from(addr: &T) -> Self {
@@ -151,7 +177,7 @@ where T: BitStore
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T> TryFrom<*const T> for Address<T>
+impl<T> TryFrom<*const T> for Address<T, Const>
 where T: BitStore
 {
 	type Error = AddressError<T>;
@@ -162,17 +188,38 @@ where T: BitStore
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T> From<&mut T> for Address<T>
-where T: BitStore
+impl<T, M> From<&mut T> for Address<T, M>
+where
+	T: BitStore,
+	M: Mutability,
 {
 	fn from(addr: &mut T) -> Self {
-		Self { inner: addr.into() }
+		Self {
+			inner: addr.into(),
+			_mut: PhantomData,
+		}
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T> TryFrom<*mut T> for Address<T>
-where T: BitStore
+impl<T, M> From<NonNull<T>> for Address<T, M>
+where
+	T: BitStore,
+	M: Mutability,
+{
+	fn from(addr: NonNull<T>) -> Self {
+		Self {
+			inner: addr,
+			_mut: PhantomData,
+		}
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<T, M> TryFrom<*mut T> for Address<T, M>
+where
+	T: BitStore,
+	M: Mutability,
 {
 	type Error = AddressError<T>;
 
@@ -182,8 +229,10 @@ where T: BitStore
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T> Debug for Address<T>
-where T: BitStore
+impl<T, M> Debug for Address<T, M>
+where
+	T: BitStore,
+	M: Mutability,
 {
 	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -192,15 +241,20 @@ where T: BitStore
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T> Pointer for Address<T>
-where T: BitStore
+impl<T, M> Pointer for Address<T, M>
+where
+	T: BitStore,
+	M: Mutability,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Pointer::fmt(&self.to_const(), fmt)
 	}
 }
 
-impl<T> Copy for Address<T> where T: BitStore
+impl<T, M> Copy for Address<T, M>
+where
+	T: BitStore,
+	M: Mutability,
 {
 }
 
@@ -386,9 +440,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	BitSpan::new(addr, head, bits)
-		.map(BitSpan::to_bitslice_ptr_mut)
-		.map_err(Into::into)
+	BitSpan::<O, T, Mut>::new(addr, head, bits).map(BitSpan::to_bitslice_ptr_mut)
 }
 
 /** Encoded handle to a bit-precision memory region.
@@ -510,10 +562,11 @@ be manipulated in any way by user code outside of the APIs it offers to this
 [`dangling()`]: core::ptr::NonNull::dangling
 **/
 #[repr(C)]
-pub struct BitSpan<O, T>
+pub(crate) struct BitSpan<O, T, M>
 where
 	O: BitOrder,
 	T: BitStore,
+	M: Mutability,
 {
 	/// Memory address and high bits of the head index.
 	///
@@ -540,13 +593,14 @@ where
 	/// Bit-region pointers must be colored by the bit-ordering they use.
 	_or: PhantomData<O>,
 	/// This is semantically a pointer to a `T` element.
-	_ty: PhantomData<Address<T>>,
+	_ty: PhantomData<Address<T, M>>,
 }
 
-impl<O, T> BitSpan<O, T>
+impl<O, T, M> BitSpan<O, T, M>
 where
 	O: BitOrder,
 	T: BitStore,
+	M: Mutability,
 {
 	/// The canonical form of a pointer to an empty region.
 	pub(crate) const EMPTY: Self = Self {
@@ -624,15 +678,14 @@ where
 	#[cfg(any(feature = "alloc", test))]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn uninhabited<A>(addr: A) -> Self
-	where
-		A: TryInto<Address<T>>,
-		A::Error: Display,
-	{
+	where A: TryInto<Address<T, M>, Error = AddressError<T>> {
 		Self {
 			ptr: addr
 				.try_into()
-				.map_err(FmtForward::fmt_display)
-				.unwrap()
+				.expect(
+					"BitSpan::uninhabited cannot be called with an invalid \
+					 address",
+				)
 				.to_nonnull_u8(),
 			len: 0,
 			_or: PhantomData,
@@ -673,7 +726,7 @@ where
 		bits: usize,
 	) -> Result<Self, BitSpanError<O, T>>
 	where
-		A: TryInto<Address<T>>,
+		A: TryInto<Address<T, M>>,
 		BitSpanError<O, T>: From<A::Error>,
 	{
 		let addr = addr.try_into()?;
@@ -718,7 +771,7 @@ where
 		bits: usize,
 	) -> Self
 	where
-		A: TryInto<Address<T>>,
+		A: TryInto<Address<T, M>>,
 		A::Error: Debug,
 	{
 		let (addr, head) = (addr.try_into().unwrap(), head.value() as usize);
@@ -744,46 +797,21 @@ where
 
 	/// Converts an opaque `*BitSlice` wide pointer back into a `BitSpan`.
 	///
-	/// This should compile down to a noöp, but the implementation should
-	/// nevertheless be an explicit deconstruction and reconstruction rather
-	/// than a bare [`mem::transmute`], to guard against unforseen compiler
-	/// reördering.
-	///
-	/// # Parameters
-	///
-	/// - `raw`: An opaque bit-region pointer
-	///
-	/// # Returns
-	///
-	/// `raw`, interpreted as a `BitSpan` so that it can be used as more than an
-	/// opaque handle.
-	///
-	/// [`mem::transmute`]: core::mem::transmute
-	pub(crate) fn from_bitslice_ptr(raw: *const BitSlice<O, T>) -> Self {
-		let slice_nn = match NonNull::new(raw as *const [()] as *mut [()]) {
-			Some(nn) => nn,
-			None => return Self::EMPTY,
-		};
-		let ptr = slice_nn.cast::<u8>();
-		let len = unsafe { slice_nn.as_ref() }.len();
-		Self {
-			ptr,
-			len,
-			_or: PhantomData,
-			_ty: PhantomData,
-		}
-	}
-
-	/// Converts an opaque `*BitSlice` wide pointer back into a `BitSpan`.
-	///
 	/// See [`::from_bitslice_ptr()`].
 	///
 	/// [`::from_bitslice_ptr()`]: Self::from_bitslice_ptr
+	//  Mutable pointers can become mutable or immutable span descriptors.
 	#[inline(always)]
-	#[cfg(any(feature = "alloc", test))]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn from_bitslice_ptr_mut(raw: *mut BitSlice<O, T>) -> Self {
-		Self::from_bitslice_ptr(raw as *const BitSlice<O, T>)
+		let BitSpan { ptr, len, _or, .. } =
+			BitSpan::from_bitslice_ptr(raw as *const BitSlice<O, T>);
+		Self {
+			ptr,
+			len,
+			_or,
+			_ty: PhantomData,
+		}
 	}
 
 	/// Casts the `BitSpan` to an opaque `*BitSlice` pointer.
@@ -800,22 +828,12 @@ where
 	/// structure.
 	///
 	/// [`::from_bitslice_ptr()`]: Self::from_bitslice_ptr
+	//  Mutable or immutable span descriptors can become immutable pointers.
 	pub(crate) fn to_bitslice_ptr(self) -> *const BitSlice<O, T> {
 		ptr::slice_from_raw_parts(
 			self.ptr.as_ptr() as *const u8 as *const (),
 			self.len,
 		) as *const BitSlice<O, T>
-	}
-
-	/// Casts the `BitSpan` to an opaque `*BitSlice` pointer.
-	///
-	/// See [`.to_bitslice_ptr()`].
-	///
-	/// [`.to_bitslice_ptr()`]: Self::to_bitslice_ptr
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub(crate) fn to_bitslice_ptr_mut(self) -> *mut BitSlice<O, T> {
-		self.to_bitslice_ptr() as *mut BitSlice<O, T>
 	}
 
 	/// Casts the `BitSpan` to a `&BitSlice` reference.
@@ -838,55 +856,11 @@ where
 	///
 	/// `self`, opacified as a bit-slice region reference rather than a
 	/// `BitSpan` structure.
+	//  Mutable or immutable span descriptors can become immutable references.
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn to_bitslice_ref<'a>(self) -> &'a BitSlice<O, T> {
 		unsafe { &*self.to_bitslice_ptr() }
-	}
-
-	/// Casts the `BitSpan` to a `&mut BitSlice` reference.
-	///
-	/// This requires that the pointer be to a validly-allocated region that is
-	/// not destroyed for the duration of the provided lifetime. Additionally,
-	/// the bits described by `self` must not be viewable by any other handle.
-	///
-	/// # Lifetimes
-	///
-	/// - `'a`: A caller-provided lifetime that must not be greater than the
-	///   duration of the referent buffer.
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	///
-	/// # Returns
-	///
-	/// `self`, opacified as an exclusive bit-slice region reference rather than
-	/// a `BitSpan` structure.
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub(crate) fn to_bitslice_mut<'a>(self) -> &'a mut BitSlice<O, T> {
-		unsafe { &mut *self.to_bitslice_ptr_mut() }
-	}
-
-	/// Casts the pointer structure into a [`NonNull<BitSlice>`] pointer.
-	///
-	/// This function is used by the owning indirect handles, and does not yet
-	/// have any purpose in non-`alloc` programs.
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	///
-	/// # Returns
-	///
-	/// `self`, marked as a `NonNull` pointer.
-	///
-	/// [`NonNull<BitSlice>`]: core::ptr::NonNull
-	#[cfg(any(feature = "alloc", test))]
-	#[cfg(not(tarpaulin_include))]
-	pub(crate) fn to_nonnull(self) -> NonNull<BitSlice<O, T>> {
-		self.to_bitslice_mut().into()
 	}
 
 	/// Split the region descriptor into three descriptors, with the interior
@@ -920,7 +894,7 @@ where
 	/// [`BitStore`]: crate::store::BitStore
 	/// [`Domain`]: crate::domain::Domain
 	/// [`slice::align_to`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.align_to
-	pub(crate) unsafe fn align_to<U>(self) -> (Self, BitSpan<O, U>, Self)
+	pub(crate) unsafe fn align_to<U>(self) -> (Self, BitSpan<O, U, M>, Self)
 	where U: BitStore {
 		match self.to_bitslice_ref().domain() {
 			Domain::Enclave { .. } => (self, BitSpan::EMPTY, BitSpan::EMPTY),
@@ -936,9 +910,9 @@ where
 				let c_bits = c.len() * u_bits;
 				let r_bits = r.len() * t_bits;
 
-				let l_addr = l.as_ptr() as *const T;
-				let c_addr = c.as_ptr() as *const U;
-				let r_addr = r.as_ptr() as *const T;
+				let l_addr = l.as_ptr() as *const T as *mut T;
+				let c_addr = c.as_ptr() as *const U as *mut U;
+				let r_addr = r.as_ptr() as *const T as *mut T;
 
 				/* Compute a pointer for the left-most return span.
 
@@ -955,7 +929,7 @@ where
 					runs for the remaining bits in it, and all the bits of `l`.
 					*/
 					Some((head, addr)) => BitSpan::new_unchecked(
-						addr,
+						addr as *const T as *mut T,
 						head,
 						t_bits - head.value() as usize + l_bits,
 					),
@@ -993,7 +967,12 @@ where
 					Some((addr, tail)) => BitSpan::new_unchecked(
 						//  If the `r` slice exists, then the right span
 						//  *begins* in it.
-						if r.is_empty() { addr } else { r_addr },
+						if r.is_empty() {
+							addr as *const T as *mut T
+						}
+						else {
+							r_addr
+						},
 						BitIdx::ZERO,
 						tail.value() as usize + r_bits,
 					),
@@ -1029,7 +1008,7 @@ where
 	/// The address of the starting element of the memory region. This address
 	/// is weakly typed so that it can be cast by call sites to the most useful
 	/// access type.
-	pub(crate) fn pointer(&self) -> Address<T> {
+	pub(crate) fn pointer(&self) -> Address<T, M> {
 		unsafe {
 			Address::new_unchecked(
 				self.ptr.as_ptr() as usize & Self::PTR_ADDR_MASK,
@@ -1053,7 +1032,7 @@ where
 	#[cfg(any(feature = "alloc", test))]
 	pub(crate) unsafe fn set_pointer<A>(&mut self, addr: A)
 	where
-		A: TryInto<Address<T>>,
+		A: TryInto<Address<T, M>>,
 		A::Error: Debug,
 	{
 		let addr = addr.try_into().unwrap();
@@ -1159,7 +1138,7 @@ where
 	/// - `.1`: The index of the first live bit in the first element of the
 	///   region.
 	/// - `.2`: The number of live bits in the region.
-	pub(crate) fn raw_parts(&self) -> (Address<T>, BitIdx<T::Mem>, usize) {
+	pub(crate) fn raw_parts(&self) -> (Address<T, M>, BitIdx<T::Mem>, usize) {
 		(self.pointer(), self.head(), self.len())
 	}
 
@@ -1430,31 +1409,154 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, T> Clone for BitSpan<O, T>
+impl<O, T> BitSpan<O, T, Const>
 where
 	O: BitOrder,
 	T: BitStore,
+{
+	/// Converts an opaque `*BitSlice` wide pointer back into a `BitSpan`.
+	///
+	/// This should compile down to a noöp, but the implementation should
+	/// nevertheless be an explicit deconstruction and reconstruction rather
+	/// than a bare [`mem::transmute`], to guard against unforseen compiler
+	/// reördering.
+	///
+	/// # Parameters
+	///
+	/// - `raw`: An opaque bit-region pointer
+	///
+	/// # Returns
+	///
+	/// `raw`, interpreted as a `BitSpan` so that it can be used as more than an
+	/// opaque handle.
+	///
+	/// [`mem::transmute`]: core::mem::transmute
+	//  Immutable pointers can only become immutable span descriptors.
+	pub(crate) fn from_bitslice_ptr(raw: *const BitSlice<O, T>) -> Self {
+		let slice_nn = match NonNull::new(raw as *const [()] as *mut [()]) {
+			Some(nn) => nn,
+			None => return Self::EMPTY,
+		};
+		let ptr = slice_nn.cast::<u8>();
+		let len = unsafe { slice_nn.as_ref() }.len();
+		Self {
+			ptr,
+			len,
+			_or: PhantomData,
+			_ty: PhantomData,
+		}
+	}
+
+	/// Assert that an immutable span pointer is in fact mutable.
+	///
+	/// This can only be called from a context where a mutable span descriptor
+	/// was lowered to immutable and needs to be re-raised; it is Undefined
+	/// Behavior in the compiler to call it on a span descriptor that was never
+	/// mutable.
+	pub(crate) unsafe fn assert_mut(self) -> BitSpan<O, T, Mut> {
+		let Self { ptr, len, _or, .. } = self;
+		BitSpan {
+			ptr,
+			len,
+			_or,
+			_ty: PhantomData,
+		}
+	}
+}
+
+impl<O, T> BitSpan<O, T, Mut>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	/// Casts the `BitSpan` to an opaque `*BitSlice` pointer.
+	///
+	/// See [`.to_bitslice_ptr()`].
+	///
+	/// [`.to_bitslice_ptr()`]: Self::to_bitslice_ptr
+	//  Only mutable span descriptors can become mutable pointers.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	pub(crate) fn to_bitslice_ptr_mut(self) -> *mut BitSlice<O, T> {
+		self.to_bitslice_ptr() as *mut BitSlice<O, T>
+	}
+
+	/// Casts the `BitSpan` to a `&mut BitSlice` reference.
+	///
+	/// This requires that the pointer be to a validly-allocated region that is
+	/// not destroyed for the duration of the provided lifetime. Additionally,
+	/// the bits described by `self` must not be viewable by any other handle.
+	///
+	/// # Lifetimes
+	///
+	/// - `'a`: A caller-provided lifetime that must not be greater than the
+	///   duration of the referent buffer.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// `self`, opacified as an exclusive bit-slice region reference rather than
+	/// a `BitSpan` structure.
+	//  Only mutable span descriptors can become mutable references.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	pub(crate) fn to_bitslice_mut<'a>(self) -> &'a mut BitSlice<O, T> {
+		unsafe { &mut *self.to_bitslice_ptr_mut() }
+	}
+
+	/// Casts the pointer structure into a [`NonNull<BitSlice>`] pointer.
+	///
+	/// This function is used by the owning indirect handles, and does not yet
+	/// have any purpose in non-`alloc` programs.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// `self`, marked as a `NonNull` pointer.
+	///
+	/// [`NonNull<BitSlice>`]: core::ptr::NonNull
+	#[cfg(any(feature = "alloc", test))]
+	#[cfg(not(tarpaulin_include))]
+	pub(crate) fn to_nonnull(self) -> NonNull<BitSlice<O, T>> {
+		self.to_bitslice_mut().into()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<O, T, M> Clone for BitSpan<O, T, M>
+where
+	O: BitOrder,
+	T: BitStore,
+	M: Mutability,
 {
 	fn clone(&self) -> Self {
 		*self
 	}
 }
 
-impl<O, T> Eq for BitSpan<O, T>
+impl<O, T, M> Eq for BitSpan<O, T, M>
 where
 	O: BitOrder,
 	T: BitStore,
+	M: Mutability,
 {
 }
 
-impl<O, T, U> PartialEq<BitSpan<O, U>> for BitSpan<O, T>
+impl<O, T, U, M, N> PartialEq<BitSpan<O, U, N>> for BitSpan<O, T, M>
 where
 	O: BitOrder,
 	T: BitStore,
 	U: BitStore,
+	M: Mutability,
+	N: Mutability,
 {
-	fn eq(&self, other: &BitSpan<O, U>) -> bool {
+	fn eq(&self, other: &BitSpan<O, U, N>) -> bool {
 		let (addr_a, head_a, bits_a) = self.raw_parts();
 		let (addr_b, head_b, bits_b) = other.raw_parts();
 		//  Since ::BITS is an associated const, the compiler will automatically
@@ -1467,40 +1569,44 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> Default for BitSpan<O, T>
+impl<O, T, M> Default for BitSpan<O, T, M>
 where
 	O: BitOrder,
 	T: BitStore,
+	M: Mutability,
 {
 	fn default() -> Self {
 		Self::EMPTY
 	}
 }
 
-impl<O, T> Debug for BitSpan<O, T>
+impl<O, T, M> Debug for BitSpan<O, T, M>
 where
 	O: BitOrder,
 	T: BitStore,
+	M: Mutability,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Pointer::fmt(self, fmt)
 	}
 }
 
-impl<O, T> Pointer for BitSpan<O, T>
+impl<O, T, M> Pointer for BitSpan<O, T, M>
 where
 	O: BitOrder,
 	T: BitStore,
+	M: Mutability,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		self.render(fmt, "Ptr", None)
 	}
 }
 
-impl<O, T> Copy for BitSpan<O, T>
+impl<O, T, M> Copy for BitSpan<O, T, M>
 where
 	O: BitOrder,
 	T: BitStore,
+	M: Mutability,
 {
 }
 
@@ -1599,7 +1705,7 @@ where
 				"Length {} is too long to encode in a bit slice, which can \
 				 only accept {} bits",
 				len,
-				BitSpan::<O, T>::REGION_MAX_BITS
+				BitSpan::<O, T, Const>::REGION_MAX_BITS
 			),
 			Self::TooHigh(addr) => {
 				write!(fmt, "Address {:p} would wrap the address space", addr)
@@ -1641,31 +1747,38 @@ mod tests {
 
 	#[test]
 	fn ctor() {
-		assert!(matches!(Address::<u8>::new(0), Err(AddressError::Null)));
 		assert!(matches!(
-			Address::<u16>::new(3),
+			Address::<u8, Const>::new(0),
+			Err(AddressError::Null)
+		));
+		assert!(matches!(
+			Address::<u16,Const>::new(3),
 			Err(AddressError::Misaligned(addr)) if addr as usize == 3
 		));
 
 		let data = 0u8;
-		assert!(BitSpan::<LocalBits, _>::new(&data, BitIdx::ZERO, 5).is_ok());
+		assert!(BitSpan::<LocalBits, _, _>::new(&data, BitIdx::ZERO, 5).is_ok());
 		assert!(matches!(
-			BitSpan::<LocalBits, _>::new(&data, BitIdx::ZERO, (!0 >> 3) + 1),
+			BitSpan::<LocalBits, _, _>::new(&data, BitIdx::ZERO, (!0 >> 3) + 1),
 			Err(BitSpanError::TooLong(_))
 		));
 		assert!(matches!(
-			BitSpan::<LocalBits, _>::new(!0usize as *const u8, BitIdx::ZERO, 8),
+			BitSpan::<LocalBits, _, _>::new(
+				!0usize as *const u8,
+				BitIdx::ZERO,
+				8
+			),
 			Err(BitSpanError::TooHigh(_))
 		));
 
 		//  Double check the null pointers, but they are in practice impossible
 		//  to construct.
 		assert_eq!(
-			BitSpan::from_bitslice_ptr(ptr::slice_from_raw_parts(
-				ptr::null::<()>(),
-				1
-			) as *mut BitSlice<LocalBits, u8>),
-			BitSpan::<LocalBits, u8>::EMPTY,
+			BitSpan::<LocalBits, u8, Const>::from_bitslice_ptr(
+				ptr::slice_from_raw_parts(ptr::null::<()>(), 1)
+					as *mut BitSlice<LocalBits, u8>
+			),
+			BitSpan::<LocalBits, u8, Const>::EMPTY,
 		);
 	}
 
@@ -1673,9 +1786,12 @@ mod tests {
 	fn recast() {
 		let data = 0u32;
 		let bitspan =
-			BitSpan::<LocalBits, _>::new(&data, BitIdx::ZERO, 32).unwrap();
+			BitSpan::<LocalBits, _, _>::new(&data, BitIdx::ZERO, 32).unwrap();
 		let raw_ptr = bitspan.to_bitslice_ptr();
-		assert_eq!(bitspan, BitSpan::from_bitslice_ptr(raw_ptr));
+		assert_eq!(
+			bitspan,
+			BitSpan::<Lsb0, u32, Const>::from_bitslice_ptr(raw_ptr)
+		);
 	}
 
 	#[test]
@@ -1731,11 +1847,11 @@ mod tests {
 	#[test]
 	fn mem_size() {
 		assert_eq!(
-			mem::size_of::<BitSpan<LocalBits, usize>>(),
+			mem::size_of::<BitSpan<LocalBits, usize, Const>>(),
 			mem::size_of::<*const [usize]>()
 		);
 		assert_eq!(
-			mem::size_of::<Option<BitSpan<LocalBits, usize>>>(),
+			mem::size_of::<Option<BitSpan<LocalBits, usize, Const>>>(),
 			mem::size_of::<*const [usize]>()
 		);
 	}
@@ -1747,15 +1863,15 @@ mod tests {
 		use alloc::format;
 
 		assert_eq!(
-			format!("{}", Address::<u8>::new(0).unwrap_err()),
+			format!("{}", Address::<u8, Const>::new(0).unwrap_err()),
 			"Cannot use a null pointer"
 		);
 		assert_eq!(
-			format!("{}", Address::<u16>::new(0x13579).unwrap_err()),
+			format!("{}", Address::<u16, Const>::new(0x13579).unwrap_err()),
 			"Address 0x13579 must clear its least 1 bits to be aligned for u16"
 		);
 		assert_eq!(
-			format!("{}", Address::<u32>::new(0x13579).unwrap_err()),
+			format!("{}", Address::<u32, Const>::new(0x13579).unwrap_err()),
 			"Address 0x13579 must clear its least 2 bits to be aligned for u32"
 		);
 	}

@@ -2,6 +2,7 @@
 
 use crate::{
 	mem::BitMemory,
+	mutability::Mut,
 	order::BitOrder,
 	ptr::BitSpan,
 	slice::BitSlice,
@@ -55,7 +56,7 @@ where
 	/// ```
 	pub fn new() -> Self {
 		Self {
-			pointer: BitSpan::<O, T>::EMPTY.to_nonnull(),
+			pointer: BitSpan::<O, T, Mut>::EMPTY.to_nonnull(),
 			capacity: 0,
 		}
 	}
@@ -113,11 +114,11 @@ where
 			capacity,
 			BitSlice::<O, T>::MAX_BITS
 		);
-		let vec = capacity
+		let mut vec = capacity
 			.pipe(crate::mem::elts::<T>)
 			.pipe(Vec::<T>::with_capacity)
 			.pipe(ManuallyDrop::new);
-		let (ptr, capacity) = (vec.as_ptr(), vec.capacity());
+		let (ptr, capacity) = (vec.as_mut_ptr(), vec.capacity());
 		let pointer = ptr.pipe(BitSpan::uninhabited).pipe(BitSpan::to_nonnull);
 		Self { pointer, capacity }
 	}
@@ -585,7 +586,7 @@ where
 	///
 	/// [`.as_mut_bitslice()`]: Self::as_mut_bitslice
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
-		let bitspan = self.bit_span();
+		let bitspan = self.bit_span_mut();
 		let (base, elts) = (bitspan.pointer().to_mut(), bitspan.elements());
 		unsafe { slice::from_raw_parts_mut(base, elts) }
 	}
@@ -665,7 +666,7 @@ where
 	///
 	/// [`.as_mut_bitspan()`]: Self::as_mut_bitspan
 	pub fn as_mut_ptr(&mut self) -> *mut T {
-		self.bit_span().pointer().to_mut()
+		self.bit_span_mut().pointer().to_mut()
 	}
 
 	/// Forces the length of the vector to `new_len`.
@@ -1199,7 +1200,7 @@ where
 	pub fn leak<'a>(self) -> &'a mut BitSlice<O, T> {
 		self.pipe(ManuallyDrop::new)
 			.as_mut_bitslice()
-			.bit_span()
+			.bit_span_mut()
 			.to_bitslice_mut()
 	}
 

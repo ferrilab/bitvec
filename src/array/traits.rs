@@ -212,7 +212,7 @@ where
 	fn try_from(
 		src: &'a mut BitSlice<O, V::Store>,
 	) -> Result<Self, Self::Error> {
-		let bitspan = src.bit_span();
+		let bitspan = src.bit_span_mut();
 		if src.len() != V::const_bits() || bitspan.head() != BitIdx::ZERO {
 			return Self::Error::err(&*src);
 		}

@@ -3,8 +3,15 @@
 use crate::{
 	index::BitIdx,
 	mem::BitMemory,
+	mutability::{
+		Const,
+		Mut,
+	},
 	order::BitOrder,
-	ptr::BitSpan,
+	ptr::{
+		Address,
+		BitSpan,
+	},
 	slice::{
 		proxy::BitMut,
 		BitSlice,
@@ -84,7 +91,7 @@ where
 	T: BitStore,
 {
 	/// Address of the element with the first live bit.
-	base: NonNull<T>,
+	base: Address<T, Const>,
 	/// Address of the element containing the first dead bit.
 	///
 	/// This address may or may not be dereferencable, but thanks to a rule in
@@ -93,7 +100,7 @@ where
 	/// the end of a live region is required to be legial. It is not required to
 	/// be equal to a numerically-identical pointer that is the base address of
 	/// a separate adjoining region, but the distinction is not important here.
-	last: NonNull<T>,
+	last: Address<T, Const>,
 	/// Semantic index of the first live bit.
 	head: BitIdx<T::Mem>,
 	/// Semantic index of the first dead bit after the last live bit. This may
@@ -119,8 +126,8 @@ where
 {
 	/// The canonical empty iterator.
 	const EMPTY: Self = Self {
-		base: NonNull::dangling(),
-		last: NonNull::dangling(),
+		base: Address::DANGLING,
+		last: Address::DANGLING,
 		head: BitIdx::ZERO,
 		tail: BitIdx::ZERO,
 		_ref: PhantomData,
@@ -128,12 +135,13 @@ where
 
 	/// Constructs a new slice iterator from a slice reference.
 	fn new(slice: &'a BitSlice<O, T>) -> Self {
-		let (addr, head, bits) = slice.bit_span().raw_parts();
-		let addr = addr.to_mut();
-		let base = unsafe { NonNull::new_unchecked(addr) };
+		let (base, head, bits) = slice.bit_span().raw_parts();
 
 		let (elts, tail) = head.offset(bits as isize);
-		let last = unsafe { NonNull::new_unchecked(addr.offset(elts)) };
+		let last = unsafe {
+			NonNull::new_unchecked(base.to_const().offset(elts) as *mut T)
+		}
+		.into();
 
 		Self {
 			base,
@@ -183,10 +191,8 @@ where
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
 	pub fn as_bitslice(&self) -> &'a BitSlice<O, T> {
-		unsafe {
-			BitSpan::new_unchecked(self.base.as_ptr(), self.head, self.len())
-		}
-		.to_bitslice_ref()
+		unsafe { BitSpan::new_unchecked(self.base, self.head, self.len()) }
+			.to_bitslice_ref()
 	}
 
 	/* Allow the standard-library name to resolve, but instruct the user to
@@ -204,7 +210,7 @@ where
 
 	/// Removes the bit at the front of the iterator.
 	fn pop_front(&mut self) -> <Self as Iterator>::Item {
-		let base_raw = self.base.as_ptr() as *const T;
+		let base_raw = self.base.to_const();
 		let out = unsafe { &*base_raw }.get_bit::<O>(self.head);
 		let (head, incr) = self.head.next();
 		self.set_base(unsafe { base_raw.add(incr as usize) as *mut T });
@@ -216,9 +222,11 @@ where
 	/// Removes the bit at the back of the iterator.
 	fn pop_back(&mut self) -> <Self as Iterator>::Item {
 		let (tail, offset) = self.tail.prev();
-		self.set_last(unsafe { self.last.as_ptr().offset(-(offset as isize)) });
+		self.set_last(unsafe {
+			self.last.to_const().offset(-(offset as isize))
+		});
 		self.tail = tail;
-		if unsafe { &*self.last.as_ptr() }.get_bit::<O>(self.tail) {
+		if unsafe { &*self.last.to_const() }.get_bit::<O>(self.tail) {
 			&true
 		}
 		else {
@@ -227,19 +235,19 @@ where
 	}
 
 	fn get_base(&self) -> *const T {
-		self.base.as_ptr() as *const T
+		self.base.to_const()
 	}
 
 	fn get_last(&self) -> *const T {
-		self.last.as_ptr() as *const T
+		self.last.to_const()
 	}
 
 	fn set_base(&mut self, base: *const T) {
-		self.base = unsafe { NonNull::new_unchecked(base as *mut T) }
+		self.base = unsafe { Address::new_unchecked(base as usize) }
 	}
 
 	fn set_last(&mut self, last: *const T) {
-		self.last = unsafe { NonNull::new_unchecked(last as *mut T) }
+		self.last = unsafe { Address::new_unchecked(last as usize) }
 	}
 }
 
@@ -313,9 +321,9 @@ where
 	T: BitStore,
 {
 	/// Address of the element with the first live bit.
-	base: NonNull<<T::Alias as BitStore>::Access>,
+	base: Address<<T::Alias as BitStore>::Access, Mut>,
 	/// Address of the element with the first dead bit. See `Iter.last`.
-	last: NonNull<<T::Alias as BitStore>::Access>,
+	last: Address<<T::Alias as BitStore>::Access, Mut>,
 	/// Index of the first live bit in `*base`.
 	head: BitIdx<<T::Alias as BitStore>::Mem>,
 	/// Index of the first dead bit in `*last`. See `Iter.tail`.
@@ -331,8 +339,8 @@ where
 {
 	/// The canonical empty iterator.
 	const EMPTY: Self = Self {
-		base: NonNull::dangling(),
-		last: NonNull::dangling(),
+		base: Address::DANGLING,
+		last: Address::DANGLING,
 		head: BitIdx::ZERO,
 		tail: BitIdx::ZERO,
 		_ref: PhantomData,
@@ -340,14 +348,13 @@ where
 
 	/// Constructs a new slice mutable iterator from a slice reference.
 	fn new(slice: &'a mut BitSlice<O, T>) -> Self {
-		let (addr, head, bits) = slice.alias().bit_span().raw_parts();
-
-		let addr = addr.to_access()
-			as *mut <<T as BitStore>::Alias as BitStore>::Access;
-		let base = unsafe { NonNull::new_unchecked(addr) };
+		let (addr, head, bits) = slice.alias_mut().bit_span_mut().raw_parts();
 
 		let (elts, tail) = head.offset(bits as isize);
-		let last = unsafe { NonNull::new_unchecked(addr.offset(elts)) };
+		let base = unsafe { Address::new_unchecked(addr.to_access() as usize) };
+		let last = unsafe {
+			Address::new_unchecked(addr.to_access().offset(elts) as usize)
+		};
 
 		Self {
 			base,
@@ -409,9 +416,7 @@ where
 	pub fn into_bitslice(self) -> &'a mut BitSlice<O, T::Alias> {
 		unsafe {
 			BitSpan::new_unchecked(
-				self.base.as_ptr()
-					as *const <<T as BitStore>::Alias as BitStore>::Access
-					as *const <T as BitStore>::Alias,
+				self.base.to_mut() as *mut T::Alias,
 				self.head,
 				self.len(),
 			)
@@ -440,10 +445,10 @@ where
 	/// Removes the bit at the front of the iterator.
 	fn pop_front(&mut self) -> <Self as Iterator>::Item {
 		let out =
-			unsafe { BitMut::new_unchecked(self.base.as_ptr(), self.head) };
+			unsafe { BitMut::new_unchecked(self.base.to_mut(), self.head) };
 
 		let (head, incr) = self.head.next();
-		self.set_base(unsafe { self.base.as_ptr().add(incr as usize) });
+		self.set_base(unsafe { self.base.to_mut().add(incr as usize) });
 		self.head = head;
 
 		out
@@ -452,26 +457,26 @@ where
 	/// Removes the bit at the back of the iterator.
 	fn pop_back(&mut self) -> <Self as Iterator>::Item {
 		let (tail, decr) = self.tail.prev();
-		self.set_last(unsafe { self.last.as_ptr().sub(decr as usize) });
+		self.set_last(unsafe { self.last.to_mut().sub(decr as usize) });
 		self.tail = tail;
 
-		unsafe { BitMut::new_unchecked(self.last.as_ptr(), self.tail) }
+		unsafe { BitMut::new_unchecked(self.last.to_mut(), self.tail) }
 	}
 
 	fn get_base(&self) -> *mut <T::Alias as BitStore>::Access {
-		self.base.as_ptr()
+		self.base.to_mut()
 	}
 
 	fn get_last(&self) -> *mut <T::Alias as BitStore>::Access {
-		self.last.as_ptr()
+		self.last.to_mut()
 	}
 
 	fn set_base(&mut self, base: *mut <T::Alias as BitStore>::Access) {
-		self.base = unsafe { NonNull::new_unchecked(base) }
+		self.base = unsafe { Address::new_unchecked(base as usize) }
 	}
 
 	fn set_last(&mut self, last: *mut <T::Alias as BitStore>::Access) {
-		self.last = unsafe { NonNull::new_unchecked(last) }
+		self.last = unsafe { Address::new_unchecked(last as usize) }
 	}
 }
 
@@ -498,7 +503,7 @@ macro_rules! iter {
 		{
 			/// Tests whether the iterator is *any* empty iterator.
 			fn inherent_is_empty(&self) -> bool {
-				self.base == self.last && self.head == self.tail
+				self.base.value() == self.last.value() && self.head == self.tail
 			}
 		}
 

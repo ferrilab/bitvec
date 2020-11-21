@@ -32,6 +32,10 @@ before freezing it.
 use crate::{
 	index::BitIdx,
 	mem::BitMemory,
+	mutability::{
+		Const,
+		Mut,
+	},
 	order::{
 		BitOrder,
 		Lsb0,
@@ -227,7 +231,7 @@ where
 			return Err(boxed);
 		}
 
-		let base = boxed.as_ptr();
+		let base = boxed.as_ptr() as *mut T;
 		mem::forget(boxed);
 		Ok(Self {
 			pointer: unsafe {
@@ -310,8 +314,8 @@ where
 	///
 	/// [`BitVec<O, T>`]: crate::vec::BitVec
 	/// [`.into_boxed_bitslice()`]: crate::vec::BitVec::into_boxed_bitslice
-	pub fn into_bitvec(self) -> BitVec<O, T> {
-		let mut bitspan = self.bit_span();
+	pub fn into_bitvec(mut self) -> BitVec<O, T> {
+		let mut bitspan = self.bit_span_mut();
 		let raw = self
 			//  Disarm the `self` destructor
 			.pipe(ManuallyDrop::new)
@@ -369,7 +373,7 @@ where
 	/// bits.set(0, true);
 	/// ```
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
-		self.bit_span().to_bitslice_mut()
+		self.bit_span_mut().to_bitslice_mut()
 	}
 
 	/// Extracts an element slice containing the entire box.
@@ -416,7 +420,7 @@ where
 	///
 	/// [`.as_mut_bitslice()`]: Self::as_mut_bitslice
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
-		let bitspan = self.bit_span();
+		let bitspan = self.bit_span_mut();
 		let (base, elts) = (bitspan.pointer().to_mut(), bitspan.elements());
 		unsafe { slice::from_raw_parts_mut(base, elts) }
 	}
@@ -447,7 +451,7 @@ where
 		let head = self.bit_span().head().value() as usize;
 		let tail = head + self.len();
 		let elts = self.bit_span().elements() * T::Mem::BITS as usize;
-		let mut bp = self.bit_span();
+		let mut bp = self.bit_span_mut();
 		unsafe {
 			bp.set_head(BitIdx::ZERO);
 			bp.set_len(elts);
@@ -457,8 +461,13 @@ where
 		}
 	}
 
-	/// Views the handle’s encoded pointer.
-	pub(crate) fn bit_span(&self) -> BitSpan<O, T> {
+	/// Type-cast the slice pointer to its encoded structure.
+	pub(crate) fn bit_span(&self) -> BitSpan<O, T, Const> {
+		self.pointer.as_ptr().pipe(BitSpan::from_bitslice_ptr_mut)
+	}
+
+	/// Type-cast the slice pointer to its encoded structure.
+	pub(crate) fn bit_span_mut(&mut self) -> BitSpan<O, T, Mut> {
 		self.pointer.as_ptr().pipe(BitSpan::from_bitslice_ptr_mut)
 	}
 

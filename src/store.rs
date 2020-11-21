@@ -155,7 +155,7 @@ pub trait BitStore: 'static + seal::Sealed + Debug {
 	/// A type that selects appropriate load/store instructions used for
 	/// accessing the memory bus. It determines what instructions are used when
 	/// moving a `Self::Mem` value between the processor and the memory system.
-	type Access: BitAccess<Item = Self::Mem>;
+	type Access: BitAccess<Item = Self::Mem> + BitStore<Mem = Self::Mem>;
 	/// A sibling `BitStore` implementor. It is used when a [`BitSlice`]
 	/// introduces multiple handles that view the same memory location, and at
 	/// least one of them has write permission to it.
