@@ -1,0 +1,325 @@
+use crate::{
+	index::BitIdx,
+	mem::BitMemory,
+	mutability::Mutability,
+	order::BitOrder,
+	ptr::{
+		Address,
+		BitPtr,
+		BitSpan,
+	},
+	store::BitStore,
+};
+
+use core::{
+	iter::FusedIterator,
+	marker::PhantomData,
+	ops::Range,
+};
+
+/** Corresponds to `Range<*bool>`, as `Range<BitPtr>` is not representable.
+
+`Range` depends on a number of unstable associated traits, and as a container
+defined in `core`, cannot be extended here.
+
+This is strictly an exclusive range: the end pointer is not included in the span
+that the range describes.
+
+# Original
+
+[`Range<*bool>`](core::ops::Range)
+
+# API Differences
+
+This cannot be constructed directly from the `..` syntax, though a `From`
+implementation is provided.
+
+# Type Parameters
+
+- `O`: The ordering of bits within a memory element.
+- `T`: The type of memory elements referenced by the pointers.
+- `M`: The mutability permissions of the pointers.
+**/
+pub struct BitPtrRange<O, T, M>
+where
+	O: BitOrder,
+	T: BitStore,
+	M: Mutability,
+{
+	base: Address<T, M>,
+	last: Address<T, M>,
+	head: BitIdx<T::Mem>,
+	tail: BitIdx<T::Mem>,
+	_ord: PhantomData<O>,
+}
+
+impl<O, T, M> BitPtrRange<O, T, M>
+where
+	O: BitOrder,
+	T: BitStore,
+	M: Mutability,
+{
+	/// An empty range.
+	pub const EMPTY: Self = Self {
+		base: Address::DANGLING,
+		last: Address::DANGLING,
+		head: BitIdx::ZERO,
+		tail: BitIdx::ZERO,
+		_ord: PhantomData,
+	};
+
+	/// Produces the inclusive start and exclusive end pointers of the range.
+	///
+	/// # Parameters
+	///
+	/// - `self`: A clone of the range to destructure.
+	///
+	/// # Returns
+	///
+	/// - `.0`: The inclusive start pointer of the range.
+	/// - `.1`: The exclusive end pointer of the range.
+	pub fn pointers(self) -> (BitPtr<O, T, M>, BitPtr<O, T, M>) {
+		unsafe {
+			(
+				BitPtr::new_unchecked(self.base, self.head),
+				BitPtr::new_unchecked(self.last, self.tail),
+			)
+		}
+	}
+
+	/// Returns `true` if the range contains no referent bits.
+	///
+	/// # Original
+	///
+	/// [`Range::is_empty`](core::ops::Range::is_empty)
+	pub fn is_empty(&self) -> bool {
+		let (start, end) = self.pointers();
+		start == end
+	}
+
+	/// Returns `true` if the `pointer` is contained in the range.
+	///
+	/// # Original
+	///
+	/// [`Range::contains`](core::ops::Range::contains)
+	///
+	/// # API Differences
+	///
+	/// This permits pointers of similar memory element type, and any mutability
+	/// permission, rather than being constrained to exactly the same type as
+	/// the range.
+	pub fn contains<U, N>(&self, pointer: BitPtr<O, U, N>) -> bool
+	where
+		U: BitStore,
+		N: Mutability,
+	{
+		let (start, end) = self.pointers();
+		start <= pointer && pointer < end
+	}
+
+	pub(crate) fn into_bit_span(self) -> BitSpan<O, T, M> {
+		unsafe { BitSpan::new_unchecked(self.base, self.head, self.len()) }
+	}
+
+	/// Takes a pointer from the front of the range.
+	///
+	/// # Preconditions
+	///
+	/// `self` must not be empty.
+	///
+	/// # Behavior
+	///
+	/// The front pointer is returned, then incremented.
+	fn take_front(&mut self) -> BitPtr<O, T, M> {
+		let out = unsafe { BitPtr::new_unchecked(self.base, self.head) };
+		let (head, incr) = self.head.next();
+		self.head = head;
+		self.base = unsafe {
+			Address::new_unchecked(
+				self.base.to_const().add(incr as usize) as usize
+			)
+		};
+		out
+	}
+
+	/// Takes a pointer from the back of the range.
+	///
+	/// # Preconditions
+	///
+	/// `self` must not be empty
+	///
+	/// # Behavior
+	///
+	/// The back pointer is decremented, then returned.
+	fn take_back(&mut self) -> BitPtr<O, T, M> {
+		let (tail, decr) = self.tail.prev();
+		self.tail = tail;
+		unsafe {
+			self.last = Address::new_unchecked(
+				self.last.to_const().sub(decr as usize) as usize,
+			);
+			BitPtr::new_unchecked(self.last, self.tail)
+		}
+	}
+}
+
+impl<O, T, M> Clone for BitPtrRange<O, T, M>
+where
+	O: BitOrder,
+	T: BitStore,
+	M: Mutability,
+{
+	fn clone(&self) -> Self {
+		*self
+	}
+}
+
+impl<O, T, M> From<BitSpan<O, T, M>> for BitPtrRange<O, T, M>
+where
+	O: BitOrder,
+	T: BitStore,
+	M: Mutability,
+{
+	fn from(span: BitSpan<O, T, M>) -> Self {
+		let (base, head, bits) = span.raw_parts();
+		let (elts, tail) = head.offset(bits as isize);
+		let last = unsafe {
+			Address::new_unchecked(base.to_const().offset(elts) as usize)
+		};
+		Self {
+			base,
+			last,
+			head,
+			tail,
+			_ord: PhantomData,
+		}
+	}
+}
+
+impl<O, T, M> From<Range<BitPtr<O, T, M>>> for BitPtrRange<O, T, M>
+where
+	O: BitOrder,
+	T: BitStore,
+	M: Mutability,
+{
+	fn from(Range { start, end }: Range<BitPtr<O, T, M>>) -> Self {
+		let (base, head) = start.raw_parts();
+		let (last, tail) = end.raw_parts();
+		Self {
+			base,
+			last,
+			head,
+			tail,
+			_ord: PhantomData,
+		}
+	}
+}
+
+impl<O, T, M> Iterator for BitPtrRange<O, T, M>
+where
+	O: BitOrder,
+	T: BitStore,
+	M: Mutability,
+{
+	type Item = BitPtr<O, T, M>;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		if Self::is_empty(&*self) {
+			return None;
+		}
+		Some(self.take_front())
+	}
+
+	fn nth(&mut self, n: usize) -> Option<Self::Item> {
+		if n >= self.len() {
+			self.base = self.last;
+			self.head = self.tail;
+			return None;
+		}
+		let (elts, head) = self.head.offset(n as isize);
+		self.head = head;
+		self.base = unsafe {
+			Address::new_unchecked(self.base.to_const().offset(elts) as usize)
+		};
+		Some(self.take_front())
+	}
+
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		let len = self.len();
+		(len, Some(len))
+	}
+
+	#[inline(always)]
+	fn count(self) -> usize {
+		self.len()
+	}
+
+	#[inline(always)]
+	fn last(mut self) -> Option<Self::Item> {
+		self.next_back()
+	}
+}
+
+impl<O, T, M> DoubleEndedIterator for BitPtrRange<O, T, M>
+where
+	O: BitOrder,
+	T: BitStore,
+	M: Mutability,
+{
+	fn next_back(&mut self) -> Option<Self::Item> {
+		if Self::is_empty(&*self) {
+			return None;
+		}
+		Some(self.take_back())
+	}
+
+	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+		if n >= self.len() {
+			self.last = self.base;
+			self.tail = self.head;
+			return None;
+		}
+		let (elts, tail) = self.tail.offset(-(n as isize));
+		self.tail = tail;
+		self.last = unsafe {
+			Address::new_unchecked(self.last.to_const().offset(elts) as usize)
+		};
+		Some(self.take_back())
+	}
+}
+
+impl<O, T, M> ExactSizeIterator for BitPtrRange<O, T, M>
+where
+	O: BitOrder,
+	T: BitStore,
+	M: Mutability,
+{
+	fn len(&self) -> usize {
+		//  Get the byte distance between the start and end pointers,
+		self.last
+			.value()
+			.wrapping_sub(self.base.value())
+			//  Multiply it by the bit-width of a byte,
+			.wrapping_mul(<u8 as BitMemory>::BITS as usize)
+			//  Add any excess bits in the tail element,
+			.wrapping_add(self.tail.value() as usize)
+			//  And subtract any excess bits in the head element.
+			.wrapping_sub(self.head.value() as usize)
+	}
+}
+
+impl<O, T, M> FusedIterator for BitPtrRange<O, T, M>
+where
+	O: BitOrder,
+	T: BitStore,
+	M: Mutability,
+{
+}
+
+impl<O, T, M> Copy for BitPtrRange<O, T, M>
+where
+	O: BitOrder,
+	T: BitStore,
+	M: Mutability,
+{
+}

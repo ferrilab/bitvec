@@ -140,7 +140,7 @@ where R: BitRegister
 	///
 	/// [`Self::LAST`]: Self::LAST
 	/// [`Self::ZERO`]: Self::ZERO
-	pub(crate) fn new(value: u8) -> Result<Self, BitIdxErr<R>> {
+	pub fn new(value: u8) -> Result<Self, BitIdxErr<R>> {
 		if value >= R::BITS {
 			return Err(BitIdxErr::new(value));
 		}
@@ -166,7 +166,7 @@ where R: BitRegister
 	///
 	/// [`Self::LAST`]: Self::LAST
 	/// [`Self::ZERO`]: Self::ZERO
-	pub(crate) unsafe fn new_unchecked(value: u8) -> Self {
+	pub unsafe fn new_unchecked(value: u8) -> Self {
 		debug_assert!(
 			value < R::BITS,
 			"Bit index {} cannot exceed type width {}",
@@ -195,7 +195,7 @@ where R: BitRegister
 	///
 	/// - `.0`: The next index after `self`.
 	/// - `.1`: Indicates that the new index is in the next register.
-	pub(crate) fn next(self) -> (Self, bool) {
+	pub fn next(self) -> (Self, bool) {
 		let next = self.idx + 1;
 		(
 			unsafe { Self::new_unchecked(next & R::MASK) },
@@ -213,7 +213,7 @@ where R: BitRegister
 	///
 	/// - `.0`: The previous index before `self`.
 	/// - `.1`: Indicates that the new index is in the previous register.
-	pub(crate) fn prev(self) -> (Self, bool) {
+	pub fn prev(self) -> (Self, bool) {
 		let prev = self.idx.wrapping_sub(1);
 		(
 			unsafe { Self::new_unchecked(prev & R::MASK) },
