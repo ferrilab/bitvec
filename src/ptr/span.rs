@@ -1,3 +1,5 @@
+//! Encoded pointer to a span region.
+
 use crate::{
 	access::BitAccess,
 	domain::Domain,

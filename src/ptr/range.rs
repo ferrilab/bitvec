@@ -1,3 +1,5 @@
+//! Implementation of `Range<BitPtr>`.
+
 use crate::{
 	index::BitIdx,
 	mem::BitMemory,
@@ -12,6 +14,12 @@ use crate::{
 };
 
 use core::{
+	fmt::{
+		self,
+		Debug,
+		Formatter,
+		Pointer,
+	},
 	iter::FusedIterator,
 	marker::PhantomData,
 	ops::Range,
@@ -163,6 +171,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, M> Clone for BitPtrRange<O, T, M>
 where
 	O: BitOrder,
@@ -174,6 +183,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, M> From<BitSpan<O, T, M>> for BitPtrRange<O, T, M>
 where
 	O: BitOrder,
@@ -196,6 +206,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, M> From<Range<BitPtr<O, T, M>>> for BitPtrRange<O, T, M>
 where
 	O: BitOrder,
@@ -212,6 +223,21 @@ where
 			tail,
 			_ord: PhantomData,
 		}
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<O, T, M> Debug for BitPtrRange<O, T, M>
+where
+	O: BitOrder,
+	T: BitStore,
+	M: Mutability,
+{
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		let (from, upto) = self.pointers();
+		Pointer::fmt(&from, fmt)?;
+		fmt.write_str("..")?;
+		Pointer::fmt(&upto, fmt)
 	}
 }
 
@@ -244,17 +270,20 @@ where
 		Some(self.take_front())
 	}
 
+	#[cfg(not(tarpaulin_include))]
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		let len = self.len();
 		(len, Some(len))
 	}
 
 	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	fn count(self) -> usize {
 		self.len()
 	}
 
 	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	fn last(mut self) -> Option<Self::Item> {
 		self.next_back()
 	}

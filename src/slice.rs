@@ -1898,7 +1898,7 @@ where
 	/// [`Radium`]: radium::Radium
 	pub unsafe fn set_aliased_unchecked(&self, index: usize, value: bool)
 	where T: radium::Radium {
-		unsafe { self.bit_span().assert_mut() }.write(index, value);
+		self.bit_span().assert_mut().write(index, value);
 	}
 
 	/// Swaps two bits in the slice.

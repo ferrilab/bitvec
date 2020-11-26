@@ -1,15 +1,16 @@
 /*! Bit-region pointer encoding.
 
-This module defines the in-memory representation of the handle to a [`BitSlice`]
-region. This structure is crate-internal, and defines the behavior required to
-store a `*BitSlice` pointer and use it to access a memory region.
+This module defines the in-memory representations of various pointers to bits.
+These include single-bit pointers, and pairs of them, which cannot be encoded
+into a raw Rust pointer, and span descriptors, which can be encoded into a raw
+Rust slice pointer and retyped as [`*BitSlice`].
 
-Currently, this module is absolutely forbidden for export outside the crate, and
-its implementation cannot be relied upon. Future work *may* choose to stabilize
-the encoding, and make it publicly available, but this work is not a priority
-for the project.
+This module makes the type symbols available to the public API, but they are all
+opaque types and their values **cannot** be modified by user code. The encoding
+system used to pack span descriptors into slice-pointer types is not public API,
+and is not available for general inspection or modification.
 
-[`BitSlice`]: crate::slice::BitSlice
+[`*BitSlice`]: crate::slice::BitSlice
 !*/
 
 use crate::{
@@ -26,7 +27,10 @@ use crate::{
 
 use core::{
 	any,
-	convert::TryFrom,
+	convert::{
+		Infallible,
+		TryFrom,
+	},
 	fmt::{
 		self,
 		Debug,
@@ -279,6 +283,14 @@ where T: BitStore
 	Null,
 	/// The address was misaligned for the type.
 	Misaligned(*const T),
+}
+
+impl<T> From<Infallible> for AddressError<T>
+where T: BitStore
+{
+	fn from(_: Infallible) -> Self {
+		Self::Null
+	}
 }
 
 impl<T> Display for AddressError<T>

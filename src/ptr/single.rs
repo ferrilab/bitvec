@@ -1,3 +1,5 @@
+//! Unencoded pointer to a single bit.
+
 use crate::{
 	access::BitAccess,
 	index::BitIdx,
@@ -20,6 +22,13 @@ use core::{
 	convert::{
 		TryFrom,
 		TryInto,
+	},
+	fmt::{
+		self,
+		Binary,
+		Debug,
+		Formatter,
+		Pointer,
 	},
 	marker::PhantomData,
 	ptr::NonNull,
@@ -82,12 +91,10 @@ where
 	/// aligned for `T`, this returns an error rather than a pointer.
 	///
 	/// [`NonNull`]: core::ptr::NonNull
-	pub fn new<A>(
-		addr: A,
-		head: BitIdx<T::Mem>,
-	) -> Result<Self, AddressError<T>>
+	pub fn new<A>(addr: A, head: BitIdx<T::Mem>) -> Result<Self, AddressError<T>>
 	where
-		A: TryInto<Address<T, M>, Error = AddressError<T>>,
+		A: TryInto<Address<T, M>>,
+		AddressError<T>: From<A::Error>,
 	{
 		let addr = addr.try_into()?;
 		Ok(unsafe { Self::new_unchecked(addr, head) })
@@ -109,7 +116,8 @@ where
 	///
 	/// # Safety
 	///
-	/// `addr` is not inspected for correctness, and
+	/// `addr` is not inspected for correctness, and invalid values can
+	/// invalidate program state.
 	pub unsafe fn new_unchecked<A>(addr: A, head: BitIdx<T::Mem>) -> Self
 	where A: Into<Address<T, M>> {
 		let addr = addr.into();
@@ -295,10 +303,52 @@ where
 	}
 }
 
+impl<O, T, M> Debug for BitPtr<O, T, M>
+where
+	O: BitOrder,
+	T: BitStore,
+	M: Mutability,
+{
+	#[inline(always)]
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		Pointer::fmt(self, fmt)
+	}
+}
+
+impl<O, T, M> Pointer for BitPtr<O, T, M>
+where
+	O: BitOrder,
+	T: BitStore,
+	M: Mutability,
+{
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		Pointer::fmt(&self.addr, fmt)?;
+		fmt.write_str("_")?;
+		Binary::fmt(&self.head, fmt)
+	}
+}
+
 impl<O, T, M> Copy for BitPtr<O, T, M>
 where
 	O: BitOrder,
 	T: BitStore,
 	M: Mutability,
 {
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::order::Lsb0;
+
+	#[test]
+	fn ctor() {
+		let data = 0u16;
+		let head = BitIdx::new(5).unwrap();
+
+		let bitptr = BitPtr::<Lsb0, _, _>::new(&data, head).unwrap();
+		let (addr, indx) = bitptr.raw_parts();
+		assert_eq!(addr.to_const(), &data as *const _);
+		assert_eq!(indx.value(), 5);
+	}
 }

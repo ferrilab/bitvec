@@ -124,9 +124,8 @@ fn get_set() {
 	assert_eq!(a, bits![1, 0]);
 	assert_eq!(b, bits![0, 1]);
 
-	let mut proxy = a.get_mut(0).unwrap();
-	let proxy_slice = proxy.as_mut_bitslice();
-	assert_eq!(proxy_slice, bits![1]);
+	let proxy = a.get_mut(0).unwrap();
+	assert!(*proxy);
 
 	let byte = core::cell::Cell::new(0u8);
 	let shared = byte.view_bits::<Lsb0>();

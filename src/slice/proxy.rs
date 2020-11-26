@@ -19,11 +19,16 @@ standard library.
 use crate::{
 	access::BitAccess,
 	index::BitIdx,
+	mutability::Mut,
 	order::{
 		BitOrder,
 		Lsb0,
 	},
-	ptr::BitSpan,
+	ptr::{
+		Address,
+		BitPtr,
+		BitSpan,
+	},
 	slice::BitSlice,
 	store::BitStore,
 };
@@ -40,7 +45,6 @@ use core::{
 		Deref,
 		DerefMut,
 	},
-	ptr::NonNull,
 };
 
 /** Proxy reference type, equivalent to `&mut bool`.
@@ -102,10 +106,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// Accessing pointer to the containing element.
-	addr: NonNull<T::Access>,
-	/// Index of the proxied bit within the containing element.
-	head: BitIdx<T::Mem>,
+	addr: BitPtr<O, T, Mut>,
 	/// A local cache for [`Deref`] usage.
 	///
 	/// [`Deref`]: core::ops::Deref
@@ -130,35 +131,19 @@ where
 	///
 	/// The caller must produce `addr`’s value from a valid reference, and its
 	/// type from the correct access requirements at time of construction.
-	pub(crate) unsafe fn new_unchecked(
-		addr: *const T::Access,
+	pub(crate) unsafe fn new_unchecked<A>(
+		addr: A,
 		head: BitIdx<T::Mem>,
 	) -> Self
+	where
+		A: Into<Address<T, Mut>>,
 	{
+		let addr = addr.into();
 		Self {
-			addr: NonNull::new_unchecked(addr as *mut T::Access),
-			head,
-			data: (&*(addr as *const T)).get_bit::<O>(head),
+			addr: BitPtr::new_unchecked(addr, head),
+			data: (&*(addr.to_access())).get_bit::<O>(head),
 			_ref: PhantomData,
 		}
-	}
-
-	/// Views the proxy as a `&BitSlice` of length 1, instead of a direct
-	/// proxy.
-	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
-		unsafe {
-			BitSpan::new_unchecked(self.addr.as_ptr() as *const T, self.head, 1)
-		}
-		.to_bitslice_ref()
-	}
-
-	/// Views the proxy as a `&mut BitSlice` of length 1, instead of a direct
-	/// proxy.
-	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
-		unsafe {
-			BitSpan::new_unchecked(self.addr.as_ptr() as *mut T, self.head, 1)
-		}
-		.to_bitslice_mut()
 	}
 
 	/// Removes an alias marking.
@@ -194,7 +179,8 @@ where
 	///
 	/// This is the internal function used to drive `.set()` and `.drop()`.
 	fn write(&mut self, value: bool) {
-		unsafe { (&*self.addr.as_ptr()).write_bit::<O>(self.head, value) }
+		let (addr, head) = self.addr.raw_parts();
+		unsafe { (&*addr.to_access()).write_bit::<O>(head, value) }
 	}
 }
 
@@ -204,8 +190,12 @@ where
 	T: BitStore,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		let bitspan = self.as_bitslice().bit_span();
-		bitspan.render(fmt, "Mut", &[("bit", &self.data as &dyn Debug)])
+		let (addr, head) = self.addr.raw_parts();
+		unsafe { BitSpan::<O, T, Mut>::new_unchecked(addr, head, 1) }.render(
+			fmt,
+			"Mut",
+			&[("bit", &self.data as &dyn Debug)],
+		)
 	}
 }
 

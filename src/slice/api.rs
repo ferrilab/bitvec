@@ -5,7 +5,10 @@ use crate::{
 	devel as dvl,
 	mem::BitMemory,
 	order::BitOrder,
-	ptr::BitSpan,
+	ptr::{
+		Address,
+		BitSpan,
+	},
 	slice::{
 		iter::{
 			Chunks,
@@ -2497,9 +2500,11 @@ where
 		slice: &'a mut BitSlice<O, T>,
 	) -> Self::Mut
 	{
-		let bitspan = slice.bit_span();
+		let bitspan = slice.bit_span_mut();
 		let (elt, bit) = bitspan.head().offset(self as isize);
-		let addr = bitspan.pointer().to_access().offset(elt);
+		let addr = Address::new_unchecked(
+			bitspan.pointer().to_mut().offset(elt) as usize,
+		);
 		BitMut::new_unchecked(addr, bit)
 	}
 
