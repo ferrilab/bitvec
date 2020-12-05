@@ -7,11 +7,11 @@ use crate::{
 	},
 	order::BitOrder,
 	ptr::{
+		BitMut,
 		BitPtr,
 		BitPtrRange,
 	},
 	slice::{
-		proxy::BitMut,
 		BitSlice,
 		BitSliceIndex,
 	},

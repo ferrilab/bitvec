@@ -4,9 +4,14 @@ use crate::{
 	array::BitArray,
 	devel as dvl,
 	mem::BitMemory,
+	mutability::{
+		Const,
+		Mut,
+	},
 	order::BitOrder,
 	ptr::{
 		Address,
+		BitPtr,
 		BitSpan,
 	},
 	slice::{
@@ -505,7 +510,7 @@ where
 	/// The caller must also ensure that the memory the pointer
 	/// (non-transitively) points to is never written to using this pointer or
 	/// any pointer derived from it. If you need to mutate the contents of the
-	/// slice, use [`.as_mut_bitspan()`].
+	/// slice, use [`.as_mut_bitptr()`].
 	///
 	/// Modifying the container referenced by this slice may cause its
 	/// buffer to be reällocated, which would also make any pointers to it
@@ -517,20 +522,12 @@ where
 	///
 	/// # API Differences
 	///
-	/// This returns `*const BitSlice`, which is the equivalent of `*const [T]`
-	/// instead of `*const T`. The pointer encoding used requires more than one
-	/// CPU word of space to address a single bit, so there is no advantage to
-	/// removing the length information from the encoded pointer value.
+	/// This returns a structure, [`BitPtr`], rather than an actual raw pointer
+	/// `*Bit`. The information required to address a bit within a memory
+	/// element cannot be encoded into a single pointer.
 	///
-	/// # Notes
-	///
-	/// You **cannot** use any of the methods in the `pointer` fundamental type
-	/// or the `core::ptr` module on the `*BitSlice` type. This pointer retains
-	/// the `bitvec`-specific value encoding, and is incomprehensible by the
-	/// Rust standard library.
-	///
-	/// The only thing you can do with this pointer is reborrow its referent
-	/// region with `&*`.
+	/// This structure can be converted back into a `&BitSlice` with the
+	/// function [`from_raw_parts`].
 	///
 	/// # Examples
 	///
@@ -547,10 +544,11 @@ where
 	/// }
 	/// ```
 	///
-	/// [`.as_mut_bitspan()`]: Self::as_mut_bitspan
-	#[deprecated = "Use `.as_bitspan()` to access the region pointer"]
-	pub fn as_ptr(&self) -> *const Self {
-		self.as_bitspan()
+	/// [`.as_mut_bitptr()`]: Self::as_mut_bitptr
+	/// [`from_raw_parts`]: crate::slice::from_raw_parts
+	#[deprecated = "Use `.as_bitptr()` to access the region pointer"]
+	pub fn as_ptr(&self) -> BitPtr<O, T, Const> {
+		self.as_bitptr()
 	}
 
 	/// Returns an unsafe mutable pointer to the slice’s region.
@@ -596,9 +594,9 @@ where
 	/// }
 	/// assert_eq!(bits.as_slice()[0], 0b0100_1001);
 	/// ```
-	#[deprecated = "Use `.as_mut_bitspan()` to access the region pointer"]
-	pub fn as_mut_ptr(&mut self) -> *mut Self {
-		self.as_mut_bitspan()
+	#[deprecated = "Use `.as_mut_bitptr()` to access the region pointer"]
+	pub fn as_mut_ptr(&mut self) -> BitPtr<O, T, Mut> {
+		self.as_mut_bitptr()
 	}
 
 	/// Swaps two bits in the slice.
@@ -2227,127 +2225,147 @@ where
 in comments. Once `rustfmt` is fixed, revert these to block comments.
 */
 
-/** Forms a [`BitSlice`] from a pointer and a length.
-
-The `len` argument is the number of **elements**, not the number of bits.
-
-# Original
-
-[`slice::from_raw_parts`](core::slice::from_raw_parts)
-
-# Safety
-
-Behavior is undefined if any of the following conditions are violated:
-**/
+/// Forms a bit-slice from a bit-pointer and a length.
 ///
-/// - `data` must be [valid] for `len * mem::size_of::<T>()` many bytes, and it
-///   must be properly aligned. This means in particular:
+/// The `len` argument is the number of **bits**, not the number of bytes or
+/// elements.
+///
+/// # Original
+///
+/// [`slice::from_raw_parts`](core::slice::from_raw_parts)
+///
+/// # API Differences
+///
+/// This takes a [`BitPtr`] as its base address, rather than a raw `*Bit`
+/// pointer, as `bitvec` does not provide such raw pointer types.
+///
+/// # Safety
+///
+/// Behavior is undefined if any of the following conditions are violated:
+///
+/// - `data` must be valid for reads for `len` many bits, and it must be
+///   properly aligned. This means in particular:
 ///   - The entire memory range of this slice must be contained within a single
 ///     allocated object! Slices can never span across multiple allocated
-///     objects.
-///   - `data` must be non-null and aligned even for zero-length slices. The
-///     `&BitSlice` pointer encoding requires this property to hold. You can
-///     obtain a pointer that is usable as `data` for zero-length slices using
-///     [`NonNull::dangling()`].
-/// - The memory referenced by the returned [`BitSlice`] must not be mutated for
-///   the duration of the lifetime `'a`, except inside an [`UnsafeCell`].
-/// - The total size `len * T::Mem::BITS` of the slice must be no larger than
-///   [`BitSlice::<_, T>::MAX_BITS`].
-/**
-
-# Caveat
-
-The lifetime for the returned slice is inferred from its usage. To prevent
-accidental misuse, it's suggested to tie the lifetime to whichever source
-lifetime is safe in the context, such as by providing a helper function taking
-the lifetime of a host value for the slice, or by explicit annotation.
-
-# Examples
-
-```rust
-use bitvec::prelude::*;
-use bitvec::slice as bv_slice;
-
-let x = 42u8;
-let ptr = &x as *const _;
-let bits = unsafe {
-  bv_slice::from_raw_parts::<LocalBits, u8>(ptr, 1)
-};
-assert_eq!(bits.count_ones(), 3);
-```
-
-[valid]: https://doc.rust-lang.org/stable/core/ptr/index.html#safety
-[`BitSlice`]: crate::slice::BitSlice
-[`BitSlice::<_, T>::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
-[`NonNull::dangling()`]: core::ptr::NonNull::dangling
-[`UnsafeCell`]: core::cell::UnsafeCell
-**/
+///     objects. See [below] for an example incorrectly not taking this into
+///     account.
+///   - `data` must be non-null, and its `T` portion must be aligned. Both of
+///     these conditions are checked during safe construction of the [`BitPtr`],
+///     and `unsafe` construction of it **must not** violate them. Doing so will
+///     cause incorrect behavior in the crate.
+/// - `data` must point to `len` consecutive bits within properly initialized
+///   memory elements `T`.
+/// - The memory referenced by the returned slice must not be mutated for the
+///   duration of the lifetime `'a`, except if `T` is an atomic or a `Cell`
+///   type.
+/// - `len` cannot exceed [`BitSlice::MAX_BITS`].
+///
+/// # Caveat
+///
+/// The lifetime for the returned slice is inferred from its usage. To prevent
+/// accidental misuse, it’s suggested to tie the lifetime to whichever source
+/// lifetime is safe in the context, such as by providing a helper function
+/// taking the lifetime of a host value for the slice, or by explicit
+/// annotation.
+///
+/// # Examples
+///
+/// ```rust
+/// use bitvec::prelude::*;
+/// use bitvec::slice as bv_slice;
+///
+/// let x = 42u8;
+/// let bitptr = BitPtr::from(&x);
+/// let bits: &BitSlice<LocalBits, _> = unsafe {
+///   bv_slice::from_raw_parts(bitptr, 8)
+/// };
+/// assert_eq!(bits, x.view_bits::<LocalBits>());
+/// ```
+///
+/// ### Incorrect Usage
+///
+/// The following `join_slices` function is **unsound** ⚠️
+///
+/// ```rust,no_run
+/// use bitvec::prelude::*;
+/// use bitvec::slice as bv_slice;
+///
+/// fn join_bitslices<'a, O, T>(
+///   fst: &'a BitSlice<O, T>,
+///   snd: &'a BitSlice<O, T>,
+/// ) -> &'a BitSlice<O, T> {
+///   let fst_end = fst.as_bitptr().wrapping_add(fst.len());
+///   let snd_start = snd.as_bitptr();
+///   assert_eq!(snd_start, fst_end, "Slices must be adjacent");
+///   unsafe {
+///     bv_slice::from_raw_parts(fst.as_bitptr(), fst.len() + snd.len())
+///   }
+/// }
+///
+/// fn main() {
+///   let a = [0u8; 3];
+///   let b = [!0u8; 3];
+///   let c = join_bitslices(
+///     a.view_bits::<LocalBits>(),
+///     b.view_bits::<LocalBits>(),
+///   );
+/// }
+/// ```
+///
+/// In this example, the compiler may elect to place `a` and `b` in adjacent
+/// stack slots, but because they are still *separate allocation* regions, it is
+/// illegal for a single region descriptor to be created over both of them.
+///
+/// [below]: #incorrect-usage
+/// [`BitPtr`]: crate::ptr::BitPtr
+/// [`BitSlice::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
 pub unsafe fn from_raw_parts<'a, O, T>(
-	data: *const T,
+	data: BitPtr<O, T, Const>,
 	len: usize,
 ) -> &'a BitSlice<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	super::bits_from_raw_parts(data, 0, len * T::Mem::BITS as usize)
-		.unwrap_or_else(|err| {
-			panic!(
-				"Failed to construct `&{}BitSlice` from invalid pointer {:p} \
-				 or element count {}: {}",
-				"", data, len, err
-			)
-		})
+	data.into_bitspan_unchecked(len).to_bitslice_ref()
 }
 
-/** Performs the same functionality as [`from_raw_parts`], except that a mutable
-bitslice is returned.
-
-# Original
-
-[`slice::from_raw_parts_mut`](core::slice::from_raw_parts_mut)
-
-# Safety
-
-Behavior is undefined if any of the following conditions are violated:
-**/
+/// Performs the same functionality as [`from_raw_parts`], except that a mutable
+/// slice is returned.
 ///
-/// - `data` must be [valid] for `len * mem::size_of::<T>()` many bytes, and it
-///   must be properly aligned. This means in particular:
+/// # Safety
+///
+/// Behavior is undefined if any of the following conditions are violated:
+///
+/// - `data` must be [valid] for boths reads and writes for `len` many bits, and
+///   it must be properly aligned. This means in particular:
 ///   - The entire memory range of this slice must be contained within a single
 ///     allocated object! Slices can never span across multiple allocated
 ///     objects.
-///   - `data` must be non-null and aligned even for zero-length slices. The
-///     [`&BitSlice`] pointer encoding requires this property to hold. You can
-///     obtain a pointer that is usable as `data` for zero-length slices using
-///     [`NonNull::dangling()`].
-/// - The memory referenced by the returned bitslice must not be accessed
-///   through other pointer (not derived from the return value) for the duration
-///   of the lifetime `'a`. Both read and write accesses are forbidden.
-/// - The total size `len * T::Mem::BITS` of the slice must be no larger than
-///   [`BitSlice::<_, T>::MAX_BITS`].
+///   - `data` must be non-null, and its `T` portion must be aligned. Both of
+///     these conditions are checked during safe construction of the [`BitPtr`],
+///     and `unsafe` construction of it **must not** violate them. Doing so will
+///     cause incorrect behavior in the crate.
+/// - `data` must point to `len` consecutive bits within properly initialized
+///   memory elements `T`.
+/// - The memory referenced by the returned slice must not be accessed through
+///   any other pointer (not derived from the return value) for the duration of
+///   lifetime `'a`. Both read and write accesses are forbidden. This is true
+///   even if `T` supports aliased mutation! An `&mut` reference requires
+///   **exclusive** access for its lifetime.
+/// - `len` cannot exceed [`BitSlice::MAX_BITS`].
 ///
 /// [valid]: https://doc.rust-lang.org/stable/core/ptr/index.html#safety
-/// [`BitSlice::<_, T>::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
-/// [`NonNull::dangling()`]: core::ptr::NonNull::dangling
 /// [`from_raw_parts`]: crate::slice::from_raw_parts
-/// [`&BitSlice`]: crate::slice::BitSlice
 pub unsafe fn from_raw_parts_mut<'a, O, T>(
-	data: *mut T,
+	data: BitPtr<O, T, Mut>,
 	len: usize,
 ) -> &'a mut BitSlice<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	super::bits_from_raw_parts_mut(data, 0, len * T::Mem::BITS as usize)
-		.unwrap_or_else(|err| {
-			panic!(
-				"Failed to construct `&{}BitSlice` from invalid pointer {:p} \
-				 or element count {}: {}",
-				"mut", data, len, err
-			)
-		})
+	data.into_bitspan_unchecked(len).to_bitslice_mut()
 }
 
 /** A helper trait used for indexing operations.

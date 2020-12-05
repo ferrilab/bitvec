@@ -179,6 +179,16 @@ where R: BitRegister
 		}
 	}
 
+	/// Casts to a new index type.
+	///
+	/// This will always succeed if `self.value()` is a valid index in the `S`
+	/// register; it will return an error if the `self` index is too wide for
+	/// `S`.
+	pub fn cast<S>(self) -> Result<BitIdx<S>, BitIdxErr<S>>
+	where S: BitRegister {
+		BitIdx::new(self.value())
+	}
+
 	/// Removes the index wrapper, leaving the internal counter.
 	#[cfg(not(tarpaulin_include))]
 	pub fn value(self) -> u8 {
@@ -1224,10 +1234,7 @@ where R: BitRegister
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::order::{
-		Lsb0,
-		Msb0,
-	};
+	use crate::order::Lsb0;
 	use tap::conv::TryConv;
 
 	#[test]
@@ -1488,6 +1495,8 @@ mod tests {
 	#[test]
 	#[cfg(feature = "alloc")]
 	fn render() {
+		use crate::order::Msb0;
+
 		#[cfg(not(feature = "std"))]
 		use alloc::format;
 

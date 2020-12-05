@@ -41,25 +41,6 @@ fn construction() {
 		.is_err()
 	);
 
-	assert_eq!(
-		unsafe { crate::slice::bits_from_raw_parts(&data, 0, 8) },
-		Ok(bits)
-	);
-	assert!(
-		unsafe {
-			crate::slice::bits_from_raw_parts::<LocalBits, _>(&data, 0, !0)
-		}
-		.is_err()
-	);
-
-	let mut data = 0u8;
-	assert_eq!(
-		unsafe {
-			crate::slice::bits_from_raw_parts_mut(&mut data as *mut _, 0, 8)
-		},
-		Ok(data.view_bits_mut::<LocalBits>())
-	);
-
 	let mut data = [0u16; 2];
 	assert!((&data[..]).try_conv::<&BitSlice<Msb0, _>>().is_ok());
 	assert!((&mut data[..]).try_conv::<&mut BitSlice<Msb0, _>>().is_ok());
@@ -488,16 +469,6 @@ fn unspecialized() {
 #[test]
 #[allow(deprecated)]
 fn misc() {
-	let bits = bits![mut 0, 1, 0, 0];
-
-	let bitspan_1 = bits.as_bitspan();
-	let bitspan_2 = bits.as_ptr();
-	assert_eq!(bitspan_1, bitspan_2);
-
-	let bitspan_1 = bits.as_mut_bitspan();
-	let bitspan_2 = bits.as_mut_ptr();
-	assert_eq!(bitspan_1, bitspan_2);
-
 	let a = bits![mut 0; 4];
 	let b = bits![mut 0, 1, 0, 1];
 	let c = bits![mut 0, 0, 1, 1];

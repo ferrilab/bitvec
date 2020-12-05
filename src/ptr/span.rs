@@ -465,6 +465,21 @@ where
 		unsafe { &*self.to_bitslice_ptr() }
 	}
 
+	/// Casts the span to another element type.
+	///
+	/// This does not alter the encoded value of the pointer! It only
+	/// reinterprets the element type, and the encoded value may shift
+	/// significantly in the result type. Use with caution.
+	pub(crate) fn cast<U>(self) -> BitSpan<O, U, M>
+	where U: BitStore {
+		let Self { ptr, len, .. } = self;
+		BitSpan {
+			ptr,
+			len,
+			..BitSpan::EMPTY
+		}
+	}
+
 	/// Split the region descriptor into three descriptors, with the interior
 	/// set to a different register type.
 	///

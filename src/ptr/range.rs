@@ -54,6 +54,9 @@ where
 	T: BitStore,
 	M: Mutability,
 {
+	//  Semantically, this is two `BitPtr<O, T>`, but structurally, the `BitPtr`
+	//  members need to be kept unpacked so that this compacts to three words
+	//  rather than four.
 	base: Address<T, M>,
 	last: Address<T, M>,
 	head: BitIdx<T::Mem>,
@@ -122,9 +125,13 @@ where
 		N: Mutability,
 	{
 		let (start, end) = self.pointers();
-		start <= pointer && pointer < end
+		start.le(&pointer) && pointer.lt(&end)
 	}
 
+	/// Converts the pair into a single span descriptor over all included bits.
+	///
+	/// The produce span does *not* include the bit addressed by the end
+	/// pointer, as this is an exclusive range.
 	pub(crate) fn into_bit_span(self) -> BitSpan<O, T, M> {
 		unsafe { BitSpan::new_unchecked(self.base, self.head, self.len()) }
 	}

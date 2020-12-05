@@ -68,6 +68,8 @@ use crate::{
 		Msb0,
 	},
 	ptr::{
+		BitMut,
+		BitPtr,
 		BitSpan,
 		BitSpanError,
 	},
@@ -2031,6 +2033,18 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	/// Gets the base-address pointer to the start bit of the slice.
+	pub fn as_bitptr(&self) -> BitPtr<O, T, Const> {
+		let (addr, head, _) = self.bit_span().raw_parts();
+		unsafe { BitPtr::new_unchecked(addr, head) }
+	}
+
+	/// Gets the base-address pointer to the start bit of the slice.
+	pub fn as_mut_bitptr(&mut self) -> BitPtr<O, T, Mut> {
+		let (addr, head, _) = self.bit_span_mut().raw_parts();
+		unsafe { BitPtr::new_unchecked(addr, head) }
+	}
+
 	/// Views the `&BitSlice` reference as a `*const BitSlice` pointer.
 	pub fn as_bitspan(&self) -> *const Self {
 		self as *const Self
@@ -2266,136 +2280,9 @@ where
 	}
 }
 
-/** Constructs a [`BitSlice`] reference from its component data.
-
-This is logically equivalent to [`slice::from_raw_parts`] for `[T]`.
-
-# Lifetimes
-
-- `'a`: The lifetime of the returned [`BitSlice`] handle. This must be no longer
-  than the duration of the referent region, as it is illegal for references to
-  dangle.
-
-# Type Parameters
-
-- `O`: The ordering of bits within elements `T`.
-- `T`: The type of each memory element in the backing storage region. Unlike the
-  ordinary slice constructors, this is not restricted to be only over the bare,
-  unaliased, integer types; alias-marked [`BitSlice`]s may also be deconstructed
-  and rebuilt.
-
-# Parameters
-
-- `addr`: The base address of the memory region that the [`BitSlice`] covers.
-- `head`: The index of the first live bit in `*addr`, at which the `BitSlice`
-  begins. This is required to be in the range `0 .. T::Mem::BITS`.
-- `bits`: The number of live bits, beginning at `head` in `*addr`, that the
-  `BitSlice` contains. This must be no greater than [`BitSlice::MAX_BITS`].
-
-# Returns
-
-If the input parameters are valid, this returns `Some` shared reference to a
-[`BitSlice`]. The failure conditions causing this to return `None` are:
-
-- `head` is not less than [`T::Mem::BITS`]
-- `bits` is greater than [`BitSlice::<O, T>::MAX_BITS`]
-- `addr` is not adequately aligned to `T`
-- `addr` is so high in the memory space that the region wraps to the base of the
-  memory space
-
-# Safety
-
-The memory region described by the returned [`BitSlice`] must be validly
-allocated within the caller’s memory management system. It must also not be
-modified for the duration of the lifetime `'a`, unless the `T` type parameter
-permits safe shared mutation.
-
-[`BitSlice`]: crate::slice::BitSlice
-[`BitSlice::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
-[`BitSlice::<O, T>::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
-[`T::Mem::BITS`]: crate::mem::BitMemory::BITS
-[`slice::from_raw_parts`]: core::slice::from_raw_parts
-**/
-pub unsafe fn bits_from_raw_parts<'a, O, T>(
-	addr: *const T,
-	head: u8,
-	bits: usize,
-) -> Result<&'a BitSlice<O, T>, BitSpanError<O, T>>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	let head = crate::index::BitIdx::new(head)?;
-	BitSpan::new(addr, head, bits).map(BitSpan::to_bitslice_ref)
-}
-
-/** Constructs a mutable [`BitSlice`] reference from its component data.
-
-This is logically equivalent to [`slice::from_raw_parts_mut`] for `[T]`.
-
-# Lifetimes
-
-- `'a`: The lifetime of the returned [`BitSlice`] handle. This must be no longer
-  than the duration of the referent region, as it is illegal for references to
-  dangle.
-
-# Type Parameters
-
-- `O`: The ordering of bits within elements `T`.
-- `T`: The type of each memory element in the backing storage region. Unlike the
-  ordinary slice constructors, this is not restricted to be only over the bare,
-  unaliased, integer types; alias-marked [`BitSlice`]s may also be deconstructed
-  and rebuilt.
-
-# Parameters
-
-- `addr`: The base address of the memory region that the [`BitSlice`] covers.
-- `head`: The index of the first live bit in `*addr`, at which the `BitSlice`
-  begins. This is required to be in the range `0 .. T::Mem::BITS`.
-- `bits`: The number of live bits, beginning at `head` in `*addr`, that the
-  `BitSlice` contains. This must be no greater than [`BitSlice::MAX_BITS`].
-
-# Returns
-
-If the input parameters are valid, this returns `Some` shared reference to a
-[`BitSlice`]. The failure conditions causing this to return `None` are:
-
-- `head` is not less than [`T::Mem::BITS`]
-- `bits` is greater than [`BitSlice::<O, T>::MAX_BITS`]
-- `addr` is not adequately aligned to `T`
-- `addr` is so high in the memory space that the region wraps to the base of the
-  memory space
-
-# Safety
-
-The memory region described by the returned [`BitSlice`] must be validly
-allocated within the caller’s memory management system. It must also not be
-reachable for the lifetime `'a` by any path other than references derived from
-the returned value.
-
-[`BitSlice`]: crate::slice::BitSlice
-[`BitSlice::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
-[`BitSlice::<O, T>::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
-[`T::Mem::BITS`]: crate::mem::BitMemory::BITS
-[`slice::from_raw_parts_mut`]: core::slice::from_raw_parts_mut
-**/
-pub unsafe fn bits_from_raw_parts_mut<'a, O, T>(
-	addr: *mut T,
-	head: u8,
-	bits: usize,
-) -> Result<&'a mut BitSlice<O, T>, BitSpanError<O, T>>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	let head = crate::index::BitIdx::new(head)?;
-	BitSpan::new(addr, head, bits).map(BitSpan::to_bitslice_mut)
-}
-
 mod api;
 mod iter;
 mod ops;
-mod proxy;
 mod specialization;
 mod traits;
 
@@ -2432,7 +2319,6 @@ pub use self::{
 		SplitNMut,
 		Windows,
 	},
-	proxy::BitMut,
 };
 
 #[cfg(test)]

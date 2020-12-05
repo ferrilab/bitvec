@@ -27,6 +27,7 @@ use crate::{
 
 use core::{
 	any,
+	any::TypeId,
 	convert::{
 		Infallible,
 		TryFrom,
@@ -42,11 +43,18 @@ use core::{
 	ptr::NonNull,
 };
 
+use tap::{
+	conv::Conv,
+	pipe::Pipe,
+};
+
+mod proxy;
 mod range;
 mod single;
 mod span;
 
 pub use self::{
+	proxy::BitMut,
 	range::BitPtrRange,
 	single::BitPtr,
 };
@@ -55,6 +63,167 @@ pub(crate) use self::span::{
 	BitSpan,
 	BitSpanError,
 };
+
+/** Copies `count` bits from `src` to `dst`. The source and destination may
+overlap.
+
+If the source and destination will *never* overlap, [`copy_nonoverlapping`] can
+be used instead.
+
+# Additional Constraints
+
+`bitvec` considers it Undefined Behavior for two descriptors to overlap in
+memory if their `BitOrder` parameters differ.
+
+```rust
+use bitvec::prelude::*;
+
+let mut x = 0u8;
+let lsb0: BitPtr<Lsb0, _, _> = (&mut x).into();
+let msb0: BitPtr<Msb0, _, _> = (&x).into();
+
+//  Defined: the regions do not select the same bits
+bitvec::ptr::copy(lsb0, msb0, 4);
+
+//  Undefined: the regions overlap in bits
+bitvec::ptr::copy(lsb0, msb0, 5);
+```
+
+`bitvec` assumes that if `O1` and `O2` differ, then the regions will never
+overlap in actual bits, and copies naïvely. If `O1` and `O2` are the same type,
+then this performs overlap analysis to determine the copy direction.
+
+If `T1` and `T2` have different memory types, then the behavior will follow the
+tables of order/store traversal shown in the manual. Overlapping bytes in this
+condition will likely clobber, and the function will make no attempt to preserve
+them for correct copying.
+
+Do not use this function on overlapping memory regions unless the source and
+destination pointers have the same type parameters.
+
+[valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
+[`copy_nonoverlapping`]: crate::ptr::copy_nonoverlapping
+**/
+pub unsafe fn copy<O1, O2, T1, T2>(
+	src: BitPtr<O1, T1, Const>,
+	dst: BitPtr<O2, T2, Mut>,
+	count: usize,
+) where
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
+{
+	if TypeId::of::<O1>() == TypeId::of::<O2>() {
+		let (addr, head) = dst.raw_parts();
+		let dst = BitPtr::<O1, T2, Mut>::new_unchecked(addr, head);
+
+		let src_pair = src.range(count);
+		let dst_pair = dst.range(count);
+
+		if src_pair.contains(dst) {
+			for (src, dst) in src_pair.zip(dst_pair).rev() {
+				write(dst, read(src));
+			}
+		}
+		else {
+			for (src, dst) in src_pair.zip(dst_pair) {
+				write(dst, read(src));
+			}
+		}
+	}
+	//  Pointers with different orderings **cannot** overlap. Such an overlap is
+	//  a fault in the caller, and `bitvec` undefines this behavior.
+	else {
+		for (src, dst) in src.range(count).zip(dst.range(count)) {
+			write(dst, read(src));
+		}
+	}
+}
+
+/** Reads one bit from a memory location.
+
+# Original
+
+[`ptr::read`](core::ptr::read)
+
+# API Differences
+
+This must load the entire memory element from `*src`, then discard all bits but
+the referent.
+
+# Safety
+
+Behavior is undefined if any of the following conditions are violated:
+
+- `src` must be [valid] for reads.
+- `src` must be a validly constructed pointer.
+- `src` must point to a properly initialized value of type `T`.
+
+# Examples
+
+Basic usage:
+
+```rust
+use bitvec::prelude::*;
+
+let x = 128u8;
+let x_ptr: BitPtr<Msb0, _, _> = (&x).into();
+assert!(
+  unsafe { bitvec::ptr::read(x_ptr) }
+);
+```
+
+[valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
+**/
+pub unsafe fn read<O, T>(src: BitPtr<O, T, Const>) -> bool
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	src.read()
+}
+
+/** Overwrites a memory location with the given bit.
+
+# Original
+
+[`ptr::write`](core::ptr::write)
+
+# API Differences
+
+The referent memory location must be read, modified in a register, then written
+back.
+
+# Safety
+
+Behavior is undefined if any of the following conditions are violated:
+
+- `dst` must be [valid] for writes.
+- `dst` must be a validly constructed pointer.
+
+# Examples
+
+Basic usage:
+
+```rust
+use bitvec::prelude::*;
+
+let mut x = 0u8;
+let x_ptr: BitPtr<Lsb0, _, _> = (&mut x).into();
+unsafe { bitvec::ptr::write(x_ptr, true); }
+assert_eq!(x, 1);
+```
+
+[valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
+**/
+pub unsafe fn write<O, T>(dst: BitPtr<O, T, Mut>, src: bool)
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	dst.write(src);
+}
 
 /** A weakly-typed memory address.
 
@@ -121,6 +290,35 @@ where
 		}
 	}
 
+	/// Offsets the address by `count` elements of `T`.
+	///
+	/// This delegates to `ptr::offset`, and panics if the sum comes out to the
+	/// null pointer.
+	pub(crate) unsafe fn offset(mut self, count: isize) -> Self {
+		self.inner = self
+			.inner
+			.as_ptr()
+			.offset(count)
+			.pipe(NonNull::new)
+			.expect("Offset cannot produce the null pointer");
+		self
+	}
+
+	/// Offsets the address by `count` elements of `T`, wrapping around the
+	/// address space.
+	///
+	/// This delegates to `ptr::wrapping_offset`, and panics if the sum comes
+	/// out to the null pointer.
+	pub(crate) unsafe fn wrapping_offset(mut self, count: isize) -> Self {
+		self.inner = self
+			.inner
+			.as_ptr()
+			.wrapping_offset(count)
+			.pipe(NonNull::new)
+			.expect("Wrapping offset cannot produce the null pointer");
+		self
+	}
+
 	/// Views the memory address as an access pointer.
 	#[inline(always)]
 	pub(crate) fn to_access(self) -> *const T::Access {
@@ -155,6 +353,20 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
+impl<T> Address<T, Const>
+where T: BitStore
+{
+	#[inline(always)]
+	pub(crate) unsafe fn assert_mut(self) -> Address<T, Mut> {
+		let Self { inner, .. } = self;
+		Address {
+			inner,
+			..Address::DANGLING
+		}
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
 impl<T> Address<T, Mut>
 where T: BitStore
 {
@@ -163,6 +375,16 @@ where T: BitStore
 	#[allow(clippy::wrong_self_convention)]
 	pub(crate) fn to_mut(self) -> *mut T {
 		self.inner.as_ptr()
+	}
+
+	#[inline(always)]
+	pub(crate) fn immut(self) -> Address<T, Const>
+	where T: BitStore {
+		let Self { inner, .. } = self;
+		Address {
+			inner,
+			..Address::DANGLING
+		}
 	}
 }
 
@@ -321,143 +543,4 @@ unsafe impl<T> Sync for AddressError<T> where T: BitStore
 #[cfg(feature = "std")]
 impl<T> std::error::Error for AddressError<T> where T: BitStore
 {
-}
-
-/** Forms a raw [`BitSlice`] pointer from its component data.
-
-This function is safe, but actually using the return value is unsafe. See the
-documentation of [`slice::bits_from_raw_parts`] for slice safety requirements.
-
-# Original
-
-[`ptr::slice_from_raw_parts`](core::ptr::slice_from_raw_parts)
-
-# API Differences
-
-`bitvec` uses a custom structure for `*const bool` that cannot be cast into a
-raw pointer.
-
-# Type Parameters
-
-- `O`: The ordering of bits within elements `T`.
-- `T`: The type of each memory element in the backing storage region.
-
-# Returns
-
-If the input parameters are valid, this returns a shared reference to a
-[`BitSlice`]. The failure conditions that cause this to return an `Err`or are:
-
-- `ptr` is not adequately aligned to `T`
-- `ptr` is so high in the memory space that the region wraps to the base of the
-memory space
-- `len` is greater than [`BitSlice::MAX_BITS`]
-
-# Examples
-
-```rust
-use bitvec::{
-  index::BitIdx,
-  order::Msb0,
-  ptr as bp,
-  slice::BitSlice,
-};
-
-let data = 0xF0u8;
-let data_bit_ptr = bp::BitPtr::from(&data);
-let bitspan: *const BitSlice<Msb0, u8>
-  = bp::bitslice_from_raw_parts(data_bit_ptr, 4).unwrap();
-assert_eq!(unsafe { &*bitspan }.len(), 4);
-assert!(unsafe { &*bitspan }.all());
-```
-
-[`BitSlice`]: crate::slice::BitSlice
-[`BitSlice::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
-[`T::Mem::BITS`]: crate::mem::BitMemory::BITS
-[`ptr::slice_from_raw_parts`]: core::ptr::slice_from_raw_parts
-[`slice::bits_from_raw_parts`]: crate::slice::bits_from_raw_parts
-**/
-pub fn bitslice_from_raw_parts<O, T>(
-	ptr: BitPtr<O, T, Const>,
-	len: usize,
-) -> Result<*const BitSlice<O, T>, BitSpanError<O, T>>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	let (addr, head) = ptr.raw_parts();
-	BitSpan::new(addr, head, len).map(BitSpan::to_bitslice_ptr)
-}
-
-/** Performs the same functionality as [`ptr::bitslice_from_raw_parts], except
-that a raw mutable [`BitSlice`] pointer is returned, as opposed to a raw
-immutable `BitSlice`.
-
-See the documentation of [`bitslice_from_raw_parts`] for more details.
-
-This function is safe, but actually using the return value is unsafe. See the
-documentation of [`slice::bits_from_raw_parts_mut`] for slice safety requirements.
-
-# Original
-
-[`ptr::slice_from_raw_parts_mut](core::ptr::slice_from_raw_parts_mut)
-
-# Type Parameters
-
-- `O`: The ordering of bits within elements `T`.
-- `T`: The type of each memory element in the backing storage region.
-
-# Parameters
-
-- `addr`: The base address of the memory region that the [`BitSlice`] covers.
-- `head`: The index of the first live bit in `*addr`, at which the `BitSlice`
-  begins. This is required to be in the range `0 .. T::Mem::BITS`.
-- `bits`: The number of live bits, beginning at `head` in `*addr`, that the
-  `BitSlice` contains. This must be no greater than [`BitSlice::MAX_BITS`].
-
-# Returns
-
-If the input parameters are valid, this returns `Some` shared reference to a
-[`BitSlice`]. The failure conditions causing this to return `None` are:
-
-- `head` is not less than [`T::Mem::BITS`]
-- `bits` is greater than [`BitSlice::MAX_BITS`]
-- `addr` is not adequately aligned to `T`
-- `addr` is so high in the memory space that the region wraps to the base of the
-  memory space
-
-# Examples
-
-```rust
-use bitvec::{
-  index::BitIdx,
-  order::Msb0,
-  ptr as bp,
-  slice::BitSlice,
-};
-
-let mut data = 0x00u8;
-let data_bit_ptr = bp::BitPtr::from(&mut data);
-let bitspan: *mut BitSlice<Msb0, u8>
-  = bp::bitslice_from_raw_parts_mut(data_bit_ptr, 4).unwrap();
-assert_eq!(unsafe { &*bitspan }.len(), 4);
-unsafe { &mut *bitspan }.set_all(true);
-assert_eq!(data, 0xF0);
-```
-
-[`BitSlice`]: crate::slice::BitSlice
-[`BitSlice::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
-[`T::Mem::BITS`]: crate::mem::BitMemory::BITS
-[`bitslice_from_raw_parts`]: crate::ptr::bitslice_from_raw_parts
-[`slice::bits_from_raw_parts_mut`]: crate::slice::bits_from_raw_parts_mut
-**/
-pub fn bitslice_from_raw_parts_mut<O, T>(
-	ptr: BitPtr<O, T, Mut>,
-	len: usize,
-) -> Result<*mut BitSlice<O, T>, BitSpanError<O, T>>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	let (addr, head) = ptr.raw_parts();
-	BitSpan::<O, T, Mut>::new(addr, head, len).map(BitSpan::to_bitslice_ptr_mut)
 }

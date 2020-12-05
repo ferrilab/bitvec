@@ -17,6 +17,10 @@ pub use crate::{
 		Lsb0,
 		Msb0,
 	},
+	ptr::{
+		BitPtr,
+		BitPtrRange,
+	},
 	slice::BitSlice,
 	store::BitStore,
 	view::BitView,
