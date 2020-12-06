@@ -243,6 +243,19 @@ pub trait BitField {
 	/// This method is encouraged to panic if `self` is empty, or wider than a
 	/// single element `M`.
 	///
+	/// # Example
+	/// ```rust
+	/// use bitvec::prelude::*;
+	/// // Bit pos:   14                                     19  16
+	/// // Lsb0:     ─┤                                       ├──┤
+	/// let arr = [0b0100_0000_0000_0011u16, 0b0001_0000_0000_1110u16];
+	/// // Msb0:                      ├─       ├──┤
+	/// // Bit pos:                  14       16  19
+	///
+	/// assert_eq!(arr.view_bits::<Lsb0>()[14..20].load_le::<u16>(), 0b111001u16);
+	/// assert_eq!(arr.view_bits::<Msb0>()[14..20].load_le::<u16>(), 0b000111u16);
+	/// ```
+	///
 	/// [`M::BITS`]: crate::mem::BitMemory::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn load_le<M>(&self) -> M
@@ -274,6 +287,19 @@ pub trait BitField {
 	///
 	/// This method is encouraged to panic if `self` is empty, or wider than a
 	/// single element `M`.
+	///
+	/// # Example
+	/// ```rust
+	/// use bitvec::prelude::*;
+	/// // Bit pos:   14                                     19  16
+	/// // Lsb0:     ─┤                                       ├──┤
+	/// let arr = [0b0100_0000_0000_0011u16, 0b0001_0000_0000_1110u16];
+	/// // Msb0:                      ├─       ├──┤
+	/// // Bit pos:                  14       15  19
+	///
+	/// assert_eq!(arr.view_bits::<Lsb0>()[14..20].load_be::<u16>(), 0b011110u16);
+	/// assert_eq!(arr.view_bits::<Msb0>()[14..20].load_be::<u16>(), 0b110001u16);
+	/// ```
 	///
 	/// [`M::BITS`]: crate::mem::BitMemory::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
@@ -309,6 +335,25 @@ pub trait BitField {
 	/// This method is encouraged to panic if `self` is empty, or wider than a
 	/// single element `M`.
 	///
+	/// # Example
+	/// ```rust
+	/// use bitvec::prelude::*;
+	/// let mut lsb0 = bitarr![Lsb0, u16; 0; 32];
+	/// let mut msb0 = bitarr![Msb0, u16; 0; 32];
+	///
+	/// // Bit pos:        14                                     19  16
+	/// // Lsb0:          ─┤                                       ├──┤
+	/// let exp_lsb0 = [0b0100_0000_0000_0000u16, 0b0000_0000_0000_1110u16];
+	/// let exp_msb0 = [0b0000_0000_0000_0011u16, 0b0001_0000_0000_0000u16];
+	/// // Msb0:                           ├─       ├──┤
+	/// // Bit pos:                       14       15  19
+	///
+	/// lsb0[14..=19].store_le(0b111001u16);
+	/// msb0[14..=19].store_le(0b000111u16);
+	/// assert_eq!(lsb0.as_slice(), exp_lsb0);
+	/// assert_eq!(msb0.as_slice(), exp_msb0);
+	/// ```
+	///
 	/// [`M::BITS`]: crate::mem::BitMemory::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn store_le<M>(&mut self, value: M)
@@ -342,6 +387,25 @@ pub trait BitField {
 	///
 	/// This method is encouraged to panic if `self` is empty, or wider than a
 	/// single element `M`.
+	///
+	/// # Example
+	/// ```rust
+	/// use bitvec::prelude::*;
+	/// let mut lsb0 = bitarr![Lsb0, u16; 0; 32];
+	/// let mut msb0 = bitarr![Msb0, u16; 0; 32];
+	///
+	/// // Bit pos:        14                                     19  16
+	/// // Lsb0:          ─┤                                       ├──┤
+	/// let exp_lsb0 = [0b0100_0000_0000_0000u16, 0b0000_0000_0000_1110u16];
+	/// let exp_msb0 = [0b0000_0000_0000_0011u16, 0b0001_0000_0000_0000u16];
+	/// // Msb0:                           ├─       ├──┤
+	/// // Bit pos:                       14       15  19
+	///
+	/// lsb0[14..=19].store_be(0b011110u16);
+	/// msb0[14..=19].store_be(0b110001u16);
+	/// assert_eq!(lsb0.as_slice(), exp_lsb0);
+	/// assert_eq!(msb0.as_slice(), exp_msb0);
+	/// ```
 	///
 	/// [`M::BITS`]: crate::mem::BitMemory::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
