@@ -966,8 +966,7 @@ where
 	pub fn chunks_exact_mut(
 		&mut self,
 		chunk_size: usize,
-	) -> ChunksExactMut<O, T>
-	{
+	) -> ChunksExactMut<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
 		ChunksExactMut::new(self, chunk_size)
 	}
@@ -1160,8 +1159,7 @@ where
 	pub fn rchunks_exact_mut(
 		&mut self,
 		chunk_size: usize,
-	) -> RChunksExactMut<O, T>
-	{
+	) -> RChunksExactMut<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
 		RChunksExactMut::new(self, chunk_size)
 	}
@@ -1282,8 +1280,7 @@ where
 	pub fn split_at_mut(
 		&mut self,
 		mid: usize,
-	) -> (&mut BitSlice<O, T::Alias>, &mut BitSlice<O, T::Alias>)
-	{
+	) -> (&mut BitSlice<O, T::Alias>, &mut BitSlice<O, T::Alias>) {
 		self.assert_in_bounds(mid);
 		unsafe { self.split_at_unchecked_mut(mid) }
 	}
@@ -2516,8 +2513,7 @@ where
 	unsafe fn get_unchecked_mut(
 		self,
 		slice: &'a mut BitSlice<O, T>,
-	) -> Self::Mut
-	{
+	) -> Self::Mut {
 		let bitspan = slice.bit_span_mut();
 		let (elt, bit) = bitspan.head().offset(self as isize);
 		let addr = Address::new_unchecked(

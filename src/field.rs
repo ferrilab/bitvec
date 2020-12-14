@@ -919,8 +919,7 @@ unsafe fn resize_inner<T, U>(
 	dst: &mut U,
 	size_t: usize,
 	size_u: usize,
-)
-{
+) {
 	//  In LE, the least significant byte is the base address, so resizing is
 	//  just a memcpy into a zeroed slot, taking only the smaller width.
 	ptr::copy_nonoverlapping(
@@ -937,8 +936,7 @@ unsafe fn resize_inner<T, U>(
 	dst: &mut U,
 	size_t: usize,
 	size_u: usize,
-)
-{
+) {
 	let src = src as *const T as *const u8;
 	let dst = dst as *mut U as *mut u8;
 

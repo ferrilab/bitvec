@@ -384,8 +384,7 @@ pub const fn u8_from_le_bits(
 	f: bool,
 	g: bool,
 	h: bool,
-) -> u8
-{
+) -> u8 {
 	(a as u8)
 		| ((b as u8) << 1)
 		| ((c as u8) << 2)
@@ -408,8 +407,7 @@ pub const fn u8_from_be_bits(
 	f: bool,
 	g: bool,
 	h: bool,
-) -> u8
-{
+) -> u8 {
 	(h as u8)
 		| ((g as u8) << 1)
 		| ((f as u8) << 2)

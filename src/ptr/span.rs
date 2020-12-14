@@ -979,8 +979,7 @@ where
 		fmt: &'a mut Formatter,
 		name: &'a str,
 		fields: impl IntoIterator<Item = &'a (&'a str, &'a dyn Debug)>,
-	) -> fmt::Result
-	{
+	) -> fmt::Result {
 		write!(
 			fmt,
 			"Bit{}<{}, {}>",

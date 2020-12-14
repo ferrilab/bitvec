@@ -122,8 +122,7 @@ fn issue_62() {
 			&self,
 			output_is_le: bool,
 			bit_size: Option<usize>,
-		) -> BitVec<Msb0, u8>
-		{
+		) -> BitVec<Msb0, u8> {
 			let input = if output_is_le {
 				self.to_le_bytes()
 			}

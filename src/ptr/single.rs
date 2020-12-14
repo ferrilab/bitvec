@@ -167,8 +167,7 @@ where
 	pub(crate) unsafe fn into_bitspan_unchecked(
 		self,
 		bits: usize,
-	) -> BitSpan<O, T, M>
-	{
+	) -> BitSpan<O, T, M> {
 		BitSpan::new_unchecked(self.addr, self.head, bits)
 	}
 

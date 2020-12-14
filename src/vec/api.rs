@@ -265,8 +265,7 @@ where
 	pub unsafe fn from_raw_parts(
 		pointer: *mut BitSlice<O, T>,
 		capacity: usize,
-	) -> Self
-	{
+	) -> Self {
 		if (pointer as *mut [()]).is_null() {
 			panic!("Attempted to reconstruct a `BitVec` from a null pointer");
 		}

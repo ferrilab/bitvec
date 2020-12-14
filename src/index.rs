@@ -297,8 +297,7 @@ where R: BitRegister
 	) -> impl Iterator<Item = Self>
 	+ DoubleEndedIterator
 	+ ExactSizeIterator
-	+ FusedIterator
-	{
+	+ FusedIterator {
 		let (from, upto) = (self.value(), upto.value());
 		debug_assert!(from <= upto, "Ranges must run from low to high");
 		(from .. upto).map(|val| unsafe { Self::new_unchecked(val) })

@@ -46,8 +46,7 @@ pub fn benchmarks(crit: &mut Criterion) {
 		name: &'static str,
 		crit: &mut Criterion,
 		mut func: F,
-	)
-	{
+	) {
 		let mut group = crit.benchmark_group(name);
 		for (id, len, elems) in steps() {
 			let mut dst = BitVec::repeat(false, len);

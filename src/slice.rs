@@ -1965,8 +1965,7 @@ where
 	pub unsafe fn split_at_unchecked_mut(
 		&mut self,
 		mid: usize,
-	) -> (&mut BitSlice<O, T::Alias>, &mut BitSlice<O, T::Alias>)
-	{
+	) -> (&mut BitSlice<O, T::Alias>, &mut BitSlice<O, T::Alias>) {
 		let bp = self.alias_mut().bit_span_mut();
 		(
 			bp.to_bitslice_mut().get_unchecked_mut(.. mid),
@@ -2167,8 +2166,7 @@ where
 	pub(crate) unsafe fn split_at_unchecked_mut_noalias(
 		&mut self,
 		mid: usize,
-	) -> (&mut Self, &mut Self)
-	{
+	) -> (&mut Self, &mut Self) {
 		//  Split the slice at the requested midpoint, adding an alias layer
 		let (head, tail) = self.split_at_unchecked_mut(mid);
 		//  Remove the new alias layer.
@@ -2196,8 +2194,7 @@ where
 	pub fn split_at_aliased_mut(
 		&mut self,
 		mid: usize,
-	) -> (&mut Self, &mut Self)
-	{
+	) -> (&mut Self, &mut Self) {
 		let (head, tail) = self.split_at_mut(mid);
 		unsafe { (Self::unalias_mut(head), Self::unalias_mut(tail)) }
 	}
