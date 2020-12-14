@@ -106,7 +106,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	addr: BitPtr<O, T, Mut>,
+	addr: BitPtr<Mut, O, T>,
 	/// A local cache for [`Deref`] usage.
 	///
 	/// [`Deref`]: core::ops::Deref
@@ -136,7 +136,7 @@ where
 		head: BitIdx<T::Mem>,
 	) -> Self
 	where
-		A: Into<Address<T, Mut>>,
+		A: Into<Address<Mut, T>>,
 	{
 		let addr = addr.into();
 		Self {
@@ -191,7 +191,7 @@ where
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		let (addr, head) = self.addr.raw_parts();
-		unsafe { BitSpan::<O, T, Mut>::new_unchecked(addr, head, 1) }.render(
+		unsafe { BitSpan::<Mut, O, T>::new_unchecked(addr, head, 1) }.render(
 			fmt,
 			"Mut",
 			&[("bit", &self.data as &dyn Debug)],

@@ -695,7 +695,7 @@ where
 	/// assert!(bits.is_empty());
 	/// ```
 	pub fn empty<'a>() -> &'a Self {
-		BitSpan::<O, T, Const>::EMPTY.to_bitslice_ref()
+		BitSpan::<Const, O, T>::EMPTY.to_bitslice_ref()
 	}
 
 	/// Produces the empty mutable slice reference.
@@ -1777,12 +1777,12 @@ where
 		let this = self.bit_span();
 		let that = other.bit_span();
 		let (elts, bits) = unsafe {
-			let this = BitSpan::<O, T, _>::new_unchecked(
+			let this = BitSpan::<_, O, T>::new_unchecked(
 				this.pointer(),
 				BitIdx::new_unchecked(this.head().position::<O>().value()),
 				1,
 			);
-			let that = BitSpan::<O, T, _>::new_unchecked(
+			let that = BitSpan::<_, O, T>::new_unchecked(
 				that.pointer(),
 				BitIdx::new_unchecked(that.head().position::<O>().value()),
 				1,
@@ -2033,13 +2033,13 @@ where
 	T: BitStore,
 {
 	/// Gets the base-address pointer to the start bit of the slice.
-	pub fn as_bitptr(&self) -> BitPtr<O, T, Const> {
+	pub fn as_bitptr(&self) -> BitPtr<Const, O, T> {
 		let (addr, head, _) = self.bit_span().raw_parts();
 		unsafe { BitPtr::new_unchecked(addr, head) }
 	}
 
 	/// Gets the base-address pointer to the start bit of the slice.
-	pub fn as_mut_bitptr(&mut self) -> BitPtr<O, T, Mut> {
+	pub fn as_mut_bitptr(&mut self) -> BitPtr<Mut, O, T> {
 		let (addr, head, _) = self.bit_span_mut().raw_parts();
 		unsafe { BitPtr::new_unchecked(addr, head) }
 	}
@@ -2099,12 +2099,12 @@ where
 	T: BitStore,
 {
 	/// Type-cast the slice reference to its pointer structure.
-	pub(crate) fn bit_span(&self) -> BitSpan<O, T, Const> {
+	pub(crate) fn bit_span(&self) -> BitSpan<Const, O, T> {
 		self.as_bitspan().pipe(BitSpan::from_bitslice_ptr)
 	}
 
 	/// Type-cast the slice reference to its pointer structure.
-	pub(crate) fn bit_span_mut(&mut self) -> BitSpan<O, T, Mut> {
+	pub(crate) fn bit_span_mut(&mut self) -> BitSpan<Mut, O, T> {
 		self.as_mut_bitspan().pipe(BitSpan::from_bitslice_ptr_mut)
 	}
 
@@ -2215,7 +2215,7 @@ where
 	/// |-------------:|----------------------:|
 	/// |32 bits       |     `0x1fff_ffff`     |
 	/// |64 bits       |`0x1fff_ffff_ffff_ffff`|
-	pub const MAX_BITS: usize = BitSpan::<O, T, Const>::REGION_MAX_BITS;
+	pub const MAX_BITS: usize = BitSpan::<Const, O, T>::REGION_MAX_BITS;
 	/// The inclusive maximum length that a slice `[T]` can be for
 	/// `BitSlice<_, T>` to cover it.
 	///
@@ -2230,7 +2230,7 @@ where
 	/// |       16|    `0x0200_0001`    |`0x0200_0000_0000_0001`|
 	/// |       32|    `0x0100_0001`    |`0x0100_0000_0000_0001`|
 	/// |       64|    `0x0080_0001`    |`0x0080_0000_0000_0001`|
-	pub const MAX_ELTS: usize = BitSpan::<O, T, Const>::REGION_MAX_ELTS;
+	pub const MAX_ELTS: usize = BitSpan::<Const, O, T>::REGION_MAX_ELTS;
 }
 
 #[cfg(feature = "alloc")]

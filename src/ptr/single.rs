@@ -65,25 +65,25 @@ need them, please file an issue.
 
 You may freely perform pointer arithmetic on this type.
 **/
-pub struct BitPtr<O, T, M>
+pub struct BitPtr<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	/// Address of the referent element.
-	addr: Address<T, M>,
+	addr: Address<M, T>,
 	/// Index of the bit within the referent element.
 	head: BitIdx<T::Mem>,
 	/// The ordering used to map `self.head` to an electrical position.
 	_ord: PhantomData<O>,
 }
 
-impl<O, T, M> BitPtr<O, T, M>
+impl<M, O, T> BitPtr<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	pub(crate) const DANGLING: Self = Self {
 		addr: Address::DANGLING,
@@ -109,7 +109,7 @@ where
 	/// [`NonNull`]: core::ptr::NonNull
 	pub fn new<A>(addr: A, head: BitIdx<T::Mem>) -> Result<Self, AddressError<T>>
 	where
-		A: TryInto<Address<T, M>>,
+		A: TryInto<Address<M, T>>,
 		AddressError<T>: From<A::Error>,
 	{
 		let addr = addr.try_into()?;
@@ -135,7 +135,7 @@ where
 	/// `addr` is not inspected for correctness, and invalid values can
 	/// invalidate program state.
 	pub unsafe fn new_unchecked<A>(addr: A, head: BitIdx<T::Mem>) -> Self
-	where A: Into<Address<T, M>> {
+	where A: Into<Address<M, T>> {
 		let addr = addr.into();
 		Self {
 			addr,
@@ -145,7 +145,7 @@ where
 	}
 
 	/// Decomposes the pointer into its element address and bit index.
-	pub fn raw_parts(self) -> (Address<T, M>, BitIdx<T::Mem>) {
+	pub fn raw_parts(self) -> (Address<M, T>, BitIdx<T::Mem>) {
 		(self.addr, self.head)
 	}
 
@@ -167,13 +167,13 @@ where
 	pub(crate) unsafe fn into_bitspan_unchecked(
 		self,
 		bits: usize,
-	) -> BitSpan<O, T, M> {
+	) -> BitSpan<M, O, T> {
 		BitSpan::new_unchecked(self.addr, self.head, bits)
 	}
 
 	/// Constructs a bit-pointer range, starting at `self` and running for
 	/// `count` bits.
-	pub(crate) fn range(self, count: usize) -> BitPtrRange<O, T, M> {
+	pub(crate) fn range(self, count: usize) -> BitPtrRange<M, O, T> {
 		(self .. unsafe { self.add(count) }).into()
 	}
 
@@ -218,7 +218,7 @@ where
 	/// at the address rounded down from the byte-address of type `T`, are valid
 	/// to access. You are unlikely to encounter an address that violates this
 	/// requirement.
-	pub fn cast<U>(self) -> BitPtr<O, U, M>
+	pub fn cast<U>(self) -> BitPtr<M, O, U>
 	where U: BitStore {
 		let (addr, head, _) = unsafe { self.into_bitspan_unchecked(1) }
 			.cast::<U>()
@@ -320,10 +320,10 @@ where
 	///   `isize`.
 	/// - The distance being in bounds cannot rely on “wrapping around” the
 	///   address space.
-	pub unsafe fn offset_from<U, N>(self, other: BitPtr<O, U, N>) -> isize
+	pub unsafe fn offset_from<M2, T2>(self, other: BitPtr<M2, O, T2>) -> isize
 	where
-		U: BitStore,
-		N: Mutability,
+		M2: Mutability,
+		T2: BitStore,
 	{
 		let this = self.addr.value() as isize;
 		let that = other.addr.value() as isize;
@@ -476,7 +476,7 @@ where
 	}
 }
 
-impl<O, T> BitPtr<O, T, Const>
+impl<O, T> BitPtr<Const, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -489,7 +489,7 @@ where
 	/// immutable through [`.immut()`].
 	///
 	/// [`.immut()`]: BitPtr::immut
-	pub unsafe fn assert_mut(self) -> BitPtr<O, T, Mut> {
+	pub unsafe fn assert_mut(self) -> BitPtr<Mut, O, T> {
 		let Self { addr, head, .. } = self;
 		BitPtr {
 			addr: addr.assert_mut(),
@@ -499,13 +499,13 @@ where
 	}
 }
 
-impl<O, T> BitPtr<O, T, Mut>
+impl<O, T> BitPtr<Mut, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
 	/// Lower a mutable pointer to immutable.
-	pub fn immut(self) -> BitPtr<O, T, Const> {
+	pub fn immut(self) -> BitPtr<Const, O, T> {
 		let Self { addr, head, .. } = self;
 		BitPtr {
 			addr: addr.immut(),
@@ -545,7 +545,7 @@ where
 	/// # API Differences
 	///
 	/// This does not require that the two pointers be of exactly the same type.
-	pub unsafe fn swap<O2, T2>(self, other: BitPtr<O2, T2, Mut>)
+	pub unsafe fn swap<O2, T2>(self, other: BitPtr<Mut, O2, T2>)
 	where
 		O2: BitOrder,
 		T2: BitStore,
@@ -556,11 +556,11 @@ where
 	}
 }
 
-impl<O, T, M> Clone for BitPtr<O, T, M>
+impl<M, O, T> Clone for BitPtr<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	#[inline(always)]
 	fn clone(&self) -> Self {
@@ -568,19 +568,19 @@ where
 	}
 }
 
-impl<O, T, M> Eq for BitPtr<O, T, M>
+impl<M, O, T> Eq for BitPtr<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 }
 
-impl<O, T, M> Ord for BitPtr<O, T, M>
+impl<M, O, T> Ord for BitPtr<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
 		self.partial_cmp(&other)
@@ -588,16 +588,16 @@ where
 	}
 }
 
-impl<O, T, U, M, N> PartialEq<BitPtr<O, U, N>> for BitPtr<O, T, M>
+impl<M1, M2, O, T1, T2> PartialEq<BitPtr<M2, O, T2>> for BitPtr<M1, O, T1>
 where
+	M1: Mutability,
+	M2: Mutability,
 	O: BitOrder,
-	T: BitStore,
-	U: BitStore,
-	M: Mutability,
-	N: Mutability,
+	T1: BitStore,
+	T2: BitStore,
 {
-	fn eq(&self, other: &BitPtr<O, U, N>) -> bool {
-		if TypeId::of::<T::Mem>() != TypeId::of::<U::Mem>() {
+	fn eq(&self, other: &BitPtr<M2, O, T2>) -> bool {
+		if TypeId::of::<T1::Mem>() != TypeId::of::<T2::Mem>() {
 			return false;
 		}
 		self.addr.value() == other.addr.value()
@@ -605,16 +605,16 @@ where
 	}
 }
 
-impl<O, T, U, M, N> PartialOrd<BitPtr<O, U, N>> for BitPtr<O, T, M>
+impl<M1, M2, O, T1, T2> PartialOrd<BitPtr<M2, O, T2>> for BitPtr<M1, O, T1>
 where
+	M1: Mutability,
+	M2: Mutability,
 	O: BitOrder,
-	T: BitStore,
-	U: BitStore,
-	M: Mutability,
-	N: Mutability,
+	T1: BitStore,
+	T2: BitStore,
 {
-	fn partial_cmp(&self, other: &BitPtr<O, U, N>) -> Option<cmp::Ordering> {
-		if TypeId::of::<T::Mem>() != TypeId::of::<U::Mem>() {
+	fn partial_cmp(&self, other: &BitPtr<M2, O, T2>) -> Option<cmp::Ordering> {
+		if TypeId::of::<T1::Mem>() != TypeId::of::<T2::Mem>() {
 			return None;
 		}
 		match (self.addr.value()).cmp(&(other.addr.value())) {
@@ -626,7 +626,7 @@ where
 	}
 }
 
-impl<O, T> From<&T> for BitPtr<O, T, Const>
+impl<O, T> From<&T> for BitPtr<Const, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -639,7 +639,7 @@ where
 	}
 }
 
-impl<O, T> From<&mut T> for BitPtr<O, T, Mut>
+impl<O, T> From<&mut T> for BitPtr<Mut, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -652,7 +652,7 @@ where
 	}
 }
 
-impl<O, T> From<NonNull<T>> for BitPtr<O, T, Mut>
+impl<O, T> From<NonNull<T>> for BitPtr<Mut, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -665,7 +665,7 @@ where
 	}
 }
 
-impl<O, T> TryFrom<*const T> for BitPtr<O, T, Const>
+impl<O, T> TryFrom<*const T> for BitPtr<Const, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -680,7 +680,7 @@ where
 	}
 }
 
-impl<O, T> TryFrom<*mut T> for BitPtr<O, T, Mut>
+impl<O, T> TryFrom<*mut T> for BitPtr<Mut, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -695,11 +695,11 @@ where
 	}
 }
 
-impl<O, T, M> Debug for BitPtr<O, T, M>
+impl<M, O, T> Debug for BitPtr<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -707,11 +707,11 @@ where
 	}
 }
 
-impl<O, T, M> Pointer for BitPtr<O, T, M>
+impl<M, O, T> Pointer for BitPtr<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Pointer::fmt(&self.addr, fmt)?;
@@ -720,11 +720,11 @@ where
 	}
 }
 
-impl<O, T, M> Hash for BitPtr<O, T, M>
+impl<M, O, T> Hash for BitPtr<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	fn hash<H>(&self, hasher: &mut H)
 	where H: Hasher {
@@ -733,11 +733,11 @@ where
 	}
 }
 
-impl<O, T, M> Copy for BitPtr<O, T, M>
+impl<M, O, T> Copy for BitPtr<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 }
 
@@ -751,7 +751,7 @@ mod tests {
 		let data = 0u16;
 		let head = BitIdx::new(5).unwrap();
 
-		let bitptr = BitPtr::<Lsb0, _, _>::new(&data, head).unwrap();
+		let bitptr = BitPtr::<_, Lsb0, _>::new(&data, head).unwrap();
 		let (addr, indx) = bitptr.raw_parts();
 		assert_eq!(addr.to_const(), &data as *const _);
 		assert_eq!(indx.value(), 5);

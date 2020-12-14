@@ -248,7 +248,7 @@ where
 {
 	fn default() -> Self {
 		Self {
-			pointer: BitSpan::<O, T, Mut>::EMPTY.to_nonnull(),
+			pointer: BitSpan::<Mut, O, T>::EMPTY.to_nonnull(),
 		}
 	}
 }

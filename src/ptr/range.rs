@@ -44,31 +44,32 @@ implementation is provided.
 
 # Type Parameters
 
-- `O`: The ordering of bits within a memory element.
-- `T`: The type of memory elements referenced by the pointers.
-- `M`: The mutability permissions of the pointers.
+- `M`: The write permissions of the pointers this range produces.
+- `O`: The bit-ordering within a storage element used to access bits.
+- `T`: The storage element type containing the referent bits.
 **/
-pub struct BitPtrRange<O, T, M>
+#[repr(C)]
+pub struct BitPtrRange<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	//  Semantically, this is two `BitPtr<O, T>`, but structurally, the `BitPtr`
 	//  members need to be kept unpacked so that this compacts to three words
 	//  rather than four.
-	base: Address<T, M>,
-	last: Address<T, M>,
+	base: Address<M, T>,
+	last: Address<M, T>,
 	head: BitIdx<T::Mem>,
 	tail: BitIdx<T::Mem>,
 	_ord: PhantomData<O>,
 }
 
-impl<O, T, M> BitPtrRange<O, T, M>
+impl<M, O, T> BitPtrRange<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	/// An empty range.
 	pub const EMPTY: Self = Self {
@@ -119,10 +120,10 @@ where
 	/// This permits pointers of similar memory element type, and any mutability
 	/// permission, rather than being constrained to exactly the same type as
 	/// the range.
-	pub fn contains<U, N>(&self, pointer: BitPtr<O, U, N>) -> bool
+	pub fn contains<M2, T2>(&self, pointer: &BitPtr<M2, O, T2>) -> bool
 	where
-		U: BitStore,
-		N: Mutability,
+		M2: Mutability,
+		T2: BitStore,
 	{
 		let (start, end) = self.pointers();
 		start.le(&pointer) && pointer.lt(&end)
@@ -179,11 +180,11 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T, M> Clone for BitPtrRange<O, T, M>
+impl<M, O, T> Clone for BitPtrRange<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	fn clone(&self) -> Self {
 		*self
@@ -191,13 +192,13 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T, M> From<BitSpan<O, T, M>> for BitPtrRange<O, T, M>
+impl<M, O, T> From<BitSpan<M, O, T>> for BitPtrRange<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
-	fn from(span: BitSpan<O, T, M>) -> Self {
+	fn from(span: BitSpan<M, O, T>) -> Self {
 		let (base, head, bits) = span.raw_parts();
 		let (elts, tail) = head.offset(bits as isize);
 		let last = unsafe {
@@ -214,13 +215,13 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T, M> From<Range<BitPtr<O, T, M>>> for BitPtrRange<O, T, M>
+impl<M, O, T> From<Range<BitPtr<M, O, T>>> for BitPtrRange<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
-	fn from(Range { start, end }: Range<BitPtr<O, T, M>>) -> Self {
+	fn from(Range { start, end }: Range<BitPtr<M, O, T>>) -> Self {
 		let (base, head) = start.raw_parts();
 		let (last, tail) = end.raw_parts();
 		Self {
@@ -234,11 +235,11 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T, M> Debug for BitPtrRange<O, T, M>
+impl<M, O, T> Debug for BitPtrRange<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		let (from, upto) = self.pointers();
@@ -248,13 +249,13 @@ where
 	}
 }
 
-impl<O, T, M> Iterator for BitPtrRange<O, T, M>
+impl<M, O, T> Iterator for BitPtrRange<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
-	type Item = BitPtr<O, T, M>;
+	type Item = BitPtr<M, O, T>;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		if Self::is_empty(&*self) {
@@ -296,11 +297,11 @@ where
 	}
 }
 
-impl<O, T, M> DoubleEndedIterator for BitPtrRange<O, T, M>
+impl<M, O, T> DoubleEndedIterator for BitPtrRange<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	fn next_back(&mut self) -> Option<Self::Item> {
 		if Self::is_empty(&*self) {
@@ -324,11 +325,11 @@ where
 	}
 }
 
-impl<O, T, M> ExactSizeIterator for BitPtrRange<O, T, M>
+impl<M, O, T> ExactSizeIterator for BitPtrRange<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	fn len(&self) -> usize {
 		//  Get the byte distance between the start and end pointers,
@@ -344,18 +345,18 @@ where
 	}
 }
 
-impl<O, T, M> FusedIterator for BitPtrRange<O, T, M>
+impl<M, O, T> FusedIterator for BitPtrRange<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 }
 
-impl<O, T, M> Copy for BitPtrRange<O, T, M>
+impl<M, O, T> Copy for BitPtrRange<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 }

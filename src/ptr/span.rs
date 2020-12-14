@@ -164,11 +164,11 @@ be manipulated in any way by user code outside of the APIs it offers to this
 [`dangling()`]: core::ptr::NonNull::dangling
 **/
 #[repr(C)]
-pub(crate) struct BitSpan<O, T, M>
+pub(crate) struct BitSpan<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	/// Memory address and high bits of the head index.
 	///
@@ -195,14 +195,14 @@ where
 	/// Bit-region pointers must be colored by the bit-ordering they use.
 	_or: PhantomData<O>,
 	/// This is semantically a pointer to a `T` element.
-	_ty: PhantomData<Address<T, M>>,
+	_ty: PhantomData<Address<M, T>>,
 }
 
-impl<O, T, M> BitSpan<O, T, M>
+impl<M, O, T> BitSpan<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	/// The canonical form of a pointer to an empty region.
 	pub(crate) const EMPTY: Self = Self {
@@ -280,7 +280,7 @@ where
 	#[cfg(any(feature = "alloc", test))]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn uninhabited<A>(addr: A) -> Self
-	where A: TryInto<Address<T, M>, Error = AddressError<T>> {
+	where A: TryInto<Address<M, T>, Error = AddressError<T>> {
 		Self {
 			ptr: addr
 				.try_into()
@@ -328,7 +328,7 @@ where
 		bits: usize,
 	) -> Result<Self, BitSpanError<O, T>>
 	where
-		A: TryInto<Address<T, M>>,
+		A: TryInto<Address<M, T>>,
 		BitSpanError<O, T>: From<A::Error>,
 	{
 		let addr = addr.try_into()?;
@@ -373,7 +373,7 @@ where
 		bits: usize,
 	) -> Self
 	where
-		A: TryInto<Address<T, M>>,
+		A: TryInto<Address<M, T>>,
 		A::Error: Debug,
 	{
 		let (addr, head) = (addr.try_into().unwrap(), head.value() as usize);
@@ -470,7 +470,7 @@ where
 	/// This does not alter the encoded value of the pointer! It only
 	/// reinterprets the element type, and the encoded value may shift
 	/// significantly in the result type. Use with caution.
-	pub(crate) fn cast<U>(self) -> BitSpan<O, U, M>
+	pub(crate) fn cast<U>(self) -> BitSpan<M, O, U>
 	where U: BitStore {
 		let Self { ptr, len, .. } = self;
 		BitSpan {
@@ -511,7 +511,7 @@ where
 	/// [`BitStore`]: crate::store::BitStore
 	/// [`Domain`]: crate::domain::Domain
 	/// [`slice::align_to`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.align_to
-	pub(crate) unsafe fn align_to<U>(self) -> (Self, BitSpan<O, U, M>, Self)
+	pub(crate) unsafe fn align_to<U>(self) -> (Self, BitSpan<M, O, U>, Self)
 	where U: BitStore {
 		match self.to_bitslice_ref().domain() {
 			Domain::Enclave { .. } => (self, BitSpan::EMPTY, BitSpan::EMPTY),
@@ -625,7 +625,7 @@ where
 	/// The address of the starting element of the memory region. This address
 	/// is weakly typed so that it can be cast by call sites to the most useful
 	/// access type.
-	pub(crate) fn pointer(&self) -> Address<T, M> {
+	pub(crate) fn pointer(&self) -> Address<M, T> {
 		unsafe {
 			Address::new_unchecked(
 				self.ptr.as_ptr() as usize & Self::PTR_ADDR_MASK,
@@ -649,7 +649,7 @@ where
 	#[cfg(any(feature = "alloc", test))]
 	pub(crate) unsafe fn set_pointer<A>(&mut self, addr: A)
 	where
-		A: TryInto<Address<T, M>>,
+		A: TryInto<Address<M, T>>,
 		A::Error: Debug,
 	{
 		let addr = addr.try_into().unwrap();
@@ -755,7 +755,7 @@ where
 	/// - `.1`: The index of the first live bit in the first element of the
 	///   region.
 	/// - `.2`: The number of live bits in the region.
-	pub(crate) fn raw_parts(&self) -> (Address<T, M>, BitIdx<T::Mem>, usize) {
+	pub(crate) fn raw_parts(&self) -> (Address<M, T>, BitIdx<T::Mem>, usize) {
 		(self.pointer(), self.head(), self.len())
 	}
 
@@ -999,7 +999,7 @@ where
 	}
 }
 
-impl<O, T> BitSpan<O, T, Const>
+impl<O, T> BitSpan<Const, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -1043,7 +1043,7 @@ where
 	/// was lowered to immutable and needs to be re-raised; it is Undefined
 	/// Behavior in the compiler to call it on a span descriptor that was never
 	/// mutable.
-	pub(crate) unsafe fn assert_mut(self) -> BitSpan<O, T, Mut> {
+	pub(crate) unsafe fn assert_mut(self) -> BitSpan<Mut, O, T> {
 		let Self { ptr, len, _or, .. } = self;
 		BitSpan {
 			ptr,
@@ -1054,7 +1054,7 @@ where
 	}
 }
 
-impl<O, T> BitSpan<O, T, Mut>
+impl<O, T> BitSpan<Mut, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -1145,39 +1145,39 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T, M> Clone for BitSpan<O, T, M>
+impl<M, O, T> Clone for BitSpan<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	fn clone(&self) -> Self {
 		*self
 	}
 }
 
-impl<O, T, M> Eq for BitSpan<O, T, M>
+impl<M, O, T> Eq for BitSpan<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 }
 
-impl<O, T, U, M, N> PartialEq<BitSpan<O, U, N>> for BitSpan<O, T, M>
+impl<M1, M2, O, T1, T2> PartialEq<BitSpan<M2, O, T2>> for BitSpan<M1, O, T1>
 where
+	M1: Mutability,
+	M2: Mutability,
 	O: BitOrder,
-	T: BitStore,
-	U: BitStore,
-	M: Mutability,
-	N: Mutability,
+	T1: BitStore,
+	T2: BitStore,
 {
-	fn eq(&self, other: &BitSpan<O, U, N>) -> bool {
+	fn eq(&self, other: &BitSpan<M2, O, T2>) -> bool {
 		let (addr_a, head_a, bits_a) = self.raw_parts();
 		let (addr_b, head_b, bits_b) = other.raw_parts();
 		//  Since ::BITS is an associated const, the compiler will automatically
 		//  replace the entire function with `false` when the types don’t match.
-		T::Mem::BITS == U::Mem::BITS
+		T1::Mem::BITS == T2::Mem::BITS
 			&& addr_a.value() == addr_b.value()
 			&& head_a.value() == head_b.value()
 			&& bits_a == bits_b
@@ -1185,44 +1185,44 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T, M> Default for BitSpan<O, T, M>
+impl<M, O, T> Default for BitSpan<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	fn default() -> Self {
 		Self::EMPTY
 	}
 }
 
-impl<O, T, M> Debug for BitSpan<O, T, M>
+impl<M, O, T> Debug for BitSpan<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Pointer::fmt(self, fmt)
 	}
 }
 
-impl<O, T, M> Pointer for BitSpan<O, T, M>
+impl<M, O, T> Pointer for BitSpan<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		self.render(fmt, "Ptr", None)
 	}
 }
 
-impl<O, T, M> Copy for BitSpan<O, T, M>
+impl<M, O, T> Copy for BitSpan<M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
-	M: Mutability,
 {
 }
 
@@ -1321,7 +1321,7 @@ where
 				"Length {} is too long to encode in a bit slice, which can \
 				 only accept {} bits",
 				len,
-				BitSpan::<O, T, Const>::REGION_MAX_BITS
+				BitSpan::<Const, O, T>::REGION_MAX_BITS
 			),
 			Self::TooHigh(addr) => {
 				write!(fmt, "Address {:p} would wrap the address space", addr)
@@ -1364,22 +1364,22 @@ mod tests {
 	#[test]
 	fn ctor() {
 		assert!(matches!(
-			Address::<u8, Const>::new(0),
+			Address::<Const, u8>::new(0),
 			Err(AddressError::Null)
 		));
 		assert!(matches!(
-			Address::<u16,Const>::new(3),
+			Address::<Const, u16>::new(3),
 			Err(AddressError::Misaligned(addr)) if addr as usize == 3
 		));
 
 		let data = 0u8;
-		assert!(BitSpan::<LocalBits, _, _>::new(&data, BitIdx::ZERO, 5).is_ok());
+		assert!(BitSpan::<_, LocalBits, _>::new(&data, BitIdx::ZERO, 5).is_ok());
 		assert!(matches!(
-			BitSpan::<LocalBits, _, _>::new(&data, BitIdx::ZERO, (!0 >> 3) + 1),
+			BitSpan::<_, LocalBits, _>::new(&data, BitIdx::ZERO, (!0 >> 3) + 1),
 			Err(BitSpanError::TooLong(_))
 		));
 		assert!(matches!(
-			BitSpan::<LocalBits, _, _>::new(
+			BitSpan::<_, LocalBits, _>::new(
 				!0usize as *const u8,
 				BitIdx::ZERO,
 				8
@@ -1390,11 +1390,11 @@ mod tests {
 		//  Double check the null pointers, but they are in practice impossible
 		//  to construct.
 		assert_eq!(
-			BitSpan::<LocalBits, u8, Const>::from_bitslice_ptr(
+			BitSpan::<Const, LocalBits, u8>::from_bitslice_ptr(
 				ptr::slice_from_raw_parts(ptr::null::<()>(), 1)
 					as *mut BitSlice<LocalBits, u8>
 			),
-			BitSpan::<LocalBits, u8, Const>::EMPTY,
+			BitSpan::<Const, LocalBits, u8>::EMPTY,
 		);
 	}
 
@@ -1402,11 +1402,11 @@ mod tests {
 	fn recast() {
 		let data = 0u32;
 		let bitspan =
-			BitSpan::<LocalBits, _, _>::new(&data, BitIdx::ZERO, 32).unwrap();
+			BitSpan::<_, LocalBits, _>::new(&data, BitIdx::ZERO, 32).unwrap();
 		let raw_ptr = bitspan.to_bitslice_ptr();
 		assert_eq!(
 			bitspan,
-			BitSpan::<Lsb0, u32, Const>::from_bitslice_ptr(raw_ptr)
+			BitSpan::<Const, Lsb0, u32>::from_bitslice_ptr(raw_ptr)
 		);
 	}
 
@@ -1463,11 +1463,11 @@ mod tests {
 	#[test]
 	fn mem_size() {
 		assert_eq!(
-			mem::size_of::<BitSpan<LocalBits, usize, Const>>(),
+			mem::size_of::<BitSpan<Const, LocalBits, usize>>(),
 			mem::size_of::<*const [usize]>()
 		);
 		assert_eq!(
-			mem::size_of::<Option<BitSpan<LocalBits, usize, Const>>>(),
+			mem::size_of::<Option<BitSpan<Const, LocalBits, usize>>>(),
 			mem::size_of::<*const [usize]>()
 		);
 	}

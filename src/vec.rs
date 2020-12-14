@@ -783,12 +783,12 @@ where
 	}
 
 	/// Type-cast the slice pointer to its encoded structure.
-	pub(crate) fn bit_span(&self) -> BitSpan<O, T, Const> {
+	pub(crate) fn bit_span(&self) -> BitSpan<Const, O, T> {
 		self.pointer.as_ptr().pipe(BitSpan::from_bitslice_ptr_mut)
 	}
 
 	/// Type-cast the slice pointer to its encoded structure.
-	pub(crate) fn bit_span_mut(&mut self) -> BitSpan<O, T, Mut> {
+	pub(crate) fn bit_span_mut(&mut self) -> BitSpan<Mut, O, T> {
 		self.pointer.as_ptr().pipe(BitSpan::from_bitslice_ptr_mut)
 	}
 

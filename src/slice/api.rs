@@ -547,7 +547,7 @@ where
 	/// [`.as_mut_bitptr()`]: Self::as_mut_bitptr
 	/// [`from_raw_parts`]: crate::slice::from_raw_parts
 	#[deprecated = "Use `.as_bitptr()` to access the region pointer"]
-	pub fn as_ptr(&self) -> BitPtr<O, T, Const> {
+	pub fn as_ptr(&self) -> BitPtr<Const, O, T> {
 		self.as_bitptr()
 	}
 
@@ -595,7 +595,7 @@ where
 	/// assert_eq!(bits.as_slice()[0], 0b0100_1001);
 	/// ```
 	#[deprecated = "Use `.as_mut_bitptr()` to access the region pointer"]
-	pub fn as_mut_ptr(&mut self) -> BitPtr<O, T, Mut> {
+	pub fn as_mut_ptr(&mut self) -> BitPtr<Mut, O, T> {
 		self.as_mut_bitptr()
 	}
 
@@ -2317,7 +2317,7 @@ in comments. Once `rustfmt` is fixed, revert these to block comments.
 /// [`BitPtr`]: crate::ptr::BitPtr
 /// [`BitSlice::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
 pub unsafe fn from_raw_parts<'a, O, T>(
-	data: BitPtr<O, T, Const>,
+	data: BitPtr<Const, O, T>,
 	len: usize,
 ) -> &'a BitSlice<O, T>
 where
@@ -2355,7 +2355,7 @@ where
 /// [valid]: https://doc.rust-lang.org/stable/core/ptr/index.html#safety
 /// [`from_raw_parts`]: crate::slice::from_raw_parts
 pub unsafe fn from_raw_parts_mut<'a, O, T>(
-	data: BitPtr<O, T, Mut>,
+	data: BitPtr<Mut, O, T>,
 	len: usize,
 ) -> &'a mut BitSlice<O, T>
 where

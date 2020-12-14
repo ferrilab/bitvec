@@ -91,7 +91,7 @@ where
 	///
 	/// This structure stores two fully-decoded pointers to the start and end
 	/// bits, trading increased size for faster performance during iteration.
-	range: BitPtrRange<O, T, Const>,
+	range: BitPtrRange<Const, O, T>,
 	/// `Iter` is semantically equivalent to a [`&BitSlice`].
 	///
 	/// [`&BitSlice`]: crate::slice::BitSlice
@@ -166,7 +166,7 @@ where
 		self.as_bitslice()
 	}
 
-	fn from_bitptr(bitptr: BitPtr<O, T, Const>) -> <Self as Iterator>::Item {
+	fn from_bitptr(bitptr: BitPtr<Const, O, T>) -> <Self as Iterator>::Item {
 		if unsafe { bitptr.read() } {
 			&true
 		}
@@ -249,7 +249,7 @@ where
 	///
 	/// This structure stores two fully-decoded pointers to the start and end
 	/// bits, trading increased size for faster performance during iteration.
-	range: BitPtrRange<O, T::Alias, Mut>,
+	range: BitPtrRange<Mut, O, T::Alias>,
 	/// `IterMut` is semantically equivalent to an aliasing [`&mut BitSlice`].
 	///
 	/// [`&mut BitSlice`]: crate::slice::BitSlice
@@ -340,7 +340,7 @@ where
 	}
 
 	fn from_bitptr(
-		bitptr: BitPtr<O, T::Alias, Mut>,
+		bitptr: BitPtr<Mut, O, T::Alias>,
 	) -> <Self as Iterator>::Item {
 		let (addr, head) = bitptr.raw_parts();
 		unsafe { BitMut::new_unchecked(addr, head) }

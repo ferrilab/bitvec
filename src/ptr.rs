@@ -105,8 +105,8 @@ destination pointers have the same type parameters.
 [`copy_nonoverlapping`]: crate::ptr::copy_nonoverlapping
 **/
 pub unsafe fn copy<O1, O2, T1, T2>(
-	src: BitPtr<O1, T1, Const>,
-	dst: BitPtr<O2, T2, Mut>,
+	src: BitPtr<Const, O1, T1>,
+	dst: BitPtr<Mut, O2, T2>,
 	count: usize,
 ) where
 	O1: BitOrder,
@@ -116,12 +116,12 @@ pub unsafe fn copy<O1, O2, T1, T2>(
 {
 	if TypeId::of::<O1>() == TypeId::of::<O2>() {
 		let (addr, head) = dst.raw_parts();
-		let dst = BitPtr::<O1, T2, Mut>::new_unchecked(addr, head);
+		let dst = BitPtr::<Mut, O1, T2>::new_unchecked(addr, head);
 
 		let src_pair = src.range(count);
 		let dst_pair = dst.range(count);
 
-		if src_pair.contains(dst) {
+		if src_pair.contains(&dst) {
 			for (src, dst) in src_pair.zip(dst_pair).rev() {
 				write(dst, read(src));
 			}
@@ -176,7 +176,7 @@ assert!(
 
 [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
 **/
-pub unsafe fn read<O, T>(src: BitPtr<O, T, Const>) -> bool
+pub unsafe fn read<O, T>(src: BitPtr<Const, O, T>) -> bool
 where
 	O: BitOrder,
 	T: BitStore,
@@ -217,7 +217,7 @@ assert_eq!(x, 1);
 
 [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
 **/
-pub unsafe fn write<O, T>(dst: BitPtr<O, T, Mut>, src: bool)
+pub unsafe fn write<O, T>(dst: BitPtr<Mut, O, T>, src: bool)
 where
 	O: BitOrder,
 	T: BitStore,
@@ -242,19 +242,19 @@ conversion target in pointer constructors.
 **/
 #[repr(transparent)]
 #[derive(Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Address<T, M>
+pub struct Address<M, T>
 where
-	T: BitStore,
 	M: Mutability,
+	T: BitStore,
 {
 	inner: NonNull<T>,
 	_mut: PhantomData<M>,
 }
 
-impl<T, M> Address<T, M>
+impl<M, T> Address<M, T>
 where
-	T: BitStore,
 	M: Mutability,
+	T: BitStore,
 {
 	/// Views a numeric address as a typed data address.
 	pub(crate) fn new(addr: usize) -> Result<Self, AddressError<T>> {
@@ -271,10 +271,10 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T, M> Address<T, M>
+impl<M, T> Address<M, T>
 where
-	T: BitStore,
 	M: Mutability,
+	T: BitStore,
 {
 	pub(crate) const DANGLING: Self = Self {
 		inner: NonNull::dangling(),
@@ -353,11 +353,11 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T> Address<T, Const>
+impl<T> Address<Const, T>
 where T: BitStore
 {
 	#[inline(always)]
-	pub(crate) unsafe fn assert_mut(self) -> Address<T, Mut> {
+	pub(crate) unsafe fn assert_mut(self) -> Address<Mut, T> {
 		let Self { inner, .. } = self;
 		Address {
 			inner,
@@ -367,7 +367,7 @@ where T: BitStore
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T> Address<T, Mut>
+impl<T> Address<Mut, T>
 where T: BitStore
 {
 	/// Views the memory address as a mutable pointer.
@@ -378,8 +378,7 @@ where T: BitStore
 	}
 
 	#[inline(always)]
-	pub(crate) fn immut(self) -> Address<T, Const>
-	where T: BitStore {
+	pub(crate) fn immut(self) -> Address<Const, T> {
 		let Self { inner, .. } = self;
 		Address {
 			inner,
@@ -389,10 +388,10 @@ where T: BitStore
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T, M> Clone for Address<T, M>
+impl<M, T> Clone for Address<M, T>
 where
-	T: BitStore,
 	M: Mutability,
+	T: BitStore,
 {
 	fn clone(&self) -> Self {
 		*self
@@ -400,7 +399,7 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T> From<&T> for Address<T, Const>
+impl<T> From<&T> for Address<Const, T>
 where T: BitStore
 {
 	#[inline(always)]
@@ -410,7 +409,7 @@ where T: BitStore
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T> TryFrom<*const T> for Address<T, Const>
+impl<T> TryFrom<*const T> for Address<Const, T>
 where T: BitStore
 {
 	type Error = AddressError<T>;
@@ -422,10 +421,10 @@ where T: BitStore
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T, M> From<&mut T> for Address<T, M>
+impl<M, T> From<&mut T> for Address<M, T>
 where
-	T: BitStore,
 	M: Mutability,
+	T: BitStore,
 {
 	#[inline(always)]
 	fn from(addr: &mut T) -> Self {
@@ -437,10 +436,10 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T, M> From<NonNull<T>> for Address<T, M>
+impl<M, T> From<NonNull<T>> for Address<M, T>
 where
-	T: BitStore,
 	M: Mutability,
+	T: BitStore,
 {
 	#[inline(always)]
 	fn from(addr: NonNull<T>) -> Self {
@@ -452,10 +451,10 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T, M> TryFrom<*mut T> for Address<T, M>
+impl<M, T> TryFrom<*mut T> for Address<M, T>
 where
-	T: BitStore,
 	M: Mutability,
+	T: BitStore,
 {
 	type Error = AddressError<T>;
 
@@ -466,10 +465,10 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T, M> Debug for Address<T, M>
+impl<M, T> Debug for Address<M, T>
 where
-	T: BitStore,
 	M: Mutability,
+	T: BitStore,
 {
 	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -478,10 +477,10 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T, M> Pointer for Address<T, M>
+impl<M, T> Pointer for Address<M, T>
 where
-	T: BitStore,
 	M: Mutability,
+	T: BitStore,
 {
 	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -489,10 +488,10 @@ where
 	}
 }
 
-impl<T, M> Copy for Address<T, M>
+impl<M, T> Copy for Address<M, T>
 where
-	T: BitStore,
 	M: Mutability,
+	T: BitStore,
 {
 }
 
