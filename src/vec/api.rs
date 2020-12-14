@@ -240,7 +240,7 @@ where
 	///
 	/// // Pull out the various important
 	/// // pieces of information about `bv`
-	/// let p = bv.as_mut_ptr();
+	/// let p = bv.as_mut_bitptr();
 	/// let e = bv.elements();
 	/// let cap = bv.alloc_capacity();
 	///

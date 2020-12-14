@@ -79,14 +79,16 @@ memory if their `BitOrder` parameters differ.
 use bitvec::prelude::*;
 
 let mut x = 0u8;
-let lsb0: BitPtr<Lsb0, _, _> = (&mut x).into();
-let msb0: BitPtr<Msb0, _, _> = (&x).into();
+let lsb0: BitPtr<_, Lsb0, _> = (&mut x).into();
+let msb0: BitPtr<_, Msb0, _> = (&x).into();
 
-//  Defined: the regions do not select the same bits
-bitvec::ptr::copy(lsb0, msb0, 4);
+unsafe {
+  //  Defined: the regions do not select the same bits
+  bitvec::ptr::copy(msb0, lsb0, 4);
 
-//  Undefined: the regions overlap in bits
-bitvec::ptr::copy(lsb0, msb0, 5);
+  //  Undefined: the regions overlap in bits
+  // bitvec::ptr::copy(msb0, lsb0, 5);
+}
 ```
 
 `bitvec` assumes that if `O1` and `O2` differ, then the regions will never
@@ -168,7 +170,7 @@ Basic usage:
 use bitvec::prelude::*;
 
 let x = 128u8;
-let x_ptr: BitPtr<Msb0, _, _> = (&x).into();
+let x_ptr: BitPtr<_, Msb0, _> = (&x).into();
 assert!(
   unsafe { bitvec::ptr::read(x_ptr) }
 );
@@ -210,7 +212,7 @@ Basic usage:
 use bitvec::prelude::*;
 
 let mut x = 0u8;
-let x_ptr: BitPtr<Lsb0, _, _> = (&mut x).into();
+let x_ptr: BitPtr<_, Lsb0, _> = (&mut x).into();
 unsafe { bitvec::ptr::write(x_ptr, true); }
 assert_eq!(x, 1);
 ```
