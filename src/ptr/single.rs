@@ -247,7 +247,10 @@ where
 	///
 	/// [`add`]: Self::add
 	pub unsafe fn range(self, count: usize) -> BitPtrRange<M, O, T> {
-		(self .. self.add(count)).into()
+		BitPtrRange {
+			start: self,
+			end: self.add(count),
+		}
 	}
 
 	/// Converts a bit-pointer into a proxy bit-reference.
@@ -1369,7 +1372,7 @@ mod tests {
 		let bitptr = BitPtr::<Const, Lsb0, _>::try_new(&data, 5).unwrap();
 		let (addr, indx) = bitptr.raw_parts();
 		assert_eq!(addr.to_const(), &data as *const _);
-		assert_eq!(indx.value(), 5);
+		assert_eq!(indx.value(), head);
 	}
 
 	#[test]

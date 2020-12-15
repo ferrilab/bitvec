@@ -10,7 +10,6 @@ use crate::{
 	},
 	order::BitOrder,
 	ptr::{
-		Address,
 		BitPtr,
 		BitSpan,
 	},
