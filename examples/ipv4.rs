@@ -158,7 +158,7 @@ impl<'a> Display for AnnotatedArray<'a> {
 		for (idx, word) in self.packet.as_bitslice().chunks(32).enumerate() {
 			let start_bit = idx * 32;
 			let bits = start_bit .. start_bit + 32;
-			for (bit, idx) in word.iter().copied().zip(bits) {
+			for (bit, idx) in word.iter().by_val().zip(bits) {
 				word_string.push_str(if bit { "1" } else { "0" });
 				mark_string.push_str(if marked_bits.contains(&idx) {
 					"^"

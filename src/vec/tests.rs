@@ -173,21 +173,6 @@ fn iterators() {
 	assert_eq!(bv.count_ones(), 4);
 
 	for (l, r) in (&bv).into_iter().zip(bits![0, 0, 1, 1, 0, 1, 0, 1]) {
-		/* Unimportant but interesting implementation detail: all accessors in
-		the crate that return an `&bool` use the same two addresses, because
-		the compiler unifies `&literal` references into secret statics. You
-		could argue that, much like YAML accepting yes/no as boolean literals,
-		there are now four valid boolean values in the crate: `true`, `false`,
-		and the addresses of their secret statics.
-
-		Switch to a by-value comparison instead of by-ref if this test fails.
-
-		Fun fact: Addresses are not stably observable in Miri.
-		*/
-		#[cfg(not(miri))]
-		assert_eq!(l as *const _, r as *const _);
-
-		#[cfg(miri)]
 		assert_eq!(*l, *r);
 	}
 
@@ -315,13 +300,13 @@ fn cloning() {
 fn vec_splice() {
 	let mut bv = bitvec![0, 1, 0];
 	let new = bits![1, 0];
-	let old: BitVec = bv.splice(.. 2, new.iter().copied()).collect();
+	let old: BitVec = bv.splice(.. 2, new.iter().by_val()).collect();
 	assert_eq!(bv, bits![1, 0, 0]);
 	assert_eq!(old, bits![0, 1]);
 
 	let mut bv = bitvec![0, 1, 0];
 	let new = bits![1, 1, 0, 0, 1, 1];
-	let old: BitVec = bv.splice(1 .. 2, new.iter().copied()).collect();
+	let old: BitVec = bv.splice(1 .. 2, new.iter().by_val()).collect();
 	assert_eq!(bv, bits![0, 1, 1, 0, 0, 1, 1, 0]);
 	assert_eq!(old, bits![1]);
 }

@@ -65,6 +65,21 @@ to the referent bit location on `drop`.
 - `O`: The ordering used to address a bit in memory.
 - `T`: The storage type containing the referent bit.
 
+# Quirks
+
+Because this type has both a lifetime and a destructor, it can introduce an
+uncommon error condition in Rust. When an expression that produces this type is
+in the final expression of a block, including if that expression is used as a
+condition in a `match`, `if let`, or `if`, then the compiler will attempt to
+extend the drop scope of this type to the outside of the block. This causes a
+lifetime mismatch error if the source region from which this proxy is produced
+goes out of scope at the end of the block.
+
+If you get a compiler error that this type causes something to be dropped while
+borrowed, you can end the borrow by putting any expression-ending syntax element
+after the offending expression that produces this type, including a semicolon or
+an item definition.
+
 # Examples
 
 ```rust
@@ -292,6 +307,17 @@ where
 	}
 }
 
+impl<M, O, T> PartialEq<&bool> for BitRef<'_, M, O, T>
+where
+	M: Mutability,
+	O: BitOrder,
+	T: BitStore,
+{
+	fn eq(&self, other: &&bool) -> bool {
+		self.data == **other
+	}
+}
+
 /// Order proxy references by the value of their proxied bit.
 ///
 /// To order by address, decay to a [`BitPtr`] with [`into_bitptr`].
@@ -324,6 +350,17 @@ where
 {
 	fn partial_cmp(&self, other: &bool) -> Option<cmp::Ordering> {
 		self.data.partial_cmp(other)
+	}
+}
+
+impl<M, O, T> PartialOrd<&bool> for BitRef<'_, M, O, T>
+where
+	M: Mutability,
+	O: BitOrder,
+	T: BitStore,
+{
+	fn partial_cmp(&self, other: &&bool) -> Option<cmp::Ordering> {
+		self.data.partial_cmp(*other)
 	}
 }
 

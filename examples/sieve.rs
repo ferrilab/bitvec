@@ -112,7 +112,7 @@ fn main() {
 	//  Find the widest number that will be printed, and get its width.
 	let cell_width = displayed_primes
 		.iter()
-		.copied()
+		.by_val()
 		//  search from the back
 		.rev()
 		.enumerate()
@@ -130,7 +130,7 @@ fn main() {
 	);
 	'rows: for (row, bits) in displayed_primes.chunks(dim).take(dim).enumerate()
 	{
-		for (col, bit) in bits.iter().copied().enumerate() {
+		for (col, bit) in bits.iter().by_val().enumerate() {
 			let idx = row * dim + col;
 			if idx >= limit {
 				println!();

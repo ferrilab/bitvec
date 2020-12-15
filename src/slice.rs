@@ -1263,7 +1263,7 @@ where
 		}
 		else {
 			for (to, from) in unsafe { self.iter_mut().remove_alias() }
-				.zip(src.iter().copied())
+				.zip(src.iter().by_val())
 			{
 				to.set(from);
 			}
@@ -1440,7 +1440,7 @@ where
 		}
 		else {
 			for (to, from) in unsafe { self.iter_mut().remove_alias() }
-				.zip(src.iter().copied())
+				.zip(src.iter().by_val())
 			{
 				to.set(from);
 			}

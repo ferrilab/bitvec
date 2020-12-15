@@ -7,7 +7,6 @@ use crate::{
 	},
 	order::BitOrder,
 	ptr::{
-		BitPtr,
 		BitPtrRange,
 		BitRef,
 	},
@@ -166,13 +165,111 @@ where
 		self.as_bitslice()
 	}
 
-	fn from_bitptr(bitptr: BitPtr<Const, O, T>) -> <Self as Iterator>::Item {
-		if unsafe { bitptr.read() } {
-			&true
-		}
-		else {
-			&false
-		}
+	/// Adapts the iterator to yield `&bool` references rather than `BitRef`
+	/// proxies.
+	///
+	/// This allows the iterator to be used in APIs that expect ordinary
+	/// references and are not easily modified to receive the proxy structure.
+	///
+	/// It works by yielding `&'static` references to hidden statics; these
+	/// references will **not** have an address value that fits in the context
+	/// of the iterator.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// An iterator equivalent to `self`, that yields `&bool` instead of
+	/// `BitRef`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bits = bits![0, 1];
+	/// let mut iter = bits.iter().by_ref();
+	/// assert_eq!(iter.next(), Some(&false));
+	/// assert_eq!(iter.next(), Some(&true));
+	/// assert!(iter.next().is_none());
+	/// ```
+	pub fn by_ref(
+		self,
+	) -> impl 'a
+	+ Iterator<Item = &'a bool>
+	+ DoubleEndedIterator
+	+ ExactSizeIterator
+	+ FusedIterator {
+		self.map(|bit| match *bit {
+			true => &true,
+			false => &false,
+		})
+	}
+
+	/// Adapts the iterator to yield `bool` values rather than `BitRef` proxy
+	/// references.
+	///
+	/// This allows the iterator to be used in APIs that expect ordinary values.
+	/// It dereferences the proxy and produces the proxied `bool` directly.
+	///
+	/// This is equivalent to `[bool].iter().copied()`, as [`Iterator::copied`]
+	/// is not available on this iterator.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// An iterator equivalent to `self`, that yields `bool` instead of
+	/// `BitRef`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bits = bits![0, 1];
+	/// let mut iter = bits.iter().by_val();
+	/// assert_eq!(iter.next(), Some(false));
+	/// assert_eq!(iter.next(), Some(true));
+	/// assert!(iter.next().is_none());
+	/// ```
+	///
+	/// [`Iterator::copied`]: core::iter::Iterator::copied
+	pub fn by_val(
+		self,
+	) -> impl 'a
+	+ Iterator<Item = bool>
+	+ DoubleEndedIterator
+	+ ExactSizeIterator
+	+ FusedIterator {
+		self.map(|bit| *bit)
+	}
+
+	/// Forwards to [`by_val`].
+	///
+	/// This exists to allow ported code to continue to compile when
+	/// `[bool].iter().copied()` is replaced with `BitSlice.iter().copied()`.
+	///
+	/// However, because [`Iterator::copied`] is not available on this iterator,
+	/// this name raises a deprecation warning and encourages the user to use
+	/// the correct inherent method instead of the overloaded method name.
+	///
+	/// [`by_val`]: Self::by_val
+	#[inline(always)]
+	#[deprecated = "`Iterator::copied` does not exist on this iterator. Use \
+	                `.by_val()` instead to achieve the same effect."]
+	pub fn copied(
+		self,
+	) -> impl 'a
+	+ Iterator<Item = bool>
+	+ DoubleEndedIterator
+	+ ExactSizeIterator
+	+ FusedIterator {
+		self.by_val()
 	}
 }
 
@@ -335,12 +432,6 @@ where
 	pub(super) fn as_bitslice(&self) -> &BitSlice<O, T::Alias> {
 		unsafe { core::ptr::read(self) }.into_bitslice()
 	}
-
-	fn from_bitptr(
-		bitptr: BitPtr<Mut, O, T::Alias>,
-	) -> <Self as Iterator>::Item {
-		unsafe { BitRef::from_bitptr(bitptr) }
-	}
 }
 
 #[cfg(not(tarpaulin_include))]
@@ -367,7 +458,9 @@ macro_rules! iter {
 			type Item = $i;
 
 			fn next(&mut self) -> Option<Self::Item> {
-				self.range.next().map(Self::from_bitptr)
+				self.range
+					.next()
+					.map(|bp| unsafe { BitRef::from_bitptr(bp) })
 			}
 
 			#[inline(always)]
@@ -381,7 +474,9 @@ macro_rules! iter {
 			}
 
 			fn nth(&mut self, n: usize) -> Option<Self::Item> {
-				self.range.nth(n).map(Self::from_bitptr)
+				self.range
+					.nth(n)
+					.map(|bp| unsafe { BitRef::from_bitptr(bp) })
 			}
 
 			#[inline(always)]
@@ -396,11 +491,15 @@ macro_rules! iter {
 			T: BitStore,
 		{
 			fn next_back(&mut self) -> Option<Self::Item> {
-				self.range.next_back().map(Self::from_bitptr)
+				self.range
+				.next_back()
+				.map(|bp| unsafe { BitRef::from_bitptr(bp) })
 			}
 
 			fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-				self.range.nth_back(n).map(Self::from_bitptr)
+				self.range
+				.nth_back(n)
+				.map(|bp| unsafe { BitRef::from_bitptr(bp) })
 			}
 		}
 
@@ -1701,6 +1800,7 @@ split!(Split => &'a BitSlice<O, T> {
 		}
 		match self.slice
 			.iter()
+			.by_ref()
 			.enumerate()
 			.position(|(idx, bit)| (self.pred)(idx, bit))
 		{
@@ -1719,6 +1819,7 @@ split!(Split => &'a BitSlice<O, T> {
 		}
 		match self.slice
 			.iter()
+			.by_ref()
 			.enumerate()
 			.rposition(|(idx, bit)| (self.pred)(idx, bit))
 		{
@@ -1769,6 +1870,7 @@ split!(SplitMut => &'a mut BitSlice<O, T::Alias> {
 			let pred = &mut self.pred;
 			self.slice
 				.iter()
+				.by_ref()
 				.enumerate()
 				.position(|(idx, bit)| (pred)(idx, bit))
 		};
@@ -1792,6 +1894,7 @@ split!(SplitMut => &'a mut BitSlice<O, T::Alias> {
 			let pred = &mut self.pred;
 			self.slice
 				.iter()
+				.by_ref()
 				.enumerate()
 				.rposition(|(idx, bit)| (pred)(idx, bit))
 		};
@@ -2193,7 +2296,7 @@ where
 	type Item = usize;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		match self.inner.iter().copied().position(|b| b) {
+		match self.inner.iter().by_val().position(|b| b) {
 			Some(n) => {
 				//  Split on the far side of the found index. This is always
 				//  safe, as split(len) yields (self, empty).
@@ -2231,7 +2334,7 @@ where
 	T: BitStore,
 {
 	fn next_back(&mut self) -> Option<Self::Item> {
-		match self.inner.iter().copied().rposition(|b| b) {
+		match self.inner.iter().by_val().rposition(|b| b) {
 			Some(n) => {
 				let (rest, _) = unsafe { self.inner.split_at_unchecked(n) };
 				self.inner = rest;
@@ -2315,7 +2418,7 @@ where
 	type Item = usize;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		match self.inner.iter().copied().position(|b| !b) {
+		match self.inner.iter().by_val().position(|b| !b) {
 			Some(n) => {
 				let (_, rest) = unsafe { self.inner.split_at_unchecked(n + 1) };
 				self.inner = rest;
@@ -2350,7 +2453,7 @@ where
 	T: BitStore,
 {
 	fn next_back(&mut self) -> Option<Self::Item> {
-		match self.inner.iter().copied().rposition(|b| !b) {
+		match self.inner.iter().by_val().rposition(|b| !b) {
 			Some(n) => {
 				let (rest, _) = unsafe { self.inner.split_at_unchecked(n) };
 				self.inner = rest;

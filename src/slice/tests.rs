@@ -88,9 +88,9 @@ fn get_set() {
 	assert!(bits.get(8 .. 10).is_none());
 	assert!(bits.get_mut(8 .. 10).is_none());
 
-	assert_eq!(bits.first(), Some(&true));
+	assert_eq!(bits.first().as_deref(), Some(&true));
 	*bits.first_mut().unwrap() = false;
-	assert_eq!(bits.last(), Some(&true));
+	assert_eq!(bits.last().as_deref(), Some(&true));
 	*bits.last_mut().unwrap() = false;
 
 	*crate::slice::BitSliceIndex::index_mut(1usize, bits) = false;
@@ -205,10 +205,9 @@ fn split() {
 			.split_first()
 			.is_none()
 	);
-	assert_eq!(
-		1u8.view_bits::<Lsb0>().split_first(),
-		Some((&true, bits![Lsb0, u8; 0; 7]))
-	);
+	let (head, rest) = 1u8.view_bits::<Lsb0>().split_first().unwrap();
+	assert!(head);
+	assert_eq!(rest, bits![0; 7]);
 
 	assert!(
 		BitSlice::<LocalBits, usize>::empty_mut()
@@ -221,10 +220,9 @@ fn split() {
 	assert_eq!(data, 1);
 
 	assert!(BitSlice::<LocalBits, usize>::empty().split_last().is_none());
-	assert_eq!(
-		1u8.view_bits::<Msb0>().split_last(),
-		Some((&true, bits![Msb0, u8; 0; 7]))
-	);
+	let (tail, rest) = 1u8.view_bits::<Msb0>().split_last().unwrap();
+	assert!(tail);
+	assert_eq!(rest, bits![0; 7]);
 
 	assert!(
 		BitSlice::<LocalBits, usize>::empty_mut()
@@ -493,25 +491,25 @@ fn iter() {
 
 	assert_eq!(iter.as_bitslice(), bits);
 	assert_eq!(iter.as_slice(), bits);
-	assert_eq!(iter.next(), Some(&false));
+	assert_eq!(iter.next().as_deref(), Some(&false));
 	assert_eq!(iter.as_bitslice(), &bits[1 ..]);
-	assert_eq!(iter.next(), Some(&true));
+	assert_eq!(iter.next().as_deref(), Some(&true));
 
 	assert_eq!(iter.as_bitslice(), &bits[2 ..]);
-	assert_eq!(iter.next_back(), Some(&true));
+	assert_eq!(iter.next_back().as_deref(), Some(&true));
 	assert_eq!(iter.as_bitslice(), &bits[2 .. 7]);
-	assert_eq!(iter.next_back(), Some(&false));
+	assert_eq!(iter.next_back().as_deref(), Some(&false));
 
 	assert_eq!(iter.as_bitslice(), &bits[2 .. 6]);
-	assert_eq!(iter.next(), Some(&true));
+	assert_eq!(iter.next().as_deref(), Some(&true));
 	assert_eq!(iter.as_bitslice(), &bits[3 .. 6]);
-	assert_eq!(iter.next(), Some(&false));
+	assert_eq!(iter.next().as_deref(), Some(&false));
 
 	assert_eq!(iter.as_bitslice(), &bits[4 .. 6]);
-	assert_eq!(iter.next_back(), Some(&false));
+	assert_eq!(iter.next_back().as_deref(), Some(&false));
 	assert_eq!(iter.as_bitslice(), &bits[4 .. 5]);
 
-	assert_eq!(iter.next_back(), Some(&true));
+	assert_eq!(iter.next_back().as_deref(), Some(&true));
 	assert!(iter.as_bitslice().is_empty());
 	assert!(iter.next().is_none());
 	assert!(iter.next_back().is_none());

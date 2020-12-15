@@ -95,7 +95,11 @@ where
 	/// bits[1]; // --------^
 	/// ```
 	fn index(&self, index: usize) -> &Self::Output {
-		index.index(self)
+		//  Convert the `BitRef` to `&'static bool`
+		match *index.index(self) {
+			true => &true,
+			false => &false,
+		}
 	}
 }
 

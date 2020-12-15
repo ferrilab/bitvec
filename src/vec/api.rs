@@ -867,7 +867,7 @@ where
 	pub fn retain<F>(&mut self, mut func: F)
 	where F: FnMut(usize, &bool) -> bool {
 		for n in (0 .. self.len()).rev() {
-			if !func(n, unsafe { self.get_unchecked(n) }) {
+			if !func(n, &*unsafe { self.get_unchecked(n) }) {
 				self.remove(n);
 			}
 		}

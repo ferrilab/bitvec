@@ -114,12 +114,12 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let v = bits![1, 0, 0];
-	/// assert_eq!(Some(&true), v.first());
+	/// assert_eq!(Some(&true), v.first().as_deref());
 	///
 	/// let w = bits![];
 	/// assert_eq!(None, w.first());
 	/// ```
-	pub fn first(&self) -> Option<&bool> {
+	pub fn first(&self) -> Option<BitRef<Const, O, T>> {
 		self.get(0)
 	}
 
@@ -173,8 +173,9 @@ where
 	///   assert_eq!(first, &true);
 	///   assert_eq!(rest, bits![0; 2]);
 	/// }
+	/// # fn end_the_block() {}
 	/// ```
-	pub fn split_first(&self) -> Option<(&bool, &Self)> {
+	pub fn split_first(&self) -> Option<(BitRef<Const, O, T>, &Self)> {
 		match self.len() {
 			0 => None,
 			_ => unsafe {
@@ -251,8 +252,9 @@ where
 	///   assert_eq!(last, &true);
 	///   assert_eq!(rest, bits![0; 2]);
 	/// }
+	/// # fn end_the_block() {}
 	/// ```
-	pub fn split_last(&self) -> Option<(&bool, &Self)> {
+	pub fn split_last(&self) -> Option<(BitRef<Const, O, T>, &Self)> {
 		match self.len() {
 			0 => None,
 			len => unsafe {
@@ -323,12 +325,12 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let v = bits![0, 0, 1];
-	/// assert_eq!(Some(&true), v.last());
+	/// assert_eq!(Some(&true), v.last().as_deref());
 	///
 	/// let w = bits![];
 	/// assert_eq!(None, w.last());
 	/// ```
-	pub fn last(&self) -> Option<&bool> {
+	pub fn last(&self) -> Option<BitRef<Const, O, T>> {
 		match self.len() {
 			0 => None,
 			len => Some(unsafe { self.get_unchecked(len - 1) }),
@@ -685,6 +687,18 @@ where
 	///
 	/// [`slice::iter`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.iter)
 	///
+	/// # API Differences
+	///
+	/// This iterator yields [`BitRef`] proxy references, rather than `&bool`
+	/// ordinary references. It does so in order to promote consistency in the
+	/// crate, and make switching between immutable and mutable single-bit
+	/// access easier.
+	///
+	/// The produced iterator has a [`by_ref`] adapter that yields `&bool`
+	/// references, and a [`by_val`] adapter that yields `bool` values. Use
+	/// these methods to fit this iterator into APIs that expect ordinary `bool`
+	/// inputs.
+	///
 	/// # Examples
 	///
 	/// ```rust
@@ -693,11 +707,15 @@ where
 	/// let x = bits![0, 0, 1];
 	/// let mut iterator = x.iter();
 	///
-	/// assert_eq!(iterator.next(), Some(&false));
-	/// assert_eq!(iterator.next(), Some(&false));
-	/// assert_eq!(iterator.next(), Some(&true));
-	/// assert_eq!(iterator.next(), None);
+	/// assert_eq!(iterator.next().as_deref(), Some(&false));
+	/// assert_eq!(iterator.next().as_deref(), Some(&false));
+	/// assert_eq!(iterator.next().as_deref(), Some(&true));
+	/// assert_eq!(iterator.next().as_deref(), None);
 	/// ```
+	///
+	/// [`BitRef`]: crate::ptr::BitRef
+	/// [`by_ref`]: crate::slice::Iter::by_ref
+	/// [`by_val`]: crate::slice::Iter::by_val
 	pub fn iter(&self) -> Iter<O, T> {
 		self.into_iter()
 	}
@@ -2484,7 +2502,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	type Immut = &'a bool;
+	type Immut = BitRef<'a, Const, O, T>;
 	type Mut = BitRef<'a, Mut, O, T>;
 
 	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::Immut> {
@@ -2506,12 +2524,7 @@ where
 	}
 
 	unsafe fn get_unchecked(self, slice: &'a BitSlice<O, T>) -> Self::Immut {
-		if slice.bit_span().read(self) {
-			&true
-		}
-		else {
-			&false
-		}
+		BitRef::from_bitptr(slice.as_bitptr().add(self))
 	}
 
 	unsafe fn get_unchecked_mut(

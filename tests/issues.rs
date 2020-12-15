@@ -265,7 +265,7 @@ fn issue_77() {
 
 	// Here the complete iter-rev-take-rev-sequence is mandatory to reproduce the
 	// error, just the `collect` is here for convenience.
-	let last_few: Vec<_> = bv.iter().rev().take(N).rev().collect();
+	let last_few: Vec<_> = bv.iter().by_ref().rev().take(N).rev().collect();
 
 	// Also notice, `bv` only contains `true`, but with `N` < 4, the `last_few`
 	// are all `false`!!!

@@ -80,8 +80,8 @@ where
 				return false;
 			}
 			self.iter()
-				.copied()
-				.zip(rhs.iter().copied())
+				.by_val()
+				.zip(rhs.iter().by_val())
 				.all(|(l, r)| l == r)
 		};
 
@@ -180,7 +180,7 @@ where
 {
 	fn partial_cmp(&self, rhs: &BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		for (l, r) in self.iter().zip(rhs.iter()) {
-			match (l, r) {
+			match (*l, *r) {
 				(true, false) => return Some(cmp::Ordering::Greater),
 				(false, true) => return Some(cmp::Ordering::Less),
 				_ => continue,

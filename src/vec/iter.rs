@@ -2,7 +2,9 @@
 
 use crate::{
 	devel as dvl,
+	mutability::Mutability,
 	order::BitOrder,
+	ptr::BitRef,
 	slice::{
 		BitSlice,
 		Iter,
@@ -84,6 +86,20 @@ where
 	}
 }
 
+impl<'a, M, O1, O2, T1, T2> Extend<BitRef<'a, M, O2, T2>> for BitVec<O1, T1>
+where
+	M: Mutability,
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
+{
+	fn extend<I>(&mut self, iter: I)
+	where I: IntoIterator<Item = BitRef<'a, M, O2, T2>> {
+		self.extend(iter.into_iter().map(|bit| *bit));
+	}
+}
+
 impl<O, T> FromIterator<bool> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -91,6 +107,21 @@ where
 {
 	fn from_iter<I>(iter: I) -> Self
 	where I: IntoIterator<Item = bool> {
+		Self::new().tap_mut(|bv| bv.extend(iter.into_iter()))
+	}
+}
+
+impl<'a, M, O1, O2, T1, T2> FromIterator<BitRef<'a, M, O2, T2>>
+	for BitVec<O1, T1>
+where
+	M: Mutability,
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
+{
+	fn from_iter<I>(iter: I) -> Self
+	where I: IntoIterator<Item = BitRef<'a, M, O2, T2>> {
 		Self::new().tap_mut(|bv| bv.extend(iter.into_iter()))
 	}
 }
@@ -316,7 +347,7 @@ where
 	type Item = bool;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		self.iter.next().copied()
+		self.iter.next().as_deref().copied()
 	}
 
 	fn size_hint(&self) -> (usize, Option<usize>) {
@@ -328,7 +359,7 @@ where
 	}
 
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
-		self.iter.nth(n).copied()
+		self.iter.nth(n).as_deref().copied()
 	}
 
 	fn last(mut self) -> Option<Self::Item> {
@@ -342,11 +373,11 @@ where
 	T: BitStore,
 {
 	fn next_back(&mut self) -> Option<Self::Item> {
-		self.iter.next_back().copied()
+		self.iter.next_back().as_deref().copied()
 	}
 
 	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-		self.iter.nth_back(n).copied()
+		self.iter.nth_back(n).as_deref().copied()
 	}
 }
 
@@ -590,7 +621,7 @@ where
 	type Item = bool;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		self.drain.next().copied()
+		self.drain.next().as_deref().copied()
 	}
 
 	fn size_hint(&self) -> (usize, Option<usize>) {
@@ -602,7 +633,7 @@ where
 	}
 
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
-		self.drain.nth(n).copied()
+		self.drain.nth(n).as_deref().copied()
 	}
 
 	fn last(mut self) -> Option<Self::Item> {
@@ -616,11 +647,11 @@ where
 	T: BitStore,
 {
 	fn next_back(&mut self) -> Option<Self::Item> {
-		self.drain.next_back().copied()
+		self.drain.next_back().as_deref().copied()
 	}
 
 	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-		self.drain.nth_back(n).copied()
+		self.drain.nth_back(n).as_deref().copied()
 	}
 }
 
