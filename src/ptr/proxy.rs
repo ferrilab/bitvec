@@ -140,7 +140,7 @@ where
 	{
 		let addr = addr.into();
 		Self {
-			addr: BitPtr::new_unchecked(addr, head),
+			addr: BitPtr::new(addr, head),
 			data: (&*(addr.to_access())).get_bit::<O>(head),
 			_ref: PhantomData,
 		}

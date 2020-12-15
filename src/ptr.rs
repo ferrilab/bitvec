@@ -99,7 +99,7 @@ pub unsafe fn copy<O1, O2, T1, T2>(
 {
 	if TypeId::of::<O1>() == TypeId::of::<O2>() {
 		let (addr, head) = dst.raw_parts();
-		let dst = BitPtr::<Mut, O1, T2>::new_unchecked(addr, head);
+		let dst = BitPtr::<Mut, O1, T2>::new(addr, head);
 
 		let src_pair = src.range(count);
 		let dst_pair = dst.range(count);

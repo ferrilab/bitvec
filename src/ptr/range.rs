@@ -93,8 +93,8 @@ where
 	pub fn pointers(self) -> (BitPtr<M, O, T>, BitPtr<M, O, T>) {
 		unsafe {
 			(
-				BitPtr::new_unchecked(self.base, self.head),
-				BitPtr::new_unchecked(self.last, self.tail),
+				BitPtr::new(self.base, self.head),
+				BitPtr::new(self.last, self.tail),
 			)
 		}
 	}
@@ -147,7 +147,7 @@ where
 	///
 	/// The front pointer is returned, then incremented.
 	fn take_front(&mut self) -> BitPtr<M, O, T> {
-		let out = unsafe { BitPtr::new_unchecked(self.base, self.head) };
+		let out = unsafe { BitPtr::new(self.base, self.head) };
 		let (head, incr) = self.head.next();
 		self.head = head;
 		self.base = unsafe {
@@ -174,7 +174,7 @@ where
 			self.last = Address::new_unchecked(
 				self.last.to_const().sub(decr as usize) as usize,
 			);
-			BitPtr::new_unchecked(self.last, self.tail)
+			BitPtr::new(self.last, self.tail)
 		}
 	}
 }
