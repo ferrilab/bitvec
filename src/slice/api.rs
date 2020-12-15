@@ -2518,12 +2518,8 @@ where
 		self,
 		slice: &'a mut BitSlice<O, T>,
 	) -> Self::Mut {
-		let bitspan = slice.bit_span_mut();
-		let (elt, bit) = bitspan.head().offset(self as isize);
-		let addr = Address::new_unchecked(
-			bitspan.pointer().to_mut().offset(elt) as usize,
-		);
-		BitMut::new_unchecked(addr, bit)
+		let (addr, head) = slice.as_mut_bitptr().add(self).raw_parts();
+		BitMut::new_unchecked(addr, head)
 	}
 
 	fn index(self, slice: &'a BitSlice<O, T>) -> Self::Immut {

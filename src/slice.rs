@@ -2035,13 +2035,13 @@ where
 	/// Gets the base-address pointer to the start bit of the slice.
 	pub fn as_bitptr(&self) -> BitPtr<Const, O, T> {
 		let (addr, head, _) = self.bit_span().raw_parts();
-		unsafe { BitPtr::new_unchecked(addr, head) }
+		BitPtr::new(addr, head)
 	}
 
 	/// Gets the base-address pointer to the start bit of the slice.
 	pub fn as_mut_bitptr(&mut self) -> BitPtr<Mut, O, T> {
 		let (addr, head, _) = self.bit_span_mut().raw_parts();
-		unsafe { BitPtr::new_unchecked(addr, head) }
+		BitPtr::new(addr, head)
 	}
 
 	/// Views the `&BitSlice` reference as a `*const BitSlice` pointer.

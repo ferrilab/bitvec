@@ -19,8 +19,8 @@ use crate::{
 	ptr::{
 		Address,
 		AddressError,
+		BitMut,
 		BitPtrRange,
-		BitRef,
 		BitSpan,
 	},
 	store::BitStore,
@@ -258,8 +258,8 @@ where
 	/// # Safety
 	///
 	/// The pointer must be valid to dereference.
-	pub unsafe fn into_bitref<'a>(self) -> BitRef<'a, M, O, T> {
-		BitRef::from_bitptr(self)
+	pub unsafe fn into_bitmut<'a>(self) -> BitMut<'a, M, O, T> {
+		BitMut::from_bitptr(self)
 	}
 
 	/// Removes write permissions from a bit-pointer.
@@ -359,8 +359,8 @@ where
 	/// let val = unsafe { ptr.as_ref() }.unwrap();
 	/// assert!(*val);
 	/// ```
-	pub unsafe fn as_ref<'a>(self) -> Option<BitRef<'a, Const, O, T>> {
-		Some(BitRef::from_bitptr(self.immut()))
+	pub unsafe fn as_ref<'a>(self) -> Option<BitMut<'a, Const, O, T>> {
+		Some(BitMut::from_bitptr(self.immut()))
 	}
 
 	/// Calculates the offset from a pointer.
@@ -964,9 +964,10 @@ where
 	/// assert!(*val);
 	/// ```
 	///
-	/// [`set`]: crate::ptr::BitRef::set
-	pub unsafe fn as_mut<'a>(self) -> Option<BitRef<'a, Mut, O, T>> {
-		Some(BitRef::from_bitptr(self))
+	/// [`set`]: crate::ptr::BitMut::set
+	pub unsafe fn as_mut<'a>(self) -> Option<BitMut<'a, O, T>> {
+		let (addr, head) = self.raw_parts();
+		Some(BitMut::new_unchecked(addr, head))
 	}
 
 	/// Copies `count` bits from `src` to `self`. The source and destination may

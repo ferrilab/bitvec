@@ -106,7 +106,7 @@ where
 	/// Constructs a new slice iterator from a slice reference.
 	fn new(slice: &'a BitSlice<O, T>) -> Self {
 		Self {
-			range: slice.bit_span().into(),
+			range: unsafe { slice.as_bitptr().range(slice.len()) },
 			_ref: PhantomData,
 		}
 	}
@@ -150,7 +150,7 @@ where
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
 	pub fn as_bitslice(&self) -> &'a BitSlice<O, T> {
-		self.range.into_bit_span().to_bitslice_ref()
+		self.range.clone().into_bitspan().to_bitslice_ref()
 	}
 
 	/* Allow the standard-library name to resolve, but instruct the user to
@@ -182,7 +182,10 @@ where
 	T: BitStore,
 {
 	fn clone(&self) -> Self {
-		*self
+		Self {
+			range: self.range.clone(),
+			..*self
+		}
 	}
 }
 
@@ -205,13 +208,6 @@ where
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_tuple("Iter").field(&self.as_bitslice()).finish()
 	}
-}
-
-impl<O, T> Copy for Iter<'_, O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
 }
 
 /** Mutable [`BitSlice`] iterator.
@@ -263,8 +259,9 @@ where
 {
 	/// Constructs a new slice mutable iterator from a slice reference.
 	fn new(slice: &'a mut BitSlice<O, T>) -> Self {
+		let len = slice.len();
 		Self {
-			range: slice.alias_mut().bit_span_mut().into(),
+			range: unsafe { slice.alias_mut().as_mut_bitptr().range(len) },
 			_ref: PhantomData,
 		}
 	}
@@ -318,7 +315,7 @@ where
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
 	pub fn into_bitslice(self) -> &'a mut BitSlice<O, T::Alias> {
-		self.range.into_bit_span().to_bitslice_mut()
+		self.range.into_bitspan().to_bitslice_mut()
 	}
 
 	/* Allow the standard-library name to resolve, but instruct the user to
