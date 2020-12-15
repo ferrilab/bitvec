@@ -38,7 +38,10 @@ use core::{
 		Hasher,
 	},
 	marker::PhantomData,
-	ptr::NonNull,
+	ptr::{
+		self,
+		NonNull,
+	},
 };
 
 use tap::tap::Tap;
@@ -65,6 +68,8 @@ need them, please file an issue.
 
 You may freely perform pointer arithmetic on this type.
 **/
+//  Mark as packed in order to strip trailing padding from layout.
+#[repr(C, packed)]
 pub struct BitPtr<M, O, T>
 where
 	M: Mutability,
@@ -85,11 +90,44 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	/// A pointer to the start bit of the dangling address.
 	pub(crate) const DANGLING: Self = Self {
 		addr: Address::DANGLING,
 		head: BitIdx::ZERO,
 		_ord: PhantomData,
 	};
+
+	/// Extracts the element address from the bit-pointer.
+	///
+	/// This is the only safe way to read from the `.addr` field when taking
+	/// `&self` by reference. The `Self` layout artificially lowers its
+	/// alignment below that of `Address`, so taking `&self.addr` may cause
+	/// Undefined Behavior.
+	///
+	/// # Parameters
+	///
+	/// - `&self`: A `BitPtr` reference, which may be aligned below the
+	///   alignment needed for `&Address<M, T>`.
+	///
+	/// # Returns
+	///
+	/// The value in `self.addr`.
+	///
+	/// # Behavior
+	///
+	/// This uses [`ptr::read_unaligned`] to read directly from memory without
+	/// forming an `&Address<M, T>` reference. This may result in multiple load
+	/// instructions generated.
+	///
+	/// [`ptr::read_unaligned`]: core::ptr::read_unaligned
+	fn get_addr(&self) -> Address<M, T> {
+		unsafe {
+			//  Since `Self` is `repr(C)`, the layout engine guarantees that
+			//  there is no offset between the start of `self` and the start of
+			//  `self.addr`.
+			ptr::read_unaligned(self as *const Self as *const Address<M, T>)
+		}
+	}
 
 	/// Constructs a new single-bit pointer from an element address and a bit
 	/// index.
@@ -564,7 +602,10 @@ where
 {
 	#[inline(always)]
 	fn clone(&self) -> Self {
-		*self
+		Self {
+			addr: self.get_addr(),
+			..*self
+		}
 	}
 }
 
@@ -600,7 +641,7 @@ where
 		if TypeId::of::<T1::Mem>() != TypeId::of::<T2::Mem>() {
 			return false;
 		}
-		self.addr.value() == other.addr.value()
+		self.get_addr().value() == other.get_addr().value()
 			&& self.head.value() == other.head.value()
 	}
 }
@@ -617,7 +658,7 @@ where
 		if TypeId::of::<T1::Mem>() != TypeId::of::<T2::Mem>() {
 			return None;
 		}
-		match (self.addr.value()).cmp(&(other.addr.value())) {
+		match (self.get_addr().value()).cmp(&(other.get_addr().value())) {
 			cmp::Ordering::Equal => {
 				self.head.value().partial_cmp(&other.head.value())
 			},
@@ -714,7 +755,7 @@ where
 	T: BitStore,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		Pointer::fmt(&self.addr, fmt)?;
+		Pointer::fmt(&self.get_addr(), fmt)?;
 		fmt.write_str("_")?;
 		Binary::fmt(&self.head, fmt)
 	}
@@ -728,7 +769,7 @@ where
 {
 	fn hash<H>(&self, hasher: &mut H)
 	where H: Hasher {
-		hasher.write_usize(self.addr.value());
+		hasher.write_usize(self.get_addr().value());
 		hasher.write_u8(self.head.value());
 	}
 }
@@ -744,16 +785,27 @@ where
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::order::Lsb0;
+	use crate::{
+		mutability::Const,
+		order::Lsb0,
+	};
 
 	#[test]
 	fn ctor() {
 		let data = 0u16;
 		let head = BitIdx::new(5).unwrap();
 
-		let bitptr = BitPtr::<_, Lsb0, _>::new(&data, head).unwrap();
+		let bitptr = BitPtr::<Const, Lsb0, _>::new(&data, head).unwrap();
 		let (addr, indx) = bitptr.raw_parts();
 		assert_eq!(addr.to_const(), &data as *const _);
 		assert_eq!(indx.value(), 5);
+	}
+
+	#[test]
+	fn assert_size() {
+		assert!(
+			core::mem::size_of::<BitPtr<Const, Lsb0, u8>>()
+				<= core::mem::size_of::<usize>() + core::mem::size_of::<u8>(),
+		);
 	}
 }
