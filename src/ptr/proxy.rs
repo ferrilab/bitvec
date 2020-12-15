@@ -1,25 +1,17 @@
 /*! Proxy reference for `&mut bool`.
 
-[`BitSlice`] regions can easily produce *read* references to `bool`s that they
-contain, by testing the bit and producing the appropriate `&'static bool`, but
-Rust’s rules forbid production of a *write* reference to a `bool` stored within
-a `BitSlice` region. This is because references `&mut T` must be dereferencable
-addresses of type `T`, and `&mut BitSlice` is a non-dereferencable encoded
-pointer.
+Rust does not allow assignment through a reference type to be anything other
+than a direct load from or store to memory, using the value in the reference as
+the memory address. As such, this module provides a proxy type which contains a
+pointer to a single bit, and acts as a referential façade, similar to the C++
+type [`std::bitset<N>::reference`].
 
-As Rust does not permit defining a method on `&mut _` references that can be
-used to store a value into the referenced location, this type must be used
-instead. Rust’s strict use of references, rather than arbitrary referential
-types, makes this the only major API incompatibility with the rest of the
-standard library.
-
-[`BitSlice`]: crate::slice::BitSlice
+[`std::bitset<N>::reference`]: https://en.cppreference.com/w/cpp/utility/bitset/reference
 !*/
 
 use crate::{
-	access::BitAccess,
-	index::BitIdx,
 	mutability::{
+		Const,
 		Mut,
 		Mutability,
 	},
@@ -27,16 +19,14 @@ use crate::{
 		BitOrder,
 		Lsb0,
 	},
-	ptr::{
-		Address,
-		BitPtr,
-	},
-	slice::BitSlice,
+	ptr::BitPtr,
 	store::BitStore,
 };
 
 use core::{
 	any::TypeId,
+	cell::Cell,
+	cmp,
 	fmt::{
 		self,
 		Debug,
@@ -44,28 +34,24 @@ use core::{
 		Formatter,
 		Pointer,
 	},
+	hash::{
+		Hash,
+		Hasher,
+	},
 	marker::PhantomData,
 	mem,
 	ops::{
 		Deref,
 		DerefMut,
+		Not,
 	},
 };
 
-/** Proxy reference type, equivalent to `&mut bool`.
+/** A proxy reference, equivalent to C++ [`std::bitset<N>::reference`].
 
-This is a two-word structure capable of correctly referring to a single bit in
-a memory element. Because Rust does not permit reference-like objects in the
-same manner that C++ does – `&T` and `&mut T` values are required to be
-immediately-valid pointers, not objects – [`bitvec`] cannot manifest encoded
-`&mut Bit` values in the same way that it can manifest [`&mut BitSlice`].
-
-Instead, this type implements [`Deref`] and [`DerefMut`] to an internal `bool`
-slot, and in [`Drop`] commits the value of that `bool` to the proxied bit in the
-source [`BitSlice`] from which the `BitRef` value was created. The combination
-of Rust’s own exclusion rules and the aliasing type system in this library
-ensure that a `BitRef` value has unique access to the bit it proxies, and the
-memory element it uses will not have destructive data races from other views.
+This type wraps a `BitPtr` and caches a `bool` in a padding byte. It is then
+able to freely produce references to the cached bool, and commits the cache back
+to the referent bit location on `drop`.
 
 # Lifetimes
 
@@ -73,8 +59,11 @@ memory element it uses will not have destructive data races from other views.
 
 # Type Parameters
 
-- `O`: The [`BitOrder`] type parameter from the source `&mut BitSlice`.
-- `T`: The [`BitStore`] type parameter from the source `&mut BitSlice`.
+- `M`: The write permission of the reference. When this is `Const`, the
+  `DerefMut` implementation is removed, forbidding the proxy from writing back
+  to memory.
+- `O`: The ordering used to address a bit in memory.
+- `T`: The storage type containing the referent bit.
 
 # Examples
 
@@ -96,29 +85,28 @@ drop(first); // it’s not a reference!
 assert_eq!(bits, bits![1; 2]);
 ```
 
-[`BitOrder`]: crate::order::BitOrder
-[`BitSlice`]: crate::slice::BitSlice
-[`BitStore`]: crate::store::BitStore
-[`Deref`]: core::ops::Deref
-[`DerefMut`]: core::ops::DerefMut
-[`Drop`]: core::ops::Drop
-[`bitvec`]: crate
-[`&mut BitSlice`]: crate::slice::BitSlice
+[`std::bitset<N>::reference`]: https://en.cppreference.com/w/cpp/utility/bitset/reference
 **/
-#[repr(C)]
+#[cfg_attr(target_pointer_width = "32", repr(C, align(4)))]
+#[cfg_attr(target_pointer_width = "64", repr(C, align(8)))]
+#[cfg_attr(
+	not(any(target_pointer_width = "32", target_pointer_width = "64")),
+	repr(C)
+)]
 pub struct BitRef<'a, M, O = Lsb0, T = usize>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
-	addr: BitPtr<M, O, T>,
-	/// A local cache for [`Deref`] usage.
-	///
-	/// [`Deref`]: core::ops::Deref
+	/// The proxied address.
+	bitptr: BitPtr<M, O, T>,
+	/// A local, dereferencable, cache of the proxied bit.
 	data: bool,
-	/// This type is semantically equivalent to a mutable slice of length 1.
-	_ref: PhantomData<&'a mut BitSlice<O, T>>,
+	/// Pad the structure out to be two words wide.
+	_pad: [u8; PADDING],
+	/// Attach the lifetime and possibility of mutation.
+	_ref: PhantomData<&'a Cell<bool>>,
 }
 
 impl<M, O, T> BitRef<'_, M, O, T>
@@ -127,28 +115,29 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// Constructs a new proxy from provided element and bit addresses.
+	/// Converts a bit-pointer into a proxy bit-reference.
+	///
+	/// The conversion reads from the pointer, then stores the `bool` in a
+	/// padding byte.
 	///
 	/// # Parameters
 	///
-	/// - `addr`: The address of a memory element, correctly typed for access.
-	/// - `head`: The index of a bit within `*addr`.
+	/// - `bitptr`: A bit-pointer to turn into a bit-reference.
+	///
+	/// # Returns
+	///
+	/// A bit-reference pointing at `bitptr`.
 	///
 	/// # Safety
 	///
-	/// The caller must produce `addr`’s value from a valid reference, and its
-	/// type from the correct access requirements at time of construction.
-	pub(crate) unsafe fn new_unchecked<A>(
-		addr: A,
-		head: BitIdx<T::Mem>,
-	) -> Self
-	where
-		A: Into<Address<M, T>>,
-	{
-		let addr = addr.into();
+	/// The `bitptr` must address a location that is valid for reads and, if `M`
+	/// is `Mut`, writes.
+	pub unsafe fn from_bitptr(bitptr: BitPtr<M, O, T>) -> Self {
+		let data = bitptr.read();
 		Self {
-			addr: BitPtr::new(addr, head),
-			data: (&*(addr.to_access())).get_bit::<O>(head),
+			bitptr,
+			data,
+			_pad: [0; PADDING],
 			_ref: PhantomData,
 		}
 	}
@@ -158,9 +147,56 @@ where
 	/// This is only safe when the proxy is known to be the only handle to its
 	/// referent element during its lifetime.
 	pub(crate) unsafe fn remove_alias(this: BitRef<M, O, T::Alias>) -> Self {
-		//  The `#[repr(C)]` alias makes these structures layout-compatible
-		//  for transmutation.
-		core::mem::transmute(this)
+		Self {
+			bitptr: this.bitptr.cast::<T>(),
+			data: this.data,
+			_pad: [0; PADDING],
+			_ref: PhantomData,
+		}
+	}
+
+	/// Decays the bit-reference to an ordinary bit-pointer.
+	///
+	/// # Parameters
+	///
+	/// - `self`
+	///
+	/// # Returns
+	///
+	/// The interior bit-pointer, without the associated cache. If this was a
+	/// write-capable pointer, then the cached bit is committed to memory before
+	/// this method returns.
+	pub fn into_bitptr(self) -> BitPtr<M, O, T> {
+		self.bitptr
+	}
+}
+
+impl<O, T> BitRef<'_, Mut, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	/// Moves `src` into the referenced bit, returning the previous value.
+	///
+	/// # Original
+	///
+	/// [`mem::replace`](core::mem::replace)
+	pub fn replace(&mut self, src: bool) -> bool {
+		mem::replace(&mut self.data, src)
+	}
+
+	/// Swaps the values at two mutable locations, without deïnitializing either
+	/// one.
+	///
+	/// # Original
+	///
+	/// [`mem::swap`](core::mem::swap)
+	pub fn swap<O2, T2>(&mut self, other: &mut BitRef<Mut, O2, T2>)
+	where
+		O2: BitOrder,
+		T2: BitStore,
+	{
+		mem::swap(&mut self.data, &mut other.data)
 	}
 
 	/// Writes a bit into the proxied location without an intermediate copy.
@@ -186,8 +222,108 @@ where
 	///
 	/// This is the internal function used to drive `.set()` and `.drop()`.
 	fn write(&mut self, value: bool) {
-		let (addr, head) = self.addr.raw_parts();
-		unsafe { (&*addr.to_access()).write_bit::<O>(head, value) }
+		self.data = value;
+		unsafe {
+			self.bitptr.write(value);
+		}
+	}
+}
+
+impl<O, T> Clone for BitRef<'_, Const, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	fn clone(&self) -> Self {
+		Self { ..*self }
+	}
+}
+
+/// Implement equality by comparing the proxied `bool` values.
+impl<M, O, T> Eq for BitRef<'_, M, O, T>
+where
+	M: Mutability,
+	O: BitOrder,
+	T: BitStore,
+{
+}
+
+/// Implement ordering by comparing the proxied `bool` values.
+impl<M, O, T> Ord for BitRef<'_, M, O, T>
+where
+	M: Mutability,
+	O: BitOrder,
+	T: BitStore,
+{
+	fn cmp(&self, other: &Self) -> cmp::Ordering {
+		self.data.cmp(&other.data)
+	}
+}
+
+/// Test equality of proxy references by the value of their proxied bit.
+///
+/// To test equality by address, decay to a [`BitPtr`] with [`into_bitptr`].
+///
+/// [`BitPtr`]: crate::ptr::BitPtr
+/// [`into_bitptr`]: Self::into_bitptr
+impl<M1, M2, O1, O2, T1, T2> PartialEq<BitRef<'_, M2, O2, T2>>
+	for BitRef<'_, M1, O1, T1>
+where
+	M1: Mutability,
+	M2: Mutability,
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
+{
+	fn eq(&self, other: &BitRef<'_, M2, O2, T2>) -> bool {
+		self.data == other.data
+	}
+}
+
+impl<M, O, T> PartialEq<bool> for BitRef<'_, M, O, T>
+where
+	M: Mutability,
+	O: BitOrder,
+	T: BitStore,
+{
+	fn eq(&self, other: &bool) -> bool {
+		self.data == *other
+	}
+}
+
+/// Order proxy references by the value of their proxied bit.
+///
+/// To order by address, decay to a [`BitPtr`] with [`into_bitptr`].
+///
+/// [`BitPtr`]: crate::ptr::BitPtr
+/// [`into_bitptr`]: Self::into_bitptr
+impl<M1, M2, O1, O2, T1, T2> PartialOrd<BitRef<'_, M2, O2, T2>>
+	for BitRef<'_, M1, O1, T1>
+where
+	M1: Mutability,
+	M2: Mutability,
+	O1: BitOrder,
+	O2: BitOrder,
+	T1: BitStore,
+	T2: BitStore,
+{
+	fn partial_cmp(
+		&self,
+		other: &BitRef<'_, M2, O2, T2>,
+	) -> Option<cmp::Ordering> {
+		self.data.partial_cmp(&other.data)
+	}
+}
+
+impl<M, O, T> PartialOrd<bool> for BitRef<'_, M, O, T>
+where
+	M: Mutability,
+	O: BitOrder,
+	T: BitStore,
+{
+	fn partial_cmp(&self, other: &bool) -> Option<cmp::Ordering> {
+		self.data.partial_cmp(other)
 	}
 }
 
@@ -198,10 +334,8 @@ where
 	T: BitStore,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		fmt.debug_tuple("BitRef")
-			.field(&self.addr)
-			.field(&self.data)
-			.finish()
+		unsafe { self.bitptr.span_unchecked(1) }
+			.render(fmt, "Ref", &[("bit", &self.data as &dyn Debug)])
 	}
 }
 
@@ -224,10 +358,29 @@ where
 	T: BitStore,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		unsafe { self.addr.span_unchecked(1) }
-			.render(fmt, "Ref", &[("bit", &self.data as &dyn Debug)])
+		fmt.debug_tuple("BitRef")
+			.field(&self.bitptr)
+			.field(&self.data)
+			.finish()
 	}
 }
+
+impl<M, O, T> Hash for BitRef<'_, M, O, T>
+where
+	M: Mutability,
+	O: BitOrder,
+	T: BitStore,
+{
+	fn hash<H>(&self, state: &mut H)
+	where H: Hasher {
+		self.bitptr.hash(state);
+	}
+}
+
+// This cannot be implemented until `Drop` is specialized to only
+// `<Mut, O, T>`.
+// impl<O, T> Copy for BitRef<'_, Const, O, T>
+// where O: BitOrder, T: BitStore {}
 
 impl<M, O, T> Deref for BitRef<'_, M, O, T>
 where
@@ -264,15 +417,34 @@ where
 		if TypeId::of::<M>() == TypeId::of::<Mut>() {
 			let value = self.data;
 			unsafe {
-				self.addr.assert_mut().write(value);
+				self.bitptr.assert_mut().write(value);
 			}
 		}
 	}
 }
 
+impl<M, O, T> Not for BitRef<'_, M, O, T>
+where
+	M: Mutability,
+	O: BitOrder,
+	T: BitStore,
+{
+	type Output = bool;
+
+	fn not(self) -> Self::Output {
+		!self.data
+	}
+}
+
+/// Compute the padding needed to make a packed `(BitPtr, bool)` tuple as wide
+/// as a `(*const _, usize)` tuple.
+const PADDING: usize = mem::size_of::<*const u8>() + mem::size_of::<usize>()
+	- mem::size_of::<BitPtr<Const, Lsb0, usize>>()
+	- mem::size_of::<bool>();
+
 #[cfg(test)]
 mod tests {
-	use crate::prelude::*;
+	use super::*;
 
 	#[test]
 	fn proxy_ref() {
@@ -300,6 +472,7 @@ mod tests {
 	#[test]
 	#[cfg(feature = "alloc")]
 	fn format() {
+		use crate::order::Msb0;
 		#[cfg(not(feature = "std"))]
 		use alloc::format;
 
@@ -313,5 +486,18 @@ mod tests {
 		let text = format!("{:?}", bit);
 		assert!(text.starts_with("BitRef<bitvec::order::Msb0, u8> { addr: 0x"));
 		assert!(text.ends_with(", head: 000, bits: 1, bit: true }"));
+	}
+
+	#[test]
+	fn assert_size() {
+		assert_eq!(
+			mem::size_of::<BitRef<'static, Const, Lsb0, u8>>(),
+			2 * mem::size_of::<usize>(),
+		);
+
+		assert_eq!(
+			mem::align_of::<BitRef<'static, Const, Lsb0, u8>>(),
+			mem::align_of::<*const u8>(),
+		);
 	}
 }

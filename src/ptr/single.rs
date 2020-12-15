@@ -258,7 +258,7 @@ where
 	/// # Safety
 	///
 	/// The pointer must be valid to dereference.
-	pub unsafe fn into_BitRef<'a>(self) -> BitRef<'a, M, O, T> {
+	pub unsafe fn into_bitref<'a>(self) -> BitRef<'a, M, O, T> {
 		BitRef::from_bitptr(self)
 	}
 
@@ -966,8 +966,7 @@ where
 	///
 	/// [`set`]: crate::ptr::BitRef::set
 	pub unsafe fn as_mut<'a>(self) -> Option<BitRef<'a, Mut, O, T>> {
-		let (addr, head) = self.raw_parts();
-		Some(BitRef::new_unchecked(addr, head))
+		Some(BitRef::from_bitptr(self))
 	}
 
 	/// Copies `count` bits from `src` to `self`. The source and destination may

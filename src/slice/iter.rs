@@ -339,8 +339,7 @@ where
 	fn from_bitptr(
 		bitptr: BitPtr<Mut, O, T::Alias>,
 	) -> <Self as Iterator>::Item {
-		let (addr, head) = bitptr.raw_parts();
-		unsafe { BitRef::new_unchecked(addr, head) }
+		unsafe { BitRef::from_bitptr(bitptr) }
 	}
 }
 
