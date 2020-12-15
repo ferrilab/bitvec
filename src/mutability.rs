@@ -5,7 +5,7 @@ This module enables the pointer structure system to enforce
 
 /// A marker trait for distinguishing `*const` vs `*mut` when working with
 /// structs, rather than raw pointers.
-pub trait Mutability: seal::Sealed {}
+pub trait Mutability: 'static + seal::Sealed {}
 
 /// An immutable pointer.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]

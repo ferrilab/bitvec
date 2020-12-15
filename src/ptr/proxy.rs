@@ -19,7 +19,10 @@ standard library.
 use crate::{
 	access::BitAccess,
 	index::BitIdx,
-	mutability::Mut,
+	mutability::{
+		Mut,
+		Mutability,
+	},
 	order::{
 		BitOrder,
 		Lsb0,
@@ -27,17 +30,19 @@ use crate::{
 	ptr::{
 		Address,
 		BitPtr,
-		BitSpan,
 	},
 	slice::BitSlice,
 	store::BitStore,
 };
 
 use core::{
+	any::TypeId,
 	fmt::{
 		self,
 		Debug,
+		Display,
 		Formatter,
+		Pointer,
 	},
 	marker::PhantomData,
 	mem,
@@ -57,14 +62,14 @@ immediately-valid pointers, not objects – [`bitvec`] cannot manifest encoded
 
 Instead, this type implements [`Deref`] and [`DerefMut`] to an internal `bool`
 slot, and in [`Drop`] commits the value of that `bool` to the proxied bit in the
-source [`BitSlice`] from which the `BitMut` value was created. The combination
+source [`BitSlice`] from which the `BitRef` value was created. The combination
 of Rust’s own exclusion rules and the aliasing type system in this library
-ensure that a `BitMut` value has unique access to the bit it proxies, and the
+ensure that a `BitRef` value has unique access to the bit it proxies, and the
 memory element it uses will not have destructive data races from other views.
 
 # Lifetimes
 
-- `'a`: The lifetime of the source `&'a mut BitSlice` that created the `BitMut`.
+- `'a`: The lifetime of the source `&'a mut BitSlice` that created the `BitRef`.
 
 # Type Parameters
 
@@ -101,12 +106,13 @@ assert_eq!(bits, bits![1; 2]);
 [`&mut BitSlice`]: crate::slice::BitSlice
 **/
 #[repr(C)]
-pub struct BitMut<'a, O = Lsb0, T = usize>
+pub struct BitRef<'a, M, O = Lsb0, T = usize>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
-	addr: BitPtr<Mut, O, T>,
+	addr: BitPtr<M, O, T>,
 	/// A local cache for [`Deref`] usage.
 	///
 	/// [`Deref`]: core::ops::Deref
@@ -115,8 +121,9 @@ where
 	_ref: PhantomData<&'a mut BitSlice<O, T>>,
 }
 
-impl<O, T> BitMut<'_, O, T>
+impl<M, O, T> BitRef<'_, M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
@@ -136,7 +143,7 @@ where
 		head: BitIdx<T::Mem>,
 	) -> Self
 	where
-		A: Into<Address<Mut, T>>,
+		A: Into<Address<M, T>>,
 	{
 		let addr = addr.into();
 		Self {
@@ -150,7 +157,7 @@ where
 	///
 	/// This is only safe when the proxy is known to be the only handle to its
 	/// referent element during its lifetime.
-	pub(crate) unsafe fn remove_alias(this: BitMut<O, T::Alias>) -> Self {
+	pub(crate) unsafe fn remove_alias(this: BitRef<M, O, T::Alias>) -> Self {
 		//  The `#[repr(C)]` alias makes these structures layout-compatible
 		//  for transmutation.
 		core::mem::transmute(this)
@@ -184,23 +191,47 @@ where
 	}
 }
 
-impl<O, T> Debug for BitMut<'_, O, T>
+impl<M, O, T> Debug for BitRef<'_, M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		let (addr, head) = self.addr.raw_parts();
-		unsafe { BitSpan::<Mut, O, T>::new_unchecked(addr, head, 1) }.render(
-			fmt,
-			"Mut",
-			&[("bit", &self.data as &dyn Debug)],
-		)
+		fmt.debug_tuple("BitRef")
+			.field(&self.addr)
+			.field(&self.data)
+			.finish()
 	}
 }
 
-impl<O, T> Deref for BitMut<'_, O, T>
+impl<M, O, T> Display for BitRef<'_, M, O, T>
 where
+	M: Mutability,
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline(always)]
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		Display::fmt(&self.data, fmt)
+	}
+}
+
+impl<M, O, T> Pointer for BitRef<'_, M, O, T>
+where
+	M: Mutability,
+	O: BitOrder,
+	T: BitStore,
+{
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		unsafe { self.addr.span_unchecked(1) }
+			.render(fmt, "Ref", &[("bit", &self.data as &dyn Debug)])
+	}
+}
+
+impl<M, O, T> Deref for BitRef<'_, M, O, T>
+where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
@@ -211,7 +242,7 @@ where
 	}
 }
 
-impl<O, T> DerefMut for BitMut<'_, O, T>
+impl<O, T> DerefMut for BitRef<'_, Mut, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
@@ -221,14 +252,21 @@ where
 	}
 }
 
-impl<O, T> Drop for BitMut<'_, O, T>
+impl<M, O, T> Drop for BitRef<'_, M, O, T>
 where
+	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
 	fn drop(&mut self) {
-		let value = self.data;
-		self.write(value);
+		//  `Drop` cannot specialize, but only mutable proxies can commit to
+		//  memory.
+		if TypeId::of::<M>() == TypeId::of::<Mut>() {
+			let value = self.data;
+			unsafe {
+				self.addr.assert_mut().write(value);
+			}
+		}
 	}
 }
 
@@ -269,11 +307,11 @@ mod tests {
 		let mut bit = bits.get_mut(0).unwrap();
 
 		let text = format!("{:?}", bit);
-		assert!(text.starts_with("BitMut<bitvec::order::Msb0, u8> { addr: 0x"));
+		assert!(text.starts_with("BitRef<bitvec::order::Msb0, u8> { addr: 0x"));
 		assert!(text.ends_with(", head: 000, bits: 1, bit: false }"));
 		*bit = true;
 		let text = format!("{:?}", bit);
-		assert!(text.starts_with("BitMut<bitvec::order::Msb0, u8> { addr: 0x"));
+		assert!(text.starts_with("BitRef<bitvec::order::Msb0, u8> { addr: 0x"));
 		assert!(text.ends_with(", head: 000, bits: 1, bit: true }"));
 	}
 }

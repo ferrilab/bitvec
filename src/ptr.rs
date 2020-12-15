@@ -107,7 +107,7 @@ pub use crate::{
 			Address,
 			AddressError,
 		},
-		proxy::BitMut,
+		proxy::BitRef,
 		range::BitPtrRange,
 		single::{
 			BitPtr,

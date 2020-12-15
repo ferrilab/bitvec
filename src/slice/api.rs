@@ -35,7 +35,7 @@ use crate::{
 			SplitNMut,
 			Windows,
 		},
-		BitMut,
+		BitRef,
 		BitSlice,
 	},
 	store::BitStore,
@@ -133,7 +133,7 @@ where
 	/// # API Differences
 	///
 	/// This crate cannot manifest `&mut bool` references, and must use the
-	/// [`BitMut`] proxy type where `&mut bool` exists in the standard library
+	/// [`BitRef`] proxy type where `&mut bool` exists in the standard library
 	/// API. The proxy value must be bound as `mut` in order to write through
 	/// it.
 	///
@@ -150,8 +150,8 @@ where
 	/// assert_eq!(x, bits![1, 1, 0]);
 	/// ```
 	///
-	/// [`BitMut`]: crate::slice::BitMut
-	pub fn first_mut(&mut self) -> Option<BitMut<O, T>> {
+	/// [`BitRef`]: crate::slice::BitRef
+	pub fn first_mut(&mut self) -> Option<BitRef<Mut, O, T>> {
 		self.get_mut(0)
 	}
 
@@ -194,7 +194,7 @@ where
 	/// # API Differences
 	///
 	/// This crate cannot manifest `&mut bool` references, and must use the
-	/// [`BitMut`] proxy type where `&mut bool` exists in the standard library
+	/// [`BitRef`] proxy type where `&mut bool` exists in the standard library
 	/// API. The proxy value must be bound as `mut` in order to write through
 	/// it.
 	///
@@ -217,13 +217,13 @@ where
 	/// assert_eq!(x, bits![1, 1, 0]);
 	/// ```
 	///
-	/// [`BitMut`]: crate::slice::BitMut
+	/// [`BitRef`]: crate::slice::BitRef
 	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
 	//  so this will not be aliased.
 	#[allow(clippy::type_complexity)]
 	pub fn split_first_mut(
 		&mut self,
-	) -> Option<(BitMut<O, T::Alias>, &mut BitSlice<O, T::Alias>)> {
+	) -> Option<(BitRef<Mut, O, T::Alias>, &mut BitSlice<O, T::Alias>)> {
 		match self.len() {
 			0 => None,
 			_ => unsafe {
@@ -272,7 +272,7 @@ where
 	/// # API Differences
 	///
 	/// This crate cannot manifest `&mut bool` references, and must use the
-	/// [`BitMut`] proxy type where `&mut bool` exists in the standard library
+	/// [`BitRef`] proxy type where `&mut bool` exists in the standard library
 	/// API. The proxy value must be bound as `mut` in order to write through
 	/// it.
 	///
@@ -295,13 +295,13 @@ where
 	/// assert_eq!(x, bits![0, 1, 1]);
 	/// ```
 	///
-	/// [`BitMut`]: crate::slice::BitSlice
+	/// [`BitRef`]: crate::slice::BitSlice
 	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
 	//  so this will not be aliased.
 	#[allow(clippy::type_complexity)]
 	pub fn split_last_mut(
 		&mut self,
-	) -> Option<(BitMut<O, T::Alias>, &mut BitSlice<O, T::Alias>)> {
+	) -> Option<(BitRef<Mut, O, T::Alias>, &mut BitSlice<O, T::Alias>)> {
 		match self.len() {
 			0 => None,
 			len => unsafe {
@@ -344,7 +344,7 @@ where
 	/// # API Differences
 	///
 	/// This crate cannot manifest `&mut bool` references, and must use the
-	/// [`BitMut`] proxy type where `&mut bool` exists in the standard library
+	/// [`BitRef`] proxy type where `&mut bool` exists in the standard library
 	/// API. The proxy value must be bound as `mut` in order to write through
 	/// it.
 	///
@@ -361,8 +361,8 @@ where
 	/// assert_eq!(x, bits![0, 1, 1]);
 	/// ```
 	///
-	/// [`BitMut`]: crate::slice::BitMut
-	pub fn last_mut(&mut self) -> Option<BitMut<O, T>> {
+	/// [`BitRef`]: crate::slice::BitRef
+	pub fn last_mut(&mut self) -> Option<BitRef<Mut, O, T>> {
 		match self.len() {
 			0 => None,
 			len => Some(unsafe { self.get_unchecked_mut(len - 1) }),
@@ -406,7 +406,7 @@ where
 	/// # API Differences
 	///
 	/// This crate cannot manifest `&mut bool` references, and must use the
-	/// [`BitMut`] proxy type where `&mut bool` exists in the standard library
+	/// [`BitRef`] proxy type where `&mut bool` exists in the standard library
 	/// API. The proxy value must be bound as `mut` in order to write through
 	/// it.
 	///
@@ -423,7 +423,7 @@ where
 	/// assert_eq!(x, bits![0, 1, 1]);
 	/// ```
 	///
-	/// [`BitMut`]: crate::slice::BitMut
+	/// [`BitRef`]: crate::slice::BitRef
 	/// [`.get()`]: Self::get
 	pub fn get_mut<'a, I>(&'a mut self, index: I) -> Option<I::Mut>
 	where I: BitSliceIndex<'a, O, T> {
@@ -475,7 +475,7 @@ where
 	/// # API Differences
 	///
 	/// This crate cannot manifest `&mut bool` references, and must use the
-	/// [`BitMut`] proxy type where `&mut bool` exists in the standard library
+	/// [`BitRef`] proxy type where `&mut bool` exists in the standard library
 	/// API. The proxy value must be bound as `mut` in order to write through
 	/// it.
 	///
@@ -492,7 +492,7 @@ where
 	/// assert_eq!(x, bits![0, 1, 0]);
 	/// ```
 	///
-	/// [`BitMut`]: crate::slice::BitMut
+	/// [`BitRef`]: crate::slice::BitRef
 	/// [`get_mut`]: Self::get_mut
 	/// [undefined behavior]: ../../reference/behavior-considered-undefined.html
 	#[allow(clippy::missing_safety_doc)]
@@ -711,7 +711,7 @@ where
 	/// # API Differences
 	///
 	/// This crate cannot manifest `&mut bool` references, and must use the
-	/// [`BitMut`] proxy type where `&mut bool` exists in the standard library
+	/// [`BitRef`] proxy type where `&mut bool` exists in the standard library
 	/// API. The proxy value must be bound as `mut` in order to write through
 	/// it.
 	///
@@ -734,7 +734,7 @@ where
 	/// assert_eq!(x, bits![1, 1, 0]);
 	/// ```
 	///
-	/// [`BitMut`]: crate::slice::BitMut
+	/// [`BitRef`]: crate::slice::BitRef
 	/// [`.remove_alias()`]: crate::slice::IterMut::remove_alias
 	pub fn iter_mut(&mut self) -> IterMut<O, T> {
 		self.into_iter()
@@ -2485,7 +2485,7 @@ where
 	T: BitStore,
 {
 	type Immut = &'a bool;
-	type Mut = BitMut<'a, O, T>;
+	type Mut = BitRef<'a, Mut, O, T>;
 
 	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::Immut> {
 		if self < slice.len() {
@@ -2519,7 +2519,7 @@ where
 		slice: &'a mut BitSlice<O, T>,
 	) -> Self::Mut {
 		let (addr, head) = slice.as_mut_bitptr().add(self).raw_parts();
-		BitMut::new_unchecked(addr, head)
+		BitRef::new_unchecked(addr, head)
 	}
 
 	fn index(self, slice: &'a BitSlice<O, T>) -> Self::Immut {

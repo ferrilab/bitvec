@@ -7,9 +7,9 @@ use crate::{
 	},
 	order::BitOrder,
 	ptr::{
-		BitMut,
 		BitPtr,
 		BitPtrRange,
+		BitRef,
 	},
 	slice::{
 		BitSlice,
@@ -340,7 +340,7 @@ where
 		bitptr: BitPtr<Mut, O, T::Alias>,
 	) -> <Self as Iterator>::Item {
 		let (addr, head) = bitptr.raw_parts();
-		unsafe { BitMut::new_unchecked(addr, head) }
+		unsafe { BitRef::new_unchecked(addr, head) }
 	}
 }
 
@@ -2563,7 +2563,7 @@ macro_rules! noalias {
 noalias! {
 	IterMut => <usize as BitSliceIndex<'a, O, T::Alias>>::Mut
 	=> IterMutNoAlias => <usize as BitSliceIndex<'a, O, T>>::Mut
-	=> BitMut::remove_alias;
+	=> BitRef::remove_alias;
 
 	ChunksMut => &'a mut BitSlice<O, T::Alias>
 	=> ChunksMutNoAlias => &'a mut BitSlice<O, T>
