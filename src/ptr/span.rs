@@ -5,7 +5,7 @@ use crate::{
 	domain::Domain,
 	index::{
 		BitIdx,
-		BitIdxErr,
+		BitIdxError,
 		BitTail,
 	},
 	mem::BitMemory,
@@ -1238,7 +1238,7 @@ where
 	/// `BitSpan` requires well-aligned addresses.
 	Misaligned(PhantomData<O>, *const T),
 	/// `BitSpan` requires valid head indices.
-	InvalidHead(BitIdxErr<T::Mem>),
+	InvalidHead(BitIdxError<T::Mem>),
 	/// `BitSpan` domains have a length ceiling.
 	TooLong(usize),
 	/// `BitSpan` domains have an address ceiling.
@@ -1260,12 +1260,12 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> From<BitIdxErr<T::Mem>> for BitSpanError<O, T>
+impl<O, T> From<BitIdxError<T::Mem>> for BitSpanError<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	fn from(err: BitIdxErr<T::Mem>) -> Self {
+	fn from(err: BitIdxError<T::Mem>) -> Self {
 		Self::InvalidHead(err)
 	}
 }

@@ -140,9 +140,9 @@ where R: BitRegister
 	///
 	/// [`Self::LAST`]: Self::LAST
 	/// [`Self::ZERO`]: Self::ZERO
-	pub fn new(value: u8) -> Result<Self, BitIdxErr<R>> {
+	pub fn new(value: u8) -> Result<Self, BitIdxError<R>> {
 		if value >= R::BITS {
-			return Err(BitIdxErr::new(value));
+			return Err(BitIdxError::new(value));
 		}
 		Ok(unsafe { Self::new_unchecked(value) })
 	}
@@ -184,7 +184,7 @@ where R: BitRegister
 	/// This will always succeed if `self.value()` is a valid index in the `S`
 	/// register; it will return an error if the `self` index is too wide for
 	/// `S`.
-	pub fn cast<S>(self) -> Result<BitIdx<S>, BitIdxErr<S>>
+	pub fn cast<S>(self) -> Result<BitIdx<S>, BitIdxError<S>>
 	where S: BitRegister {
 		BitIdx::new(self.value())
 	}
@@ -414,7 +414,7 @@ where R: BitRegister
 impl<R> TryFrom<u8> for BitIdx<R>
 where R: BitRegister
 {
-	type Error = BitIdxErr<R>;
+	type Error = BitIdxError<R>;
 
 	fn try_from(value: u8) -> Result<Self, Self::Error> {
 		Self::new(value)
@@ -450,7 +450,7 @@ where R: BitRegister
 /// Marks an index that is invalid for a register type.
 #[repr(transparent)]
 #[derive(Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct BitIdxErr<R>
+pub struct BitIdxError<R>
 where R: BitRegister
 {
 	/// The value that is invalid as a [`BitIdx<R>`].
@@ -461,7 +461,7 @@ where R: BitRegister
 	_ty: PhantomData<R>,
 }
 
-impl<R> BitIdxErr<R>
+impl<R> BitIdxError<R>
 where R: BitRegister
 {
 	/// Marks a counter value as invalid to be an index for an `R` register.
@@ -498,7 +498,7 @@ where R: BitRegister
 	}
 }
 
-impl<R> Debug for BitIdxErr<R>
+impl<R> Debug for BitIdxError<R>
 where R: BitRegister
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -507,7 +507,7 @@ where R: BitRegister
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<R> Display for BitIdxErr<R>
+impl<R> Display for BitIdxError<R>
 where R: BitRegister
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -522,7 +522,7 @@ where R: BitRegister
 }
 
 #[cfg(feature = "std")]
-impl<R> std::error::Error for BitIdxErr<R> where R: BitRegister
+impl<R> std::error::Error for BitIdxError<R> where R: BitRegister
 {
 }
 

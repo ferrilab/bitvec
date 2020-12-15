@@ -33,7 +33,7 @@ structures, please file an issue.
 use crate::{
 	array::BitArray,
 	domain::Domain,
-	index::BitIdxErr,
+	index::BitIdxError,
 	mem::BitMemory,
 	order::BitOrder,
 	ptr::BitSpan,
@@ -227,7 +227,7 @@ where
 			data.as_ptr() as *mut T,
 			//  Attempt to read the `head` index as a `BitIdx` bounded by the
 			//  destination type.
-			head.try_into().map_err(|val: BitIdxErr<_>| {
+			head.try_into().map_err(|val: BitIdxError<_>| {
 				de::Error::invalid_value(
 					Unexpected::Unsigned(val.value() as u64),
 					&"a head-bit index less than the deserialized element \
