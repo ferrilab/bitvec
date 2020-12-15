@@ -546,7 +546,7 @@ where
 					runs for the remaining bits in it, and all the bits of `l`.
 					*/
 					Some((head, addr)) => BitSpan::new_unchecked(
-						addr as *const T as *mut T,
+						Address::new_unchecked(addr as *const _ as usize),
 						head,
 						t_bits - head.value() as usize + l_bits,
 					),
@@ -557,7 +557,11 @@ where
 							BitSpan::EMPTY
 						}
 						else {
-							BitSpan::new_unchecked(l_addr, BitIdx::ZERO, l_bits)
+							BitSpan::new_unchecked(
+								Address::new_unchecked(l_addr as usize),
+								BitIdx::ZERO,
+								l_bits,
+							)
 						}
 					},
 				};
@@ -566,7 +570,11 @@ where
 					BitSpan::EMPTY
 				}
 				else {
-					BitSpan::new_unchecked(c_addr, BitIdx::ZERO, c_bits)
+					BitSpan::new_unchecked(
+						Address::new_unchecked(c_addr as usize),
+						BitIdx::ZERO,
+						c_bits,
+					)
 				};
 
 				/* Compute a pointer for the right-most return span.
@@ -585,10 +593,10 @@ where
 						//  If the `r` slice exists, then the right span
 						//  *begins* in it.
 						if r.is_empty() {
-							addr as *const T as *mut T
+							Address::new_unchecked(addr as *const T as usize)
 						}
 						else {
-							r_addr
+							Address::new_unchecked(r_addr as *const T as usize)
 						},
 						BitIdx::ZERO,
 						tail.value() as usize + r_bits,
@@ -598,7 +606,11 @@ where
 					None => {
 						//  If `r` exists, then the right span covers it.
 						if !r.is_empty() {
-							BitSpan::new_unchecked(r_addr, BitIdx::ZERO, r_bits)
+							BitSpan::new_unchecked(
+								Address::new_unchecked(r_addr as usize),
+								BitIdx::ZERO,
+								r_bits,
+							)
 						}
 						//  Otherwise, the right span is empty.
 						else {
@@ -1479,16 +1491,18 @@ mod tests {
 		use alloc::format;
 
 		assert_eq!(
-			format!("{}", Address::<u8, Const>::new(0).unwrap_err()),
-			"Cannot use a null pointer"
+			format!("{}", Address::<Const, u8>::new(0).unwrap_err()),
+			"`bitvec` will not operate on the null pointer"
 		);
 		assert_eq!(
-			format!("{}", Address::<u16, Const>::new(0x13579).unwrap_err()),
-			"Address 0x13579 must clear its least 1 bits to be aligned for u16"
+			format!("{}", Address::<Const, u16>::new(0x13579).unwrap_err()),
+			"`bitvec` requires that the address 0x13579 clear its least 1 bits \
+			 to be aligned for type u16"
 		);
 		assert_eq!(
-			format!("{}", Address::<u32, Const>::new(0x13579).unwrap_err()),
-			"Address 0x13579 must clear its least 2 bits to be aligned for u32"
+			format!("{}", Address::<Const, u32>::new(0x13579).unwrap_err()),
+			"`bitvec` requires that the address 0x13579 clear its least 2 bits \
+			 to be aligned for type u32"
 		);
 	}
 }
