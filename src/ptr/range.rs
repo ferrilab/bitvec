@@ -90,7 +90,7 @@ where
 	///
 	/// - `.0`: The inclusive start pointer of the range.
 	/// - `.1`: The exclusive end pointer of the range.
-	pub fn pointers(self) -> (BitPtr<O, T, M>, BitPtr<O, T, M>) {
+	pub fn pointers(self) -> (BitPtr<M, O, T>, BitPtr<M, O, T>) {
 		unsafe {
 			(
 				BitPtr::new_unchecked(self.base, self.head),
@@ -133,7 +133,7 @@ where
 	///
 	/// The produce span does *not* include the bit addressed by the end
 	/// pointer, as this is an exclusive range.
-	pub(crate) fn into_bit_span(self) -> BitSpan<O, T, M> {
+	pub(crate) fn into_bit_span(self) -> BitSpan<M, O, T> {
 		unsafe { BitSpan::new_unchecked(self.base, self.head, self.len()) }
 	}
 
@@ -146,7 +146,7 @@ where
 	/// # Behavior
 	///
 	/// The front pointer is returned, then incremented.
-	fn take_front(&mut self) -> BitPtr<O, T, M> {
+	fn take_front(&mut self) -> BitPtr<M, O, T> {
 		let out = unsafe { BitPtr::new_unchecked(self.base, self.head) };
 		let (head, incr) = self.head.next();
 		self.head = head;
@@ -167,7 +167,7 @@ where
 	/// # Behavior
 	///
 	/// The back pointer is decremented, then returned.
-	fn take_back(&mut self) -> BitPtr<O, T, M> {
+	fn take_back(&mut self) -> BitPtr<M, O, T> {
 		let (tail, decr) = self.tail.prev();
 		self.tail = tail;
 		unsafe {
