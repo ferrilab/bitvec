@@ -589,7 +589,9 @@ where
 	/// let bits_ptr = bits.as_mut_ptr();
 	///
 	/// for i in 0 .. bits.len() {
-	///   unsafe { &mut *bits_ptr }.set(i, i % 3 == 0);
+	///   unsafe {
+	///     bits_ptr.add(i).write(i % 3 == 0);
+	///   }
 	/// }
 	/// assert_eq!(bits.as_slice()[0], 0b0100_1001);
 	/// ```
@@ -2289,8 +2291,11 @@ in comments. Once `rustfmt` is fixed, revert these to block comments.
 /// fn join_bitslices<'a, O, T>(
 ///   fst: &'a BitSlice<O, T>,
 ///   snd: &'a BitSlice<O, T>,
-/// ) -> &'a BitSlice<O, T> {
-///   let fst_end = fst.as_bitptr().wrapping_add(fst.len());
+/// ) -> &'a BitSlice<O, T>
+/// where O: BitOrder, T: BitStore {
+///   let fst_end = unsafe {
+///     fst.as_bitptr().wrapping_add(fst.len())
+///   };
 ///   let snd_start = snd.as_bitptr();
 ///   assert_eq!(snd_start, fst_end, "Slices must be adjacent");
 ///   unsafe {
@@ -2323,7 +2328,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	data.into_bitspan_unchecked(len).to_bitslice_ref()
+	data.span_unchecked(len).to_bitslice_ref()
 }
 
 /// Performs the same functionality as [`from_raw_parts`], except that a mutable
@@ -2361,7 +2366,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	data.into_bitspan_unchecked(len).to_bitslice_mut()
+	data.span_unchecked(len).to_bitslice_mut()
 }
 
 /** A helper trait used for indexing operations.
