@@ -543,11 +543,11 @@ where
 	/// [`offset`]: Self::offset
 	pub unsafe fn offset_from(self, origin: Self) -> isize {
 		self.addr
-			.to_const()
-			.offset_from(origin.addr.to_const())
-			.wrapping_mul(<T::Mem as BitMemory>::BITS as isize)
-			.wrapping_add(self.head.value() as isize)
-			.wrapping_sub(origin.head.value() as isize)
+			.value()
+			.wrapping_sub(origin.addr.value())
+			.wrapping_mul(<u8 as BitMemory>::BITS as usize)
+			.wrapping_add(self.head.value() as usize)
+			.wrapping_sub(origin.head.value() as usize) as isize
 	}
 
 	/// Calculates the offset from a pointer (convenience for `.offset(count as
