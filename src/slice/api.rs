@@ -150,7 +150,7 @@ where
 	/// assert_eq!(x, bits![1, 1, 0]);
 	/// ```
 	///
-	/// [`BitRef`]: crate::slice::BitRef
+	/// [`BitRef`]: crate::ptr::BitRef
 	pub fn first_mut(&mut self) -> Option<BitRef<Mut, O, T>> {
 		self.get_mut(0)
 	}
@@ -217,7 +217,7 @@ where
 	/// assert_eq!(x, bits![1, 1, 0]);
 	/// ```
 	///
-	/// [`BitRef`]: crate::slice::BitRef
+	/// [`BitRef`]: crate::ptr::BitRef
 	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
 	//  so this will not be aliased.
 	#[allow(clippy::type_complexity)]
@@ -361,7 +361,7 @@ where
 	/// assert_eq!(x, bits![0, 1, 1]);
 	/// ```
 	///
-	/// [`BitRef`]: crate::slice::BitRef
+	/// [`BitRef`]: crate::ptr::BitRef
 	pub fn last_mut(&mut self) -> Option<BitRef<Mut, O, T>> {
 		match self.len() {
 			0 => None,
@@ -423,7 +423,7 @@ where
 	/// assert_eq!(x, bits![0, 1, 1]);
 	/// ```
 	///
-	/// [`BitRef`]: crate::slice::BitRef
+	/// [`BitRef`]: crate::ptr::BitRef
 	/// [`.get()`]: Self::get
 	pub fn get_mut<'a, I>(&'a mut self, index: I) -> Option<I::Mut>
 	where I: BitSliceIndex<'a, O, T> {
@@ -492,7 +492,7 @@ where
 	/// assert_eq!(x, bits![0, 1, 0]);
 	/// ```
 	///
-	/// [`BitRef`]: crate::slice::BitRef
+	/// [`BitRef`]: crate::ptr::BitRef
 	/// [`get_mut`]: Self::get_mut
 	/// [undefined behavior]: ../../reference/behavior-considered-undefined.html
 	#[allow(clippy::missing_safety_doc)]
@@ -734,7 +734,7 @@ where
 	/// assert_eq!(x, bits![1, 1, 0]);
 	/// ```
 	///
-	/// [`BitRef`]: crate::slice::BitRef
+	/// [`BitRef`]: crate::ptr::BitRef
 	/// [`.remove_alias()`]: crate::slice::IterMut::remove_alias
 	pub fn iter_mut(&mut self) -> IterMut<O, T> {
 		self.into_iter()

@@ -540,6 +540,7 @@ where
 	/// }
 	/// ```
 	///
+	/// [`BitSlice`]: crate::slice::BitSlice
 	/// [`offset`]: Self::offset
 	pub unsafe fn offset_from(self, origin: Self) -> isize {
 		self.addr

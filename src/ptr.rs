@@ -186,7 +186,7 @@ pub use crate::{
 /// ```
 ///
 /// [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
-/// [`copy_nonoverlapping`](self::copy_nonoverlapping)
+/// [`copy_nonoverlapping`]: self::copy_nonoverlapping
 /// [`memmove`]: https://en.cppreference.com/w/c/string/byte/memmove
 pub unsafe fn copy<O1, O2, T1, T2>(
 	src: BitPtr<Const, O1, T1>,
@@ -403,6 +403,7 @@ where
 /// ```
 ///
 /// [c11]: http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf
+/// [valid]: https://doc.rust-lang.org/core/ptr/index.html#safety
 pub unsafe fn read_volatile<O, T>(src: BitPtr<Const, O, T>) -> bool
 where
 	O: BitOrder,
@@ -651,6 +652,7 @@ where
 /// ```
 ///
 /// [c11]: http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf
+/// [valid]: https://doc.rust-lang.org/core/ptr/index.html#safety
 pub unsafe fn write_volatile<O, T>(dst: BitPtr<Mut, O, T>, value: bool)
 where
 	O: BitOrder,

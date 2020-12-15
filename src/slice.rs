@@ -154,7 +154,7 @@ within that memory type.
 `&BitSlice<O, T>` is capable of producing `&bool` references to read bits out
 of its memory, but is not capable of producing `&mut bool` references to write
 bits *into* its memory. Any `[bool]` API that would produce a `&mut bool` will
-instead produce a [`BitRef<O, T>`] proxy reference.
+instead produce a [`BitRef<Mut, O, T>`] proxy reference.
 
 # Behavior
 
@@ -386,7 +386,7 @@ assert_eq!(vec.as_bitslice(), slice[.. 20]);
 
 [`BitArray`]: crate::array::BitArray
 [`BitBox`]: crate::boxed::BitBox
-[`BitRef<O, T>`]: crate::slice::BitRef
+[`BitRef<Mut, O, T>`]: crate::ptr::BitRef
 [`BitOrder`]: crate::order::BitOrder
 [`BitStore`]: crate::store::BitStore
 [`BitVec`]: crate::vec::BitVec
@@ -1488,10 +1488,14 @@ where
 	{
 		let len = self.len();
 		assert_eq!(len, other.len());
-		for (to, from) in self.iter_mut().zip(other.iter_mut()) {
+		for (to, from) in unsafe {
+			self.iter_mut()
+				.remove_alias()
+				.zip(other.iter_mut().remove_alias())
+		} {
 			let (this, that) = (*to, *from);
-			unsafe { BitRef::<O, T>::remove_alias(to) }.set(that);
-			unsafe { BitRef::<O2, T2>::remove_alias(from) }.set(this);
+			to.set(that);
+			from.set(this);
 		}
 	}
 
@@ -1660,7 +1664,7 @@ where
 	/// assert_eq!(data, 0b100_100_10);
 	/// ```
 	///
-	/// [`BitRef`]: crate::slice::BitRef
+	/// [`BitRef`]: crate::ptr::BitRef
 	/// [`IndexMut`]: core::ops::IndexMut
 	pub fn for_each<F>(&mut self, mut func: F)
 	where F: FnMut(usize, bool) -> bool {
