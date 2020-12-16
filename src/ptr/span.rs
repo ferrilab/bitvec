@@ -637,7 +637,7 @@ where
 	/// The address of the starting element of the memory region. This address
 	/// is weakly typed so that it can be cast by call sites to the most useful
 	/// access type.
-	pub(crate) fn pointer(&self) -> Address<M, T> {
+	pub(crate) fn address(&self) -> Address<M, T> {
 		unsafe {
 			Address::new_unchecked(
 				self.ptr.as_ptr() as usize & Self::PTR_ADDR_MASK,
@@ -659,7 +659,7 @@ where
 	///
 	/// [`::new`]: Self::new
 	#[cfg(any(feature = "alloc", test))]
-	pub(crate) unsafe fn set_pointer<A>(&mut self, addr: A)
+	pub(crate) unsafe fn set_address<A>(&mut self, addr: A)
 	where
 		A: TryInto<Address<M, T>>,
 		A::Error: Debug,
@@ -681,10 +681,10 @@ where
 	/// # Returns
 	///
 	/// A [`BitIdx`] of the first live bit in the element at the
-	/// [`self.pointer()`] address.
+	/// [`self.address()`] address.
 	///
 	/// [`BitIdx`]: crate::index::BitIdx
-	/// [`self.pointer()`]: Self::pointer
+	/// [`self.address()`]: Self::pointer
 	pub(crate) fn head(&self) -> BitIdx<T::Mem> {
 		//  Get the high part of the head counter out of the pointer.
 		let ptr = self.ptr.as_ptr() as usize;
@@ -768,12 +768,12 @@ where
 	///   region.
 	/// - `.2`: The number of live bits in the region.
 	pub(crate) fn raw_parts(&self) -> (Address<M, T>, BitIdx<T::Mem>, usize) {
-		(self.pointer(), self.head(), self.len())
+		(self.address(), self.head(), self.len())
 	}
 
 	//  Computed information
 
-	/// Computes the number of elements, starting at [`self.pointer()`], that
+	/// Computes the number of elements, starting at [`self.address()`], that
 	/// the region touches.
 	///
 	/// # Parameters
@@ -782,10 +782,10 @@ where
 	///
 	/// # Returns
 	///
-	/// The count of all elements, starting at [`self.pointer()`], that contain
+	/// The count of all elements, starting at [`self.address()`], that contain
 	/// live bits included in the referent region.
 	///
-	/// [`self.pointer()`]: Self::pointer
+	/// [`self.address()`]: Self::pointer
 	pub(crate) fn elements(&self) -> usize {
 		//  Find the distance of the last bit from the base address.
 		let total = self.len() + self.head().value() as usize;
@@ -888,7 +888,7 @@ where
 	/// [`self.head()`]: Self::head
 	pub(crate) unsafe fn read(&self, index: usize) -> bool {
 		let (elt, bit) = self.head().offset(index as isize);
-		let base = self.pointer().to_const();
+		let base = self.address().to_const();
 		(&*base.offset(elt)).get_bit::<O>(bit)
 	}
 
@@ -950,8 +950,8 @@ where
 	///    is in its element. `A.ptr_diff(B)` thus produces negative element and
 	///    bit distances: `(-1, -5)`.
 	pub(crate) unsafe fn ptr_diff(&self, other: &Self) -> (isize, i8) {
-		let self_ptr = self.pointer().to_const();
-		let other_ptr = other.pointer().to_const();
+		let self_ptr = self.address().to_const();
+		let other_ptr = other.address().to_const();
 		let elts = other_ptr.offset_from(self_ptr);
 		let bits = other.head().value() as i8 - self.head().value() as i8;
 		(elts, bits)
@@ -1001,7 +1001,7 @@ where
 		)?;
 		let mut builder = fmt.debug_struct("");
 		builder
-			.field("addr", &self.pointer().fmt_pointer())
+			.field("addr", &self.address().fmt_pointer())
 			.field("head", &self.head().fmt_binary())
 			.field("bits", &self.len());
 		for (name, value) in fields {
@@ -1145,13 +1145,13 @@ where
 	/// # Effects
 	///
 	/// `value` is written to the bit specified by `index`, relative to
-	/// [`self.head()`] and [`self.pointer()`].
+	/// [`self.head()`] and [`self.address()`].
 	///
 	/// [`self.head()`]: Self::head
-	/// [`self.pointer()`]: Self::pointer
+	/// [`self.address()`]: Self::pointer
 	pub(crate) unsafe fn write(&self, index: usize, value: bool) {
 		let (elt, bit) = self.head().offset(index as isize);
-		let base = self.pointer().to_access();
+		let base = self.address().to_access();
 		(&*base.offset(elt)).write_bit::<O>(bit, value);
 	}
 }
@@ -1453,15 +1453,15 @@ mod tests {
 		let mut bitspan = a.view_bits::<LocalBits>().bit_span();
 		let mut expected = (&a as *const _ as usize, 16usize << 3);
 
-		assert_eq!(bitspan.pointer().to_const(), &a as *const _);
+		assert_eq!(bitspan.address().to_const(), &a as *const _);
 		assert_eq!(bitspan.ptr.as_ptr() as usize, expected.0);
 		assert_eq!(bitspan.len, expected.1);
 
 		expected.0 = &b as *const _ as usize;
 		unsafe {
-			bitspan.set_pointer(&b as *const _);
+			bitspan.set_address(&b as *const _);
 		}
-		assert_eq!(bitspan.pointer().to_const(), &b as *const _);
+		assert_eq!(bitspan.address().to_const(), &b as *const _);
 		assert_eq!(bitspan.ptr.as_ptr() as usize, expected.0);
 		assert_eq!(bitspan.len, expected.1);
 

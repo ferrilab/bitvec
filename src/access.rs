@@ -293,9 +293,9 @@ mod tests {
 	fn touch_memory() {
 		let mut data = 0u8;
 		let bits = data.view_bits_mut::<LocalBits>();
-		let accessor = unsafe { &*(bits.bit_span().pointer().to_access()) };
+		let accessor = unsafe { &*(bits.bit_span().address().to_access()) };
 		let aliased = unsafe {
-			&*(bits.bit_span().pointer().to_const()
+			&*(bits.bit_span().address().to_const()
 				as *const <u8 as BitStore>::Alias)
 		};
 

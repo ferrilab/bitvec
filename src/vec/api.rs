@@ -556,7 +556,7 @@ where
 	/// [`.as_bitslice()`]: Self::as_bitslice
 	pub fn as_slice(&self) -> &[T] {
 		let bitspan = self.bit_span();
-		let (base, elts) = (bitspan.pointer().to_const(), bitspan.elements());
+		let (base, elts) = (bitspan.address().to_const(), bitspan.elements());
 		unsafe { slice::from_raw_parts(base, elts) }
 	}
 
@@ -586,7 +586,7 @@ where
 	/// [`.as_mut_bitslice()`]: Self::as_mut_bitslice
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
 		let bitspan = self.bit_span_mut();
-		let (base, elts) = (bitspan.pointer().to_mut(), bitspan.elements());
+		let (base, elts) = (bitspan.address().to_mut(), bitspan.elements());
 		unsafe { slice::from_raw_parts_mut(base, elts) }
 	}
 

@@ -538,7 +538,7 @@ macro_rules! domain {
 				let elts = bitspan.elements();
 				let tail = bitspan.tail();
 				let bits = T::Mem::BITS;
-				let base = bitspan.pointer().to_const() as *const _;
+				let base = bitspan.address().to_const() as *const _;
 				match (head.value(), elts, tail.value()) {
 					(_, 0, _) => Self::empty(),
 					(0, _, t) if t == bits => Self::spanning(base, elts),

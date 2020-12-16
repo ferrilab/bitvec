@@ -339,7 +339,7 @@ where
 		}
 
 		unsafe {
-			bitspan.set_pointer(vec.as_ptr() as *const T);
+			bitspan.set_address(vec.as_ptr() as *const T);
 		}
 
 		let capacity = vec.capacity();
@@ -539,7 +539,7 @@ where
 		let mut bitspan = self.bit_span_mut();
 		let boxed = self.into_boxed_slice().pipe(ManuallyDrop::new);
 		unsafe {
-			bitspan.set_pointer(boxed.as_ptr() as *mut T);
+			bitspan.set_address(boxed.as_ptr() as *mut T);
 			BitBox::from_raw(bitspan.to_bitslice_ptr_mut())
 		}
 	}
@@ -797,7 +797,7 @@ where
 		let cap = self.capacity;
 		let mut bitspan = self.bit_span_mut();
 		let (base, elts) = (
-			bitspan.pointer().to_mut().cast::<T::Mem>(),
+			bitspan.address().to_mut().cast::<T::Mem>(),
 			bitspan.elements(),
 		);
 
@@ -806,7 +806,7 @@ where
 		let out = func(&mut vec);
 
 		unsafe {
-			bitspan.set_pointer(vec.as_mut_ptr().cast::<T>());
+			bitspan.set_address(vec.as_mut_ptr().cast::<T>());
 		}
 		self.pointer = bitspan.to_nonnull();
 		self.capacity = vec.capacity();

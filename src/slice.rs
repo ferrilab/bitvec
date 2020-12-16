@@ -1782,12 +1782,12 @@ where
 		let that = other.bit_span();
 		let (elts, bits) = unsafe {
 			let this = BitSpan::<_, O, T>::new_unchecked(
-				this.pointer(),
+				this.address(),
 				BitIdx::new_unchecked(this.head().position::<O>().value()),
 				1,
 			);
 			let that = BitSpan::<_, O, T>::new_unchecked(
-				that.pointer(),
+				that.address(),
 				BitIdx::new_unchecked(that.head().position::<O>().value()),
 				1,
 			);
@@ -2091,7 +2091,7 @@ where
 	/// [`.domain_mut()`]: Self::domain_mut
 	pub fn as_slice(&self) -> &[T] {
 		let bitspan = self.bit_span();
-		let (base, elts) = (bitspan.pointer().to_const(), bitspan.elements());
+		let (base, elts) = (bitspan.address().to_const(), bitspan.elements());
 		unsafe { slice::from_raw_parts(base, elts) }
 	}
 }
@@ -2268,7 +2268,7 @@ where
 		//  Create a new span descriptor using `self` metadata, pointing at the
 		//  allocation.
 		let new_ptr = self.bit_span().tap_mut(|bp| unsafe {
-			bp.set_pointer(vec.as_ptr() as *const T);
+			bp.set_address(vec.as_ptr() as *const T);
 		});
 		//  `*self` was immutable, but `*vec` is mutable.
 		let ptr = unsafe { new_ptr.assert_mut() }.to_bitslice_ptr_mut();

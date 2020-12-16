@@ -256,7 +256,7 @@ where
 		//  lifetime.
 		let iter = bv.as_bitslice().bit_span().to_bitslice_ref().iter();
 		//  Only the allocation’s base and capacity need to be kept for `Drop`.
-		let base = bv.bit_span().pointer().to_nonnull();
+		let base = bv.bit_span().address().to_nonnull();
 		let capa = bv.alloc_capacity();
 		Self { base, capa, iter }
 	}

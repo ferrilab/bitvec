@@ -198,7 +198,7 @@ where
 		if src.len() != V::const_bits() || bitspan.head() != BitIdx::ZERO {
 			return Self::Error::err(src);
 		}
-		Ok(unsafe { &*(bitspan.pointer().to_const() as *const BitArray<O, V>) })
+		Ok(unsafe { &*(bitspan.address().to_const() as *const BitArray<O, V>) })
 	}
 }
 
@@ -216,7 +216,7 @@ where
 		if src.len() != V::const_bits() || bitspan.head() != BitIdx::ZERO {
 			return Self::Error::err(&*src);
 		}
-		Ok(unsafe { &mut *(bitspan.pointer().to_mut() as *mut BitArray<O, V>) })
+		Ok(unsafe { &mut *(bitspan.address().to_mut() as *mut BitArray<O, V>) })
 	}
 }
 
