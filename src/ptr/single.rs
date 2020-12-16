@@ -1030,6 +1030,7 @@ where
 	/// [`pointer::write`](https://doc.rust-lang.org/std/primitive.pointer.html#method.write)
 	///
 	/// [`ptr::write`]: crate::ptr::write
+	#[allow(clippy::clippy::missing_safety_doc)]
 	pub unsafe fn write(self, value: bool) {
 		(&*self.addr.to_access()).write_bit::<O>(self.head, value);
 	}

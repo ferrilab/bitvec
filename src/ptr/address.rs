@@ -166,6 +166,7 @@ where
 impl<T> Address<Mut, T>
 where T: BitStore
 {
+	#[allow(clippy::clippy::wrong_self_convention)]
 	pub(crate) fn to_mut(self) -> *mut T {
 		self.inner.as_ptr()
 	}
