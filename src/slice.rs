@@ -1345,7 +1345,8 @@ where
 			"Copying between slices requires equal lengths"
 		);
 
-		let (d_head, s_head) = (self.bit_span().head(), src.bit_span().head());
+		let (d_head, s_head) =
+			(self.as_bitspan().head(), src.as_bitspan().head());
 		//  Where the two slices have identical layouts (head index and length),
 		//  the copy can be done by using the memory domains.
 		if d_head == s_head {
@@ -1729,7 +1730,7 @@ where
 	/// [`.electrical_distance()]`: crate::slice::BitSlice::electrical_distance
 	pub fn offset_from(&self, other: &Self) -> isize {
 		let (elts, bits) =
-			unsafe { self.bit_span().ptr_diff(&other.bit_span()) };
+			unsafe { self.as_bitspan().ptr_diff(&other.as_bitspan()) };
 		elts.saturating_mul(T::Mem::BITS as isize)
 			.saturating_add(bits as isize)
 	}
@@ -1778,8 +1779,8 @@ where
 	/// [`BitOrder`]: crate::order::BitOrder
 	/// [`Lsb0`]: crate::order::Lsb0
 	pub fn electrical_distance(&self, other: &Self) -> isize {
-		let this = self.bit_span();
-		let that = other.bit_span();
+		let this = self.as_bitspan();
+		let that = other.as_bitspan();
 		let (elts, bits) = unsafe {
 			let this = BitSpan::<_, O, T>::new_unchecked(
 				this.address(),
@@ -1855,7 +1856,7 @@ where
 	/// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
 	/// [`.set()`]: Self::set
 	pub unsafe fn set_unchecked(&mut self, index: usize, value: bool) {
-		self.bit_span_mut().write(index, value);
+		self.as_mut_bitspan().write(index, value);
 	}
 
 	/// Writes a new bit at a given index, without doing bounds checking.
@@ -1904,7 +1905,7 @@ where
 	/// [`Radium`]: radium::Radium
 	pub unsafe fn set_aliased_unchecked(&self, index: usize, value: bool)
 	where T: radium::Radium {
-		self.bit_span().assert_mut().write(index, value);
+		self.as_bitspan().assert_mut().write(index, value);
 	}
 
 	/// Swaps two bits in the slice.
@@ -1970,7 +1971,7 @@ where
 		&mut self,
 		mid: usize,
 	) -> (&mut BitSlice<O, T::Alias>, &mut BitSlice<O, T::Alias>) {
-		let bp = self.alias_mut().bit_span_mut();
+		let bp = self.alias_mut().as_mut_bitspan();
 		(
 			bp.to_bitslice_mut().get_unchecked_mut(.. mid),
 			bp.to_bitslice_mut().get_unchecked_mut(mid ..),
@@ -2038,23 +2039,23 @@ where
 {
 	/// Gets the base-address pointer to the start bit of the slice.
 	pub fn as_bitptr(&self) -> BitPtr<Const, O, T> {
-		let (addr, head, _) = self.bit_span().raw_parts();
+		let (addr, head, _) = self.as_bitspan().raw_parts();
 		BitPtr::new(addr, head)
 	}
 
 	/// Gets the base-address pointer to the start bit of the slice.
 	pub fn as_mut_bitptr(&mut self) -> BitPtr<Mut, O, T> {
-		let (addr, head, _) = self.bit_span_mut().raw_parts();
+		let (addr, head, _) = self.as_mut_bitspan().raw_parts();
 		BitPtr::new(addr, head)
 	}
 
 	/// Views the `&BitSlice` reference as a `*const BitSlice` pointer.
-	pub fn as_bitspan(&self) -> *const Self {
+	pub fn as_bitslice_ptr(&self) -> *const Self {
 		self as *const Self
 	}
 
 	/// Views the `&mut BitSlice` reference as a `*mut BitSlice` pointer.
-	pub fn as_mut_bitspan(&mut self) -> *mut Self {
+	pub fn as_mut_bitslice_ptr(&mut self) -> *mut Self {
 		self as *mut Self
 	}
 
@@ -2090,7 +2091,7 @@ where
 	/// [`.domain()`]: Self::domain
 	/// [`.domain_mut()`]: Self::domain_mut
 	pub fn as_slice(&self) -> &[T] {
-		let bitspan = self.bit_span();
+		let bitspan = self.as_bitspan();
 		let (base, elts) = (bitspan.address().to_const(), bitspan.elements());
 		unsafe { slice::from_raw_parts(base, elts) }
 	}
@@ -2103,13 +2104,14 @@ where
 	T: BitStore,
 {
 	/// Type-cast the slice reference to its pointer structure.
-	pub(crate) fn bit_span(&self) -> BitSpan<Const, O, T> {
-		self.as_bitspan().pipe(BitSpan::from_bitslice_ptr)
+	pub(crate) fn as_bitspan(&self) -> BitSpan<Const, O, T> {
+		self.as_bitslice_ptr().pipe(BitSpan::from_bitslice_ptr)
 	}
 
 	/// Type-cast the slice reference to its pointer structure.
-	pub(crate) fn bit_span_mut(&mut self) -> BitSpan<Mut, O, T> {
-		self.as_mut_bitspan().pipe(BitSpan::from_bitslice_ptr_mut)
+	pub(crate) fn as_mut_bitspan(&mut self) -> BitSpan<Mut, O, T> {
+		self.as_mut_bitslice_ptr()
+			.pipe(BitSpan::from_bitslice_ptr_mut)
 	}
 
 	/// Asserts that `index` is less than [`self.len()`].
@@ -2131,12 +2133,14 @@ where
 
 	/// Marks an immutable slice as referring to aliased memory region.
 	pub(crate) fn alias(&self) -> &BitSlice<O, T::Alias> {
-		unsafe { &*(self.as_bitspan() as *const BitSlice<O, T::Alias>) }
+		unsafe { &*(self.as_bitslice_ptr() as *const BitSlice<O, T::Alias>) }
 	}
 
 	/// Marks a mutable slice as describing an aliased memory region.
 	pub(crate) fn alias_mut(&mut self) -> &mut BitSlice<O, T::Alias> {
-		unsafe { &mut *(self.as_mut_bitspan() as *mut BitSlice<O, T::Alias>) }
+		unsafe {
+			&mut *(self.as_mut_bitslice_ptr() as *mut BitSlice<O, T::Alias>)
+		}
 	}
 
 	/// Removes the aliasing marker from a mutable slice handle.
@@ -2261,13 +2265,13 @@ where
 	pub fn to_bitvec(&self) -> BitVec<O, T::Unalias> {
 		use tap::tap::Tap;
 		//  Create an allocation and copy `*self` into it.
-		let vec = alloc::vec::Vec::with_capacity(self.bit_span().elements())
+		let vec = alloc::vec::Vec::with_capacity(self.as_bitspan().elements())
 			.tap_mut(|vec| {
 				vec.extend(self.as_slice().iter().map(BitStore::load_value))
 			});
 		//  Create a new span descriptor using `self` metadata, pointing at the
 		//  allocation.
-		let new_ptr = self.bit_span().tap_mut(|bp| unsafe {
+		let new_ptr = self.as_bitspan().tap_mut(|bp| unsafe {
 			bp.set_address(vec.as_ptr() as *const T);
 		});
 		//  `*self` was immutable, but `*vec` is mutable.

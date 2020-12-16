@@ -57,6 +57,7 @@ implementation is provided.
 - `O`: The bit-ordering within a storage element used to access bits.
 - `T`: The storage element type containing the referent bits.
 **/
+// Restore alignemnt properties, since `BitPtr` does not have them.
 #[cfg_attr(target_pointer_width = "32", repr(C, align(4)))]
 #[cfg_attr(target_pointer_width = "64", repr(C, align(8)))]
 #[cfg_attr(
@@ -89,12 +90,16 @@ where
 	};
 
 	/// Destructures the range back into its start and end pointers.
+	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn raw_parts(&self) -> (BitPtr<M, O, T>, BitPtr<M, O, T>) {
 		(self.start, self.end)
 	}
 
 	/// Converts the structure into an actual `Range`. The `Range` will have
 	/// limited functionality compared to `self`.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn into_range(self) -> Range<BitPtr<M, O, T>> {
 		self.start .. self.end
 	}
@@ -112,13 +117,14 @@ where
 	/// use bitvec::ptr::BitPtrRange;
 	///
 	/// let data = 0u8;
-	/// let ptr = BitPtr::<_, Lsb0, _>::from_ref(&data, 0).unwrap();
+	/// let ptr = BitPtr::<_, Lsb0, _>::from_ref(&data);
 	/// let mut range = unsafe { ptr.range(1) };
 	///
 	/// assert!(!range.is_empty());
 	/// range.next();
 	/// assert!(range.is_empty());
 	/// ```
+	#[inline]
 	pub fn is_empty(&self) -> bool {
 		self.start == self.end
 	}
@@ -146,7 +152,7 @@ where
 	/// use core::cell::Cell;
 	///
 	/// let data = 0u16;
-	/// let ptr = BitPtr::<_, Lsb0, _>::from_ref(&data, 0).unwrap();
+	/// let ptr = BitPtr::<_, Lsb0, _>::from_ref(&data);
 	///
 	/// let mut range = unsafe { ptr.range(16) };
 	/// // Reduce the range contents.
@@ -165,6 +171,7 @@ where
 	/// let casted = ptr.cast::<Cell<u16>>();
 	/// assert!(range.contains(&unsafe { casted.add(8) }));
 	/// ```
+	#[inline]
 	pub fn contains<M2, T2>(&self, pointer: &BitPtr<M2, O, T2>) -> bool
 	where
 		M2: Mutability,
@@ -177,6 +184,7 @@ where
 	///
 	/// The produced span does *not* include the bit addressed by the end
 	/// pointer, as this is an exclusive range.
+	#[inline]
 	pub(crate) fn into_bitspan(self) -> BitSpan<M, O, T> {
 		unsafe { self.start.span_unchecked(self.len()) }
 	}
@@ -185,6 +193,7 @@ where
 	/// start.
 	///
 	/// This method may only be called when the range is non-empty.
+	#[inline]
 	fn take_front(&mut self) -> BitPtr<M, O, T> {
 		let start = self.start;
 		self.start = unsafe { start.add(1) };
@@ -194,6 +203,7 @@ where
 	/// Decrements the current end pointer, then returns it.
 	///
 	/// This method may only be called when the range is non-empty.
+	#[inline]
 	fn take_back(&mut self) -> BitPtr<M, O, T> {
 		let prev = unsafe { self.end.sub(1) };
 		self.end = prev;
@@ -201,12 +211,14 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> Clone for BitPtrRange<M, O, T>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn clone(&self) -> Self {
 		Self { ..*self }
 	}
@@ -220,6 +232,7 @@ where
 {
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M1, M2, O, T1, T2> PartialEq<BitPtrRange<M2, O, T2>>
 	for BitPtrRange<M1, O, T1>
 where
@@ -229,6 +242,7 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline(always)]
 	fn eq(&self, other: &BitPtrRange<M2, O, T2>) -> bool {
 		if TypeId::of::<T1::Mem>() != TypeId::of::<T2::Mem>() {
 			return false;
@@ -237,33 +251,18 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> Default for BitPtrRange<M, O, T>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn default() -> Self {
 		Self::EMPTY
 	}
 }
-
-/*
-#[cfg(not(tarpaulin_include))]
-impl<M, O, T> From<BitSpan<M, O, T>> for BitPtrRange<M, O, T>
-where
-	M: Mutability,
-	O: BitOrder,
-	T: BitStore,
-{
-	fn from(span: BitSpan<M, O, T>) -> Self {
-		let (base, head, bits) = span.raw_parts();
-		let start = BitPtr::new(base, head);
-		let end = unsafe { start.add(bits) };
-		Self { start, end }
-	}
-}
-*/
 
 #[cfg(not(tarpaulin_include))]
 impl<M, O, T> From<Range<BitPtr<M, O, T>>> for BitPtrRange<M, O, T>
@@ -278,12 +277,27 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
+impl<M, O, T> Into<Range<BitPtr<M, O, T>>> for BitPtrRange<M, O, T>
+where
+	M: Mutability,
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline(always)]
+	fn into(self) -> Range<BitPtr<M, O, T>> {
+		self.into_range()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> Debug for BitPtrRange<M, O, T>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		let (start, end) = self.raw_parts();
 		Pointer::fmt(&start, fmt)?;
@@ -292,12 +306,14 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> Hash for BitPtrRange<M, O, T>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn hash<H>(&self, state: &mut H)
 	where H: Hasher {
 		self.start.hash(state);
@@ -313,6 +329,7 @@ where
 {
 	type Item = BitPtr<M, O, T>;
 
+	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
 		if Self::is_empty(&*self) {
 			return None;
@@ -320,6 +337,7 @@ where
 		Some(self.take_front())
 	}
 
+	#[inline]
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
 		if n >= self.len() {
 			self.start = self.end;
@@ -329,15 +347,18 @@ where
 		Some(self.take_front())
 	}
 
+	#[inline]
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		let len = self.len();
 		(len, Some(len))
 	}
 
+	#[inline(always)]
 	fn count(self) -> usize {
 		self.len()
 	}
 
+	#[inline(always)]
 	fn last(mut self) -> Option<Self::Item> {
 		self.next_back()
 	}
@@ -349,6 +370,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		if Self::is_empty(&*self) {
 			return None;
@@ -356,6 +378,7 @@ where
 		Some(self.take_back())
 	}
 
+	#[inline]
 	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
 		if n >= self.len() {
 			self.end = self.start;
@@ -373,9 +396,9 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn len(&self) -> usize {
-		let (low, high) = self.raw_parts();
-		(unsafe { high.offset_from(low) }) as usize
+		(unsafe { self.end.offset_from(self.start) }) as usize
 	}
 }
 
@@ -387,16 +410,19 @@ where
 {
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> RangeBounds<BitPtr<M, O, T>> for BitPtrRange<M, O, T>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn start_bound(&self) -> Bound<&BitPtr<M, O, T>> {
 		Bound::Included(&self.start)
 	}
 
+	#[inline(always)]
 	fn end_bound(&self) -> Bound<&BitPtr<M, O, T>> {
 		Bound::Excluded(&self.end)
 	}
@@ -407,7 +433,7 @@ mod tests {
 	use super::*;
 	use crate::{
 		mutability::Const,
-		prelude::Lsb0,
+		order::Lsb0,
 	};
 	use core::mem::size_of;
 

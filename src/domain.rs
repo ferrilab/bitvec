@@ -228,7 +228,7 @@ macro_rules! bit_domain {
 			///
 			/// [`BitSlice`]: crate::slice::BitSlice
 			pub(crate) fn new(slice: &'a $($m)? BitSlice<O, T>) -> Self {
-				let bitspan = slice.bit_span();
+				let bitspan = slice.as_bitspan();
 				let h = bitspan.head();
 				let (e, t) = h.span(bitspan.len());
 				let w = T::Mem::BITS;
@@ -533,7 +533,7 @@ macro_rules! domain {
 
 			pub(crate) fn new<O>(slice: &'a $($m)? BitSlice<O, T>) -> Self
 			where O: BitOrder {
-				let bitspan = slice.bit_span();
+				let bitspan = slice.as_bitspan();
 				let head = bitspan.head();
 				let elts = bitspan.elements();
 				let tail = bitspan.tail();

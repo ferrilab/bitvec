@@ -314,7 +314,7 @@ where
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
-		let span = self.iter.as_bitslice().bit_span();
+		let span = self.iter.as_bitslice().as_bitspan();
 		let span_mut = unsafe { span.assert_mut() };
 		span_mut.to_bitslice_mut()
 	}
@@ -458,7 +458,7 @@ where
 				.as_bitslice()
 				.get_unchecked(drain)
 				//  Detach the region from the `source` borrow.
-				.bit_span()
+				.as_bitspan()
 				.to_bitslice_ref()
 				.iter()
 		};

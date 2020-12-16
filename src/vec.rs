@@ -312,7 +312,7 @@ where
 	/// [`BitSlice`]: crate::slice::BitSlice
 	/// [`.force_align()`]: Self::force_align
 	pub fn from_bitslice(slice: &BitSlice<O, T>) -> Self {
-		let mut bitspan = slice.bit_span();
+		let mut bitspan = slice.as_bitspan();
 
 		let mut vec = bitspan
 			.elements()
@@ -504,7 +504,7 @@ where
 	/// assert_eq!(bv.elements(), 4);
 	/// ```
 	pub fn elements(&self) -> usize {
-		self.bit_span().elements()
+		self.as_bitspan().elements()
 	}
 
 	/// Converts the vector into a [`BitBox<O, T>`].
@@ -527,7 +527,7 @@ where
 	///
 	/// [`BitBox<O, T>`]: crate::boxed::BitBox
 	pub fn into_boxed_bitslice(mut self) -> BitBox<O, T> {
-		let mut bitspan = self.bit_span_mut();
+		let mut bitspan = self.as_mut_bitspan();
 		let boxed = self.into_boxed_slice().pipe(ManuallyDrop::new);
 		unsafe {
 			bitspan.set_address(boxed.as_ptr() as *mut T);
@@ -608,10 +608,10 @@ where
 	///
 	/// [`.as_bitslice()`]: Self::as_bitslice
 	pub fn set_uninitialized(&mut self, value: bool) {
-		let head = self.bit_span().head().value() as usize;
+		let head = self.as_bitspan().head().value() as usize;
 		let tail = head + self.len();
 		let capa = self.capacity();
-		let mut bp = self.bit_span_mut();
+		let mut bp = self.as_mut_bitspan();
 		unsafe {
 			bp.set_head(BitIdx::ZERO);
 			bp.set_len(capa);
@@ -643,7 +643,7 @@ where
 	/// assert_eq!(bv.as_slice()[0] & 0xF0, 0xF0);
 	/// ```
 	pub fn force_align(&mut self) {
-		let bitspan = self.bit_span_mut();
+		let bitspan = self.as_mut_bitspan();
 		let head = bitspan.head().value() as usize;
 		if head == 0 {
 			return;
@@ -715,7 +715,8 @@ where
 	/// The caller must also ensure that the memory the pointer
 	/// (non-transitively) points to is never written to (except inside an
 	/// [`UnsafeCell`]) using this pointer or any pointer derived from it. If
-	/// you need to mutate the contents of the region, use [`as_mut_bitspan`].
+	/// you need to mutate the contents of the region, use
+	/// [`as_mut_bitslice_ptr`].
 	///
 	/// This pointer is an opaque crate-internal type. Its in-memory
 	/// representation is unsafe to modify in any way. The only safe action to
@@ -735,7 +736,7 @@ where
 	/// ```
 	///
 	/// [`UnsafeCell`]: core::cell::UnsafeCell
-	/// [`as_mut_bitspan`]: Self::as_mut_bitspan
+	/// [`as_mut_bitslice_ptr`]: Self::as_mut_bitslice_ptr
 	/// [`bitvec`]: crate
 	pub fn as_bitslice_ptr(&self) -> *const BitSlice<O, T> {
 		self.bitspan.to_bitslice_ptr()
@@ -759,7 +760,7 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![0; 20];
-	/// let ptr = bv.as_mut_bitspan();
+	/// let ptr = bv.as_mut_bitslice_ptr();
 	///
 	/// let bits = unsafe { &mut *ptr };
 	/// assert_eq!(bv, bits);

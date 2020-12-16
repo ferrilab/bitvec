@@ -63,16 +63,30 @@ where
 	_mut: PhantomData<M>,
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, T> Address<M, T>
 where
 	M: Mutability,
 	T: BitStore,
 {
+	/// The dangling address.
 	pub(crate) const DANGLING: Self = Self {
 		inner: NonNull::dangling(),
 		_mut: PhantomData,
 	};
 
+	/// Attempts to create a new `Address` from a location value.
+	///
+	/// # Parameters
+	///
+	/// - `addr`: Any location value.
+	///
+	/// # Returns
+	///
+	/// If `addr` is not the null address, and is well-aligned for `T`, this
+	/// returns an `Address` wrapping it; if either condition is violated, this
+	/// returns the corresponding error.
+	#[inline]
 	pub(crate) fn new(addr: usize) -> Result<Self, AddressError<T>> {
 		let align_mask = align_of::<T>() - 1;
 		if addr & align_mask != 0 {
@@ -86,6 +100,12 @@ where
 			})
 	}
 
+	/// Creates a new `Address` without checking the value for correctness.
+	///
+	/// # Safety
+	///
+	/// `addr` must be well-aligned and not null.
+	#[inline(always)]
 	pub(crate) unsafe fn new_unchecked(addr: usize) -> Self {
 		Self {
 			inner: NonNull::new_unchecked(addr as *mut T),
@@ -93,15 +113,8 @@ where
 		}
 	}
 
-	/// Casts the `Address` to have another referent type.
-	pub(crate) fn cast<U>(self) -> Address<M, U>
-	where U: BitStore<Mem = T::Mem> {
-		Address {
-			inner: self.inner.cast::<U>(),
-			_mut: PhantomData,
-		}
-	}
-
+	/// Removes write permissions from the `Address`.
+	#[inline(always)]
 	pub(crate) fn immut(self) -> Address<Const, T> {
 		let Self { inner, .. } = self;
 		Address {
@@ -110,6 +123,13 @@ where
 		}
 	}
 
+	/// Adds write permissions to the `Address`.
+	///
+	/// # Safety
+	///
+	/// When called on an `Address<Const, _>`, the address must have been
+	/// previously constructed from a mutable location and lowered with `immut`.
+	#[inline(always)]
 	pub(crate) unsafe fn assert_mut(self) -> Address<Mut, T> {
 		let Self { inner, .. } = self;
 		Address {
@@ -118,6 +138,12 @@ where
 		}
 	}
 
+	/// Applies `<*mut T>::offset`.
+	///
+	/// # Panics
+	///
+	/// This panics if the result of applying the offset is the null pointer.
+	#[inline]
 	pub(crate) unsafe fn offset(mut self, count: isize) -> Self {
 		self.inner = self
 			.inner
@@ -128,6 +154,12 @@ where
 		self
 	}
 
+	/// Applies `<*mut T>::wrapping_offset`.
+	///
+	/// # Panics
+	///
+	/// This panics if the result of applying the offset is the null pointer.
+	#[inline]
 	pub(crate) fn wrapping_offset(mut self, count: isize) -> Self {
 		self.inner = self
 			.inner
@@ -138,57 +170,72 @@ where
 		self
 	}
 
+	/// Gets the address as a pointer to the access type.
+	#[inline(always)]
 	pub(crate) fn to_access(self) -> *const T::Access {
-		self.to_const() as *const T::Access
+		self.to_const().cast::<T::Access>()
 	}
 
+	/// Gets the address as a read-only pointer.
+	#[inline(always)]
 	pub(crate) fn to_const(self) -> *const T {
 		self.inner.as_ptr() as *const T
 	}
 
+	/// Gets the address as a read-only pointer to the register type.
+	#[inline(always)]
 	pub(crate) fn to_mem(self) -> *const T::Mem {
-		self.to_const() as *const T::Mem
+		self.to_const().cast::<T::Mem>()
 	}
 
+	/// Gets the address as a non-null pointer.
+	#[inline(always)]
 	pub(crate) fn to_nonnull(self) -> NonNull<T> {
 		self.inner
 	}
 
-	pub(crate) fn to_nonnull_u8(self) -> NonNull<u8> {
-		self.inner.cast::<u8>()
-	}
-
+	/// Gets the raw numeric value of the address.
+	#[inline(always)]
 	pub(crate) fn value(self) -> usize {
 		self.inner.as_ptr() as usize
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> Address<Mut, T>
 where T: BitStore
 {
+	/// Gets the address as a write-capable pointer.
+	#[inline(always)]
 	#[allow(clippy::clippy::wrong_self_convention)]
 	pub(crate) fn to_mut(self) -> *mut T {
 		self.inner.as_ptr()
 	}
 
+	/// Gets the address as a write-capable pointer to the register type.
+	#[inline(always)]
 	pub(crate) fn to_mem_mut(self) -> *mut T::Mem {
-		self.to_mut() as *mut T::Mem
+		self.to_mut().cast::<T::Mem>()
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, T> Clone for Address<M, T>
 where
 	M: Mutability,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn clone(&self) -> Self {
 		*self
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> From<&T> for Address<Const, T>
 where T: BitStore
 {
+	#[inline(always)]
 	fn from(elem: &T) -> Self {
 		Self {
 			inner: elem.into(),
@@ -197,9 +244,11 @@ where T: BitStore
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> From<&mut T> for Address<Mut, T>
 where T: BitStore
 {
+	#[inline(always)]
 	fn from(elem: &mut T) -> Self {
 		Self {
 			inner: elem.into(),
@@ -208,32 +257,25 @@ where T: BitStore
 	}
 }
 
-impl<T> From<NonNull<T>> for Address<Mut, T>
-where T: BitStore
-{
-	fn from(inner: NonNull<T>) -> Self {
-		Self {
-			inner,
-			_mut: PhantomData,
-		}
-	}
-}
-
+#[cfg(not(tarpaulin_include))]
 impl<T> TryFrom<*const T> for Address<Const, T>
 where T: BitStore
 {
 	type Error = AddressError<T>;
 
+	#[inline(always)]
 	fn try_from(elem: *const T) -> Result<Self, Self::Error> {
 		Self::new(elem as usize)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> TryFrom<*mut T> for Address<Mut, T>
 where T: BitStore
 {
 	type Error = AddressError<T>;
 
+	#[inline(always)]
 	fn try_from(elem: *mut T) -> Result<Self, Self::Error> {
 		Self::new(elem as usize)
 	}
@@ -246,6 +288,7 @@ where
 {
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M1, M2, T1, T2> PartialEq<Address<M2, T2>> for Address<M1, T1>
 where
 	M1: Mutability,
@@ -253,23 +296,27 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn eq(&self, other: &Address<M2, T2>) -> bool {
 		TypeId::of::<T1::Mem>() == TypeId::of::<T2::Mem>()
 			&& self.value() == other.value()
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, T> Ord for Address<M, T>
 where
 	M: Mutability,
 	T: BitStore,
 {
+	#[inline]
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
 		self.partial_cmp(&other)
 			.expect("Addresses have a total ordering")
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M1, M2, T1, T2> PartialOrd<Address<M2, T2>> for Address<M1, T1>
 where
 	M1: Mutability,
@@ -277,6 +324,7 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn partial_cmp(&self, other: &Address<M2, T2>) -> Option<cmp::Ordering> {
 		if TypeId::of::<T1::Mem>() != TypeId::of::<T2::Mem>() {
 			return None;
@@ -285,6 +333,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, T> Debug for Address<M, T>
 where
 	M: Mutability,
@@ -292,7 +341,7 @@ where
 {
 	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		Pointer::fmt(self, fmt)
+		Debug::fmt(&self.to_const(), fmt)
 	}
 }
 
@@ -301,16 +350,19 @@ where
 	M: Mutability,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Pointer::fmt(&self.to_const(), fmt)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, T> Hash for Address<M, T>
 where
 	M: Mutability,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn hash<H>(&self, state: &mut H)
 	where H: Hasher {
 		self.inner.hash(state)

@@ -81,6 +81,7 @@ allows them to be used on references.
 
 use crate::{
 	order::BitOrder,
+	slice::BitSlice,
 	store::BitStore,
 };
 
@@ -175,7 +176,7 @@ pub use crate::{
 /// use bitvec::prelude::*;
 ///
 /// let mut x = 0b1111_0010u8;
-/// let src = BitPtr::<_, Lsb0, _>::from_mut(&mut x, 0).unwrap();
+/// let src = BitPtr::<_, Lsb0, _>::from_mut(&mut x);
 /// let dst = unsafe { src.add(2) };
 ///
 /// unsafe {
@@ -188,6 +189,7 @@ pub use crate::{
 /// [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
 /// [`copy_nonoverlapping`]: self::copy_nonoverlapping
 /// [`memmove`]: https://en.cppreference.com/w/c/string/byte/memmove
+#[inline]
 pub unsafe fn copy<O1, O2, T1, T2>(
 	src: BitPtr<Const, O1, T1>,
 	dst: BitPtr<Mut, O2, T2>,
@@ -233,12 +235,12 @@ pub unsafe fn copy<O1, O2, T1, T2>(
 /// use bitvec::prelude::*;
 ///
 /// let mut data = 0b1011u8;
-/// let ptr = BitPtr::<_, Msb0, _>::from_mut(&mut data, 4).unwrap();
+/// let ptr = BitPtr::<_, Msb0, _>::from_mut(&mut data);
 ///
 /// unsafe {
 ///   bitvec::ptr::copy_nonoverlapping(
-///     ptr.immut(),
-///     ptr.sub(4),
+///     ptr.add(4).immut(),
+///     ptr,
 ///     4,
 ///   );
 /// }
@@ -248,6 +250,7 @@ pub unsafe fn copy<O1, O2, T1, T2>(
 /// [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
 /// [`copy`]: self::copy
 /// [`memcpy`]: https://en.cppreference.com/w/c/string/byte/memcpy
+#[inline]
 pub unsafe fn copy_nonoverlapping<O1, O2, T1, T2>(
 	src: BitPtr<Const, O1, T1>,
 	dst: BitPtr<Mut, O2, T2>,
@@ -261,37 +264,39 @@ pub unsafe fn copy_nonoverlapping<O1, O2, T1, T2>(
 	src.copy_to_nonoverlapping(dst, count);
 }
 
-/// Compares raw bit-pointers for equality.
-///
-/// This is the same as using the `==` operator, but less generic: the arguments
-/// have to be `BitPtr<Const, _, _>` bit-pointers, not anything that implements
-/// `PartialEq`.
-///
-/// # Original
-///
-/// [`ptr::eq`](core::ptr::eq)
-///
-/// # API Differences
-///
-/// The two pointers can differ in their storage type parameters. `bitvec`
-/// defines pointer equality only between pointers with the same underlying
-/// `BitStore::Mem` register type.
-///
-/// This cannot compare span pointers. `*const BitSlice` can be used in the
-/// standard library `ptr::eq` and does not need an override.
-///
-/// # Examples
-///
-/// ```rust
-/// use bitvec::prelude::*;
-/// use core::cell::Cell;
-///
-/// let data = 0u8;
-/// let bare_ptr = BitPtr::<_, Lsb0, _>::from_ref(&data, 2).unwrap();
-/// let cell_ptr = bare_ptr.cast::<Cell<u8>>();
-///
-/// assert!(bitvec::ptr::eq(bare_ptr, cell_ptr));
-/// ```
+/** Compares raw bit-pointers for equality.
+
+This is the same as using the `==` operator, but less generic: the arguments
+have to be `BitPtr<Const, _, _>` bit-pointers, not anything that implements
+`PartialEq`.
+
+# Original
+
+[`ptr::eq`](core::ptr::eq)
+
+# API Differences
+
+The two pointers can differ in their storage type parameters. `bitvec` defines
+pointer equality only between pointers with the same underlying `BitStore::Mem`
+register type.
+
+This cannot compare span pointers. `*const BitSlice` can be used in the standard
+library `ptr::eq` and does not need an override.
+
+# Examples
+
+```rust
+use bitvec::prelude::*;
+use core::cell::Cell;
+
+let data = 0u8;
+let bare_ptr = BitPtr::<_, Lsb0, _>::from_ref(&data);
+let cell_ptr = bare_ptr.cast::<Cell<u8>>();
+
+assert!(bitvec::ptr::eq(bare_ptr, cell_ptr));
+```
+**/
+#[inline]
 pub fn eq<O, T1, T2>(a: BitPtr<Const, O, T1>, b: BitPtr<Const, O, T2>) -> bool
 where
 	O: BitOrder,
@@ -302,14 +307,17 @@ where
 	a == b
 }
 
-/// Hash a raw bit-pointer.
-///
-/// This can be used to prove hashing the pointer address value, rather than the
-/// referent bit.
-///
-/// # Original
-///
-/// [`ptr::hash`](core::ptr::hash)
+/** Hash a raw bit-pointer.
+
+This can be used to prove hashing the pointer address value, rather than the
+referent bit.
+
+# Original
+
+[`ptr::hash`](core::ptr::hash)
+**/
+#[inline]
+#[cfg(not(tarpaulin_include))]
 pub fn hash<O, T, S>(hashee: BitPtr<Const, O, T>, into: &mut S)
 where
 	O: BitOrder,
@@ -319,32 +327,34 @@ where
 	hashee.hash(into);
 }
 
-/// Reads the bit from `src`.
-///
-/// # Original
-///
-/// [`ptr::read`](core::ptr::read)
-///
-/// # Safety
-///
-/// Behavior is undefined if any of the following conditions are violated:
-///
-/// - `src` must be [valid] for reads.
-/// - `src` must point to a properly initialized value of type `T`.
-///
-/// # Examples
-///
-/// ```rust
-/// use bitvec::prelude::*;
-///
-/// let data = 128u8;
-/// let ptr = BitPtr::<_, Msb0, _>::from_ref(&data, 0).unwrap();
-/// assert!(unsafe {
-///   bitvec::ptr::read(ptr)
-/// });
-/// ```
-///
-/// [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
+/** Reads the bit from `src`.
+
+# Original
+
+[`ptr::read`](core::ptr::read)
+
+# Safety
+
+Behavior is undefined if any of the following conditions are violated:
+
+- `src` must be [valid] for reads.
+- `src` must point to a properly initialized value of type `T`.
+
+# Examples
+
+```rust
+use bitvec::prelude::*;
+
+let data = 128u8;
+let ptr = BitPtr::<_, Msb0, _>::from_ref(&data);
+assert!(unsafe {
+  bitvec::ptr::read(ptr)
+});
+```
+
+[valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
+**/
+#[inline]
 pub unsafe fn read<O, T>(src: BitPtr<Const, O, T>) -> bool
 where
 	O: BitOrder,
@@ -353,57 +363,59 @@ where
 	src.read()
 }
 
-/// Performs a volatile read of the bit from `src`.
-///
-/// Volatile operations are intended to act on I/O memory, and are guaranteed to
-/// not be elided or reördered by the compiler across other volatile operations.
-///
-/// # Original
-///
-/// [`ptr::read_volatile`](core::ptr::read_volatile)
-///
-/// # Notes
-///
-/// Rust does not curretnly have a rigorously and formally defined memory model,
-/// so the precise semantics of what “volatile” means here is subject to change
-/// over time. That being said, the semantics will almost always end up pretty
-/// similar to [C11’s definition of volatile][c11].
-///
-/// The compiler shouldn’t change the relative order or number of volatile
-/// memory operations.
-///
-/// # Safety
-///
-/// Behavior is undefined if any of the following conditions are violated:
-///
-/// - `dst` must be [valid] for reads
-/// - `dst` must point to a properly initialized value of type `T`
-/// - no other pointer must race `dst` to view or modify the referent location
-///   unless `T` is capable of ensuring race safety.
-///
-/// Just like in C, whether an operation is volatile has no bearing whatsoëver
-/// on questions involving concurrent access from multiple threads. Volatile
-/// accesses behave exactly like non-atomic accesses in that regard. In
-/// particular, a race between a `read_volatile` and any write operation on the
-/// same location is undefined behavior.
-///
-/// This is true even for atomic types! This instruction is an ordinary load
-/// that the compiler will not remove. It is *not* an atomic instruction.
-///
-/// # Examples
-///
-/// ```rust
-/// use bitvec::prelude::*;
-///
-/// let data = 4u8;
-/// let ptr = BitPtr::<_, Lsb0, _>::from_ref(&data, 2).unwrap();
-/// unsafe {
-///   assert!(bitvec::ptr::read_volatile(ptr));
-/// }
-/// ```
-///
-/// [c11]: http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf
-/// [valid]: https://doc.rust-lang.org/core/ptr/index.html#safety
+/** Performs a volatile read of the bit from `src`.
+
+Volatile operations are intended to act on I/O memory, and are guaranteed to not
+be elided or reördered by the compiler across other volatile operations.
+
+# Original
+
+[`ptr::read_volatile`](core::ptr::read_volatile)
+
+# Notes
+
+Rust does not curretnly have a rigorously and formally defined memory model, so
+the precise semantics of what “volatile” means here is subject to change over
+time. That being said, the semantics will almost always end up pretty similar to
+[C11’s definition of volatile][c11].
+
+The compiler shouldn’t change the relative order or number of volatile memory
+operations.
+
+# Safety
+
+Behavior is undefined if any of the following conditions are violated:
+
+- `dst` must be [valid] for reads
+- `dst` must point to a properly initialized value of type `T`
+- no other pointer must race `dst` to view or modify the referent location
+  unless `T` is capable of ensuring race safety.
+
+Just like in C, whether an operation is volatile has no bearing whatsoëver on
+questions involving concurrent access from multiple threads. Volatile accesses
+behave exactly like non-atomic accesses in that regard. In particular, a race
+between a `read_volatile` and any write operation on the same location is
+undefined behavior.
+
+This is true even for atomic types! This instruction is an ordinary load that
+the compiler will not remove. It is *not* an atomic instruction.
+
+# Examples
+
+```rust
+use bitvec::prelude::*;
+
+let data = 4u8;
+let ptr = BitPtr::<_, Lsb0, _>::from_ref(&data);
+unsafe {
+  assert!(bitvec::ptr::read_volatile(ptr.add(2)));
+}
+```
+
+[c11]: http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf
+[valid]: https://doc.rust-lang.org/core/ptr/index.html#safety
+**/
+#[inline]
 pub unsafe fn read_volatile<O, T>(src: BitPtr<Const, O, T>) -> bool
 where
 	O: BitOrder,
@@ -412,38 +424,40 @@ where
 	src.read_volatile()
 }
 
-/// Moves `src` into the pointed `dst`, returning the previous `dst` bit.
-///
-/// This function is semantically equivalent to [`BitRef::replace`] except that
-/// it operates on raw pointers instead of references. When a proxy reference is
-/// available, prefer [`BitRef::replace`].
-///
-/// # Original
-///
-/// [`ptr::replace`](core::ptr::replace)
-///
-/// # Safety
-///
-/// Behavior is undefined if any of the following conditions are violated:
-///
-/// - `dst` must be [valid] for both reads and writes.
-/// - `dst` must point to a properly initialized value of type `T`.
-///
-/// # Examples
-///
-/// ```rust
-/// use bitvec::prelude::*;
-///
-/// let mut data = 4u8;
-/// let ptr = BitPtr::<_, Lsb0, _>::from_mut(&mut data, 2).unwrap();
-/// assert!(unsafe {
-///   bitvec::ptr::replace(ptr, false)
-/// });
-/// assert_eq!(data, 0);
-/// ```
-///
-/// [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
-/// [`BitPtr::replace`]: self::BitRef::replace
+/** Moves `src` into the pointed `dst`, returning the previous `dst` bit.
+
+This function is semantically equivalent to [`BitRef::replace`] except that it
+operates on raw pointers instead of references. When a proxy reference is
+available, prefer [`BitRef::replace`].
+
+# Original
+
+[`ptr::replace`](core::ptr::replace)
+
+# Safety
+
+Behavior is undefined if any of the following conditions are violated:
+
+- `dst` must be [valid] for both reads and writes.
+- `dst` must point to a properly initialized value of type `T`.
+
+# Examples
+
+```rust
+use bitvec::prelude::*;
+
+let mut data = 4u8;
+let ptr = BitPtr::<_, Lsb0, _>::from_mut(&mut data);
+assert!(unsafe {
+  bitvec::ptr::replace(ptr.add(2), false)
+});
+assert_eq!(data, 0);
+```
+
+[valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
+[`BitPtr::replace`]: self::BitRef::replace
+**/
+#[inline]
 pub unsafe fn replace<O, T>(dst: BitPtr<Mut, O, T>, src: bool) -> bool
 where
 	O: BitOrder,
@@ -452,41 +466,121 @@ where
 	dst.replace(src)
 }
 
-/// Swaps the values at two mutable locations.
-///
-/// But for the following exception, this function is semantically equivalent to
-/// [`BitRef::swap`]: it operates on raw pointers instead of references. When
-/// references are available, prefer [`BitRef::swap`].
-///
-/// # Original
-///
-/// [`ptr::swap`](core::ptr::swap)
-///
-/// # Safety
-///
-/// Behavior is undefined if any of the following conditions are violated:
-///
-/// - Both `x` and `y` must be [valid] for both reads and writes.
-/// - Both `x` and `y` must point to initialized instances of type `T1` and
-///   `T2`, respectively.
-///
-/// # Examples
-///
-/// ```rust
-/// use bitvec::prelude::*;
-///
-/// let mut data = 2u8;
-/// let x = BitPtr::<_, Lsb0, _>::from_mut(&mut data, 0).unwrap();
-/// let y = unsafe { x.add(1) };
-///
-/// unsafe {
-///   bitvec::ptr::swap(x, y);
-/// }
-/// assert_eq!(data, 1);
-/// ```
-///
-/// [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
-/// [`BitRef::swap`]: self::BitRef::swap
+/** Forms a raw bit-slice from a bit-pointer and a length.
+
+The `len` argument is the number of **bits**, not the number of elements.
+
+This function is safe, but actually using the return value is unsafe. See the
+documentation of [`slice::from_raw_parts`] for bit-slice safety requirements.
+
+# Original
+
+[`ptr::slice_from_raw_parts`](core::ptr::slice_from_raw_parts)
+
+# Examples
+
+```rust
+use bitvec::ptr;
+use bitvec::order::Lsb0;
+
+let x = [5u8, 10, 15];
+let bitptr = ptr::BitPtr::<_, Lsb0, _>::from_ref(&x[0]);
+let bitslice = ptr::bitslice_from_raw_parts(bitptr, 24);
+assert_eq!(unsafe { &*bitslice }[2], true);
+```
+
+[`slice::from_raw_parts`]: crate::slice::from_raw_parts
+**/
+#[inline]
+pub fn bitslice_from_raw_parts<O, T>(
+	data: BitPtr<Const, O, T>,
+	len: usize,
+) -> *const BitSlice<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	unsafe { data.span_unchecked(len) }.to_bitslice_ptr()
+}
+
+/** Performs the same functionality as [`bitslice_from_raw_parts`], except that
+a raw mutable bit-slice is returned, as opposed to a raw immutable bit-slice.
+
+See the documentation of [`bitslice_from_raw_parts`] for more details.
+
+This function is safe, but actually using the return value is unsafe. See the
+documentation of [`slice::from_raw_parts_mut`] for bit-slice safety
+requirements.
+
+# Original
+
+[`ptr::slice_from_raw_parts`](core::ptr::slice_from_raw_parts)
+
+# Examples
+
+```rust
+use bitvec::ptr;
+use bitvec::order::Lsb0;
+
+let mut x = [5u8, 10, 15];
+let bitptr = ptr::BitPtr::<_, Lsb0, _>::from_mut(&mut x[0]);
+let bitslice = ptr::bitslice_from_raw_parts_mut(bitptr, 24);
+unsafe { &mut *bitslice }.set(0, true);
+assert!(unsafe { &*bitslice }[0]);
+```
+
+[`bitslice_from_raw_parts`]: crate::ptr::bitslice_from_raw_parts
+[`slice::from_raw_parts_mut`]: crate::slice::from_raw_parts_mut
+**/
+#[inline]
+pub fn bitslice_from_raw_parts_mut<O, T>(
+	data: BitPtr<Mut, O, T>,
+	len: usize,
+) -> *mut BitSlice<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	unsafe { data.span_unchecked(len).to_bitslice_ptr_mut() }
+}
+
+/** Swaps the values at two mutable locations.
+
+But for the following exception, this function is semantically equivalent to
+[`BitRef::swap`]: it operates on raw pointers instead of references. When
+references are available, prefer [`BitRef::swap`].
+
+# Original
+
+[`ptr::swap`](core::ptr::swap)
+
+# Safety
+
+Behavior is undefined if any of the following conditions are violated:
+
+- Both `x` and `y` must be [valid] for both reads and writes.
+- Both `x` and `y` must point to initialized instances of type `T1` and `T2`,
+  respectively.
+
+# Examples
+
+```rust
+use bitvec::prelude::*;
+
+let mut data = 2u8;
+let x = BitPtr::<_, Lsb0, _>::from_mut(&mut data);
+let y = unsafe { x.add(1) };
+
+unsafe {
+  bitvec::ptr::swap(x, y);
+}
+assert_eq!(data, 1);
+```
+
+[valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
+[`BitRef::swap`]: self::BitRef::swap
+**/
+#[inline]
 pub unsafe fn swap<O1, O2, T1, T2>(
 	x: BitPtr<Mut, O1, T1>,
 	y: BitPtr<Mut, O2, T2>,
@@ -499,45 +593,46 @@ pub unsafe fn swap<O1, O2, T1, T2>(
 	x.swap(y);
 }
 
-/// Swaps `count` bits between the two regions of memory beginning at `x` and
-/// `y`. The two regions must *not* overlap.
-///
-/// # Original
-///
-/// [`ptr::swap_nonoverlapping`](core::ptr::swap_nonoverlapping)
-///
-/// # Safety
-///
-/// Behavior is undefined if any of the following conditions are violated:
-///
-/// - Both `x` and `y` must be [valid] for both reads and writes of `count`
-///   bits.
-/// - Both `x` and `y` must be fully initialized instances of `T` for all
-///   `count` bits.
-/// - The regions may have overlapping elements, but must not overlap the
-///   concrete bits they describe.
-///
-/// Note that even if `count` is `0`, the pointers must still be validly
-/// constructed, non-null and well-aligned.
-///
-/// # Examples
-///
-/// ```rust
-/// use bitvec::prelude::*;
-///
-/// let mut x = [0u8; 2];
-/// let mut y = !0u16;
-/// let x_ptr = BitPtr::<_, Lsb0, _>::from_mut(&mut x[0], 0).unwrap();
-/// let y_ptr = BitPtr::<_, Msb0, _>::from_mut(&mut y, 0).unwrap();
-///
-/// unsafe {
-///   bitvec::ptr::swap_nonoverlapping(x_ptr, y_ptr, 16);
-/// }
-/// assert_eq!(x, [!0; 2]);
-/// assert_eq!(y, 0);
-/// ```
-///
-/// [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
+/** Swaps `count` bits between the two regions of memory beginning at `x` and
+`y`. The two regions must *not* overlap.
+
+# Original
+
+[`ptr::swap_nonoverlapping`](core::ptr::swap_nonoverlapping)
+
+# Safety
+
+Behavior is undefined if any of the following conditions are violated:
+
+- Both `x` and `y` must be [valid] for both reads and writes of `count` bits.
+- Both `x` and `y` must be fully initialized instances of `T` for all `count`
+  bits.
+- The regions may have overlapping elements, but must not overlap the concrete
+  bits they describe.
+
+Note that even if `count` is `0`, the pointers must still be validly
+constructed, non-null, and well-aligned.
+
+# Examples
+
+```rust
+use bitvec::prelude::*;
+
+let mut x = [0u8; 2];
+let mut y = !0u16;
+let x_ptr = BitPtr::<_, Lsb0, _>::from_mut(&mut x[0]);
+let y_ptr = BitPtr::<_, Msb0, _>::from_mut(&mut y);
+
+unsafe {
+  bitvec::ptr::swap_nonoverlapping(x_ptr, y_ptr, 16);
+}
+assert_eq!(x, [!0; 2]);
+assert_eq!(y, 0);
+```
+
+[valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
+**/
+#[inline]
 pub unsafe fn swap_nonoverlapping<O1, O2, T1, T2>(
 	x: BitPtr<Mut, O1, T1>,
 	y: BitPtr<Mut, O2, T2>,
@@ -553,41 +648,43 @@ pub unsafe fn swap_nonoverlapping<O1, O2, T1, T2>(
 	}
 }
 
-/// Overwrites a memory location with the given bit.
-///
-/// Because this reads from memory in order to construct the new value, it
-/// cannot be used to set uninitialized memory. The referent `T` element must be
-/// fully initialized (such as with [`core::ptr::write`]) before setting bits
-/// with this function.
-///
-/// # Original
-///
-/// [`ptr::write`](core::ptr::write)
-///
-/// # Safety
-///
-/// Behavior is undefined if any of the following conditions are violated:
-///
-/// - `dst` must be [valid] for writes
-/// - `dst` must point to a properly initialized value of type `T`
-/// - no other pointer must race `dst` to view or modify the referent location
-///   unless `T` is capable of ensuring race safety.
-///
-/// # Examples
-///
-/// ```rust
-/// use bitvec::prelude::*;
-///
-/// let mut data = 0u8;
-/// let ptr = BitPtr::<_, Lsb0, _>::from_mut(&mut data, 2).unwrap();
-/// unsafe {
-///   bitvec::ptr::write(ptr, true);
-/// }
-/// assert_eq!(data, 4);
-/// ```
-///
-/// [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
-/// [`core::ptr::write`]: core::ptr::write
+/** Overwrites a memory location with the given bit.
+
+Because this reads from memory in order to construct the new value, it cannot be
+used to set uninitialized memory. The referent `T` element must be fully
+initialized (such as with [`core::ptr::write`]) before setting bits with this
+function.
+
+# Original
+
+[`ptr::write`](core::ptr::write)
+
+# Safety
+
+Behavior is undefined if any of the following conditions are violated:
+
+- `dst` must be [valid] for writes
+- `dst` must point to a properly initialized value of type `T`
+- no other pointer must race `dst` to view or modify the referent location
+  unless `T` is capable of ensuring race safety.
+
+# Examples
+
+```rust
+use bitvec::prelude::*;
+
+let mut data = 0u8;
+let ptr = BitPtr::<_, Lsb0, _>::from_mut(&mut data);
+unsafe {
+  bitvec::ptr::write(ptr.add(2), true);
+}
+assert_eq!(data, 4);
+```
+
+[valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
+[`core::ptr::write`]: core::ptr::write
+**/
+#[inline]
 pub unsafe fn write<O, T>(dst: BitPtr<Mut, O, T>, value: bool)
 where
 	O: BitOrder,
@@ -596,63 +693,65 @@ where
 	dst.write(value);
 }
 
-/// Performs a volatile write of a memory location with the given bit.
-///
-/// Because processors do not have single-bit write instructions, this must
-/// perform a volatile read of the location, perform the bit modification within
-/// the processor register, then perform a volatile write back to memory. These
-/// three steps are guaranteed to be atomic.
-///
-/// Volatile operations are intended to act on I/O memory, and are guaranteed
-/// not to be elided or reördered by the compiler across other volatile
-/// operations.
-///
-/// # Original
-///
-/// [`ptr::write_volatile`](core::ptr::write_volatile)
-///
-/// # Notes
-///
-/// Rust does not curretnly have a rigorously and formally defined memory model,
-/// so the precise semantics of what “volatile” means here is subject to change
-/// over time. That being said, the semantics will almost always end up pretty
-/// similar to [C11’s definition of volatile][c11].
-///
-/// The compiler shouldn’t change the relative order or number of volatile
-/// memory operations.
-///
-/// # Safety
-///
-/// Behavior is undefined if any of the following conditions are violated:
-///
-/// - `dst` must be [valid] for writes
-/// - no other pointer must race `dst` to view or modify the referent location
-///   unless `T` is capable of ensuring race safety.
-///
-/// Just like in C, whether an operation is volatile has no bearing whatsoëver
-/// on questions involving concurrent access from multiple threads. Volatile
-/// accesses behave exactly like non-atomic accesses in that regard. In
-/// particular, a race between a `write_volatile` and any other operation
-/// (reading or writing) on the same location is undefined behavior.
-///
-/// This is true even for atomic types! This instruction is an ordinary store
-/// that the compiler will not remove. It is *not* an atomic instruction.
-///
-/// # Examples
-///
-/// ```rust
-/// use bitvec::prelude::*;
-///
-/// let mut data = 0u8;
-/// let ptr = BitPtr::<_, Lsb0, _>::from_mut(&mut data, 2).unwrap();
-/// unsafe {
-///   bitvec::ptr::write_volatile(ptr, true);
-///   assert!(bitvec::ptr::read_volatile(ptr.immut()));
-/// }
-/// ```
-///
-/// [c11]: http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf
-/// [valid]: https://doc.rust-lang.org/core/ptr/index.html#safety
+/** Performs a volatile write of a memory location with the given bit.
+
+Because processors do not have single-bit write instructions, this must
+perform a volatile read of the location, perform the bit modification within
+the processor register, then perform a volatile write back to memory. These
+three steps are guaranteed to be atomic.
+
+Volatile operations are intended to act on I/O memory, and are guaranteed
+not to be elided or reördered by the compiler across other volatile
+operations.
+
+# Original
+
+[`ptr::write_volatile`](core::ptr::write_volatile)
+
+# Notes
+
+Rust does not curretnly have a rigorously and formally defined memory model,
+so the precise semantics of what “volatile” means here is subject to change
+over time. That being said, the semantics will almost always end up pretty
+similar to [C11’s definition of volatile][c11].
+
+The compiler shouldn’t change the relative order or number of volatile
+memory operations.
+
+# Safety
+
+Behavior is undefined if any of the following conditions are violated:
+
+- `dst` must be [valid] for writes
+- no other pointer must race `dst` to view or modify the referent location
+  unless `T` is capable of ensuring race safety.
+
+Just like in C, whether an operation is volatile has no bearing whatsoëver
+on questions involving concurrent access from multiple threads. Volatile
+accesses behave exactly like non-atomic accesses in that regard. In
+particular, a race between a `write_volatile` and any other operation
+(reading or writing) on the same location is undefined behavior.
+
+This is true even for atomic types! This instruction is an ordinary store
+that the compiler will not remove. It is *not* an atomic instruction.
+
+# Examples
+
+```rust
+use bitvec::prelude::*;
+
+let mut data = 0u8;
+let ptr = BitPtr::<_, Lsb0, _>::from_mut(&mut data);
+unsafe {
+  bitvec::ptr::write_volatile(ptr, true);
+  assert!(bitvec::ptr::read_volatile(ptr.immut()));
+}
+```
+
+[c11]: http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf
+[valid]: https://doc.rust-lang.org/core/ptr/index.html#safety
+**/
+#[inline]
 pub unsafe fn write_volatile<O, T>(dst: BitPtr<Mut, O, T>, value: bool)
 where
 	O: BitOrder,

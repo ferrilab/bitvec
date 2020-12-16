@@ -355,7 +355,7 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let data = 1u8;
-	/// let ptr = BitPtr::<_, Lsb0, _>::from_ref(&data, 0).unwrap();
+	/// let ptr = BitPtr::<_, Lsb0, _>::from_ref(&data);
 	/// let val = unsafe { ptr.as_ref() }.unwrap();
 	/// assert!(*val);
 	/// ```
@@ -399,7 +399,7 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let data = 5u8;
-	/// let ptr = BitPtr::<_, Lsb0, _>::from_ref(&data, 0).unwrap();
+	/// let ptr = BitPtr::<_, Lsb0, _>::from_ref(&data);
 	/// assert!(*ptr);
 	/// assert!(!* unsafe { ptr.offset(1) });
 	/// assert!(* unsafe { ptr.offset(2) });
@@ -451,7 +451,7 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let data = 0u8;
-	/// let mut ptr = BitPtr::<_, Lsb0, _>::from_ref(&data, 0).unwrap();
+	/// let mut ptr = BitPtr::<_, Lsb0, _>::from_ref(&data);
 	/// let end = ptr.wrapping_offset(8);
 	/// while ptr < end {
 	///   # #[cfg(feature = "std")] {
@@ -504,7 +504,7 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let data = 0u16;
-	/// let base = BitPtr::<_, Lsb0, _>::from_ref(&data, 0).unwrap();
+	/// let base = BitPtr::<_, Lsb0, _>::from_ref(&data);
 	/// let low = unsafe { base.add(5) };
 	/// let high = unsafe { low.add(6) };
 	/// unsafe {
@@ -522,8 +522,8 @@ where
 	///
 	/// let a = 0u8;
 	/// let b = !0u8;
-	/// let a_ptr = BitPtr::<_, Lsb0, _>::from_ref(&a, 0).unwrap();
-	/// let b_ptr = BitPtr::<_, Lsb0, _>::from_ref(&b, 0).unwrap();
+	/// let a_ptr = BitPtr::<_, Lsb0, _>::from_ref(&a);
+	/// let b_ptr = BitPtr::<_, Lsb0, _>::from_ref(&b);
 	/// let diff = (b_ptr.pointer() as isize)
 	///   .wrapping_sub(a_ptr.pointer() as isize)
 	///   // Remember: raw pointers are byte-addressed,
@@ -674,19 +674,30 @@ where
 		O2: BitOrder,
 		T2: BitStore,
 	{
+		//  If the orderings match, then overlap is permitted and defined.
 		if TypeId::of::<O>() == TypeId::of::<O2>() {
 			let (addr, head) = dest.raw_parts();
 			let dst = BitPtr::<Mut, O, T2>::new(addr, head);
 			let src_pair = self.range(count);
 
-			if src_pair.contains(&dst) {
-				for (from, to) in src_pair.zip(dest.range(count)).rev() {
+			let rev = src_pair.contains(&dst);
+			let iter = src_pair.zip(dest.range(count));
+			if rev {
+				for (from, to) in iter.rev() {
 					to.write(from.read());
 				}
-				return;
+			}
+			else {
+				for (from, to) in iter {
+					to.write(from.read());
+				}
 			}
 		}
-		self.copy_to_nonoverlapping(dest, count);
+		else {
+			//  If the orderings differ, then it is undefined behavior to
+			//  overlap in  memory.
+			self.copy_to_nonoverlapping(dest, count);
+		}
 	}
 
 	/// Copies `count` bits from `self` to `dest`. The source and destination
@@ -760,7 +771,8 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let data = [0u8; 3];
-	/// let ptr = BitPtr::<_, Lsb0, _>::from_ref(&data[0], 4).unwrap();
+	/// let ptr = BitPtr::<_, Lsb0, _>::from_ref(&data[0]);
+	/// let ptr = unsafe { ptr.add(2) };
 	/// let count = ptr.align_offset(2);
 	/// assert!(count > 0);
 	/// ```
@@ -786,68 +798,61 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// Creates a new `BitPtr` from an element address and a bit index.
-	///
-	/// # Parameters
-	///
-	/// - `address`: A read-only pointer to a memory element. It may be null or
-	///   misaligned.
-	/// - `head`: An index of a bit within `*address`.
-	///
-	/// # Returns
-	///
-	/// If `address` is null or misaligned, this rejects the address and returns
-	/// an error. Non-null, aligned, addresses are packed into a `BitPtr`.
-	///
-	/// # Examples
-	///
-	/// Basic usage:
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	/// use bitvec::ptr::Const;
-	///
-	/// let data = 1u8;
-	/// let ptr = BitPtr::<Const, Lsb0, _>::from_ptr(&data, 0).unwrap();
-	/// ```
-	///
-	/// Errors caused by invalid pointers or indices:
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	/// use bitvec::ptr::Const;
-	///
-	/// let data = 0u16;
-	/// let addr = &data as *const u16 as *const u8;
-	/// let addr = unsafe { addr.add(1) } as *const u16;
-	///
-	/// assert!(BitPtr::<Const, Lsb0, _>::from_ptr(addr, 0).is_err());
-	/// assert!(BitPtr::<Const, Lsb0, _>::from_ptr(&data, 16).is_err());
-	/// ```
-	pub fn from_ptr(
-		address: *const T,
-		head: u8,
-	) -> Result<Self, BitPtrError<T>> {
-		let addr = address.try_into()?;
-		let head = head.try_into()?;
-		Ok(Self::new(addr, head))
-	}
-
-	/// Constructs a `BitPtr` from an element reference and a bit index.
-	///
-	/// References are always valid, so this will only fail if `head` is out of
-	/// range.
+	/// Constructs a `BitPtr` from an element reference.
 	///
 	/// # Parameters
 	///
 	/// - `elem`: A borrowed memory element.
-	/// - `head`: An index of a bit within `*elem`.
 	///
 	/// # Returns
 	///
-	/// A read-only bit-pointer to the `head` bit in the `*elem` location.
-	pub fn from_ref(elem: &T, head: u8) -> Result<Self, BitIdxError<T::Mem>> {
-		head.try_into().map(|head| Self::new(elem.into(), head))
+	/// A read-only bit-pointer to the zeroth bit in the `*elem` location.
+	pub fn from_ref(elem: &T) -> Self {
+		Self::new(elem.into(), BitIdx::ZERO)
+	}
+
+	/// Attempts to construct a `BitPtr` from an element location.
+	///
+	/// # Parameters
+	///
+	/// - `elem`: A read-only element address.
+	///
+	/// # Returns
+	///
+	/// A read-only bit-pointer to the zeroth bit in the `*elem` location, if
+	/// `elem` is well-formed.
+	pub fn from_ptr(elem: *const T) -> Result<Self, BitPtrError<T>> {
+		Self::try_new(elem, 0)
+	}
+
+	/// Constructs a `BitPtr` from a slice reference.
+	///
+	/// This differs from [`from_ref`] in that the returned pointer keeps its
+	/// provenance over the entire slice, whereas producing a pointer to the
+	/// base bit of a slice with `BitPtr::from_ref(&slice[0])` narrows its
+	/// provenance to only the `slice[0]` element, and calling [`add`] to leave
+	/// that element, even remaining in the slice, may cause UB.
+	///
+	/// # Parameters
+	///
+	/// - `slice`: An immutabily borrowed slice of memory.
+	///
+	/// # Returns
+	///
+	/// A read-only bit-pointer to the zeroth bit in the base location of the
+	/// slice.
+	///
+	/// This pointer has provenance over the entire `slice`, and may safely use
+	/// [`add`] to traverse memory elements as long as it stays within the
+	/// slice.
+	///
+	/// [`add`]: Self::add
+	/// [`from_ref`]: Self::from_ref
+	pub fn from_slice(slice: &[T]) -> Self {
+		Self::new(
+			unsafe { Address::new_unchecked(slice.as_ptr() as usize) },
+			BitIdx::ZERO,
+		)
 	}
 
 	/// Gets the pointer to the base memory location containing the referent
@@ -862,43 +867,19 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// Creates a new `BitPtr` from an element address and a bit index.
+	/// Constructs a `BitPtr` from an element reference.
 	///
 	/// # Parameters
 	///
-	/// - `address`: A write-capable pointer to a memory element. It may be null
-	///   or misaligned.
-	/// - `head`: An index of a bit within `*address`.
+	/// - `elem`: A mutably borrowed memory element.
 	///
 	/// # Returns
 	///
-	/// If `address` is null or misaligned, this rejects the address and returns
-	/// an error. Non-null, aligned, addresses are packed into a `BitPtr`.
+	/// A write-capable bit-pointer to the zeroth bit in the `*elem` location.
 	///
-	/// # Safety
-	///
-	/// You must not use any other pointer than that returned by this function
-	/// to view or modify `*address`, unless the `T` type supports aliased
-	/// mutation.
-	pub fn from_ptr(address: *mut T, head: u8) -> Result<Self, BitPtrError<T>> {
-		let addr = address.try_into()?;
-		let head = head.try_into()?;
-		Ok(Self::new(addr, head))
-	}
-
-	/// Constructs a `BitPtr` from an element reference and a bit index.
-	///
-	/// References are always valid, so this will only fail if `head` is out of
-	/// range.
-	///
-	/// # Parameters
-	///
-	/// - `elem`: A borrowed memory element.
-	/// - `head`: An index of a bit within `*elem`.
-	///
-	/// # Returns
-	///
-	/// A write-capable bit-pointer to the `head` bit in the `*elem` location.
+	/// Note that even if `elem` is an address within a contiguous array or
+	/// slice, the returned bit-pointer only has provenance for the `elem`
+	/// location, and no other.
 	///
 	/// # Safety
 	///
@@ -906,11 +887,52 @@ where
 	/// However, you must not use any other pointer than that returned by this
 	/// function to view or modify `*elem`, unless the `T` type supports aliased
 	/// mutation.
-	pub fn from_mut(
-		elem: &mut T,
-		head: u8,
-	) -> Result<Self, BitIdxError<T::Mem>> {
-		head.try_into().map(|head| Self::new(elem.into(), head))
+	pub fn from_mut(elem: &mut T) -> Self {
+		Self::new(elem.into(), BitIdx::ZERO)
+	}
+
+	/// Attempts to construct a `BitPtr` from an element location.
+	///
+	/// # Parameters
+	///
+	/// - `elem`: A write-capable element address.
+	///
+	/// # Returns
+	///
+	/// A write-capable bit-pointer to the zeroth bit in the `*elem` location,
+	/// if `elem` is well-formed.
+	pub fn from_mut_ptr(elem: *mut T) -> Result<Self, BitPtrError<T>> {
+		Self::try_new(elem, 0)
+	}
+
+	/// Constructs a `BitPtr` from a slice reference.
+	///
+	/// This differs from [`from_mut`] in that the returned pointer keeps its
+	/// provenance over the entire slice, whereas producing a pointer to the
+	/// base bit of a slice with `BitPtr::from_mut(&mut slice[0])` narrows its
+	/// provenance to only the `slice[0]` element, and calling [`add`] to leave
+	/// that element, even remaining in the slice, may cause UB.
+	///
+	/// # Parameters
+	///
+	/// - `slice`: A mutabily borrowed slice of memory.
+	///
+	/// # Returns
+	///
+	/// A write-capable bit-pointer to the zeroth bit in the base location of
+	/// the slice.
+	///
+	/// This pointer has provenance over the entire `slice`, and may safely use
+	/// [`add`] to traverse memory elements as long as it stays within the
+	/// slice.
+	///
+	/// [`add`]: Self::add
+	/// [`from_mut`]: Self::from_mut
+	pub fn from_mut_slice(slice: &mut [T]) -> Self {
+		Self::new(
+			unsafe { Address::new_unchecked(slice.as_mut_ptr() as usize) },
+			BitIdx::ZERO,
+		)
 	}
 
 	/// Gets the pointer to the base memory location containing the referent
@@ -958,7 +980,7 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let mut data = 0u8;
-	/// let ptr = BitPtr::<_, Lsb0, _>::from_mut(&mut data, 0).unwrap();
+	/// let ptr = BitPtr::<_, Lsb0, _>::from_mut(&mut data);
 	/// let mut val = unsafe { ptr.as_mut() }.unwrap();
 	/// assert!(!*val);
 	/// *val = true;

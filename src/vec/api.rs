@@ -161,8 +161,8 @@ where
 	/// [`::from_raw_parts()`]: Self::from_raw_parts
 	/// [`.alloc_capacity()`]: Self::alloc_capacity
 	pub fn into_raw_parts(self) -> (*mut BitSlice<O, T>, usize) {
-		let mut this = ManuallyDrop::new(self);
-		(this.as_mut_bitspan(), this.alloc_capacity())
+		let this = ManuallyDrop::new(self);
+		(this.bitspan.to_bitslice_ptr_mut(), this.alloc_capacity())
 	}
 
 	/// Creates a `BitVec<O, T>` directly from the raw components of another
@@ -606,7 +606,7 @@ where
 	///
 	/// # Analogue
 	///
-	/// See [`.as_bitspan()`] for a `&BitVec -> *const BitSlice` transform.
+	/// See [`.as_bitslice_ptr()`] for a `&BitVec -> *const BitSlice` transform.
 	///
 	/// # Examples
 	///
@@ -622,7 +622,7 @@ where
 	/// ```
 	///
 	/// [`UnsafeCell`]: core::cell::UnsafeCell
-	/// [`.as_bitspan()`]: Self::as_bitspan
+	/// [`.as_bitslice_ptr()`]: Self::as_bitslice_ptr
 	/// [`.as_mut_ptr()`]: Self::as_mut_ptr
 	pub fn as_ptr(&self) -> *const T {
 		self.bitspan.address().to_const()
@@ -641,7 +641,7 @@ where
 	///
 	/// # Analogue
 	///
-	/// See [`.as_mut_bitspan()`] for a `&mut BitVec -> *mut BitSlice`
+	/// See [`.as_mut_bitslice_ptr()`] for a `&mut BitVec -> *mut BitSlice`
 	/// transform.
 	///
 	/// # Eaxmples
@@ -661,7 +661,7 @@ where
 	/// assert!(bv.all());
 	/// ```
 	///
-	/// [`.as_mut_bitspan()`]: Self::as_mut_bitspan
+	/// [`.as_mut_bitslice_ptr()`]: Self::as_mut_bitslice_ptr
 	pub fn as_mut_ptr(&mut self) -> *mut T {
 		self.bitspan.address().to_mut()
 	}

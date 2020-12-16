@@ -311,7 +311,7 @@ where
 	T: BitStore,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		self.bit_span().render(fmt, "Box", None)
+		self.as_bitspan().render(fmt, "Box", None)
 	}
 }
 

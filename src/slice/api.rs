@@ -83,7 +83,7 @@ where
 	/// assert_eq!(a.len(), 3);
 	/// ```
 	pub fn len(&self) -> usize {
-		self.bit_span().len()
+		self.as_bitspan().len()
 	}
 
 	/// Returns `true` if the slice has a length of 0.
@@ -101,7 +101,7 @@ where
 	/// assert!(!a.is_empty());
 	/// ```
 	pub fn is_empty(&self) -> bool {
-		self.bit_span().len() == 0
+		self.as_bitspan().len() == 0
 	}
 
 	/// Returns the first bit of the slice, or `None` if it is empty.
@@ -660,7 +660,7 @@ where
 		Begin with raw pointer manipulation. That’s how you know this is a good
 		function.
 		*/
-		let mut bitspan = self.bit_span_mut();
+		let mut bitspan = self.as_mut_bitspan();
 		//  The length does not need to be encoded into, and decoded back out
 		//  of, the pointer at each iteration. It is just a loop counter.
 		let mut len = bitspan.len();
@@ -2056,7 +2056,7 @@ where
 	/// [`::Alias`]: crate::store::BitStore::Alias
 	pub unsafe fn align_to<U>(&self) -> (&Self, &BitSlice<O, U>, &Self)
 	where U: BitStore {
-		let (l, c, r) = self.bit_span().align_to::<U>();
+		let (l, c, r) = self.as_bitspan().align_to::<U>();
 		(
 			l.to_bitslice_ref(),
 			c.to_bitslice_ref(),
@@ -2127,7 +2127,7 @@ where
 		&mut self,
 	) -> (&mut Self, &mut BitSlice<O, U>, &mut Self)
 	where U: BitStore {
-		let (l, c, r) = self.bit_span_mut().align_to::<U>();
+		let (l, c, r) = self.as_mut_bitspan().align_to::<U>();
 		(
 			l.to_bitslice_mut(),
 			c.to_bitslice_mut(),
@@ -2563,7 +2563,7 @@ macro_rules! range_impl {
 
 			fn get_mut(self, slice: Self::Mut) -> Option<Self::Mut> {
 				self.get(slice).map(|s| unsafe {
-					s.bit_span().assert_mut()
+					s.as_bitspan().assert_mut()
 				}
 				.to_bitslice_mut())
 			}
@@ -2572,7 +2572,7 @@ macro_rules! range_impl {
 
 			unsafe fn get_unchecked_mut(self, slice: Self::Mut) -> Self::Mut {
 				self.get_unchecked(slice)
-					.bit_span()
+					.as_bitspan()
 					.assert_mut()
 					.to_bitslice_mut()
 			}
@@ -2587,7 +2587,7 @@ macro_rules! range_impl {
 			}
 
 			fn index_mut(self, slice: Self::Mut) -> Self::Mut {
-				self.index(slice).bit_span().pipe(|span| unsafe {
+				self.index(slice).as_bitspan().pipe(|span| unsafe {
 					span.assert_mut()
 				})
 				.to_bitslice_mut()
@@ -2640,7 +2640,7 @@ range_impl!(Range<usize> {
 	}
 
 	unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
-		let (addr, head, _) = slice.bit_span().raw_parts();
+		let (addr, head, _) = slice.as_bitspan().raw_parts();
 
 		let (skip, new_head) = head.offset(self.start as isize);
 
@@ -2664,7 +2664,7 @@ range_impl!(RangeFrom<usize> {
 	}
 
 	unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
-		let (addr, head, bits) = slice.bit_span().raw_parts();
+		let (addr, head, bits) = slice.as_bitspan().raw_parts();
 
 		let (skip, new_head) = head.offset(self.start as isize);
 
@@ -2689,7 +2689,7 @@ range_impl!(RangeTo<usize> {
 	}
 
 	unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
-		slice.bit_span().tap_mut(|bp| bp.set_len(self.end)).to_bitslice_ref()
+		slice.as_bitspan().tap_mut(|bp| bp.set_len(self.end)).to_bitslice_ref()
 	}
 });
 

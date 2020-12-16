@@ -288,7 +288,8 @@ where
 					"BitSpan::uninhabited cannot be called with an invalid \
 					 address",
 				)
-				.to_nonnull_u8(),
+				.to_nonnull()
+				.cast::<u8>(),
 			len: 0,
 			_or: PhantomData,
 			_ty: PhantomData,
@@ -1407,22 +1408,22 @@ mod tests {
 		let data = [0u8; 10];
 		let bits = data.view_bits::<LocalBits>();
 
-		let (l, c, r) = unsafe { bits.bit_span().align_to::<u16>() };
+		let (l, c, r) = unsafe { bits.as_bitspan().align_to::<u16>() };
 		assert_eq!(l.len() + c.len() + r.len(), 80);
 
-		let (l, c, r) = unsafe { bits[4 ..].bit_span().align_to::<u16>() };
+		let (l, c, r) = unsafe { bits[4 ..].as_bitspan().align_to::<u16>() };
 		assert_eq!(l.len() + c.len() + r.len(), 76);
 
-		let (l, c, r) = unsafe { bits[.. 76].bit_span().align_to::<u16>() };
+		let (l, c, r) = unsafe { bits[.. 76].as_bitspan().align_to::<u16>() };
 		assert_eq!(l.len() + c.len() + r.len(), 76);
 
-		let (l, c, r) = unsafe { bits[8 ..].bit_span().align_to::<u16>() };
+		let (l, c, r) = unsafe { bits[8 ..].as_bitspan().align_to::<u16>() };
 		assert_eq!(l.len() + c.len() + r.len(), 72);
 
-		let (l, c, r) = unsafe { bits[.. 72].bit_span().align_to::<u16>() };
+		let (l, c, r) = unsafe { bits[.. 72].as_bitspan().align_to::<u16>() };
 		assert_eq!(l.len() + c.len() + r.len(), 72);
 
-		let (l, c, r) = unsafe { bits[4 .. 76].bit_span().align_to::<u16>() };
+		let (l, c, r) = unsafe { bits[4 .. 76].as_bitspan().align_to::<u16>() };
 		assert_eq!(l.len() + c.len() + r.len(), 72);
 	}
 
@@ -1430,7 +1431,7 @@ mod tests {
 	fn modify() {
 		let (a, b) = (0u16, 1u16);
 
-		let mut bitspan = a.view_bits::<LocalBits>().bit_span();
+		let mut bitspan = a.view_bits::<LocalBits>().as_bitspan();
 		let mut expected = (&a as *const _ as usize, 16usize << 3);
 
 		assert_eq!(bitspan.address().to_const(), &a as *const _);

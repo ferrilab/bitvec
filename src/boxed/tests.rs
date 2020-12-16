@@ -24,7 +24,7 @@ fn api() {
 	assert_eq!(pinned.as_ref().get_ref(), unpinned[..]);
 
 	let boxed = bitbox![0; 10];
-	let bitspan = boxed.bit_span();
+	let bitspan = boxed.as_bitspan();
 	let reboxed = unsafe { BitBox::from_raw(BitBox::into_raw(boxed)) };
 	#[allow(deprecated)]
 	{
@@ -32,7 +32,7 @@ fn api() {
 	}
 	let bv = reboxed.into_bitvec();
 	let bb = bv.into_boxed_bitslice();
-	assert_eq!(bb.bit_span(), bitspan);
+	assert_eq!(bb.as_bitspan(), bitspan);
 
 	let mut bb = 0b1001_0110u8.view_bits::<Msb0>()[2 .. 6]
 		.to_bitvec()
@@ -94,17 +94,17 @@ fn traits() {
 	};
 
 	let mut b = bitbox![0, 1, 0, 0];
-	let bitspan = b.as_bitslice().bit_span();
+	let bitspan = b.as_bitslice().as_bitspan();
 
 	let bits: &BitSlice = b.borrow();
-	assert_eq!(bits.bit_span(), bitspan);
+	assert_eq!(bits.as_bitspan(), bitspan);
 	let bits_mut: &mut BitSlice = b.borrow_mut();
-	assert_eq!(bits_mut.bit_span(), bitspan);
+	assert_eq!(bits_mut.as_bitspan(), bitspan);
 
 	let bits: &BitSlice = b.as_ref();
-	assert_eq!(bits.bit_span(), bitspan);
+	assert_eq!(bits.as_bitspan(), bitspan);
 	let bits_mut: &mut BitSlice = b.as_mut();
-	assert_eq!(bits_mut.bit_span(), bitspan);
+	assert_eq!(bits_mut.as_bitspan(), bitspan);
 
 	let b1 = bitbox![0, 1];
 	let b2 = bitbox![0, 0];

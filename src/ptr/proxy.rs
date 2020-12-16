@@ -102,6 +102,7 @@ assert_eq!(bits, bits![1; 2]);
 
 [`std::bitset<N>::reference`]: https://en.cppreference.com/w/cpp/utility/bitset/reference
 **/
+// Restore alignemnt properties, since `BitPtr` does not have them.
 #[cfg_attr(target_pointer_width = "32", repr(C, align(4)))]
 #[cfg_attr(target_pointer_width = "64", repr(C, align(8)))]
 #[cfg_attr(
@@ -147,6 +148,7 @@ where
 	///
 	/// The `bitptr` must address a location that is valid for reads and, if `M`
 	/// is `Mut`, writes.
+	#[inline]
 	pub unsafe fn from_bitptr(bitptr: BitPtr<M, O, T>) -> Self {
 		let data = bitptr.read();
 		Self {
@@ -161,6 +163,7 @@ where
 	///
 	/// This is only safe when the proxy is known to be the only handle to its
 	/// referent element during its lifetime.
+	#[inline(always)]
 	pub(crate) unsafe fn remove_alias(this: BitRef<M, O, T::Alias>) -> Self {
 		Self {
 			bitptr: this.bitptr.cast::<T>(),
@@ -181,6 +184,8 @@ where
 	/// The interior bit-pointer, without the associated cache. If this was a
 	/// write-capable pointer, then the cached bit is committed to memory before
 	/// this method returns.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn into_bitptr(self) -> BitPtr<M, O, T> {
 		self.bitptr
 	}
@@ -196,6 +201,8 @@ where
 	/// # Original
 	///
 	/// [`mem::replace`](core::mem::replace)
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn replace(&mut self, src: bool) -> bool {
 		mem::replace(&mut self.data, src)
 	}
@@ -206,6 +213,8 @@ where
 	/// # Original
 	///
 	/// [`mem::swap`](core::mem::swap)
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn swap<O2, T2>(&mut self, other: &mut BitRef<Mut, O2, T2>)
 	where
 		O2: BitOrder,
@@ -228,6 +237,7 @@ where
 	/// - `value`: The new bit to write into the proxied slot.
 	///
 	/// [`DerefMut`]: core::ops::DerefMut
+	#[inline]
 	pub fn set(mut self, value: bool) {
 		self.write(value);
 		mem::forget(self);
@@ -236,6 +246,7 @@ where
 	/// Commits a bit into memory.
 	///
 	/// This is the internal function used to drive `.set()` and `.drop()`.
+	#[inline]
 	fn write(&mut self, value: bool) {
 		self.data = value;
 		unsafe {
@@ -244,11 +255,13 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Clone for BitRef<'_, Const, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn clone(&self) -> Self {
 		Self { ..*self }
 	}
@@ -264,12 +277,14 @@ where
 }
 
 /// Implement ordering by comparing the proxied `bool` values.
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> Ord for BitRef<'_, M, O, T>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
 		self.data.cmp(&other.data)
 	}
@@ -281,6 +296,7 @@ where
 ///
 /// [`BitPtr`]: crate::ptr::BitPtr
 /// [`into_bitptr`]: Self::into_bitptr
+#[cfg(not(tarpaulin_include))]
 impl<M1, M2, O1, O2, T1, T2> PartialEq<BitRef<'_, M2, O2, T2>>
 	for BitRef<'_, M1, O1, T1>
 where
@@ -291,28 +307,33 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline(always)]
 	fn eq(&self, other: &BitRef<'_, M2, O2, T2>) -> bool {
 		self.data == other.data
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> PartialEq<bool> for BitRef<'_, M, O, T>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn eq(&self, other: &bool) -> bool {
 		self.data == *other
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> PartialEq<&bool> for BitRef<'_, M, O, T>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn eq(&self, other: &&bool) -> bool {
 		self.data == **other
 	}
@@ -324,6 +345,7 @@ where
 ///
 /// [`BitPtr`]: crate::ptr::BitPtr
 /// [`into_bitptr`]: Self::into_bitptr
+#[cfg(not(tarpaulin_include))]
 impl<M1, M2, O1, O2, T1, T2> PartialOrd<BitRef<'_, M2, O2, T2>>
 	for BitRef<'_, M1, O1, T1>
 where
@@ -334,6 +356,7 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline(always)]
 	fn partial_cmp(
 		&self,
 		other: &BitRef<'_, M2, O2, T2>,
@@ -342,23 +365,27 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> PartialOrd<bool> for BitRef<'_, M, O, T>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn partial_cmp(&self, other: &bool) -> Option<cmp::Ordering> {
 		self.data.partial_cmp(other)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> PartialOrd<&bool> for BitRef<'_, M, O, T>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn partial_cmp(&self, other: &&bool) -> Option<cmp::Ordering> {
 		self.data.partial_cmp(*other)
 	}
@@ -370,12 +397,14 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		unsafe { self.bitptr.span_unchecked(1) }
 			.render(fmt, "Ref", &[("bit", &self.data as &dyn Debug)])
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> Display for BitRef<'_, M, O, T>
 where
 	M: Mutability,
@@ -394,6 +423,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_tuple("BitRef")
 			.field(&self.bitptr)
@@ -402,12 +432,14 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> Hash for BitRef<'_, M, O, T>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn hash<H>(&self, state: &mut H)
 	where H: Hasher {
 		self.bitptr.hash(state);
@@ -419,6 +451,7 @@ where
 // impl<O, T> Copy for BitRef<'_, Const, O, T>
 // where O: BitOrder, T: BitStore {}
 
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> Deref for BitRef<'_, M, O, T>
 where
 	M: Mutability,
@@ -427,16 +460,19 @@ where
 {
 	type Target = bool;
 
+	#[inline(always)]
 	fn deref(&self) -> &Self::Target {
 		&self.data
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> DerefMut for BitRef<'_, Mut, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		&mut self.data
 	}
@@ -460,6 +496,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> Not for BitRef<'_, M, O, T>
 where
 	M: Mutability,
@@ -468,6 +505,7 @@ where
 {
 	type Output = bool;
 
+	#[inline(always)]
 	fn not(self) -> Self::Output {
 		!self.data
 	}

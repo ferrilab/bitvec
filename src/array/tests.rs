@@ -147,17 +147,17 @@ fn traits() {
 	};
 
 	let mut a = bitarr![0, 1, 0, 1];
-	let bitspan = a.as_bitslice().bit_span();
+	let bitspan = a.as_bitslice().as_bitspan();
 
 	let bits: &BitSlice = a.borrow();
-	assert_eq!(bits.bit_span(), bitspan);
+	assert_eq!(bits.as_bitspan(), bitspan);
 	let bits_mut: &mut BitSlice = a.borrow_mut();
-	assert_eq!(bits_mut.bit_span(), bitspan);
+	assert_eq!(bits_mut.as_bitspan(), bitspan);
 
 	let bits: &BitSlice = a.as_ref();
-	assert_eq!(bits.bit_span(), bitspan);
+	assert_eq!(bits.as_bitspan(), bitspan);
 	let bits_mut: &mut BitSlice = a.as_mut();
-	assert_eq!(bits_mut.bit_span(), bitspan);
+	assert_eq!(bits_mut.as_bitspan(), bitspan);
 
 	let a = bitarr![0, 1];
 	let b = bitarr![0, 0];

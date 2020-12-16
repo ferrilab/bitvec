@@ -319,7 +319,7 @@ where
 	T: BitStore,
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		self.bit_span().render(fmt, "Slice", None)?;
+		self.as_bitspan().render(fmt, "Slice", None)?;
 		fmt.write_str(" ")?;
 		Display::fmt(self, fmt)
 	}

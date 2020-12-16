@@ -87,7 +87,7 @@ where
 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
-		let head = self.bit_span().head();
+		let head = self.as_bitspan().head();
 		let mut state = serializer.serialize_struct("BitSeq", 3)?;
 
 		state.serialize_field("head", &head.value())?;

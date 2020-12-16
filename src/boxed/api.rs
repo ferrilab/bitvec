@@ -193,7 +193,7 @@ where
 	/// [`Box`]: alloc::boxed::Box
 	pub fn leak<'a>(b: Self) -> &'a mut BitSlice<O, T>
 	where T: 'a {
-		b.pipe(ManuallyDrop::new).bit_span_mut().to_bitslice_mut()
+		b.pipe(ManuallyDrop::new).as_mut_bitspan().to_bitslice_mut()
 	}
 
 	/// The name is preserved for API compatibility. See
