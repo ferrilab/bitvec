@@ -122,8 +122,8 @@ fn trim<O: BitOrder, T: BitStore>(
   to_trim: bool,
 ) -> &BitSlice<O, T> {
   let stop = |b: &bool| *b != to_trim;
-  let front = bits.iter().position(stop).unwrap_or(0);
-  let back = bits.iter().rposition(stop).unwrap_or(0);
+  let front = bits.iter().by_ref().position(stop).unwrap_or(0);
+  let back = bits.iter().by_ref().rposition(stop).unwrap_or(0);
   &bits[front ..= back]
 }
 # assert_eq!(trim(bits![0, 0, 1, 1, 0, 1, 0], false), bits![1, 1, 0, 1]);

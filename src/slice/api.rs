@@ -388,7 +388,7 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let v = bits![0, 1, 0];
-	/// assert_eq!(Some(&true), v.get(1));
+	/// assert_eq!(Some(&true), v.get(1).as_deref());
 	/// assert_eq!(Some(bits![0, 1]), v.get(0 .. 2));
 	/// assert_eq!(None, v.get(3));
 	/// assert_eq!(None, v.get(0 .. 4));
@@ -563,7 +563,7 @@ where
 	///
 	/// # Original
 	///
-	/// [`slice::as_mut_ptr`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.as_mut_ptr)
+	/// [`slice::as_mut_ptr`][orig]
 	///
 	/// # API Differences
 	///
@@ -597,6 +597,8 @@ where
 	/// }
 	/// assert_eq!(bits.as_slice()[0], 0b0100_1001);
 	/// ```
+	///
+	/// [orig]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.as_mut_ptr
 	#[deprecated = "Use `.as_mut_bitptr()` to access the region pointer"]
 	pub fn as_mut_ptr(&mut self) -> BitPtr<Mut, O, T> {
 		self.as_mut_bitptr()
@@ -2523,10 +2525,12 @@ where
 		}
 	}
 
+	#[inline]
 	unsafe fn get_unchecked(self, slice: &'a BitSlice<O, T>) -> Self::Immut {
 		BitRef::from_bitptr(slice.as_bitptr().add(self))
 	}
 
+	#[inline]
 	unsafe fn get_unchecked_mut(
 		self,
 		slice: &'a mut BitSlice<O, T>,
