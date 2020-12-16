@@ -30,8 +30,6 @@ use core::{
 	slice,
 };
 
-use funty::IsInteger;
-
 use tap::pipe::Pipe;
 
 impl<O, T> BitVec<O, T>
@@ -56,7 +54,7 @@ where
 	/// ```
 	pub fn new() -> Self {
 		Self {
-			pointer: BitSpan::<Mut, O, T>::EMPTY.to_nonnull(),
+			bitspan: BitSpan::<Mut, O, T>::EMPTY,
 			capacity: 0,
 		}
 	}
@@ -118,9 +116,9 @@ where
 			.pipe(crate::mem::elts::<T>)
 			.pipe(Vec::<T>::with_capacity)
 			.pipe(ManuallyDrop::new);
-		let (ptr, capacity) = (vec.as_mut_ptr(), vec.capacity());
-		let pointer = ptr.pipe(BitSpan::uninhabited).pipe(BitSpan::to_nonnull);
-		Self { pointer, capacity }
+		let (addr, capacity) = (vec.as_mut_ptr(), vec.capacity());
+		let bitspan = BitSpan::uninhabited(addr);
+		Self { bitspan, capacity }
 	}
 
 	/// Decomposes a `BitVec<O, T>` into its raw components.
@@ -269,8 +267,8 @@ where
 		if (pointer as *mut [()]).is_null() {
 			panic!("Attempted to reconstruct a `BitVec` from a null pointer");
 		}
-		let pointer = pointer.pipe(BitSpan::from_bitslice_ptr_mut).to_nonnull();
-		Self { pointer, capacity }
+		let bitspan = BitSpan::from_bitslice_ptr_mut(pointer);
+		Self { bitspan, capacity }
 	}
 
 	/// Returns the number of bits the vector can hold without reällocating.
@@ -307,7 +305,7 @@ where
 			//  Don’t forget to subtract any dead bits in the front of the base!
 			//  This has to be saturating, becase a non-zero head on a zero
 			//  capacity underflows.
-			.saturating_sub(self.bit_span().head().value() as usize)
+			.saturating_sub(self.bitspan.head().value() as usize)
 	}
 
 	/// Reserves capacity for at least `additional` more bits to be inserted in
@@ -344,7 +342,7 @@ where
 			new_len,
 			BitSlice::<O, T>::MAX_BITS
 		);
-		let bitspan = self.bit_span();
+		let bitspan = self.bitspan;
 		let head = bitspan.head();
 		let elts = bitspan.elements();
 		//  Only reserve if the request needs new elements.
@@ -395,7 +393,7 @@ where
 			new_len,
 			BitSlice::<O, T>::MAX_BITS
 		);
-		let bitspan = self.bit_span();
+		let bitspan = self.bitspan;
 		let head = bitspan.head();
 		let elts = bitspan.elements();
 		//  Only reserve if the request needs new elements.
@@ -555,7 +553,7 @@ where
 	///
 	/// [`.as_bitslice()`]: Self::as_bitslice
 	pub fn as_slice(&self) -> &[T] {
-		let bitspan = self.bit_span();
+		let bitspan = self.bitspan;
 		let (base, elts) = (bitspan.address().to_const(), bitspan.elements());
 		unsafe { slice::from_raw_parts(base, elts) }
 	}
@@ -585,7 +583,7 @@ where
 	///
 	/// [`.as_mut_bitslice()`]: Self::as_mut_bitslice
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
-		let bitspan = self.bit_span_mut();
+		let bitspan = self.bitspan;
 		let (base, elts) = (bitspan.address().to_mut(), bitspan.elements());
 		unsafe { slice::from_raw_parts_mut(base, elts) }
 	}
@@ -627,7 +625,7 @@ where
 	/// [`.as_bitspan()`]: Self::as_bitspan
 	/// [`.as_mut_ptr()`]: Self::as_mut_ptr
 	pub fn as_ptr(&self) -> *const T {
-		self.bit_span().pointer().to_const()
+		self.bitspan.address().to_const()
 	}
 
 	/// Returns an unsafe mutable pointer to the vector’s buffer.
@@ -665,7 +663,7 @@ where
 	///
 	/// [`.as_mut_bitspan()`]: Self::as_mut_bitspan
 	pub fn as_mut_ptr(&mut self) -> *mut T {
-		self.bit_span_mut().pointer().to_mut()
+		self.bitspan.address().to_mut()
 	}
 
 	/// Forces the length of the vector to `new_len`.
@@ -901,8 +899,8 @@ where
 			len,
 			BitSlice::<O, T>::MAX_BITS,
 		);
-		if self.is_empty() || self.bit_span().tail().value() == T::Mem::BITS {
-			self.with_vec(|v| v.push(T::Mem::ZERO));
+		if self.is_empty() || self.bitspan.tail().value() == T::Mem::BITS {
+			self.with_vec(|v| v.push(unsafe { mem::zeroed() }));
 		}
 		unsafe {
 			self.set_len_unchecked(len + 1);
@@ -1034,7 +1032,7 @@ where
 	/// assert!(bv.is_empty());
 	/// ```
 	pub fn clear(&mut self) {
-		self.pointer = BitSpan::uninhabited(self.as_mut_ptr()).to_nonnull();
+		self.bitspan = BitSpan::uninhabited(self.as_mut_ptr());
 	}
 
 	/// Returns the number of bits in the vector, also referred to as its
@@ -1053,7 +1051,7 @@ where
 	/// assert_eq!(a.len(), 3);
 	/// ```
 	pub fn len(&self) -> usize {
-		self.bit_span().len()
+		self.bitspan.len()
 	}
 
 	/// Returns `true` if the vector contains no bits.
@@ -1074,7 +1072,7 @@ where
 	/// assert!(!bv.is_empty());
 	/// ```
 	pub fn is_empty(&self) -> bool {
-		self.bit_span().len() == 0
+		self.bitspan.len() == 0
 	}
 
 	/// Splits the collection into two at the given index.
@@ -1197,10 +1195,7 @@ where
 	/// [`BitBox`]: crate::boxed::BitBox
 	/// [`::leak()`]: crate::boxed::BitBox::leak
 	pub fn leak<'a>(self) -> &'a mut BitSlice<O, T> {
-		self.pipe(ManuallyDrop::new)
-			.as_mut_bitslice()
-			.bit_span_mut()
-			.to_bitslice_mut()
+		self.pipe(ManuallyDrop::new).bitspan.to_bitslice_mut()
 	}
 
 	/// Resizes the `BitVec` in-place so that `len` is equal to `new_len`.

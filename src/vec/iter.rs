@@ -254,9 +254,9 @@ where
 		let bv = ManuallyDrop::new(bv);
 		//  Construct a `BitSlice` iterator over the region, and detach its
 		//  lifetime.
-		let iter = bv.as_bitslice().bit_span().to_bitslice_ref().iter();
+		let iter = bv.bitspan.to_bitslice_ref().iter();
 		//  Only the allocation’s base and capacity need to be kept for `Drop`.
-		let base = bv.bit_span().address().to_nonnull();
+		let base = bv.bitspan.address().to_nonnull();
 		let capa = bv.alloc_capacity();
 		Self { base, capa, iter }
 	}

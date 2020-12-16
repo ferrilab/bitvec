@@ -32,10 +32,7 @@ before freezing it.
 use crate::{
 	index::BitIdx,
 	mem::BitMemory,
-	mutability::{
-		Const,
-		Mut,
-	},
+	mutability::Mut,
 	order::{
 		BitOrder,
 		Lsb0,
@@ -53,7 +50,6 @@ use core::{
 		self,
 		ManuallyDrop,
 	},
-	ptr::NonNull,
 	slice,
 };
 
@@ -132,7 +128,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	pointer: NonNull<BitSlice<O, T>>,
+	bitspan: BitSpan<Mut, O, T>,
 }
 
 /// General-purpose functions not present on `Box<[T]>`.
@@ -234,14 +230,13 @@ where
 		let base = boxed.as_ptr() as *mut T;
 		mem::forget(boxed);
 		Ok(Self {
-			pointer: unsafe {
+			bitspan: unsafe {
 				BitSpan::new_unchecked(
 					base,
 					BitIdx::ZERO,
 					len * T::Mem::BITS as usize,
 				)
-			}
-			.to_nonnull(),
+			},
 		})
 	}
 
@@ -270,8 +265,9 @@ where
 	/// assert_eq!(addr, boxed.as_ptr());
 	/// ```
 	pub fn into_boxed_slice(self) -> Box<[T]> {
-		let mut this = ManuallyDrop::new(self);
-		unsafe { Box::from_raw(this.as_mut_slice()) }
+		self.pipe(ManuallyDrop::new)
+			.as_mut_slice()
+			.pipe(|slice| unsafe { Box::from_raw(slice) })
 	}
 
 	/// Converts `self` into a vector without clones or allocation.
@@ -314,9 +310,9 @@ where
 	///
 	/// [`BitVec<O, T>`]: crate::vec::BitVec
 	/// [`.into_boxed_bitslice()`]: crate::vec::BitVec::into_boxed_bitslice
-	pub fn into_bitvec(mut self) -> BitVec<O, T> {
-		let mut bitspan = self.bit_span_mut();
-		let raw = self
+	pub fn into_bitvec(self) -> BitVec<O, T> {
+		let mut bitspan = self.bitspan;
+		let mut raw = self
 			//  Disarm the `self` destructor
 			.pipe(ManuallyDrop::new)
 			//  Extract the `Box<[T]>` handle, invalidating `self`
@@ -338,7 +334,7 @@ where
 		away to nothing, as it is almost entirely typesystem manipulation.
 		*/
 		unsafe {
-			bitspan.set_address(raw.as_ptr() as *const T as *mut T);
+			bitspan.set_address(raw.as_mut_ptr());
 			BitVec::from_raw_parts(bitspan.to_bitslice_ptr_mut(), raw.capacity())
 		}
 	}
@@ -356,7 +352,7 @@ where
 	/// let bits = bb.as_bitslice();
 	/// ```
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
-		self.bit_span().to_bitslice_ref()
+		self.bitspan.to_bitslice_ref()
 	}
 
 	/// Extracts a mutable bit-slice of the entire vector.
@@ -373,7 +369,7 @@ where
 	/// bits.set(0, true);
 	/// ```
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
-		self.bit_span_mut().to_bitslice_mut()
+		self.bitspan.to_bitslice_mut()
 	}
 
 	/// Extracts an element slice containing the entire box.
@@ -395,9 +391,9 @@ where
 	///
 	/// [`.as_bitslice()`]: Self::as_bitslice
 	pub fn as_slice(&self) -> &[T] {
-		let bitspan = self.bit_span();
-		let (base, elts) = (bitspan.address().to_const(), bitspan.elements());
-		unsafe { slice::from_raw_parts(base, elts) }
+		let (data, len) =
+			(self.bitspan.address().to_const(), self.bitspan.elements());
+		unsafe { slice::from_raw_parts(data, len) }
 	}
 
 	/// Extracts a mutable slice of the entire box.
@@ -420,9 +416,9 @@ where
 	///
 	/// [`.as_mut_bitslice()`]: Self::as_mut_bitslice
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
-		let bitspan = self.bit_span_mut();
-		let (base, elts) = (bitspan.address().to_mut(), bitspan.elements());
-		unsafe { slice::from_raw_parts_mut(base, elts) }
+		let (data, len) =
+			(self.bitspan.address().to_mut(), self.bitspan.elements());
+		unsafe { slice::from_raw_parts_mut(data, len) }
 	}
 
 	/// Sets the uninitialized bits of the vector to a fixed value.
@@ -448,27 +444,18 @@ where
 	/// assert_eq!(bb.as_slice(), &[!3u8]);
 	/// ```
 	pub fn set_uninitialized(&mut self, value: bool) {
-		let head = self.bit_span().head().value() as usize;
-		let tail = head + self.len();
-		let elts = self.bit_span().elements() * T::Mem::BITS as usize;
-		let mut bp = self.bit_span_mut();
+		let mut bp = self.bitspan;
+		let (_, head, bits) = bp.raw_parts();
+		let head = head.value() as usize;
+		let tail = head + bits;
+		let full = crate::mem::elts::<T::Mem>(tail) * T::Mem::BITS as usize;
 		unsafe {
 			bp.set_head(BitIdx::ZERO);
-			bp.set_len(elts);
+			bp.set_len(full);
 			let bits = bp.to_bitslice_mut();
 			bits.get_unchecked_mut(.. head).set_all(value);
 			bits.get_unchecked_mut(tail ..).set_all(value);
 		}
-	}
-
-	/// Type-cast the slice pointer to its encoded structure.
-	pub(crate) fn bit_span(&self) -> BitSpan<Const, O, T> {
-		self.pointer.as_ptr().pipe(BitSpan::from_bitslice_ptr_mut)
-	}
-
-	/// Type-cast the slice pointer to its encoded structure.
-	pub(crate) fn bit_span_mut(&mut self) -> BitSpan<Mut, O, T> {
-		self.pointer.as_ptr().pipe(BitSpan::from_bitslice_ptr_mut)
 	}
 
 	/// Permits a function to modify the `Box<[T]>` backing storage of a

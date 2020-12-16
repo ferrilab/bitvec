@@ -29,10 +29,7 @@ use crate::{
 		BitMemory,
 		BitRegister,
 	},
-	mutability::{
-		Const,
-		Mut,
-	},
+	mutability::Mut,
 	order::{
 		BitOrder,
 		Lsb0,
@@ -44,10 +41,7 @@ use crate::{
 
 use alloc::vec::Vec;
 
-use core::{
-	mem::ManuallyDrop,
-	ptr::NonNull,
-};
+use core::mem::ManuallyDrop;
 
 use funty::IsInteger;
 
@@ -250,7 +244,7 @@ where
 	T: BitStore,
 {
 	/// Region pointer describing the live portion of the owned buffer.
-	pointer: NonNull<BitSlice<O, T>>,
+	bitspan: BitSpan<Mut, O, T>,
 	/// Allocated capacity, in elements `T`, of the owned buffer.
 	capacity: usize,
 }
@@ -338,15 +332,13 @@ where
 			},
 		}
 
-		unsafe {
+		let bitspan = unsafe {
 			bitspan.set_address(vec.as_ptr() as *const T);
-		}
+			bitspan.assert_mut()
+		};
 
 		let capacity = vec.capacity();
-		Self {
-			pointer: unsafe { bitspan.assert_mut() }.to_nonnull(),
-			capacity,
-		}
+		Self { bitspan, capacity }
 	}
 
 	/// Converts a [`Vec<T>`] into a `BitVec<O, T>` without copying its buffer.
@@ -422,14 +414,13 @@ where
 		let mut vec = ManuallyDrop::new(vec);
 		let (base, capacity) = (vec.as_mut_ptr(), vec.capacity());
 		Ok(Self {
-			pointer: unsafe {
+			bitspan: unsafe {
 				BitSpan::new_unchecked(
 					base,
 					BitIdx::ZERO,
 					len * T::Mem::BITS as usize,
 				)
-			}
-			.to_nonnull(),
+			},
 			capacity,
 		})
 	}
@@ -659,17 +650,14 @@ where
 		}
 		let last = bitspan.len() + head;
 		unsafe {
-			self.pointer =
-				bitspan.tap_mut(|bp| bp.set_head(BitIdx::ZERO)).to_nonnull();
+			self.bitspan = bitspan.tap_mut(|bp| bp.set_head(BitIdx::ZERO));
 			self.copy_within_unchecked(head .. last, 0);
 		}
 	}
 
 	/// Writes a new length value into the pointer without any checks.
 	pub(crate) unsafe fn set_len_unchecked(&mut self, new_len: usize) {
-		let mut bp = self.bit_span_mut();
-		bp.set_len(new_len);
-		self.pointer = bp.to_nonnull();
+		self.bitspan.set_len(new_len);
 	}
 
 	/// Views the buffer’s contents as a [`BitSlice`].
@@ -691,7 +679,7 @@ where
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
-		unsafe { &*self.pointer.as_ptr() }
+		self.bitspan.to_bitslice_ref()
 	}
 
 	/// Extracts a mutable [`BitSlice`] of the entire vector.
@@ -714,7 +702,7 @@ where
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
-		unsafe { &mut *self.pointer.as_ptr() }
+		self.bitspan.to_bitslice_mut()
 	}
 
 	/// Returns a raw pointer to the vector’s region.
@@ -740,7 +728,7 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let bv = bitvec![0; 20];
-	/// let ptr = bv.as_bitspan();
+	/// let ptr = bv.as_bitslice_ptr();
 	///
 	/// let bits = unsafe { &*ptr };
 	/// assert_eq!(bv, bits);
@@ -749,8 +737,8 @@ where
 	/// [`UnsafeCell`]: core::cell::UnsafeCell
 	/// [`as_mut_bitspan`]: Self::as_mut_bitspan
 	/// [`bitvec`]: crate
-	pub fn as_bitspan(&self) -> *const BitSlice<O, T> {
-		self.pointer.as_ptr() as *const BitSlice<O, T>
+	pub fn as_bitslice_ptr(&self) -> *const BitSlice<O, T> {
+		self.bitspan.to_bitslice_ptr()
 	}
 
 	/// Returns an unsafe mutable pointer to the vector’s region.
@@ -778,37 +766,23 @@ where
 	/// ```
 	///
 	/// [`bitvec`]: crate
-	pub fn as_mut_bitspan(&mut self) -> *mut BitSlice<O, T> {
-		self.pointer.as_ptr()
-	}
-
-	/// Type-cast the slice pointer to its encoded structure.
-	pub(crate) fn bit_span(&self) -> BitSpan<Const, O, T> {
-		self.pointer.as_ptr().pipe(BitSpan::from_bitslice_ptr_mut)
-	}
-
-	/// Type-cast the slice pointer to its encoded structure.
-	pub(crate) fn bit_span_mut(&mut self) -> BitSpan<Mut, O, T> {
-		self.pointer.as_ptr().pipe(BitSpan::from_bitslice_ptr_mut)
+	pub fn as_mut_bitslice_ptr(&mut self) -> *mut BitSlice<O, T> {
+		self.bitspan.to_bitslice_ptr_mut()
 	}
 
 	fn with_vec<F, R>(&mut self, func: F) -> R
-	where F: FnOnce(&mut ManuallyDrop<Vec<T::Mem>>) -> R {
-		let cap = self.capacity;
-		let mut bitspan = self.bit_span_mut();
-		let (base, elts) = (
-			bitspan.address().to_mut().cast::<T::Mem>(),
-			bitspan.elements(),
-		);
+	where F: FnOnce(&mut ManuallyDrop<Vec<T>>) -> R {
+		let capacity = self.capacity;
+		let (ptr, length) =
+			(self.bitspan.address().to_mut(), self.bitspan.elements());
 
-		let mut vec = unsafe { Vec::from_raw_parts(base, elts, cap) }
+		let mut vec = unsafe { Vec::from_raw_parts(ptr, length, capacity) }
 			.pipe(ManuallyDrop::new);
 		let out = func(&mut vec);
 
 		unsafe {
-			bitspan.set_address(vec.as_mut_ptr().cast::<T>());
+			self.bitspan.set_address(vec.as_mut_ptr());
 		}
-		self.pointer = bitspan.to_nonnull();
 		self.capacity = vec.capacity();
 		out
 	}

@@ -1109,26 +1109,6 @@ where
 		unsafe { &mut *self.to_bitslice_ptr_mut() }
 	}
 
-	/// Casts the pointer structure into a [`NonNull<BitSlice>`] pointer.
-	///
-	/// This function is used by the owning indirect handles, and does not yet
-	/// have any purpose in non-`alloc` programs.
-	///
-	/// # Parameters
-	///
-	/// - `self`
-	///
-	/// # Returns
-	///
-	/// `self`, marked as a `NonNull` pointer.
-	///
-	/// [`NonNull<BitSlice>`]: core::ptr::NonNull
-	#[cfg(any(feature = "alloc", test))]
-	#[cfg(not(tarpaulin_include))]
-	pub(crate) fn to_nonnull(self) -> NonNull<BitSlice<O, T>> {
-		self.to_bitslice_mut().into()
-	}
-
 	/// Writes a bit some distance away from `self`.
 	///
 	/// # Type Parameters

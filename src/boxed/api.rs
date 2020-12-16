@@ -106,9 +106,9 @@ where
 	/// [`BitBox::into_raw`]: Self::into_raw
 	/// [`::into_raw`]: Self::into_raw
 	pub unsafe fn from_raw(raw: *mut BitSlice<O, T>) -> Self {
-		raw.pipe(BitSpan::from_bitslice_ptr_mut)
-			.to_nonnull()
-			.pipe(|pointer| Self { pointer })
+		Self {
+			bitspan: BitSpan::from_bitslice_ptr_mut(raw),
+		}
 	}
 
 	/// Consumes the `BitBox`, returning a raw pointer.
