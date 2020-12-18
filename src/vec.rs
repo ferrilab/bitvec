@@ -34,7 +34,10 @@ use crate::{
 		BitOrder,
 		Lsb0,
 	},
-	ptr::BitSpan,
+	ptr::{
+		BitPtr,
+		BitSpan,
+	},
 	slice::BitSlice,
 	store::BitStore,
 };
@@ -406,23 +409,13 @@ where
 	/// [`Vec`]: alloc::vec::Vec
 	/// [`Vec<T>`]: alloc::vec::Vec
 	pub fn try_from_vec(vec: Vec<T>) -> Result<Self, Vec<T>> {
-		let len = vec.len();
-		if len > BitSlice::<O, T>::MAX_ELTS {
-			return Err(vec);
-		}
-
 		let mut vec = ManuallyDrop::new(vec);
-		let (base, capacity) = (vec.as_mut_ptr(), vec.capacity());
-		Ok(Self {
-			bitspan: unsafe {
-				BitSpan::new_unchecked(
-					base,
-					BitIdx::ZERO,
-					len * T::Mem::BITS as usize,
-				)
-			},
-			capacity,
-		})
+		let capacity = vec.capacity();
+
+		BitPtr::from_mut_slice(vec.as_mut_slice())
+			.span(vec.len() * T::Mem::BITS as usize)
+			.map(|bitspan| Self { bitspan, capacity })
+			.map_err(|_| ManuallyDrop::into_inner(vec))
 	}
 
 	/// Copies all bits in a [`BitSlice`] into the `BitVec`.
@@ -771,6 +764,49 @@ where
 		self.bitspan.to_bitslice_ptr_mut()
 	}
 
+	/// Construct a `BitVec` from its exact fields, rather than using a formal
+	/// constructor.
+	///
+	/// This is used for handle construction elsewhere in the crate, where a
+	/// vector allocation and `BitSpan` descriptor exist, and need to be bundled
+	/// into a `BitVec` without going through the ordinary construction process.
+	///
+	/// # Parameters
+	///
+	/// - `bitspan`: A span descriptor.
+	/// - `capacity`: An allocation capacity, measured in `T` elements rather
+	///   than in bits.
+	///
+	/// # Returns
+	///
+	/// `BitVec { bitspan, capacity }`
+	///
+	/// # Safety
+	///
+	/// The arguments must be derived from a known-good buffer allocation and
+	/// span description. They will be directly used to construct the returned
+	/// bit-vector, and drive all future memory access and allocation control.
+	pub(crate) unsafe fn from_fields(
+		bitspan: BitSpan<Mut, O, T>,
+		capacity: usize,
+	) -> Self {
+		Self { bitspan, capacity }
+	}
+
+	/// Removes the `::Unalias` marker from a bit-vector’s type signature.
+	fn strip_unalias(this: BitVec<O, T::Unalias>) -> Self {
+		let (bitspan, capacity) = (this.bitspan.cast::<T>(), this.capacity);
+		core::mem::forget(this);
+		Self { bitspan, capacity }
+	}
+
+	/// Permits manipulation of the underlying vector allocation.
+	///
+	/// The caller receives a mutable borrow of a `Vec<T>` with its destructor
+	/// disarmed. The caller may modify the buffer controls, including its
+	/// location and its capacity, and these changes will be committed back into
+	/// `self`. Modifications to the referent `[T]` handle, such as length
+	/// changes, will not be preserved.
 	fn with_vec<F, R>(&mut self, func: F) -> R
 	where F: FnOnce(&mut ManuallyDrop<Vec<T>>) -> R {
 		let capacity = self.capacity;

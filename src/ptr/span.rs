@@ -1,11 +1,9 @@
 //! Encoded pointer to a span region.
 
 use crate::{
-	access::BitAccess,
 	domain::Domain,
 	index::{
 		BitIdx,
-		BitIdxError,
 		BitTail,
 	},
 	mem::BitMemory,
@@ -14,10 +12,14 @@ use crate::{
 		Mut,
 		Mutability,
 	},
-	order::BitOrder,
+	order::{
+		BitOrder,
+		Lsb0,
+	},
 	ptr::{
 		Address,
-		AddressError,
+		BitPtr,
+		BitPtrError,
 	},
 	slice::BitSlice,
 	store::BitStore,
@@ -25,10 +27,7 @@ use crate::{
 
 use core::{
 	any,
-	convert::{
-		Infallible,
-		TryInto,
-	},
+	convert::Infallible,
 	fmt::{
 		self,
 		Debug,
@@ -44,6 +43,9 @@ use core::{
 };
 
 use wyz::fmt::FmtForward;
+
+#[cfg(any(feature = "alloc", test))]
+use core::convert::TryInto;
 
 /** Encoded handle to a bit-precision memory region.
 
@@ -164,7 +166,7 @@ be manipulated in any way by user code outside of the APIs it offers to this
 [`dangling()`]: core::ptr::NonNull::dangling
 **/
 #[repr(C)]
-pub(crate) struct BitSpan<M, O, T>
+pub(crate) struct BitSpan<M = Const, O = Lsb0, T = usize>
 where
 	M: Mutability,
 	O: BitOrder,
@@ -173,7 +175,7 @@ where
 	/// Memory address and high bits of the head index.
 	///
 	/// This stores the address of the zeroth element of the slice, as well as
-	/// the high bits of the head bit cursor. It is typed as a [`NonNull<u8>`]
+	/// the high bits of the head bit cursor. It is typed as a [`NonNull<()>`]
 	/// in order to provide null-value optimizations to `Option<BitSpan<O, T>>`,
 	/// and because the presence of head-bit cursor information in the lowest
 	/// bits means that the bit pattern will not uphold alignment properties
@@ -184,8 +186,8 @@ where
 	/// governs the bit pattern of the head cursor.
 	///
 	/// [`BitOrder`]: crate::order::BitOrder
-	/// [`NonNull<u8>`]: core::ptr::NonNull
-	ptr: NonNull<u8>,
+	/// [`NonNull<()>`]: core::ptr::NonNull
+	ptr: NonNull<()>,
 	/// Length counter and low bits of the head index.
 	///
 	/// This stores the slice length counter (measured in bits) in all but its
@@ -211,9 +213,7 @@ where
 		directly will always instantiate the `NonNull::<u8>::dangling()`
 		pointer, which is VERY incorrect for any other `T` typarams.
 		*/
-		ptr: unsafe {
-			NonNull::new_unchecked(NonNull::<T>::dangling().as_ptr() as *mut u8)
-		},
+		ptr: NonNull::<T>::dangling().cast::<()>(),
 		len: 0,
 		_or: PhantomData,
 		_ty: PhantomData,
@@ -277,73 +277,30 @@ where
 	/// received from the allocation system are required to satisfy this
 	/// constraint, so a failure is an exceptional program fault rather than an
 	/// expected logical mistake.
-	#[cfg(any(feature = "alloc", test))]
+	#[cfg(feature = "alloc")]
 	#[cfg(not(tarpaulin_include))]
-	pub(crate) fn uninhabited<A>(addr: A) -> Self
-	where A: TryInto<Address<M, T>, Error = AddressError<T>> {
+	pub(crate) fn uninhabited(addr: Address<M, T>) -> Self {
 		Self {
-			ptr: addr
-				.try_into()
-				.expect(
-					"BitSpan::uninhabited cannot be called with an invalid \
-					 address",
-				)
-				.to_nonnull()
-				.cast::<u8>(),
+			ptr: addr.to_nonnull().cast::<()>(),
 			len: 0,
 			_or: PhantomData,
 			_ty: PhantomData,
 		}
 	}
 
-	/// Constructs a new `BitSpan` from its components.
-	///
-	/// # Parameters
-	///
-	/// - `addr`: A well-aligned pointer to a storage element.
-	/// - `head`: The bit index of the first live bit in the element under
-	///   `*addr`.
-	/// - `bits`: The number of live bits in the region the produced `BitSpan`
-	///   describes.
-	///
-	/// # Returns
-	///
-	/// This returns `None` in the following cases:
-	///
-	/// - `addr` is the null pointer, or is not adequately aligned for `T`.
-	/// - `bits` is greater than `Self::REGION_MAX_BITS`, and cannot be encoded
-	///   into a `BitSpan`.
-	/// - addr` is so high in the address space that the element slice wraps
-	///   around the address space boundary.
-	///
-	/// # Safety
-	///
-	/// The caller must provide an `addr` pointer and a `bits` counter which
-	/// describe a `[T]` region which is correctly aligned and validly allocated
-	/// in the caller’s memory space. The caller is responsible for ensuring
-	/// that the slice of memory the produced `BitSpan` describes is all
-	/// governable in the caller’s context.
-	pub(crate) fn new<A>(
-		addr: A,
+	pub(crate) fn new(
+		addr: Address<M, T>,
 		head: BitIdx<T::Mem>,
 		bits: usize,
-	) -> Result<Self, BitSpanError<O, T>>
-	where
-		A: TryInto<Address<M, T>>,
-		BitSpanError<O, T>: From<A::Error>,
-	{
-		let addr = addr.try_into()?;
-
+	) -> Result<Self, BitSpanError<T>> {
 		if bits > Self::REGION_MAX_BITS {
 			return Err(BitSpanError::TooLong(bits));
-		}
-
-		let elts = head.offset(bits as isize).0;
-		let addr_raw = addr.to_const();
-		let last = addr_raw.wrapping_add(elts as usize);
-		if last < addr_raw {
-			return Err(BitSpanError::TooHigh(addr_raw));
-		}
+		};
+		let base = BitPtr::<M, O, T>::new(addr, head);
+		let last = base.wrapping_add(bits);
+		if last < base {
+			return Err(BitSpanError::TooHigh(addr.to_const()));
+		};
 
 		Ok(unsafe { Self::new_unchecked(addr, head, bits) })
 	}
@@ -368,28 +325,20 @@ where
 	/// See [`::new`].
 	///
 	/// [`::new`]: Self::new
-	pub(crate) unsafe fn new_unchecked<A>(
-		addr: A,
+	pub(crate) unsafe fn new_unchecked(
+		addr: Address<M, T>,
 		head: BitIdx<T::Mem>,
 		bits: usize,
-	) -> Self
-	where
-		A: TryInto<Address<M, T>>,
-		A::Error: Debug,
-	{
-		let (addr, head) = (addr.try_into().unwrap(), head.value() as usize);
-
+	) -> Self {
+		let head = head.value() as usize;
 		let ptr_data = addr.value() & Self::PTR_ADDR_MASK;
 		let ptr_head = head >> Self::LEN_HEAD_BITS;
 
 		let len_head = head & Self::LEN_HEAD_MASK;
 		let len_bits = bits << Self::LEN_HEAD_BITS;
 
-		let ptr = Address::new(ptr_data | ptr_head)
-			.expect("Cannot use a null pointer");
-
 		Self {
-			ptr: NonNull::new_unchecked(ptr.to_mut()),
+			ptr: NonNull::new_unchecked((ptr_data | ptr_head) as *mut ()),
 			len: len_bits | len_head,
 			_or: PhantomData,
 			_ty: PhantomData,
@@ -669,8 +618,7 @@ where
 		let mut addr_value = addr.value();
 		addr_value &= Self::PTR_ADDR_MASK;
 		addr_value |= self.ptr.as_ptr() as usize & Self::PTR_HEAD_MASK;
-		let addr = Address::new_unchecked(addr_value);
-		self.ptr = NonNull::new_unchecked(addr.to_mut() as *mut u8);
+		self.ptr = NonNull::new_unchecked(addr_value as *mut ());
 	}
 
 	/// Gets the starting bit index of the referent region.
@@ -714,7 +662,7 @@ where
 
 		ptr &= Self::PTR_ADDR_MASK;
 		ptr |= head >> Self::LEN_HEAD_BITS;
-		self.ptr = NonNull::new_unchecked(ptr as *mut u8);
+		self.ptr = NonNull::new_unchecked(ptr as *mut ());
 
 		self.len &= !Self::LEN_HEAD_MASK;
 		self.len |= head & Self::LEN_HEAD_MASK;
@@ -754,6 +702,11 @@ where
 		);
 		self.len &= Self::LEN_HEAD_MASK;
 		self.len |= new_len << Self::LEN_HEAD_BITS;
+	}
+
+	/// Gets a pointer to the starting bit of the span.
+	pub(crate) fn as_bitptr(self) -> BitPtr<M, O, T> {
+		BitPtr::new(self.address(), self.head())
 	}
 
 	/// Gets the three logical components of the pointer.
@@ -865,98 +818,10 @@ where
 		address, in one instruction.
 		*/
 		ptr += head;
-		self.ptr = NonNull::new_unchecked(ptr as *mut u8);
-	}
-
-	//  Memory accessors
-
-	/// Reads a bit some distance away from `self`.
-	///
-	/// # Type Parameters
-	///
-	/// - `O`: A bit ordering.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	/// - `index`: The bit distance away from `self` at which to read.
-	///
-	/// # Returns
-	///
-	/// The value of the bit `index` bits away from [`self.head()`], according
-	/// to the `O` ordering.
-	///
-	/// [`self.head()`]: Self::head
-	pub(crate) unsafe fn read(&self, index: usize) -> bool {
-		let (elt, bit) = self.head().offset(index as isize);
-		let base = self.address().to_const();
-		(&*base.offset(elt)).get_bit::<O>(bit)
+		self.ptr = NonNull::new_unchecked(ptr as *mut ());
 	}
 
 	//  Comparators
-
-	/// Computes the distance, in elements and bits, between two bit-pointers.
-	///
-	/// # Undefined Behavior
-	///
-	/// It is undefined to calculate the distance between pointers that are not
-	/// part of the same allocation region. This function is defined only when
-	/// `self` and `other` are produced from the same region.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	/// - `other`: A reference to another `BitSpan`. This function is undefined
-	///   if it is not produced from the same region as `self`.
-	///
-	/// # Returns
-	///
-	/// - `.0`: The distance in elements `T` between the first element of `self`
-	///   and the first element of `other`. This is negative if `other` is lower
-	///   in memory than `self`, and positive if `other` is higher.
-	/// - `.1`: The distance in bits between the first bit of `self` and the
-	///   first bit of `other`. This is negative if `other`’s first bit is lower
-	///   in its element than `self`’s first bit is in its element, and positive
-	///   if `other`’s first bit is higher in its element than `self`’s first
-	///   bit is in its element.
-	///
-	/// # Truth Tables
-	///
-	/// Consider two adjacent bytes in memory. We will define four pairs of
-	/// bit-pointers of width `1` at various points in this span in order to
-	/// demonstrate the four possible states of difference.
-	///
-	/// ```text
-	///    [ 0 1 2 3 4 5 6 7 ] [ 8 9 a b c d e f ]
-	/// 1.       A                       B
-	/// 2.             A             B
-	/// 3.           B           A
-	/// 4.     B                             A
-	/// ```
-	///
-	/// 1. The pointer `A` is in the lower element and `B` is in the higher. The
-	///    first bit of `A` is lower in its element than the first bit of `B` is
-	///    in its element. `A.ptr_diff(B)` thus produces positive element and
-	///    bit distances: `(1, 2)`.
-	/// 2. The pointer `A` is in the lower element and `B` is in the higher. The
-	///    first bit of `A` is higher in its element than the first bit of `B`
-	///    is in its element. `A.ptr_diff(B)` thus produces a positive element
-	///    distance and a negative bit distance: `(1, -3)`.
-	/// 3. The pointer `A` is in the higher element and `B` is in the lower. The
-	///    first bit of `A` is lower in its element than the first bit of `B` is
-	///    in its element. `A.ptr_diff(B)` thus produces a negative element
-	///    distance and a positive bit distance: `(-1, 4)`.
-	/// 4. The pointer `A` is in the higher element and `B` is in the lower. The
-	///    first bit of `A` is higher in its element than the first bit of `B`
-	///    is in its element. `A.ptr_diff(B)` thus produces negative element and
-	///    bit distances: `(-1, -5)`.
-	pub(crate) unsafe fn ptr_diff(&self, other: &Self) -> (isize, i8) {
-		let self_ptr = self.address().to_const();
-		let other_ptr = other.address().to_const();
-		let elts = other_ptr.offset_from(self_ptr);
-		let bits = other.head().value() as i8 - self.head().value() as i8;
-		(elts, bits)
-	}
 
 	/// Renders the pointer structure into a formatter for use during
 	/// higher-level type [`Debug`] implementations.
@@ -1040,7 +905,7 @@ where
 			Some(nn) => nn,
 			None => return Self::EMPTY,
 		};
-		let ptr = slice_nn.cast::<u8>();
+		let ptr = slice_nn.cast::<()>();
 		let len = unsafe { slice_nn.as_ref() }.len();
 		Self {
 			ptr,
@@ -1109,32 +974,6 @@ where
 	pub(crate) fn to_bitslice_mut<'a>(self) -> &'a mut BitSlice<O, T> {
 		unsafe { &mut *self.to_bitslice_ptr_mut() }
 	}
-
-	/// Writes a bit some distance away from `self`.
-	///
-	/// # Type Parameters
-	///
-	/// - `O`: A bit ordering.
-	///
-	/// # Parameters
-	///
-	/// - `&self`: The `self` pointer must be describing a write-capable region.
-	/// - `index`: The bit distance away from `self` at which to write,
-	///   according to the `O` ordering.
-	/// - `value`: The bit value to insert at `index`.
-	///
-	/// # Effects
-	///
-	/// `value` is written to the bit specified by `index`, relative to
-	/// [`self.head()`] and [`self.address()`].
-	///
-	/// [`self.head()`]: Self::head
-	/// [`self.address()`]: Self::pointer
-	pub(crate) unsafe fn write(&self, index: usize, value: bool) {
-		let (elt, bit) = self.head().offset(index as isize);
-		let base = self.address().to_access();
-		(&*base.offset(elt)).write_bit::<O>(bit, value);
-	}
 }
 
 #[cfg(not(tarpaulin_include))]
@@ -1184,6 +1023,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn default() -> Self {
 		Self::EMPTY
 	}
@@ -1221,17 +1061,11 @@ where
 
 /// An error produced when creating `BitSpan` encoded references.
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
-pub enum BitSpanError<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
+pub enum BitSpanError<T>
+where T: BitStore
 {
-	/// `BitSpan` cannot accept the null address.
-	Null,
-	/// `BitSpan` requires well-aligned addresses.
-	Misaligned(PhantomData<O>, *const T),
-	/// `BitSpan` requires valid head indices.
-	InvalidHead(BitIdxError<T::Mem>),
+	/// The base `BitPtr` is invalid.
+	InvalidBitptr(BitPtrError<T>),
 	/// `BitSpan` domains have a length ceiling.
 	TooLong(usize),
 	/// `BitSpan` domains have an address ceiling.
@@ -1239,54 +1073,33 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> From<AddressError<T>> for BitSpanError<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
+impl<T> From<BitPtrError<T>> for BitSpanError<T>
+where T: BitStore
 {
-	fn from(err: AddressError<T>) -> Self {
-		match err {
-			AddressError::Null => Self::Null,
-			AddressError::Misaligned(t) => Self::Misaligned(PhantomData, t),
-		}
+	fn from(err: BitPtrError<T>) -> Self {
+		Self::InvalidBitptr(err)
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> From<BitIdxError<T::Mem>> for BitSpanError<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn from(err: BitIdxError<T::Mem>) -> Self {
-		Self::InvalidHead(err)
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<O, T> From<Infallible> for BitSpanError<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
+impl<T> From<Infallible> for BitSpanError<T>
+where T: BitStore
 {
 	fn from(_: Infallible) -> Self {
-		Self::Null
+		unreachable!("Infallible errors can never be produced");
 	}
 }
 
-impl<O, T> Debug for BitSpanError<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
+impl<T> Debug for BitSpanError<T>
+where T: BitStore
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		let oname = any::type_name::<O>();
 		let tname = any::type_name::<T>();
-		write!(fmt, "BitSpanError<{}, {}>::", oname, tname,)?;
+		write!(fmt, "BitSpanError<{}>::", tname,)?;
 		match self {
-			Self::Null => fmt.write_str("Null"),
-			Self::Misaligned(_, ptr) => write!(fmt, "Misaligned({:p})", *ptr),
-			Self::InvalidHead(head) => write!(fmt, "InvalidHead({})", head),
+			Self::InvalidBitptr(err) => {
+				fmt.debug_tuple("InvalidBitptr").field(&err).finish()
+			},
 			Self::TooLong(len) => {
 				fmt.debug_tuple("TooLong").field(&len).finish()
 			},
@@ -1297,24 +1110,18 @@ where
 	}
 }
 
-impl<O, T> Display for BitSpanError<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
+impl<T> Display for BitSpanError<T>
+where T: BitStore
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		match self {
-			Self::Null => Display::fmt(&AddressError::<T>::Null, fmt),
-			Self::Misaligned(_, ptr) => {
-				Display::fmt(&AddressError::Misaligned(*ptr), fmt)
-			},
-			Self::InvalidHead(head) => Display::fmt(head, fmt),
+			Self::InvalidBitptr(err) => Display::fmt(err, fmt),
 			Self::TooLong(len) => write!(
 				fmt,
 				"Length {} is too long to encode in a bit slice, which can \
 				 only accept {} bits",
 				len,
-				BitSpan::<Const, O, T>::REGION_MAX_BITS
+				BitSpan::<Const, Lsb0, usize>::REGION_MAX_BITS
 			),
 			Self::TooHigh(addr) => {
 				write!(fmt, "Address {:p} would wrap the address space", addr)
@@ -1323,32 +1130,26 @@ where
 	}
 }
 
-unsafe impl<O, T> Send for BitSpanError<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
+unsafe impl<T> Send for BitSpanError<T> where T: BitStore
 {
 }
 
-unsafe impl<O, T> Sync for BitSpanError<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
+unsafe impl<T> Sync for BitSpanError<T> where T: BitStore
 {
 }
 
 #[cfg(feature = "std")]
-impl<O, T> std::error::Error for BitSpanError<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
+impl<T> std::error::Error for BitSpanError<T> where T: BitStore
 {
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::prelude::*;
+	use crate::{
+		prelude::*,
+		ptr::AddressError,
+	};
 	use core::{
 		mem,
 		ptr,
@@ -1365,21 +1166,6 @@ mod tests {
 			Err(AddressError::Misaligned(addr)) if addr as usize == 3
 		));
 
-		let data = 0u8;
-		assert!(BitSpan::<_, LocalBits, _>::new(&data, BitIdx::ZERO, 5).is_ok());
-		assert!(matches!(
-			BitSpan::<_, LocalBits, _>::new(&data, BitIdx::ZERO, (!0 >> 3) + 1),
-			Err(BitSpanError::TooLong(_))
-		));
-		assert!(matches!(
-			BitSpan::<_, LocalBits, _>::new(
-				!0usize as *const u8,
-				BitIdx::ZERO,
-				8
-			),
-			Err(BitSpanError::TooHigh(_))
-		));
-
 		//  Double check the null pointers, but they are in practice impossible
 		//  to construct.
 		assert_eq!(
@@ -1394,8 +1180,7 @@ mod tests {
 	#[test]
 	fn recast() {
 		let data = 0u32;
-		let bitspan =
-			BitSpan::<_, LocalBits, _>::new(&data, BitIdx::ZERO, 32).unwrap();
+		let bitspan = unsafe { BitPtr::from_ref(&data).span_unchecked(32) };
 		let raw_ptr = bitspan.to_bitslice_ptr();
 		assert_eq!(
 			bitspan,

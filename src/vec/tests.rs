@@ -10,7 +10,6 @@ use core::{
 	cmp::Ordering,
 	convert::TryInto,
 	iter,
-	ptr,
 };
 
 #[cfg(not(feature = "std"))]
@@ -31,10 +30,11 @@ fn from_vec() {
 	assert_eq!(bv.len(), 32);
 	assert_eq!(bv.count_ones(), 4);
 
-	let capa = bv.alloc_capacity();
+	let capacity = bv.capacity();
 	let bits = bv.leak();
 	assert_eq!(bits as *mut _, bp_mut);
-	let bv = unsafe { BitVec::from_raw_parts(bits, capa) };
+	let (ptr, length) = (bits.as_mut_bitptr(), bits.len());
+	let bv = unsafe { BitVec::from_raw_parts(ptr, length, capacity) };
 	assert_eq!(bv.as_slice(), &[0, 1, 2, 3]);
 }
 
@@ -92,21 +92,6 @@ fn overcommit() {
 	BitVec::<LocalBits, usize>::with_capacity(
 		BitSlice::<LocalBits, usize>::MAX_BITS + 1,
 	);
-}
-
-#[test]
-#[cfg(not(target_arch = "riscv64"))]
-#[should_panic(
-	expected = "Attempted to reconstruct a `BitVec` from a null pointer"
-)]
-fn from_null() {
-	unsafe {
-		BitVec::from_raw_parts(
-			ptr::slice_from_raw_parts_mut(ptr::null_mut::<u8>(), 64)
-				as *mut BitSlice<LocalBits, usize>,
-			0,
-		);
-	}
 }
 
 #[test]

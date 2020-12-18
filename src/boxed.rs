@@ -37,7 +37,10 @@ use crate::{
 		BitOrder,
 		Lsb0,
 	},
-	ptr::BitSpan,
+	ptr::{
+		BitPtr,
+		BitSpan,
+	},
 	slice::BitSlice,
 	store::BitStore,
 	vec::BitVec,
@@ -46,10 +49,7 @@ use crate::{
 use alloc::boxed::Box;
 
 use core::{
-	mem::{
-		self,
-		ManuallyDrop,
-	},
+	mem::ManuallyDrop,
 	slice,
 };
 
@@ -222,22 +222,12 @@ where
 	/// assert_eq!(addr, bb.as_slice().as_ptr());
 	/// ```
 	pub fn try_from_boxed_slice(boxed: Box<[T]>) -> Result<Self, Box<[T]>> {
-		let len = boxed.len();
-		if len > BitSlice::<O, T>::MAX_ELTS {
-			return Err(boxed);
-		}
+		let mut boxed = ManuallyDrop::new(boxed);
 
-		let base = boxed.as_ptr() as *mut T;
-		mem::forget(boxed);
-		Ok(Self {
-			bitspan: unsafe {
-				BitSpan::new_unchecked(
-					base,
-					BitIdx::ZERO,
-					len * T::Mem::BITS as usize,
-				)
-			},
-		})
+		BitPtr::from_mut_slice(&mut boxed[..])
+			.span(boxed.len() * T::Mem::BITS as usize)
+			.map(|bitspan| Self { bitspan })
+			.map_err(|_| ManuallyDrop::into_inner(boxed))
 	}
 
 	/// Converts the slice back into an ordinary slice of memory elements.
@@ -335,7 +325,7 @@ where
 		*/
 		unsafe {
 			bitspan.set_address(raw.as_mut_ptr());
-			BitVec::from_raw_parts(bitspan.to_bitslice_ptr_mut(), raw.capacity())
+			BitVec::from_fields(bitspan, raw.capacity())
 		}
 	}
 

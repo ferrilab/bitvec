@@ -22,6 +22,7 @@ use crate::{
 		BitPtrRange,
 		BitRef,
 		BitSpan,
+		BitSpanError,
 	},
 	store::BitStore,
 };
@@ -132,22 +133,13 @@ where
 	};
 
 	/// Loads the address field, sidestepping any alignment problems.
+	///
+	/// This is the only safe way to access `(&self).addr`. Do not perform field
+	/// access on `.addr` through a reference except through this method.
 	pub(crate) fn get_addr(&self) -> Address<M, T> {
 		unsafe {
 			ptr::read_unaligned(self as *const Self as *const Address<M, T>)
 		}
-	}
-
-	/// Produces the dangling pointer, [`Self::DANGLING`].
-	///
-	/// [`Self::DANGLING`]: Self::DANGLING
-	pub fn dangling() -> Self {
-		Self::DANGLING
-	}
-
-	/// Constructs a `BitPtr` from an `Address`, using the zero `BitIdx`.
-	pub(crate) fn from_address(addr: Address<M, T>) -> Self {
-		Self::new(addr, BitIdx::ZERO)
 	}
 
 	/// Tries to construct a `BitPtr` from a memory location and a bit index.
@@ -217,9 +209,45 @@ where
 		(self.addr, self.head)
 	}
 
-	/// Converts `self` into a span descriptor for a single bit.
+	/// Produces a `BitSpan`, starting at `self` and running for `bits`.
 	///
-	/// `self` must not be targeting the very last bit in the address space.
+	/// # Parameters
+	///
+	/// - `self`: The base bit-address of the returned span descriptor.
+	/// - `bits`: The length in bits of the returned span descriptor.
+	///
+	/// # Returns
+	///
+	/// This returns an error if the combination of `self` and `bits` violates
+	/// any of `BitSpan`’s requirements; otherwise, it encodes `self` and `bits`
+	/// into a span descriptor and returns it. Conversion into a `BitSlice`
+	/// pointer or reference is left to the caller.
+	pub(crate) fn span(
+		self,
+		bits: usize,
+	) -> Result<BitSpan<M, O, T>, BitSpanError<T>> {
+		BitSpan::new(self.addr, self.head, bits)
+	}
+
+	/// Produces a `BitSpan`, starting at `self` and running for `bits`.
+	///
+	/// This does not perform any validity checking; it only encodes the
+	/// arguments into a `BitSpan`.
+	///
+	/// # Parameters
+	///
+	/// - `self`: The base bit-address of the returned span descriptor.
+	/// - `bits`: The length in bits of the returned span descriptor.
+	///
+	/// # Retuns
+	///
+	/// `self` and `bits` encoded into a `BitSpan`. This `BitSpan` may be
+	/// semantically invalid, and it may have modulated its length.
+	///
+	/// # Safety
+	///
+	/// This should only be called with values that had previously been
+	/// extracted from a `BitSpan`.
 	pub(crate) unsafe fn span_unchecked(self, bits: usize) -> BitSpan<M, O, T> {
 		BitSpan::new_unchecked(self.addr, self.head, bits)
 	}
@@ -543,11 +571,18 @@ where
 	/// [`BitSlice`]: crate::slice::BitSlice
 	/// [`offset`]: Self::offset
 	pub unsafe fn offset_from(self, origin: Self) -> isize {
+		/* Miri complains when performing this arithmetic on pointers. To avoid
+		both its costs, and the implicit scaling present in pointer arithmetic,
+		this uses pure numeric arithmetic on the address values.
+		*/
 		self.addr
 			.value()
 			.wrapping_sub(origin.addr.value())
+			//  Pointers step by `T`, but **address values** step by `u8`.
 			.wrapping_mul(<u8 as BitMemory>::BITS as usize)
+			//  `self.head` moves the end farther from origin,
 			.wrapping_add(self.head.value() as usize)
+			//  and `origin.head` moves the origin closer to the end.
 			.wrapping_sub(origin.head.value() as usize) as isize
 	}
 
@@ -1230,7 +1265,7 @@ where
 	type Error = BitPtrError<T>;
 
 	fn try_from(elem: *const T) -> Result<Self, Self::Error> {
-		elem.try_into().map(Self::from_address).map_err(Into::into)
+		Self::try_new(elem, 0)
 	}
 }
 
@@ -1242,7 +1277,7 @@ where
 	type Error = BitPtrError<T>;
 
 	fn try_from(elem: *mut T) -> Result<Self, Self::Error> {
-		elem.try_into().map(Self::from_address).map_err(Into::into)
+		Self::try_new(elem, 0)
 	}
 }
 
@@ -1259,7 +1294,7 @@ where
 			match TypeId::of::<M>() {
 				t if t == TypeId::of::<Const>() => "const",
 				t if t == TypeId::of::<Mut>() => "mut",
-				_ => unreachable!(),
+				_ => unreachable!("No other implementors exist"),
 			},
 			type_name::<O>(),
 			type_name::<T>()

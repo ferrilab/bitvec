@@ -11,7 +11,9 @@ use crate::{
 	order::BitOrder,
 	ptr::{
 		BitPtr,
+		BitPtrRange,
 		BitSpan,
+		BitSpanError,
 	},
 	slice::{
 		iter::{
@@ -82,6 +84,7 @@ where
 	/// let a = bits![0, 0, 1];
 	/// assert_eq!(a.len(), 3);
 	/// ```
+	#[inline]
 	pub fn len(&self) -> usize {
 		self.as_bitspan().len()
 	}
@@ -100,6 +103,7 @@ where
 	/// let a = bits![0, 0, 1];
 	/// assert!(!a.is_empty());
 	/// ```
+	#[inline]
 	pub fn is_empty(&self) -> bool {
 		self.as_bitspan().len() == 0
 	}
@@ -119,6 +123,7 @@ where
 	/// let w = bits![];
 	/// assert_eq!(None, w.first());
 	/// ```
+	#[inline]
 	pub fn first(&self) -> Option<BitRef<Const, O, T>> {
 		self.get(0)
 	}
@@ -151,6 +156,7 @@ where
 	/// ```
 	///
 	/// [`BitRef`]: crate::ptr::BitRef
+	#[inline]
 	pub fn first_mut(&mut self) -> Option<BitRef<Mut, O, T>> {
 		self.get_mut(0)
 	}
@@ -175,6 +181,7 @@ where
 	/// }
 	/// # fn end_the_block() {}
 	/// ```
+	#[inline]
 	pub fn split_first(&self) -> Option<(BitRef<Const, O, T>, &Self)> {
 		match self.len() {
 			0 => None,
@@ -221,6 +228,7 @@ where
 	/// [`BitRef`]: crate::ptr::BitRef
 	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
 	//  so this will not be aliased.
+	#[inline]
 	#[allow(clippy::type_complexity)]
 	pub fn split_first_mut(
 		&mut self,
@@ -254,6 +262,7 @@ where
 	/// }
 	/// # fn end_the_block() {}
 	/// ```
+	#[inline]
 	pub fn split_last(&self) -> Option<(BitRef<Const, O, T>, &Self)> {
 		match self.len() {
 			0 => None,
@@ -300,6 +309,7 @@ where
 	/// [`BitRef`]: crate::slice::BitSlice
 	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
 	//  so this will not be aliased.
+	#[inline]
 	#[allow(clippy::type_complexity)]
 	pub fn split_last_mut(
 		&mut self,
@@ -330,6 +340,7 @@ where
 	/// let w = bits![];
 	/// assert_eq!(None, w.last());
 	/// ```
+	#[inline]
 	pub fn last(&self) -> Option<BitRef<Const, O, T>> {
 		match self.len() {
 			0 => None,
@@ -364,6 +375,7 @@ where
 	/// ```
 	///
 	/// [`BitRef`]: crate::ptr::BitRef
+	#[inline]
 	pub fn last_mut(&mut self) -> Option<BitRef<Mut, O, T>> {
 		match self.len() {
 			0 => None,
@@ -393,6 +405,7 @@ where
 	/// assert_eq!(None, v.get(3));
 	/// assert_eq!(None, v.get(0 .. 4));
 	/// ```
+	#[inline]
 	pub fn get<'a, I>(&'a self, index: I) -> Option<I::Immut>
 	where I: BitSliceIndex<'a, O, T> {
 		index.get(self)
@@ -427,6 +440,7 @@ where
 	///
 	/// [`BitRef`]: crate::ptr::BitRef
 	/// [`.get()`]: Self::get
+	#[inline]
 	pub fn get_mut<'a, I>(&'a mut self, index: I) -> Option<I::Mut>
 	where I: BitSliceIndex<'a, O, T> {
 		index.get_mut(self)
@@ -456,6 +470,7 @@ where
 	///
 	/// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
 	/// [`.get()`]: Self::get
+	#[inline]
 	#[allow(clippy::missing_safety_doc)]
 	pub unsafe fn get_unchecked<'a, I>(&'a self, index: I) -> I::Immut
 	where I: BitSliceIndex<'a, O, T> {
@@ -497,111 +512,43 @@ where
 	/// [`BitRef`]: crate::ptr::BitRef
 	/// [`get_mut`]: Self::get_mut
 	/// [undefined behavior]: ../../reference/behavior-considered-undefined.html
+	#[inline]
 	#[allow(clippy::missing_safety_doc)]
 	pub unsafe fn get_unchecked_mut<'a, I>(&'a mut self, index: I) -> I::Mut
 	where I: BitSliceIndex<'a, O, T> {
 		index.get_unchecked_mut(self)
 	}
 
-	/// Returns a raw pointer to the slice’s region.
-	///
-	/// The caller must ensure that the slice outlives the pointer this
-	/// function returns, or else it will end up pointing to garbage.
-	///
-	/// The caller must also ensure that the memory the pointer
-	/// (non-transitively) points to is never written to using this pointer or
-	/// any pointer derived from it. If you need to mutate the contents of the
-	/// slice, use [`.as_mut_bitptr()`].
-	///
-	/// Modifying the container referenced by this slice may cause its
-	/// buffer to be reällocated, which would also make any pointers to it
-	/// invalid.
-	///
-	/// # Original
-	///
-	/// [`slice::as_ptr`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.as_ptr)
-	///
-	/// # API Differences
-	///
-	/// This returns a structure, [`BitPtr`], rather than an actual raw pointer
-	/// `*Bit`. The information required to address a bit within a memory
-	/// element cannot be encoded into a single pointer.
-	///
-	/// This structure can be converted back into a `&BitSlice` with the
-	/// function [`from_raw_parts`].
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let x = bits![0, 0, 1];
-	/// let x_ptr = x.as_ptr();
-	///
-	/// unsafe {
-	///   for i in 0 .. x.len() {
-	///     assert_eq!(*x.get_unchecked(i), (&*x)[i]);
-	///   }
-	/// }
-	/// ```
-	///
-	/// [`.as_mut_bitptr()`]: Self::as_mut_bitptr
-	/// [`from_raw_parts`]: crate::slice::from_raw_parts
+	#[doc(hidden)]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.as_bitptr()` to access the region pointer"]
 	pub fn as_ptr(&self) -> BitPtr<Const, O, T> {
 		self.as_bitptr()
 	}
 
-	/// Returns an unsafe mutable pointer to the slice’s region.
-	///
-	/// The caller must ensure that the slice outlives the pointer this
-	/// function returns, or else it will end up pointing to garbage.
-	///
-	/// Modifying the container referenced by this slice may cause its
-	/// buffer to be reällocated, which would also make any pointers to it
-	/// invalid.
-	///
-	/// # Original
-	///
-	/// [`slice::as_mut_ptr`][orig]
-	///
-	/// # API Differences
-	///
-	/// This returns `*mut BitSlice`, which is the equivalont of `*mut [T]`
-	/// instead of `*mut T`. The pointer encoding used requires more than one
-	/// CPU word of space to address a single bit, so there is no advantage to
-	/// removing the length information from the encoded pointer value.
-	///
-	/// # Notes
-	///
-	/// You **cannot** use any of the methods in the `pointer` fundamental type
-	/// or the `core::ptr` module on the `*BitSlice` type. This pointer retains
-	/// the `bitvec`-specific value encoding, and is incomprehensible by the
-	/// Rust standard library.
-	///
-	/// The only thing you can do with this pointer is reborrow its referent
-	/// region with `&mut *`.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bits = bits![mut Lsb0, u8; 0; 8];
-	/// let bits_ptr = bits.as_mut_ptr();
-	///
-	/// for i in 0 .. bits.len() {
-	///   unsafe {
-	///     bits_ptr.add(i).write(i % 3 == 0);
-	///   }
-	/// }
-	/// assert_eq!(bits.as_slice()[0], 0b0100_1001);
-	/// ```
-	///
-	/// [orig]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.as_mut_ptr
+	#[doc(hidden)]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	#[deprecated = "Use `.as_bitptr_range()` to access the region pointers"]
+	pub fn as_ptr_range(&self) -> BitPtrRange<Const, O, T> {
+		self.as_bitptr_range()
+	}
+
+	#[doc(hidden)]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `.as_mut_bitptr()` to access the region pointer"]
 	pub fn as_mut_ptr(&mut self) -> BitPtr<Mut, O, T> {
 		self.as_mut_bitptr()
+	}
+
+	#[doc(hidden)]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	#[deprecated = "Use `.as_mut_bitptr_range()` to access the region pointers"]
+	pub fn as_mut_ptr_range(&mut self) -> BitPtrRange<Mut, O, T> {
+		self.as_mut_bitptr_range()
 	}
 
 	/// Swaps two bits in the slice.
@@ -628,6 +575,7 @@ where
 	/// v.swap(1, 3);
 	/// assert_eq!(v, bits![0, 0, 1, 1]);
 	/// ```
+	#[inline]
 	pub fn swap(&mut self, a: usize, b: usize) {
 		self.assert_in_bounds(a);
 		self.assert_in_bounds(b);
@@ -651,6 +599,7 @@ where
 	/// v.reverse();
 	/// assert_eq!(v, bits![1, 1, 0]);
 	/// ```
+	#[inline]
 	pub fn reverse(&mut self) {
 		/* This would be better written as a recursive algorithm that swaps the
 		edge bits and recurses on `[1 .. len - 1]`, but Rust does not guarantee
@@ -718,8 +667,10 @@ where
 	/// [`BitRef`]: crate::ptr::BitRef
 	/// [`by_ref`]: crate::slice::Iter::by_ref
 	/// [`by_val`]: crate::slice::Iter::by_val
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn iter(&self) -> Iter<O, T> {
-		self.into_iter()
+		Iter::new(self)
 	}
 
 	/// Returns an iterator that allows modifying each bit.
@@ -756,8 +707,10 @@ where
 	///
 	/// [`BitRef`]: crate::ptr::BitRef
 	/// [`.remove_alias()`]: crate::slice::IterMut::remove_alias
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn iter_mut(&mut self) -> IterMut<O, T> {
-		self.into_iter()
+		IterMut::new(self)
 	}
 
 	/// Returns an iterator over all contiguous windows of length `size`. The
@@ -794,6 +747,7 @@ where
 	/// let mut iter = slice.windows(4);
 	/// assert!(iter.next().is_none());
 	/// ```
+	#[inline]
 	pub fn windows(&self, size: usize) -> Windows<O, T> {
 		assert_ne!(size, 0, "Window width cannot be 0");
 		Windows::new(self, size)
@@ -833,6 +787,7 @@ where
 	///
 	/// [`.chunks_exact()`]: Self::chunks_exact
 	/// [`.rchunks()`]: Self::rchunks
+	#[inline]
 	pub fn chunks(&self, chunk_size: usize) -> Chunks<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
 		Chunks::new(self, chunk_size)
@@ -885,6 +840,7 @@ where
 	/// [`.chunks_exact_mut()`]: Self::chunks_exact_mut
 	/// [`.rchunks_mut()`]: Self::rchunks_mut
 	/// [`.remove_alias()`]: crate::slice::ChunksMut::remove_alias
+	#[inline]
 	pub fn chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
 		ChunksMut::new(self, chunk_size)
@@ -930,6 +886,7 @@ where
 	/// [`.chunks()`]: Self::chunks
 	/// [`.rchunks_exact()`]: Self::rchunks_exact
 	/// [`.remainder()`]: crate::slice::ChunksExact::remainder
+	#[inline]
 	pub fn chunks_exact(&self, chunk_size: usize) -> ChunksExact<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
 		ChunksExact::new(self, chunk_size)
@@ -984,6 +941,7 @@ where
 	/// [`.into_remainder()`]: crate::slice::ChunksExactMut::into_remainder
 	/// [`.rchunks_exact_mut()`]: Self::rchunks_exact_mut
 	/// [`.remove_alias()`]: crate::slice::ChunksExactMut::remove_alias
+	#[inline]
 	pub fn chunks_exact_mut(
 		&mut self,
 		chunk_size: usize,
@@ -1026,6 +984,7 @@ where
 	///
 	/// [`.chunks()`]: Self::chunks
 	/// [`.rchunks_exact()`]: Self::rchunks_exact
+	#[inline]
 	pub fn rchunks(&self, chunk_size: usize) -> RChunks<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
 		RChunks::new(self, chunk_size)
@@ -1078,6 +1037,7 @@ where
 	/// [`.chunks_mut()`]: Self::chunks_mut
 	/// [`.rchunks_exact_mut()`]: Self::rchunks_exact_mut
 	/// [`.remove_alias()`]: crate::slice::RChunksMut::remove_alias
+	#[inline]
 	pub fn rchunks_mut(&mut self, chunk_size: usize) -> RChunksMut<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
 		RChunksMut::new(self, chunk_size)
@@ -1123,6 +1083,7 @@ where
 	/// [`.chunks_exact()`]: Self::chunks_exact
 	/// [`.rchunks()`]: Self::rchunks
 	/// [`.remainder()`]: crate::slice::ChunksExact::remainder
+	#[inline]
 	pub fn rchunks_exact(&self, chunk_size: usize) -> RChunksExact<O, T> {
 		assert_ne!(chunk_size, 0, "Chunk width cannot be 0");
 		RChunksExact::new(self, chunk_size)
@@ -1177,6 +1138,7 @@ where
 	/// [`.into_remainder()`]: crate::slice::ChunksExactMut::into_remainder
 	/// [`.rchunks_mut()`]: Self::rchunks_mut
 	/// [`.remove_alias()`]: crate::slice::ChunksExactMut::remove_alias
+	#[inline]
 	pub fn rchunks_exact_mut(
 		&mut self,
 		chunk_size: usize,
@@ -1232,6 +1194,7 @@ where
 	///   assert_eq!(right, bits![]);
 	/// }
 	/// ```
+	#[inline]
 	pub fn split_at(&self, mid: usize) -> (&Self, &Self) {
 		let len = self.len();
 		assert!(mid <= len, "Index {} out of bounds: {}", mid, len);
@@ -1297,6 +1260,7 @@ where
 	/// [`.bit_domain_mut`()]: Self::bit_domain_mut
 	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
 	//  so this will not be aliased.
+	#[inline]
 	#[allow(clippy::type_complexity)]
 	pub fn split_at_mut(
 		&mut self,
@@ -1361,6 +1325,8 @@ where
 	/// assert_eq!(iter.next().unwrap(), bits![1]);
 	/// assert!(iter.next().is_none());
 	/// ```
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn split<F>(&self, pred: F) -> Split<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		Split::new(self, pred)
@@ -1398,6 +1364,8 @@ where
 	/// ```
 	///
 	/// [`.remove_alias()`]: crate::slice::SplitMut::remove_alias
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn split_mut<F>(&mut self, pred: F) -> SplitMut<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		SplitMut::new(self.alias_mut(), pred)
@@ -1446,6 +1414,8 @@ where
 	/// ```
 	///
 	/// [`.split()`]: Self::split
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn rsplit<F>(&self, pred: F) -> RSplit<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplit::new(self, pred)
@@ -1484,6 +1454,8 @@ where
 	/// ```
 	///
 	/// [`.remove_alias()`]: crate::slice::RSplitMut::remove_alias
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn rsplit_mut<F>(&mut self, pred: F) -> RSplitMut<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplitMut::new(self.alias_mut(), pred)
@@ -1520,6 +1492,8 @@ where
 	///   # }
 	/// }
 	/// ```
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn splitn<F>(&self, n: usize, pred: F) -> SplitN<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		SplitN::new(self, pred, n)
@@ -1561,6 +1535,8 @@ where
 	/// ```
 	///
 	/// [`.remove_alias()`]: crate::slice::SplitNMut::remove_alias
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn splitn_mut<F>(&mut self, n: usize, pred: F) -> SplitNMut<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		SplitNMut::new(self.alias_mut(), pred, n)
@@ -1599,6 +1575,8 @@ where
 	///   # }
 	/// }
 	/// ```
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn rsplitn<F>(&self, n: usize, pred: F) -> RSplitN<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplitN::new(self, pred, n)
@@ -1641,6 +1619,8 @@ where
 	/// ```
 	///
 	/// [`.remove_alias()`]: crate::slice::RSplitNMut::remove_alias
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn rsplitn_mut<F>(&mut self, n: usize, pred: F) -> RSplitNMut<O, T, F>
 	where F: FnMut(usize, &bool) -> bool {
 		RSplitNMut::new(self.alias_mut(), pred, n)
@@ -1680,6 +1660,7 @@ where
 	///
 	/// [`any`]: Self::any
 	/// [`not_all`]: Self::not_all
+	#[inline]
 	pub fn contains<O2, T2>(&self, x: &BitSlice<O2, T2>) -> bool
 	where
 		O2: BitOrder,
@@ -1720,6 +1701,7 @@ where
 	/// let v = bits![];
 	/// assert!(v.starts_with(bits![]));
 	/// ```
+	#[inline]
 	pub fn starts_with<O2, T2>(&self, needle: &BitSlice<O2, T2>) -> bool
 	where
 		O2: BitOrder,
@@ -1757,6 +1739,7 @@ where
 	/// let v = bits![];
 	/// assert!(v.ends_with(bits![]));
 	/// ```
+	#[inline]
 	pub fn ends_with<O2, T2>(&self, needle: &BitSlice<O2, T2>) -> bool
 	where
 		O2: BitOrder,
@@ -1806,6 +1789,7 @@ where
 	/// ```
 	///
 	/// [`self.len()`]: Self::len
+	#[inline]
 	pub fn rotate_left(&mut self, mut by: usize) {
 		let len = self.len();
 		assert!(
@@ -1880,6 +1864,7 @@ where
 	/// ```
 	///
 	/// [`self.len()`]: Self::len
+	#[inline]
 	pub fn rotate_right(&mut self, mut by: usize) {
 		let len = self.len();
 		assert!(
@@ -1909,6 +1894,7 @@ where
 	///
 	/// [`.clone_from_bitslice()]: Self::clone_from_bitslice
 	#[doc(hidden)]
+	#[inline(always)]
 	#[deprecated = "Use `.clone_from_bitslice()` to copy between bitslices"]
 	pub fn clone_from_slice<O2, T2>(&mut self, src: &BitSlice<O2, T2>)
 	where
@@ -1923,6 +1909,7 @@ where
 	///
 	/// [`.copy_from_bitslice()]: Self::copy_from_bitslice
 	#[doc(hidden)]
+	#[inline(always)]
 	#[deprecated = "Use `.copy_from_bitslice()` to copy between bitslices"]
 	pub fn copy_from_slice(&mut self, src: &Self) {
 		self.copy_from_bitslice(src)
@@ -1959,6 +1946,7 @@ where
 	/// ```
 	///
 	/// [`self.len()`]: Self::len
+	#[inline]
 	pub fn copy_within<R>(&mut self, src: R, dest: usize)
 	where R: RangeBounds<usize> {
 		let len = self.len();
@@ -1977,6 +1965,7 @@ where
 	///
 	/// [`.swap_with_bitslice()]: Self::swap_with_bitslice
 	#[doc(hidden)]
+	#[inline(always)]
 	#[deprecated = "Use `.swap_with_bitslice()` to swap between bitslices"]
 	pub fn swap_with_slice<O2, T2>(&mut self, other: &mut BitSlice<O2, T2>)
 	where
@@ -2054,6 +2043,7 @@ where
 	/// [`Domain`]: crate::domain::Domain
 	/// [`slice::align_to`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.align_to
 	/// [`::Alias`]: crate::store::BitStore::Alias
+	#[inline]
 	pub unsafe fn align_to<U>(&self) -> (&Self, &BitSlice<O, U>, &Self)
 	where U: BitStore {
 		let (l, c, r) = self.as_bitspan().align_to::<U>();
@@ -2123,6 +2113,7 @@ where
 	/// [`DomainMut`]: crate::domain::DomainMut
 	/// [`slice::align_to_mut`]: https://doc.rust-lang.org/stable/std/primitive.slice.html#method.align_to_mut
 	/// [`::Alias`]: crate::store::BitStore::Alias
+	#[inline]
 	pub unsafe fn align_to_mut<U>(
 		&mut self,
 	) -> (&mut Self, &mut BitSlice<O, U>, &mut Self)
@@ -2150,6 +2141,8 @@ where
 	/// [`.to_bitvec()`].
 	///
 	/// [`.to_bitvec()]: Self::to_bitvec
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Prefer `.to_bitvec()`"]
 	pub fn to_vec(&self) -> BitVec<O, T::Unalias> {
 		self.to_bitvec()
@@ -2183,7 +2176,8 @@ where
 	/// // this will panic at runtime
 	/// bits![0, 1].repeat(BitSlice::<LocalBits, usize>::MAX_BITS);
 	/// ```
-	pub fn repeat(&self, n: usize) -> BitVec<O, T::Mem> {
+	#[inline]
+	pub fn repeat(&self, n: usize) -> BitVec<O, T::Unalias> {
 		let len = self.len();
 		let total = len.checked_mul(n).expect("capacity overflow");
 
@@ -2214,6 +2208,8 @@ where
 
 [`BitSlice`]: crate::slice::BitSlice
 **/
+#[inline(always)]
+#[cfg(not(tarpaulin_include))]
 pub fn from_ref<O, T>(elem: &T) -> &BitSlice<O, T>
 where
 	O: BitOrder,
@@ -2230,6 +2226,8 @@ where
 
 [`BitSlice`]: crate::slice::BitSlice
 **/
+#[inline(always)]
+#[cfg(not(tarpaulin_include))]
 pub fn from_mut<O, T>(elem: &mut T) -> &mut BitSlice<O, T>
 where
 	O: BitOrder,
@@ -2255,7 +2253,10 @@ in comments. Once `rustfmt` is fixed, revert these to block comments.
 /// # API Differences
 ///
 /// This takes a [`BitPtr`] as its base address, rather than a raw `*Bit`
-/// pointer, as `bitvec` does not provide such raw pointer types.
+/// pointer, as `bitvec` does not provide raw pointers to individual bits.
+///
+/// It returns a `Result`, because the `len` argument may be invalid to encode
+/// into a `&BitSlice` reference.
 ///
 /// # Safety
 ///
@@ -2296,7 +2297,8 @@ in comments. Once `rustfmt` is fixed, revert these to block comments.
 /// let bitptr = BitPtr::from(&x);
 /// let bits: &BitSlice<LocalBits, _> = unsafe {
 ///   bv_slice::from_raw_parts(bitptr, 8)
-/// };
+/// }
+/// .unwrap();
 /// assert_eq!(bits, x.view_bits::<LocalBits>());
 /// ```
 ///
@@ -2321,16 +2323,15 @@ in comments. Once `rustfmt` is fixed, revert these to block comments.
 ///   unsafe {
 ///     bv_slice::from_raw_parts(fst.as_bitptr(), fst.len() + snd.len())
 ///   }
+///   .unwrap()
 /// }
 ///
-/// fn main() {
-///   let a = [0u8; 3];
-///   let b = [!0u8; 3];
-///   let c = join_bitslices(
-///     a.view_bits::<LocalBits>(),
-///     b.view_bits::<LocalBits>(),
-///   );
-/// }
+/// let a = [0u8; 3];
+/// let b = [!0u8; 3];
+/// let c = join_bitslices(
+///   a.view_bits::<LocalBits>(),
+///   b.view_bits::<LocalBits>(),
+/// );
 /// ```
 ///
 /// In this example, the compiler may elect to place `a` and `b` in adjacent
@@ -2340,19 +2341,32 @@ in comments. Once `rustfmt` is fixed, revert these to block comments.
 /// [below]: #incorrect-usage
 /// [`BitPtr`]: crate::ptr::BitPtr
 /// [`BitSlice::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
+#[inline]
 pub unsafe fn from_raw_parts<'a, O, T>(
 	data: BitPtr<Const, O, T>,
 	len: usize,
-) -> &'a BitSlice<O, T>
+) -> Result<&'a BitSlice<O, T>, BitSpanError<T>>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	data.span_unchecked(len).to_bitslice_ref()
+	data.span(len).map(BitSpan::to_bitslice_ref)
 }
 
 /// Performs the same functionality as [`from_raw_parts`], except that a mutable
 /// slice is returned.
+///
+/// # Original
+///
+/// [`slice::from_raw_parts_mut`](core::slice::from_raw_parts_mut)
+///
+/// # API Differences
+///
+/// This takes a [`BitPtr`] as its base address, rather than a raw `*Bit`
+/// pointer, as `bitvec` does not provide raw pointers to individual bits.
+///
+/// It returns a `Result`, because the `len` argument may be invalid to encode
+/// into a `&BitSlice` reference.
 ///
 /// # Safety
 ///
@@ -2377,16 +2391,18 @@ where
 /// - `len` cannot exceed [`BitSlice::MAX_BITS`].
 ///
 /// [valid]: https://doc.rust-lang.org/stable/core/ptr/index.html#safety
+/// [`BitPtr`]: crate::ptr::BitPtr
 /// [`from_raw_parts`]: crate::slice::from_raw_parts
+#[inline]
 pub unsafe fn from_raw_parts_mut<'a, O, T>(
 	data: BitPtr<Mut, O, T>,
 	len: usize,
-) -> &'a mut BitSlice<O, T>
+) -> Result<&'a mut BitSlice<O, T>, BitSpanError<T>>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	data.span_unchecked(len).to_bitslice_mut()
+	data.span(len).map(BitSpan::to_bitslice_mut)
 }
 
 /** A helper trait used for indexing operations.
@@ -2507,6 +2523,7 @@ where
 	type Immut = BitRef<'a, Const, O, T>;
 	type Mut = BitRef<'a, Mut, O, T>;
 
+	#[inline]
 	fn get(self, slice: &'a BitSlice<O, T>) -> Option<Self::Immut> {
 		if self < slice.len() {
 			Some(unsafe { self.get_unchecked(slice) })
@@ -2516,6 +2533,7 @@ where
 		}
 	}
 
+	#[inline]
 	fn get_mut(self, slice: &'a mut BitSlice<O, T>) -> Option<Self::Mut> {
 		if self < slice.len() {
 			Some(unsafe { self.get_unchecked_mut(slice) })
@@ -2538,12 +2556,14 @@ where
 		BitRef::from_bitptr(slice.as_mut_bitptr().add(self))
 	}
 
+	#[inline]
 	fn index(self, slice: &'a BitSlice<O, T>) -> Self::Immut {
 		self.get(slice).unwrap_or_else(|| {
 			panic!("Index {} out of bounds: {}", self, slice.len())
 		})
 	}
 
+	#[inline]
 	fn index_mut(self, slice: &'a mut BitSlice<O, T>) -> Self::Mut {
 		let len = slice.len();
 		self.get_mut(slice)
@@ -2559,8 +2579,10 @@ macro_rules! range_impl {
 			type Immut = &'a BitSlice<O, T>;
 			type Mut = &'a mut BitSlice<O, T>;
 
+			#[inline]
 			$get
 
+			#[inline]
 			fn get_mut(self, slice: Self::Mut) -> Option<Self::Mut> {
 				self.get(slice).map(|s| unsafe {
 					s.as_bitspan().assert_mut()
@@ -2568,8 +2590,10 @@ macro_rules! range_impl {
 				.to_bitslice_mut())
 			}
 
+			#[inline]
 			$unchecked
 
+			#[inline]
 			unsafe fn get_unchecked_mut(self, slice: Self::Mut) -> Self::Mut {
 				self.get_unchecked(slice)
 					.as_bitspan()
@@ -2577,6 +2601,7 @@ macro_rules! range_impl {
 					.to_bitslice_mut()
 			}
 
+			#[inline]
 			fn index(self, slice: Self::Immut) -> Self::Immut {
 				let r = self.clone();
 				let l = slice.len();
@@ -2586,6 +2611,7 @@ macro_rules! range_impl {
 					})
 			}
 
+			#[inline]
 			fn index_mut(self, slice: Self::Mut) -> Self::Mut {
 				self.index(slice).as_bitspan().pipe(|span| unsafe {
 					span.assert_mut()
@@ -2601,26 +2627,32 @@ macro_rules! range_impl {
 			type Immut = &'a BitSlice<O, T>;
 			type Mut = &'a mut BitSlice<O, T>;
 
+			#[inline]
 			fn get(self, slice: Self::Immut) -> Option<Self::Immut> {
 				$func(self).get(slice)
 			}
 
+			#[inline]
 			fn get_mut(self, slice: Self::Mut) -> Option<Self::Mut> {
 				$func(self).get_mut(slice)
 			}
 
+			#[inline]
 			unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
 				$func(self).get_unchecked(slice)
 			}
 
+			#[inline]
 			unsafe fn get_unchecked_mut(self, slice: Self::Mut) -> Self::Mut {
 				$func(self).get_unchecked_mut(slice)
 			}
 
+			#[inline]
 			fn index(self, slice: Self::Immut) -> Self::Immut {
 				$func(self).index(slice)
 			}
 
+			#[inline]
 			fn index_mut(self, slice: Self::Mut) -> Self::Mut {
 				$func(self).index_mut(slice)
 			}
@@ -2640,15 +2672,10 @@ range_impl!(Range<usize> {
 	}
 
 	unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
-		let (addr, head, _) = slice.as_bitspan().raw_parts();
-
-		let (skip, new_head) = head.offset(self.start as isize);
-
-		BitSpan::new_unchecked(
-			addr.to_const().offset(skip),
-			new_head,
-			self.end - self.start,
-		).to_bitslice_ref()
+		slice.as_bitptr()
+			.add(self.start)
+			.span_unchecked(self.len())
+			.to_bitslice_ref()
 	}
 });
 
@@ -2664,15 +2691,10 @@ range_impl!(RangeFrom<usize> {
 	}
 
 	unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
-		let (addr, head, bits) = slice.as_bitspan().raw_parts();
-
-		let (skip, new_head) = head.offset(self.start as isize);
-
-		BitSpan::new_unchecked(
-			addr.to_const().offset(skip),
-			new_head,
-			bits - self.start,
-		).to_bitslice_ref()
+		slice.as_bitptr()
+			.add(self.start)
+			.span_unchecked(slice.len() - self.start)
+			.to_bitslice_ref()
 	}
 });
 
@@ -2715,26 +2737,32 @@ where
 	type Immut = &'a BitSlice<O, T>;
 	type Mut = &'a mut BitSlice<O, T>;
 
+	#[inline(always)]
 	fn get(self, slice: Self::Immut) -> Option<Self::Immut> {
 		Some(slice)
 	}
 
+	#[inline(always)]
 	fn get_mut(self, slice: Self::Mut) -> Option<Self::Mut> {
 		Some(slice)
 	}
 
+	#[inline(always)]
 	unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
 		slice
 	}
 
+	#[inline(always)]
 	unsafe fn get_unchecked_mut(self, slice: Self::Mut) -> Self::Mut {
 		slice
 	}
 
+	#[inline(always)]
 	fn index(self, slice: Self::Immut) -> Self::Immut {
 		slice
 	}
 
+	#[inline(always)]
 	fn index_mut(self, slice: Self::Mut) -> Self::Mut {
 		slice
 	}

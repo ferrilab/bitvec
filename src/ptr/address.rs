@@ -190,6 +190,7 @@ where
 
 	/// Gets the address as a non-null pointer.
 	#[inline(always)]
+	#[cfg(feature = "alloc")]
 	pub(crate) fn to_nonnull(self) -> NonNull<T> {
 		self.inner
 	}

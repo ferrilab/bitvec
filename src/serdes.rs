@@ -33,10 +33,14 @@ structures, please file an issue.
 use crate::{
 	array::BitArray,
 	domain::Domain,
-	index::BitIdxError,
 	mem::BitMemory,
 	order::BitOrder,
-	ptr::BitSpan,
+	ptr::{
+		AddressError,
+		BitPtr,
+		BitPtrError,
+		BitSpanError,
+	},
 	slice::BitSlice,
 	store::BitStore,
 	view::BitView,
@@ -44,7 +48,6 @@ use crate::{
 
 use core::{
 	cmp,
-	convert::TryInto,
 	fmt::{
 		self,
 		Formatter,
@@ -221,31 +224,52 @@ where
 		E: de::Error,
 	{
 		//  Disable the destructor on the deserialized buffer
-		let data = ManuallyDrop::new(data);
-		//  Assemble a region pointer
-		BitSpan::new(
-			data.as_ptr() as *mut T,
-			//  Attempt to read the `head` index as a `BitIdx` bounded by the
-			//  destination type.
-			head.try_into().map_err(|val: BitIdxError<_>| {
-				de::Error::invalid_value(
-					Unexpected::Unsigned(val.value() as u64),
-					&"a head-bit index less than the deserialized element \
-					  type’s bit width",
-				)
-			})?,
-			//  Ensure that the `bits` counter is not lying about the data size.
-			cmp::min(bits, data.len().saturating_mul(T::Mem::BITS as usize)),
-		)
-		//  Fail if the source cannot be encoded into a bit pointer.
-		.map_err(|_| {
-			de::Error::invalid_value(
-				Unexpected::Other("invalid bit-region source data"),
-				self,
-			)
-		})
-		.map(BitSpan::to_bitslice_ptr_mut)
-		.map(|bp| unsafe { BitVec::from_raw_parts(bp, data.capacity()) })
+		let mut data = ManuallyDrop::new(data);
+		//  Ensure that the `bits` counter is not lying about the data size.
+		let bits = cmp::min(
+			bits,
+			data.len()
+				.saturating_mul(T::Mem::BITS as usize)
+				.saturating_sub(head as usize),
+		);
+		//  Assemble a pointer to the start bit,
+		BitPtr::try_new(data.as_mut_slice().as_mut_ptr(), head)
+			.map_err(Into::into)
+			//  Extend it into a region descriptor,
+			.and_then(|bp| bp.span(bits))
+			//  Capture the errors that can arise from the deser data,
+			.map_err(|err| match err {
+				BitSpanError::InvalidBitptr(BitPtrError::InvalidIndex(err)) => {
+					de::Error::invalid_value(
+						Unexpected::Unsigned(err.value() as u64),
+						&"a head-bit index less than the deserialized element \
+						  type’s bit width",
+					)
+				},
+				BitSpanError::TooLong(len) => de::Error::invalid_value(
+					Unexpected::Unsigned(len as u64),
+					&"a bit length that can be encoded into a `*BitSlice` \
+					  pointer",
+				),
+				BitSpanError::TooHigh(_) => unreachable!(
+					"The allocator will not produce a vector too high in the \
+					 memory space"
+				),
+				BitSpanError::InvalidBitptr(BitPtrError::InvalidAddress(
+					AddressError::Null,
+				)) => {
+					unreachable!("The allocator will not produce a null pointer")
+				},
+				BitSpanError::InvalidBitptr(BitPtrError::InvalidAddress(
+					AddressError::Misaligned(_),
+				)) => {
+					unreachable!(
+						"The allocator will not produce a misaligned buffer"
+					)
+				},
+			})
+			//  And assemble a bit-vector over the allocated span.
+			.map(|span| unsafe { BitVec::from_fields(span, data.capacity()) })
 	}
 }
 

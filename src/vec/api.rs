@@ -4,7 +4,11 @@ use crate::{
 	mem::BitMemory,
 	mutability::Mut,
 	order::BitOrder,
-	ptr::BitSpan,
+	ptr::{
+		Address,
+		BitPtr,
+		BitSpan,
+	},
 	slice::BitSlice,
 	store::BitStore,
 	vec::{
@@ -117,32 +121,28 @@ where
 			.pipe(Vec::<T>::with_capacity)
 			.pipe(ManuallyDrop::new);
 		let (addr, capacity) = (vec.as_mut_ptr(), vec.capacity());
-		let bitspan = BitSpan::uninhabited(addr);
+		let bitspan = addr
+			.pipe(|a| unsafe { Address::new_unchecked(a as usize) })
+			.pipe(BitSpan::uninhabited);
 		Self { bitspan, capacity }
 	}
 
 	/// Decomposes a `BitVec<O, T>` into its raw components.
 	///
-	/// Returns the raw pointer to the underlying buffer, and the allocated
-	/// capacity of the buffer (in elements `T`). These are the same arguments
-	/// in the same order as the arguments to [`::from_raw_parts()`].
+	/// Returns the raw bit-pointer to the underlying buffer, the length of the
+	/// bit-vector (in bits), and the allocated capacity of the buffer (in
+	/// bits). These are the same arguments in the same order as the arguments
+	/// to [`from_raw_parts`].
 	///
 	/// After calling this function, the caller is responsible for the memory
 	/// previously managed by the `BitVec`. The only way to do this is to
 	/// convert the raw pointer and capacity back into a `BitVec` with the
-	/// [`::from_raw_parts()`] function, allowing the destructor to perform the
+	/// [`from_raw_parts`] function, allowing the destructor to perform the
 	/// cleanup.
 	///
 	/// # Original
 	///
-	/// [`Vec::into_raw_p
-	///
-	/// Ordinary vectors are composed from their buffer pointer and element
-	/// length separately; bit-vectors must keep these two components bundled
-	/// into the `*BitSlice` region pointer. As such, this only produces two
-	/// components; the slice pointer and the allocation capacity, measured in
-	/// `T` elements and **not** in bits. This capacity can also be fetched
-	/// through the [`.alloc_capacity()`] method.
+	/// [`Vec::into_raw_parts`](alloc::vec::Vec::into_raw_parts)
 	///
 	/// # Examples
 	///
@@ -150,63 +150,53 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let bv = bitvec![1; 70];
-	/// let (bitspan, capa) = bv.into_raw_parts();
+	/// let (ptr, len, cap) = bv.into_raw_parts();
 	///
 	/// let rebuilt = unsafe {
-	///   BitVec::from_raw_parts(bitspan, capa)
+	///   BitVec::from_raw_parts(ptr, len, cap)
 	/// };
 	/// assert_eq!(rebuilt, bits![1; 70]);
 	/// ```
 	///
-	/// [`::from_raw_parts()`]: Self::from_raw_parts
-	/// [`.alloc_capacity()`]: Self::alloc_capacity
-	pub fn into_raw_parts(self) -> (*mut BitSlice<O, T>, usize) {
-		let this = ManuallyDrop::new(self);
-		(this.bitspan.to_bitslice_ptr_mut(), this.alloc_capacity())
+	/// [`from_raw_parts`]: Self::from_raw_parts
+	pub fn into_raw_parts(self) -> (BitPtr<Mut, O, T>, usize, usize) {
+		let (ptr, len, capa) = (
+			self.bitspan.as_bitptr(),
+			self.bitspan.len(),
+			self.capacity(),
+		);
+		mem::forget(self);
+		(ptr, len, capa)
 	}
 
 	/// Creates a `BitVec<O, T>` directly from the raw components of another
-	/// vector.
+	/// bit-vector.
 	///
 	/// # Original
 	///
 	/// [`Vec::from_raw_parts`](alloc::vec::Vec::from_raw_parts)
-	///
-	/// # API Differences
-	///
-	/// Ordinary vectors decompose into their buffer pointer and element length
-	/// separately; bit-vectors must keep these two components bundled into the
-	/// `*BitSlice` region pointer. As such, this only accepts two components;
-	/// the slice pointer and the allocation capacity, measured in `T` elements
-	/// and **not** in bits. This capacity can be fetched through the
-	/// [`.alloc_capacity()`] method.
-	///
-	/// # Panics
-	///
-	/// This function panics if `pointer` is the null pointer. Note that a null
-	/// `*mut BitSlice<O, T>` value cannot be constructed from [`bitvec`] APIs;
-	/// it can only be made by deliberately creating one outside of the crate
-	/// system, which is invalid *regardless* of its value.
 	///
 	/// # Safety
 	///
 	/// This is highly unsafe, due to the number of invariants that aren’t
 	/// checked:
 	///
-	/// - `pointer` needs to have been previously allocated via `BitVec`, and
-	///   will be incorrect if it wasn’t.
-	/// - The pointer’s length needs to be less than or equal to the `capacity`
-	///   when converted to count bits rather than elements `T`.
-	/// - `capacity` needs to be exactly the capacity with which the pointer was
-	///   allocated, as produced by [`.alloc_capacity()`] or
-	///   [`.into_raw_parts()`].
+	/// - `ptr` needs to have been previously allocated via `BitVec<O, T>` (at
+	///   least, it’s highly likely to be incorrect if it wasn’t).
 	///
-	/// In addition to the invariants inherited from [`Vec::from_raw_parts`],
-	/// the fact that this function takes a [`BitSlice`] pointer adds another
-	/// one:
+	/// - `T` needs to have the same size and alignment as what `ptr` was
+	///   initially allocated with. (`T` having a less strict alignment isn’t
+	///   sufficient; the alignment really needs to be equal to satisfy the
+	///   [`dealloc`] requirement that memory be allocated and deällocated with
+	///   the same layout.)
 	///
-	/// - **`pointer` MUST NOT have had its value modified in any way in the**
-	///   **time when it was outside of a `bitvec` container type.**
+	///   You may use [`BitPtr::cast`] to change between bare integers, `Cell`s,
+	///   and atoms, as long as they all have the same memory width.
+	///
+	/// - `length` needs to be less than or equal to `capacity`.
+	///
+	/// - `capacity` needs to be the capacity, in bits, that the bit-pointer was
+	///   allocated with.
 	///
 	/// Violating these **will** cause problems like corrupting the allocator’s
 	/// internal data structures. For example, it is **not** safe to build a
@@ -214,7 +204,7 @@ where
 	/// `size_t`. It’s also not safe to build one from a `Vec<u8>` and its
 	/// length, because the allocator cares about the alignment, and these two
 	/// types have different alignments. The buffer was allocated with alignment
-	/// `1` (for `u8`), but after turning it into a `BitVec<_, u8>` it’ll be
+	/// `1` (for `u8`), but after turning it into a `BitVec<_, u16>` it’ll be
 	/// deällocated with alignment 2.
 	///
 	/// The ownership of `pointer` is effectively transferred to the `BitVec<O,
@@ -225,50 +215,43 @@ where
 	/// # Examples
 	///
 	/// ```rust
-	/// # extern crate core;
 	/// use bitvec::prelude::*;
-	/// use bitvec as bv;
-	/// use core::mem;
+	/// use bitvec::ptr as bv_ptr;
+	/// use core::mem::ManuallyDrop;
 	///
-	/// let bv = bitvec![0, 1, 0, 1];
+	/// let bv = bitvec![0, 1, 0, 0, 1];
+	/// // Disarm the destructor so we are in full control of the allocation.
+	/// let mut bv = ManuallyDrop::new(bv);
 	///
-	/// // Prevent running `bv`’s destructor so we
-	/// // are in complete control of the allocation.
-	/// let mut bv = mem::ManuallyDrop::new(bv);
-	///
-	/// // Pull out the various important
-	/// // pieces of information about `bv`
-	/// let p = bv.as_mut_bitptr();
-	/// let e = bv.elements();
-	/// let cap = bv.alloc_capacity();
+	/// // Pull out the various important pieces of information about `bv`.
+	/// let ptr = bv.as_mut_bitptr();
+	/// let len = bv.len();
+	/// let cap = bv.capacity();
 	///
 	/// unsafe {
-	///   let bits = bv::slice::from_raw_parts_mut::<LocalBits, _>(p, e);
-	///   let len = bits.len();
+	///   // Overwrite memory with the inverse bits.
+	///   for i in 0 .. len {
+	///     let bp = ptr.add(i);
+	///     bv_ptr::write(bp, !bv_ptr::read(bp));
+	///   }
 	///
-	///   // Overwrite memory with a new pattern
-	///   bits.iter_mut().for_each(|mut b| *b = true);
-	///
-	///   // Put everything back together into a BitVec
-	///   let rebuilt = BitVec::from_raw_parts(bits as *mut _, cap);
-	///   assert_eq!(rebuilt.len(), len);
+	///   // Put everything back together into a `BitVec`
+	///   let rebuilt = BitVec::from_raw_parts(ptr, len, cap);
+	///   assert_eq!(rebuilt, bits![1, 0, 1, 1, 0]);
 	/// }
 	/// ```
 	///
-	/// [`BitSlice`]: crate::slice::BitSlice
-	/// [`Vec::from_raw_parts`]: alloc::vec::Vec::from_raw_parts
-	/// [`bitvec`]: crate
-	/// [`.alloc_capacity()`]: Self::alloc_capacity
-	/// [`.into_raw_parts()`]: Self::into_raw_parts
+	/// [`BitPtr::cast`]: crate::ptr::BitPtr::cast
+	/// [`dealloc`]: alloc::alloc::GlobalAlloc::dealloc
 	pub unsafe fn from_raw_parts(
-		pointer: *mut BitSlice<O, T>,
+		ptr: BitPtr<Mut, O, T>,
+		length: usize,
 		capacity: usize,
 	) -> Self {
-		if (pointer as *mut [()]).is_null() {
-			panic!("Attempted to reconstruct a `BitVec` from a null pointer");
+		Self {
+			bitspan: ptr.span_unchecked(length),
+			capacity: crate::mem::elts::<T>(capacity),
 		}
-		let bitspan = BitSpan::from_bitslice_ptr_mut(pointer);
-		Self { bitspan, capacity }
 	}
 
 	/// Returns the number of bits the vector can hold without reällocating.
@@ -280,11 +263,11 @@ where
 	/// # API Differences
 	///
 	/// This returns the number of *bits* available in the allocation’s storage
-	/// space. This is technically correct ([`Vec::<bool>::capacity()`] would
+	/// space. This is technically correct ([`Vec::<bool>::capacity`] would
 	/// return the same amount), but this value **cannot** be used to describe
 	/// the allocation underlying the vector.
 	///
-	/// Use [`.alloc_capacity()`] to get the capacity of the underlying
+	/// Use [`alloc_capacity`] to get the capacity of the underlying
 	/// allocation, measured in `T`.
 	///
 	/// # Examples
@@ -296,8 +279,8 @@ where
 	/// assert!(bv.capacity() >= 100);
 	/// ```
 	///
-	/// [`Vec::<bool>::capacity()`]: alloc::vec::Vec::capacity
-	/// [`.alloc_capacity()`]: Self::alloc_capacity
+	/// [`Vec::<bool>::capacity`]: alloc::vec::Vec::capacity
+	/// [`alloc_capacity`]: Self::alloc_capacity
 	pub fn capacity(&self) -> usize {
 		self.capacity
 			.checked_mul(T::Mem::BITS as usize)
@@ -1032,7 +1015,7 @@ where
 	/// assert!(bv.is_empty());
 	/// ```
 	pub fn clear(&mut self) {
-		self.bitspan = BitSpan::uninhabited(self.as_mut_ptr());
+		self.bitspan = self.bitspan.address().pipe(BitSpan::uninhabited);
 	}
 
 	/// Returns the number of bits in the vector, also referred to as its
@@ -1108,11 +1091,9 @@ where
 			n if n == len => Self::new(),
 			_ => unsafe {
 				self.set_len(at);
-				//  Deconstruct and reconstruct in order to remove the `::Mem`
-				//  element marker.
-				let (ptr, capa) =
-					self.get_unchecked(at .. len).to_bitvec().into_raw_parts();
-				Self::from_raw_parts(ptr as *mut BitSlice<O, T>, capa)
+				self.get_unchecked(at .. len)
+					.to_bitvec()
+					.pipe(Self::strip_unalias)
 			},
 		}
 	}
@@ -1169,7 +1150,7 @@ where
 	/// contents, `&'a mut BitSlice<O, T>`. This lifetime may be chosen to be
 	/// `'static`.
 	///
-	/// This function is similar to the [`::leak()`] function on [`BitBox`].
+	/// This function is similar to the [`leak`] function on [`BitBox`].
 	///
 	/// This function is mainly useful for data that lives for the remainder of
 	/// the program’s life. Dropping the returned reference will cause a memory
@@ -1193,7 +1174,7 @@ where
 	/// ```
 	///
 	/// [`BitBox`]: crate::boxed::BitBox
-	/// [`::leak()`]: crate::boxed::BitBox::leak
+	/// [`leak`]: crate::boxed::BitBox::leak
 	pub fn leak<'a>(self) -> &'a mut BitSlice<O, T> {
 		self.pipe(ManuallyDrop::new).bitspan.to_bitslice_mut()
 	}

@@ -103,7 +103,7 @@ where
 	T: BitStore,
 {
 	/// Constructs a new slice iterator from a slice reference.
-	fn new(slice: &'a BitSlice<O, T>) -> Self {
+	pub(super) fn new(slice: &'a BitSlice<O, T>) -> Self {
 		Self {
 			range: unsafe { slice.as_bitptr().range(slice.len()) },
 			_ref: PhantomData,
@@ -260,6 +260,7 @@ where
 	///
 	/// [`by_val`]: Self::by_val
 	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "`Iterator::copied` does not exist on this iterator. Use \
 	                `.by_val()` instead to achieve the same effect."]
 	pub fn copied(
@@ -355,7 +356,7 @@ where
 	T: BitStore,
 {
 	/// Constructs a new slice mutable iterator from a slice reference.
-	fn new(slice: &'a mut BitSlice<O, T>) -> Self {
+	pub(super) fn new(slice: &'a mut BitSlice<O, T>) -> Self {
 		let len = slice.len();
 		Self {
 			range: unsafe { slice.alias_mut().as_mut_bitptr().range(len) },

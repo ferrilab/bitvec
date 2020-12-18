@@ -20,6 +20,7 @@ pub use crate::{
 	ptr::{
 		BitPtr,
 		BitPtrRange,
+		BitRef,
 	},
 	slice::BitSlice,
 	store::BitStore,

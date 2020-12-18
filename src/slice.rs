@@ -50,10 +50,7 @@ use crate::{
 		Domain,
 		DomainMut,
 	},
-	index::{
-		BitIdx,
-		BitMask,
-	},
+	index::BitMask,
 	mem::{
 		BitMemory,
 		BitRegister,
@@ -69,6 +66,7 @@ use crate::{
 	},
 	ptr::{
 		BitPtr,
+		BitPtrRange,
 		BitRef,
 		BitSpan,
 		BitSpanError,
@@ -86,10 +84,20 @@ use core::{
 
 use funty::IsInteger;
 
-use tap::pipe::Pipe;
+#[cfg(feature = "alloc")]
+use crate::{
+	ptr::Address,
+	vec::BitVec,
+};
 
 #[cfg(feature = "alloc")]
-use crate::vec::BitVec;
+use alloc::vec::Vec;
+
+#[cfg(feature = "alloc")]
+use core::mem::ManuallyDrop;
+
+#[cfg(feature = "alloc")]
+use tap::pipe::Pipe;
 
 /** A slice of individual bits, anywhere in memory.
 
@@ -481,10 +489,8 @@ where
 	/// [`BitView`]: crate::view::BitView
 	/// [`.view_bits::<O>()`]: crate::view::BitView::view_bits
 	pub fn from_element(elem: &T) -> &Self {
-		unsafe {
-			BitSpan::new_unchecked(elem, BitIdx::ZERO, T::Mem::BITS as usize)
-		}
-		.to_bitslice_ref()
+		unsafe { BitPtr::from_ref(elem).span_unchecked(T::Mem::BITS as usize) }
+			.to_bitslice_ref()
 	}
 
 	/// Constructs an exclusive `&mut BitSlice` reference over an element.
@@ -520,10 +526,8 @@ where
 	/// [`BitView`]: crate::view::BitView
 	/// [`.view_bits_mut::<O>()`]: crate::view::BitView::view_bits_mut
 	pub fn from_element_mut(elem: &mut T) -> &mut Self {
-		unsafe {
-			BitSpan::new_unchecked(elem, BitIdx::ZERO, T::Mem::BITS as usize)
-		}
-		.to_bitslice_mut()
+		unsafe { BitPtr::from_mut(elem).span_unchecked(T::Mem::BITS as usize) }
+			.to_bitslice_mut()
 	}
 
 	/// Constructs a shared `&BitSlice` reference over a slice.
@@ -564,7 +568,7 @@ where
 	/// [`BitView`]: crate::view::BitView
 	/// [`MAX_ELTS`]: Self::MAX_ELTS
 	/// [`.view_bits::<O>()`]: crate::view::BitView::view_bits
-	pub fn from_slice(slice: &[T]) -> Result<&Self, BitSpanError<O, T>> {
+	pub fn from_slice(slice: &[T]) -> Result<&Self, BitSpanError<T>> {
 		let elts = slice.len();
 		//  Starting at the zeroth bit makes this counter an exclusive cap, not
 		//  an inclusive cap. This is also pretty much impossible to hit.
@@ -634,7 +638,7 @@ where
 	/// [`.view_bits_mut::<O>()`]: crate::view::BitView::view_bits_mut
 	pub fn from_slice_mut(
 		slice: &mut [T],
-	) -> Result<&mut Self, BitSpanError<O, T>> {
+	) -> Result<&mut Self, BitSpanError<T>> {
 		let elts = slice.len();
 		if elts >= Self::MAX_ELTS {
 			return Err(BitSpanError::TooLong(
@@ -659,7 +663,8 @@ where
 	/// [`::from_slice()`]: Self::from_slice
 	pub unsafe fn from_slice_unchecked(slice: &[T]) -> &Self {
 		let bits = slice.len().wrapping_mul(T::Mem::BITS as usize);
-		BitSpan::new_unchecked(slice.as_ptr(), BitIdx::ZERO, bits)
+		BitPtr::from_slice(slice)
+			.span_unchecked(bits)
 			.to_bitslice_ref()
 	}
 
@@ -678,7 +683,8 @@ where
 	/// [`::from_slice_mut()`]: Self::from_slice_mut
 	pub unsafe fn from_slice_unchecked_mut(slice: &mut [T]) -> &mut Self {
 		let bits = slice.len().wrapping_mul(T::Mem::BITS as usize);
-		BitSpan::new_unchecked(slice.as_mut_ptr(), BitIdx::ZERO, bits)
+		BitPtr::from_mut_slice(slice)
+			.span_unchecked(bits)
 			.to_bitslice_mut()
 	}
 
@@ -1706,8 +1712,7 @@ where
 	///
 	/// This function computes the *semantic* distance between the heads, rather
 	/// than the *electrical. It does not take into account the `BitOrder`
-	/// implementation of the slice. See the [`.electrical_distance()`] method
-	/// for that comparison.
+	/// implementation of the slice.
 	///
 	/// # Safety and Soundness
 	///
@@ -1726,76 +1731,19 @@ where
 	/// value is positive when `other` is higher in the address space than
 	/// `self`, and negative when `other` is lower in the address space than
 	/// `self`.
-	///
-	/// [`.electrical_distance()]`: crate::slice::BitSlice::electrical_distance
 	pub fn offset_from(&self, other: &Self) -> isize {
-		let (elts, bits) =
-			unsafe { self.as_bitspan().ptr_diff(&other.as_bitspan()) };
-		elts.saturating_mul(T::Mem::BITS as isize)
-			.saturating_add(bits as isize)
+		unsafe { other.as_bitptr().offset_from(self.as_bitptr()) }
 	}
 
-	/// Computes the electrical distance between the heads of two slices.
-	///
-	/// This method uses the slices’ [`BitOrder`] implementation to compute the
-	/// bit position of their heads, then computes the shift distance, in bits,
-	/// between them.
-	///
-	/// This computation uses the [`Lsb0`] ordering to count positions: the
-	/// distance from the most significant bit of one element to the least
-	/// significant bit of the next element higher is 1, and the distance from
-	/// the least significant element of one element to the most significant bit
-	/// of the next element lower is -1.
-	///
-	/// # Parameters
-	///
-	/// - `&self`
-	/// - `other`: Another bit slice. This must be either a strict subregion or
-	///   a strict superregion of `self`.
-	///
-	/// # Returns
-	///
-	/// The electrical bit distance between the heads of `self` and `other`.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let data = [0u8; 2];
-	/// let lsb0 = data.view_bits::<Lsb0>();
-	/// let msb0 = data.view_bits::<Msb0>();
-	///
-	/// // Lsb0 [ 7 6 5 4 3 2 1 0 ] [ f e d c b a 9 8 ]
-	/// // Msb0 [ 0 1 2 3 4 5 6 7 ] [ 8 9 a b c d e f ]
-	/// //        ^ MSbit       ^ LSbit
-	/// //      ^ address `n`       ^ address `n + 1`
-	/// assert_eq!(msb0[0 ..].electrical_distance(&msb0[15 ..]), 1);
-	/// assert_eq!(msb0[15 ..].electrical_distance(&msb0[0 ..]), -1);
-	/// assert_eq!(lsb0[7 ..].electrical_distance(&lsb0[8 ..]), 1);
-	/// assert_eq!(lsb0[8 ..].electrical_distance(&lsb0[7 ..]), -1);
-	/// ```
-	///
-	/// [`BitOrder`]: crate::order::BitOrder
-	/// [`Lsb0`]: crate::order::Lsb0
-	pub fn electrical_distance(&self, other: &Self) -> isize {
-		let this = self.as_bitspan();
-		let that = other.as_bitspan();
-		let (elts, bits) = unsafe {
-			let this = BitSpan::<_, O, T>::new_unchecked(
-				this.address(),
-				BitIdx::new_unchecked(this.head().position::<O>().value()),
-				1,
-			);
-			let that = BitSpan::<_, O, T>::new_unchecked(
-				that.address(),
-				BitIdx::new_unchecked(that.head().position::<O>().value()),
-				1,
-			);
-			this.ptr_diff(&that)
-		};
-		elts.saturating_mul(T::Mem::BITS as isize)
-			.saturating_add(bits as isize)
+	#[doc(hidden)]
+	#[deprecated = "Use `BitPtr::offset_from`"]
+	pub fn electrical_distance(&self, _other: &Self) -> isize {
+		unimplemented!(
+			"This no longer exists! Offsets are only defined between two \
+			 bit-pointers in the same bit-region, and `bitvec` considers two \
+			 regions with different orderings, *even if they cover the same \
+			 locations*, to be different. Use `BitPtr::offset_from`."
+		);
 	}
 }
 
@@ -1856,7 +1804,7 @@ where
 	/// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
 	/// [`.set()`]: Self::set
 	pub unsafe fn set_unchecked(&mut self, index: usize, value: bool) {
-		self.as_mut_bitspan().write(index, value);
+		self.as_mut_bitptr().add(index).write(value);
 	}
 
 	/// Writes a new bit at a given index, without doing bounds checking.
@@ -1905,7 +1853,7 @@ where
 	/// [`Radium`]: radium::Radium
 	pub unsafe fn set_aliased_unchecked(&self, index: usize, value: bool)
 	where T: radium::Radium {
-		self.as_bitspan().assert_mut().write(index, value);
+		self.as_bitptr().add(index).assert_mut().write(value);
 	}
 
 	/// Swaps two bits in the slice.
@@ -2037,46 +1985,339 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// Gets the base-address pointer to the start bit of the slice.
+	/// Returns a raw bit-pointer to the base of the bit-slice’s region.
+	///
+	/// The caller must ensure that the bit-slice outlives the bit-pointer this
+	/// function returns, or else it will end up pointing to garbage.
+	///
+	/// The caller must also ensure that the memory the bit-pointer
+	/// (non-transitively) points to is never written to using this bit-pointer
+	/// or any bit-pointer derived from it. If you need to mutate the contents
+	/// of the slice, use [`.as_mut_bitptr()`].
+	///
+	/// Modifying the container referenced by this bit-slice may cause its
+	/// buffer to be reällocated, which would also make any bit-pointers to it
+	/// invalid.
+	///
+	/// # Original
+	///
+	/// [`slice::as_ptr`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.as_ptr)
+	///
+	/// # API Differences
+	///
+	/// This returns a structure, [`BitPtr`], rather than an actual raw pointer
+	/// `*Bit`. The information required to address a bit within a memory
+	/// element cannot be encoded into a single pointer.
+	///
+	/// This structure can be converted back into a `&BitSlice` with the
+	/// function [`from_raw_parts`].
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let x = bits![0, 0, 1];
+	/// let x_ptr = x.as_ptr();
+	///
+	/// unsafe {
+	///   for i in 0 .. x.len() {
+	///     assert_eq!(*x.get_unchecked(i), (&*x)[i]);
+	///   }
+	/// }
+	/// ```
+	///
+	/// [`.as_mut_bitptr()`]: Self::as_mut_bitptr
+	/// [`from_raw_parts`]: crate::slice::from_raw_parts
+	#[inline(always)]
 	pub fn as_bitptr(&self) -> BitPtr<Const, O, T> {
-		let (addr, head, _) = self.as_bitspan().raw_parts();
-		BitPtr::new(addr, head)
+		self.as_bitspan().as_bitptr()
 	}
 
-	/// Gets the base-address pointer to the start bit of the slice.
+	/// Returns an unsafe mutable bit-pointer to the bit-slice’s region.
+	///
+	/// The caller must ensure that the bit-slice outlives the bit-pointer this
+	/// function returns, or else it will end up pointing to garbage.
+	///
+	/// Modifying the container referenced by this bit-slice may cause its
+	/// buffer to be reällocated, which would also make any bit-pointers to it
+	/// invalid.
+	///
+	/// # Original
+	///
+	/// [`slice::as_mut_ptr`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.as_mut_ptr)
+	///
+	/// # API Differences
+	///
+	/// This returns `*mut BitSlice`, which is the equivalont of `*mut [T]`
+	/// instead of `*mut T`. The pointer encoding used requires more than one
+	/// CPU word of space to address a single bit, so there is no advantage to
+	/// removing the length information from the encoded pointer value.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bits = bits![mut Lsb0, u8; 0; 8];
+	/// let bits_ptr = bits.as_mut_ptr();
+	///
+	/// for i in 0 .. bits.len() {
+	///   unsafe {
+	///     bits_ptr.add(i).write(i % 3 == 0);
+	///   }
+	/// }
+	/// assert_eq!(bits.as_slice()[0], 0b0100_1001);
+	/// ```
+	#[inline(always)]
 	pub fn as_mut_bitptr(&mut self) -> BitPtr<Mut, O, T> {
-		let (addr, head, _) = self.as_mut_bitspan().raw_parts();
-		BitPtr::new(addr, head)
+		self.as_mut_bitspan().as_bitptr()
 	}
 
-	/// Views the `&BitSlice` reference as a `*const BitSlice` pointer.
-	pub fn as_bitslice_ptr(&self) -> *const Self {
-		self as *const Self
+	/// Returns the two raw bit-pointers spanning the bit-slice.
+	///
+	/// The returned range is half-open, which means that the end bit-pointer
+	/// points *one past* the last bit of the bit-slice. This way, an empty
+	/// bit-slice is represented by two equal bit-pointers, and the difference
+	/// between the two bit-pointers represents the size of the bit-slice.
+	///
+	/// See [`as_bitptr`] for warnings on using these bit-pointers. The end
+	/// bit-pointer requires extra caution, as it does not point to a valid bit
+	/// in the bit-slice.
+	///
+	/// This function allows a more direct access to bit-pointers, without
+	/// paying the cost of encoding into a `*BitSlice`, at the cost of no longer
+	/// fitting into ordinary Rust interfaces.
+	///
+	/// # Original
+	///
+	/// [`slice::as_ptr_range`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.as_ptr_range)
+	///
+	/// # API Differences
+	///
+	/// This returns a dedicated structure, rather than a range of [`BitPtr`]s,
+	/// because the traits needed for non-`core` types to correctly operate in
+	/// ranges are still unstable. The structure can be converted into a range,
+	/// but that range will not be an iterator.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let bits = bits![0, 1, 0, 0, 1];
+	/// let mid_ptr = bits.get(2).unwrap().into_bitptr();
+	/// let mut range = bits.as_bitptr_range();
+	/// assert!(range.contains(&mid_ptr));
+	/// unsafe {
+	///   assert!(!range.next().unwrap().read());
+	///   assert!(range.next_back().unwrap().read())
+	/// }
+	/// ```
+	///
+	/// [`BitPtr`]: crate::ptr::BitPtr
+	/// [`as_bitptr`]: Self::as_bitptr
+	pub fn as_bitptr_range(&self) -> BitPtrRange<Const, O, T> {
+		unsafe { self.as_bitptr().range(self.len()) }
 	}
 
-	/// Views the `&mut BitSlice` reference as a `*mut BitSlice` pointer.
-	pub fn as_mut_bitslice_ptr(&mut self) -> *mut Self {
-		self as *mut Self
+	/// Returns the two unsafe mutable bit-pointers spanning the bit-slice.
+	///
+	/// The returned range is half-open, which means that the end bit-pointer
+	/// points *one past* the last bitt of the bit-slice. This way, an empty
+	/// bit-slice is represented by two equal bit-pointers, and the difference
+	/// between the two bit-pointers represents the size of the bit-slice.
+	///
+	/// See [`as_mut_bitptr`] for warnings on using these bit-pointers. The end
+	/// bit-pointer requires extra caution, as it does not point to a valid bit
+	/// in the bit-slice.
+	///
+	/// # Original
+	///
+	/// [`slice::as_mut_ptr_range`](https://doc.rust-lang.org/stable/std/primitive.slice.html#method.as_mut_ptr_range)
+	///
+	/// # API Differences
+	///
+	/// This returns a dedicated structure, rather than a range of [`BitPtr`]s,
+	/// because the traits needed for non-`core` types to correctly operate in
+	/// ranges are still unstable. The structure can be converted into a range,
+	/// but that range will not be an iterator.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	/// use bitvec::ptr as bv_ptr;
+	///
+	/// let mut data = 0u8;
+	/// let bits = data.view_bits_mut::<Msb0>();
+	/// for mut bitptr in bits.as_mut_bitptr_range() {
+	///   unsafe { bv_ptr::write(bitptr, true); }
+	/// }
+	/// assert_eq!(data, !0);
+	/// ```
+	///
+	/// [`BitPtr`]: crate::ptr::BitPtr
+	/// [`as_mut_bitptr`]: Self::as_mut_bitptr
+	pub fn as_mut_bitptr_range(&mut self) -> BitPtrRange<Mut, O, T> {
+		unsafe { self.as_mut_bitptr().range(self.len()) }
 	}
 
 	/// Splits the slice into subslices at alias boundaries.
+	///
+	/// This splits `self` into the memory locations that it partially fills and
+	/// the memory locations that it completely fills. The locations that are
+	/// completely filled may be accessed without any `bitvec`-imposed alias
+	/// conditions, while the locations that are only partially filled are left
+	/// unchanged.
+	///
+	/// You can read more about the [`BitDomain`] splitting in its
+	/// documentation.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut data = [0u16; 3];
+	/// let all = data.view_bits_mut::<Msb0>();
+	/// let (_, rest) = all.split_at_mut(8);
+	/// let bits: &BitSlice<Msb0, <u16 as BitStore>::Alias> = &rest[.. 32];
+	///
+	/// let (head, body, tail) = bits
+	///   .bit_domain()
+	///   .region()
+	///   .unwrap();
+	/// assert_eq!(head.len(), 8);
+	/// assert_eq!(tail.len(), 8);
+	/// let _: &BitSlice<Msb0, <u16 as BitStore>::Alias> = head;
+	/// let _: &BitSlice<Msb0, <u16 as BitStore>::Alias> = tail;
+	/// let _: &BitSlice<Msb0, u16> = body;
+	/// ```
+	///
+	/// [`BitDomain`]: crate::domain::BitDomain
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn bit_domain(&self) -> BitDomain<O, T> {
 		BitDomain::new(self)
 	}
 
 	/// Splits the slice into subslices at alias boundaries.
+	///
+	/// This splits `self` into the memory locations that it partially fills and
+	/// the memory locations that it completely fills. The locations that are
+	/// completely filled may be accessed without any `bitvec`-imposed alias
+	/// conditions, while the locations that are only partially filled are left
+	/// unchanged.
+	///
+	/// You can read more about the [`BitDomainMut`] splitting in its
+	/// documentation.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut data = [0u16; 3];
+	/// let all = data.view_bits_mut::<Msb0>();
+	/// let (_, rest) = all.split_at_mut(8);
+	/// let bits: &mut BitSlice<Msb0, <u16 as BitStore>::Alias>
+	///   = &mut rest[.. 32];
+	///
+	/// let (head, body, tail) = bits
+	///   .bit_domain_mut()
+	///   .region()
+	///   .unwrap();
+	/// assert_eq!(head.len(), 8);
+	/// assert_eq!(tail.len(), 8);
+	/// let _: &mut BitSlice<Msb0, <u16 as BitStore>::Alias> = head;
+	/// let _: &mut BitSlice<Msb0, <u16 as BitStore>::Alias> = tail;
+	/// let _: &mut BitSlice<Msb0, u16> = body;
+	/// ```
+	///
+	/// [`BitDomainMut`]: crate::domain::BitDomainMut
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn bit_domain_mut(&mut self) -> BitDomainMut<O, T> {
 		BitDomainMut::new(self)
 	}
 
 	/// Views the underlying memory containing the slice, split at alias
 	/// boundaries.
+	///
+	/// This splits `self` into the memory locations that it partially fills and
+	/// the memory locatinos that it completely fills. The locations that are
+	/// completely filled may be accessed without any `bitvec`-imposed alias
+	/// conditions, while the locations that are only partially filled are left
+	/// unchanged.
+	///
+	/// You can read more about the [`Domain`] splitting in its documentation.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut data = [0u16; 3];
+	/// let all = data.view_bits_mut::<Msb0>();
+	/// let (_, rest) = all.split_at_mut(8);
+	/// let bits: &BitSlice<Msb0, <u16 as BitStore>::Alias> = &rest[.. 32];
+	///
+	/// let (head, body, tail) = bits
+	///   .domain()
+	///   .region()
+	///   .unwrap();
+	/// assert_eq!(body.len(), 1);
+	///
+	/// let _: &<u16 as BitStore>::Alias = head.unwrap().1;
+	/// let _: &<u16 as BitStore>::Alias = tail.unwrap().0;
+	/// let _: &[u16] = body;
+	/// ```
+	///
+	/// [`Domain`]: crate::domain::Domain
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn domain(&self) -> Domain<T> {
 		Domain::new(self)
 	}
 
 	/// Views the underlying memory containing the slice, split at alias
 	/// boundaries.
+	///
+	/// This splits `self` into the memory locations that it partially fills and
+	/// the memory locations that it completely fills. The locations that are
+	/// completely filled may be accessed without any `bitvec`-imposed alias
+	/// conditions, while the locations that are only partially filled are left
+	/// unchanged.
+	///
+	/// You can read more about the [`DomainMut`] splitting in its
+	/// documentation.
+	///
+	/// # Examples
+	///
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut data = [0u16; 3];
+	/// let all = data.view_bits_mut::<Msb0>();
+	/// let (_, rest) = all.split_at_mut(8);
+	/// let bits: &mut BitSlice<Msb0, <u16 as BitStore>::Alias> = &mut rest[.. 32];
+	///
+	/// let (head, body, tail) = bits
+	///   .domain_mut()
+	///   .region()
+	///   .unwrap();
+	/// assert_eq!(body.len(), 1);
+	///
+	/// let _: &<<u16 as BitStore>::Alias as BitStore>::Access = head.unwrap().1;
+	/// let _: &<<u16 as BitStore>::Alias as BitStore>::Access = tail.unwrap().0;
+	/// let _: &mut [u16] = body;
+	/// ```
+	///
+	/// [`DomainMut`]: crate::domain::DomainMut
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn domain_mut(&mut self) -> DomainMut<T> {
 		DomainMut::new(self)
 	}
@@ -2105,13 +2346,12 @@ where
 {
 	/// Type-cast the slice reference to its pointer structure.
 	pub(crate) fn as_bitspan(&self) -> BitSpan<Const, O, T> {
-		self.as_bitslice_ptr().pipe(BitSpan::from_bitslice_ptr)
+		BitSpan::from_bitslice_ptr(self)
 	}
 
 	/// Type-cast the slice reference to its pointer structure.
 	pub(crate) fn as_mut_bitspan(&mut self) -> BitSpan<Mut, O, T> {
-		self.as_mut_bitslice_ptr()
-			.pipe(BitSpan::from_bitslice_ptr_mut)
+		BitSpan::from_bitslice_ptr_mut(self)
 	}
 
 	/// Asserts that `index` is less than [`self.len()`].
@@ -2133,14 +2373,12 @@ where
 
 	/// Marks an immutable slice as referring to aliased memory region.
 	pub(crate) fn alias(&self) -> &BitSlice<O, T::Alias> {
-		unsafe { &*(self.as_bitslice_ptr() as *const BitSlice<O, T::Alias>) }
+		unsafe { &*(self as *const Self as *const BitSlice<O, T::Alias>) }
 	}
 
 	/// Marks a mutable slice as describing an aliased memory region.
 	pub(crate) fn alias_mut(&mut self) -> &mut BitSlice<O, T::Alias> {
-		unsafe {
-			&mut *(self.as_mut_bitslice_ptr() as *mut BitSlice<O, T::Alias>)
-		}
+		unsafe { &mut *(self as *mut Self as *mut BitSlice<O, T::Alias>) }
 	}
 
 	/// Removes the aliasing marker from a mutable slice handle.
@@ -2249,40 +2487,102 @@ where
 {
 	/// Copies `self` into a new [`BitVec`].
 	///
+	/// This resets any alias markings from `self`, since the returned buffer is
+	/// known to be newly allocated and thus unaliased.
+	///
 	/// # Examples
 	///
 	/// ```rust
-	/// # #[cfg(feature = "stde")] {
 	/// use bitvec::prelude::*;
 	///
 	/// let bits = bits![0, 1, 0, 1];
 	/// let bv = bits.to_bitvec();
 	/// assert_eq!(bits, bv);
-	/// # }
 	/// ```
 	///
 	/// [`BitVec`]: crate::vec::BitVec
 	pub fn to_bitvec(&self) -> BitVec<O, T::Unalias> {
-		use tap::tap::Tap;
+		let mut bitspan = self.as_bitspan();
 		//  Create an allocation and copy `*self` into it.
-		let vec = alloc::vec::Vec::with_capacity(self.as_bitspan().elements())
-			.tap_mut(|vec| {
-				vec.extend(self.as_slice().iter().map(BitStore::load_value))
-			});
-		//  Create a new span descriptor using `self` metadata, pointing at the
-		//  allocation.
-		let new_ptr = self.as_bitspan().tap_mut(|bp| unsafe {
-			bp.set_address(vec.as_ptr() as *const T);
-		});
-		//  `*self` was immutable, but `*vec` is mutable.
-		let ptr = unsafe { new_ptr.assert_mut() }.to_bitslice_ptr_mut();
-		let capa = vec.capacity();
-		core::mem::forget(vec);
-		// `*vec` is also known to be unaliased at this point.
+		let mut vec = self.domain().collect::<Vec<_>>().pipe(ManuallyDrop::new);
+		let capacity = vec.capacity() * T::Mem::BITS as usize;
 		unsafe {
-			BitVec::from_raw_parts(ptr as *mut BitSlice<O, T::Unalias>, capa)
+			bitspan
+				.set_address(Address::new_unchecked(vec.as_mut_ptr() as usize));
+			BitVec::from_fields(
+				bitspan.assert_mut().cast::<T::Unalias>(),
+				capacity,
+			)
 		}
 	}
+}
+
+/** Performs the same functionality as [`from_raw_parts`], without checking the
+`len` argument.
+
+# Parameters
+
+- `data`: A `BitPtr` to a dereferencable region of memory.
+- `len`: The length, in bits, of the region beginning at `*data`. This is not
+  checked against the maximum value, and is encoded directly into the bit-slice
+  reference. If it exceeds [`BitSlice::MAX_BITS`], it will be modulated to fit
+  (the high bits will be discarded).
+
+# Returns
+
+A `&BitSlice` reference starting at `data` and running for `len & MAX_BITS`
+bits.
+
+# Safety
+
+See [`from_raw_parts`].
+
+[`BitSlice::MAX_BITS`]: self::BitSlice::MAX_BITS
+[`from_raw_parts`]: self::from_raw_parts
+**/
+pub unsafe fn from_raw_parts_unchecked<'a, O, T>(
+	data: BitPtr<Const, O, T>,
+	len: usize,
+) -> &'a BitSlice<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	data.span_unchecked(len).to_bitslice_ref()
+}
+
+/** Performs the same functionality as [`from_raw_parts_mut`], without checking
+the `len` argument.
+
+# Parameters
+
+- `data`: A `BitPtr` to a dereferencable region of memory.
+- `len`: The length, in bits, of the region beginning at `*data`. This is not
+  checked against the maximum value, and is encoded directly into the bit-slice
+  reference. If it exceeds [`BitSlice::MAX_BITS`], it will be modulated to fit
+  (the high bits will be discarded).
+
+# Returns
+
+A `&mut BitSlice` reference starting at `data` and running for `len & MAX_BITS`
+bits.
+
+# Safety
+
+See [`from_raw_parts_mut`].
+
+[`BitSlice::MAX_BITS`]: self::BitSlice::MAX_BITS
+[`from_raw_parts_mut`]: self::from_raw_parts_mut
+**/
+pub unsafe fn from_raw_parts_unchecked_mut<'a, O, T>(
+	data: BitPtr<Mut, O, T>,
+	len: usize,
+) -> &'a mut BitSlice<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	data.span_unchecked(len).to_bitslice_mut()
 }
 
 mod api;

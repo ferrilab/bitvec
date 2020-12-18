@@ -2,11 +2,7 @@
 
 #![cfg(test)]
 
-use crate::{
-	index::BitIdx,
-	prelude::*,
-	ptr::BitSpan,
-};
+use crate::prelude::*;
 
 use tap::conv::TryConv;
 
@@ -249,15 +245,13 @@ fn split() {
 
 	let data = 0u8;
 	let bits = data.view_bits::<Lsb0>();
-	let base = bits.as_slice().as_ptr();
-	let base_ptr = unsafe { BitSpan::new_unchecked(base, BitIdx::ZERO, 0) };
-	let next_ptr =
-		unsafe { BitSpan::new_unchecked(base.add(1), BitIdx::ZERO, 0) };
+	let base_ptr = BitPtr::from_ref(&data);
+	let next_ptr = base_ptr.wrapping_add(8);
 	let (l, _) = bits.split_at(0);
 	let (_, r) = bits.split_at(8);
 	let (l_ptr, r_ptr) = (l.as_bitspan(), r.as_bitspan());
-	assert_eq!(l_ptr, base_ptr);
-	assert_eq!(r_ptr, next_ptr);
+	assert_eq!(l_ptr.as_bitptr(), base_ptr);
+	assert_eq!(r_ptr.as_bitptr(), next_ptr);
 }
 
 #[test]
@@ -372,18 +366,12 @@ fn repetition() {
 #[test]
 fn pointer_offset() {
 	let data = [0u8; 2];
-	let lsb0 = data.view_bits::<Lsb0>();
 	let msb0 = data.view_bits::<Msb0>();
 
 	assert_eq!(msb0[2 ..].offset_from(&msb0[12 ..]), 10);
 	assert_eq!(msb0[5 ..].offset_from(&msb0[10 ..]), 5);
 	assert_eq!(msb0[8 ..].offset_from(&msb0[4 ..]), -4);
 	assert_eq!(msb0[14 ..].offset_from(&msb0[1 ..]), -13);
-
-	assert_eq!(msb0[0 ..].electrical_distance(&msb0[15 ..]), 1);
-	assert_eq!(msb0[15 ..].electrical_distance(&msb0[0 ..]), -1);
-	assert_eq!(lsb0[7 ..].electrical_distance(&lsb0[8 ..]), 1);
-	assert_eq!(lsb0[8 ..].electrical_distance(&lsb0[7 ..]), -1);
 }
 
 #[test]

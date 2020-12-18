@@ -354,11 +354,13 @@ where
 	}
 
 	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	fn count(self) -> usize {
 		self.len()
 	}
 
 	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	fn last(mut self) -> Option<Self::Item> {
 		self.next_back()
 	}

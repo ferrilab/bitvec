@@ -30,14 +30,17 @@ generic type system of any library without undue effort.
 !*/
 
 use crate::{
-	index::BitIdx,
 	mem::{
 		BitMemory,
 		BitRegister,
 	},
 	order::BitOrder,
-	ptr::BitSpan,
-	slice::BitSlice,
+	ptr::BitPtr,
+	slice::{
+		from_raw_parts_unchecked,
+		from_raw_parts_unchecked_mut,
+		BitSlice,
+	},
 	store::BitStore,
 };
 
@@ -210,26 +213,18 @@ macro_rules! view_bits {
 
 			fn view_bits<O>(&self) -> &BitSlice<O, T>
 			where O: BitOrder {
-				unsafe {
-					BitSpan::new_unchecked(
-						self.as_ptr(),
-						BitIdx::ZERO,
-						$n * T::Mem::BITS as usize,
-					)
-				}
-				.to_bitslice_ref()
+				unsafe { from_raw_parts_unchecked(
+					BitPtr::from_slice(&self[..]),
+					$n * T::Mem::BITS as usize,
+				) }
 			}
 
 			fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
 			where O: BitOrder {
-				unsafe {
-					BitSpan::new_unchecked(
-						self.as_mut_ptr(),
-						BitIdx::ZERO,
-						$n * T::Mem::BITS as usize,
-					)
-				}
-				.to_bitslice_mut()
+				unsafe { from_raw_parts_unchecked_mut(
+					BitPtr::from_mut_slice(&mut self[..]),
+					$n * T::Mem::BITS as usize,
+				) }
 			}
 
 			#[doc(hidden)]
