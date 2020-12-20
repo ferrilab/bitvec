@@ -43,7 +43,7 @@ use std::io::{
 /** Mirrors the implementation on `[u8]` (found [here]).
 
 The implementation loads bytes out of the `&BitSlice` reference until exhaustion
-of either the source [`BitSlice`] or destination `[u8]`. When `.read()` returns,
+of either the source [`BitSlice`] or destination `[u8]`. When `read` returns,
 `self` will have been updated to no longer include the leading segment copied
 out as bytes of `buf`.
 
@@ -59,6 +59,7 @@ where
 	T: BitStore,
 	BitSlice<O, T>: BitField,
 {
+	#[inline]
 	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
 		let mut idx = 0;
 		for (byte, slot) in self.chunks_exact(8).zip(buf.iter_mut()) {
@@ -73,9 +74,9 @@ where
 /** Mirrors the implementation on `[u8]` (found [here]).
 
 The implementation copies bytes into the `&mut BitSlice` reference until
-exhaustion of either the source `[u8]` or destination [`BitSlice`]. When
-`.write()` returns, `self` will have been updated to no longer include the
-leading segment containing bytes copied in from `buf`.
+exhaustion of either the source `[u8]` or destination [`BitSlice`]. When `write`
+returns, `self` will have been updated to no longer include the leading segment
+containing bytes copied in from `buf`.
 
 The implementation uses [`BitField::store_be`].
 
@@ -89,6 +90,7 @@ where
 	T: BitStore,
 	BitSlice<O, T>: BitField,
 {
+	#[inline]
 	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
 		let mut idx = 0;
 		for (slot, byte) in unsafe { self.chunks_exact_mut(8).remove_alias() }
@@ -123,6 +125,7 @@ where
 	T: BitStore,
 	BitSlice<O, T>: BitField,
 {
+	#[inline]
 	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
 		let len = self.len();
 		self.resize(len + buf.len() * 8, false);

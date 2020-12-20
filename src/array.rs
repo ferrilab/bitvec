@@ -164,6 +164,7 @@ where
 	V: BitView,
 {
 	/// Constructs a new `BitArray` with its memory set to zero.
+	#[inline]
 	pub fn zeroed() -> Self {
 		Self {
 			_ord: PhantomData,
@@ -182,6 +183,7 @@ where
 	/// let bits: BitArray<Msb0, _> = BitArray::new(data);
 	/// assert_eq!(bits.len(), 16);
 	/// ```
+	#[inline]
 	pub fn new(data: V) -> Self {
 		Self {
 			_ord: PhantomData,
@@ -199,6 +201,8 @@ where
 	/// let bitarr = bitarr![Lsb0, usize; 0; 30];
 	/// let native: [usize; 1] = bitarr.value();
 	/// ```
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn value(self) -> V {
 		self.data
 	}
@@ -206,6 +210,8 @@ where
 	/// Views the array as a [`BitSlice`].
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &BitSlice<O, V::Store> {
 		self.data.view_bits::<O>()
 	}
@@ -213,11 +219,14 @@ where
 	/// Views the array as a mutable [`BitSlice`].
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, V::Store> {
 		self.data.view_bits_mut::<O>()
 	}
 
 	/// Views the array as a slice of its underlying memory registers.
+	#[inline]
 	pub fn as_slice(&self) -> &[V::Store] {
 		unsafe {
 			slice::from_raw_parts(
@@ -228,6 +237,7 @@ where
 	}
 
 	/// Views the array as a mutable slice of its underlying memory registers.
+	#[inline]
 	pub fn as_mut_slice(&mut self) -> &mut [V::Store] {
 		unsafe {
 			slice::from_raw_parts_mut(
@@ -238,11 +248,15 @@ where
 	}
 
 	/// Views the interior buffer.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_buffer(&self) -> &V {
 		&self.data
 	}
 
 	/// Mutably views the interior buffer.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn as_mut_buffer(&mut self) -> &mut V {
 		&mut self.data
 	}

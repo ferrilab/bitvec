@@ -12,8 +12,8 @@ fn bitwise_eq(bench: &mut Bencher) {
 
 	bench.iter(|| {
 		a.iter()
-			.copied()
-			.zip(b.iter().copied())
+			.by_val()
+			.zip(b.iter().by_val())
 			.all(|(a, b)| a == b)
 	});
 }

@@ -30,6 +30,7 @@ where
 {
 	type Output = Self;
 
+	#[inline]
 	fn bitand(mut self, rhs: Rhs) -> Self::Output {
 		self &= rhs;
 		self
@@ -42,6 +43,7 @@ where
 	V: BitView,
 	BitSlice<O, V::Store>: BitAndAssign<Rhs>,
 {
+	#[inline]
 	fn bitand_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() &= rhs;
 	}
@@ -55,6 +57,7 @@ where
 {
 	type Output = Self;
 
+	#[inline]
 	fn bitor(mut self, rhs: Rhs) -> Self::Output {
 		self |= rhs;
 		self
@@ -67,6 +70,7 @@ where
 	V: BitView,
 	BitSlice<O, V::Store>: BitOrAssign<Rhs>,
 {
+	#[inline]
 	fn bitor_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() |= rhs;
 	}
@@ -80,6 +84,7 @@ where
 {
 	type Output = Self;
 
+	#[inline]
 	fn bitxor(mut self, rhs: Rhs) -> Self::Output {
 		self ^= rhs;
 		self
@@ -92,11 +97,13 @@ where
 	V: BitView,
 	BitSlice<O, V::Store>: BitXorAssign<Rhs>,
 {
+	#[inline]
 	fn bitxor_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() ^= rhs;
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> Deref for BitArray<O, V>
 where
 	O: BitOrder,
@@ -104,16 +111,19 @@ where
 {
 	type Target = BitSlice<O, V::Store>;
 
+	#[inline(always)]
 	fn deref(&self) -> &Self::Target {
 		self.as_bitslice()
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, V> DerefMut for BitArray<O, V>
 where
 	O: BitOrder,
 	V: BitView,
 {
+	#[inline(always)]
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		self.as_mut_bitslice()
 	}
@@ -127,6 +137,7 @@ where
 {
 	type Output = <BitSlice<O, V::Store> as Index<Idx>>::Output;
 
+	#[inline]
 	fn index(&self, index: Idx) -> &Self::Output {
 		self.as_bitslice().index(index)
 	}
@@ -138,6 +149,7 @@ where
 	V: BitView,
 	BitSlice<O, V::Store>: IndexMut<Idx>,
 {
+	#[inline]
 	fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
 		self.as_mut_bitslice().index_mut(index)
 	}
@@ -150,6 +162,7 @@ where
 {
 	type Output = Self;
 
+	#[inline]
 	fn not(mut self) -> Self::Output {
 		for elem in self.as_mut_slice() {
 			elem.store_value(!elem.load_value());

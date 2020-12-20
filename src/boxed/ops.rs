@@ -32,6 +32,7 @@ where
 {
 	type Output = Self;
 
+	#[inline]
 	fn bitand(mut self, rhs: Rhs) -> Self::Output {
 		self &= rhs;
 		self
@@ -44,6 +45,7 @@ where
 	T: BitStore,
 	BitSlice<O, T>: BitAndAssign<Rhs>,
 {
+	#[inline]
 	fn bitand_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() &= rhs;
 	}
@@ -57,6 +59,7 @@ where
 {
 	type Output = Self;
 
+	#[inline]
 	fn bitor(mut self, rhs: Rhs) -> Self::Output {
 		self |= rhs;
 		self
@@ -69,6 +72,7 @@ where
 	T: BitStore,
 	BitSlice<O, T>: BitOrAssign<Rhs>,
 {
+	#[inline]
 	fn bitor_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() |= rhs;
 	}
@@ -82,6 +86,7 @@ where
 {
 	type Output = Self;
 
+	#[inline]
 	fn bitxor(mut self, rhs: Rhs) -> Self::Output {
 		self ^= rhs;
 		self
@@ -94,11 +99,13 @@ where
 	T: BitStore,
 	BitSlice<O, T>: BitXorAssign<Rhs>,
 {
+	#[inline]
 	fn bitxor_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() ^= rhs;
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Deref for BitBox<O, T>
 where
 	O: BitOrder,
@@ -106,16 +113,19 @@ where
 {
 	type Target = BitSlice<O, T>;
 
+	#[inline(always)]
 	fn deref(&self) -> &Self::Target {
 		self.as_bitslice()
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> DerefMut for BitBox<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		self.as_mut_bitslice()
 	}
@@ -126,12 +136,14 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn drop(&mut self) {
 		//  Run the `Box` destructor to deällocate the buffer.
 		self.with_box(|slot| unsafe { ManuallyDrop::drop(slot) });
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Idx> Index<Idx> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -140,22 +152,26 @@ where
 {
 	type Output = <BitSlice<O, T> as Index<Idx>>::Output;
 
+	#[inline]
 	fn index(&self, index: Idx) -> &Self::Output {
 		self.as_bitslice().index(index)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Idx> IndexMut<Idx> for BitBox<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 	BitSlice<O, T>: IndexMut<Idx>,
 {
+	#[inline]
 	fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
 		self.as_mut_bitslice().index_mut(index)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Not for BitBox<O, T>
 where
 	O: BitOrder,
@@ -163,6 +179,7 @@ where
 {
 	type Output = Self;
 
+	#[inline]
 	fn not(mut self) -> Self::Output {
 		for elem in self.as_mut_slice().iter_mut() {
 			elem.store_value(!elem.load_value());

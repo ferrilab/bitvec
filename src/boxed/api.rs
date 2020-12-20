@@ -11,7 +11,7 @@ use crate::{
 
 use core::{
 	marker::Unpin,
-	mem::ManuallyDrop,
+	mem,
 	pin::Pin,
 };
 
@@ -43,7 +43,9 @@ where
 	///
 	/// let boxed = BitBox::new(bits![0; 5]);
 	/// ```
-	#[deprecated = "Prefer `::from_bitslice()`"]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	#[deprecated = "Prefer `from_bitslice`"]
 	pub fn new(x: &BitSlice<O, T>) -> Self {
 		Self::from_bitslice(x)
 	}
@@ -58,12 +60,14 @@ where
 	///
 	/// # API Differences
 	///
-	/// As with [`::new`], this only exists on `Box` when `T` is not unsized.
-	/// This takes a slice reference, and pins the referent slice.
+	/// As with [`new`], this only exists on `Box` when `T` is not unsized. This
+	/// takes a slice reference, and pins the referent slice.
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
 	/// [`Unpin`]: core::marker::Unpin
-	/// [`::new`]: Self::new
+	/// [`new`]: Self::new
+	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn pin(x: &BitSlice<O, T>) -> Pin<Self>
 	where
 		O: Unpin,
@@ -78,7 +82,7 @@ where
 	/// `BitBox`.Specifically, the `BitBox` destructor will free the memory
 	/// allocation at the pointer’s address. For this to be safe, the pointer
 	/// can only have been produced by a `BitBox` previously destroyed using
-	/// [`::into_raw`].
+	/// [`into_raw`].
 	///
 	/// # Original
 	///
@@ -104,7 +108,8 @@ where
 	/// ```
 	///
 	/// [`BitBox::into_raw`]: Self::into_raw
-	/// [`::into_raw`]: Self::into_raw
+	/// [`into_raw`]: Self::into_raw
+	#[inline]
 	pub unsafe fn from_raw(raw: *mut BitSlice<O, T>) -> Self {
 		Self {
 			bitspan: BitSpan::from_bitslice_ptr_mut(raw),
@@ -118,7 +123,7 @@ where
 	/// After calling this function, the caller is responsible for the memory
 	/// previously managed by the `BitBox`. In particular, the caller should
 	/// properly release the memory by converting the pointer back into a
-	/// `BitBox` with the [`::from_raw`] function, allowing the `BitBox`
+	/// `BitBox` with the [`from_raw`] function, allowing the `BitBox`
 	/// destructor to perform the cleanup.
 	///
 	/// Note: this is an associated function, which means that you have to call
@@ -149,16 +154,22 @@ where
 	/// [`BitBox::from_raw`]: Self::from_raw
 	/// [`BitSlice`]: crate::slice::BitSlice
 	/// [`Box`]: alloc::boxed::Box
-	/// [`::from_raw`]: Self::from_raw
-	pub fn into_raw(b: Self) -> *mut BitSlice<O, T> {
-		Self::leak(b)
+	/// [`from_raw`]: Self::from_raw
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	pub fn into_raw(this: Self) -> *mut BitSlice<O, T> {
+		Self::leak(this)
 	}
 
 	/// Consumes and leaks the `BitBox`, returning a mutable reference, `&'a mut
 	/// BitSlice<O, T>`. This is eligible to be promoted to the `'static`
 	/// lifetime.
 	///
-	/// # This function is mainly useful for data that lives for the remainder
+	/// # Original
+	///
+	/// [`Box::leak`](alloc::boxed::Box::leak)
+	///
+	/// This function is mainly useful for data that lives for the remainder
 	/// of the program’s life. Dropping the returned reference will cause a
 	/// memory leak. If this is not acceptable, the reference should first be
 	/// wrapped with the [`BitBox::from_raw`] function producing a `BitBox`.
@@ -191,16 +202,18 @@ where
 	/// [`BitBox::from_raw`]: Self::from_raw
 	/// [`BitSlice`]: crate::slice::BitSlice
 	/// [`Box`]: alloc::boxed::Box
-	pub fn leak<'a>(b: Self) -> &'a mut BitSlice<O, T>
+	#[inline]
+	pub fn leak<'a>(this: Self) -> &'a mut BitSlice<O, T>
 	where T: 'a {
-		b.pipe(ManuallyDrop::new).as_mut_bitspan().to_bitslice_mut()
+		let out = this.bitspan.to_bitslice_mut();
+		mem::forget(this);
+		out
 	}
 
-	/// The name is preserved for API compatibility. See
-	/// [`.into_bitvec()`].
-	///
-	/// [`.into_bitvec()]: Self::into_bitvec
-	#[deprecated = "Prefer `.into_bitvec()`"]
+	#[doc(hidden)]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	#[deprecated = "Prefer `into_bitvec`"]
 	pub fn into_vec(self) -> BitVec<O, T> {
 		self.into_bitvec()
 	}
