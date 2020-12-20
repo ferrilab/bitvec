@@ -13,8 +13,8 @@ The [`BitSafe`] trait abstracts over wrappers to the [`Cell`] and [atomic] types
 that forbid writing through their references, even when other references to the
 same location may write.
 
-[`BitAccess`]: self::BitAccess
-[`BitSafe`]: self::BitSafe
+[`BitAccess`]: crate::access::BitAccess
+[`BitSafe`]: crate::access::BitSafe
 [`Cell`]: core::cell::Cell
 [`bitvec`]: crate
 !*/

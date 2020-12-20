@@ -29,12 +29,12 @@ to ensure safety there.
 demonstrate correctness. `BitPos` is the seed type that describes memory
 operations, and is used to create selection masks [`BitSel`] and [`BitMask`].
 
-[`BitIdx`]: self::BitIdx
-[`BitMask`]: self::BitMask
+[`BitIdx`]: crate::index::BitIdx
+[`BitMask`]: crate::index::BitMask
 [`BitOrder`]: crate::order::BitOrder
+[`BitPos`]: crate::index::BitPos
+[`BitSel`]: crate::index::BitSel
 [`BitSlice`]: crate::slice::BitSlice
-[`BitPos`]: self::BitPos
-[`BitSel`]: self::BitSel
 [`bitvec`]: crate
 [`order`]: crate::order
 !*/

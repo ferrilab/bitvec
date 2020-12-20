@@ -2537,8 +2537,8 @@ bits.
 
 See [`from_raw_parts`].
 
-[`BitSlice::MAX_BITS`]: self::BitSlice::MAX_BITS
-[`from_raw_parts`]: self::from_raw_parts
+[`BitSlice::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
+[`from_raw_parts`]: crate::slice::from_raw_parts
 **/
 pub unsafe fn from_raw_parts_unchecked<'a, O, T>(
 	data: BitPtr<Const, O, T>,
@@ -2571,8 +2571,8 @@ bits.
 
 See [`from_raw_parts_mut`].
 
-[`BitSlice::MAX_BITS`]: self::BitSlice::MAX_BITS
-[`from_raw_parts_mut`]: self::from_raw_parts_mut
+[`BitSlice::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
+[`from_raw_parts_mut`]: crate::slice::from_raw_parts_mut
 **/
 pub unsafe fn from_raw_parts_unchecked_mut<'a, O, T>(
 	data: BitPtr<Mut, O, T>,

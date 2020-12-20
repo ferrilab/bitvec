@@ -21,7 +21,7 @@ or inexpressable in `BitArray`, and are constructing the sequence in a `BitVec`
 before freezing it.
 
 [`BitArray`]: crate::array::BitArray
-[`BitBox`]: self::BitBox
+[`BitBox`]: crate::boxed::BitBox
 [`BitSlice`]: crate::slice::BitSlice
 [`BitVec`]: crate::vec::BitVec
 [std]: alloc::boxed

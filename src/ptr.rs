@@ -68,11 +68,11 @@ ordinary [`core::ptr`] and [`pointer`] functions. This is not always possible;
 in particular, Rust does not offer stable atomic intrinsics, and instead only
 allows them to be used on references.
 
-[`BitPtr`]: self::BitPtr
-[`BitPtr<M, O, T>`]: self::BitPtr
-[`BitPtrRange<M, O, T>`]: self::BitPtrRange
-[`BitRef<M, O, T>`]: self::BitRef
-[`BitSpan<M, O, T>`]: self::BitSpan
+[`BitPtr`]: crate::ptr::BitPtr
+[`BitPtr<M, O, T>`]: crate::ptr::BitPtr
+[`BitPtrRange<M, O, T>`]: crate::ptr::BitPtrRange
+[`BitRef<M, O, T>`]: crate::ptr::BitRef
+[`BitSpan<M, O, T>`]: crate::ptr::BitSpan
 [`Range`]: core::ops::Range
 [`bitset<N>::reference`]: https://en.cppreference.com/w/cpp/utility/bitset/reference
 [`core::ptr`]: core::ptr
@@ -187,7 +187,7 @@ pub use crate::{
 /// ```
 ///
 /// [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
-/// [`copy_nonoverlapping`]: self::copy_nonoverlapping
+/// [`copy_nonoverlapping`]: crate::ptr::copy_nonoverlapping
 /// [`memmove`]: https://en.cppreference.com/w/c/string/byte/memmove
 #[inline]
 pub unsafe fn copy<O1, O2, T1, T2>(
@@ -248,7 +248,7 @@ pub unsafe fn copy<O1, O2, T1, T2>(
 /// ```
 ///
 /// [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
-/// [`copy`]: self::copy
+/// [`copy`]: crate::ptr::copy
 /// [`memcpy`]: https://en.cppreference.com/w/c/string/byte/memcpy
 #[inline]
 pub unsafe fn copy_nonoverlapping<O1, O2, T1, T2>(
@@ -455,7 +455,7 @@ assert_eq!(data, 0);
 ```
 
 [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
-[`BitPtr::replace`]: self::BitRef::replace
+[`BitPtr::replace`]: crate::ptr::BitRef::replace
 **/
 #[inline]
 pub unsafe fn replace<O, T>(dst: BitPtr<Mut, O, T>, src: bool) -> bool
@@ -578,7 +578,7 @@ assert_eq!(data, 1);
 ```
 
 [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
-[`BitRef::swap`]: self::BitRef::swap
+[`BitRef::swap`]: crate::ptr::BitRef::swap
 **/
 #[inline]
 pub unsafe fn swap<O1, O2, T1, T2>(

@@ -44,7 +44,7 @@ is not governed by the `BitField` trait.
 The provided [`BitOrder`] implementors [`Lsb0`] and [`Msb0`] use the local
 machine’s byte ordering, and do not reörder bytes during transfer.
 
-[`BitField`]: self::BitField
+[`BitField`]: crate::field::BitField
 [`BitOrder`]: crate::order::BitOrder
 [`BitSlice`]: crate::slice::BitSlice
 [`Lsb0`]: crate::order::Lsb0
@@ -96,13 +96,12 @@ range subslice selects no more than the [`M::BITS`] element width.
 # Target-Specific Behavior
 
 When you are using this trait to manage memory that never leaves your machine,
-you can use the [`.load()`] and [`.store()`] methods. However, if you are using
-this trait to operate on a de/serialization buffer, where the exact bit pattern
-in memory is important to your work and/or you need to be aware of the processor
+you can use the [`load`] and [`store`] methods. However, if you are using this
+trait to operate on a de/serialization buffer, where the exact bit pattern in
+memory is important to your work and/or you need to be aware of the processor
 byte endianness, you must not use these methods.
 
-Instead, use [`.load_le()`], [`.load_be()`], [`.store_le()`], or[`.store_be()`]
-directly.
+Instead, use [`load_le`], [`load_be`], [`store_le`], or[`store_be`] directly.
 
 The un-suffixed methods choose their implementation based on the target
 processor byte endianness; the suffixed methods have a consistent and fixed
@@ -110,12 +109,12 @@ behavior.
 
 [`BitSlice`]: crate::slice::BitSlice
 [`M::BITS`]: crate::mem::BitMemory::BITS
-[`.load()`]: Self::load
-[`.load_be()`]: Self::load_be
-[`.load_le()`]: Self::load_le
-[`.store()`]: Self::store
-[`.store_be()`]: Self::store_be
-[`.store_le()`]: Self::store_le
+[`load`]: Self::load
+[`load_be`]: Self::load_be
+[`load_le`]: Self::load_le
+[`store`]: Self::store
+[`store_be`]: Self::store_be
+[`store_le`]: Self::store_le
 **/
 pub trait BitField {
 	/// Loads the bits in the `self` region into a local value.

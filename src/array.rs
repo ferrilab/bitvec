@@ -10,7 +10,7 @@ relationship to the [`BitSlice`] type. It has little behavior or properties in
 its own right, and serves solely as a type capable of being used in immediate
 value position, and delegates to `BitSlice` for all actual work.
 
-[`BitArray`]: self::BitArray
+[`BitArray`]: crate::array::BitArray
 [`BitSlice`]: crate::slice::BitSlice
 [std]: https://doc.rust-lang.org/stable/std/primitive.array.html
 !*/

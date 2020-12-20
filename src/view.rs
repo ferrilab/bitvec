@@ -20,13 +20,13 @@ functions into one trait, and can provide specialized implementations with a
 slight performance increase over the generic, but `AsBits{,Mut}` can fit in the
 generic type system of any library without undue effort.
 
-[`AsBits`]: self::AsBits
-[`AsBitsMut`]: self::AsBitsMut
+[`AsBits`]: crate::view::AsBits
+[`AsBitsMut`]: crate::view::AsBitsMut
 [`AsMut`]: core::convert::AsMut
 [`AsRef`]: core::convert::AsRef
 [`BitRegister`]: crate::mem::BitRegister
 [`BitSlice`]: crate::slice::BitSlice
-[`BitView`]: self::BitView
+[`BitView`]: crate::view::BitView
 !*/
 
 use crate::{

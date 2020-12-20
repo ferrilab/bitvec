@@ -18,8 +18,8 @@ performance. These can all be proven by use of the [`verify`] or
 [`BitOrder`]: crate::order::BitOrder
 [`BitPos`]: crate::index::BitPos
 [`bitvec`]: crate
-[`verify`]: self::verify
-[`verify_for_type`]: self::verify_for_type
+[`verify`]: crate::order::verify
+[`verify_for_type`]: crate::order::verify_for_type
 !*/
 
 use crate::{

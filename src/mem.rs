@@ -11,8 +11,8 @@ processor registers, and can therefore be used for buffer control. The integers
 that are `BitMemory` but not `BitRegister` can be composed out of register
 values, but are unable to be used in buffer type parameters.
 
-[`BitMemory`]: self::BitMemory
-[`BitRegister`]: self::BitRegister
+[`BitMemory`]: crate::mem::BitMemory
+[`BitRegister`]: crate::mem::BitRegister
 [`bitvec`]: crate
 !*/
 

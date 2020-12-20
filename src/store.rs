@@ -71,12 +71,12 @@ coërced to interfere with each other.
 [atomic]: core::sync::atomic
 [unsigned integers]: core::primitive
 [`BitSlice`]: crate::slice::BitSlice
-[`BitStore`]: self::BitStore
+[`BitStore`]: crate::store::BitStore
 [`Cell`]: core::cell::Cell
 [`UnsafeCell`]: core::cell::UnsafeCell
 [`domain`]: crate::domain
-[`::Alias`]: self::BitStore::Alias
-[`::Unalias`]: self::BitStore::Unalias
+[`::Alias`]: crate::store::BitStore::Alias
+[`::Unalias`]: crate::store::BitStore::Unalias
 [`.split_at_mut()`]: crate::slice::BitSlice::split_at_mut
 !*/
 
