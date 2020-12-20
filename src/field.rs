@@ -44,11 +44,160 @@ is not governed by the `BitField` trait.
 The provided [`BitOrder`] implementors [`Lsb0`] and [`Msb0`] use the local
 machine’s byte ordering, and do not reörder bytes during transfer.
 
+## `_le` Methods
+
+When storing a value `M` into a sequence of memory elements `T`, [`store_le`]
+breaks `M` into chunks from the least significant edge. The least significant
+chunk is placed in the lowest-addressed element `T`, then the next more
+significant chunk is placed in the successive address, until the most
+significant chunk of the value `M` is placed in the highest address of a
+location `T`.
+
+When loading a value `M` out of a sequence of memory elements `T`, [`load_le`]
+uses the same chunking behavior: the lowest-addressed `T` contains the least
+significant chunk of the returned `M`, then each successive address contains a
+more significant chunk, until the highest address contains the most significant.
+
+The [`BitOrder`] implementation governs *where* in each `T` location a fragment
+of `M` is stored.
+
+Let us store 8 bits into memory, over an element boundary, using both [`Lsb0`]
+and [`Msb0`] orderings:
+
+```rust
+use bitvec::prelude::*;
+
+let val: u8 = 0b11010_011;
+//              STUVW XYZ
+let mut store = [0u8; 2];
+
+store.view_bits_mut::<Lsb0>()
+  [5 .. 13]
+  .store_le(val);
+assert_eq!(
+  store,
+  [0b011_00000, 0b000_11010],
+//   XYZ               STUVW
+# "[{:08b}, {:08b}]",
+# store[0],
+# store[1],
+);
+store = [0u8; 2];
+
+store.view_bits_mut::<Msb0>()
+  [5 .. 13]
+  .store_le(val);
+assert_eq!(
+  store,
+  [0b00000_011, 0b11010_000],
+//         XYZ    STUVW
+# "[{:08b}, {:08b}]",
+# store[0],
+# store[1],
+);
+```
+
+In both cases, the lower three bits of `val` were placed into the element at the
+lower memory address. The choice of [`Lsb0`] vs [`Msb0`] changed *which* three
+bits in the element were considered to be indexed by `5 .. 8`, but [`store_le`]
+always placed the least three bits of `val`, *in ordinary register order*, into
+element `[0]`. Similarly, the higher five bits of `val` were placed into element
+`[1]`; `Lsb0` and `Msb0` selected *which* five bits in the element were indexed
+by `8 .. 13`, and the bits retained their register order.
+
+## `_be` Methods
+
+When storing a value `M` into a sequence of memory elements `T`, [`store_be`]
+breaks `M` into chunks from the most significant edge. The most significant
+chunk is placed in the lowest-addressed element `T`, then the next less
+significant chunk is placed in the successive address, until the least
+significant chunk of the value `M` is placed in the highest address of a
+location `T`.
+
+When loading a value `M` out of a sequence of memory elements `T`, [`load_be`]
+uses the same chunking behavior: the lowest-addressed `T` contains the most
+significant chunk of the returned `M`, then each successive address contains a
+less significant chunk, until the highest address contains the least
+significant.
+
+The [`BitOrder`] implementation governs *where* in each `T` location a fragment
+of `M` is stored.
+
+Let us store 8 bits into memory, over an element boundary, using both [`Lsb0`]
+and [`Msb0`] orderings:
+
+```rust
+use bitvec::prelude::*;
+
+let val: u8 = 0b110_10011;
+//              STU VWXYZ
+let mut store = [0u8; 2];
+
+store.view_bits_mut::<Lsb0>()
+  [5 .. 13]
+  .store_be(val);
+assert_eq!(
+  store,
+  [0b110_00000, 0b000_10011],
+//   STU              VWXYZ
+# "[{:08b}, {:08b}]",
+# store[0],
+# store[1],
+);
+store = [0u8; 2];
+
+store.view_bits_mut::<Msb0>()
+  [5 .. 13]
+  .store_be(val);
+assert_eq!(
+  store,
+  [0b00000_110, 0b10011_000],
+//         STU    VWXYZ
+# "[{:08b}, {:08b}]",
+# store[0],
+# store[1],
+);
+```
+
+In both cases, the higher three bits of `val` were placed into the element at
+the lower memory address. The choice of [`Lsb0`] vs [`Msb0`] changed *which*
+three bits in the element were considered to be indexed by `5 .. 8`, but
+[`store_be`] always placed the greatest three bits of `val`, *in ordinary*
+*register order*, into element `[0]`. Similarly, the lower five bits of `val`
+were placed into element `[1]`; `Lsb0` and `Msb0` selected *which* five bits in
+the element were indexed by `8 .. 13`, and the bits retained their register
+order.
+
+# `M` and `T` Relationships
+
+`BitField` permits any type of (unsigned) integer `M` to be stored into or
+loaded from a bit-slice region with any storage type `T`. While the examples
+used `u8` for both, for brevity of writing out values, `BitField` will still
+operate correctly for any other combination of types.
+
+`Bitfield` implementations use the processor’s own concept of integer registers
+to operate. As such, the byte-wise memory access patterns for types wider than
+`u8` depends on your processor’s byte-endianness, as well as which `BitField`
+method and which `BitOrder` implementation you are using.
+
+`BitField` only operates within processor registers; traffic of `T` elements
+between the memory bank and the processor register is controlled entirely by the
+processor.
+
+If you do not want to introduce the processor’s byte-endianness as a variable
+that affects the in-memory representation of stored integers, stick to
+`BitSlice<_, u8>` as the bit-field driver. `BitSlice<Msb0, u8>` will fill memory
+in a way that matches a debugger or other memory inspections.
+
 [`BitField`]: crate::field::BitField
 [`BitOrder`]: crate::order::BitOrder
 [`BitSlice`]: crate::slice::BitSlice
 [`Lsb0`]: crate::order::Lsb0
 [`Msb0`]: crate::order::Msb0
+[`load_be`]: crate::field::BitField::load_be
+[`load_le`]: crate::field::BitField::load_le
+[`store_be`]: crate::field::BitField::store_be
+[`store_le`]: crate::field::BitField::store_le
 !*/
 
 use crate::{
@@ -107,6 +256,20 @@ The un-suffixed methods choose their implementation based on the target
 processor byte endianness; the suffixed methods have a consistent and fixed
 behavior.
 
+# Element- and Bit- Ordering Combinations
+
+The `_le` and `_be` method suffices refer to the significance of successive
+elements `T` in memory, while the `BitOrder` trait refers to the order that bits
+within a single element `T` are traversed. The `BitField` methods and the
+`BitOrder` implementors are ***not*** related.
+
+When a load or store operation is contained in only one memory element, then the
+`_le` and `_be` methods have the same behavior. They differ when the operation
+must touch more than one element.
+
+The module documentation contains a more detailed explanation, and examples, for
+this behavior.
+
 [`BitSlice`]: crate::slice::BitSlice
 [`M::BITS`]: crate::mem::BitMemory::BITS
 [`load`]: Self::load
@@ -126,8 +289,8 @@ pub trait BitField {
 	///
 	/// **THIS FUNCTION CHANGES BEHAVIOR FOR DIFFERENT TARGETS.**
 	///
-	/// The default implementation of this function calls [`.load_le()`] on
-	/// little-endian byte-ordered CPUs, and [`.load_be()`] on big-endian
+	/// The default implementation of this function calls [`load_le`] on
+	/// little-endian byte-ordered CPUs, and [`load_be`] on big-endian
 	/// byte-ordered CPUs.
 	///
 	/// If you are using this function from a region that crosses multiple
@@ -153,8 +316,8 @@ pub trait BitField {
 	///
 	/// [`BitMemory`]: crate::mem::BitMemory
 	/// [`M::BITS`]: crate::mem::BitMemory::BITS
-	/// [`.load_be()`]: Self::load_be
-	/// [`.load_le()`]: Self::load_le
+	/// [`load_be`]: Self::load_be
+	/// [`load_le`]: Self::load_le
 	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn load<M>(&self) -> M
 	where M: BitMemory {
@@ -174,8 +337,8 @@ pub trait BitField {
 	///
 	/// **THIS FUNCTION CHANGES BEHAVIOR FOR DIFFERENT TARGETS.**
 	///
-	/// The default implementation of this function calls [`.store_le()`] on
-	/// little-endian byte-ordered CPUs, and [`.store_be()`] on big-endian
+	/// The default implementation of this function calls [`store_le`] on
+	/// little-endian byte-ordered CPUs, and [`store_be`] on big-endian
 	/// byte-ordered CPUs.
 	///
 	/// If you are using this function to store into a region that crosses
@@ -204,8 +367,8 @@ pub trait BitField {
 	/// [`BitMemory`]: crate::mem::BitMemory
 	/// [`M::BITS`]: crate::mem::BitMemory::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
-	/// [`.store_be()`]: Self::store_be
-	/// [`.store_le()`]: Self::store_le
+	/// [`store_be`]: Self::store_be
+	/// [`store_le`]: Self::store_le
 	fn store<M>(&mut self, value: M)
 	where M: BitMemory {
 		#[cfg(target_endian = "little")]
@@ -242,6 +405,32 @@ pub trait BitField {
 	/// This method is encouraged to panic if `self` is empty, or wider than a
 	/// single element `M`.
 	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut data = [0u8; 3];
+	/// data.view_bits_mut::<Msb0>()
+	///   [5 .. 17]
+	///   .store_le(0b0000_1_1011_1000_110u16);
+	/// //                 O PQRS TUVW XYZ
+	///
+	/// assert_eq!(data, [
+	///   0b00000_110, 0b1011_1000, 0b1_0000000
+	/// //        XYZ    PQRS TUVW    O
+	/// ]);
+	///
+	/// let val = data.view_bits::<Msb0>()
+	///   [5 .. 17]
+	///   .load_le::<u16>();
+	/// assert_eq!(
+	///   val,
+	///   0b0000_1_1011_1000_110,
+	/// //       O PQRS TUVW XYZ
+	/// );
+	/// ```
+	///
 	/// [`M::BITS`]: crate::mem::BitMemory::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn load_le<M>(&self) -> M
@@ -273,6 +462,34 @@ pub trait BitField {
 	///
 	/// This method is encouraged to panic if `self` is empty, or wider than a
 	/// single element `M`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut data = [0u8; 3];
+	/// data.view_bits_mut::<Msb0>()
+	///   [5 .. 17]
+	///   .store_be(0b0000_110_1000_1011_1u16);
+	/// //                 OPQ RSTU VWXY Z
+	///
+	/// assert_eq!(data, [
+	///   0b00000_110, 0b1000_1011, 0b1_0000000
+	/// //        OPQ    RSTU VWXY    Z
+	/// ]);
+	///
+	/// let val = data.view_bits::<Msb0>()
+	///   [5 .. 17]
+	///   .load_be::<u16>();
+	/// assert_eq!(
+	///   val,
+	///   0b0000_110_1000_1011_1,
+	/// //       OPQ RSTU VWXY Z
+	/// # "{:012b}",
+	/// # val,
+	/// );
+	/// ```
 	///
 	/// [`M::BITS`]: crate::mem::BitMemory::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
@@ -308,6 +525,32 @@ pub trait BitField {
 	/// This method is encouraged to panic if `self` is empty, or wider than a
 	/// single element `M`.
 	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut data = [0u8; 3];
+	/// data.view_bits_mut::<Lsb0>()
+	///   [5 .. 17]
+	///   .store_le(0b0000_1_1011_1000_110u16);
+	/// //                 O PQRS TUVW XYZ
+	///
+	/// assert_eq!(data, [
+	///   0b110_00000, 0b1011_1000, 0b0000000_1
+	/// //  XYZ          PQRS TUVW            O
+	/// ]);
+	///
+	/// let val = data.view_bits::<Lsb0>()
+	///   [5 .. 17]
+	///   .load_le::<u16>();
+	/// assert_eq!(
+	///   val,
+	///   0b0000_1_1011_1000_110u16,
+	/// //       O PQRS TUVW XYZ
+	/// );
+	/// ```
+	///
 	/// [`M::BITS`]: crate::mem::BitMemory::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn store_le<M>(&mut self, value: M)
@@ -342,6 +585,32 @@ pub trait BitField {
 	/// This method is encouraged to panic if `self` is empty, or wider than a
 	/// single element `M`.
 	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut data = [0u8; 3];
+	/// data.view_bits_mut::<Lsb0>()
+	///   [5 .. 17]
+	///   .store_be(0b0000_110_1000_1011_1u16);
+	/// //                 OPQ RSTU VWXY Z
+	///
+	/// assert_eq!(data, [
+	///   0b110_00000, 0b1000_1011, 0b0000000_1
+	/// //  OPQ          RSTU VWXY            Z
+	/// ]);
+	///
+	/// let val = data.view_bits::<Lsb0>()
+	///   [5 .. 17]
+	///   .load_be::<u16>();
+	/// assert_eq!(
+	///   val,
+	///   0b0000_110_1000_1011_1u16,
+	/// //       OPQ RSTU VWXY Z
+	/// );
+	/// ```
+	///
 	/// [`M::BITS`]: crate::mem::BitMemory::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn store_be<M>(&mut self, value: M)
@@ -351,6 +620,51 @@ pub trait BitField {
 impl<T> BitField for BitSlice<Lsb0, T>
 where T: BitStore
 {
+	/// Loads from `self`, using little-endian element ordering if `self` spans
+	/// more than one `T` element.
+	///
+	/// If [`self.domain()`] produces a [`Domain::Region`], then:
+	///
+	/// - its [`head`] element contains the least significant segment of the
+	///   returned value, in the bits at the most significant edge of the
+	///   element,
+	/// - its [`body`] slice contains successively more-significant segments,
+	///   and
+	/// - its [`tail`] element contains the most significant segment of the
+	///   returned value, in the bits at the least significant edge of the
+	///   element.
+	///
+	/// If the domain is an [`Enclave`], then the referent element is merely
+	/// loaded, shifted, and masked; no recombination of segments is necessary.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut data = [0u8; 3];
+	/// data.view_bits_mut::<Lsb0>()[5 .. 21].store_le::<u16>(
+	///   0b1_1011_0100_1100_011
+	/// //  K LMNO PQRS TUVW XYZ
+	/// );
+	/// assert_eq!(data, [
+	///   0b011_00000, 0b0100_1100, 0b000_1_1011
+	/// //  XYZ          PQRS TUVW        K LMNO
+	/// ]);
+	/// let val = data.view_bits::<Lsb0>()[5 .. 21].load_le::<u16>();
+	/// assert_eq!(
+	///   val,
+	///   0b1_1011_0100_1100_011,
+	/// //  K LMNO PQRS TUVW XYZ
+	/// );
+	/// ```
+	///
+	/// [`Domain::Region`]: crate::domain::Domain::Region
+	/// [`Enclave`]: crate::domain::Domain::Enclave
+	/// [`body`]: crate::domain::Domain::Region::body
+	/// [`head`]: crate::domain::Domain::Region::head
+	/// [`self.domain()`]: crate::slice::BitSlice::domain
+	/// [`tail`]: crate::domain::Domain::Region::tail
 	fn load_le<M>(&self) -> M
 	where M: BitMemory {
 		check::<M>("load", self.len());
@@ -404,6 +718,51 @@ where T: BitStore
 		}
 	}
 
+	/// Loads from `self`, using big-endian element ordering if `self` spans
+	/// more than one `T` element.
+	///
+	/// If [`self.domain()`] produces a [`Domain::Region`], then:
+	///
+	/// - its [`head`] element contains the most significant segment of the
+	///   returned value, in the bits at the most significant edge of the
+	///   element,
+	/// - its [`body`] slice contains successively less-significant segments,
+	///   and
+	/// - its [`tail`] element contains the least significant segment of the
+	///   returned value, in the bits at the least significant edge of the
+	///   element.
+	///
+	/// If the domain is an [`Enclave`], then the referent element is merely
+	/// loaded, shifted, and masked; no recombination of segments is necessary.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut data = [0u8; 3];
+	/// data.view_bits_mut::<Lsb0>()[5 .. 21].store_be::<u16>(
+	///   0b011_1100_0100_1011_1,
+	/// //  KLM NOPQ RSTU VWXY Z
+	/// );
+	/// assert_eq!(data, [
+	///   0b011_00000, 0b1100_0100, 0b000_1011_1
+	/// //  KLM          NOPQ RSTU        VWXY Z
+	/// ]);
+	/// let val = data.view_bits::<Lsb0>()[5 .. 21].load_be::<u16>();
+	/// assert_eq!(
+	///   val,
+	///   0b011_1100_0100_1011_1,
+	/// //  KLM NOPQ RSTU VWXY Z
+	/// );
+	/// ```
+	///
+	/// [`Domain::Region`]: crate::domain::Domain::Region
+	/// [`Enclave`]: crate::domain::Domain::Enclave
+	/// [`body`]: crate::domain::Domain::Region::body
+	/// [`head`]: crate::domain::Domain::Region::head
+	/// [`self.domain()`]: crate::slice::BitSlice::domain
+	/// [`tail`]: crate::domain::Domain::Region::tail
 	fn load_be<M>(&self) -> M
 	where M: BitMemory {
 		check::<M>("load", self.len());
@@ -439,6 +798,31 @@ where T: BitStore
 		}
 	}
 
+	/// Stores into `self`, using little-endian element ordering if `self` spans
+	/// more than one `T` element.
+	///
+	/// If [`self.domain()`] produces a [`Domain::Region`], then:
+	///
+	/// - its [`head`] element receives the least significant segment of
+	///   `value`, in the bits at the most significant edge of the element,
+	/// - its [`body`] slice receives successively more-significant segments of
+	///   `value`, and
+	/// - its [`tail`] element receives the most significant segment of `value`,
+	///   in the bits at the least significant edge of the element.
+	///
+	/// If the domain is an [`Enclave`], then `value` is shifted into place and
+	/// written without any segmentation.
+	///
+	/// # Examples
+	///
+	/// See the documentation for `<BitSlice<Lsb0, u8> as BitField>::load_le`.
+	///
+	/// [`Domain::Region`]: crate::domain::Domain::Region
+	/// [`Enclave`]: crate::domain::Domain::Enclave
+	/// [`head`]: crate::domain::Domain::Region::head
+	/// [`body`]: crate::domain::Domain::Region::body
+	/// [`self.domain()`]: crate::slice::BitSlice::domain
+	/// [`tail`]: crate::domain::Domain::Region::tail
 	fn store_le<M>(&mut self, mut value: M)
 	where M: BitMemory {
 		check::<M>("store", self.len());
@@ -468,6 +852,31 @@ where T: BitStore
 		}
 	}
 
+	/// Stores into `self`, using big-endian element ordering if `self` spans
+	/// more than one `T` element.
+	///
+	/// If [`self.domain()`] produces a [`Domain::Region`], then:
+	///
+	/// - its [`head`] element receives the most significant segment of `value`,
+	///   in the bits at the most significant edge of the element,
+	/// - its [`body`] slice receives successively less-significant segments of
+	///   `value`, and
+	/// - its [`tail`] element receives the least significant segment of
+	///   `value`, in the bits at the least significant edge of the element.
+	///
+	/// If the domain is an [`Enclave`], then `value` is shifted into place and
+	/// written without any segmentation.
+	///
+	/// # Examples
+	///
+	/// See the documentation for `<BitSlice<Lsb0, u8> as BitField>::load_be`.
+	///
+	/// [`Domain::Region`]: crate::domain::Domain::Region
+	/// [`Enclave`]: crate::domain::Domain::Enclave
+	/// [`head`]: crate::domain::Domain::Region::head
+	/// [`body`]: crate::domain::Domain::Region::body
+	/// [`self.domain()`]: crate::slice::BitSlice::domain
+	/// [`tail`]: crate::domain::Domain::Region::tail
 	fn store_be<M>(&mut self, mut value: M)
 	where M: BitMemory {
 		check::<M>("store", self.len());
@@ -507,6 +916,51 @@ where T: BitStore
 impl<T> BitField for BitSlice<Msb0, T>
 where T: BitStore
 {
+	/// Loads from `self`, using little-endian element ordering if `self` spans
+	/// more than one `T` element.
+	///
+	/// If [`self.domain()`] produces a [`Domain::Region`], then:
+	///
+	/// - its [`head`] element contains the least significant segment of the
+	///   returned value, in the bits at the least significant edge of the
+	///   element,
+	/// - its [`body`] slice contains successively more-significant segments,
+	///   and
+	/// - its [`tail`] element contains the most significant segment of the
+	///   returned value, in the bits at the most significant edge of the
+	///   element.
+	///
+	/// If the domain is an [`Enclave`], then the referent element is merely
+	/// loaded, shifted, and masked; no recombination of segments is necessary.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut data = [0u8; 3];
+	/// data.view_bits_mut::<Msb0>()[5 .. 21].store_le::<u16>(
+	///   0b1_1011_0100_1100_110
+	/// //  K LMNO PQRS TUVW XYZ
+	/// );
+	/// assert_eq!(data, [
+	///   0b00000_110, 0b0100_1100, 0b1_1011_000
+	/// //        XYZ    PQRS TUVW    K LMNO
+	/// ]);
+	/// let val = data.view_bits::<Msb0>()[5 .. 21].load_le::<u16>();
+	/// assert_eq!(
+	///   val,
+	///   0b1_1011_0100_1100_110,
+	/// //  K LMNO PQRS TUVW XYZ
+	/// );
+	/// ```
+	///
+	/// [`Domain::Region`]: crate::domain::Domain::Region
+	/// [`Enclave`]: crate::domain::Domain::Enclave
+	/// [`body`]: crate::domain::Domain::Region::body
+	/// [`head`]: crate::domain::Domain::Region::head
+	/// [`self.domain()`]: crate::slice::BitSlice::domain
+	/// [`tail`]: crate::domain::Domain::Region::tail
 	fn load_le<M>(&self) -> M
 	where M: BitMemory {
 		check::<M>("load", self.len());
@@ -545,6 +999,51 @@ where T: BitStore
 		}
 	}
 
+	/// Loads from `self`, using big-endian element ordering if `self` spans
+	/// more than one element `T`.
+	///
+	/// If [`self.domain()`] produces a [`Domain::Region`], then:
+	///
+	/// - its [`head`] element contains the most significant segment of the
+	///   returned value, in the bits at the least significant edge of the
+	///   element,
+	/// - its [`body`] slice contains successively less-significant segments,
+	///   and
+	/// - its [`tail`] element contains the least significant segment of the
+	///   returned value, in the bits at the most significant edge of the
+	///   element.
+	///
+	/// If the domain is an [`Enclave`], then the referent element is merely
+	/// loaded, shifted, and masked; no recombination of segments is necessary.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut data = [0u8; 3];
+	/// data.view_bits_mut::<Msb0>()[5 .. 21].store_be::<u16>(
+	///   0b110_1011_1100_0100_1
+	/// //  KLM NOPQ RSTU VWXY Z
+	/// );
+	/// assert_eq!(data, [
+	///   0b00000_110, 0b1011_1100, 0b0100_1_000
+	/// //        KLM    NOPQ RSTU    VWXY Z
+	/// ]);
+	/// let val = data.view_bits::<Msb0>()[5 .. 21].load_be::<u16>();
+	/// assert_eq!(
+	///   val,
+	///   0b110_1011_1100_0100_1,
+	/// //  KLM NOPQ RSTU VWXY Z
+	/// );
+	/// ```
+	///
+	/// [`Domain::Region`]: crate::domain::Domain::Region
+	/// [`Enclave`]: crate::domain::Domain::Enclave
+	/// [`body`]: crate::domain::Domain::Region::body
+	/// [`head`]: crate::domain::Domain::Region::head
+	/// [`self.domain()`]: crate::slice::BitSlice::domain
+	/// [`tail`]: crate::domain::Domain::Region::tail
 	fn load_be<M>(&self) -> M
 	where M: BitMemory {
 		check::<M>("load", self.len());
@@ -584,6 +1083,31 @@ where T: BitStore
 		}
 	}
 
+	/// Stores into `self`, using little-endian element ordering if `self` spans
+	/// more than one `T` element.
+	///
+	/// If [`self.domain()`] produces a [`Domain::Region`], then:
+	///
+	/// - its [`head`] element receives the least significant segment of
+	///   `value`, in the bits at the least significant edge of the element,
+	/// - its [`body`] slice receives successively more-significant segments of
+	///   `value`, and
+	/// - its [`tail`] element receives the most significant segment of `value`,
+	///   in the bits at the most significant edge of the element.
+	///
+	/// If the domain is an [`Enclave`], then `value` is shifted into place and
+	/// written without any segmentation.
+	///
+	/// # Examples
+	///
+	/// See the documentation for `<BitSlice<Msb0, u8> as BitField>::load_le`.
+	///
+	/// [`Domain::Region`]: crate::domain::Domain::Region
+	/// [`Enclave`]: crate::domain::Domain::Enclave
+	/// [`head`]: crate::domain::Domain::Region::head
+	/// [`body`]: crate::domain::Domain::Region::body
+	/// [`self.domain()`]: crate::slice::BitSlice::domain
+	/// [`tail`]: crate::domain::Domain::Region::tail
 	fn store_le<M>(&mut self, mut value: M)
 	where M: BitMemory {
 		check::<M>("store", self.len());
@@ -620,6 +1144,31 @@ where T: BitStore
 		}
 	}
 
+	/// Stores into `self`, using big-endian element ordering if `self` spans
+	/// more than one `T` element.
+	///
+	/// If [`self.domain()`] produces a [`Domain::Region`], then:
+	///
+	/// - its [`head`] element receives the most significant segment of `value`,
+	///   in the bits at the least significant edge of the element,
+	/// - its [`body`] slice receives successively less-significant segments of
+	///   `value`, and
+	/// - its [`tail`] element receives the least significant segment of
+	///   `value`, in the bits at the most significant edge of the element.
+	///
+	/// If the domain is an [`Enclave`], then `value` is shifted into place and
+	/// written without any segmentation.
+	///
+	/// # Examples
+	///
+	/// See the documentation for `<BitSlice<Lsb0, u8> as BitField>::load_be`.
+	///
+	/// [`Domain::Region`]: crate::domain::Domain::Region
+	/// [`Enclave`]: crate::domain::Domain::Enclave
+	/// [`head`]: crate::domain::Domain::Region::head
+	/// [`body`]: crate::domain::Domain::Region::body
+	/// [`self.domain()`]: crate::slice::BitSlice::domain
+	/// [`tail`]: crate::domain::Domain::Region::tail
 	fn store_be<M>(&mut self, mut value: M)
 	where M: BitMemory {
 		check::<M>("store", self.len());
@@ -754,7 +1303,7 @@ where M: BitMemory {
 			"Cannot {} {} bits from a {}-bit region",
 			action,
 			M::BITS,
-			len
+			len,
 		);
 	}
 }
