@@ -2505,7 +2505,7 @@ where
 		let mut bitspan = self.as_bitspan();
 		//  Create an allocation and copy `*self` into it.
 		let mut vec = self.domain().collect::<Vec<_>>().pipe(ManuallyDrop::new);
-		let capacity = vec.capacity() * T::Mem::BITS as usize;
+		let capacity = vec.capacity();
 		unsafe {
 			bitspan
 				.set_address(Address::new_unchecked(vec.as_mut_ptr() as usize));

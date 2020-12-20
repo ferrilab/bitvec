@@ -232,7 +232,7 @@ where
 	///   // Overwrite memory with the inverse bits.
 	///   for i in 0 .. len {
 	///     let bp = ptr.add(i);
-	///     bv_ptr::write(bp, !bv_ptr::read(bp));
+	///     bv_ptr::write(bp, !bv_ptr::read(bp.immut()));
 	///   }
 	///
 	///   // Put everything back together into a `BitVec`
