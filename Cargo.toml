@@ -50,7 +50,7 @@ std = [
 ]
 
 [dependencies]
-radium = "0.6"
+radium = "0.6.1"
 tap = "1"
 
 [dependencies.funty]
