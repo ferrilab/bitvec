@@ -324,6 +324,8 @@ where
 	/// # Original
 	///
 	/// [`pointer::is_null`](https://doc.rust-lang.org/std/primitive.pointer.html#method.is_null)
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "`BitPtr` is never null"]
 	pub fn is_null(self) -> bool {
 		false

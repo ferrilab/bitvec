@@ -82,17 +82,6 @@ pub trait BitView {
 	fn view_bits<O>(&self) -> &BitSlice<O, Self::Store>
 	where O: BitOrder;
 
-	#[doc(hidden)]
-	#[cfg(not(tarpaulin_include))]
-	#[deprecated(
-		since = "0.18.0",
-		note = "The method is renamed to `.view_bits()`"
-	)]
-	fn bits<O>(&self) -> &BitSlice<O, Self::Store>
-	where O: BitOrder {
-		self.view_bits::<O>()
-	}
-
 	/// Views a memory region as a mutable [`BitSlice`].
 	///
 	/// # Type Parameters
@@ -111,22 +100,13 @@ pub trait BitView {
 	fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, Self::Store>
 	where O: BitOrder;
 
-	#[doc(hidden)]
-	#[cfg(not(tarpaulin_include))]
-	#[deprecated(
-		since = "0.18.0",
-		note = "The method is renamed to `.view_bits_mut()`"
-	)]
-	fn bits_mut<O>(&mut self) -> &BitSlice<O, Self::Store>
-	where O: BitOrder {
-		self.view_bits_mut::<O>()
-	}
-
 	/// Produces the number of bits that the implementing type can hold.
 	#[doc(hidden)]
+	#[inline]
 	fn const_bits() -> usize
 	where Self: Sized {
-		Self::const_elts() << <<Self::Store as BitStore>::Mem as BitMemory>::INDX
+		Self::const_elts()
+			* <<Self::Store as BitStore>::Mem as BitMemory>::BITS as usize
 	}
 
 	/// Produces the number of memory elements that the implementing type holds.
@@ -135,23 +115,26 @@ pub trait BitView {
 	where Self: Sized;
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> BitView for T
 where T: BitStore
 {
 	type Store = T;
 
+	#[inline(always)]
 	fn view_bits<O>(&self) -> &BitSlice<O, T>
 	where O: BitOrder {
 		BitSlice::from_element(self)
 	}
 
+	#[inline(always)]
 	fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
 	where O: BitOrder {
 		BitSlice::from_element_mut(self)
 	}
 
 	#[doc(hidden)]
-	#[cfg(not(tarpaulin_include))]
+	#[inline(always)]
 	fn const_elts() -> usize {
 		1
 	}
@@ -162,11 +145,13 @@ where T: BitStore
 {
 	type Store = T;
 
+	#[inline]
 	fn view_bits<O>(&self) -> &BitSlice<O, T>
 	where O: BitOrder {
 		BitSlice::from_slice(self).expect("slice was too long to view as bits")
 	}
 
+	#[inline]
 	fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
 	where O: BitOrder {
 		BitSlice::from_slice_mut(self)
@@ -182,23 +167,25 @@ where T: BitStore
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> BitView for [T; 0]
 where T: BitStore
 {
 	type Store = T;
 
+	#[inline(always)]
 	fn view_bits<O>(&self) -> &BitSlice<O, T>
 	where O: BitOrder {
 		BitSlice::empty()
 	}
 
+	#[inline(always)]
 	fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
 	where O: BitOrder {
 		BitSlice::empty_mut()
 	}
 
 	#[doc(hidden)]
-	#[cfg(not(tarpaulin_include))]
 	fn const_elts() -> usize {
 		0
 	}
@@ -211,6 +198,7 @@ macro_rules! view_bits {
 		where T: BitStore {
 			type Store = T;
 
+			#[inline]
 			fn view_bits<O>(&self) -> &BitSlice<O, T>
 			where O: BitOrder {
 				unsafe { from_raw_parts_unchecked(
@@ -219,6 +207,7 @@ macro_rules! view_bits {
 				) }
 			}
 
+			#[inline]
 			fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
 			where O: BitOrder {
 				unsafe { from_raw_parts_unchecked_mut(
@@ -228,6 +217,7 @@ macro_rules! view_bits {
 			}
 
 			#[doc(hidden)]
+			#[inline(always)]
 			#[cfg(not(tarpaulin_include))]
 			fn const_elts() -> usize {
 				$n
@@ -347,6 +337,7 @@ where
 	A: AsRef<[T]>,
 	T: BitStore + BitRegister,
 {
+	#[inline]
 	fn as_bits<O>(&self) -> &BitSlice<O, T>
 	where O: BitOrder {
 		self.as_ref().view_bits::<O>()
@@ -359,6 +350,7 @@ where
 	A: AsMut<[T]>,
 	T: BitStore + BitRegister,
 {
+	#[inline]
 	fn as_bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
 	where O: BitOrder {
 		self.as_mut().view_bits_mut::<O>()

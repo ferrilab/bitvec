@@ -152,15 +152,10 @@ where
 		self.range.clone().into_bitspan().to_bitslice_ref()
 	}
 
-	/* Allow the standard-library name to resolve, but instruct the user to
-	rename.
-
-	It is important not to use the name `slice` to refer to any `BitSlice`
-	regions, and to keep distinct the views of a `BitSlice` from the views of
-	the underlying `[T]` storage slice.
-	*/
 	#[doc(hidden)]
-	#[deprecated = "Use `.as_bitslice()` to view the underlying slice"]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	#[deprecated = "Use `as_bitslice` to view the underlying slice"]
 	pub fn as_slice(&self) -> &'a BitSlice<O, T> {
 		self.as_bitslice()
 	}
@@ -262,7 +257,7 @@ where
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "`Iterator::copied` does not exist on this iterator. Use \
-	                `.by_val()` instead to achieve the same effect."]
+	                `by_val` instead to achieve the same effect."]
 	pub fn copied(
 		self,
 	) -> impl 'a
@@ -416,15 +411,10 @@ where
 		self.range.into_bitspan().to_bitslice_mut()
 	}
 
-	/* Allow the standard-library name to resolve, but instruct the user to
-	rename.
-
-	It is important not to use the name `slice` to refer to any `BitSlice`
-	regions, and to keep distinct the views of a `BitSlice` from the views of
-	the underlying `[T]` storage slice.
-	*/
 	#[doc(hidden)]
-	#[deprecated = "Use `.into_bitslice()` to view the underlying slice"]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	#[deprecated = "Use `into_bitslice` to view the underlying slice"]
 	pub fn into_slice(self) -> &'a mut BitSlice<O, T::Alias> {
 		self.into_bitslice()
 	}

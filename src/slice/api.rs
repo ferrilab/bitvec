@@ -522,7 +522,7 @@ where
 	#[doc(hidden)]
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated = "Use `.as_bitptr()` to access the region pointer"]
+	#[deprecated = "Use `as_bitptr` to access the region pointer"]
 	pub fn as_ptr(&self) -> BitPtr<Const, O, T> {
 		self.as_bitptr()
 	}
@@ -530,7 +530,7 @@ where
 	#[doc(hidden)]
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated = "Use `.as_bitptr_range()` to access the region pointers"]
+	#[deprecated = "Use `as_bitptr_range` to access the region pointers"]
 	pub fn as_ptr_range(&self) -> BitPtrRange<Const, O, T> {
 		self.as_bitptr_range()
 	}
@@ -538,7 +538,7 @@ where
 	#[doc(hidden)]
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated = "Use `.as_mut_bitptr()` to access the region pointer"]
+	#[deprecated = "Use `as_mut_bitptr` to access the region pointer"]
 	pub fn as_mut_ptr(&mut self) -> BitPtr<Mut, O, T> {
 		self.as_mut_bitptr()
 	}
@@ -546,7 +546,7 @@ where
 	#[doc(hidden)]
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated = "Use `.as_mut_bitptr_range()` to access the region pointers"]
+	#[deprecated = "Use `as_mut_bitptr_range` to access the region pointers"]
 	pub fn as_mut_ptr_range(&mut self) -> BitPtrRange<Mut, O, T> {
 		self.as_mut_bitptr_range()
 	}
@@ -1889,13 +1889,10 @@ where
 		}
 	}
 
-	/// The name is preserved for API compatibility. See
-	/// [`.clone_from_bitslice()`].
-	///
-	/// [`.clone_from_bitslice()]: Self::clone_from_bitslice
 	#[doc(hidden)]
 	#[inline(always)]
-	#[deprecated = "Use `.clone_from_bitslice()` to copy between bitslices"]
+	#[cfg(not(tarpaulin_include))]
+	#[deprecated = "Use `clone_from_bitslice` to copy between bitslices"]
 	pub fn clone_from_slice<O2, T2>(&mut self, src: &BitSlice<O2, T2>)
 	where
 		O2: BitOrder,
@@ -1904,13 +1901,10 @@ where
 		self.clone_from_bitslice(src)
 	}
 
-	/// The name is preserved for API compatibility. See
-	/// [`.copy_from_bitslice()`].
-	///
-	/// [`.copy_from_bitslice()]: Self::copy_from_bitslice
 	#[doc(hidden)]
 	#[inline(always)]
-	#[deprecated = "Use `.copy_from_bitslice()` to copy between bitslices"]
+	#[cfg(not(tarpaulin_include))]
+	#[deprecated = "Use `copy_from_bitslice` to copy between bitslices"]
 	pub fn copy_from_slice(&mut self, src: &Self) {
 		self.copy_from_bitslice(src)
 	}
@@ -1960,13 +1954,10 @@ where
 		}
 	}
 
-	/// The name is preserved for API compatibility. See
-	/// [`.swap_with_bitslice()`].
-	///
-	/// [`.swap_with_bitslice()]: Self::swap_with_bitslice
 	#[doc(hidden)]
 	#[inline(always)]
-	#[deprecated = "Use `.swap_with_bitslice()` to swap between bitslices"]
+	#[cfg(not(tarpaulin_include))]
+	#[deprecated = "Use `swap_with_bitslice` to swap between bitslices"]
 	pub fn swap_with_slice<O2, T2>(&mut self, other: &mut BitSlice<O2, T2>)
 	where
 		O2: BitOrder,
@@ -2137,13 +2128,10 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	/// The name is preserved for API compatibility. See
-	/// [`.to_bitvec()`].
-	///
-	/// [`.to_bitvec()]: Self::to_bitvec
+	#[doc(hidden)]
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated = "Prefer `.to_bitvec()`"]
+	#[deprecated = "Prefer `to_bitvec`"]
 	pub fn to_vec(&self) -> BitVec<O, T::Unalias> {
 		self.to_bitvec()
 	}
