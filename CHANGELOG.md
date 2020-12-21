@@ -6,7 +6,10 @@ This document is written according to the [Keep a Changelog][kac] style.
 
 1. [0.20.0](#0200)
    1. [Added](#added)
+      1. [Pointer Overhaul](#pointer-overhaul)
    1. [Changed](#changed)
+      1. [Aliasing Typesystem](#aliasing-typesystem)
+      1. [`&bool` to `BitRef`](#bool-to-bitref)
 1. [0.19.4](#0194)
    1. [Changed](#changed-1)
 1. [0.19.3](#0193)
@@ -55,6 +58,11 @@ This document is written according to the [Keep a Changelog][kac] style.
 
 ## 0.20.0
 
+This is a major expansion of the crate’s foundation, and has a great deal of
+user-visible changes. There are breaking changes to type signatures, but in
+practice most of them should be managed through type inference or deprecation
+notices.
+
 ### Added
 
 - GitHub user [@arucil] requested in [Issue #83] that additional APIs be added
@@ -87,7 +95,7 @@ This document is written according to the [Keep a Changelog][kac] style.
   use bitvec::prelude::*;
 
   let bits = bits![mut 0; 10];
-  for chunk in bits.chunks_exact_mut(3).remove_alias() {
+  for chunk in unsafe { bits.chunks_exact_mut(3).remove_alias() } {
     chunk.set_all(true);
   }
   ```
@@ -107,9 +115,39 @@ This document is written according to the [Keep a Changelog][kac] style.
 
   because the three subslices `a`, `b`, and `c` cannot have their aliasing
   markers removed, as they are permitted to perform racing accesses to the same
-  memory locations.
+  memory location.
+
+#### Pointer Overhaul
+
+The pointer infrastructure in the crate has been entirely rewritten. This does
+not affect the encoding structure used in `*BitSlice` pointers; it is primarily
+a typesystem arrangement.
+
+The previous `BitPtr` type has bene renamed to `BitSpan`. `BitSpan` retains all
+responsibility for managing the encoding of `*BitSlice` pointers, and is
+strictly crate-internal. The `BitPtr` name now refers to a structure that points
+to a single bit in a memory location. `BitPtr` is now public API, and is used in
+APIs that would return `*bool` in the standard library.
+
+The `BitPtrRange` type implements `Range<*bool>` behavior, as `Range` itself
+still uses driver traits that are unstable outside the standard library.
+
+The `BitMut` proxy type is renamed to `BitRef`, and is implemented as a `BitPtr`
+with an internal cache.
+
+All pointer types express mutability permissions through the trait system,
+rather than using duplicated types as in the language core. The `Mutability`
+marker trait is implemented by two types, `Const` and `Mut`, which the pointer
+types use to manage
 
 ### Changed
+
+Changes to existing behavior in this release were primarily limited to two
+components: the exact types used when marking bit-slices as aliased, and the
+removal of `&bool` references in favor of the same proxy type that had been
+standing in for `&mut bool`.
+
+#### Aliasing Typesystem
 
 The types used when a `&mut BitSlice` aliases its underlying memory are now
 specialized wrappers rather than bare `Atomic` or `Cell<>` types. These new
@@ -141,6 +179,15 @@ forbids modifying the referent memory through an `&` shared reference.
 In addition, the restriction of `bitvec` types to be only constructed from
 ordinary integers is lifted. The construction macros are rewritten to support
 these types.
+
+#### `&bool` to `BitRef`
+
+Because the `slice::Iter` iterator now produces `BitRef<Const>` instead of
+`&bool`, and `BitRef` is not `Copy`, it no longer has access to the
+`Iterator::copied` method. To prevent name resolution errors, it defines an
+inherent method `.copied()` that produces an iterator of `bool` and raises a
+deprecation notice. It also defines adapter methods, `.by_ref()` and
+`.by_val()`, which adapt it to produce references to, or values of, `bool`.
 
 ## 0.19.4
 
