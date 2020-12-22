@@ -103,59 +103,59 @@ fn byte_fields() {
 fn narrow_byte_fields() {
 	let mut data = [0u16; 2];
 
-	data.view_bits_mut::<Msb0>()[16..24].store_be(0x12u8);
+	data.view_bits_mut::<Msb0>()[16 .. 24].store_be(0x12u8);
 	assert_eq!(data, [0x0000, 0x1200]);
-	assert_eq!(data.view_bits::<Msb0>()[16..24].load_be::<u8>(), 0x12);
+	assert_eq!(data.view_bits::<Msb0>()[16 .. 24].load_be::<u8>(), 0x12);
 
-	data.view_bits_mut::<Msb0>()[8..16].store_be(0x34u8);
+	data.view_bits_mut::<Msb0>()[8 .. 16].store_be(0x34u8);
 	assert_eq!(data, [0x0034, 0x1200]);
-	assert_eq!(data.view_bits::<Msb0>()[8..16].load_be::<u8>(), 0x34);
+	assert_eq!(data.view_bits::<Msb0>()[8 .. 16].load_be::<u8>(), 0x34);
 
-	data.view_bits_mut::<Msb0>()[0..8].store_be(0x56u8);
+	data.view_bits_mut::<Msb0>()[0 .. 8].store_be(0x56u8);
 	assert_eq!(data, [0x5634, 0x1200]);
-	assert_eq!(data.view_bits::<Msb0>()[0..8].load_be::<u8>(), 0x56);
+	assert_eq!(data.view_bits::<Msb0>()[0 .. 8].load_be::<u8>(), 0x56);
 
 	data = [0; 2];
 
-	data.view_bits_mut::<Msb0>()[16..24].store_le(0x12u8);
+	data.view_bits_mut::<Msb0>()[16 .. 24].store_le(0x12u8);
 	assert_eq!(data, [0x0000, 0x1200]);
-	assert_eq!(data.view_bits::<Msb0>()[16..24].load_le::<u8>(), 0x12);
+	assert_eq!(data.view_bits::<Msb0>()[16 .. 24].load_le::<u8>(), 0x12);
 
-	data.view_bits_mut::<Msb0>()[8..16].store_le(0x34u8);
+	data.view_bits_mut::<Msb0>()[8 .. 16].store_le(0x34u8);
 	assert_eq!(data, [0x0034, 0x1200]);
-	assert_eq!(data.view_bits::<Msb0>()[8..16].load_le::<u8>(), 0x34);
+	assert_eq!(data.view_bits::<Msb0>()[8 .. 16].load_le::<u8>(), 0x34);
 
-	data.view_bits_mut::<Msb0>()[0..8].store_le(0x56u8);
+	data.view_bits_mut::<Msb0>()[0 .. 8].store_le(0x56u8);
 	assert_eq!(data, [0x5634, 0x1200]);
-	assert_eq!(data.view_bits::<Msb0>()[0..8].load_le::<u8>(), 0x56);
+	assert_eq!(data.view_bits::<Msb0>()[0 .. 8].load_le::<u8>(), 0x56);
 
 	data = [0; 2];
 
-	data.view_bits_mut::<Lsb0>()[16..24].store_be(0x12u8);
+	data.view_bits_mut::<Lsb0>()[16 .. 24].store_be(0x12u8);
 	assert_eq!(data, [0x0000, 0x0012]);
-	assert_eq!(data.view_bits::<Lsb0>()[16..24].load_be::<u8>(), 0x12);
+	assert_eq!(data.view_bits::<Lsb0>()[16 .. 24].load_be::<u8>(), 0x12);
 
-	data.view_bits_mut::<Lsb0>()[8..16].store_be(0x34u8);
+	data.view_bits_mut::<Lsb0>()[8 .. 16].store_be(0x34u8);
 	assert_eq!(data, [0x3400, 0x0012]);
-	assert_eq!(data.view_bits::<Lsb0>()[8..16].load_be::<u8>(), 0x34);
+	assert_eq!(data.view_bits::<Lsb0>()[8 .. 16].load_be::<u8>(), 0x34);
 
-	data.view_bits_mut::<Lsb0>()[0..8].store_be(0x56u8);
+	data.view_bits_mut::<Lsb0>()[0 .. 8].store_be(0x56u8);
 	assert_eq!(data, [0x3456, 0x0012]);
-	assert_eq!(data.view_bits::<Lsb0>()[0..8].load_be::<u8>(), 0x56);
+	assert_eq!(data.view_bits::<Lsb0>()[0 .. 8].load_be::<u8>(), 0x56);
 
 	data = [0; 2];
 
-	data.view_bits_mut::<Lsb0>()[16..24].store_le(0x12u8);
+	data.view_bits_mut::<Lsb0>()[16 .. 24].store_le(0x12u8);
 	assert_eq!(data, [0x0000, 0x0012]);
-	assert_eq!(data.view_bits::<Lsb0>()[16..24].load_le::<u8>(), 0x12);
+	assert_eq!(data.view_bits::<Lsb0>()[16 .. 24].load_le::<u8>(), 0x12);
 
-	data.view_bits_mut::<Lsb0>()[8..16].store_le(0x34u8);
+	data.view_bits_mut::<Lsb0>()[8 .. 16].store_le(0x34u8);
 	assert_eq!(data, [0x3400, 0x0012]);
-	assert_eq!(data.view_bits::<Lsb0>()[8..16].load_le::<u8>(), 0x34);
+	assert_eq!(data.view_bits::<Lsb0>()[8 .. 16].load_le::<u8>(), 0x34);
 
-	data.view_bits_mut::<Lsb0>()[0..8].store_le(0x56u8);
+	data.view_bits_mut::<Lsb0>()[0 .. 8].store_le(0x56u8);
 	assert_eq!(data, [0x3456, 0x0012]);
-	assert_eq!(data.view_bits::<Lsb0>()[0..8].load_le::<u8>(), 0x56);
+	assert_eq!(data.view_bits::<Lsb0>()[0 .. 8].load_le::<u8>(), 0x56);
 }
 
 #[test]
