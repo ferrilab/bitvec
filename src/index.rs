@@ -576,12 +576,12 @@ impl<R> BitTail<R>
 where R: BitRegister
 {
 	/// The inclusive maximum tail within an element `R`.
-	pub(crate) const LAST: Self = Self {
+	pub const LAST: Self = Self {
 		end: R::BITS,
 		_ty: PhantomData,
 	};
 	/// The inclusive minimum tail within an element `R`.
-	pub(crate) const ZERO: Self = Self {
+	pub const ZERO: Self = Self {
 		end: 0,
 		_ty: PhantomData,
 	};
