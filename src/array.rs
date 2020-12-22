@@ -146,7 +146,6 @@ behavior of ordinary arrays `[T; N]` as they stand today.
 [`.as_bitslice()`]: Self::as_bitslice
 **/
 #[repr(transparent)]
-#[derive(Copy)]
 pub struct BitArray<O = Lsb0, V = [usize; 1]>
 where
 	O: BitOrder,

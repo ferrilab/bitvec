@@ -67,14 +67,14 @@ fn build() -> Ipv4Header {
 	render("Set the fragment offset to 758", &pkt, 51 .. 64);
 
 	//  Set the TTL to 27 (my age in years)
-	pkt.as_mut_slice()[8] = 27;
+	pkt.as_mut_raw_slice()[8] = 27;
 	render("Set the TTL", &pkt, 64 .. 72);
 	//  Set the protocol number to 17 (UDP)
-	pkt.as_mut_slice()[9] = 17;
+	pkt.as_mut_raw_slice()[9] = 17;
 	render("Set the protocol number", &pkt, 72 .. 80);
 
 	//  Fill in the IP addresses using ordinary byte accesses
-	for (slot, byte) in pkt.as_mut_slice()[12 .. 20]
+	for (slot, byte) in pkt.as_mut_raw_slice()[12 .. 20]
 		.iter_mut()
 		.zip(&[127, 0, 0, 1, 192, 168, 1, 254])
 	{
@@ -96,7 +96,7 @@ fn parse(header: BitArray<Msb0, [u8; 20]>) {
 	//  Check that the version field is `4`, by `load`ing it and by direct
 	//  inspection
 	assert_eq!(header[.. 4].load::<u8>(), 4);
-	assert_eq!(header.as_slice()[0] & 0xF0, 0x40);
+	assert_eq!(header.as_raw_slice()[0] & 0xF0, 0x40);
 
 	let ihl = header[4 .. 8].load::<u8>() as usize;
 	assert!((5 .. 16).contains(&ihl));
