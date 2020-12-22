@@ -226,7 +226,7 @@ starting byte within it.</p>
 <p>As Rust does not have bitfield syntax, a definition of the pointer structure in
 C++ looks like this:</p>
 <pre><code class="language-cpp">template &lt;typename T&gt;
-struct BitPtr&lt;T&gt; {
+struct BitSpan&lt;T&gt; {
   static_assert(
     std::is_unsigned&lt;T&gt;
     &amp;&amp; sizeof(T) &lt;= sizeof(size_t)
@@ -248,7 +248,7 @@ struct BitPtr&lt;T&gt; {
 </span>//  src/pointer.rs
 
 #[repr(C)]
-pub struct BitPtr&lt;T&gt;
+pub struct BitSpan&lt;T&gt;
 where T: BitStore {
   ptr: NonNull&lt;u8&gt;,
   len: usize,
@@ -258,15 +258,15 @@ where T: BitStore {
 </span></code></pre></pre>
 <p>and the logical components must be accessed through get/set functions, rather
 than through compiler-generated field stubs.</p>
-<p>By marking the pointer as <code>NonNull</code>, <code>BitPtr</code> declares that it will never be a
+<p>By marking the pointer as <code>NonNull</code>, <code>BitSpan</code> declares that it will never be a
 null pointer and becomes subject to the same peephole optimization that allows
 <code>mem::size_of::&lt;Option&lt;&amp;T&gt;&gt;() == mem::size_of::&lt;&amp;T&gt;()</code>. By marking it as
 unconditionally a pointer to <code>u8</code>, we declare that all low bits of the address
 value are in use, and none can be used as slots for anything else (since our
 encoding is using them to select a byte within the <code>T</code>).</p>
 <h2><a class="header" href="#significant-values" id="significant-values">Significant Values</a></h2>
-<p>The null value, <code>{ ptr: 0, len: 0 }</code>, is not valid in <code>BitPtr&lt;T&gt;</code>, but rather is
-used to mark <code>Option::&lt;BitPtr&lt;T&gt;&gt;::None</code>.</p>
+<p>The null value, <code>{ ptr: 0, len: 0 }</code>, is not valid in <code>BitSpan&lt;T&gt;</code>, but rather is
+used to mark <code>Option::&lt;BitSpan&lt;T&gt;&gt;::None</code>.</p>
 <h3><a class="header" href="#empty-slices" id="empty-slices">Empty Slices</a></h3>
 <p>All slices with a <code>bits</code> <em>logical</em> field are considered equally empty, and equal
 to each other. The <code>addr</code> and <code>head</code> logical fields can be anything. However,
