@@ -407,6 +407,9 @@ pub trait BitField {
 	///
 	/// # Examples
 	///
+	/// This example shows how a value is segmented across multiple storage
+	/// elements:
+	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
@@ -428,6 +431,28 @@ pub trait BitField {
 	///   val,
 	///   0b0000_1_1011_1000_110,
 	/// //       O PQRS TUVW XYZ
+	/// );
+	/// ```
+	///
+	/// And this example shows how the same memory region will be read by
+	/// different `BitOrder` implementors:
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// // Bit pos:   14                                     19  16
+	/// // Lsb0:     ─┤                                       ├──┤
+	/// let arr = [0b0100_0000_0000_0011u16, 0b0001_0000_0000_1110u16];
+	/// // Msb0:                      ├─       ├──┤
+	/// // Bit pos:                  14       16  19
+	///
+	/// assert_eq!(
+	///   arr.view_bits::<Lsb0>()[14 .. 20].load_le::<u8>(),
+	///   0b111001,
+	/// );
+	/// assert_eq!(
+	///   arr.view_bits::<Msb0>()[14 .. 20].load_le::<u8>(),
+	///   0b000111,
 	/// );
 	/// ```
 	///
@@ -465,6 +490,9 @@ pub trait BitField {
 	///
 	/// # Examples
 	///
+	/// This example shows how a value is segmented across multiple storage
+	/// elements:
+	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
@@ -488,6 +516,27 @@ pub trait BitField {
 	/// //       OPQ RSTU VWXY Z
 	/// # "{:012b}",
 	/// # val,
+	/// );
+	/// ```
+	///
+	/// And this example shows how the same memory region will be read by
+	/// different `BitOrder` implementations:
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	/// // Bit pos:   14                                     19  16
+	/// // Lsb0:     ─┤                                       ├──┤
+	/// let arr = [0b0100_0000_0000_0011u16, 0b0001_0000_0000_1110u16];
+	/// // Msb0:                      ├─       ├──┤
+	/// // Bit pos:                  14       15  19
+	///
+	/// assert_eq!(
+	///   arr.view_bits::<Lsb0>()[14 .. 20].load_be::<u8>(),
+	///   0b011110,
+	/// );
+	/// assert_eq!(
+	///   arr.view_bits::<Msb0>()[14 .. 20].load_be::<u8>(),
+	///   0b110001,
 	/// );
 	/// ```
 	///
@@ -527,6 +576,9 @@ pub trait BitField {
 	///
 	/// # Examples
 	///
+	/// This example shows how a value is segmented across multiple storage
+	/// elements:
+	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
@@ -549,6 +601,27 @@ pub trait BitField {
 	///   0b0000_1_1011_1000_110u16,
 	/// //       O PQRS TUVW XYZ
 	/// );
+	/// ```
+	///
+	/// And this example shows how the same memory region is written by
+	/// different `BitOrder` implementations:
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	/// let mut lsb0 = bitarr![Lsb0, u16; 0; 32];
+	/// let mut msb0 = bitarr![Msb0, u16; 0; 32];
+	///
+	/// // Bit pos:        14                                     19  16
+	/// // Lsb0:          ─┤                                       ├──┤
+	/// let exp_lsb0 = [0b0100_0000_0000_0000u16, 0b0000_0000_0000_1110u16];
+	/// let exp_msb0 = [0b0000_0000_0000_0011u16, 0b0001_0000_0000_0000u16];
+	/// // Msb0:                           ├─       ├──┤
+	/// // Bit pos:                       14       15  19
+	///
+	/// lsb0[14 ..= 19].store_le(0b111001u8);
+	/// msb0[14 ..= 19].store_le(0b000111u8);
+	/// assert_eq!(lsb0.as_raw_slice(), exp_lsb0);
+	/// assert_eq!(msb0.as_raw_slice(), exp_msb0);
 	/// ```
 	///
 	/// [`M::BITS`]: crate::mem::BitMemory::BITS
@@ -587,6 +660,9 @@ pub trait BitField {
 	///
 	/// # Examples
 	///
+	/// This example shows how a value is segmented across multiple storage
+	/// elements:
+	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
@@ -609,6 +685,27 @@ pub trait BitField {
 	///   0b0000_110_1000_1011_1u16,
 	/// //       OPQ RSTU VWXY Z
 	/// );
+	/// ```
+	///
+	/// And this example shows how the same memory region is written by
+	/// different `BitOrder` implementations:
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	/// let mut lsb0 = bitarr![Lsb0, u16; 0; 32];
+	/// let mut msb0 = bitarr![Msb0, u16; 0; 32];
+	///
+	/// // Bit pos:        14                                     19  16
+	/// // Lsb0:          ─┤                                       ├──┤
+	/// let exp_lsb0 = [0b0100_0000_0000_0000u16, 0b0000_0000_0000_1110u16];
+	/// let exp_msb0 = [0b0000_0000_0000_0011u16, 0b0001_0000_0000_0000u16];
+	/// // Msb0:                           ├─       ├──┤
+	/// // Bit pos:                       14       15  19
+	///
+	/// lsb0[14 ..= 19].store_be(0b011110u8);
+	/// msb0[14 ..= 19].store_be(0b110001u8);
+	/// assert_eq!(lsb0.as_raw_slice(), exp_lsb0);
+	/// assert_eq!(msb0.as_raw_slice(), exp_msb0);
 	/// ```
 	///
 	/// [`M::BITS`]: crate::mem::BitMemory::BITS
@@ -711,7 +808,8 @@ where T: BitStore
 					let shamt = head.value();
 					if M::BITS > T::Mem::BITS - shamt {
 						accum <<= T::Mem::BITS - shamt;
-					} else {
+					}
+					else {
 						accum = M::ZERO;
 					}
 					accum |= get::<T, M>(elem, Lsb0::mask(head, None), shamt);
@@ -794,7 +892,8 @@ where T: BitStore
 					let shamt = tail.value();
 					if M::BITS > shamt {
 						accum <<= shamt;
-					} else {
+					}
+					else {
 						accum = M::ZERO;
 					}
 					accum |= get::<T, M>(elem, Lsb0::mask(None, tail), 0);
@@ -844,7 +943,8 @@ where T: BitStore
 					set::<T, M>(elem, value, Lsb0::mask(head, None), shamt);
 					if M::BITS > T::Mem::BITS - shamt {
 						value >>= T::Mem::BITS - shamt;
-					} else {
+					}
+					else {
 						value = M::ZERO;
 					}
 				}
@@ -902,7 +1002,8 @@ where T: BitStore
 					let shamt = tail.value();
 					if M::BITS > shamt {
 						value >>= shamt;
-					} else {
+					}
+					else {
 						value = M::ZERO;
 					}
 				}
@@ -1007,7 +1108,8 @@ where T: BitStore
 					let shamt = T::Mem::BITS - head.value();
 					if M::BITS > shamt {
 						accum <<= shamt;
-					} else {
+					}
+					else {
 						accum = M::ZERO;
 					}
 					accum |= get::<T, M>(elem, Msb0::mask(head, None), 0);
@@ -1091,7 +1193,8 @@ where T: BitStore
 					let shamt = tail.value();
 					if M::BITS > shamt {
 						accum <<= shamt;
-					} else {
+					}
+					else {
 						accum = M::ZERO;
 					}
 					accum |= get::<T, M>(
@@ -1148,7 +1251,8 @@ where T: BitStore
 					let shamt = T::Mem::BITS - head.value();
 					if M::BITS > shamt {
 						value >>= shamt;
-					} else {
+					}
+					else {
 						value = M::ZERO;
 					}
 				}
@@ -1218,7 +1322,8 @@ where T: BitStore
 					);
 					if M::BITS > tail.value() {
 						value >>= tail.value();
-					} else {
+					}
+					else {
 						value = M::ZERO;
 					}
 				}
