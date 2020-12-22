@@ -1010,13 +1010,14 @@ where
 		let bitspan = self.bitspan;
 		let head = bitspan.head();
 		let elts = bitspan.elements();
-		let tail = head.value() as usize + new_len;
-		if let Some(extra) = tail.pipe(crate::mem::elts::<T>).checked_sub(elts) {
-			self.with_vec(|vec| func(&mut **vec, extra));
-			let capa = self.capacity();
-			//  Zero the newly-reserved buffer.
-			unsafe { self.get_unchecked_mut(len .. capa) }.set_all(false);
-		}
+		let new_elts = crate::mem::elts::<T>(head.value() as usize + new_len);
+		let extra = new_elts - elts;
+		self.with_vec(|vec| {
+			func(&mut **vec, extra);
+			//  Initialize any newly-allocated elements to zero, without
+			//  initializing leftover dead capacity.
+			vec.resize_with(new_elts, || unsafe { mem::zeroed() });
+		});
 	}
 
 	/// Permits manipulation of the underlying vector allocation.

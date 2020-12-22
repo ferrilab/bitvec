@@ -17,7 +17,7 @@ fn serdes_array() {
 	let ba: BitArray<Msb0, [u8; 1]> =
 		serde_json::from_str(&json).expect("cannot fail to deserialize");
 	assert!(ba[0]);
-	assert_eq!(ba.as_slice()[0], 178);
+	assert_eq!(ba.as_raw_slice()[0], 178);
 
 	//  Note: Scalar arrays do not (yet) serialize as a sequence of one element.
 	let ba_bare: BitArray<Msb0, u8> =
