@@ -18,6 +18,10 @@ deserialize the [`BitSlice`] format into themselves.
 If you require de/serialization compatibility between [`BitArray`] and the other
 structures, please file an issue.
 
+The exact implementation of the `serde` interfaces is considered an internal
+detail and is not guaranteed; however, as it is technically public ABI, it will
+only be modified in a major release (`0.X.n` to `0.Y.0` or `X.m.n` to `Y.0.0`).
+
 [`BitArray`]: crate::array::BitArray
 [`BitBox`]: crate::boxed::BitBox
 [`BitSlice`]: crate::slice::BitSlice
@@ -116,20 +120,20 @@ where
 	}
 }
 
+/// Serializes the interior storage type directly, rather than routing through a
+/// dynamic sequence serializer.
+#[cfg(not(tarpaulin_include))]
 impl<O, V> Serialize for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
-	<V::Store as BitStore>::Mem: Serialize,
+	V: BitView + Serialize,
 {
+	#[inline]
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
-		let ary = self.as_slice();
-		let mut state = serializer.serialize_seq(Some(ary.len()))?;
-		for elem in ary.iter().map(BitStore::load_value) {
-			state.serialize_element(&elem)?;
-		}
-		state.end()
+		unsafe { core::ptr::read(self) }
+			.value()
+			.serialize(serializer)
 	}
 }
 
