@@ -52,7 +52,6 @@ use core::{
 		Hasher,
 	},
 	marker::PhantomData,
-	ops::Deref,
 	ptr,
 };
 
@@ -136,6 +135,7 @@ where
 	///
 	/// This is the only safe way to access `(&self).addr`. Do not perform field
 	/// access on `.addr` through a reference except through this method.
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub(crate) fn get_addr(&self) -> Address<M, T> {
 		unsafe {
 			ptr::read_unaligned(self as *const Self as *const Address<M, T>)
@@ -165,6 +165,7 @@ where
 	///
 	/// [`Address`]: crate::ptr::Address
 	/// [`BitIdx`]: crate::index::BitIdx
+	#[inline]
 	pub fn try_new<A>(addr: A, head: u8) -> Result<Self, BitPtrError<T>>
 	where
 		A: TryInto<Address<M, T>>,
@@ -187,6 +188,8 @@ where
 	/// # Returns
 	///
 	/// A `BitPtr` selecting the `head` bit in the location `addr`.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn new(addr: Address<M, T>, head: BitIdx<T::Mem>) -> Self {
 		Self {
 			addr,
@@ -205,6 +208,8 @@ where
 	///
 	/// - `.0`: The memory address in which the referent bit is located.
 	/// - `.1`: The index of the referent bit within `*.0`.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn raw_parts(self) -> (Address<M, T>, BitIdx<T::Mem>) {
 		(self.addr, self.head)
 	}
@@ -222,6 +227,8 @@ where
 	/// any of `BitSpan`’s requirements; otherwise, it encodes `self` and `bits`
 	/// into a span descriptor and returns it. Conversion into a `BitSlice`
 	/// pointer or reference is left to the caller.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn span(
 		self,
 		bits: usize,
@@ -248,6 +255,8 @@ where
 	///
 	/// This should only be called with values that had previously been
 	/// extracted from a `BitSpan`.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub(crate) unsafe fn span_unchecked(self, bits: usize) -> BitSpan<M, O, T> {
 		BitSpan::new_unchecked(self.addr, self.head, bits)
 	}
@@ -274,6 +283,8 @@ where
 	/// `count` cannot violate the constraints in [`add`].
 	///
 	/// [`add`]: Self::add
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub unsafe fn range(self, count: usize) -> BitPtrRange<M, O, T> {
 		BitPtrRange {
 			start: self,
@@ -286,11 +297,15 @@ where
 	/// # Safety
 	///
 	/// The pointer must be valid to dereference.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub unsafe fn into_bitref<'a>(self) -> BitRef<'a, M, O, T> {
 		BitRef::from_bitptr(self)
 	}
 
 	/// Removes write permissions from a bit-pointer.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn immut(self) -> BitPtr<Const, O, T> {
 		let Self { addr, head, .. } = self;
 		BitPtr {
@@ -305,6 +320,8 @@ where
 	/// # Safety
 	///
 	/// This pointer must have been derived from a `*mut` pointer.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub unsafe fn assert_mut(self) -> BitPtr<Mut, O, T> {
 		let Self { addr, head, .. } = self;
 		BitPtr {
@@ -345,6 +362,7 @@ where
 	/// parameter, then decodes the result. This preserves general correctness,
 	/// but will likely change both the virtual and physical bits addressed by
 	/// this pointer.
+	#[inline]
 	pub fn cast<U>(self) -> BitPtr<M, O, U>
 	where U: BitStore {
 		let (addr, head, _) =
@@ -389,6 +407,7 @@ where
 	/// let val = unsafe { ptr.as_ref() }.unwrap();
 	/// assert!(*val);
 	/// ```
+	#[inline]
 	pub unsafe fn as_ref<'a>(self) -> Option<BitRef<'a, Const, O, T>> {
 		Some(BitRef::from_bitptr(self.immut()))
 	}
@@ -437,6 +456,7 @@ where
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
 	/// [`wrapping_offset`]: Self::wrapping_offset
+	#[inline]
 	pub unsafe fn offset(self, count: isize) -> Self {
 		let (elts, head) = self.head.offset(count);
 		Self::new(self.addr.offset(elts), head)
@@ -492,6 +512,7 @@ where
 	/// ```
 	///
 	/// [`offset`]: Self::offset
+	#[inline]
 	pub fn wrapping_offset(self, count: isize) -> Self {
 		let (elts, head) = self.head.offset(count);
 		Self::new(self.addr.wrapping_offset(elts), head)
@@ -572,6 +593,7 @@ where
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
 	/// [`offset`]: Self::offset
+	#[inline]
 	pub unsafe fn offset_from(self, origin: Self) -> isize {
 		/* Miri complains when performing this arithmetic on pointers. To avoid
 		both its costs, and the implicit scaling present in pointer arithmetic,
@@ -602,6 +624,8 @@ where
 	/// See [`offset`].
 	///
 	/// [`offset`]: Self::offset
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub unsafe fn add(self, count: usize) -> Self {
 		self.offset(count as isize)
 	}
@@ -620,6 +644,7 @@ where
 	/// See [`offset`].
 	///
 	/// [`offset`]: Self::offset
+	#[inline]
 	pub unsafe fn sub(self, count: usize) -> Self {
 		self.offset((count as isize).wrapping_neg())
 	}
@@ -636,6 +661,8 @@ where
 	/// See [`wrapping_offset`].
 	///
 	/// [`wrapping_offset`]: Self::wrapping_offset
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn wrapping_add(self, count: usize) -> Self {
 		self.wrapping_offset(count as isize)
 	}
@@ -652,6 +679,8 @@ where
 	/// See [`wrapping_offset`].
 	///
 	/// [`wrapping_offset`]: Self::wrapping_offset
+	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn wrapping_sub(self, count: usize) -> Self {
 		self.wrapping_offset((count as isize).wrapping_neg())
 	}
@@ -667,6 +696,7 @@ where
 	/// See [`ptr::read`] for safety concerns and examples.
 	///
 	/// [`ptr::read`]: crate::ptr::read
+	#[inline]
 	pub unsafe fn read(self) -> bool {
 		(&*self.addr.to_const())
 			.load_value()
@@ -688,6 +718,7 @@ where
 	/// See [`ptr::read_volatile`] for safety concerns and examples.
 	///
 	/// [`ptr::read_volatile`]: crate::ptr::read_volatile
+	#[inline]
 	pub unsafe fn read_volatile(self) -> bool {
 		self.addr.to_const().read_volatile().get_bit::<O>(self.head)
 	}
@@ -706,6 +737,7 @@ where
 	/// See [`ptr::copy`] for safety concerns and examples.
 	///
 	/// [`ptr::copy`]: crate::ptr::copy
+	#[inline]
 	pub unsafe fn copy_to<O2, T2>(self, dest: BitPtr<Mut, O2, T2>, count: usize)
 	where
 		O2: BitOrder,
@@ -752,6 +784,7 @@ where
 	/// See [`ptr::copy_nonoverlapping`] for safety concerns and examples.
 	///
 	/// [`ptr::copy_nonoverlapping`](crate::ptr::copy_nonoverlapping)
+	#[inline]
 	pub unsafe fn copy_to_nonoverlapping<O2, T2>(
 		self,
 		dest: BitPtr<Mut, O2, T2>,
@@ -816,6 +849,7 @@ where
 	///
 	/// [`BitIdx`]: crate::index::BitIdx
 	/// [`wrapping_add`]: Self::wrapping_add
+	#[inline]
 	pub fn align_offset(self, align: usize) -> usize {
 		let width = <T::Mem as BitMemory>::BITS as usize;
 		match (
@@ -823,7 +857,7 @@ where
 			self.head.value() as usize,
 		) {
 			(0, 0) => 0,
-			(0, head) => width - head,
+			(0, head) => align * 8 - head,
 			(usize::MAX, _) => !0,
 			(elts, head) => elts.wrapping_mul(width).wrapping_sub(head),
 		}
@@ -844,6 +878,7 @@ where
 	/// # Returns
 	///
 	/// A read-only bit-pointer to the zeroth bit in the `*elem` location.
+	#[inline]
 	pub fn from_ref(elem: &T) -> Self {
 		Self::new(elem.into(), BitIdx::ZERO)
 	}
@@ -858,6 +893,8 @@ where
 	///
 	/// A read-only bit-pointer to the zeroth bit in the `*elem` location, if
 	/// `elem` is well-formed.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn from_ptr(elem: *const T) -> Result<Self, BitPtrError<T>> {
 		Self::try_new(elem, 0)
 	}
@@ -885,6 +922,7 @@ where
 	///
 	/// [`add`]: Self::add
 	/// [`from_ref`]: Self::from_ref
+	#[inline]
 	pub fn from_slice(slice: &[T]) -> Self {
 		Self::new(
 			unsafe { Address::new_unchecked(slice.as_ptr() as usize) },
@@ -892,11 +930,15 @@ where
 		)
 	}
 
+	/*
 	/// Gets the pointer to the base memory location containing the referent
 	/// bit.
+	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn pointer(&self) -> *const T {
 		self.get_addr().to_const()
 	}
+	*/
 }
 
 impl<O, T> BitPtr<Mut, O, T>
@@ -924,6 +966,7 @@ where
 	/// However, you must not use any other pointer than that returned by this
 	/// function to view or modify `*elem`, unless the `T` type supports aliased
 	/// mutation.
+	#[inline]
 	pub fn from_mut(elem: &mut T) -> Self {
 		Self::new(elem.into(), BitIdx::ZERO)
 	}
@@ -938,6 +981,8 @@ where
 	///
 	/// A write-capable bit-pointer to the zeroth bit in the `*elem` location,
 	/// if `elem` is well-formed.
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn from_mut_ptr(elem: *mut T) -> Result<Self, BitPtrError<T>> {
 		Self::try_new(elem, 0)
 	}
@@ -965,6 +1010,7 @@ where
 	///
 	/// [`add`]: Self::add
 	/// [`from_mut`]: Self::from_mut
+	#[inline]
 	pub fn from_mut_slice(slice: &mut [T]) -> Self {
 		Self::new(
 			unsafe { Address::new_unchecked(slice.as_mut_ptr() as usize) },
@@ -972,11 +1018,15 @@ where
 		)
 	}
 
+	/*
 	/// Gets the pointer to the base memory location containing the referent
 	/// bit.
+	#[inline]
+	#[cfg(not(tarpaulin_include))]
 	pub fn pointer(&self) -> *mut T {
 		self.get_addr().to_mut()
 	}
+	*/
 
 	//  `pointer` fundamental inherent API
 
@@ -1025,6 +1075,8 @@ where
 	/// ```
 	///
 	/// [`set`]: crate::ptr::BitRef::set
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub unsafe fn as_mut<'a>(self) -> Option<BitRef<'a, Mut, O, T>> {
 		Some(BitRef::from_bitptr(self))
 	}
@@ -1043,6 +1095,8 @@ where
 	/// See [`ptr::copy`] for safety concerns and examples.
 	///
 	/// [`ptr::copy`]: crate::ptr::copy
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub unsafe fn copy_from<O2, T2>(
 		self,
 		src: BitPtr<Const, O2, T2>,
@@ -1069,6 +1123,8 @@ where
 	/// See [`ptr::copy_nonoverlapping`] for safety concerns and examples.
 	///
 	/// [`ptr::copy_nonoverlapping`]: crate::ptr::copy_nonoverlapping
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub unsafe fn copy_from_nonoverlapping<O2, T2>(
 		self,
 		src: BitPtr<Const, O2, T2>,
@@ -1089,6 +1145,7 @@ where
 	/// [`pointer::write`](https://doc.rust-lang.org/std/primitive.pointer.html#method.write)
 	///
 	/// [`ptr::write`]: crate::ptr::write
+	#[inline]
 	#[allow(clippy::clippy::missing_safety_doc)]
 	pub unsafe fn write(self, value: bool) {
 		(&*self.addr.to_access()).write_bit::<O>(self.head, value);
@@ -1115,6 +1172,7 @@ where
 	/// See [`ptr::write_volatile`] for safety concerns and examples.
 	///
 	/// [`ptr::write_volatile`]: crate::ptr::write_volatile
+	#[inline]
 	pub unsafe fn write_volatile(self, val: bool) {
 		let select = O::select(self.head).value();
 		let mut tmp = self.addr.to_mem().read_volatile();
@@ -1138,6 +1196,7 @@ where
 	/// See [`ptr::replace`] for safety concerns and examples.
 	///
 	/// [`ptr::replace`]: crate::ptr::replace
+	#[inline]
 	pub unsafe fn replace(self, src: bool) -> bool {
 		let out = self.read();
 		self.write(src);
@@ -1155,6 +1214,7 @@ where
 	/// See [`ptr::swap`] for safety concerns and examples.
 	///
 	/// [`ptr::swap`]: crate::ptr::swap
+	#[inline]
 	pub unsafe fn swap<O2, T2>(self, with: BitPtr<Mut, O2, T2>)
 	where
 		O2: BitOrder,
@@ -1166,12 +1226,14 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> Clone for BitPtr<M, O, T>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn clone(&self) -> Self {
 		Self {
 			addr: self.get_addr(),
@@ -1188,12 +1250,14 @@ where
 {
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> Ord for BitPtr<M, O, T>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
 		self.partial_cmp(other).expect(
 			"BitPtr has a total ordering when type parameters are identical",
@@ -1201,6 +1265,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M1, M2, O, T1, T2> PartialEq<BitPtr<M2, O, T2>> for BitPtr<M1, O, T1>
 where
 	M1: Mutability,
@@ -1209,6 +1274,7 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn eq(&self, other: &BitPtr<M2, O, T2>) -> bool {
 		if TypeId::of::<T1::Mem>() != TypeId::of::<T2::Mem>() {
 			return false;
@@ -1218,6 +1284,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M1, M2, O, T1, T2> PartialOrd<BitPtr<M2, O, T2>> for BitPtr<M1, O, T1>
 where
 	M1: Mutability,
@@ -1226,6 +1293,7 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn partial_cmp(&self, other: &BitPtr<M2, O, T2>) -> Option<cmp::Ordering> {
 		if TypeId::of::<T1::Mem>() != TypeId::of::<T2::Mem>() {
 			return None;
@@ -1239,26 +1307,31 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> From<&T> for BitPtr<Const, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn from(elem: &T) -> Self {
 		Self::new(elem.into(), BitIdx::ZERO)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> From<&mut T> for BitPtr<Mut, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn from(elem: &mut T) -> Self {
 		Self::new(elem.into(), BitIdx::ZERO)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> TryFrom<*const T> for BitPtr<Const, O, T>
 where
 	O: BitOrder,
@@ -1266,11 +1339,13 @@ where
 {
 	type Error = BitPtrError<T>;
 
+	#[inline(always)]
 	fn try_from(elem: *const T) -> Result<Self, Self::Error> {
 		Self::try_new(elem, 0)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> TryFrom<*mut T> for BitPtr<Mut, O, T>
 where
 	O: BitOrder,
@@ -1278,6 +1353,7 @@ where
 {
 	type Error = BitPtrError<T>;
 
+	#[inline(always)]
 	fn try_from(elem: *mut T) -> Result<Self, Self::Error> {
 		Self::try_new(elem, 0)
 	}
@@ -1319,12 +1395,14 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> Hash for BitPtr<M, O, T>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn hash<H>(&self, state: &mut H)
 	where H: Hasher {
 		self.get_addr().hash(state);
@@ -1340,24 +1418,6 @@ where
 {
 }
 
-impl<M, O, T> Deref for BitPtr<M, O, T>
-where
-	M: Mutability,
-	O: BitOrder,
-	T: BitStore,
-{
-	type Target = bool;
-
-	fn deref(&self) -> &Self::Target {
-		if unsafe { self.read() } {
-			&true
-		}
-		else {
-			&false
-		}
-	}
-}
-
 /// Errors produced by invalid bit-pointer components.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum BitPtrError<T>
@@ -1369,33 +1429,41 @@ where T: BitStore
 	InvalidIndex(BitIdxError<T::Mem>),
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> From<AddressError<T>> for BitPtrError<T>
 where T: BitStore
 {
+	#[inline(always)]
 	fn from(err: AddressError<T>) -> Self {
 		Self::InvalidAddress(err)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> From<BitIdxError<T::Mem>> for BitPtrError<T>
 where T: BitStore
 {
+	#[inline(always)]
 	fn from(err: BitIdxError<T::Mem>) -> Self {
 		Self::InvalidIndex(err)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> From<Infallible> for BitPtrError<T>
 where T: BitStore
 {
+	#[inline(always)]
 	fn from(_: Infallible) -> Self {
 		unreachable!("Infallible errors can never be produced");
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> Display for BitPtrError<T>
 where T: BitStore
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		match self {
 			Self::InvalidAddress(addr) => Display::fmt(addr, fmt),
@@ -1430,10 +1498,19 @@ mod tests {
 		let data = 0u16;
 		let head = 5;
 
-		let bitptr = BitPtr::<Const, Lsb0, _>::try_new(&data, 5).unwrap();
+		let bitptr = BitPtr::<Const, Lsb0, _>::try_new(&data, head).unwrap();
 		let (addr, indx) = bitptr.raw_parts();
 		assert_eq!(addr.to_const(), &data as *const _);
 		assert_eq!(indx.value(), head);
+	}
+
+	#[test]
+	fn bitref() {
+		let data = 1u32 << 23;
+		let head = 23;
+		let bitptr = BitPtr::<Const, Lsb0, _>::try_new(&data, head).unwrap();
+		let bitref = unsafe { bitptr.as_ref() }.unwrap();
+		assert!(*bitref);
 	}
 
 	#[test]
@@ -1442,5 +1519,22 @@ mod tests {
 			core::mem::size_of::<BitPtr<Const, Lsb0, u8>>()
 				<= core::mem::size_of::<usize>() + core::mem::size_of::<u8>(),
 		);
+	}
+
+	#[test]
+	#[cfg(feature = "alloc")]
+	fn format() {
+		use crate::order::Msb0;
+		#[cfg(not(feature = "std"))]
+		use alloc::format;
+
+		let base = 0u16;
+		let bitptr = BitPtr::<_, Msb0, _>::from_ref(&base);
+		let text = format!("{:?}", unsafe { bitptr.add(3) });
+		let render = format!(
+			"*const Bit<bitvec::order::Msb0, u16>({:p}, {:04b})",
+			&base as *const u16, 3
+		);
+		assert_eq!(text, render);
 	}
 }

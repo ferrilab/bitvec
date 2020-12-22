@@ -39,7 +39,7 @@ fn main() {
 
 	// `BitSlice`-owning buffers can be viewed as their raw memory
 	assert_eq!(
-		bv.as_slice(),
+		bv.as_raw_slice(),
 		&[0b0101_0000, 0b1111_0000],
 		//  ^ index 0       ^ index 11
 	);

@@ -25,7 +25,6 @@ use std::panic::catch_unwind;
 #[test]
 fn from_vec() {
 	let mut bv = BitVec::<Msb0, u8>::from_vec(vec![0, 1, 2, 3]);
-	let _ = bv.as_bitslice_ptr();
 	let bp_mut = bv.as_mut_bitslice() as *mut _;
 	assert_eq!(bv.len(), 32);
 	assert_eq!(bv.count_ones(), 4);
@@ -35,7 +34,7 @@ fn from_vec() {
 	assert_eq!(bits as *mut _, bp_mut);
 	let (ptr, length) = (bits.as_mut_bitptr(), bits.len());
 	let bv = unsafe { BitVec::from_raw_parts(ptr, length, capacity) };
-	assert_eq!(bv.as_slice(), &[0, 1, 2, 3]);
+	assert_eq!(bv.as_raw_slice(), &[0, 1, 2, 3]);
 }
 
 #[test]
@@ -57,12 +56,12 @@ fn push() {
 }
 
 #[test]
-fn inspect() {
+fn check_buffers() {
 	let mut bv = bitvec![LocalBits, u16; 0; 40];
 	assert_eq!(bv.elements(), 3);
 
-	assert_eq!(bv.as_ptr(), bv.as_slice().as_ptr());
-	assert_eq!(bv.as_mut_ptr(), bv.as_mut_slice().as_mut_ptr());
+	assert_eq!(bv.as_raw_ptr(), bv.as_raw_slice().as_ptr());
+	assert_eq!(bv.as_mut_raw_ptr(), bv.as_mut_raw_slice().as_mut_ptr());
 }
 
 #[test]
@@ -71,17 +70,17 @@ fn buffer_control() {
 	let bits = data.view_bits::<Msb0>();
 
 	let mut bv = bits[2 ..].to_bitvec();
-	assert_eq!(bv.as_slice(), &[0xA5u8]);
+	assert_eq!(bv.as_raw_slice(), &[0xA5u8]);
 	bv.force_align();
-	assert_eq!(bv.as_slice(), &[0b1001_0101]);
+	assert_eq!(bv.as_raw_slice(), &[0b1001_0101]);
 	bv.force_align();
-	assert_eq!(bv.as_slice(), &[0b1001_0101]);
+	assert_eq!(bv.as_raw_slice(), &[0b1001_0101]);
 
 	bv.truncate(6);
 	bv.set_uninitialized(false);
-	assert_eq!(bv.as_slice(), &[0b1001_0100]);
+	assert_eq!(bv.as_raw_slice(), &[0b1001_0100]);
 	bv.set_uninitialized(true);
-	assert_eq!(bv.as_slice(), &[0b1001_0111]);
+	assert_eq!(bv.as_raw_slice(), &[0b1001_0111]);
 	assert_eq!(bv, bits![1, 0, 0, 1, 0, 1]);
 }
 
@@ -166,9 +165,7 @@ fn iterators() {
 
 	let mut iter = bv.into_iter();
 	assert!(iter.next().unwrap());
-	assert_eq!(iter.as_slice(), data[1 ..]);
 	assert_eq!(iter.as_bitslice(), data[1 ..]);
-	assert_eq!(iter.as_mut_slice(), data[1 ..]);
 	assert_eq!(iter.as_mut_bitslice(), data[1 ..]);
 
 	assert_eq!(iter.size_hint(), (7, Some(7)));
@@ -181,7 +178,6 @@ fn iterators() {
 	let mut bv = bitvec![0, 0, 0, 1, 1, 1, 0, 0, 0];
 	let mut drain = bv.drain(3 .. 6);
 	let mid = bits![1; 3];
-	assert_eq!(drain.as_slice(), mid);
 	assert_eq!(drain.as_bitslice(), mid);
 	let drain_span: &BitSlice = drain.as_ref();
 	assert_eq!(drain_span, mid);
@@ -262,13 +258,6 @@ fn misc() {
 		last
 	});
 	assert_eq!(bv_1, bits![0, 0, 0, 0, 0, 1, 0, 1, 0, 1]);
-
-	let mut bv = bitvec![];
-	#[allow(deprecated)]
-	{
-		bv.extend_from_slice(&[false, false, true, true, false, true]);
-	}
-	assert_eq!(bv, bits![0, 0, 1, 1, 0, 1]);
 }
 
 #[test]

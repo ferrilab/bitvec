@@ -76,13 +76,13 @@ where
 		x.pipe(Self::from_bitslice).pipe(Pin::new)
 	}
 
-	/// Constructs a box from a raw pointer.
+	/// Constructs a bit-box from a raw bit-slice pointer.
 	///
-	/// After calling this function, the raw pointer is owned by the resulting
-	/// `BitBox`.Specifically, the `BitBox` destructor will free the memory
-	/// allocation at the pointer’s address. For this to be safe, the pointer
-	/// can only have been produced by a `BitBox` previously destroyed using
-	/// [`into_raw`].
+	/// After calling this function, the raw bit-slice pointer is owned by the
+	/// resulting `BitBox`. Specifically, the `BitBox` destructor will free the
+	/// memory allocation at the bit-slice pointer’s address. For this to be
+	/// safe, the bit-slice pointer can only have been produced by a `BitBox`
+	/// previously destroyed using [`into_raw`].
 	///
 	/// # Original
 	///
@@ -92,12 +92,12 @@ where
 	///
 	/// This function is unsafe because improper use may lead to memory
 	/// problems. For example, a double-free may occur if the function is called
-	/// twice on the same raw pointer.
+	/// twice on the same raw bit-slice pointer.
 	///
 	/// # Examples
 	///
-	/// Recreate a `BitBox` which was previously converted to a raw pointer
-	/// using [`BitBox::into_raw`]:
+	/// Recreate a `BitBox` which was previously converted to a raw bit-slice
+	/// pointer using [`BitBox::into_raw`]:
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
@@ -116,14 +116,14 @@ where
 		}
 	}
 
-	/// Consumes the `BitBox`, returning a raw pointer.
+	/// Consumes the `BitBox`, returning a raw bit-slice pointer.
 	///
-	/// The pointer will be properly encoded and non-null.
+	/// The bit-slice pointer will be properly encoded and non-null.
 	///
 	/// After calling this function, the caller is responsible for the memory
 	/// previously managed by the `BitBox`. In particular, the caller should
-	/// properly release the memory by converting the pointer back into a
-	/// `BitBox` with the [`from_raw`] function, allowing the `BitBox`
+	/// properly release the memory by converting the bit-slice pointer back
+	/// into a `BitBox` with the [`from_raw`] function, allowing the `BitBox`
 	/// destructor to perform the cleanup.
 	///
 	/// Note: this is an associated function, which means that you have to call
@@ -137,7 +137,7 @@ where
 	///
 	/// # Examples
 	///
-	/// Converting the raw pointer back into a `BitBox` with
+	/// Converting the raw bit-slice pointer back into a `BitBox` with
 	/// [`BitBox::from_raw`] for automatic cleanup:
 	///
 	/// ```rust

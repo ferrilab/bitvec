@@ -48,8 +48,8 @@ fn issue_10() {
 
 	bv2.force_align();
 	//  These may be removed in the future.
-	assert_eq!(bv2.as_slice().len(), 1);
-	assert_eq!(bv2.as_slice()[0], 0x18);
+	assert_eq!(bv2.as_raw_slice().len(), 1);
+	assert_eq!(bv2.as_raw_slice()[0], 0x18);
 }
 
 /** Test case for [Issue #33], opened by [@jonas-schievink].

@@ -100,6 +100,32 @@ where
 	}
 }
 
+impl<O, T> Extend<T> for BitVec<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	fn extend<I>(&mut self, iter: I)
+	where I: IntoIterator<Item = T> {
+		for elem in iter.into_iter() {
+			self.extend(BitSlice::<O, T>::from_element(&elem));
+		}
+	}
+}
+
+impl<'a, O, T> Extend<&'a T> for BitVec<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	fn extend<I>(&mut self, iter: I)
+	where I: IntoIterator<Item = &'a T> {
+		for elem in iter.into_iter() {
+			self.extend(BitSlice::<O, T>::from_element(elem));
+		}
+	}
+}
+
 impl<O, T> FromIterator<bool> for BitVec<O, T>
 where
 	O: BitOrder,
@@ -215,8 +241,8 @@ where
 
 /** An iterator that moves out of a [`BitVec`].
 
-This `struct` is created by the [`.into_iter()`] method on [`BitVec`] (provided
-by the [`IntoIterator`] trait).
+This `struct` is created by the [`into_iter`] method on [`BitVec`] (provided by
+the [`IntoIterator`] trait).
 
 # Original
 
@@ -224,7 +250,7 @@ by the [`IntoIterator`] trait).
 
 [`BitVec`]: crate::vec::BitVec
 [`IntoIterator`]: core::iter::IntoIterator
-[`.into_iter()`]: core::iter::IntoIterator::into_iter
+[`into_iter`]: core::iter::IntoIterator::into_iter
 **/
 pub struct IntoIter<O, T>
 where
@@ -250,14 +276,13 @@ where
 	///
 	/// [`BitVec`]: crate::vec::BitVec
 	fn new(bv: BitVec<O, T>) -> Self {
-		//  Disarm the destructor,
-		let bv = ManuallyDrop::new(bv);
+		let capa = bv.capacity;
 		//  Construct a `BitSlice` iterator over the region, and detach its
 		//  lifetime.
 		let iter = bv.bitspan.to_bitslice_ref().iter();
 		//  Only the allocation’s base and capacity need to be kept for `Drop`.
 		let base = bv.bitspan.address().to_nonnull();
-		let capa = bv.alloc_capacity();
+		mem::forget(bv);
 		Self { base, capa, iter }
 	}
 
@@ -286,7 +311,9 @@ where
 	}
 
 	#[doc(hidden)]
-	#[deprecated = "Use `.as_bitslice()` to view the underlying slice"]
+	#[inline(always)]
+	#[cfg(not(tarpalin_include))]
+	#[deprecated = "Use `as_bitslice` to view the underlying slice"]
 	pub fn as_slice(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
 	}
@@ -320,7 +347,9 @@ where
 	}
 
 	#[doc(hidden)]
-	#[deprecated = "Use `.as_mut_bitslice()` to view the underlying slice"]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	#[deprecated = "Use `as_mut_bitslice` to view the underlying slice"]
 	pub fn as_mut_slice(&mut self) -> &mut BitSlice<O, T> {
 		self.as_mut_bitslice()
 	}
@@ -487,7 +516,9 @@ where
 	}
 
 	#[doc(hidden)]
-	#[deprecated = "Use `.as_bitslice()` to view the underlying slice"]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	#[deprecated = "Use `as_bitslice` to view the underlying slice"]
 	pub fn as_slice(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
 	}

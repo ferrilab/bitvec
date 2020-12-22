@@ -164,6 +164,7 @@ where
 	/// This is only safe when the proxy is known to be the only handle to its
 	/// referent element during its lifetime.
 	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub(crate) unsafe fn remove_alias(this: BitRef<M, O, T::Alias>) -> Self {
 		Self {
 			bitptr: this.bitptr.cast::<T>(),
@@ -417,18 +418,16 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> Pointer for BitRef<'_, M, O, T>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
+	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		fmt.debug_tuple("BitRef")
-			.field(&self.bitptr)
-			.field(&self.data)
-			.finish()
+		Pointer::fmt(&self.bitptr, fmt)
 	}
 }
 

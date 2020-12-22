@@ -398,7 +398,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline(always)]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn len(&self) -> usize {
 		(unsafe { self.end.offset_from(self.start) }) as usize
 	}

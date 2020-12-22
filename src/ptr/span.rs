@@ -1029,23 +1029,27 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> Debug for BitSpan<M, O, T>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Pointer::fmt(self, fmt)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, O, T> Pointer for BitSpan<M, O, T>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		self.render(fmt, "Ptr", None)
 	}
@@ -1076,6 +1080,7 @@ where T: BitStore
 impl<T> From<BitPtrError<T>> for BitSpanError<T>
 where T: BitStore
 {
+	#[inline(always)]
 	fn from(err: BitPtrError<T>) -> Self {
 		Self::InvalidBitptr(err)
 	}
@@ -1085,14 +1090,17 @@ where T: BitStore
 impl<T> From<Infallible> for BitSpanError<T>
 where T: BitStore
 {
+	#[inline(always)]
 	fn from(_: Infallible) -> Self {
 		unreachable!("Infallible errors can never be produced");
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> Debug for BitSpanError<T>
 where T: BitStore
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		let tname = any::type_name::<T>();
 		write!(fmt, "BitSpanError<{}>::", tname,)?;
@@ -1110,9 +1118,11 @@ where T: BitStore
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<T> Display for BitSpanError<T>
 where T: BitStore
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		match self {
 			Self::InvalidBitptr(err) => Display::fmt(err, fmt),
@@ -1175,6 +1185,13 @@ mod tests {
 			),
 			BitSpan::<Const, LocalBits, u8>::EMPTY,
 		);
+
+		let data = 0u16;
+		let mut addr = Address::from(&data);
+		let head = BitIdx::new(5).unwrap();
+		assert!(BitSpan::<_, Lsb0, _>::new(addr, head, !3).is_err());
+		addr = unsafe { Address::new_unchecked(!1) };
+		assert!(BitSpan::<_, Lsb0, _>::new(addr, head, 50).is_err());
 	}
 
 	#[test]

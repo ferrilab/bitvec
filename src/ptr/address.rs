@@ -346,6 +346,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<M, T> Pointer for Address<M, T>
 where
 	M: Mutability,
