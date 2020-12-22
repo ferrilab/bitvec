@@ -67,7 +67,7 @@ where
 	#[inline]
 	fn clone(&self) -> Self {
 		let mut out = Self::zeroed();
-		for (dst, src) in out.as_mut_slice().iter_mut().zip(self.as_slice()) {
+		for (dst, src) in out.as_mut_raw_slice().iter_mut().zip(self.as_raw_slice()) {
 			dst.store_value(src.load_value());
 		}
 		out

@@ -117,7 +117,7 @@ where
 	fn get(&self, index: usize) -> bool {
 		unsafe {
 			self.array
-				.as_slice()
+				.as_raw_slice()
 				.pipe(BitPtr::<Const, O, V::Store>::from_slice)
 				.add(index)
 				.read()
