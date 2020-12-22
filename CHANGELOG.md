@@ -10,6 +10,7 @@ This document is written according to the [Keep a Changelog][kac] style.
    1. [Changed](#changed)
       1. [Aliasing Typesystem](#aliasing-typesystem)
       1. [`&bool` to `BitRef`](#bool-to-bitref)
+   1. [Removed](#removed)
 1. [0.19.4](#0194)
    1. [Changed](#changed-1)
 1. [0.19.3](#0193)
@@ -117,6 +118,9 @@ notices.
   markers removed, as they are permitted to perform racing accesses to the same
   memory location.
 
+- The expanded pointer system allows the `core::ptr` module to be more fully
+  ported as `bitvec::ptr`.
+
 #### Pointer Overhaul
 
 The pointer infrastructure in the crate has been entirely rewritten. This does
@@ -172,8 +176,8 @@ a `&[u8]`. Prior to `0.20`, `u8::Alias` was an `AtomicU8` or a `Cell<u8>`,
 either of which permit modification through `&` shared references. Doing so
 while a `&[u8]` reference views the referent memory is undefined behavior.
 
-Now, `u8::Alias` is `BitSafeU8`, which can be found in the `access` module.
-This type family retains the load/store behavior of their eponymous types, but
+Now, `u8::Alias` is `BitSafeU8`, which can be found in the `access` module. This
+type family retains the load/store behavior of their eponymous types, but
 forbids modifying the referent memory through an `&` shared reference.
 
 In addition, the restriction of `bitvec` types to be only constructed from
@@ -188,6 +192,14 @@ Because the `slice::Iter` iterator now produces `BitRef<Const>` instead of
 inherent method `.copied()` that produces an iterator of `bool` and raises a
 deprecation notice. It also defines adapter methods, `.by_ref()` and
 `.by_val()`, which adapt it to produce references to, or values of, `bool`.
+
+Additionally, most APIs that took or produced `*T` to refer to a region’s base
+address now take or produce a `BitPtr` instead.
+
+### Removed
+
+The deprecated methods on `BitView`, which were marked as such in `0.18` and
+remained present for two minor versions, have been fully removed.
 
 ## 0.19.4
 
