@@ -787,7 +787,7 @@ where
 	///
 	/// unsafe {
 	///   for i in 0 .. bv.len() {
-	///     assert_eq!(*bp.add(i), bv[i]);
+	///     assert_eq!(bp.add(i).read(), bv[i]);
 	///   }
 	/// }
 	/// ```

@@ -178,7 +178,7 @@ where
 
 	/// Gets the address as a read-only pointer.
 	#[inline(always)]
-	pub(crate) fn to_const(self) -> *const T {
+	pub fn to_const(self) -> *const T {
 		self.inner.as_ptr() as *const T
 	}
 
@@ -209,7 +209,7 @@ where T: BitStore
 	/// Gets the address as a write-capable pointer.
 	#[inline(always)]
 	#[allow(clippy::clippy::wrong_self_convention)]
-	pub(crate) fn to_mut(self) -> *mut T {
+	pub fn to_mut(self) -> *mut T {
 		self.inner.as_ptr()
 	}
 

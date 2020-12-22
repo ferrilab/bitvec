@@ -449,9 +449,9 @@ where
 	///
 	/// let data = 5u8;
 	/// let ptr = BitPtr::<_, Lsb0, _>::from_ref(&data);
-	/// assert!(*ptr);
-	/// assert!(!* unsafe { ptr.offset(1) });
-	/// assert!(* unsafe { ptr.offset(2) });
+	/// assert!(unsafe { ptr.read() });
+	/// assert!(!unsafe { ptr.offset(1).read() });
+	/// assert!(unsafe { ptr.offset(2).read() });
 	/// ```
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
@@ -505,7 +505,7 @@ where
 	/// let end = ptr.wrapping_offset(8);
 	/// while ptr < end {
 	///   # #[cfg(feature = "std")] {
-	///   println!("{}", *ptr);
+	///   println!("{}", unsafe { ptr.read() });
 	///   # }
 	///   ptr = ptr.wrapping_offset(3);
 	/// }
@@ -575,8 +575,8 @@ where
 	/// let b = !0u8;
 	/// let a_ptr = BitPtr::<_, Lsb0, _>::from_ref(&a);
 	/// let b_ptr = BitPtr::<_, Lsb0, _>::from_ref(&b);
-	/// let diff = (b_ptr.pointer() as isize)
-	///   .wrapping_sub(a_ptr.pointer() as isize)
+	/// let diff = (b_ptr.raw_parts().0.to_const() as isize)
+	///   .wrapping_sub(a_ptr.raw_parts().0.to_const() as isize)
 	///   // Remember: raw pointers are byte-addressed,
 	///   // but these are bit-addressed.
 	///   .wrapping_mul(8);
@@ -929,16 +929,6 @@ where
 			BitIdx::ZERO,
 		)
 	}
-
-	/*
-	/// Gets the pointer to the base memory location containing the referent
-	/// bit.
-	#[inline]
-	#[cfg(not(tarpaulin_include))]
-	pub fn pointer(&self) -> *const T {
-		self.get_addr().to_const()
-	}
-	*/
 }
 
 impl<O, T> BitPtr<Mut, O, T>
@@ -1017,16 +1007,6 @@ where
 			BitIdx::ZERO,
 		)
 	}
-
-	/*
-	/// Gets the pointer to the base memory location containing the referent
-	/// bit.
-	#[inline]
-	#[cfg(not(tarpaulin_include))]
-	pub fn pointer(&self) -> *mut T {
-		self.get_addr().to_mut()
-	}
-	*/
 
 	//  `pointer` fundamental inherent API
 
