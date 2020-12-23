@@ -10,9 +10,11 @@ and transmute generic slices into slices with concrete type arguments applied.
 
 use crate::{
 	devel as dvl,
+	domain::Domain,
 	field::BitField,
 	mem::BitMemory,
 	order::{
+		BitOrder,
 		Lsb0,
 		Msb0,
 	},
@@ -21,6 +23,8 @@ use crate::{
 };
 
 use core::ops::RangeBounds;
+
+use funty::IsInteger;
 
 /** Order-specialized function implementations.
 
@@ -114,6 +118,106 @@ where T: BitStore
 			.zip(other.chunks(chunk_size))
 			.all(|(a, b)| a.load_le::<usize>() == b.load_le::<usize>())
 	}
+
+	/// Seeks the index of the first `1` bit in the bit-slice.
+	pub(crate) fn sp_iter_ones_first(&self) -> Option<usize> {
+		match self.domain() {
+			Domain::Enclave { head, elem, tail } => {
+				let val = (Lsb0::mask(head, tail) & elem.load_value()).value();
+				if val != T::Mem::ZERO {
+					return Some(
+						val.trailing_zeros() as usize - head.value() as usize,
+					);
+				}
+				None
+			},
+			Domain::Region { head, body, tail } => {
+				let mut accum = 0;
+
+				if let Some((head, elem)) = head {
+					let val =
+						(Lsb0::mask(head, None) & elem.load_value()).value();
+					if val != T::Mem::ZERO {
+						return Some(
+							val.trailing_zeros() as usize
+								- head.value() as usize,
+						);
+					}
+					accum += T::Mem::BITS as usize - head.value() as usize;
+				}
+
+				for elem in body {
+					let val = elem.load_value();
+					accum += val.trailing_zeros() as usize;
+					if val != T::Mem::ZERO {
+						return Some(accum);
+					}
+				}
+
+				if let Some((elem, tail)) = tail {
+					let val =
+						(Lsb0::mask(None, tail) & elem.load_value()).value();
+					if val != T::Mem::ZERO {
+						accum += val.trailing_zeros() as usize;
+						return Some(accum);
+					}
+				}
+
+				None
+			},
+		}
+	}
+
+	/// Seeks the index of the last `1` bit in the bit-slice.
+	pub(crate) fn sp_iter_ones_last(&self) -> Option<usize> {
+		let mut out = match self.len() {
+			0 => return None,
+			n => n - 1,
+		};
+		match self.domain() {
+			Domain::Enclave { head, elem, tail } => {
+				let val = (Lsb0::mask(head, tail) & elem.load_value()).value();
+				if val != T::Mem::ZERO {
+					let dead_bits = T::Mem::BITS - tail.value();
+					out -= val.leading_zeros() as usize - dead_bits as usize;
+					return Some(out);
+				}
+				None
+			},
+			Domain::Region { head, body, tail } => {
+				if let Some((elem, tail)) = tail {
+					let val =
+						(Lsb0::mask(None, tail) & elem.load_value()).value();
+					let tail = tail.value() as usize;
+					if val != T::Mem::ZERO {
+						let dead_bits = T::Mem::BITS as usize - tail;
+						out -= val.leading_zeros() as usize - dead_bits;
+						return Some(out);
+					}
+					out -= tail;
+				}
+
+				for elem in body.iter().rev() {
+					let val = elem.load_value();
+					out -= val.leading_zeros() as usize;
+					if val != T::Mem::ZERO {
+						return Some(out);
+					}
+				}
+
+				if let Some((head, elem)) = head {
+					let val =
+						(Lsb0::mask(head, None) & elem.load_value()).value();
+					if val != T::Mem::ZERO {
+						out -= val.leading_zeros() as usize;
+						return Some(out);
+					}
+				}
+
+				None
+			},
+		}
+	}
 }
 
 /** Order-specialized function implementations.
@@ -189,5 +293,105 @@ where T: BitStore
 		self.chunks(chunk_size)
 			.zip(other.chunks(chunk_size))
 			.all(|(a, b)| a.load_be::<usize>() == b.load_be::<usize>())
+	}
+
+	/// Seeks the index of the first `1` bit in the bit-slice.
+	pub(crate) fn sp_iter_ones_first(&self) -> Option<usize> {
+		match self.domain() {
+			Domain::Enclave { head, elem, tail } => {
+				let val = (Msb0::mask(head, tail) & elem.load_value()).value();
+				if val != T::Mem::ZERO {
+					return Some(
+						val.leading_zeros() as usize - head.value() as usize,
+					);
+				}
+				None
+			},
+			Domain::Region { head, body, tail } => {
+				let mut accum = 0;
+
+				if let Some((head, elem)) = head {
+					let val =
+						(Msb0::mask(head, None) & elem.load_value()).value();
+					if val != T::Mem::ZERO {
+						return Some(
+							val.leading_zeros() as usize - head.value() as usize,
+						);
+					}
+					accum += T::Mem::BITS as usize - head.value() as usize;
+				}
+
+				for elem in body {
+					let val = elem.load_value();
+					accum += val.leading_zeros() as usize;
+					if val != T::Mem::ZERO {
+						return Some(accum);
+					}
+				}
+
+				if let Some((elem, tail)) = tail {
+					let val =
+						(Msb0::mask(None, tail) & elem.load_value()).value();
+					if val != T::Mem::ZERO {
+						accum += val.leading_zeros() as usize;
+						return Some(accum);
+					}
+				}
+
+				None
+			},
+		}
+	}
+
+	/// Seeks the index of the last `1` bit in the bit-slice.
+	pub(crate) fn sp_iter_ones_last(&self) -> Option<usize> {
+		//  Set the state tracker to the last live index in the bit-slice.
+		let mut out = match self.len() {
+			0 => return None,
+			n => n - 1,
+		};
+		match self.domain() {
+			Domain::Enclave { head, elem, tail } => {
+				let val = (Msb0::mask(head, tail) & elem.load_value()).value();
+				if val != T::Mem::ZERO {
+					let dead_bits = T::Mem::BITS - tail.value();
+					out -= val.trailing_zeros() as usize - dead_bits as usize;
+					return Some(out);
+				}
+				None
+			},
+			Domain::Region { head, body, tail } => {
+				if let Some((elem, tail)) = tail {
+					let val =
+						(Msb0::mask(None, tail) & elem.load_value()).value();
+					let tail = tail.value() as usize;
+					if val != T::Mem::ZERO {
+						let dead_bits = T::Mem::BITS as usize - tail;
+						out -= val.trailing_zeros() as usize - dead_bits;
+						return Some(out);
+					}
+					out -= tail;
+				}
+
+				for elem in body.iter().rev() {
+					let val = elem.load_value();
+					out -= val.trailing_zeros() as usize;
+					if val != T::Mem::ZERO {
+						return Some(out);
+					}
+				}
+
+				if let Some((head, elem)) = head {
+					let val =
+						(Msb0::mask(head, None) & elem.load_value()).value();
+					if val != T::Mem::ZERO {
+						out -= val.trailing_zeros() as usize;
+						return Some(out);
+					}
+				}
+
+				None
+			},
+		}
 	}
 }

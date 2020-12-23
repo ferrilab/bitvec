@@ -1,11 +1,16 @@
 //! Iterators over `[T]`.
 
 use crate::{
+	devel as dvl,
 	mutability::{
 		Const,
 		Mut,
 	},
-	order::BitOrder,
+	order::{
+		BitOrder,
+		Lsb0,
+		Msb0,
+	},
 	ptr::{
 		BitPtrRange,
 		BitRef,
@@ -2258,7 +2263,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	pub(crate) fn new(slice: &'a BitSlice<O, T>) -> Self {
+	pub(super) fn new(slice: &'a BitSlice<O, T>) -> Self {
 		Self {
 			inner: slice,
 			front: 0,
@@ -2287,10 +2292,26 @@ where
 	type Item = usize;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		match self.inner.iter().by_val().position(|b| b) {
+		let pos = if dvl::match_order::<O, Lsb0>() {
+			let slice = unsafe {
+				&*(self.inner as *const _ as *const BitSlice<Lsb0, T>)
+			};
+			slice.sp_iter_ones_first()
+		}
+		else if dvl::match_order::<O, Msb0>() {
+			let slice = unsafe {
+				&*(self.inner as *const _ as *const BitSlice<Msb0, T>)
+			};
+			slice.sp_iter_ones_first()
+		}
+		else {
+			self.inner.iter().by_val().position(|b| b)
+		};
+
+		match pos {
 			Some(n) => {
 				//  Split on the far side of the found index. This is always
-				//  safe, as split(len) yields (self, empty).
+				//  safe, as split(len) yields `(self, empty)`.
 				let (_, rest) = unsafe { self.inner.split_at_unchecked(n + 1) };
 				self.inner = rest;
 				let out = self.front + n;
@@ -2325,7 +2346,23 @@ where
 	T: BitStore,
 {
 	fn next_back(&mut self) -> Option<Self::Item> {
-		match self.inner.iter().by_val().rposition(|b| b) {
+		let pos = if dvl::match_order::<O, Lsb0>() {
+			let slice = unsafe {
+				&*(self.inner as *const _ as *const BitSlice<Lsb0, T>)
+			};
+			slice.sp_iter_ones_last()
+		}
+		else if dvl::match_order::<O, Msb0>() {
+			let slice = unsafe {
+				&*(self.inner as *const _ as *const BitSlice<Msb0, T>)
+			};
+			slice.sp_iter_ones_last()
+		}
+		else {
+			self.inner.iter().by_val().rposition(|b| b)
+		};
+
+		match pos {
 			Some(n) => {
 				let (rest, _) = unsafe { self.inner.split_at_unchecked(n) };
 				self.inner = rest;
@@ -2380,7 +2417,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	pub(crate) fn new(slice: &'a BitSlice<O, T>) -> Self {
+	pub(super) fn new(slice: &'a BitSlice<O, T>) -> Self {
 		Self {
 			inner: slice,
 			front: 0,

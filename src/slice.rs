@@ -1146,6 +1146,8 @@ where
 	///   assert_eq!(b, c);
 	/// }
 	/// ```
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn iter_ones(&self) -> IterOnes<O, T> {
 		IterOnes::new(self)
 	}
@@ -1171,6 +1173,8 @@ where
 	///   assert_eq!(b, c);
 	/// }
 	/// ```
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn iter_zeros(&self) -> IterZeros<O, T> {
 		IterZeros::new(self)
 	}
