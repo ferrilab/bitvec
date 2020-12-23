@@ -815,6 +815,52 @@ fn specialized_iter_ones() {
 	assert_eq!(bits[2 .. 6].sp_iter_ones_last(), Some(1));
 }
 
+#[test]
+fn specialized_iter_zeros() {
+	let data = [!0x08u8, !0x20, !0, !0x04, !0x08];
+
+	let bits = data.view_bits::<Msb0>();
+	assert!(bits[17 .. 23].sp_iter_zeros_first().is_none());
+	assert!(bits[17 .. 23].sp_iter_zeros_last().is_none());
+	assert!(bits[12 .. 28].sp_iter_zeros_first().is_none());
+	assert!(bits[12 .. 28].sp_iter_zeros_last().is_none());
+
+	assert_eq!(
+		bits[3 ..].sp_iter_zeros_first(),
+		Some(1),
+		"{:b}",
+		&bits[3 ..]
+	);
+	assert_eq!(bits[5 ..].sp_iter_zeros_first(), Some(5));
+	assert_eq!(bits[11 ..].sp_iter_zeros_first(), Some(18));
+	assert_eq!(bits[30 .. 38].sp_iter_zeros_first(), Some(6));
+	assert_eq!(bits[34 .. 38].sp_iter_zeros_first(), Some(2));
+
+	assert_eq!(bits[.. 38].sp_iter_zeros_last(), Some(36));
+	assert_eq!(bits[.. 36].sp_iter_zeros_last(), Some(29));
+	assert_eq!(bits[.. 29].sp_iter_zeros_last(), Some(10));
+	assert_eq!(bits[2 .. 10].sp_iter_zeros_last(), Some(2));
+	assert_eq!(bits[2 .. 6].sp_iter_zeros_last(), Some(2));
+
+	let bits = data.view_bits::<Lsb0>();
+	assert!(bits[17 .. 23].sp_iter_zeros_first().is_none());
+	assert!(bits[17 .. 23].sp_iter_zeros_last().is_none());
+	assert!(bits[14 .. 26].sp_iter_zeros_first().is_none());
+	assert!(bits[14 .. 26].sp_iter_zeros_last().is_none());
+
+	assert_eq!(bits[2 ..].sp_iter_zeros_first(), Some(1));
+	assert_eq!(bits[4 ..].sp_iter_zeros_first(), Some(9));
+	assert_eq!(bits[14 ..].sp_iter_zeros_first(), Some(12));
+	assert_eq!(bits[27 .. 38].sp_iter_zeros_first(), Some(8));
+	assert_eq!(bits[34 .. 38].sp_iter_zeros_first(), Some(1));
+
+	assert_eq!(bits[.. 38].sp_iter_zeros_last(), Some(35));
+	assert_eq!(bits[.. 35].sp_iter_zeros_last(), Some(26));
+	assert_eq!(bits[.. 26].sp_iter_zeros_last(), Some(13));
+	assert_eq!(bits[2 .. 13].sp_iter_zeros_last(), Some(1));
+	assert_eq!(bits[2 .. 6].sp_iter_zeros_last(), Some(1));
+}
+
 #[cfg(feature = "alloc")]
 mod format {
 	use crate::prelude::*;
