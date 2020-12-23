@@ -75,7 +75,6 @@ use crate::{
 };
 
 use core::{
-	any::TypeId,
 	marker::PhantomData,
 	ops::RangeBounds,
 	ptr,
@@ -1259,9 +1258,7 @@ where
 			"Cloning between slices requires equal lengths"
 		);
 
-		if TypeId::of::<O>() == TypeId::of::<O2>()
-			&& TypeId::of::<T>() == TypeId::of::<T2>()
-		{
+		if dvl::match_types::<O, T, O2, T2>() {
 			let that = src as *const _ as *const _;
 			unsafe {
 				self.copy_from_bitslice(&*that);
@@ -1416,8 +1413,8 @@ where
 		compiler’s `TypeId` API to inspect the type arguments passed to a
 		monomorphization and select the appropriate codegen for it. We know that
 		control will only enter any of these subsequent blocks when the type
-		argument to monomorphization matches the guard, rendering the
-		`transmute` calls type-level noöps.
+		argument to monomorphization matches the guard, so the pointer casts
+		become the identity function, which is safe and correct.
 
 		This is only safe to do in `.copy_from_bitslice()`, not in
 		`.clone_from_bitslice()`, because `BitField`’s behavior will only be
@@ -1425,20 +1422,15 @@ where
 		storage type arguments. Mismatches will cause an observed shuffling of
 		sections as `BitField` reïnterprets raw bytes according to the machine
 		register selected.
-
-		Note also that the alias removal in the iterators is safe, because the
-		loops forbid the chunk references from overlapping their liveness with
-		each other, and `unalias_mut` has no effect when `T` is already an
-		aliased type.
 		*/
-		else if TypeId::of::<O>() == TypeId::of::<Lsb0>() {
+		else if dvl::match_order::<O, Lsb0>() {
 			let this: &mut BitSlice<Lsb0, T> =
 				unsafe { &mut *(self as *mut _ as *mut _) };
 			let that: &BitSlice<Lsb0, T> =
 				unsafe { &*(src as *const _ as *const _) };
 			this.sp_copy_from_bitslice(that);
 		}
-		else if TypeId::of::<O>() == TypeId::of::<Msb0>() {
+		else if dvl::match_order::<O, Msb0>() {
 			let this: &mut BitSlice<Msb0, T> =
 				unsafe { &mut *(self as *mut _ as *mut _) };
 			let that: &BitSlice<Msb0, T> =
@@ -1446,10 +1438,12 @@ where
 			this.sp_copy_from_bitslice(that);
 		}
 		else {
-			for (to, from) in unsafe { self.iter_mut().remove_alias() }
-				.zip(src.iter().by_val())
+			for (ptr, from) in
+				self.as_mut_bitptr_range().zip(src.iter().by_val())
 			{
-				to.set(from);
+				unsafe {
+					ptr.write(from);
+				}
 			}
 		}
 	}
@@ -1949,11 +1943,11 @@ where
 	/// [`self.len()`]: Self::len
 	pub unsafe fn copy_within_unchecked<R>(&mut self, src: R, dest: usize)
 	where R: RangeBounds<usize> {
-		if TypeId::of::<O>() == TypeId::of::<Lsb0>() {
+		if dvl::match_order::<O, Lsb0>() {
 			let this: &mut BitSlice<Lsb0, T> = &mut *(self as *mut _ as *mut _);
 			this.sp_copy_within_unchecked(src, dest);
 		}
-		else if TypeId::of::<O>() == TypeId::of::<Msb0>() {
+		else if dvl::match_order::<O, Msb0>() {
 			let this: &mut BitSlice<Msb0, T> = &mut *(self as *mut _ as *mut _);
 			this.sp_copy_within_unchecked(src, dest);
 		}
