@@ -61,7 +61,13 @@ macro_rules! bitop {
 						unsafe {
 							let this = &mut *cast_order_mut::<O1, Lsb0, T1>(lhs);
 							let that = &*cast_order::<O2, Lsb0, T2>(rhs);
-							let (this, that) = sp_binop(this, that, $trait :: $func);
+							let (this, that) = sp_binop(
+								this, that,
+								<BitSlice<Lsb0, T1> as BitField>::load_le::<usize>,
+								<BitSlice<Lsb0, T2> as BitField>::load_le::<usize>,
+								<BitSlice<Lsb0, T1> as BitField>::store_le::<usize>,
+								$trait :: $func,
+							);
 							lhs = &mut *cast_order_mut::<Lsb0, O1, T1>(this);
 							rhs = &*cast_order::<Lsb0, O2, T2>(that);
 						}
@@ -70,7 +76,13 @@ macro_rules! bitop {
 						unsafe {
 							let this = &mut *cast_order_mut::<O1, Msb0, T1>(lhs);
 							let that = &*cast_order::<O2, Msb0, T2>(rhs);
-							let (this, that) = sp_binop(this, that, $trait :: $func);
+							let (this, that) = sp_binop(
+								this, that,
+								<BitSlice<Msb0, T1> as BitField>::load_be::<usize>,
+								<BitSlice<Msb0, T2> as BitField>::load_be::<usize>,
+								<BitSlice<Msb0, T1> as BitField>::store_be::<usize>,
+								$trait :: $func,
+							);
 							lhs = &mut *cast_order_mut::<Msb0, O1, T1>(this);
 							rhs = &*cast_order::<Msb0, O2, T2>(that);
 						}
@@ -264,16 +276,22 @@ The returned values are subslices of `this` and `that`, describing only the
 leftover memory regions not used by this function. Any bits remaining in these
 regions will need to be processed individually.
 **/
-fn sp_binop<'a, O, T1, T2, F>(
+fn sp_binop<'a, O, T1, T2, G1, G2, S, Op>(
 	mut this: &'a mut BitSlice<O, T1>,
 	mut that: &'a BitSlice<O, T2>,
-	func: F,
+	get_this: G1,
+	get_that: G2,
+	set_this: S,
+	func: Op,
 ) -> (&'a mut BitSlice<O, T1>, &'a BitSlice<O, T2>)
 where
 	O: BitOrder,
 	T1: BitStore,
 	T2: BitStore,
-	F: Fn(usize, usize) -> usize,
+	G1: for<'b> Fn(&'b BitSlice<O, T1>) -> usize,
+	G2: for<'b> Fn(&'b BitSlice<O, T2>) -> usize,
+	S: for<'b> Fn(&'b mut BitSlice<O, T1>, usize),
+	Op: Fn(usize, usize) -> usize,
 	BitSlice<O, T1>: BitField,
 	BitSlice<O, T2>: BitField,
 {
@@ -285,8 +303,8 @@ where
 	while this.len() >= WORD && that.len() >= WORD {
 		let (a, b) = unsafe { this.split_at_unchecked_mut_noalias(WORD) };
 		let (c, d) = unsafe { that.split_at_unchecked(WORD) };
-		let (e, f) = (a.load(), c.load());
-		a.store(func(e, f));
+		let (e, f) = (get_this(a), get_that(c));
+		set_this(a, func(e, f));
 		this = b;
 		that = d;
 	}
