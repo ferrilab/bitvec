@@ -11,6 +11,7 @@ pub use crate::{
 	bitarr,
 	bits,
 	field::BitField,
+	iter::BitIterExt,
 	order::{
 		BitOrder,
 		LocalBits,

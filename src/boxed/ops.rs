@@ -2,6 +2,7 @@
 
 use crate::{
 	boxed::BitBox,
+	iter::BitIter,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
@@ -24,85 +25,136 @@ use core::{
 	},
 };
 
-impl<O, T, Rhs> BitAnd<Rhs> for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-	BitSlice<O, T>: BitAndAssign<Rhs>,
-{
-	type Output = Self;
+macro_rules! bitop {
+	( $(
+		$trait_assign:ident :: $func_assign:ident, $trait:ident :: $func:ident;
+	)+ ) => { $(
+		impl<O1, O2, T1, T2> $trait <BitBox<O2, T2>> for BitBox<O1, T1>
+		where
+			O1: BitOrder,
+			O2: BitOrder,
+			T1: BitStore,
+			T2: BitStore,
+		{
+			type Output = Self;
 
-	#[inline]
-	fn bitand(mut self, rhs: Rhs) -> Self::Output {
-		self &= rhs;
-		self
-	}
+			#[inline(always)]
+			fn $func (mut self, rhs: BitBox<O2, T2>) -> Self::Output {
+				$trait_assign :: $func_assign (
+					self.as_mut_bitslice(),
+					rhs.as_bitslice(),
+				);
+				self
+			}
+		}
+
+		impl<O1, O2, T1, T2> $trait_assign <BitBox<O2, T2>>
+		for BitBox<O1, T1>
+		where
+			O1: BitOrder,
+			O2: BitOrder,
+			T1: BitStore,
+			T2: BitStore,
+		{
+			#[inline(always)]
+			fn $func_assign(&mut self, rhs: BitBox<O2, T2>) {
+				$trait_assign :: $func_assign (
+					self.as_mut_bitslice(),
+					rhs.as_bitslice(),
+				);
+			}
+		}
+
+		impl<'a, O1, O2, T1, T2> $trait <&'a BitSlice<O2, T2>> for BitBox<O1, T1>
+		where
+			O1: BitOrder,
+			O2: BitOrder,
+			T1: BitStore,
+			T2: BitStore,
+		{
+			type Output = Self;
+
+			#[inline(always)]
+			fn $func (mut self, rhs: &'a BitSlice<O2, T2>) -> Self::Output {
+				$trait_assign :: $func_assign (self.as_mut_bitslice(), rhs);
+				self
+			}
+		}
+
+		impl<'a, O1, O2, T1, T2> $trait_assign <&'a BitSlice<O2, T2>>
+		for BitBox<O1, T1>
+		where
+			O1: BitOrder,
+			O2: BitOrder,
+			T1: BitStore,
+			T2: BitStore,
+		{
+			#[inline(always)]
+			fn $func_assign (&mut self, rhs: &'a BitSlice<O2, T2>) {
+				$trait_assign :: $func_assign (self.as_mut_bitslice(), rhs);
+			}
+		}
+
+		impl<O1, O2, T1, T2> $trait_assign <BitBox<O2, T2>> for BitSlice<O1, T1>
+		where
+			O1: BitOrder,
+			O2: BitOrder,
+			T1: BitStore,
+			T2: BitStore,
+		{
+			#[inline(always)]
+			fn $func_assign (&mut self, rhs: BitBox<O2, T2>) {
+				$trait_assign :: $func_assign (self, rhs.as_bitslice())
+			}
+		}
+
+		impl<O, T, I> $trait <BitIter<I>> for BitBox<O, T>
+		where
+			O: BitOrder,
+			T: BitStore,
+			I: Iterator<Item = bool>,
+		{
+			type Output = Self;
+
+			#[inline(always)]
+			fn $func (mut self, rhs: BitIter<I>) -> Self::Output {
+				$trait_assign :: $func_assign(&mut self, rhs);
+				self
+			}
+		}
+
+		impl<O, T, I> $trait <BitBox<O, T>> for BitIter<I>
+		where
+			O: BitOrder,
+			T: BitStore,
+			I: Iterator<Item = bool>,
+		{
+			type Output = BitBox<O, T>;
+
+			#[inline(always)]
+			fn $func (self, rhs: BitBox<O, T>) -> Self::Output {
+				$trait :: $func (rhs, self)
+			}
+		}
+
+		impl<O, T, I> $trait_assign <BitIter<I>> for BitBox<O, T>
+		where
+			O: BitOrder,
+			T: BitStore,
+			I: Iterator<Item = bool>,
+		{
+			#[inline(always)]
+			fn $func_assign (&mut self, rhs: BitIter<I>) {
+				$trait_assign :: $func_assign (self.as_mut_bitslice(), rhs)
+			}
+		}
+	)+ };
 }
 
-impl<O, T, Rhs> BitAndAssign<Rhs> for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-	BitSlice<O, T>: BitAndAssign<Rhs>,
-{
-	#[inline]
-	fn bitand_assign(&mut self, rhs: Rhs) {
-		*self.as_mut_bitslice() &= rhs;
-	}
-}
-
-impl<O, T, Rhs> BitOr<Rhs> for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-	BitSlice<O, T>: BitOrAssign<Rhs>,
-{
-	type Output = Self;
-
-	#[inline]
-	fn bitor(mut self, rhs: Rhs) -> Self::Output {
-		self |= rhs;
-		self
-	}
-}
-
-impl<O, T, Rhs> BitOrAssign<Rhs> for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-	BitSlice<O, T>: BitOrAssign<Rhs>,
-{
-	#[inline]
-	fn bitor_assign(&mut self, rhs: Rhs) {
-		*self.as_mut_bitslice() |= rhs;
-	}
-}
-
-impl<O, T, Rhs> BitXor<Rhs> for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-	BitSlice<O, T>: BitXorAssign<Rhs>,
-{
-	type Output = Self;
-
-	#[inline]
-	fn bitxor(mut self, rhs: Rhs) -> Self::Output {
-		self ^= rhs;
-		self
-	}
-}
-
-impl<O, T, Rhs> BitXorAssign<Rhs> for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-	BitSlice<O, T>: BitXorAssign<Rhs>,
-{
-	#[inline]
-	fn bitxor_assign(&mut self, rhs: Rhs) {
-		*self.as_mut_bitslice() ^= rhs;
-	}
+bitop! {
+	BitAndAssign::bitand_assign, BitAnd::bitand;
+	BitOrAssign::bitor_assign, BitOr::bitor;
+	BitXorAssign::bitxor_assign, BitXor::bitxor;
 }
 
 #[cfg(not(tarpaulin_include))]

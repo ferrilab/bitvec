@@ -311,9 +311,11 @@ fn main() {
   }
 
   //  `BitSlice` implements set arithmetic against any `bool` iterator
-  bv &= repeat(true);
-  bv |= repeat(false);
-  bv ^= repeat(true);
+  //  In order to make these operators fast when working between `bitvec`
+  //  types, all *other* iterators must use the `.for_bitvec()` adapter.
+  bv &= repeat(true).for_bitvec();
+  bv |= repeat(false).for_bitvec();
+  bv ^= repeat(true).for_bitvec();
   bv = !bv;
   // the crate no longer implements integer arithmetic, but `BitSlice`
   // can be used to represent varints in a downstream library.

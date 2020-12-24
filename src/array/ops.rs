@@ -2,6 +2,7 @@
 
 use crate::{
 	array::BitArray,
+	iter::BitIter,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
@@ -22,85 +23,136 @@ use core::ops::{
 	Not,
 };
 
-impl<O, V, Rhs> BitAnd<Rhs> for BitArray<O, V>
-where
-	O: BitOrder,
-	V: BitView,
-	BitSlice<O, V::Store>: BitAndAssign<Rhs>,
-{
-	type Output = Self;
+macro_rules! bitop {
+	( $(
+		$trait_assign:ident :: $func_assign:ident, $trait:ident :: $func:ident;
+	)+ ) => { $(
+		impl<O1, O2, V1, V2> $trait <BitArray<O2, V2>> for BitArray<O1, V1>
+		where
+			O1: BitOrder,
+			O2: BitOrder,
+			V1: BitView,
+			V2: BitView,
+		{
+			type Output = Self;
 
-	#[inline]
-	fn bitand(mut self, rhs: Rhs) -> Self::Output {
-		self &= rhs;
-		self
-	}
+			#[inline(always)]
+			fn $func (mut self, rhs: BitArray<O2, V2>) -> Self::Output {
+				$trait_assign :: $func_assign (
+					self.as_mut_bitslice(),
+					rhs.as_bitslice(),
+				);
+				self
+			}
+		}
+
+		impl<O1, O2, V1, V2> $trait_assign <BitArray<O2, V2>>
+		for BitArray<O1, V1>
+		where
+			O1: BitOrder,
+			O2: BitOrder,
+			V1: BitView,
+			V2: BitView,
+		{
+			#[inline(always)]
+			fn $func_assign(&mut self, rhs: BitArray<O2, V2>) {
+				$trait_assign :: $func_assign (
+					self.as_mut_bitslice(),
+					rhs.as_bitslice(),
+				);
+			}
+		}
+
+		impl<'a, O1, O2, V, T> $trait <&'a BitSlice<O2, T>> for BitArray<O1, V>
+		where
+			O1: BitOrder,
+			O2: BitOrder,
+			V: BitView,
+			T: BitStore,
+		{
+			type Output = Self;
+
+			#[inline(always)]
+			fn $func (mut self, rhs: &'a BitSlice<O2, T>) -> Self::Output {
+				$trait_assign :: $func_assign (self.as_mut_bitslice(), rhs);
+				self
+			}
+		}
+
+		impl<'a, O1, O2, V, T> $trait_assign <&'a BitSlice<O2, T>>
+		for BitArray<O1, V>
+		where
+			O1: BitOrder,
+			O2: BitOrder,
+			V: BitView,
+			T: BitStore,
+		{
+			#[inline(always)]
+			fn $func_assign (&mut self, rhs: &'a BitSlice<O2, T>) {
+				$trait_assign :: $func_assign (self.as_mut_bitslice(), rhs);
+			}
+		}
+
+		impl<O1, O2, T, V> $trait_assign <BitArray<O2, V>> for BitSlice<O1, T>
+		where
+			O1: BitOrder,
+			O2: BitOrder,
+			T: BitStore,
+			V: BitView,
+		{
+			#[inline(always)]
+			fn $func_assign (&mut self, rhs: BitArray<O2, V>) {
+				$trait_assign :: $func_assign (self, rhs.as_bitslice())
+			}
+		}
+
+		impl<O, V, I> $trait <BitIter<I>> for BitArray<O, V>
+		where
+			O: BitOrder,
+			V: BitView,
+			I: Iterator<Item = bool>,
+		{
+			type Output = Self;
+
+			#[inline]
+			fn $func (mut self, rhs: BitIter<I>) -> Self::Output {
+				$trait_assign :: $func_assign(&mut self, rhs);
+				self
+			}
+		}
+
+		impl<O, V, I> $trait <BitArray<O, V>> for BitIter<I>
+		where
+			O: BitOrder,
+			V: BitView,
+			I: Iterator<Item = bool>,
+		{
+			type Output = BitArray<O, V>;
+
+			#[inline(always)]
+			fn $func (self, rhs: BitArray<O, V>) -> Self::Output {
+				$trait :: $func (rhs, self)
+			}
+		}
+
+		impl<O, V, I> $trait_assign <BitIter<I>> for BitArray<O, V>
+		where
+			O: BitOrder,
+			V: BitView,
+			I: Iterator<Item = bool>,
+		{
+			#[inline]
+			fn $func_assign (&mut self, rhs: BitIter<I>) {
+				$trait_assign :: $func_assign (self.as_mut_bitslice(), rhs)
+			}
+		}
+	)+ };
 }
 
-impl<O, V, Rhs> BitAndAssign<Rhs> for BitArray<O, V>
-where
-	O: BitOrder,
-	V: BitView,
-	BitSlice<O, V::Store>: BitAndAssign<Rhs>,
-{
-	#[inline]
-	fn bitand_assign(&mut self, rhs: Rhs) {
-		*self.as_mut_bitslice() &= rhs;
-	}
-}
-
-impl<O, V, Rhs> BitOr<Rhs> for BitArray<O, V>
-where
-	O: BitOrder,
-	V: BitView,
-	BitSlice<O, V::Store>: BitOrAssign<Rhs>,
-{
-	type Output = Self;
-
-	#[inline]
-	fn bitor(mut self, rhs: Rhs) -> Self::Output {
-		self |= rhs;
-		self
-	}
-}
-
-impl<O, V, Rhs> BitOrAssign<Rhs> for BitArray<O, V>
-where
-	O: BitOrder,
-	V: BitView,
-	BitSlice<O, V::Store>: BitOrAssign<Rhs>,
-{
-	#[inline]
-	fn bitor_assign(&mut self, rhs: Rhs) {
-		*self.as_mut_bitslice() |= rhs;
-	}
-}
-
-impl<O, V, Rhs> BitXor<Rhs> for BitArray<O, V>
-where
-	O: BitOrder,
-	V: BitView,
-	BitSlice<O, V::Store>: BitXorAssign<Rhs>,
-{
-	type Output = Self;
-
-	#[inline]
-	fn bitxor(mut self, rhs: Rhs) -> Self::Output {
-		self ^= rhs;
-		self
-	}
-}
-
-impl<O, V, Rhs> BitXorAssign<Rhs> for BitArray<O, V>
-where
-	O: BitOrder,
-	V: BitView,
-	BitSlice<O, V::Store>: BitXorAssign<Rhs>,
-{
-	#[inline]
-	fn bitxor_assign(&mut self, rhs: Rhs) {
-		*self.as_mut_bitslice() ^= rhs;
-	}
+bitop! {
+	BitAndAssign::bitand_assign, BitAnd::bitand;
+	BitOrAssign::bitor_assign, BitOr::bitor;
+	BitXorAssign::bitxor_assign, BitXor::bitxor;
 }
 
 #[cfg(not(tarpaulin_include))]

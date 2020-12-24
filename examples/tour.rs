@@ -13,6 +13,8 @@ use bitvec::{
 	prelude::{
 		//  `bits!` macro
 		bits,
+		//  `Iterator` extensions
+		BitIterExt as _,
 		//  element-traversal trait (you shouldn’t explicitly need this)
 		BitOrder,
 		//  slice type, analagous to `[u1]`
@@ -71,11 +73,11 @@ fn main() {
 	render(&bv);
 
 	println!("BitVec can participate in Boolean arithmetic");
-	let full = bv.clone() | repeat(true);
+	let full = bv.clone() | repeat(true).for_bitvec();
 	render(&full);
-	let empty = full & repeat(false);
+	let empty = full & repeat(false).for_bitvec();
 	render(&empty);
-	let flip = bv ^ repeat(true);
+	let flip = bv ^ repeat(true).for_bitvec();
 	render(&flip);
 	let bv = !flip;
 	render(&bv);
