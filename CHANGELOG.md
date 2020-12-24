@@ -4,6 +4,8 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+1. [0.20.2](#0202)
+1. [0.20.1](#0201)
 1. [0.20.0](#0200)
    1. [Added](#added)
       1. [Pointer Overhaul](#pointer-overhaul)
@@ -56,6 +58,18 @@ This document is written according to the [Keep a Changelog][kac] style.
 1. [0.3.0](#030)
 1. [0.2.0](#020)
 1. [0.1.0](#010)
+
+## 0.20.2
+
+Fixed overly vague `funty` dependency, as the `1.2` release moved `BITS` from
+`bitvec` into it, but old `bitvec`s now collided. Apologies to *everyone* who
+dealt with this problem after I published and *immediately* went on vacation for
+two weeks!
+
+## 0.20.1
+
+This largely addresses defect reports. In addition, the `IterOnes` and
+`IterZeros` bit-finding iterators are accelerated by specialization.
 
 ## 0.20.0
 
