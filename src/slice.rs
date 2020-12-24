@@ -1673,11 +1673,9 @@ where
 	/// [`IndexMut`]: core::ops::IndexMut
 	pub fn for_each<F>(&mut self, mut func: F)
 	where F: FnMut(usize, bool) -> bool {
-		for idx in 0 .. self.len() {
+		for (idx, ptr) in self.as_mut_bitptr_range().enumerate() {
 			unsafe {
-				let tmp = *self.get_unchecked(idx);
-				let new = func(idx, tmp);
-				self.set_unchecked(idx, new);
+				ptr.write(func(idx, ptr.read()));
 			}
 		}
 	}

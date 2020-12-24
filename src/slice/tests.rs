@@ -4,7 +4,17 @@
 
 use crate::prelude::*;
 
+use core::mem;
+
 use tap::conv::TryConv;
+
+#[test]
+fn pointer_size() {
+	assert_eq!(
+		mem::size_of::<*const BitSlice>(),
+		mem::size_of::<(*const usize, usize)>(),
+	);
+}
 
 #[test]
 fn construction() {
