@@ -23,6 +23,7 @@ homepage = "https://myrrlyn.net/crates/bitvec"
 include = [
 	"Cargo.toml",
 	"LICENSE.txt",
+	"README.md",
 	"src/**/*.rs",
 	"benches/*.rs",
 ]
