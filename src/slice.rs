@@ -38,6 +38,21 @@ the [`core`] and [`std`] distribution libraries.
 [std]: https://doc.rust-lang.org/stable/std/slice
 !*/
 
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
+#[cfg(feature = "alloc")]
+use core::mem::ManuallyDrop;
+use core::{
+	marker::PhantomData,
+	ops::RangeBounds,
+	ptr,
+	slice,
+};
+
+use funty::IsInteger;
+#[cfg(feature = "alloc")]
+use tap::pipe::Pipe;
+
 use crate::{
 	access::{
 		BitAccess,
@@ -73,30 +88,11 @@ use crate::{
 	},
 	store::BitStore,
 };
-
-use core::{
-	marker::PhantomData,
-	ops::RangeBounds,
-	ptr,
-	slice,
-};
-
-use funty::IsInteger;
-
 #[cfg(feature = "alloc")]
 use crate::{
 	ptr::Address,
 	vec::BitVec,
 };
-
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
-
-#[cfg(feature = "alloc")]
-use core::mem::ManuallyDrop;
-
-#[cfg(feature = "alloc")]
-use tap::pipe::Pipe;
 
 /** A slice of individual bits, anywhere in memory.
 

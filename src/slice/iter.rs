@@ -1,5 +1,17 @@
 //! Iterators over `[T]`.
 
+use core::{
+	cmp,
+	fmt::{
+		self,
+		Debug,
+		Formatter,
+	},
+	iter::FusedIterator,
+	marker::PhantomData,
+	mem,
+};
+
 use crate::{
 	devel as dvl,
 	mutability::{
@@ -20,18 +32,6 @@ use crate::{
 		BitSliceIndex,
 	},
 	store::BitStore,
-};
-
-use core::{
-	cmp,
-	fmt::{
-		self,
-		Debug,
-		Formatter,
-	},
-	iter::FusedIterator,
-	marker::PhantomData,
-	mem,
 };
 
 impl<'a, O, T> IntoIterator for &'a BitSlice<O, T>

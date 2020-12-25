@@ -1,12 +1,5 @@
 //! Port of the `Vec<T>` operator implementations.
 
-use crate::{
-	order::BitOrder,
-	slice::BitSlice,
-	store::BitStore,
-	vec::BitVec,
-};
-
 use core::{
 	mem::ManuallyDrop,
 	ops::{
@@ -22,6 +15,13 @@ use core::{
 		IndexMut,
 		Not,
 	},
+};
+
+use crate::{
+	order::BitOrder,
+	slice::BitSlice,
+	store::BitStore,
+	vec::BitVec,
 };
 
 impl<O, T, Rhs> BitAnd<Rhs> for BitVec<O, T>

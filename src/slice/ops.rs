@@ -1,16 +1,5 @@
 //! Port of the `[T]` operator implementations.
 
-use crate::{
-	access::BitAccess,
-	domain::DomainMut,
-	order::BitOrder,
-	slice::{
-		BitSlice,
-		BitSliceIndex,
-	},
-	store::BitStore,
-};
-
 use core::ops::{
 	BitAndAssign,
 	BitOrAssign,
@@ -24,6 +13,17 @@ use core::ops::{
 	RangeInclusive,
 	RangeTo,
 	RangeToInclusive,
+};
+
+use crate::{
+	access::BitAccess,
+	domain::DomainMut,
+	order::BitOrder,
+	slice::{
+		BitSlice,
+		BitSliceIndex,
+	},
+	store::BitStore,
 };
 
 impl<O, T, Rhs> BitAndAssign<Rhs> for BitSlice<O, T>

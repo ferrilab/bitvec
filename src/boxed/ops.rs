@@ -1,12 +1,5 @@
 //! Port of the `Box<[T]>` operator implementations.
 
-use crate::{
-	boxed::BitBox,
-	order::BitOrder,
-	slice::BitSlice,
-	store::BitStore,
-};
-
 use core::{
 	mem::ManuallyDrop,
 	ops::{
@@ -22,6 +15,13 @@ use core::{
 		IndexMut,
 		Not,
 	},
+};
+
+use crate::{
+	boxed::BitBox,
+	order::BitOrder,
+	slice::BitSlice,
+	store::BitStore,
 };
 
 impl<O, T, Rhs> BitAnd<Rhs> for BitBox<O, T>

@@ -200,6 +200,13 @@ in a way that matches a debugger or other memory inspections.
 [`store_le`]: crate::field::BitField::store_le
 !*/
 
+use core::{
+	mem,
+	ptr,
+};
+
+use tap::pipe::Pipe;
+
 use crate::{
 	access::BitAccess,
 	array::BitArray,
@@ -218,14 +225,6 @@ use crate::{
 	store::BitStore,
 	view::BitView,
 };
-
-use core::{
-	mem,
-	ptr,
-};
-
-use tap::pipe::Pipe;
-
 #[cfg(feature = "alloc")]
 use crate::{
 	boxed::BitBox,

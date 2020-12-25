@@ -10,7 +10,6 @@ use bitvec::{
 	mem::BitMemory,
 	prelude::*,
 };
-
 use criterion::{
 	criterion_group,
 	criterion_main,

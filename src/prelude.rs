@@ -26,7 +26,6 @@ pub use crate::{
 	store::BitStore,
 	view::BitView,
 };
-
 #[cfg(feature = "alloc")]
 pub use crate::{
 	bitbox,

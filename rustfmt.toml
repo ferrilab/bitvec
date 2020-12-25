@@ -6,6 +6,8 @@
 # that are stable as of the pinned Rust version in `rust-toolchain`. The file  #
 # `rustfmt-nightly.toml` contains the configurations that are available as of  #
 # the nightly Rust release when that file was last touched.                    #
+#                                                                              #
+# See <https://rust-lang.github.io/rustfmt/?version=v1.4.20>                   #
 ################################################################################
 
 edition = "2018"
@@ -20,4 +22,5 @@ reorder_imports = true
 reorder_modules = true
 tab_spaces = 4
 use_field_init_shorthand = true
+use_small_heuristics = "Default"
 use_try_shorthand = true

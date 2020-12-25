@@ -1,5 +1,13 @@
 //! Port of the `Box<[T]>` inherent API.
 
+use core::{
+	marker::Unpin,
+	mem,
+	pin::Pin,
+};
+
+use tap::pipe::Pipe;
+
 use crate::{
 	boxed::BitBox,
 	order::BitOrder,
@@ -8,14 +16,6 @@ use crate::{
 	store::BitStore,
 	vec::BitVec,
 };
-
-use core::{
-	marker::Unpin,
-	mem,
-	pin::Pin,
-};
-
-use tap::pipe::Pipe;
 
 impl<O, T> BitBox<O, T>
 where

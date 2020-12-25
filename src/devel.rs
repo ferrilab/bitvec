@@ -1,10 +1,5 @@
 //! Internal support utilities.
 
-use crate::{
-	order::BitOrder,
-	store::BitStore,
-};
-
 use core::{
 	any::TypeId,
 	ops::{
@@ -12,6 +7,11 @@ use core::{
 		Range,
 		RangeBounds,
 	},
+};
+
+use crate::{
+	order::BitOrder,
+	store::BitStore,
 };
 
 /** Normalizes any range into a basic `Range`.
@@ -113,8 +113,9 @@ where
 
 #[cfg(all(test, feature = "std"))]
 mod tests {
-	use super::*;
 	use std::panic::catch_unwind;
+
+	use super::*;
 
 	#[test]
 	fn check_range_asserts() {

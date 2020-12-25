@@ -2,9 +2,9 @@
 
 #![cfg(test)]
 
-use crate::prelude::*;
-
 use core::cell::Cell;
+
+use crate::prelude::*;
 
 #[test]
 fn compile_bitarr_typedef() {

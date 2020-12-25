@@ -40,18 +40,18 @@ taint to only the affected addresses.
 !*/
 
 #[cfg(all(feature = "atomic", feature = "std"))]
+use std::{
+	thread,
+	time::Duration,
+};
+
+#[cfg(all(feature = "atomic", feature = "std"))]
 use bitvec::{
 	access::{
 		BitSafe,
 		BitSafeU8,
 	},
 	prelude::*,
-};
-
-#[cfg(all(feature = "atomic", feature = "std"))]
-use std::{
-	thread,
-	time::Duration,
 };
 
 #[cfg(all(feature = "atomic", feature = "std"))]

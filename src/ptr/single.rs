@@ -1,5 +1,33 @@
 //! A pointer to a single bit.
 
+use core::{
+	any::{
+		type_name,
+		TypeId,
+	},
+	cmp,
+	convert::{
+		Infallible,
+		TryFrom,
+		TryInto,
+	},
+	fmt::{
+		self,
+		Debug,
+		Display,
+		Formatter,
+		Pointer,
+	},
+	hash::{
+		Hash,
+		Hasher,
+	},
+	marker::PhantomData,
+	ptr,
+};
+
+use wyz::fmt::FmtForward;
+
 use crate::{
 	access::BitAccess,
 	index::{
@@ -25,34 +53,6 @@ use crate::{
 		BitSpanError,
 	},
 	store::BitStore,
-};
-
-use wyz::fmt::FmtForward;
-
-use core::{
-	any::{
-		type_name,
-		TypeId,
-	},
-	cmp,
-	convert::{
-		Infallible,
-		TryFrom,
-		TryInto,
-	},
-	fmt::{
-		self,
-		Debug,
-		Display,
-		Formatter,
-		Pointer,
-	},
-	hash::{
-		Hash,
-		Hasher,
-	},
-	marker::PhantomData,
-	ptr,
 };
 
 /** Pointer to an individual bit in a memory element. Analagous to `*bool`.
@@ -1520,9 +1520,10 @@ mod tests {
 	#[test]
 	#[cfg(feature = "alloc")]
 	fn format() {
-		use crate::order::Msb0;
 		#[cfg(not(feature = "std"))]
 		use alloc::format;
+
+		use crate::order::Msb0;
 
 		let base = 0u16;
 		let bitptr = BitPtr::<_, Msb0, _>::from_ref(&base);

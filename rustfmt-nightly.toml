@@ -5,8 +5,7 @@
 # `rustfmt` tool is still unstable, this file is only usable by the nightly    #
 # release of Rust at least as of the date this file was last touched.          #
 #                                                                              #
-# See https://github.com/rust-lang/rustfmt/blob/master/Configurations.md for a #
-# list of all configuration options.                                           #
+# See <https://rust-lang.github.io/rustfmt/?version=v1.4.30>                   #
 ################################################################################
 
 # Stable as of current nightly
@@ -14,6 +13,7 @@ edition = "2018"
 fn_args_layout = "Tall"
 force_explicit_abi = true
 hard_tabs = true
+match_arm_leading_pipes = "Never"
 max_width = 81
 merge_derives = true
 newline_style = "Unix"
@@ -22,6 +22,7 @@ reorder_imports = true
 reorder_modules = true
 tab_spaces = 4
 use_field_init_shorthand = true
+use_small_heuristics = "Default"
 use_try_shorthand = true
 
 # Still unstable
@@ -45,6 +46,7 @@ format_code_in_doc_comments = false
 format_macro_matchers = true
 format_macro_bodies = true
 format_strings = true
+group_imports = "StdExternalCrate"
 hide_parse_errors = false
 ignore = []
 imports_indent = "Block"
@@ -59,6 +61,9 @@ normalize_comments = false
 normalize_doc_attributes = true
 overflow_delimited_expr = true
 reorder_impl_items = true
+report_fixme = "Never"
+report_todo = "Never"
+skip_children = false
 space_after_colon = true
 space_before_colon = false
 spaces_around_ranges = true

@@ -1,17 +1,5 @@
 //! Non-operator trait implementations.
 
-use crate::{
-	array::{
-		iter::IntoIter,
-		BitArray,
-	},
-	index::BitIdx,
-	order::BitOrder,
-	slice::BitSlice,
-	store::BitStore,
-	view::BitView,
-};
-
 use core::{
 	borrow::{
 		Borrow,
@@ -33,6 +21,18 @@ use core::{
 		Hash,
 		Hasher,
 	},
+};
+
+use crate::{
+	array::{
+		iter::IntoIter,
+		BitArray,
+	},
+	index::BitIdx,
+	order::BitOrder,
+	slice::BitSlice,
+	store::BitStore,
+	view::BitView,
 };
 
 #[cfg(not(tarpaulin_include))]

@@ -7,6 +7,9 @@ This example prints **a lot** of text to the console.
 !*/
 
 #[cfg(feature = "std")]
+use std::iter::repeat;
+
+#[cfg(feature = "std")]
 use bitvec::{
 	//  memory information about the underlying type (for debugging info)
 	mem::BitMemory,
@@ -26,9 +29,6 @@ use bitvec::{
 		Msb0,
 	},
 };
-
-#[cfg(feature = "std")]
-use std::iter::repeat;
 
 #[cfg(feature = "std")]
 fn main() {

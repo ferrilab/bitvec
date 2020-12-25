@@ -21,6 +21,21 @@ dynamic resizing, and provide some specializations that cannot safely be done on
 
 #![cfg(feature = "alloc")]
 
+use alloc::vec::Vec;
+use core::{
+	mem::{
+		self,
+		ManuallyDrop,
+	},
+	slice,
+};
+
+use funty::IsInteger;
+use tap::{
+	pipe::Pipe,
+	tap::Tap,
+};
+
 use crate::{
 	boxed::BitBox,
 	domain::Domain,
@@ -43,23 +58,6 @@ use crate::{
 	},
 	slice::BitSlice,
 	store::BitStore,
-};
-
-use alloc::vec::Vec;
-
-use core::{
-	mem::{
-		self,
-		ManuallyDrop,
-	},
-	slice,
-};
-
-use funty::IsInteger;
-
-use tap::{
-	pipe::Pipe,
-	tap::Tap,
 };
 
 /** A contiguous growable array of bits.

@@ -1,15 +1,6 @@
 //! Non-operator trait implementations.
 
-use crate::{
-	boxed::BitBox,
-	order::BitOrder,
-	slice::BitSlice,
-	store::BitStore,
-	vec::BitVec,
-};
-
 use alloc::vec::Vec;
-
 use core::{
 	borrow::{
 		Borrow,
@@ -34,6 +25,14 @@ use core::{
 };
 
 use tap::tap::Tap;
+
+use crate::{
+	boxed::BitBox,
+	order::BitOrder,
+	slice::BitSlice,
+	store::BitStore,
+	vec::BitVec,
+};
 
 impl<O, T> Borrow<BitSlice<O, T>> for BitVec<O, T>
 where

@@ -19,7 +19,6 @@ values, but are unable to be used in buffer type parameters.
 use core::mem;
 
 use funty::IsUnsigned;
-
 use radium::marker::BitOps;
 
 /** Description of an integer memory element.

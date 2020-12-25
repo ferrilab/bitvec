@@ -79,15 +79,15 @@ allows them to be used on references.
 [`pointer`]: https://doc.rust-lang.org/std/primitive.pointer.html
 !*/
 
+use core::hash::{
+	Hash,
+	Hasher,
+};
+
 use crate::{
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
-};
-
-use core::hash::{
-	Hash,
-	Hasher,
 };
 
 mod address;
@@ -97,7 +97,6 @@ mod single;
 mod span;
 
 pub(crate) use self::span::BitSpan;
-
 pub use crate::{
 	mutability::{
 		Const,

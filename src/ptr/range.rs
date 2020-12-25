@@ -1,18 +1,5 @@
 //! Implementation of `Range<BitPtr>`.
 
-use crate::{
-	mutability::Mutability,
-	order::{
-		BitOrder,
-		Lsb0,
-	},
-	ptr::{
-		BitPtr,
-		BitSpan,
-	},
-	store::BitStore,
-};
-
 use core::{
 	any::TypeId,
 	fmt::{
@@ -31,6 +18,19 @@ use core::{
 		Range,
 		RangeBounds,
 	},
+};
+
+use crate::{
+	mutability::Mutability,
+	order::{
+		BitOrder,
+		Lsb0,
+	},
+	ptr::{
+		BitPtr,
+		BitSpan,
+	},
+	store::BitStore,
 };
 
 /** Equivalent to `Range<BitPtr<M, O, T>>`.
@@ -432,12 +432,13 @@ where
 
 #[cfg(test)]
 mod tests {
+	use core::mem::size_of;
+
 	use super::*;
 	use crate::{
 		mutability::Const,
 		order::Lsb0,
 	};
-	use core::mem::size_of;
 
 	#[test]
 	fn assert_size() {

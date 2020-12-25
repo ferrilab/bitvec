@@ -29,13 +29,13 @@ square 25x25.
 //  Heisenbugs are weird.
 
 #[cfg(feature = "std")]
-use bitvec::prelude::*;
-
-#[cfg(feature = "std")]
 use std::{
 	cmp,
 	env,
 };
+
+#[cfg(feature = "std")]
+use bitvec::prelude::*;
 
 #[cfg(feature = "std")]
 fn main() {

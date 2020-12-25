@@ -1,14 +1,5 @@
 //! Array iteration.
 
-use crate::{
-	array::BitArray,
-	mutability::Const,
-	order::BitOrder,
-	ptr::BitPtr,
-	slice::BitSlice,
-	view::BitView,
-};
-
 use core::{
 	fmt::{
 		self,
@@ -20,6 +11,15 @@ use core::{
 };
 
 use tap::pipe::Pipe;
+
+use crate::{
+	array::BitArray,
+	mutability::Const,
+	order::BitOrder,
+	ptr::BitPtr,
+	slice::BitSlice,
+	view::BitView,
+};
 
 /** A by-value [bit-array] iterator.
 

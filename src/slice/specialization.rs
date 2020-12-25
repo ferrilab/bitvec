@@ -8,6 +8,10 @@ inspect their type arguments to determine if specialization is even possible,
 and transmute generic slices into slices with concrete type arguments applied.
 !*/
 
+use core::ops::RangeBounds;
+
+use funty::IsInteger;
+
 use crate::{
 	devel as dvl,
 	domain::Domain,
@@ -21,10 +25,6 @@ use crate::{
 	slice::BitSlice,
 	store::BitStore,
 };
-
-use core::ops::RangeBounds;
-
-use funty::IsInteger;
 
 /** Order-specialized function implementations.
 

@@ -357,7 +357,6 @@ otherwise completely unrelated.
 **/
 #[cfg(target_endian = "little")]
 pub use self::Lsb0 as LocalBits;
-
 /** A default bit ordering.
 
 Typically, your platform’s C compiler uses most-significant-bit-first ordering

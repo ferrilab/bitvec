@@ -9,20 +9,6 @@ type [`std::bitset<N>::reference`].
 [`std::bitset<N>::reference`]: https://en.cppreference.com/w/cpp/utility/bitset/reference
 !*/
 
-use crate::{
-	mutability::{
-		Const,
-		Mut,
-		Mutability,
-	},
-	order::{
-		BitOrder,
-		Lsb0,
-	},
-	ptr::BitPtr,
-	store::BitStore,
-};
-
 use core::{
 	any::TypeId,
 	cell::Cell,
@@ -45,6 +31,20 @@ use core::{
 		DerefMut,
 		Not,
 	},
+};
+
+use crate::{
+	mutability::{
+		Const,
+		Mut,
+		Mutability,
+	},
+	order::{
+		BitOrder,
+		Lsb0,
+	},
+	ptr::BitPtr,
+	store::BitStore,
 };
 
 /** A proxy reference, equivalent to C++ [`std::bitset<N>::reference`].
@@ -546,9 +546,10 @@ mod tests {
 	#[test]
 	#[cfg(feature = "alloc")]
 	fn format() {
-		use crate::order::Msb0;
 		#[cfg(not(feature = "std"))]
 		use alloc::format;
+
+		use crate::order::Msb0;
 
 		let bits = bits![mut Msb0, u8; 0];
 		let mut bit = bits.get_mut(0).unwrap();

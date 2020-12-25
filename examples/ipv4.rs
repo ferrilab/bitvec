@@ -6,7 +6,6 @@ each modification so that the user can manually step to the next, by running it
 with the argument "pause": `cargo run --example ipv4 -- pause`
 !*/
 
-use bitvec::prelude::*;
 use std::{
 	collections::BTreeSet,
 	fmt::{
@@ -17,6 +16,8 @@ use std::{
 	io,
 	ops::Range,
 };
+
+use bitvec::prelude::*;
 use wyz::fmt::FmtForward;
 
 type Ipv4Header = BitArray<Msb0, [u8; 20]>;

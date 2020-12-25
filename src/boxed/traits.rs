@@ -1,17 +1,6 @@
 //! Non-operator trait implementations.
 
-use crate::{
-	boxed::BitBox,
-	mutability::Mut,
-	order::BitOrder,
-	ptr::BitSpan,
-	slice::BitSlice,
-	store::BitStore,
-	vec::BitVec,
-};
-
 use alloc::boxed::Box;
-
 use core::{
 	borrow::{
 		Borrow,
@@ -37,6 +26,16 @@ use core::{
 };
 
 use tap::pipe::Pipe;
+
+use crate::{
+	boxed::BitBox,
+	mutability::Mut,
+	order::BitOrder,
+	ptr::BitSpan,
+	slice::BitSlice,
+	store::BitStore,
+	vec::BitVec,
+};
 
 #[cfg(not(tarpaulin_include))]
 impl<O, T> Borrow<BitSlice<O, T>> for BitBox<O, T>

@@ -34,22 +34,6 @@ only be modified in a major release (`0.X.n` to `0.Y.0` or `X.m.n` to `Y.0.0`).
 
 #![cfg(feature = "serde")]
 
-use crate::{
-	array::BitArray,
-	domain::Domain,
-	mem::BitMemory,
-	order::BitOrder,
-	ptr::{
-		AddressError,
-		BitPtr,
-		BitPtrError,
-		BitSpanError,
-	},
-	slice::BitSlice,
-	store::BitStore,
-	view::BitView,
-};
-
 use core::{
 	cmp,
 	fmt::{
@@ -77,9 +61,23 @@ use serde::{
 		Serializer,
 	},
 };
-
 use tap::pipe::Pipe;
 
+use crate::{
+	array::BitArray,
+	domain::Domain,
+	mem::BitMemory,
+	order::BitOrder,
+	ptr::{
+		AddressError,
+		BitPtr,
+		BitPtrError,
+		BitSpanError,
+	},
+	slice::BitSlice,
+	store::BitStore,
+	view::BitView,
+};
 #[cfg(feature = "alloc")]
 use crate::{
 	boxed::BitBox,
@@ -383,20 +381,18 @@ where
 
 #[cfg(test)]
 mod tests {
-	use crate::prelude::*;
-
 	use serde::Deserialize;
-
-	use serde_test::{
-		assert_ser_tokens,
-		Token,
-	};
-
 	#[cfg(feature = "alloc")]
 	use serde_test::{
 		assert_de_tokens,
 		assert_de_tokens_error,
 	};
+	use serde_test::{
+		assert_ser_tokens,
+		Token,
+	};
+
+	use crate::prelude::*;
 
 	macro_rules! bvtok {
 		( s $elts:expr, $head:expr, $bits:expr, $ty:ident $( , $data:expr )* ) => {

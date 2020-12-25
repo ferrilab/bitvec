@@ -1,13 +1,5 @@
 //! Port of the `[T; N]` operator implementations.
 
-use crate::{
-	array::BitArray,
-	order::BitOrder,
-	slice::BitSlice,
-	store::BitStore,
-	view::BitView,
-};
-
 use core::ops::{
 	BitAnd,
 	BitAndAssign,
@@ -20,6 +12,14 @@ use core::ops::{
 	Index,
 	IndexMut,
 	Not,
+};
+
+use crate::{
+	array::BitArray,
+	order::BitOrder,
+	slice::BitSlice,
+	store::BitStore,
+	view::BitView,
 };
 
 impl<O, V, Rhs> BitAnd<Rhs> for BitArray<O, V>

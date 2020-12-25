@@ -29,6 +29,14 @@ before freezing it.
 
 #![cfg(feature = "alloc")]
 
+use alloc::boxed::Box;
+use core::{
+	mem::ManuallyDrop,
+	slice,
+};
+
+use tap::pipe::Pipe;
+
 use crate::{
 	index::BitIdx,
 	mem::BitMemory,
@@ -45,15 +53,6 @@ use crate::{
 	store::BitStore,
 	vec::BitVec,
 };
-
-use alloc::boxed::Box;
-
-use core::{
-	mem::ManuallyDrop,
-	slice,
-};
-
-use tap::pipe::Pipe;
 
 /** A frozen heap-allocated buffer of individual bits.
 

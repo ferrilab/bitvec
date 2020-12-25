@@ -2,9 +2,9 @@
 
 #![cfg(test)]
 
-use crate::prelude::*;
-
 use tap::conv::TryConv;
+
+use crate::prelude::*;
 
 #[test]
 fn create_arrays() {

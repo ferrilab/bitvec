@@ -1,14 +1,13 @@
 //! Unit tests for the `boxed` module.
 
-use crate::prelude::*;
-
-use core::convert::TryInto;
-
 #[cfg(not(feature = "std"))]
 use alloc::{
 	boxed::Box,
 	format,
 };
+use core::convert::TryInto;
+
+use crate::prelude::*;
 
 #[test]
 #[allow(deprecated)]

@@ -1,5 +1,9 @@
 #![cfg(test)]
 
+use core::cell::Cell;
+
+use static_assertions::assert_not_impl_any;
+
 use crate::{
 	mutability::Const,
 	order::{
@@ -9,10 +13,6 @@ use crate::{
 	ptr::BitPtr,
 	slice::BitSlice,
 };
-
-use core::cell::Cell;
-
-use static_assertions::assert_not_impl_any;
 
 #[test]
 fn pointers_not_send_sync() {

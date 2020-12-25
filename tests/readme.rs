@@ -3,10 +3,10 @@
 #![allow(unused_variables, array_into_iter)]
 
 #[cfg(feature = "alloc")]
-use bitvec::prelude::*;
+use core::iter::repeat;
 
 #[cfg(feature = "alloc")]
-use core::iter::repeat;
+use bitvec::prelude::*;
 
 #[test]
 #[cfg(feature = "alloc")]

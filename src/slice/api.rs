@@ -1,5 +1,25 @@
 //! Port of the `[T]` inherent API.
 
+use core::{
+	cmp,
+	ops::{
+		Range,
+		RangeBounds,
+		RangeFrom,
+		RangeFull,
+		RangeInclusive,
+		RangeTo,
+		RangeToInclusive,
+	},
+};
+
+use tap::{
+	pipe::Pipe,
+	tap::Tap,
+};
+
+#[cfg(feature = "alloc")]
+use crate::vec::BitVec;
 use crate::{
 	array::BitArray,
 	devel as dvl,
@@ -42,27 +62,6 @@ use crate::{
 	},
 	store::BitStore,
 };
-
-use core::{
-	cmp,
-	ops::{
-		Range,
-		RangeBounds,
-		RangeFrom,
-		RangeFull,
-		RangeInclusive,
-		RangeTo,
-		RangeToInclusive,
-	},
-};
-
-use tap::{
-	pipe::Pipe,
-	tap::Tap,
-};
-
-#[cfg(feature = "alloc")]
-use crate::vec::BitVec;
 
 /// Port of the `[T]` inherent API.
 impl<O, T> BitSlice<O, T>

@@ -15,6 +15,12 @@ value position, and delegates to `BitSlice` for all actual work.
 [std]: https://doc.rust-lang.org/stable/std/primitive.array.html
 !*/
 
+use core::{
+	marker::PhantomData,
+	mem::MaybeUninit,
+	slice,
+};
+
 use crate::{
 	order::{
 		BitOrder,
@@ -22,12 +28,6 @@ use crate::{
 	},
 	slice::BitSlice,
 	view::BitView,
-};
-
-use core::{
-	marker::PhantomData,
-	mem::MaybeUninit,
-	slice,
 };
 
 /* Note on C++ `std::bitset<N>` compatibility:

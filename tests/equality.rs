@@ -3,9 +3,9 @@ hard to correctly implement. This test suite is built to ensure that all
 combinations of equality and comparison are correctly present.
 !*/
 
-use bitvec::prelude::*;
-
 use core::cmp::Ordering;
+
+use bitvec::prelude::*;
 
 #[test]
 fn slice_only() {

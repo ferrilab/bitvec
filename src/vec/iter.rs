@@ -1,20 +1,6 @@
 //! Iterators over `Vec<T>`.
 
-use crate::{
-	devel as dvl,
-	mutability::Mutability,
-	order::BitOrder,
-	ptr::BitRef,
-	slice::{
-		BitSlice,
-		Iter,
-	},
-	store::BitStore,
-	vec::BitVec,
-};
-
 use alloc::vec::Vec;
-
 use core::{
 	fmt::{
 		self,
@@ -42,6 +28,19 @@ use tap::{
 		Tap,
 		TapOptional,
 	},
+};
+
+use crate::{
+	devel as dvl,
+	mutability::Mutability,
+	order::BitOrder,
+	ptr::BitRef,
+	slice::{
+		BitSlice,
+		Iter,
+	},
+	store::BitStore,
+	vec::BitVec,
 };
 
 impl<O, T> Extend<bool> for BitVec<O, T>

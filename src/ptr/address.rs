@@ -1,15 +1,5 @@
 //! Non-null, well-aligned, `BitStore` addresses with limited casting capability
 
-use crate::{
-	mem::BitMemory,
-	mutability::{
-		Const,
-		Mut,
-		Mutability,
-	},
-	store::BitStore,
-};
-
 use core::{
 	any::{
 		type_name,
@@ -37,6 +27,16 @@ use core::{
 };
 
 use tap::pipe::Pipe;
+
+use crate::{
+	mem::BitMemory,
+	mutability::{
+		Const,
+		Mut,
+		Mutability,
+	},
+	store::BitStore,
+};
 
 /** A non-null, well-aligned, `BitStore` element address.
 

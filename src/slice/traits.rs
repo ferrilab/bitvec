@@ -1,18 +1,7 @@
 //! Non-operator trait implementations.
 
-use crate::{
-	domain::Domain,
-	mem::BitMemory,
-	order::{
-		BitOrder,
-		Lsb0,
-		Msb0,
-	},
-	slice::BitSlice,
-	store::BitStore,
-	view::BitView,
-};
-
+#[cfg(feature = "alloc")]
+use alloc::borrow::ToOwned;
 use core::{
 	any::TypeId,
 	cmp,
@@ -38,9 +27,18 @@ use tap::pipe::Pipe;
 
 #[cfg(feature = "alloc")]
 use crate::vec::BitVec;
-
-#[cfg(feature = "alloc")]
-use alloc::borrow::ToOwned;
+use crate::{
+	domain::Domain,
+	mem::BitMemory,
+	order::{
+		BitOrder,
+		Lsb0,
+		Msb0,
+	},
+	slice::BitSlice,
+	store::BitStore,
+	view::BitView,
+};
 
 impl<O, T> Eq for BitSlice<O, T>
 where

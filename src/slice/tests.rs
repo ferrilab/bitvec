@@ -2,9 +2,9 @@
 
 #![cfg(test)]
 
-use crate::prelude::*;
-
 use tap::conv::TryConv;
+
+use crate::prelude::*;
 
 #[test]
 fn construction() {
@@ -863,10 +863,10 @@ fn specialized_iter_zeros() {
 
 #[cfg(feature = "alloc")]
 mod format {
-	use crate::prelude::*;
-
 	#[cfg(not(feature = "std"))]
 	use alloc::format;
+
+	use crate::prelude::*;
 
 	#[test]
 	fn binary() {

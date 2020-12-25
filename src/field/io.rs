@@ -24,20 +24,19 @@ underlying buffer, but much less than a bit-by-bit traversal.
 
 #![cfg(feature = "std")]
 
+use core::mem;
+use std::io::{
+	self,
+	Read,
+	Write,
+};
+
 use crate::{
 	field::BitField,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
 	vec::BitVec,
-};
-
-use core::mem;
-
-use std::io::{
-	self,
-	Read,
-	Write,
 };
 
 /** Mirrors the implementation on `[u8]` (found [here]).

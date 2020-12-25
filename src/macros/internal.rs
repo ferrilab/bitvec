@@ -419,12 +419,11 @@ pub const fn u8_from_be_bits(
 }
 
 #[doc(hidden)]
-#[cfg(target_endian = "little")]
-pub use self::u8_from_le_bits as u8_from_ne_bits;
-
-#[doc(hidden)]
 #[cfg(target_endian = "big")]
 pub use self::u8_from_be_bits as u8_from_ne_bits;
+#[doc(hidden)]
+#[cfg(target_endian = "little")]
+pub use self::u8_from_le_bits as u8_from_ne_bits;
 
 #[doc(hidden)]
 #[cfg(not(tarpaulin_include))]

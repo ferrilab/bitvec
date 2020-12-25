@@ -19,6 +19,10 @@ same location may write.
 [`bitvec`]: crate
 !*/
 
+use core::sync::atomic;
+
+use radium::Radium;
+
 use crate::{
 	index::{
 		BitIdx,
@@ -27,10 +31,6 @@ use crate::{
 	mem::BitRegister,
 	order::BitOrder,
 };
-
-use core::sync::atomic;
-
-use radium::Radium;
 
 /** Abstracts over the instructions used when accessing a memory location.
 

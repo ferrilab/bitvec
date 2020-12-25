@@ -18,17 +18,6 @@ direct memory access to the underlying buffer for the duration of its existence.
 [`T::Alias`]: crate::store::BitStore::Alias
 !*/
 
-use crate::{
-	index::{
-		BitIdx,
-		BitTail,
-	},
-	mem::BitMemory,
-	order::BitOrder,
-	slice::BitSlice,
-	store::BitStore,
-};
-
 use core::{
 	fmt::{
 		self,
@@ -46,8 +35,18 @@ use tap::{
 	pipe::Pipe,
 	tap::Tap,
 };
-
 use wyz::fmt::FmtForward;
+
+use crate::{
+	index::{
+		BitIdx,
+		BitTail,
+	},
+	mem::BitMemory,
+	order::BitOrder,
+	slice::BitSlice,
+	store::BitStore,
+};
 
 macro_rules! bit_domain {
 	($t:ident $(=> $m:ident)? $(@ $a:ident)?) => {

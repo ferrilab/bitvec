@@ -5,7 +5,6 @@ they behave as expected.
 !*/
 
 use super::*;
-
 #[cfg(not(miri))]
 use crate::prelude::*;
 

@@ -80,6 +80,13 @@ coërced to interfere with each other.
 [`.split_at_mut()`]: crate::slice::BitSlice::split_at_mut
 !*/
 
+use core::{
+	cell::Cell,
+	fmt::Debug,
+};
+
+use tap::pipe::Pipe;
+
 use crate::{
 	access::*,
 	index::{
@@ -92,13 +99,6 @@ use crate::{
 	},
 	order::BitOrder,
 };
-
-use core::{
-	cell::Cell,
-	fmt::Debug,
-};
-
-use tap::pipe::Pipe;
 
 /** Common interface for memory regions.
 
@@ -375,10 +375,12 @@ mod seal {
 
 #[cfg(test)]
 mod tests {
+	use core::cell::Cell;
+
+	use static_assertions::*;
+
 	use super::*;
 	use crate::prelude::*;
-	use core::cell::Cell;
-	use static_assertions::*;
 
 	#[test]
 	fn load_store() {

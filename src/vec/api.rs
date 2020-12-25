@@ -1,5 +1,16 @@
 //! Port of the `Vec<T>` inherent API.
 
+use alloc::vec::Vec;
+use core::{
+	mem::{
+		self,
+		ManuallyDrop,
+	},
+	ops::RangeBounds,
+};
+
+use tap::pipe::Pipe;
+
 use crate::{
 	boxed::BitBox,
 	index::BitTail,
@@ -24,18 +35,6 @@ use crate::{
 		BitVec,
 	},
 };
-
-use alloc::vec::Vec;
-
-use core::{
-	mem::{
-		self,
-		ManuallyDrop,
-	},
-	ops::RangeBounds,
-};
-
-use tap::pipe::Pipe;
 
 /// Port of the `Vec<T>` inherent API.
 impl<O, T> BitVec<O, T>

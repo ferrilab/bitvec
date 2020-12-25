@@ -1,5 +1,26 @@
 //! Encoded pointer to a span region.
 
+#[cfg(any(feature = "alloc", test))]
+use core::convert::TryInto;
+use core::{
+	any,
+	convert::Infallible,
+	fmt::{
+		self,
+		Debug,
+		Display,
+		Formatter,
+		Pointer,
+	},
+	marker::PhantomData,
+	ptr::{
+		self,
+		NonNull,
+	},
+};
+
+use wyz::fmt::FmtForward;
+
 use crate::{
 	domain::Domain,
 	index::{
@@ -24,28 +45,6 @@ use crate::{
 	slice::BitSlice,
 	store::BitStore,
 };
-
-use core::{
-	any,
-	convert::Infallible,
-	fmt::{
-		self,
-		Debug,
-		Display,
-		Formatter,
-		Pointer,
-	},
-	marker::PhantomData,
-	ptr::{
-		self,
-		NonNull,
-	},
-};
-
-use wyz::fmt::FmtForward;
-
-#[cfg(any(feature = "alloc", test))]
-use core::convert::TryInto;
 
 /** Encoded handle to a bit-precision memory region.
 
@@ -1155,14 +1154,15 @@ impl<T> std::error::Error for BitSpanError<T> where T: BitStore
 
 #[cfg(test)]
 mod tests {
+	use core::{
+		mem,
+		ptr,
+	};
+
 	use super::*;
 	use crate::{
 		prelude::*,
 		ptr::AddressError,
-	};
-	use core::{
-		mem,
-		ptr,
 	};
 
 	#[test]

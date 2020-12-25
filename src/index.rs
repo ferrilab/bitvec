@@ -39,11 +39,6 @@ operations, and is used to create selection masks [`BitSel`] and [`BitMask`].
 [`order`]: crate::order
 !*/
 
-use crate::{
-	mem::BitRegister,
-	order::BitOrder,
-};
-
 use core::{
 	any,
 	convert::TryFrom,
@@ -64,6 +59,11 @@ use core::{
 		BitOr,
 		Not,
 	},
+};
+
+use crate::{
+	mem::BitRegister,
+	order::BitOrder,
 };
 
 /** A semantic index counter within a register element `R`.
@@ -1232,9 +1232,10 @@ where R: BitRegister
 
 #[cfg(test)]
 mod tests {
+	use tap::conv::TryConv;
+
 	use super::*;
 	use crate::order::Lsb0;
-	use tap::conv::TryConv;
 
 	#[test]
 	fn index_ctors() {
@@ -1494,10 +1495,10 @@ mod tests {
 	#[test]
 	#[cfg(feature = "alloc")]
 	fn render() {
-		use crate::order::Msb0;
-
 		#[cfg(not(feature = "std"))]
 		use alloc::format;
+
+		use crate::order::Msb0;
 
 		assert_eq!(format!("{:?}", BitIdx::<u8>::LAST), "BitIdx<u8>(111)");
 		assert_eq!(format!("{:?}", BitIdx::<u16>::LAST), "BitIdx<u16>(1111)");

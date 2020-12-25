@@ -1,7 +1,11 @@
 #![cfg(test)]
 
-use crate::prelude::*;
-
+#[cfg(not(feature = "std"))]
+use alloc::{
+	format,
+	vec,
+	vec::Vec,
+};
 use core::{
 	borrow::{
 		Borrow,
@@ -11,16 +15,10 @@ use core::{
 	convert::TryInto,
 	iter,
 };
-
-#[cfg(not(feature = "std"))]
-use alloc::{
-	format,
-	vec,
-	vec::Vec,
-};
-
 #[cfg(feature = "std")]
 use std::panic::catch_unwind;
+
+use crate::prelude::*;
 
 #[test]
 fn from_vec() {
