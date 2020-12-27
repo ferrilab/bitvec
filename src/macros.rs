@@ -161,16 +161,6 @@ macro_rules! bitarr {
 		)
 	};
 
-	($order:ident; $($val:expr),* $(,)?) => {{
-		$crate::macros::internal::__deprecated_order_no_store();
-		$crate::bitarr!($order, usize; $($val),*)
-	}};
-
-	($order:path; $($val:expr),* $(,)?) => {{
-		$crate::macros::internal::__deprecated_order_no_store();
-		$crate::bitarr!($order, usize; $($val),*)
-	}};
-
 	($order:ident, Cell<$store:ident>; $val:expr; $len:expr) => {{
 		let elem = $crate::__extend_bool!($val, $store);
 		let base = [elem; $crate::mem::elts::<$store>($len)];
@@ -234,16 +224,6 @@ macro_rules! bitarr {
 		$crate::array::BitArray::<$order, [$store; LEN]>::new(unsafe {
 			elts.assume_init()
 		})
-	}};
-
-	($order:ident; $val:expr; $len:expr) => {{
-		$crate::macros::internal::__deprecated_order_no_store();
-		$crate::bitarr!($order, usize; $val; $len)
-	}};
-
-	($order:path; $val:expr; $len:expr) => {{
-		$crate::macros::internal::__deprecated_order_no_store();
-		$crate::bitarr!($order, usize; $val; $len)
 	}};
 
 	($($val:expr),* $(,)?) => {
@@ -334,18 +314,6 @@ macro_rules! bits {
 		&mut $crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
 	}};
 
-	//  Explicit order, default store.
-
-	(mut $order:ident; $($val:expr),* $(,)?) => {{
-		$crate::macros::internal::__deprecated_order_no_store();
-		$crate::bits!(mut $order, usize; $($val),*)
-	}};
-
-	(mut $order:path; $($val:expr),* $(,)?) => {{
-		$crate::macros::internal::__deprecated_order_no_store();
-		$crate::bits!(mut $order, usize; $($val),*)
-	}};
-
 	//  Repetition syntax `[bit ; count]`.
 	//  NOTE: `count` must be a `const`, as this is a non-allocating macro.
 
@@ -363,18 +331,6 @@ macro_rules! bits {
 	}};
 	(mut $order:path, $store:ident; $val:expr; $len:expr) => {{
 		&mut $crate::bitarr![$order, $store; $val; $len][.. $len]
-	}};
-
-	//  Explicit order, default store.
-
-	(mut $order:ident; $val:expr; $len:expr) => {{
-		$crate::macros::internal::__deprecated_order_no_store();
-		$crate::bits!(mut $order, usize; $val; $len)
-	}};
-
-	(mut $order:path; $val:expr; $len:expr) => {{
-		$crate::macros::internal::__deprecated_order_no_store();
-		$crate::bits!(mut $order, usize; $val; $len)
 	}};
 
 	//  Default order and store.
@@ -403,16 +359,6 @@ macro_rules! bits {
 		&$crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
 	}};
 
-	($order:ident; $($val:expr),* $(,)?) => {{
-		$crate::macros::internal::__deprecated_order_no_store();
-		$crate::bits!($order, usize; $($val),*)
-	}};
-
-	($order:path; $($val:expr),* $(,)?) => {{
-		$crate::macros::internal::__deprecated_order_no_store();
-		$crate::bits!($order, usize; $($val),*)
-	}};
-
 	($order:ident, Cell<$store:ident>; $val:expr; $len:expr) => {{
 		&$crate::bitarr![$order, Cell<$store>; $val; $len][.. $len]
 	}};
@@ -425,16 +371,6 @@ macro_rules! bits {
 	}};
 	($order:path, $store:ident; $val:expr; $len:expr) => {{
 		&$crate::bitarr![$order, $store; $val; $len][.. $len]
-	}};
-
-	($order:ident; $val:expr; $len:expr) => {{
-		$crate::macros::internal::__deprecated_order_no_store();
-		$crate::bits!($order, usize; $val; $len)
-	}};
-
-	($order:path; $val:expr; $len:expr) => {{
-		$crate::macros::internal::__deprecated_order_no_store();
-		$crate::bits!($order, usize; $val; $len)
 	}};
 
 	//  Default order and store.
@@ -513,11 +449,6 @@ macro_rules! bitvec {
 	($order:ty, $store:ident; $val:expr; $rep:expr) => {
 		$crate::vec::BitVec::<$order, $store>::repeat($val != 0, $rep)
 	};
-
-	($order:ty; $val:expr; $rep:expr) => {{
-		$crate::macros::internal::__deprecated_order_no_store();
-		$crate::vec::BitVec::<$order, usize>::repeat($val != 0, $rep)
-	}};
 
 	($val:expr; $rep:expr) => {
 		$crate::vec::BitVec::<$crate::order::Lsb0, usize>::repeat($val != 0, $rep)
