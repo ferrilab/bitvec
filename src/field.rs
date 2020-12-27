@@ -527,7 +527,7 @@ pub trait BitField {
 	/// // Lsb0:     ─┤                                       ├──┤
 	/// let arr = [0b0100_0000_0000_0011u16, 0b0001_0000_0000_1110u16];
 	/// // Msb0:                      ├─       ├──┤
-	/// // Bit pos:                  14       15  19
+	/// // Bit pos:                  14       16  19
 	///
 	/// assert_eq!(
 	///   arr.view_bits::<Lsb0>()[14 .. 20].load_be::<u8>(),
