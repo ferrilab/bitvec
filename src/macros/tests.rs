@@ -9,9 +9,9 @@ use crate::prelude::*;
 #[test]
 fn compile_bitarr_typedef() {
 	struct Slots {
-		all: bitarr!(for 10, in Msb0, u8),
-		typ: bitarr!(for 10, in u8),
-		def: bitarr!(for 10),
+		all: BitArr!(for 10, in Msb0, u8),
+		typ: BitArr!(for 10, in u8),
+		def: BitArr!(for 10),
 	}
 
 	let slots = Slots {

@@ -6,6 +6,55 @@
 #[doc(hidden)]
 pub mod internal;
 
+/** Constructs a type definition for a [`BitArray`].
+
+This macro takes a minimum number of bits, and optionally a set of [`BitOrder`]
+and [`BitStore`] implementors, and creates a `BitArray` type definition that
+satisfies them. Because this macro is used in type position, it uses
+`PascalCase` rather than `snake_case` for its name.
+
+# Grammar
+
+```rust
+use bitvec::prelude::*;
+use core::cell::Cell;
+
+const CENT: usize = bitvec::mem::elts::<usize>(100);
+let a: BitArr!(for 100)
+  = BitArray::<Lsb0, [usize; CENT]>::zeroed();
+
+let b: BitArr!(for 100, in u32)
+  = BitArray::<Lsb0, [u32; 4]>::zeroed();
+
+let c: BitArr!(for 100, in Msb0, Cell<u16>)
+  = BitArray::<Msb0, [Cell<u16>; 7]>::zeroed();
+```
+
+The length expression must be a `const`-expression. It may be a literal or a
+named `const` expression. The type arguments have no restrictions, so long as
+they resolve to valid trait implementors.
+
+[`BitArray`]: crate::array::BitArray
+[`BitOrder`]: crate::order::BitOrder
+[`BitStore`]: crate::store::BitStore
+**/
+#[macro_export]
+macro_rules! BitArr {
+	(for $len:expr, in $order:ty, $store:ty) => {
+		$crate::array::BitArray::<
+			$order, [$store; $crate::mem::elts::<$store>($len)]
+		>
+	};
+
+	(for $len:expr, in $store:ty) => {
+		$crate::BitArr!(for $len, in $crate::order::Lsb0, $store)
+	};
+
+	(for $len:expr) => {
+		$crate::BitArr!(for $len, in usize)
+	};
+}
+
 /** Constructs a new [`BitArray`] from a bit-pattern description.
 
 This macro takes a superset of the [`vec!`] argument syntax: it may be invoked
@@ -30,17 +79,6 @@ fundamental, an atomic, or a `Cell<>` wrapper of that unsigned integer. These
 are matched by token, not by type, and no other identifier is accepted. Using
 any other token will cause the macro to fail.
 
-# Type Name Construction
-
-In addition to the value construction, this macro can also construct the name of
-a [`BitArray`] type that contains a requested number of bits. This is useful
-for typing a binding before constructing a value for it.
-
-The argument syntax for this is a `for $BITS`, optionally followed by `, $TYPE`
-or `, $ORDER, $TYPE`. `$BITS` may be any constant-evaluable `usize` expression.
-`$ORDER` and `TYPE` may be any valid names or paths for the appropriate trait
-implementations.
-
 # Examples
 
 ```rust
@@ -59,9 +97,11 @@ assert!(b.all());
 assert!(b.len() >= 5);
 
 let c = bitarr![Lsb0, Cell<u16>; 0, 1, 0, 0, 1];
-let d = bitarr![Msb0, AtomicU32; 0, 0, 1, 0, 1];
+radium::if_atomic! { if atomic(32) {
+	let d = bitarr![Msb0, AtomicU32; 0, 0, 1, 0, 1];
+} }
 
-let e: bitarr!(for 20, in LocalBits, u8) = bitarr![LocalBits, u8; 0; 20];
+let e: BitArr!(for 20, in LocalBits, u8) = bitarr![LocalBits, u8; 0; 20];
 ```
 
 [`BitArray`]: crate::array::BitArray
@@ -71,25 +111,6 @@ let e: bitarr!(for 20, in LocalBits, u8) = bitarr![LocalBits, u8; 0; 20];
 **/
 #[macro_export]
 macro_rules! bitarr {
-	//  Type constructors
-
-	(for $len:expr, in $order:ty, $store:ident) => {
-		$crate::array::BitArray::<
-			$order,
-			[$store; $crate::mem::elts::<$store>($len)],
-		>
-	};
-
-	(for $len:expr, in $store:ident) => {
-		$crate::bitarr!(for $len, in $crate::order::Lsb0, $store)
-	};
-
-	(for $len:expr) => {
-		$crate::bitarr!(for $len, in usize)
-	};
-
-	//  Value constructors
-
 	/* The duplicate matchers differing in `:ident` and `:path` exploit a rule
 	of macro expansion so that the literal tokens `Lsb0`, `Msb0`, and
 	`LocalBits` can be propagated through the entire expansion, thus selecting
