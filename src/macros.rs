@@ -440,18 +440,12 @@ let d = bitvec![Msb0, AtomicU32; 0, 0, 1, 0, 1];
 macro_rules! bitvec {
 	//  First, capture the repetition syntax, as it is permitted to use runtime
 	//  values for the repetition count.
-	($order:ty, Cell<$store:ident>; $val:expr; $rep:expr) => {
-		$crate::vec::BitVec::<
-			$order,
-			$crate::macros::internal::core::cell::Cell<$store>
-		>::repeat($val != 0, $rep)
-	};
-	($order:ty, $store:ident; $val:expr; $rep:expr) => {
+	($order:ty, $store:ty; $val:expr; $rep:expr) => {
 		$crate::vec::BitVec::<$order, $store>::repeat($val != 0, $rep)
 	};
 
 	($val:expr; $rep:expr) => {
-		$crate::vec::BitVec::<$crate::order::Lsb0, usize>::repeat($val != 0, $rep)
+		$crate::bitvec!($crate::order::Lsb0, usize; $val; $rep)
 	};
 
 	//  Delegate all others to the `bits!` macro.
