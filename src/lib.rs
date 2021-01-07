@@ -113,7 +113,7 @@ alias throughout their project instead of the much longer fully-qualified
 use bitvec::prelude::*;
 
 pub type MySlice = BitSlice<Msb0, u8>;
-pub type MyArray20 = bitarr![for 20, in Msb0, u8];
+pub type MyArray20 = BitArr!(for 20, in Msb0, u8);
 # #[cfg(feature = "alloc")]
 pub type MyVec = BitVec<Msb0, u8>;
 

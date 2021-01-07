@@ -25,6 +25,7 @@ pub use crate::{
 	slice::BitSlice,
 	store::BitStore,
 	view::BitView,
+	BitArr,
 };
 #[cfg(feature = "alloc")]
 pub use crate::{

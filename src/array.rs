@@ -100,7 +100,7 @@ This type is useful for marking that some value is always to be used as a
 /// struct HasBitfields {
 ///   header: u32,
 ///   // creates a type declaration.
-///   fields: bitarr!(for 20, in Msb0, u8),
+///   fields: BitArr!(for 20, in Msb0, u8),
 /// }
 ///
 /// impl HasBitfields {

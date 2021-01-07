@@ -112,28 +112,27 @@ macro_rules! __encode_bits {
 		)
 	};
 
-	/* These two blocks are the last invoked. They require a sequence of chunked
-	element candidates (the `$elem` token is actually an opaque cluster of bit
+	/* This block is the last invoked. It requires a sequence of chunked element
+	candidates (the `$bit` tokens are actually an opaque sequence of bit
 	expressions), followed by literal `0` tokens. Tokens provided by the caller
 	are already opaque; only the zeros created in the previous arm are visible.
 
-	As such, these enter only when the caller-provided bit tokens are exhausted.
+	As such, this enters only when the caller-provided bit tokens are exhausted.
 
-	Once entered, these matchers convert each tuple of bit expressions into the
-	requested storage type, and collect them into an array. This array is the
+	Once entered, this matcher converts each tuple of bit expressions into the
+	requested storage type, and collects them into an array. This array is the
 	return value of the originally-called macro.
 	*/
-	($ord:tt, $typ:ty as $uint:ident as usize, [$( ( $($elem:tt),* ) )*]; $(0,)*) => {
-		//  `usize` must be constructed as a fixed-width integer, converted into
-		//  `usize`, and *then* converted into the final storage type.
-		[$(<$typ as From<usize>>::from(
-			$crate::__make_elem!($ord, $uint as $uint; $($elem),*) as usize
+	(
+		$ord:tt,
+		$typ:ty as $uint:ident $(as usize)?,
+		[$( ( $($bit:tt),* ) )*]; $(0,)*
+	) => {
+		[$($crate::__make_elem!(
+			$ord,
+			$typ as $uint;
+			$($bit),*
 		)),*]
-	};
-	($ord:tt, $typ:ty as $uint:ident, [$( ( $($elem:tt),* ) )*]; $(0,)*) => {
-		[$(
-			$crate::__make_elem!($ord, $typ as $uint; $($elem),*)
-		),*]
 	};
 
 	/* These matchers chunk a stream of bit expressions into storage elements.
@@ -259,6 +258,12 @@ macro_rules! __count_elts {
 
 Exactly one `$typ`, whose bit-pattern is set to the provided sequence according
 to the provided ordering.
+
+# Safety
+
+This uses `mem::transmute` internally, and so must be invoked within a
+caller-provided `unsafe` block. It does not use its own `unsafe` block in order
+to avoid a compiler warning about nested blocks.
 **/
 #[doc(hidden)]
 #[macro_export]
@@ -267,58 +272,76 @@ macro_rules! __make_elem {
 	(Lsb0, $typ:ty as $uint:ident; $(
 		$a:expr, $b:expr, $c:expr, $d:expr,
 		$e:expr, $f:expr, $g:expr, $h:expr
-	),*) => {
-		<$typ as From<$uint>>::from($crate::__ty_from_bytes!(
+	),*) => { unsafe {
+		use $crate::macros::internal::core;
+		const ELEM: $uint = $crate::__ty_from_bytes!(
 			Lsb0, $uint, [$($crate::macros::internal::u8_from_le_bits(
 				$a != 0, $b != 0, $c != 0, $d != 0,
 				$e != 0, $f != 0, $g != 0, $h != 0,
 			)),*]
-		))
-	};
+		);
+		core::mem::transmute::<$uint, $typ>(ELEM)
+	} };
 	(Msb0, $typ:ty as $uint:ident; $(
 		$a:expr, $b:expr, $c:expr, $d:expr,
 		$e:expr, $f:expr, $g:expr, $h:expr
-	),*) => {
-		<$typ as From<$uint>>::from($crate::__ty_from_bytes!(
+	),*) => { unsafe {
+		use $crate::macros::internal::core;
+		const ELEM: $uint = $crate::__ty_from_bytes!(
 			Msb0, $uint, [$($crate::macros::internal::u8_from_be_bits(
 				$a != 0, $b != 0, $c != 0, $d != 0,
 				$e != 0, $f != 0, $g != 0, $h != 0,
 			)),*]
-		))
-	};
+		);
+		core::mem::transmute::<$uint, $typ>(ELEM)
+	} };
 	(LocalBits, $typ:ty as $uint:ident; $(
 		$a:expr, $b:expr, $c:expr, $d:expr,
 		$e:expr, $f:expr, $g:expr, $h:expr
-	),*) => {
-		<$typ as From<$uint>>::from($crate::__ty_from_bytes!(
+	),*) => { unsafe {
+		use $crate::macros::internal::core;
+		const ELEM: $uint = $crate::__ty_from_bytes!(
 			LocalBits, $uint, [$($crate::macros::internal::u8_from_ne_bits(
 				$a != 0, $b != 0, $c != 0, $d != 0,
 				$e != 0, $f != 0, $g != 0, $h != 0,
 			)),*]
-		))
-	};
+		);
+		core::mem::transmute::<$uint, $typ>(ELEM)
+	} };
 	//  Otherwise, invoke `BitOrder` for each bit and accumulate.
-	($ord:tt, $typ:ty as $uint:ident; $($bit:expr),* $(,)?) => {{
+	($ord:tt, $typ:ty as $uint:ident; $($bit:expr),* $(,)?) => { unsafe {
+		use $crate::macros::internal::core;
 		let mut tmp: $uint = 0;
 		let _bits = $crate::slice::BitSlice::<$ord, $uint>::from_element_mut(
 			&mut tmp
 		);
 		let mut _idx = 0;
 		$( _bits.set(_idx, $bit != 0); _idx += 1; )*
-		<$typ as From<$uint>>::from(tmp)
-	}};
+		core::mem::transmute::<$uint, $typ>(tmp)
+	} };
 }
 
-/// Extend a single bit to fill an element.
+/** Extend a single bit to fill an element.
+
+# Parameters
+
+- `$val`: An integer expression to be tested as non-zero.
+- `$typ`: Some opaque type expression.
+
+# Returns
+
+`$val != 0`, as `<$typ as BitStore>::Mem`.
+**/
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __extend_bool {
-	($val:expr, $typ:tt) => {
-		$typ::from([
-			<<$typ as BitStore>::Mem as $crate::macros::internal::funty::IsInteger>::ZERO,
-			<<$typ as BitStore>::Mem as $crate::mem::BitRegister>::ALL,
-		][($val != 0) as usize])
-	};
+	($val:expr, $typ:tt) => {{
+		type Mem = <$typ as BitStore>::Mem;
+		[
+			<Mem as $crate::macros::internal::funty::IsInteger>::ZERO,
+			<Mem as $crate::mem::BitRegister>::ALL,
+		][($val != 0) as usize]
+	}};
 }
 
 /// Constructs a fundamental integer from a list of bytes.
@@ -424,14 +447,6 @@ pub use self::u8_from_be_bits as u8_from_ne_bits;
 #[doc(hidden)]
 #[cfg(target_endian = "little")]
 pub use self::u8_from_le_bits as u8_from_ne_bits;
-
-#[doc(hidden)]
-#[cfg(not(tarpaulin_include))]
-#[deprecated = "Ordering-only macro constructors are deprecated. Specify a \
-                storage type as well, or remove the ordering and use the \
-                default."]
-pub const fn __deprecated_order_no_store() {
-}
 
 #[cfg(test)]
 mod tests {
