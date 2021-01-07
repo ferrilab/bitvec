@@ -21,7 +21,7 @@ let data = &[0u8, 1, 2, 3];
 let data_bits = data.view_bits::<Msb0>();
 
 let literal_bits = bits![Lsb0, u16; 1, 0, 1, 1];
-assert_eq!(literal_bits.as_slice()[0], 0b1101);
+assert_eq!(literal_bits.as_raw_slice()[0], 0b1101);
 
 let array_bool = bitarr![1; 40];
 # #[cfg(feature = "alloc")] {

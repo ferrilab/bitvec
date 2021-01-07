@@ -96,7 +96,7 @@ fn compile_bits() {
 	let h: &mut BitSlice<Msb0, u8> = bits![mut crate::order::Msb0, u8; 1; 100];
 	assert_eq!(e, g);
 	assert_eq!(f, h);
-	assert_eq!(h.as_slice(), [!0u8; 13]);
+	assert_eq!(h.as_raw_slice(), [!0u8; 13]);
 
 	let i: &mut BitSlice<Lsb0, usize> = bits![mut 1, 0, 1];
 	let j: &mut BitSlice<Lsb0, usize> = bits![mut 1; 3];

@@ -110,7 +110,7 @@ are dominant."
 	{
 		println!(
 			"Memory information: {} elements, {} bits",
-			bs.as_slice().len(),
+			bs.as_raw_slice().len(),
 			bs.len(),
 		);
 		println!("Print out the semantic contents");

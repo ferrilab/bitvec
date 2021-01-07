@@ -1602,11 +1602,11 @@ where
 	/// let mut src = 0u8;
 	/// let bits = src.view_bits_mut::<Msb0>();
 	/// bits[2 .. 6].set_all(true);
-	/// assert_eq!(bits.as_slice(), &[0b0011_1100]);
+	/// assert_eq!(bits.as_raw_slice(), &[0b0011_1100]);
 	/// bits[3 .. 5].set_all(false);
-	/// assert_eq!(bits.as_slice(), &[0b0010_0100]);
+	/// assert_eq!(bits.as_raw_slice(), &[0b0010_0100]);
 	/// bits[.. 1].set_all(true);
-	/// assert_eq!(bits.as_slice(), &[0b1010_0100]);
+	/// assert_eq!(bits.as_raw_slice(), &[0b1010_0100]);
 	/// ```
 	pub fn set_all(&mut self, value: bool) {
 		//  Grab the function pointers used to commit bit-masks into memory.
@@ -2061,7 +2061,7 @@ where
 	///     bits_ptr.add(i).write(i % 3 == 0);
 	///   }
 	/// }
-	/// assert_eq!(bits.as_slice()[0], 0b0100_1001);
+	/// assert_eq!(bits.as_raw_slice()[0], 0b0100_1001);
 	/// ```
 	#[inline(always)]
 	pub fn as_mut_bitptr(&mut self) -> BitPtr<Mut, O, T> {
@@ -2325,7 +2325,7 @@ where
 	///
 	/// [`.domain()`]: Self::domain
 	/// [`.domain_mut()`]: Self::domain_mut
-	pub fn as_slice(&self) -> &[T] {
+	pub fn as_raw_slice(&self) -> &[T] {
 		let bitspan = self.as_bitspan();
 		let (base, elts) = (bitspan.address().to_const(), bitspan.elements());
 		unsafe { slice::from_raw_parts(base, elts) }

@@ -151,7 +151,7 @@ where
 	/// let bits = bits![0, 1, 0, 1, 1, 0, 1, 1];
 	/// let bb = BitBox::from_bitslice(&bits[2 ..]);
 	/// assert_eq!(bb, bits[2 ..]);
-	/// assert_eq!(bb.as_slice(), bits.as_slice());
+	/// assert_eq!(bb.as_slice(), bits.as_raw_slice());
 	/// ```
 	///
 	/// [`BitVec::from_bitslice`]: crate::vec::BitVec::from_bitslice

@@ -317,7 +317,7 @@ where
 	/// let bits = bits![0, 1, 0, 1, 1, 0, 1, 1];
 	/// let bv = BitVec::from_bitslice(&bits[2 ..]);
 	/// assert_eq!(bv, bits[2 ..]);
-	/// assert_eq!(bits.as_slice(), bv.as_raw_slice());
+	/// assert_eq!(bits.as_raw_slice(), bv.as_raw_slice());
 	/// ```
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice

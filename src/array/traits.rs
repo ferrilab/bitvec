@@ -94,14 +94,15 @@ where
 	}
 }
 
-impl<O, V, T> PartialEq<BitArray<O, V>> for BitSlice<O, T>
+impl<O1, O2, V, T> PartialEq<BitArray<O2, V>> for BitSlice<O1, T>
 where
-	O: BitOrder,
+	O1: BitOrder,
+	O2: BitOrder,
 	V: BitView,
 	T: BitStore,
 {
 	#[inline]
-	fn eq(&self, other: &BitArray<O, V>) -> bool {
+	fn eq(&self, other: &BitArray<O2, V>) -> bool {
 		self == other.as_bitslice()
 	}
 }
