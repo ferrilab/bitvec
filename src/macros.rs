@@ -40,13 +40,13 @@ they resolve to valid trait implementors.
 **/
 #[macro_export]
 macro_rules! BitArr {
-	(for $len:expr, in $order:ty, $store:ty) => {
+	(for $len:expr, in $order:ty, $store:ty $(,)?) => {
 		$crate::array::BitArray::<
 			$order, [$store; $crate::mem::elts::<$store>($len)]
 		>
 	};
 
-	(for $len:expr, in $store:ty) => {
+	(for $len:expr, in $store:ty $(,)?) => {
 		$crate::BitArr!(for $len, in $crate::order::Lsb0, $store)
 	};
 
@@ -78,6 +78,18 @@ The [`BitStore`] argument **must** be the name of an unsigned integer
 fundamental, an atomic, or a `Cell<>` wrapper of that unsigned integer. These
 are matched by token, not by type, and no other identifier is accepted. Using
 any other token will cause the macro to fail.
+
+## `const` Production
+
+Prepending the argument list with `const` (so `bitarr!(ARGS…)` becomes
+`bitarr!(const ARGS…)`) causes the macro to only expand to code that can be used
+in `const` contexts. This limits any supplied ordering to be **only** the tokens
+`Lsb0`, `Msb0`, and `LocalBits`; no other token is permitted, even if the token
+resolves to the same ordering implementation.
+
+The macro expands into code that can be used to initialize a `const` or `static`
+binding. This is the **only** way to construct a `BitArray` in `const` contexts,
+until the `const` system permits generics and trait methods.
 
 # Examples
 
@@ -111,6 +123,80 @@ let e: BitArr!(for 20, in LocalBits, u8) = bitarr![LocalBits, u8; 0; 20];
 **/
 #[macro_export]
 macro_rules! bitarr {
+	/* `const`-expression constructors.
+
+	These arms expand to expressions which are valid to use in `const` position,
+	such as within `const fn` bodies, or as the initializers of `static` or
+	`const` bindings.
+
+	They are more restricted than the general variants below, because the trait
+	system is not usable in `const` contexts and thus these expansions can only
+	use codepaths defined within this module, and not any of the general crate
+	systems.
+
+	All valid invocations with a leading `const` token will remain valid if the
+	`const` is removed, though their expansion may cease to be valid in `const`
+	contexts.
+	*/
+	(const $order:ty, $store:ty; $val:expr; $len:expr) => {{
+		use $crate::macros::internal::core;
+		type Mem = <$store as $crate::store::BitStore>::Mem;
+
+		const ELTS: usize = $crate::mem::elts::<$store>($len);
+		const ELEM: Mem = $crate::__extend_bool!($val, $store);
+		const DATA: [Mem; ELTS] = [ELEM; ELTS];
+
+		type This = $crate::array::BitArray<$order, [$store; ELTS]>;
+		unsafe { core::mem::transmute::<_, This>(DATA) }
+	}};
+	(const $val:expr; $len:expr) => {{
+		$crate::bitarr!(const $crate::order::Lsb0, usize; $val; $len)
+	}};
+
+	(const $order:ident, Cell<$store:ident>; $($val:expr),* $(,)?) => {{
+		use $crate::macros::internal::core;
+		type Celled = core::cell::Cell<$store>;
+
+		const ELTS: usize = $crate::__count_elts!($store; $($val),*);
+		type Data = [Celled; ELTS];
+		const DATA: Data =
+			$crate::__encode_bits!($order, Cell<$store>; $($val),*);
+
+		type This = $crate::array::BitArray<$order, Data>;
+		unsafe { core::mem::transmute::<_, This>(DATA) }
+	}};
+	(const $order:ident, $store:ident; $($val:expr),* $(,)?) => {{
+		use $crate::macros::internal::core;
+
+		const ELTS: usize = $crate::__count_elts!($store; $($val),*);
+		type Data = [$store; ELTS];
+		const DATA: Data = $crate::__encode_bits!($order, $store; $($val),*);
+
+		type This = $crate::array::BitArray<$order, Data>;
+		unsafe { core::mem::transmute::<_, This>(DATA) }
+	}};
+
+	(const $($val:expr),* $(,)?) => {{
+		$crate::bitarr!(const Lsb0, usize; $($val),*)
+	}};
+
+	/* Non-`const` constructors.
+
+	These expansions are allowed to produce that does not run in `const`
+	contexts. While it is *likely* that the expansions will be evaluated at
+	compile-time, this is done in LLVM, not in Rust MIR.
+	*/
+
+	//  Bit-repetition syntax.
+	($order:ty, $store:ty; $val:expr; $len:expr) => {{
+		$crate::bitarr!(const $order, $store; $val; $len)
+	}};
+	($val:expr; $len:expr) => {{
+		$crate::bitarr!(const $val; $len)
+	}};
+
+	//  Bit-sequence syntax.
+
 	/* The duplicate matchers differing in `:ident` and `:path` exploit a rule
 	of macro expansion so that the literal tokens `Lsb0`, `Msb0`, and
 	`LocalBits` can be propagated through the entire expansion, thus selecting
@@ -123,115 +209,41 @@ macro_rules! bitarr {
 	`:path` or `:tt` bindings when passed along.
 	*/
 
-	($order:ident, Cell<$store:ident>; $($val:expr),* $(,)?) => {
-		$crate::array::BitArray::<
-			$order, [
-				$crate::macros::internal::core::cell::Cell<$store>;
-				$crate::__count_elts!($store; $($val),*)
-			],
-		>::new(
-			$crate::__encode_bits!($order, Cell<$store>; $($val),*)
-		)
-	};
-	($order:ident, $store:ident; $($val:expr),* $(,)?) => {
-		$crate::array::BitArray::<
-			$order,
-			[$store; $crate::__count_elts!($store; $($val),*)],
-		>::new(
-			$crate::__encode_bits!($order, $store; $($val),*)
-		)
-	};
+	($order:ident, Cell<$store:ident>; $($val:expr),* $(,)?) => {{
+		use $crate::macros::internal::core;
+		type Celled = core::cell::Cell<$store>;
 
-	($order:path, Cell<$store:ident>; $($val:expr),* $(,)?) => {
-		$crate::array::BitArray::<
-			$order, [
-				$crate::macros::internal::core::cell::Cell<$store>;
-				$crate::__count_elts!($store; $($val),*)
-			],
-		>::new(
-			$crate::__encode_bits!($order, Cell<$store>; $($val),*)
-		)
-	};
-	($order:path, $store:ident; $($val:expr),* $(,)?) => {
-		$crate::array::BitArray::<
-			$order,
-			[$store; $crate::__count_elts!($store; $($val),*)],
-		>::new(
-			$crate::__encode_bits!($order, $store; $($val),*)
-		)
-	};
+		const ELTS: usize = $crate::__count_elts!($store; $($val),*);
+		type Data = [Celled; ELTS];
+		type This = $crate::array::BitArray<$order, Data>;
 
-	($order:ident, Cell<$store:ident>; $val:expr; $len:expr) => {{
-		let elem = $crate::__extend_bool!($val, $store);
-		let base = [elem; $crate::mem::elts::<$store>($len)];
-		let elts = unsafe {
-			$crate::macros::internal::core::mem::transmute(base)
-		};
-		$crate::array::BitArray::<
-			$order,
-			[Cell<$store>; $crate::mem::elts::<$store>($len)],
-		>::new(elts)
+		This::new($crate::__encode_bits!($order, Cell<$store>; $($val),*))
 	}};
-	($order:ident, $store:ident; $val:expr; $len:expr) => {{
-		use $crate::macros::internal::core::mem::MaybeUninit;
-		use $crate::store::BitStore as _;
-		const LEN: usize = $crate::mem::elts::<$store>($len);
+	($order:ident, $store:ident; $($val:expr),* $(,)?) => {{
+		const ELTS: usize = $crate::__count_elts!($store; $($val),*);
+		type This = $crate::array::BitArray<$order, [$store; ELTS]>;
 
-		//  Create a local copy of the base element.
-		let elem = $crate::__extend_bool!($val, $store);
-		//  Create the array.
-		let mut elts: MaybeUninit<[$store; LEN]> = MaybeUninit::uninit();
-		//  Get the address of the base element in the array
-		let mut addr = elts.as_mut_ptr() as *mut $store;
-		for _ in 0 .. LEN {
-			unsafe {
-				//  Copy `elem` into each element of the array.
-				addr.write(<$store>::from(elem.load_value()));
-				addr = addr.add(1);
-			}
-		}
-		$crate::array::BitArray::<$order, [$store; LEN]>::new(unsafe {
-			elts.assume_init()
-		})
-		//  Constructing an array of non-`Copy` objects is really hard.
+		This::new($crate::__encode_bits!($order, $store; $($val),*))
 	}};
 
-	($order:path, Cell<$store:ident>; $val:expr; $len:expr) => {{
-		let elem = $crate::__extend_bool!($val, $store);
-		let base = [elem; $crate::mem::elts::<$store>($len)];
-		let elts = unsafe {
-			$crate::macros::internal::core::mem::transmute(base)
-		};
-		$crate::array::BitArray::<
-			$order,
-			[Cell<$store>; $crate::mem::elts::<$store>($len)],
-		>::new(elts)
-	}};
-	($order:path, $store:ident; $val:expr; $len:expr) => {{
-		use $crate::macros::internal::core::mem::MaybeUninit;
-		use $crate::store::BitStore as _;
-		const LEN: usize = $crate::mem::elts::<$store>($len);
+	($order:path, Cell<$store:ident>; $($val:expr),* $(,)?) => {{
+		use $crate::macros::internal::core;
+		type Celled = core::cell::Cell<$store>;
 
-		let elem = $crate::__extend_bool!($val, $store);
-		let mut elts: MaybeUninit<[$store; LEN]> = MaybeUninit::uninit();
-		let mut addr = elts.as_mut_ptr() as *mut $store;
-		for _ in 0 .. LEN {
-			unsafe {
-				addr.write(<$store>::from(elem.load_value()));
-				addr = addr.add(1);
-			}
-		}
-		$crate::array::BitArray::<$order, [$store; LEN]>::new(unsafe {
-			elts.assume_init()
-		})
+		const ELTS: usize = $crate::__count_elts!($store; $($val),*);
+		type This = $crate::array::BitArray<$order, [Celled; ELTS]>;
+
+		This::new($crate::__encode_bits!($order, Cell<$store>; $($val),*))
+	}};
+	($order:path, $store:ident; $($val:expr),* $(,)?) => {{
+		const ELTS: usize = $crate::__count_elts!($store; $($val),*);
+		type This = $crate::array::BitArray<$order, [$store; ELTS]>;
+
+		This::new($crate::__encode_bits!($order, $store; $($val),*))
 	}};
 
 	($($val:expr),* $(,)?) => {
 		$crate::bitarr!(Lsb0, usize; $($val),*)
-	};
-
-	($val:expr; $len:expr) => {
-		$crate::bitarr!(Lsb0, usize; $val; $len)
 	};
 }
 
@@ -265,6 +277,21 @@ fundamental, an atomic, or a `Cell<>` wrapper of that unsigned integer. These
 are matched by token, not by type, and no other identifier is accepted. Using
 any other token will cause the macro to fail.
 
+## `static` Production
+
+Prepending the argument list with `static` or `static mut` (so `bits!(ARGS…)`
+becomes `bits!(static [mut] ARGS…)`) causes the macro to expand to code that
+emits a hidden `static` or `static mut` value, initialized with a
+`bitarr!(const ARGS…)` expansion and then reborrowed. The name of the hidden
+static object does not escape the macro invocation, and so the returned
+`BitSlice` handle is the single point of access to it.
+
+Because both indexing and mutable reborrows are forbidden in `const` contexts,
+the produced `BitSlice` references can only be bound to `let`, not to `static`.
+They have the `&'static` lifetime, but to give the *names* a `static` binding,
+you must use `bitarr!(const ARGS…)` and then borrowed as a `BitSlice` at the
+point of use.
+
 # Examples
 
 ```rust
@@ -296,92 +323,173 @@ d.set_aliased(0, true);
 **/
 #[macro_export]
 macro_rules! bits {
-	//  Sequence syntax `[bit (, bit)*]` or `[(bit ,)*]`.
-
-	//  Explicit order and store.
-
-	(mut $order:ident, Cell<$store:ident>; $($val:expr),* $(,)?) => {{
-		&mut $crate::bitarr![$order, Cell<$store>; $($val),*][.. $crate::__count!($($val),*)]
+	(static mut $order:ty, Cell<$store:ident>; $val:expr; $len:expr) => {{
+		use $crate::macros::internal::core;
+		type Celled = core::cell::Cell<$store>;
+		static mut DATA: $crate::BitArr!(for $len, in $order, $store) =
+			$crate::bitarr!(const $order, $store; $val; $len);
+		unsafe {
+			&mut *(
+				DATA.get_unchecked_mut(.. $len)
+					as *mut $crate::slice::BitSlice<$order, $store>
+					as *mut $crate::slice::BitSlice<$order, Celled>
+			)
+		}
 	}};
-	(mut $order:ident, $store:ident; $($val:expr),* $(,)?) => {{
-		&mut $crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
+	(static mut $order:ty, $store:ident; $val:expr; $len:expr) => {{
+		static mut DATA: $crate::BitArr!(for $len, in $order, $store) =
+			$crate::bitarr!(const $order, $store; $val; $len);
+		unsafe { DATA.get_unchecked_mut(.. $len) }
+	}};
+	(static mut $val:expr; $len:expr) => {{
+		static mut DATA: $crate::BitArr!(for $len) =
+			$crate::bitarr!(const $crate::order::Lsb0, usize; $val; $len);
+		unsafe { DATA.get_unchecked_mut(.. $len) }
 	}};
 
-	(mut $order:path, Cell<$store:ident>; $($val:expr),* $(,)?) => {{
-		&mut $crate::bitarr![$order, Cell<$store>; $($val),*][.. $crate::__count!($($val),*)]
+	(static mut $order:ident, Cell<$store:ident>; $($val:expr),* $(,)?) => {{
+		use $crate::macros::internal::core;
+		type Celled = core::cell::Cell<$store>;
+		const BITS: usize = $crate::__count!($($val),*);
+
+		static mut DATA: $crate::BitArr!(for BITS, in $order, $store) =
+			$crate::bitarr!(const $order, $store; $($val),*);
+		unsafe {
+			&mut *(
+				DATA.get_unchecked_mut(.. BITS)
+					as *mut $crate::slice::BitSlice<$order, $store>
+					as *mut $crate::slice::BitSlice<$order, Celled>
+			)
+		}
 	}};
-	(mut $order:path, $store:ident; $($val:expr),* $(,)?) => {{
-		&mut $crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
+	(static mut $order:ident, $store:ident; $($val:expr),* $(,)?) => {{
+		const BITS: usize = $crate::__count!($($val),*);
+		static mut DATA: $crate::BitArr!(for BITS, in $order, $store) =
+			$crate::bitarr!(const $order, $store; $($val),*);
+		unsafe { DATA.get_unchecked_mut(.. BITS) }
+	}};
+	(static mut $($val:expr),* $(,)?) => {{
+		$crate::bits!(static mut Lsb0, usize; $($val),*)
+	}};
+
+	(static $order:ty, Cell<$store:ident>; $val:expr; $len:expr) => {{
+		use $crate::macros::internal::core;
+		type Celled = core::cell::Cell<$store>;
+		static DATA: $crate::BitArr!(for $len, in $order, $store) =
+			$crate::bitarr!(const $order, $store; $val; $len);
+		unsafe {
+			&*(
+				DATA.get_unchecked(.. $len)
+					as *const $crate::slice::BitSlice<$order, $store>
+					as *const $crate::slice::BitSlice<$order, Celled>
+			)
+		}
+	}};
+	(static $order:ty, $store:ident; $val:expr; $len:expr) => {{
+		static DATA: $crate::BitArr!(for $len, in $order, $store) =
+			$crate::bitarr!(const $order, $store; $val; $len);
+		unsafe { DATA.get_unchecked(.. $len) }
+	}};
+	(static $val:expr; $len:expr) => {{
+		static DATA: $crate::BitArr!(for $len) =
+			$crate::bitarr!(const $crate::order::Lsb0, usize; $val; $len);
+		unsafe { DATA.get_unchecked(.. $len) }
+	}};
+
+	(static $order:ident, Cell<$store:ident>; $($val:expr),* $(,)?) => {{
+		use $crate::macros::internal::core;
+		type Celled = core::cell::Cell<$store>;
+		const BITS: usize = $crate::__count!($($val),*);
+
+		static mut DATA: $crate::BitArr!(for BITS, in $order, $store) =
+			$crate::bitarr!(const $order, $store; $($val),*);
+		unsafe {
+			&*(
+				DATA.get_unchecked_mut(.. BITS)
+					as *const $crate::slice::BitSlice<$order, $store>
+					as *const $crate::slice::BitSlice<$order, Celled>
+			)
+		}
+	}};
+	(static $order:ident, $store:ident; $($val:expr),* $(,)?) => {{
+		const BITS: usize = $crate::__count!($($val),*);
+		static DATA: $crate::BitArr!(for BITS, in $order, $store) =
+			$crate::bitarr!(const $order, $store; $($val),*);
+		unsafe { DATA.get_unchecked(.. BITS) }
+	}};
+	(static $($val:expr),* $(,)?) => {{
+		$crate::bits!(static Lsb0, usize; $($val),*)
 	}};
 
 	//  Repetition syntax `[bit ; count]`.
 	//  NOTE: `count` must be a `const`, as this is a non-allocating macro.
 
 	//  Explicit order and store.
+	(mut $order:ty, $store:ty; $val:expr; $len:expr) => {{
+		&mut $crate::bitarr!($order, $store; $val; $len)[.. $len]
+	}};
+	//  Default order and store.
+	(mut $val:expr; $len:expr) => {
+		$crate::bits!(mut $crate::order::Lsb0, usize; $val; $len)
+	};
 
-	(mut $order:ident, Cell<$store:ident>; $val:expr; $len:expr) => {{
-		&mut $crate::bitarr![$order, Cell<$store>; $val; $len][.. $len]
+	//  Sequence syntax `[bit (, bit)*]` or `[(bit ,)*]`.
+
+	//  Explicit order and store.
+
+	(mut $order:ident, Cell<$store:ident>; $($val:expr),* $(,)?) => {{
+		const BITS: usize = $crate::__count!($($val),*);
+		&mut $crate::bitarr!($order, Cell<$store>; $($val),*)[.. BITS]
 	}};
-	(mut $order:ident, $store:ident; $val:expr; $len:expr) => {{
-		&mut $crate::bitarr![$order, $store; $val; $len][.. $len]
+	(mut $order:ident, $store:ident; $($val:expr),* $(,)?) => {{
+		const BITS: usize = $crate::__count!($($val),*);
+		&mut $crate::bitarr!($order, $store; $($val),*)[.. BITS]
 	}};
 
-	(mut $order:path, Cell<$store:ident>; $val:expr; $len:expr) => {{
-		&mut $crate::bitarr![$order, Cell<$store>; $val; $len][.. $len]
+	(mut $order:path, Cell<$store:ident>; $($val:expr),* $(,)?) => {{
+		const BITS: usize = $crate::__count!($($val),*);
+		&mut $crate::bitarr!($order, Cell<$store>; $($val),*)[.. BITS]
 	}};
-	(mut $order:path, $store:ident; $val:expr; $len:expr) => {{
-		&mut $crate::bitarr![$order, $store; $val; $len][.. $len]
+	(mut $order:path, $store:ident; $($val:expr),* $(,)?) => {{
+		const BITS: usize = $crate::__count!($($val),*);
+		&mut $crate::bitarr!($order, $store; $($val),*)[.. BITS]
 	}};
 
 	//  Default order and store.
-
 	(mut $($val:expr),* $(,)?) => {
 		$crate::bits!(mut Lsb0, usize; $($val),*)
 	};
 
-	(mut $val:expr; $len:expr) => {
-		$crate::bits!(mut Lsb0, usize; $val; $len)
-	};
-
 	//  Repeat everything from above, but now immutable.
 
+	($order:ty, $store:ty; $val:expr; $len:expr) => {{
+		&$crate::bitarr!($order, $store; $val; $len)[.. $len]
+	}};
+	($val:expr; $len:expr) => {
+		$crate::bits!($crate::order::Lsb0, usize; $val; $len)
+	};
+
 	($order:ident, Cell<$store:ident>; $($val:expr),* $(,)?) => {{
-		&$crate::bitarr![$order, Cell<$store>; $($val),*][.. $crate::__count!($($val),*)]
+		const BITS: usize = $crate::__count!($($val),*);
+		&$crate::bitarr!($order, Cell<$store>; $($val),*)[.. BITS]
 	}};
 	($order:ident, $store:ident; $($val:expr),* $(,)?) => {{
-		&$crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
+		const BITS: usize = $crate::__count!($($val),*);
+		&$crate::bitarr!($order, $store; $($val),*)[.. BITS]
 	}};
 
 	($order:path, Cell<$store:ident>; $($val:expr),* $(,)?) => {{
-		&$crate::bitarr![$order, Cell<$store>; $($val),*][.. $crate::__count!($($val),*)]
+		const BITS: usize = $crate::__count!($($val),*);
+		&$crate::bitarr!($order, Cell<$store>; $($val),*)[.. BITS]
 	}};
 	($order:path, $store:ident; $($val:expr),* $(,)?) => {{
-		&$crate::bitarr![$order, $store; $($val),*][.. $crate::__count!($($val),*)]
-	}};
-
-	($order:ident, Cell<$store:ident>; $val:expr; $len:expr) => {{
-		&$crate::bitarr![$order, Cell<$store>; $val; $len][.. $len]
-	}};
-	($order:ident, $store:ident; $val:expr; $len:expr) => {{
-		&$crate::bitarr![$order, $store; $val; $len][.. $len]
-	}};
-
-	($order:path, Cell<$store:ident>; $val:expr; $len:expr) => {{
-		&$crate::bitarr![$order, Cell<$store>; $val; $len][.. $len]
-	}};
-	($order:path, $store:ident; $val:expr; $len:expr) => {{
-		&$crate::bitarr![$order, $store; $val; $len][.. $len]
+		const BITS: usize = $crate::__count!($($val),*);
+		&$crate::bitarr!($order, $store; $($val),*)[.. BITS]
 	}};
 
 	//  Default order and store.
-	//  These must be last to prevent spurious matches on the type arguments.
-
 	($($val:expr),* $(,)?) => {
 		$crate::bits!(Lsb0, usize; $($val),*)
-	};
-
-	($val:expr; $len:expr) => {
-		$crate::bits!(Lsb0, usize; $val; $len)
 	};
 }
 
@@ -440,12 +548,12 @@ let d = bitvec![Msb0, AtomicU32; 0, 0, 1, 0, 1];
 macro_rules! bitvec {
 	//  First, capture the repetition syntax, as it is permitted to use runtime
 	//  values for the repetition count.
-	($order:ty, $store:ty; $val:expr; $rep:expr) => {
-		$crate::vec::BitVec::<$order, $store>::repeat($val != 0, $rep)
+	($order:ty, $store:ty; $val:expr; $len:expr) => {
+		$crate::vec::BitVec::<$order, $store>::repeat($val != 0, $len)
 	};
 
-	($val:expr; $rep:expr) => {
-		$crate::bitvec!($crate::order::Lsb0, usize; $val; $rep)
+	($val:expr; $len:expr) => {
+		$crate::bitvec!($crate::order::Lsb0, usize; $val; $len)
 	};
 
 	//  Delegate all others to the `bits!` macro.

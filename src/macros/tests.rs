@@ -4,15 +4,25 @@
 
 use core::cell::Cell;
 
-use crate::prelude::*;
+use crate::{
+	mem::BitMemory,
+	prelude::*,
+};
 
 #[test]
 fn compile_bitarr_typedef() {
+	#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 	struct Slots {
 		all: BitArr!(for 10, in Msb0, u8),
 		typ: BitArr!(for 10, in u8),
 		def: BitArr!(for 10),
 	}
+
+	static SLOTS: Slots = Slots {
+		all: bitarr!(const Msb0, u8; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+		typ: bitarr!(const Lsb0, u8; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+		def: bitarr!(const           1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+	};
 
 	let slots = Slots {
 		all: bitarr!(Msb0, u8; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
@@ -20,10 +30,57 @@ fn compile_bitarr_typedef() {
 		def: bitarr!(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
 	};
 
+	assert_eq!(SLOTS, slots);
+
 	assert_eq!(slots.all.value(), [!0u8, 192]);
 	assert_eq!(slots.typ.value(), [!0u8, 3]);
 	let def: [usize; 1] = slots.def.value();
 	assert_eq!(def[0].count_ones(), 10);
+}
+
+#[test]
+fn constexpr_macros() {
+	const A: BitArr!(for 20, in Lsb0, Cell<u8>) =
+		bitarr!(const Lsb0, Cell<u8>; 1; 20);
+	let a = A;
+	assert_eq!(a.len(), 24);
+	assert!(a.all());
+
+	const B: BitArr!(for 20) = bitarr!(const 1; 20);
+	let b = B;
+	assert_eq!(b.len(), <usize as BitMemory>::BITS as usize);
+	assert!(b.all());
+
+	const C: BitArr!(for 5, in Msb0, Cell<u16>) =
+		bitarr!(const Msb0, Cell<u16>; 1, 0, 1, 1, 0);
+	let c = C;
+	assert_eq!(c[.. 5], bits![1, 0, 1, 1, 0]);
+
+	const D: BitArr!(for 5, in Lsb0, u32) =
+		bitarr!(const Lsb0, u32; 1, 0, 1, 1, 0);
+	let d = D;
+	assert_eq!(d[.. 5], bits![1, 0, 1, 1, 0]);
+
+	let _: &'static mut BitSlice<Msb0, Cell<u16>> =
+		bits!(static mut Msb0, Cell<u16>; 1; 20);
+	let _: &'static mut BitSlice<Lsb0, u32> = bits!(static mut Lsb0, u32; 1; 20);
+	let _: &'static mut BitSlice = bits!(static mut 1; 20);
+
+	let _: &'static mut BitSlice<Msb0, Cell<u16>> =
+		bits!(static mut Msb0, Cell<u16>; 1, 0, 1, 1, 0);
+	let _: &'static mut BitSlice<Lsb0, u32> =
+		bits!(static mut Lsb0, u32; 1, 0, 1, 1, 0);
+	let _: &'static mut BitSlice = bits!(static mut 1, 0, 1, 1, 0);
+
+	let _: &'static BitSlice<Msb0, Cell<u16>> =
+		bits!(static Msb0, Cell<u16>; 1; 20);
+	let _: &'static BitSlice<Lsb0, u32> = bits!(static Lsb0, u32; 1; 20);
+	let _: &'static BitSlice = bits!(static 1; 20);
+
+	let _: &'static BitSlice<Msb0, Cell<u16>> =
+		bits!(static Msb0, Cell<u16>; 1, 0, 1, 1, 0);
+	let _: &'static BitSlice<Lsb0, u32> = bits!(static Lsb0, u32; 1, 0, 1, 1, 0);
+	let _: &'static BitSlice = bits!(static 1, 0, 1, 1, 0);
 }
 
 #[test]
@@ -511,13 +568,12 @@ fn make_elem() {
 	let bits: &BitSlice<LocalBits, Cell<u32>> = cell.view_bits::<_>();
 	assert_eq!(bits[.. 3], bits![1, 0, 1]);
 
-	//  `__make_elem!` is only called after `$ord` has already been made opaque
-	//  to matchers as a single `:tt`. Calling it directly with a path will fail
-	//  the `:tt`, so this macro wraps it as one and forwards the rest.
+	//  `__make_elem!` is only called after `$ord` has already been made
+	// opaque  to matchers as a single `:tt`. Calling it directly with a path
+	// will fail  the `:tt`, so this macro wraps it as one and forwards the
+	// rest.
 	macro_rules! invoke_make_elem {
-		($ord:path, $($rest:tt)*) => {
-			__make_elem!($ord, $($rest)*)
-		};
+		($ord:path, $($rest:tt)*) => { __make_elem!($ord, $($rest)*) };
 	}
 	let uint: usize =
 		invoke_make_elem!(crate::order::Lsb0, usize as usize; 0, 0, 1, 1);
