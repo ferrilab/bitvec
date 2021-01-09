@@ -1265,10 +1265,12 @@ where
 			}
 		}
 		else {
-			for (to, from) in unsafe { self.iter_mut().remove_alias() }
-				.zip(src.iter().by_val())
+			for (to, from) in
+				self.as_mut_bitptr_range().zip(self.as_bitptr_range())
 			{
-				to.set(from);
+				unsafe {
+					to.write(from.read());
+				}
 			}
 		}
 	}
@@ -1438,11 +1440,11 @@ where
 			this.sp_copy_from_bitslice(that);
 		}
 		else {
-			for (ptr, from) in
-				self.as_mut_bitptr_range().zip(src.iter().by_val())
+			for (from, to) in
+				src.as_bitptr_range().zip(self.as_mut_bitptr_range())
 			{
 				unsafe {
-					ptr.write(from);
+					to.write(from.read());
 				}
 			}
 		}
