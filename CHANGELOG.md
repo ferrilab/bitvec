@@ -58,10 +58,31 @@ This document is written according to the [Keep a Changelog][kac] style.
 1. [0.2.0](#020)
 1. [0.1.0](#010)
 
-## 0.20.1
+## 0.21
+### Added
 
-This largely addresses defect reports. In addition, the `IterOnes` and
-`IterZeros` bit-finding iterators are accelerated by specialization.
+The `BitArr!` macro constructs `BitArray` type names.
+
+### Changed
+
+- The `bitarr!` macro no longer constructs `BitArray` type names. In addition,
+  it can take a `const` first argument to produce code that is usable in `const`
+  contexts, such as producing a `const` or `static` binding. These invocations
+  are limited to only using the blessed `Lsb0`, `Msb0`, and `LocalBits` ordering
+  tokens, and may not use any other type names for orderings.
+
+- The `bits!` macro now accepts `static` and `static mut` first arguments. These
+  direct the macro to produce a hidden `static` item containing a buffer
+  produced by `bitarr!(const)`. Borrowing a `BitArray` as a `BitSlice` requires
+  code that cannot run in `const` contexts, so this macro may still only be used
+  in local expressions, and not in `static` bindings. This behavior is useful
+  for ensuring that the macro produces a permanent buffer rather than a
+  temporary stack item.
+
+- The `IterOnes` and `IterZeros` bit-finding iterators have some acceleration
+  by specialization. The provided orderings will now use the
+  `{leading,trailing}_{ones,zeros}` methods in the standard library rather than
+  implementing a search directly.
 
 ## 0.20.0
 
