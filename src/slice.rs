@@ -1266,7 +1266,7 @@ where
 		}
 		else {
 			for (to, from) in
-				self.as_mut_bitptr_range().zip(self.as_bitptr_range())
+				self.as_mut_bitptr_range().zip(src.as_bitptr_range())
 			{
 				unsafe {
 					to.write(from.read());

@@ -238,13 +238,14 @@ fn misc() {
 	let mut bv_1 = bitvec![Lsb0, u8; 0; 5];
 	let mut bv_2 = bitvec![Msb0, u16; 1; 5];
 	let mut bv_3 = bv_1.clone();
-	bv_1.append(&mut bv_2);
 
+	bv_1.append(&mut bv_2);
 	assert_eq!(bv_1, bits![0, 0, 0, 0, 0, 1, 1, 1, 1, 1]);
 	assert!(bv_2.is_empty());
 
 	bv_1.append(&mut bv_3);
 	assert_eq!(bv_1, bits![0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0]);
+	assert!(bv_3.is_empty());
 
 	let bv_4 = bv_1.split_off(5);
 	assert!(bv_1.not_any());
