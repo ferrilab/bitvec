@@ -614,14 +614,15 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let mut bv = bitvec![0; 5];
-	/// bv.insert(4, true);
-	/// assert_eq!(bv, bits![0, 0, 0, 0, 1, 0]);
+	/// bv.insert(5, true);
+	/// assert_eq!(bv, bits![0, 0, 0, 0, 0, 1]);
 	/// bv.insert(2, true);
-	/// assert_eq!(bv, bits![0, 0, 1, 0, 0, 1, 0]);
+	/// assert_eq!(bv, bits![0, 0, 1, 0, 0, 0, 1]);
 	/// ```
 	#[inline]
 	pub fn insert(&mut self, index: usize, value: bool) {
-		self.assert_in_bounds(index);
+		// we allow for index == len
+		self.assert_in_bounds(index.saturating_sub(1));
 		self.push(value);
 		unsafe { self.get_unchecked_mut(index ..) }.rotate_right(1);
 	}
