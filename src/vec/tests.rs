@@ -213,6 +213,10 @@ fn iterators() {
 
 #[test]
 fn misc() {
+	let mut bv = bitvec![0; 0];
+	bv.insert(0, true);
+	assert_eq!(bv, bits![1]);
+
 	let mut bv = bitvec![1; 10];
 	bv.truncate(20);
 	assert_eq!(bv, bits![1; 10]);

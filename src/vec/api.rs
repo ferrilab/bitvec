@@ -588,7 +588,7 @@ where
 	/// ```
 	#[inline]
 	pub fn swap_remove(&mut self, index: usize) -> bool {
-		self.assert_in_bounds(index);
+		self.assert_in_bounds(index, 0..self.len());
 		let last = self.len() - 1;
 		unsafe {
 			self.swap_unchecked(index, last);
@@ -621,8 +621,7 @@ where
 	/// ```
 	#[inline]
 	pub fn insert(&mut self, index: usize, value: bool) {
-		// we allow for index == len
-		self.assert_in_bounds(index.saturating_sub(1));
+		self.assert_in_bounds(index, 0..=self.len());
 		self.push(value);
 		unsafe { self.get_unchecked_mut(index ..) }.rotate_right(1);
 	}
@@ -649,7 +648,7 @@ where
 	/// ```
 	#[inline]
 	pub fn remove(&mut self, index: usize) -> bool {
-		self.assert_in_bounds(index);
+		self.assert_in_bounds(index, 0..self.len());
 		let last = self.len() - 1;
 		unsafe {
 			self.get_unchecked_mut(index ..).rotate_left(1);

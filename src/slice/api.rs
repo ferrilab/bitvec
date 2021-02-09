@@ -576,8 +576,8 @@ where
 	/// ```
 	#[inline]
 	pub fn swap(&mut self, a: usize, b: usize) {
-		self.assert_in_bounds(a);
-		self.assert_in_bounds(b);
+		self.assert_in_bounds(a, 0..self.len());
+		self.assert_in_bounds(b, 0..self.len());
 		unsafe {
 			self.swap_unchecked(a, b);
 		}
@@ -1265,7 +1265,7 @@ where
 		&mut self,
 		mid: usize,
 	) -> (&mut BitSlice<O, T::Alias>, &mut BitSlice<O, T::Alias>) {
-		self.assert_in_bounds(mid);
+		self.assert_in_bounds(mid, 0..self.len());
 		unsafe { self.split_at_unchecked_mut(mid) }
 	}
 
