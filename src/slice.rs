@@ -755,7 +755,7 @@ where
 	///
 	/// [`self.len()`]: Self::len
 	pub fn set(&mut self, index: usize, value: bool) {
-		self.assert_in_bounds(index);
+		self.assert_in_bounds(index, 0..self.len());
 		unsafe {
 			self.set_unchecked(index, value);
 		}
@@ -815,7 +815,7 @@ where
 	/// [`self.len()`]: Self::len
 	pub fn set_aliased(&self, index: usize, value: bool)
 	where T: radium::Radium {
-		self.assert_in_bounds(index);
+		self.assert_in_bounds(index, 0..self.len());
 		unsafe {
 			self.set_aliased_unchecked(index, value);
 		}
@@ -2488,21 +2488,22 @@ where
 		BitSpan::from_bitslice_ptr_mut(self)
 	}
 
-	/// Asserts that `index` is less than [`self.len()`].
+	/// Asserts that `index` is not out of `bounds`.
 	///
 	/// # Parameters
 	///
 	/// - `&self`
 	/// - `index`: The index to test against [`self.len()`].
+	/// - `bounds`: Bounds to check.
 	///
 	/// # Panics
 	///
-	/// This method panics if `index` is not less than `self.len()`.
-	///
-	/// [`self.len()`]: Self::len
-	pub(crate) fn assert_in_bounds(&self, index: usize) {
-		let len = self.len();
-		assert!(index < len, "Index out of range: {} >= {}", index, len);
+	/// This method panics if `bounds` doesn't contain the `index`.
+	pub(crate) fn assert_in_bounds<R>(&self, index: usize, bounds: R)
+	where
+		R: RangeBounds<usize>,
+	{
+		assert!(bounds.contains(&index), "Index {} out of range: {:?}", index, bounds.end_bound());
 	}
 
 	/// Marks an immutable slice as referring to aliased memory region.
