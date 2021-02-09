@@ -1251,6 +1251,12 @@ where
 	///   left.set(1, true);
 	///   right.set(1, false);
 	/// }
+	/// {
+	///   let mut v = bits![mut 0; 0];
+	///   let (left, right) = v.split_at_mut(0);
+	///   assert!(left.is_empty());
+	///   assert!(right.is_empty());
+	/// }
 	/// assert_eq!(v, bits![0, 1, 0, 0, 1, 1]);
 	/// ```
 	///
@@ -1265,7 +1271,7 @@ where
 		&mut self,
 		mid: usize,
 	) -> (&mut BitSlice<O, T::Alias>, &mut BitSlice<O, T::Alias>) {
-		self.assert_in_bounds(mid, 0..self.len());
+		self.assert_in_bounds(mid, 0..=self.len());
 		unsafe { self.split_at_unchecked_mut(mid) }
 	}
 
