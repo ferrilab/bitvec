@@ -55,6 +55,7 @@ use crate::{
 	ptr::{
 		BitPtr,
 		BitSpan,
+		BitSpanError,
 	},
 	slice::BitSlice,
 	store::BitStore,
@@ -351,6 +352,55 @@ where
 
 		let capacity = vec.capacity();
 		Self { bitspan, capacity }
+	}
+
+	/// Constructs a new `BitVec` from the bit-pattern of a single element.
+	///
+	/// This function copies `elem` into a new vector, then views that vector as
+	/// bits.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// assert_eq!(BitVec::<Msb0, _>::from_element(0xABBAu16).count_ones(), 10);
+	/// ```
+	#[inline]
+	pub fn from_element(elem: T) -> Self {
+		vec![elem].pipe(Self::from_vec)
+	}
+
+	/// Constructs a new `BitVec` from the bit-pattern of an element slice.
+	///
+	/// This function copies `slice` into a new vector, then views that vector
+	/// as bits.
+	///
+	/// # Parameters
+	///
+	/// - `slice`: A slice of elements. It should not exceed
+	///   [`BitSlice::<O, T>::MAX_ELTS`].
+	///
+	/// # Returns
+	///
+	/// This returns an error if [`BitSlice::<O, T>::from_slice`] fails;
+	/// otherwise, it returns the newly allocated and initialized bit-vector.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let slice = &[0u8, 1, 2, 3];
+	/// let bv = BitVec::<Lsb0, _>::from_slice(slice);
+	/// assert!(bv.is_ok());
+	/// assert_eq!(bv.unwrap().len(), 32);
+	/// ```
+	///
+	/// [`BitSlice::<O, T>::MAX_ELTS`]: crate::slice::BitSlice::MAX_ELTS
+	/// [`BitSlice::<O, T>::from_slice`]: crate::slice::BitSlice::from_slice
+	pub fn from_slice(slice: &[T]) -> Result<Self, BitSpanError<T>> {
+		slice.pipe(BitSlice::from_slice).map(Self::from_bitslice)
 	}
 
 	/// Converts a [`Vec<T>`] into a `BitVec<O, T>` without copying its buffer.

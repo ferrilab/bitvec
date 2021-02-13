@@ -4,18 +4,20 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
-1. [0.20.1](#0201)
-1. [0.20.0](#0200)
+1. [0.21](#021)
    1. [Added](#added)
-      1. [Pointer Overhaul](#pointer-overhaul)
    1. [Changed](#changed)
+1. [0.20.0](#0200)
+   1. [Added](#added-1)
+      1. [Pointer Overhaul](#pointer-overhaul)
+   1. [Changed](#changed-1)
       1. [Aliasing Typesystem](#aliasing-typesystem)
       1. [`&bool` to `BitRef`](#bool-to-bitref)
    1. [Removed](#removed)
 1. [0.19.4](#0194)
-   1. [Changed](#changed-1)
+   1. [Changed](#changed-2)
 1. [0.19.3](#0193)
-   1. [Added](#added-1)
+   1. [Added](#added-2)
 1. [0.19.2](#0192)
 1. [0.19.1](#0191)
 1. [0.19.0](#0190)
@@ -59,9 +61,11 @@ This document is written according to the [Keep a Changelog][kac] style.
 1. [0.1.0](#010)
 
 ## 0.21
+
 ### Added
 
-The `BitArr!` macro constructs `BitArray` type names.
+- The `BitArr!` macro constructs `BitArray` type names.
+- `BitVec::from_element` and `BitVec::from_slice` constructors.
 
 ### Changed
 
