@@ -755,7 +755,7 @@ where
 	///
 	/// [`self.len()`]: Self::len
 	pub fn set(&mut self, index: usize, value: bool) {
-		self.assert_in_bounds(index, 0..self.len());
+		self.assert_in_bounds(index, 0 .. self.len());
 		unsafe {
 			self.set_unchecked(index, value);
 		}
@@ -815,7 +815,7 @@ where
 	/// [`self.len()`]: Self::len
 	pub fn set_aliased(&self, index: usize, value: bool)
 	where T: radium::Radium {
-		self.assert_in_bounds(index, 0..self.len());
+		self.assert_in_bounds(index, 0 .. self.len());
 		unsafe {
 			self.set_aliased_unchecked(index, value);
 		}
@@ -2500,10 +2500,13 @@ where
 	///
 	/// This method panics if `bounds` doesn't contain the `index`.
 	pub(crate) fn assert_in_bounds<R>(&self, index: usize, bounds: R)
-	where
-		R: RangeBounds<usize>,
-	{
-		assert!(bounds.contains(&index), "Index {} out of range: {:?}", index, bounds.end_bound());
+	where R: RangeBounds<usize> {
+		assert!(
+			bounds.contains(&index),
+			"Index {} out of range: {:?}",
+			index,
+			bounds.end_bound()
+		);
 	}
 
 	/// Marks an immutable slice as referring to aliased memory region.

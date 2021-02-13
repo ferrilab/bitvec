@@ -7,6 +7,7 @@ This document is written according to the [Keep a Changelog][kac] style.
 1. [0.21](#021)
    1. [Added](#added)
    1. [Changed](#changed)
+   1. [Fixed](#fixed)
 1. [0.20.0](#0200)
    1. [Added](#added-1)
       1. [Pointer Overhaul](#pointer-overhaul)
@@ -94,6 +95,11 @@ This document is written according to the [Keep a Changelog][kac] style.
   by specialization. The provided orderings will now use the
   `{leading,trailing}_{ones,zeros}` methods in the standard library rather than
   implementing a search directly.
+
+### Fixed
+
+GitHub user [@ordian] fixed incorrect `len()` exclusion from `BitVec::insert` in
+[Pull Requst #104].
 
 ## 0.20.0
 
@@ -1164,6 +1170,7 @@ Initial implementation and release.
 [@lynaghk]: https://github.com/lynaghk
 [@mystor]: https://github.com/mystor
 [@obeah]: https://github.com/obeah
+[@ordian]: https://github.com/ordian
 [@overminder]: https://github.com/overminder
 [@ratorx]: https://github.com/ratorx
 [@schomatis]: https://github.com/schomatis
@@ -1194,6 +1201,7 @@ Initial implementation and release.
 [Pull Request #34]: https://github.com/bitvecto-rs/bitvec/pull/34
 [Pull Request #41]: https://github.com/bitvecto-rs/bitvec/pull/41
 [Pull Request #68]: https://github.com/bitvecto-rs/bitvec/pull/68
+[Pull Request #104]: https://github.com/bitvecto-rs/bitvec/pull/104
 [Rust PR #69373]: https://github.com/rust-lang/rust/pull/69373/
 [`Sync`]: https://doc.rust-lang.org/stable/core/marker/trait.Sync.html
 [`bit-set`]: https://crates.io/crates/bit-set
