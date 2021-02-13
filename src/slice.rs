@@ -1289,7 +1289,9 @@ where
 	/// ```
 	#[inline]
 	pub fn trailing_ones(&self) -> usize {
-		self.last_zero().map(|idx| self.len() - idx).unwrap_or(0)
+		self.last_zero()
+			.map(|idx| self.len() - 1 - idx)
+			.unwrap_or(0)
 	}
 
 	/// Counts the number of bits from the end of the bit-slice to the last bit
@@ -1308,7 +1310,7 @@ where
 	/// ```
 	#[inline]
 	pub fn trailing_zeros(&self) -> usize {
-		self.last_one().map(|idx| self.len() - idx).unwrap_or(0)
+		self.last_one().map(|idx| self.len() - 1 - idx).unwrap_or(0)
 	}
 
 	/// Copies the bits from `src` into `self`.
