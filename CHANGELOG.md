@@ -65,7 +65,14 @@ This document is written according to the [Keep a Changelog][kac] style.
 ### Added
 
 - The `BitArr!` macro constructs `BitArray` type names.
-- `BitVec::from_element` and `BitVec::from_slice` constructors.
+- `BitVec::from_element` and `BitVec::from_slice` constructors. Thanks to
+  GitHub user [@HamishWMC] for reöpening [Issue #6]
+- `BitSlice::{first,last}_{one,zero}` finds the index of the first or last bit
+  in the bit-slice set to one or zero, respectively. Thanks to GitHub user
+  [@seanyoung] for the feature request in [Issue #103].
+- `BitSlice::{leading,trailing}_{ones,zeros}` count the length of the *run* of
+  the requested bit at the requested edge of the bit-slice. Thanks to GitHub
+  user @seanyoung for the feature request in Issue #103.
 
 ### Changed
 
@@ -1145,6 +1152,7 @@ Initial implementation and release.
 [@Alexhuszagh]: https://github.com/Alexhuszagh
 [@Fotosmile]: https://github.com/Fotosmile
 [@GeorgeGkas]: https://github.com/GeorgeGkas
+[@HamishWMC]: https://github.com/HamishWMC
 [@ImmemorConsultrixContrarie]: https://github.com/ImmemorConsultrixContrarie
 [@arucil]: https://github.com/arucil
 [@caelunshun]: https://github.com/caelunshun
@@ -1159,30 +1167,33 @@ Initial implementation and release.
 [@overminder]: https://github.com/overminder
 [@ratorx]: https://github.com/ratorx
 [@schomatis]: https://github.com/schomatis
+[@seanyoung]: https://github.com/seanyoung
 [@torce]: https://github.com/torce
-[Issue #7]: https://github.com/myrrlyn/bitvec/issues/7
-[Issue #8]: https://github.com/myrrlyn/bitvec/issues/8
-[Issue #9]: https://github.com/myrrlyn/bitvec/issues/9
-[Issue #10]: https://github.com/myrrlyn/bitvec/issues/10
-[Issue #12]: https://github.com/myrrlyn/bitvec/issues/12
-[Issue #15]: https://github.com/myrrlyn/bitvec/issues/15
-[Issue #16]: https://github.com/myrrlyn/bitvec/issues/16
-[Issue #17]: https://github.com/myrrlyn/bitvec/issues/17
-[Issue #28]: https://github.com/myrrlyn/bitvec/issues/28
-[Issue #32]: https://github.com/myrrlyn/bitvec/issues/32
-[Issue #33]: https://github.com/myrrlyn/bitvec/issues/33
-[Issue #35]: https://github.com/myrrlyn/bitvec/issues/35
-[Issue #36]: https://github.com/myrrlyn/bitvec/issues/36
-[Issue #40]: https://github.com/myrrlyn/bitvec/issues/40
-[Issue #43]: https://github.com/myrrlyn/bitvec/issues/43
-[Issue #50]: https://github.com/myrrlyn/bitvec/issues/50
-[Issue #55]: https://github.com/myrrlyn/bitvec/issues/55
-[Issue #69]: https://github.com/myrrlyn/bitvec/issues/69
-[Issue #75]: https://github.com/myrrlyn/bitvec/issues/75
-[Issue #83]: https://github.com/myrrlyn/bitvec/issues/83
-[Pull Request #34]: https://github.com/myrrlyn/bitvec/pull/34
-[Pull Request #41]: https://github.com/myrrlyn/bitvec/pull/41
-[Pull Request #68]: https://github.com/myrrlyn/bitvec/pull/68
+[Issue #6]: https://github.com/bitvecto-rs/bitvec/issues/6
+[Issue #7]: https://github.com/bitvecto-rs/bitvec/issues/7
+[Issue #8]: https://github.com/bitvecto-rs/bitvec/issues/8
+[Issue #9]: https://github.com/bitvecto-rs/bitvec/issues/9
+[Issue #10]: https://github.com/bitvecto-rs/bitvec/issues/10
+[Issue #12]: https://github.com/bitvecto-rs/bitvec/issues/12
+[Issue #15]: https://github.com/bitvecto-rs/bitvec/issues/15
+[Issue #16]: https://github.com/bitvecto-rs/bitvec/issues/16
+[Issue #17]: https://github.com/bitvecto-rs/bitvec/issues/17
+[Issue #28]: https://github.com/bitvecto-rs/bitvec/issues/28
+[Issue #32]: https://github.com/bitvecto-rs/bitvec/issues/32
+[Issue #33]: https://github.com/bitvecto-rs/bitvec/issues/33
+[Issue #35]: https://github.com/bitvecto-rs/bitvec/issues/35
+[Issue #36]: https://github.com/bitvecto-rs/bitvec/issues/36
+[Issue #40]: https://github.com/bitvecto-rs/bitvec/issues/40
+[Issue #43]: https://github.com/bitvecto-rs/bitvec/issues/43
+[Issue #50]: https://github.com/bitvecto-rs/bitvec/issues/50
+[Issue #55]: https://github.com/bitvecto-rs/bitvec/issues/55
+[Issue #69]: https://github.com/bitvecto-rs/bitvec/issues/69
+[Issue #75]: https://github.com/bitvecto-rs/bitvec/issues/75
+[Issue #83]: https://github.com/bitvecto-rs/bitvec/issues/83
+[Issue #103]: https://github.com/bitvecto-rs/bitvec/issues/103
+[Pull Request #34]: https://github.com/bitvecto-rs/bitvec/pull/34
+[Pull Request #41]: https://github.com/bitvecto-rs/bitvec/pull/41
+[Pull Request #68]: https://github.com/bitvecto-rs/bitvec/pull/68
 [Rust PR #69373]: https://github.com/rust-lang/rust/pull/69373/
 [`Sync`]: https://doc.rust-lang.org/stable/core/marker/trait.Sync.html
 [`bit-set`]: https://crates.io/crates/bit-set

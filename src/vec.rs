@@ -21,6 +21,8 @@ dynamic resizing, and provide some specializations that cannot safely be done on
 
 #![cfg(feature = "alloc")]
 
+#[cfg(not(feature = "std"))]
+use alloc::vec;
 use alloc::vec::Vec;
 use core::{
 	mem::{
@@ -378,8 +380,8 @@ where
 	///
 	/// # Parameters
 	///
-	/// - `slice`: A slice of elements. It should not exceed
-	///   [`BitSlice::<O, T>::MAX_ELTS`].
+	/// - `slice`: A slice of elements. It should not exceed [`BitSlice::<O,
+	///   T>::MAX_ELTS`].
 	///
 	/// # Returns
 	///
