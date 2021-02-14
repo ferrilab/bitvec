@@ -5,7 +5,7 @@
 # `rustfmt` tool is still unstable, this file is only usable by the nightly    #
 # release of Rust at least as of the date this file was last touched.          #
 #                                                                              #
-# See <https://rust-lang.github.io/rustfmt/?version=v1.4.30>                   #
+# See <https://rust-lang.github.io/rustfmt/?version=v1.4.36>                   #
 ################################################################################
 
 # Stable as of current nightly
@@ -50,13 +50,13 @@ group_imports = "StdExternalCrate"
 hide_parse_errors = false
 ignore = []
 imports_indent = "Block"
+imports_granularity = "Crate"
 imports_layout = "Vertical"
 indent_style = "Block"
 inline_attribute_width = 0
 license_template_path = ""
 match_arm_blocks = true
 match_block_trailing_comma = true
-merge_imports = true
 normalize_comments = false
 normalize_doc_attributes = true
 overflow_delimited_expr = true
