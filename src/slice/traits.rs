@@ -23,13 +23,13 @@ use core::{
 	str,
 };
 
+use funty::IsNumber;
 use tap::pipe::Pipe;
 
 #[cfg(feature = "alloc")]
 use crate::vec::BitVec;
 use crate::{
 	domain::Domain,
-	mem::BitMemory,
 	order::{
 		BitOrder,
 		Lsb0,
@@ -386,9 +386,9 @@ macro_rules! fmt {
 				Rust does not yet grant access to trait constants for use in
 				constant expressions within generics.
 				*/
-				const D: usize = <usize as BitMemory>::BITS as usize / $blksz;
+				const D: usize = <usize as IsNumber>::BITS as usize / $blksz;
 				#[allow(clippy::modulo_one)]
-				const M: usize = <usize as BitMemory>::BITS as usize % $blksz;
+				const M: usize = <usize as IsNumber>::BITS as usize % $blksz;
 				const W: usize = D + (M != 0) as usize;
 				let mut w: [u8; W + 2] = [b'0'; W + 2];
 				//  Write the prefix symbol into the buffer.

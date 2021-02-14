@@ -19,6 +19,7 @@ use core::{
 	},
 };
 
+use funty::IsNumber;
 use wyz::fmt::FmtForward;
 
 use crate::{

@@ -205,6 +205,7 @@ use core::{
 	ptr,
 };
 
+use funty::IsNumber;
 use tap::pipe::Pipe;
 
 use crate::{
@@ -270,7 +271,7 @@ The module documentation contains a more detailed explanation, and examples, for
 this behavior.
 
 [`BitSlice`]: crate::slice::BitSlice
-[`M::BITS`]: crate::mem::BitMemory::BITS
+[`M::BITS`]: funty::IsNumber::BITS
 [`load`]: Self::load
 [`load_be`]: Self::load_be
 [`load_le`]: Self::load_le
@@ -314,7 +315,7 @@ pub trait BitField {
 	/// single element `M`.
 	///
 	/// [`BitMemory`]: crate::mem::BitMemory
-	/// [`M::BITS`]: crate::mem::BitMemory::BITS
+	/// [`M::BITS`]: funty::IsNumber::BITS
 	/// [`load_be`]: Self::load_be
 	/// [`load_le`]: Self::load_le
 	/// [`self.len()`]: crate::slice::BitSlice::len
@@ -364,7 +365,7 @@ pub trait BitField {
 	/// single element `M`.
 	///
 	/// [`BitMemory`]: crate::mem::BitMemory
-	/// [`M::BITS`]: crate::mem::BitMemory::BITS
+	/// [`M::BITS`]: funty::IsNumber::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
 	/// [`store_be`]: Self::store_be
 	/// [`store_le`]: Self::store_le
@@ -455,7 +456,7 @@ pub trait BitField {
 	/// );
 	/// ```
 	///
-	/// [`M::BITS`]: crate::mem::BitMemory::BITS
+	/// [`M::BITS`]: funty::IsNumber::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn load_le<M>(&self) -> M
 	where M: BitMemory;
@@ -539,7 +540,7 @@ pub trait BitField {
 	/// );
 	/// ```
 	///
-	/// [`M::BITS`]: crate::mem::BitMemory::BITS
+	/// [`M::BITS`]: funty::IsNumber::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn load_be<M>(&self) -> M
 	where M: BitMemory;
@@ -623,7 +624,7 @@ pub trait BitField {
 	/// assert_eq!(msb0.as_raw_slice(), exp_msb0);
 	/// ```
 	///
-	/// [`M::BITS`]: crate::mem::BitMemory::BITS
+	/// [`M::BITS`]: funty::IsNumber::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn store_le<M>(&mut self, value: M)
 	where M: BitMemory;
@@ -707,7 +708,7 @@ pub trait BitField {
 	/// assert_eq!(msb0.as_raw_slice(), exp_msb0);
 	/// ```
 	///
-	/// [`M::BITS`]: crate::mem::BitMemory::BITS
+	/// [`M::BITS`]: funty::IsNumber::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn store_be<M>(&mut self, value: M)
 	where M: BitMemory;
@@ -805,8 +806,9 @@ where T: BitStore
 
 				if let Some((head, elem)) = head {
 					let shamt = head.value();
-					if M::BITS > T::Mem::BITS - shamt {
-						accum <<= T::Mem::BITS - shamt;
+					let rshamt = T::Mem::BITS as u8 - shamt;
+					if M::BITS as u8 > rshamt {
+						accum <<= rshamt;
 					}
 					else {
 						accum = M::ZERO;
@@ -889,7 +891,7 @@ where T: BitStore
 
 				if let Some((elem, tail)) = tail {
 					let shamt = tail.value();
-					if M::BITS > shamt {
+					if M::BITS as u8 > shamt {
 						accum <<= shamt;
 					}
 					else {
@@ -940,8 +942,9 @@ where T: BitStore
 				if let Some((head, elem)) = head {
 					let shamt = head.value();
 					set::<T, M>(elem, value, Lsb0::mask(head, None), shamt);
-					if M::BITS > T::Mem::BITS - shamt {
-						value >>= T::Mem::BITS - shamt;
+					let lshamt = T::Mem::BITS as u8 - shamt;
+					if M::BITS as u8 > lshamt {
+						value >>= lshamt;
 					}
 					else {
 						value = M::ZERO;
@@ -999,7 +1002,7 @@ where T: BitStore
 				if let Some((elem, tail)) = tail {
 					set::<T, M>(elem, value, Lsb0::mask(None, tail), 0);
 					let shamt = tail.value();
-					if M::BITS > shamt {
+					if M::BITS as u8 > shamt {
 						value >>= shamt;
 					}
 					else {
@@ -1083,7 +1086,7 @@ where T: BitStore
 			Domain::Enclave { head, elem, tail } => get::<T, M>(
 				elem,
 				Msb0::mask(head, tail),
-				T::Mem::BITS - tail.value(),
+				T::Mem::BITS as u8 - tail.value(),
 			),
 			Domain::Region { head, body, tail } => {
 				let mut accum = M::ZERO;
@@ -1092,7 +1095,7 @@ where T: BitStore
 					accum = get::<T, M>(
 						elem,
 						Msb0::mask(None, tail),
-						T::Mem::BITS - tail.value(),
+						T::Mem::BITS as u8 - tail.value(),
 					);
 				}
 
@@ -1104,8 +1107,8 @@ where T: BitStore
 				}
 
 				if let Some((head, elem)) = head {
-					let shamt = T::Mem::BITS - head.value();
-					if M::BITS > shamt {
+					let shamt = T::Mem::BITS as u8 - head.value();
+					if M::BITS as u8 > shamt {
 						accum <<= shamt;
 					}
 					else {
@@ -1172,7 +1175,7 @@ where T: BitStore
 			Domain::Enclave { head, elem, tail } => get::<T, M>(
 				elem,
 				Msb0::mask(head, tail),
-				T::Mem::BITS - tail.value(),
+				T::Mem::BITS as u8 - tail.value(),
 			),
 			Domain::Region { head, body, tail } => {
 				let mut accum = M::ZERO;
@@ -1190,7 +1193,7 @@ where T: BitStore
 
 				if let Some((elem, tail)) = tail {
 					let shamt = tail.value();
-					if M::BITS > shamt {
+					if M::BITS as u8 > shamt {
 						accum <<= shamt;
 					}
 					else {
@@ -1199,7 +1202,7 @@ where T: BitStore
 					accum |= get::<T, M>(
 						elem,
 						Msb0::mask(None, tail),
-						T::Mem::BITS - shamt,
+						T::Mem::BITS as u8 - shamt,
 					);
 				}
 
@@ -1242,13 +1245,13 @@ where T: BitStore
 				elem,
 				value,
 				Msb0::mask(head, tail),
-				T::Mem::BITS - tail.value(),
+				T::Mem::BITS as u8 - tail.value(),
 			),
 			DomainMut::Region { head, body, tail } => {
 				if let Some((head, elem)) = head {
 					set::<T, M>(elem, value, Msb0::mask(head, None), 0);
-					let shamt = T::Mem::BITS - head.value();
-					if M::BITS > shamt {
+					let shamt = T::Mem::BITS as u8 - head.value();
+					if M::BITS as u8 > shamt {
 						value >>= shamt;
 					}
 					else {
@@ -1268,7 +1271,7 @@ where T: BitStore
 						elem,
 						value,
 						Msb0::mask(None, tail),
-						T::Mem::BITS - tail.value(),
+						T::Mem::BITS as u8 - tail.value(),
 					);
 				}
 			},
@@ -1309,7 +1312,7 @@ where T: BitStore
 				elem,
 				value,
 				Msb0::mask(head, tail),
-				T::Mem::BITS - tail.value(),
+				T::Mem::BITS as u8 - tail.value(),
 			),
 			DomainMut::Region { head, body, tail } => {
 				if let Some((elem, tail)) = tail {
@@ -1317,9 +1320,9 @@ where T: BitStore
 						elem,
 						value,
 						Msb0::mask(None, tail),
-						T::Mem::BITS - tail.value(),
+						T::Mem::BITS as u8 - tail.value(),
 					);
-					if M::BITS > tail.value() {
+					if M::BITS as u8 > tail.value() {
 						value >>= tail.value();
 					}
 					else {
@@ -1431,7 +1434,7 @@ where
 ///
 /// This panics if len is 0, or wider than [`M::BITS`].
 ///
-/// [`M::BITS`]: crate::mem::BitMemory::BITS
+/// [`M::BITS`]: funty::IsNumber::BITS
 fn check<M>(action: &'static str, len: usize)
 where M: BitMemory {
 	if !(1 ..= M::BITS as usize).contains(&len) {

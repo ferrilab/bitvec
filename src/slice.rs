@@ -49,7 +49,10 @@ use core::{
 	slice,
 };
 
-use funty::IsInteger;
+use funty::{
+	IsInteger,
+	IsNumber,
+};
 #[cfg(feature = "alloc")]
 use tap::pipe::Pipe;
 
@@ -66,10 +69,7 @@ use crate::{
 		DomainMut,
 	},
 	index::BitMask,
-	mem::{
-		BitMemory,
-		BitRegister,
-	},
+	mem::BitRegister,
 	mutability::{
 		Const,
 		Mut,

@@ -9,12 +9,12 @@ use core::{
 	ops::RangeBounds,
 };
 
+use funty::IsNumber;
 use tap::pipe::Pipe;
 
 use crate::{
 	boxed::BitBox,
 	index::BitTail,
-	mem::BitMemory,
 	mutability::{
 		Const,
 		Mut,

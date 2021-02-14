@@ -31,23 +31,12 @@ interact with memory. It solely describes integers that can exist on a system.
 This trait cannot be implemented outside this crate.
 **/
 pub trait BitMemory: IsUnsigned + seal::Sealed {
-	/// The bit width of the integer.
-	///
-	/// [`mem::size_of`] returns the size in bytes, and bytes are always eight
-	/// bits wide on architectures that Rust targets.
-	///
-	/// Issue #76904 will place this constant on the fundamental integers
-	/// directly, as a `u32`.
-	///
-	/// [`mem::size_of`]: core::mem::size_of
-	const BITS: u8 = mem::size_of::<Self>() as u8 * 8;
-
 	/// The number of bits required to store an index in the range `0 .. BITS`.
 	const INDX: u8 = Self::BITS.trailing_zeros() as u8;
 
 	/// A mask over all bits that can be used as an index within the element.
 	/// This is the value with the least significant `INDX`-many bits set high.
-	const MASK: u8 = Self::BITS - 1;
+	const MASK: u8 = Self::BITS as u8 - 1;
 }
 
 /** Description of a processor register.

@@ -29,11 +29,10 @@ generic type system of any library without undue effort.
 [`BitView`]: crate::view::BitView
 !*/
 
+use funty::IsNumber;
+
 use crate::{
-	mem::{
-		BitMemory,
-		BitRegister,
-	},
+	mem::BitRegister,
 	order::BitOrder,
 	ptr::BitPtr,
 	slice::{
@@ -106,7 +105,7 @@ pub trait BitView {
 	fn const_bits() -> usize
 	where Self: Sized {
 		Self::const_elts()
-			* <<Self::Store as BitStore>::Mem as BitMemory>::BITS as usize
+			* <<Self::Store as BitStore>::Mem as IsNumber>::BITS as usize
 	}
 
 	/// Produces the number of memory elements that the implementing type holds.

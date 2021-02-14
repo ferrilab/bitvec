@@ -97,7 +97,7 @@ site can be trusted.
 
 [`BitOrder`]: crate::order::BitOrder
 [`BitOrder::at`]: crate::order::BitOrder::at
-[`R::BITS`]: crate::mem::BitMemory::BITS
+[`R::BITS`]: funty::IsNumber::BITS
 [`bitvec`]: crate
 **/
 // #[rustc_layout_scalar_valid_range_end(R::BITS)]
@@ -141,7 +141,7 @@ where R: BitRegister
 	/// [`Self::LAST`]: Self::LAST
 	/// [`Self::ZERO`]: Self::ZERO
 	pub fn new(value: u8) -> Result<Self, BitIdxError<R>> {
-		if value >= R::BITS {
+		if value >= R::BITS as u8 {
 			return Err(BitIdxError::new(value));
 		}
 		Ok(unsafe { Self::new_unchecked(value) })
@@ -168,7 +168,7 @@ where R: BitRegister
 	/// [`Self::ZERO`]: Self::ZERO
 	pub unsafe fn new_unchecked(value: u8) -> Self {
 		debug_assert!(
-			value < R::BITS,
+			value < R::BITS as u8,
 			"Bit index {} cannot exceed type width {}",
 			value,
 			R::BITS,
@@ -209,7 +209,7 @@ where R: BitRegister
 		let next = self.idx + 1;
 		(
 			unsafe { Self::new_unchecked(next & R::MASK) },
-			next == R::BITS,
+			next == R::BITS as u8,
 		)
 	}
 
@@ -480,7 +480,7 @@ where R: BitRegister
 	/// Debug builds panic when `value` is a valid index for `R`.
 	pub(crate) fn new(value: u8) -> Self {
 		debug_assert!(
-			value >= R::BITS,
+			value >= R::BITS as u8,
 			"Bit index {} is valid for type width {}",
 			value,
 			R::BITS
@@ -577,7 +577,7 @@ where R: BitRegister
 {
 	/// The inclusive maximum tail within an element `R`.
 	pub const LAST: Self = Self {
-		end: R::BITS,
+		end: R::BITS as u8,
 		_ty: PhantomData,
 	};
 	/// The inclusive minimum tail within an element `R`.
@@ -601,7 +601,7 @@ where R: BitRegister
 	/// [`Self::LAST`]: Self::LAST
 	/// [`Self::ZERO`]: Self::ZERO
 	pub fn new(value: u8) -> Option<Self> {
-		if value > R::BITS {
+		if value > R::BITS as u8 {
 			return None;
 		}
 		Some(unsafe { Self::new_unchecked(value) })
@@ -628,7 +628,7 @@ where R: BitRegister
 	/// [`Self::ZERO`]: Self::ZERO
 	pub(crate) unsafe fn new_unchecked(value: u8) -> Self {
 		debug_assert!(
-			value <= R::BITS,
+			value <= R::BITS as u8,
 			"Bit tail {} cannot exceed type width {}",
 			value,
 			R::BITS,
@@ -709,7 +709,7 @@ where R: BitRegister
 		let val = self.end;
 
 		let head = val & R::MASK;
-		let bits_in_head = (R::BITS - head) as usize;
+		let bits_in_head = (R::BITS as u8 - head) as usize;
 
 		if len <= bits_in_head {
 			return (1, unsafe { Self::new_unchecked(head + len as u8) });
@@ -810,7 +810,7 @@ where R: BitRegister
 	/// This returns `Some(value)` when it is in the valid range `0 .. R::BITS`,
 	/// and `None` when it is not.
 	pub fn new(value: u8) -> Option<Self> {
-		if value >= R::BITS {
+		if value >= R::BITS as u8 {
 			return None;
 		}
 		Some(unsafe { Self::new_unchecked(value) })
@@ -835,7 +835,7 @@ where R: BitRegister
 	/// `value`.
 	pub unsafe fn new_unchecked(value: u8) -> Self {
 		debug_assert!(
-			value < R::BITS,
+			value < R::BITS as u8,
 			"Bit position {} cannot exceed type width {}",
 			value,
 			R::BITS,

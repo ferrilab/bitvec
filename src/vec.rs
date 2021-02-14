@@ -32,7 +32,10 @@ use core::{
 	slice,
 };
 
-use funty::IsInteger;
+use funty::{
+	IsInteger,
+	IsNumber,
+};
 use tap::{
 	pipe::Pipe,
 	tap::Tap,
@@ -42,10 +45,7 @@ use crate::{
 	boxed::BitBox,
 	domain::Domain,
 	index::BitIdx,
-	mem::{
-		BitMemory,
-		BitRegister,
-	},
+	mem::BitRegister,
 	mutability::{
 		Const,
 		Mut,

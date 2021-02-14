@@ -26,6 +26,7 @@ use core::{
 	ptr,
 };
 
+use funty::IsNumber;
 use wyz::fmt::FmtForward;
 
 use crate::{
@@ -34,7 +35,6 @@ use crate::{
 		BitIdx,
 		BitIdxError,
 	},
-	mem::BitMemory,
 	mutability::{
 		Const,
 		Mut,
@@ -603,7 +603,7 @@ where
 			.value()
 			.wrapping_sub(origin.addr.value())
 			//  Pointers step by `T`, but **address values** step by `u8`.
-			.wrapping_mul(<u8 as BitMemory>::BITS as usize)
+			.wrapping_mul(<u8 as IsNumber>::BITS as usize)
 			//  `self.head` moves the end farther from origin,
 			.wrapping_add(self.head.value() as usize)
 			//  and `origin.head` moves the origin closer to the end.
@@ -851,7 +851,7 @@ where
 	/// [`wrapping_add`]: Self::wrapping_add
 	#[inline]
 	pub fn align_offset(self, align: usize) -> usize {
-		let width = <T::Mem as BitMemory>::BITS as usize;
+		let width = <T::Mem as IsNumber>::BITS as usize;
 		match (
 			self.addr.to_const().align_offset(align),
 			self.head.value() as usize,

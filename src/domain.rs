@@ -31,6 +31,7 @@ use core::{
 	slice,
 };
 
+use funty::IsNumber;
 use tap::{
 	pipe::Pipe,
 	tap::Tap,
@@ -42,7 +43,6 @@ use crate::{
 		BitIdx,
 		BitTail,
 	},
-	mem::BitMemory,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
@@ -230,7 +230,7 @@ macro_rules! bit_domain {
 				let bitspan = slice.as_bitspan();
 				let h = bitspan.head();
 				let (e, t) = h.span(bitspan.len());
-				let w = T::Mem::BITS;
+				let w = T::Mem::BITS as u8;
 
 				match (h.value(), e, t.value()) {
 					(_, 0, _) => Self::empty(),
@@ -257,7 +257,7 @@ macro_rules! bit_domain {
 			) -> Self {
 				let (head, rest) = bit_domain!(split $($m)?
 					slice,
-					(T::Mem::BITS - head.value()) as usize,
+					(T::Mem::BITS as u8 - head.value()) as usize,
 				);
 				let (body, tail) = bit_domain!(split $($m)?
 					rest,
@@ -288,7 +288,7 @@ macro_rules! bit_domain {
 			) -> Self {
 				let (head, rest) = bit_domain!(split $($m)?
 					slice,
-					(T::Mem::BITS - head.value()) as usize,
+					(T::Mem::BITS as u8 - head.value()) as usize,
 				);
 				let (head, body) = (
 					bit_domain!(retype $($m)? head),
@@ -536,7 +536,7 @@ macro_rules! domain {
 				let head = bitspan.head();
 				let elts = bitspan.elements();
 				let tail = bitspan.tail();
-				let bits = T::Mem::BITS;
+				let bits = T::Mem::BITS as u8;
 				let base = bitspan.address().to_const() as *const _;
 				match (head.value(), elts, tail.value()) {
 					(_, 0, _) => Self::empty(),

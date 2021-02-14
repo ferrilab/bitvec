@@ -10,13 +10,15 @@ and transmute generic slices into slices with concrete type arguments applied.
 
 use core::ops::RangeBounds;
 
-use funty::IsInteger;
+use funty::{
+	IsInteger,
+	IsNumber,
+};
 
 use crate::{
 	devel as dvl,
 	domain::Domain,
 	field::BitField,
-	mem::BitMemory,
 	order::{
 		BitOrder,
 		Lsb0,
@@ -46,7 +48,7 @@ where T: BitStore
 			"Copying between slices requires equal lengths"
 		);
 
-		let chunk_size = <usize as BitMemory>::BITS as usize;
+		let chunk_size = <usize as IsNumber>::BITS as usize;
 		for (to, from) in unsafe { self.chunks_mut(chunk_size).remove_alias() }
 			.zip(src.chunks(chunk_size))
 		{
@@ -87,7 +89,7 @@ where T: BitStore
 		let from: *const Self = self.get_unchecked(source) as *const _;
 		//  This can stay unaliased for now, because `.{,r}chunks_mut()` taints.
 		let to: *mut Self = self.get_unchecked_mut(dest) as *mut _;
-		let chunk_size = <usize as BitMemory>::BITS as usize;
+		let chunk_size = <usize as IsNumber>::BITS as usize;
 		if rev {
 			for (src, dst) in (&*from)
 				.alias()
@@ -113,7 +115,7 @@ where T: BitStore
 		if self.len() != other.len() {
 			return false;
 		}
-		let chunk_size = <usize as BitMemory>::BITS as usize;
+		let chunk_size = <usize as IsNumber>::BITS as usize;
 		self.chunks(chunk_size)
 			.zip(other.chunks(chunk_size))
 			.all(|(a, b)| a.load_le::<usize>() == b.load_le::<usize>())
@@ -175,7 +177,7 @@ where T: BitStore
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
 				let val = (Lsb0::mask(head, tail) & elem.load_value()).value();
-				let dead_bits = T::Mem::BITS - tail.value();
+				let dead_bits = T::Mem::BITS as u8 - tail.value();
 				if val != T::Mem::ZERO {
 					out -= val.leading_zeros() as usize - dead_bits as usize;
 					return Some(out);
@@ -272,7 +274,7 @@ where T: BitStore
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
 				let val = (Lsb0::mask(head, tail) & !elem.load_value()).value();
-				let dead_bits = T::Mem::BITS - tail.value();
+				let dead_bits = T::Mem::BITS as u8 - tail.value();
 				if val != T::Mem::ZERO {
 					out -= val.leading_zeros() as usize - dead_bits as usize;
 					return Some(out);
@@ -334,7 +336,7 @@ where T: BitStore
 			"Copying between slices requires equal lengths"
 		);
 
-		let chunk_size = <usize as BitMemory>::BITS as usize;
+		let chunk_size = <usize as IsNumber>::BITS as usize;
 		for (to, from) in unsafe { self.chunks_mut(chunk_size).remove_alias() }
 			.zip(src.chunks(chunk_size))
 		{
@@ -357,7 +359,7 @@ where T: BitStore
 
 		let from: *const Self = self.get_unchecked(source) as *const _;
 		let to: *mut Self = self.get_unchecked_mut(dest) as *mut _;
-		let chunk_size = <usize as BitMemory>::BITS as usize;
+		let chunk_size = <usize as IsNumber>::BITS as usize;
 		if rev {
 			for (src, dst) in (&*from)
 				.alias()
@@ -383,7 +385,7 @@ where T: BitStore
 		if self.len() != other.len() {
 			return false;
 		}
-		let chunk_size = <usize as BitMemory>::BITS as usize;
+		let chunk_size = <usize as IsNumber>::BITS as usize;
 		self.chunks(chunk_size)
 			.zip(other.chunks(chunk_size))
 			.all(|(a, b)| a.load_be::<usize>() == b.load_be::<usize>())
@@ -445,7 +447,7 @@ where T: BitStore
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
 				let val = (Msb0::mask(head, tail) & elem.load_value()).value();
-				let dead_bits = T::Mem::BITS - tail.value();
+				let dead_bits = T::Mem::BITS as u8 - tail.value();
 				if val != T::Mem::ZERO {
 					out -= val.trailing_zeros() as usize - dead_bits as usize;
 					return Some(out);
@@ -541,7 +543,7 @@ where T: BitStore
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
 				let val = (Msb0::mask(head, tail) & !elem.load_value()).value();
-				let dead_bits = T::Mem::BITS - tail.value();
+				let dead_bits = T::Mem::BITS as u8 - tail.value();
 				if val != T::Mem::ZERO {
 					out -= val.trailing_zeros() as usize - dead_bits as usize;
 					return Some(out);

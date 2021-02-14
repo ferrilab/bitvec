@@ -35,11 +35,11 @@ use core::{
 	slice,
 };
 
+use funty::IsNumber;
 use tap::pipe::Pipe;
 
 use crate::{
 	index::BitIdx,
-	mem::BitMemory,
 	mutability::Mut,
 	order::{
 		BitOrder,

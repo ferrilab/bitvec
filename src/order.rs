@@ -288,7 +288,7 @@ unsafe impl BitOrder for Lsb0 {
 			upto
 		);
 		let ct = upto - from;
-		if ct == R::BITS {
+		if ct == R::BITS as u8 {
 			return BitMask::ALL;
 		}
 		//  1. Set all bits in the mask high
@@ -336,7 +336,7 @@ unsafe impl BitOrder for Msb0 {
 			upto
 		);
 		let ct = upto - from;
-		if ct == R::BITS {
+		if ct == R::BITS as u8 {
 			return BitMask::ALL;
 		}
 		//  1. Set all bits in the mask high.
@@ -446,7 +446,7 @@ where
 	let oname = type_name::<O>();
 	let mname = type_name::<R>();
 
-	for n in 0 .. R::BITS {
+	for n in 0 .. R::BITS as u8 {
 		//  Wrap the counter as an index.
 		let idx = unsafe { BitIdx::<R>::new_unchecked(n) };
 
@@ -465,7 +465,7 @@ where
 
 		//  If the computed position exceeds the valid range, fail.
 		assert!(
-			pos.value() < R::BITS,
+			pos.value() < R::BITS as u8,
 			"Error when verifying the implementation of `BitOrder` for `{}`: \
 			 Index {} produces a bit position ({}) that exceeds the type width \
 			 {}",

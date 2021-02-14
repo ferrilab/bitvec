@@ -44,6 +44,7 @@ use core::{
 	mem::ManuallyDrop,
 };
 
+use funty::IsNumber;
 use serde::{
 	de::{
 		self,
@@ -66,7 +67,6 @@ use tap::pipe::Pipe;
 use crate::{
 	array::BitArray,
 	domain::Domain,
-	mem::BitMemory,
 	order::BitOrder,
 	ptr::{
 		AddressError,

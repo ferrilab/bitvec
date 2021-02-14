@@ -4,10 +4,9 @@
 
 use core::cell::Cell;
 
-use crate::{
-	mem::BitMemory,
-	prelude::*,
-};
+use funty::IsNumber;
+
+use crate::prelude::*;
 
 #[test]
 fn compile_bitarr_typedef() {
@@ -48,7 +47,7 @@ fn constexpr_macros() {
 
 	const B: BitArr!(for 20) = bitarr!(const 1; 20);
 	let b = B;
-	assert_eq!(b.len(), <usize as BitMemory>::BITS as usize);
+	assert_eq!(b.len(), <usize as IsNumber>::BITS as usize);
 	assert!(b.all());
 
 	const C: BitArr!(for 5, in Msb0, Cell<u16>) =

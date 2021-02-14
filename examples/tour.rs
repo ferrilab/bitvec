@@ -10,25 +10,23 @@ This example prints **a lot** of text to the console.
 use std::iter::repeat;
 
 #[cfg(feature = "std")]
-use bitvec::{
-	//  memory information about the underlying type (for debugging info)
-	mem::BitMemory,
-	prelude::{
-		//  `bits!` macro
-		bits,
-		//  element-traversal trait (you shouldn’t explicitly need this)
-		BitOrder,
-		//  slice type, analagous to `[u1]`
-		BitSlice,
-		//  trait unifying the primitives (you shouldn’t explicitly need this)
-		BitStore,
-		//  vector type, analagous to `Vec<u1>`
-		BitVec,
-		//  directionality type markers
-		Lsb0,
-		Msb0,
-	},
+use bitvec::prelude::{
+	//  `bits!` macro
+	bits,
+	//  element-traversal trait (you shouldn’t explicitly need this)
+	BitOrder,
+	//  slice type, analagous to `[u1]`
+	BitSlice,
+	//  trait unifying the primitives (you shouldn’t explicitly need this)
+	BitStore,
+	//  vector type, analagous to `Vec<u1>`
+	BitVec,
+	//  directionality type markers
+	Lsb0,
+	Msb0,
 };
+#[cfg(feature = "std")]
+use funty::IsNumber;
 
 #[cfg(feature = "std")]
 fn main() {
