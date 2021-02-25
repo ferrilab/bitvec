@@ -146,7 +146,6 @@ behavior of ordinary arrays `[T; N]` as they stand today.
 [`.as_bitslice()`]: Self::as_bitslice
 **/
 #[repr(transparent)]
-#[derive(Copy)]
 pub struct BitArray<O = Lsb0, V = [usize; 1]>
 where
 	O: BitOrder,
@@ -227,7 +226,7 @@ where
 
 	/// Views the array as a slice of its underlying memory registers.
 	#[inline]
-	pub fn as_slice(&self) -> &[V::Store] {
+	pub fn as_raw_slice(&self) -> &[V::Store] {
 		unsafe {
 			slice::from_raw_parts(
 				&self.data as *const V as *const V::Store,
@@ -238,13 +237,29 @@ where
 
 	/// Views the array as a mutable slice of its underlying memory registers.
 	#[inline]
-	pub fn as_mut_slice(&mut self) -> &mut [V::Store] {
+	pub fn as_mut_raw_slice(&mut self) -> &mut [V::Store] {
 		unsafe {
 			slice::from_raw_parts_mut(
 				&mut self.data as *mut V as *mut V::Store,
 				V::const_elts(),
 			)
 		}
+	}
+
+	#[doc(hidden)]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	#[deprecated = "This is renamed to `as_raw_slice`"]
+	pub fn as_slice(&self) -> &[V::Store] {
+		self.as_raw_slice()
+	}
+
+	#[doc(hidden)]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
+	#[deprecated = "This is renamed to `as_mut_raw_slice`"]
+	pub fn as_mut_slice(&mut self) -> &mut [V::Store] {
+		self.as_mut_raw_slice()
 	}
 
 	/// Views the interior buffer.

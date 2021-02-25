@@ -38,9 +38,9 @@ fn wrap_unwrap() {
 fn views() {
 	let mut arr = bitarr![Msb0, u8; 0; 20];
 
-	let s: &mut [u8] = arr.as_mut_slice();
+	let s: &mut [u8] = arr.as_mut_raw_slice();
 	s[0] = !0u8;
-	let s: &[u8] = arr.as_slice();
+	let s: &[u8] = arr.as_raw_slice();
 	assert_eq!(s, &[!0, 0, 0]);
 
 	let a: &mut [u8; 3] = arr.as_mut_buffer();

@@ -1,9 +1,17 @@
 //! Internal support utilities.
 
-use core::ops::{
-	Bound,
-	Range,
-	RangeBounds,
+use crate::{
+	order::BitOrder,
+	store::BitStore,
+};
+
+use core::{
+	any::TypeId,
+	ops::{
+		Bound,
+		Range,
+		RangeBounds,
+	},
 };
 
 /** Normalizes any range into a basic `Range`.
@@ -29,6 +37,7 @@ the function, and must be inspected by the caller.
 
 `bounds` normalized to an ordinary `Range`, optionally clamped to `end`.
 **/
+#[inline]
 pub fn normalize_range<R>(bounds: R, end: usize) -> Range<usize>
 where R: RangeBounds<usize> {
 	let min = match bounds.start_bound() {
@@ -58,6 +67,7 @@ range end be not greater than the ending marker (if provided).
 
 This panics if the range fails a requirement.
 **/
+#[inline]
 pub fn assert_range(range: Range<usize>, end: impl Into<Option<usize>>) {
 	if range.start > range.end {
 		panic!(
@@ -73,6 +83,32 @@ pub fn assert_range(range: Range<usize>, end: impl Into<Option<usize>>) {
 			);
 		}
 	}
+}
+
+/// Tests if two `BitOrder` type parameters match each other.
+///
+/// This evaluates to a compile-time constant, and is removed during codegen.
+#[inline(always)]
+pub fn match_order<O1, O2>() -> bool
+where
+	O1: BitOrder,
+	O2: BitOrder,
+{
+	TypeId::of::<O1>() == TypeId::of::<O2>()
+}
+
+/// Tests if two `<O, T>` type parameter pairs match each other.
+///
+/// This evaluates to a compile-time constant, and is removed during codegen.
+#[inline(always)]
+pub fn match_types<O1, T1, O2, T2>() -> bool
+where
+	O1: BitOrder,
+	T1: BitStore,
+	O2: BitOrder,
+	T2: BitStore,
+{
+	match_order::<O1, O2>() && TypeId::of::<T1>() == TypeId::of::<T2>()
 }
 
 #[cfg(all(test, feature = "std"))]

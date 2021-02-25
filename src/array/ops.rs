@@ -164,7 +164,7 @@ where
 
 	#[inline]
 	fn not(mut self) -> Self::Output {
-		for elem in self.as_mut_slice() {
+		for elem in self.as_mut_raw_slice() {
 			elem.store_value(!elem.load_value());
 		}
 		self
