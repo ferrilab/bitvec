@@ -40,7 +40,7 @@ operations, and is used to create selection masks [`BitSel`] and [`BitMask`].
 !*/
 
 use crate::{
-	mem::BitRegister,
+	mem::{BitRegister, BitMemory},
 	order::BitOrder,
 };
 
@@ -141,7 +141,7 @@ where R: BitRegister
 	/// [`Self::LAST`]: Self::LAST
 	/// [`Self::ZERO`]: Self::ZERO
 	pub fn new(value: u8) -> Result<Self, BitIdxError<R>> {
-		if value >= R::BITS {
+		if value >= <R as BitMemory>::BITS {
 			return Err(BitIdxError::new(value));
 		}
 		Ok(unsafe { Self::new_unchecked(value) })
@@ -168,10 +168,10 @@ where R: BitRegister
 	/// [`Self::ZERO`]: Self::ZERO
 	pub unsafe fn new_unchecked(value: u8) -> Self {
 		debug_assert!(
-			value < R::BITS,
+			value < <R as BitMemory>::BITS,
 			"Bit index {} cannot exceed type width {}",
 			value,
-			R::BITS,
+			<R as BitMemory>::BITS,
 		);
 		Self {
 			idx: value,
@@ -209,7 +209,7 @@ where R: BitRegister
 		let next = self.idx + 1;
 		(
 			unsafe { Self::new_unchecked(next & R::MASK) },
-			next == R::BITS,
+			next == <R as BitMemory>::BITS,
 		)
 	}
 
@@ -355,7 +355,7 @@ where R: BitRegister
 		if !ovf {
 			//  If `far` is in the origin element, then the jump moves zero
 			//  elements and produces `far` as an absolute index directly.
-			if (0 .. R::BITS as isize).contains(&far) {
+			if (0 .. <R as BitMemory>::BITS as isize).contains(&far) {
 				(0, unsafe { Self::new_unchecked(far as u8) })
 			}
 			/* Otherwise, downshift the bit distance to compute the number of
@@ -480,10 +480,10 @@ where R: BitRegister
 	/// Debug builds panic when `value` is a valid index for `R`.
 	pub(crate) fn new(value: u8) -> Self {
 		debug_assert!(
-			value >= R::BITS,
+			value >= <R as BitMemory>::BITS,
 			"Bit index {} is valid for type width {}",
 			value,
-			R::BITS
+			<R as BitMemory>::BITS
 		);
 		Self {
 			err: value,
@@ -516,7 +516,7 @@ where R: BitRegister
 			"The value {} is too large to index into {} ({} bits)",
 			self.err,
 			any::type_name::<R>(),
-			R::BITS
+			<R as BitMemory>::BITS
 		)
 	}
 }
@@ -577,7 +577,7 @@ where R: BitRegister
 {
 	/// The inclusive maximum tail within an element `R`.
 	pub(crate) const LAST: Self = Self {
-		end: R::BITS,
+		end: <R as BitMemory>::BITS,
 		_ty: PhantomData,
 	};
 	/// The inclusive minimum tail within an element `R`.
@@ -601,7 +601,7 @@ where R: BitRegister
 	/// [`Self::LAST`]: Self::LAST
 	/// [`Self::ZERO`]: Self::ZERO
 	pub fn new(value: u8) -> Option<Self> {
-		if value > R::BITS {
+		if value > <R as BitMemory>::BITS {
 			return None;
 		}
 		Some(unsafe { Self::new_unchecked(value) })
@@ -628,10 +628,10 @@ where R: BitRegister
 	/// [`Self::ZERO`]: Self::ZERO
 	pub(crate) unsafe fn new_unchecked(value: u8) -> Self {
 		debug_assert!(
-			value <= R::BITS,
+			value <= <R as BitMemory>::BITS,
 			"Bit tail {} cannot exceed type width {}",
 			value,
-			R::BITS,
+			<R as BitMemory>::BITS,
 		);
 		Self {
 			end: value,
@@ -709,7 +709,7 @@ where R: BitRegister
 		let val = self.end;
 
 		let head = val & R::MASK;
-		let bits_in_head = (R::BITS - head) as usize;
+		let bits_in_head = (<R as BitMemory>::BITS - head) as usize;
 
 		if len <= bits_in_head {
 			return (1, unsafe { Self::new_unchecked(head + len as u8) });
@@ -810,7 +810,7 @@ where R: BitRegister
 	/// This returns `Some(value)` when it is in the valid range `0 .. R::BITS`,
 	/// and `None` when it is not.
 	pub fn new(value: u8) -> Option<Self> {
-		if value >= R::BITS {
+		if value >= <R as BitMemory>::BITS {
 			return None;
 		}
 		Some(unsafe { Self::new_unchecked(value) })
@@ -835,10 +835,10 @@ where R: BitRegister
 	/// `value`.
 	pub unsafe fn new_unchecked(value: u8) -> Self {
 		debug_assert!(
-			value < R::BITS,
+			value < <R as BitMemory>::BITS,
 			"Bit position {} cannot exceed type width {}",
 			value,
-			R::BITS,
+			<R as BitMemory>::BITS,
 		);
 		Self {
 			pos: value,
@@ -994,7 +994,7 @@ where R: BitRegister
 			value.count_ones() == 1,
 			"Selections are required to have exactly one set bit: {:0>1$b}",
 			value,
-			R::BITS as usize,
+			<R as BitMemory>::BITS as usize,
 		);
 		Self { sel: value }
 	}
@@ -1025,7 +1025,7 @@ impl<R> Binary for BitSel<R>
 where R: BitRegister
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		write!(fmt, "{:0>1$b}", self.sel, R::BITS as usize)
+		write!(fmt, "{:0>1$b}", self.sel, <R as BitMemory>::BITS as usize)
 	}
 }
 
@@ -1165,7 +1165,7 @@ impl<R> Binary for BitMask<R>
 where R: BitRegister
 {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		write!(fmt, "{:0>1$b}", self.mask, R::BITS as usize)
+		write!(fmt, "{:0>1$b}", self.mask, <R as BitMemory>::BITS as usize)
 	}
 }
 

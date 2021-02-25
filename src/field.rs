@@ -701,8 +701,8 @@ where T: BitStore
 					As a const-expression, this branch folds at compile-time to
 					conditionally remove or retain the instruction.
 					*/
-					if M::BITS > T::Mem::BITS {
-						accum <<= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						accum <<= <T::Mem as BitMemory>::BITS;
 					}
 					accum |= resize::<T::Mem, M>(elem);
 				}
@@ -780,8 +780,8 @@ where T: BitStore
 				}
 
 				for elem in body.iter().map(BitStore::load_value) {
-					if M::BITS > T::Mem::BITS {
-						accum <<= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						accum <<= <T::Mem as BitMemory>::BITS;
 					}
 					accum |= resize::<T::Mem, M>(elem);
 				}
@@ -840,8 +840,8 @@ where T: BitStore
 
 				for elem in body.iter_mut() {
 					elem.store_value(resize(value));
-					if M::BITS > T::Mem::BITS {
-						value >>= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						value >>= <T::Mem as BitMemory>::BITS;
 					}
 				}
 
@@ -895,8 +895,8 @@ where T: BitStore
 
 				for elem in body.iter_mut().rev() {
 					elem.store_value(resize(value));
-					if M::BITS > T::Mem::BITS {
-						value >>= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						value >>= <T::Mem as BitMemory>::BITS;
 					}
 				}
 
@@ -969,7 +969,7 @@ where T: BitStore
 			Domain::Enclave { head, elem, tail } => get::<T, M>(
 				elem,
 				Msb0::mask(head, tail),
-				T::Mem::BITS - tail.value(),
+				<T::Mem as BitMemory>::BITS - tail.value(),
 			),
 			Domain::Region { head, body, tail } => {
 				let mut accum = M::ZERO;
@@ -978,19 +978,19 @@ where T: BitStore
 					accum = get::<T, M>(
 						elem,
 						Msb0::mask(None, tail),
-						T::Mem::BITS - tail.value(),
+						<T::Mem as BitMemory>::BITS - tail.value(),
 					);
 				}
 
 				for elem in body.iter().rev().map(BitStore::load_value) {
-					if M::BITS > T::Mem::BITS {
-						accum <<= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						accum <<= <T::Mem as BitMemory>::BITS;
 					}
 					accum |= resize::<T::Mem, M>(elem);
 				}
 
 				if let Some((head, elem)) = head {
-					accum <<= T::Mem::BITS - head.value();
+					accum <<= <T::Mem as BitMemory>::BITS - head.value();
 					accum |= get::<T, M>(elem, Msb0::mask(head, None), 0);
 				}
 
@@ -1052,7 +1052,7 @@ where T: BitStore
 			Domain::Enclave { head, elem, tail } => get::<T, M>(
 				elem,
 				Msb0::mask(head, tail),
-				T::Mem::BITS - tail.value(),
+				<T::Mem as BitMemory>::BITS - tail.value(),
 			),
 			Domain::Region { head, body, tail } => {
 				let mut accum = M::ZERO;
@@ -1062,8 +1062,8 @@ where T: BitStore
 				}
 
 				for elem in body.iter().map(BitStore::load_value) {
-					if M::BITS > T::Mem::BITS {
-						accum <<= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						accum <<= <T::Mem as BitMemory>::BITS;
 					}
 					accum |= resize::<T::Mem, M>(elem);
 				}
@@ -1074,7 +1074,7 @@ where T: BitStore
 					accum |= get::<T, M>(
 						elem,
 						Msb0::mask(None, tail),
-						T::Mem::BITS - width,
+						<T::Mem as BitMemory>::BITS - width,
 					);
 				}
 
@@ -1117,18 +1117,18 @@ where T: BitStore
 				elem,
 				value,
 				Msb0::mask(head, tail),
-				T::Mem::BITS - tail.value(),
+				<T::Mem as BitMemory>::BITS - tail.value(),
 			),
 			DomainMut::Region { head, body, tail } => {
 				if let Some((head, elem)) = head {
 					set::<T, M>(elem, value, Msb0::mask(head, None), 0);
-					value >>= T::Mem::BITS - head.value();
+					value >>= <T::Mem as BitMemory>::BITS - head.value();
 				}
 
 				for elem in body.iter_mut() {
 					elem.store_value(resize(value));
-					if M::BITS > T::Mem::BITS {
-						value >>= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						value >>= <T::Mem as BitMemory>::BITS;
 					}
 				}
 
@@ -1137,7 +1137,7 @@ where T: BitStore
 						elem,
 						value,
 						Msb0::mask(None, tail),
-						T::Mem::BITS - tail.value(),
+						<T::Mem as BitMemory>::BITS - tail.value(),
 					);
 				}
 			},
@@ -1178,7 +1178,7 @@ where T: BitStore
 				elem,
 				value,
 				Msb0::mask(head, tail),
-				T::Mem::BITS - tail.value(),
+				<T::Mem as BitMemory>::BITS - tail.value(),
 			),
 			DomainMut::Region { head, body, tail } => {
 				if let Some((elem, tail)) = tail {
@@ -1186,15 +1186,15 @@ where T: BitStore
 						elem,
 						value,
 						Msb0::mask(None, tail),
-						T::Mem::BITS - tail.value(),
+						<T::Mem as BitMemory>::BITS - tail.value(),
 					);
 					value >>= tail.value();
 				}
 
 				for elem in body.iter_mut().rev() {
 					elem.store_value(resize(value));
-					if M::BITS > T::Mem::BITS {
-						value >>= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						value >>= <T::Mem as BitMemory>::BITS;
 					}
 				}
 
@@ -1298,11 +1298,11 @@ where
 /// [`M::BITS`]: crate::mem::BitMemory::BITS
 fn check<M>(action: &'static str, len: usize)
 where M: BitMemory {
-	if !(1 ..= M::BITS as usize).contains(&len) {
+	if !(1 ..= <M as BitMemory>::BITS as usize).contains(&len) {
 		panic!(
 			"Cannot {} {} bits from a {}-bit region",
 			action,
-			M::BITS,
+			<M as BitMemory>::BITS,
 			len,
 		);
 	}

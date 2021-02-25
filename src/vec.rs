@@ -426,7 +426,7 @@ where
 		let capacity = vec.capacity();
 
 		BitPtr::from_mut_slice(vec.as_mut_slice())
-			.span(vec.len() * T::Mem::BITS as usize)
+			.span(vec.len() * <T::Mem as BitMemory>::BITS as usize)
 			.map(|bitspan| Self { bitspan, capacity })
 			.map_err(|_| ManuallyDrop::into_inner(vec))
 	}
