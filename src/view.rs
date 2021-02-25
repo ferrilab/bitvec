@@ -203,7 +203,7 @@ macro_rules! view_bits {
 			where O: BitOrder {
 				unsafe { from_raw_parts_unchecked(
 					BitPtr::from_slice(&self[..]),
-					$n * T::Mem::BITS as usize,
+					$n * <T::Mem as BitMemory>::BITS as usize,
 				) }
 			}
 
@@ -212,7 +212,7 @@ macro_rules! view_bits {
 			where O: BitOrder {
 				unsafe { from_raw_parts_unchecked_mut(
 					BitPtr::from_mut_slice(&mut self[..]),
-					$n * T::Mem::BITS as usize,
+					$n * <T::Mem as BitMemory>::BITS as usize,
 				) }
 			}
 

@@ -283,7 +283,7 @@ where
 	#[inline]
 	pub fn capacity(&self) -> usize {
 		self.capacity
-			.checked_mul(T::Mem::BITS as usize)
+			.checked_mul(<T::Mem as BitMemory>::BITS as usize)
 			.expect("Bit-Vector capacity exceeded")
 			//  Don’t forget to subtract any dead bits in the front of the base!
 			//  This has to be saturating, becase a non-zero head on a zero

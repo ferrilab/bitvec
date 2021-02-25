@@ -798,16 +798,16 @@ where T: BitStore
 					As a const-expression, this branch folds at compile-time to
 					conditionally remove or retain the instruction.
 					*/
-					if M::BITS > T::Mem::BITS {
-						accum <<= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						accum <<= <T::Mem as BitMemory>::BITS;
 					}
 					accum |= resize::<T::Mem, M>(elem);
 				}
 
 				if let Some((head, elem)) = head {
 					let shamt = head.value();
-					if M::BITS > T::Mem::BITS - shamt {
-						accum <<= T::Mem::BITS - shamt;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS - shamt {
+						accum <<= <T::Mem as BitMemory>::BITS - shamt;
 					}
 					else {
 						accum = M::ZERO;
@@ -882,15 +882,15 @@ where T: BitStore
 				}
 
 				for elem in body.iter().map(BitStore::load_value) {
-					if M::BITS > T::Mem::BITS {
-						accum <<= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						accum <<= <T::Mem as BitMemory>::BITS;
 					}
 					accum |= resize::<T::Mem, M>(elem);
 				}
 
 				if let Some((elem, tail)) = tail {
 					let shamt = tail.value();
-					if M::BITS > shamt {
+					if <M as BitMemory>::BITS > shamt {
 						accum <<= shamt;
 					}
 					else {
@@ -941,8 +941,8 @@ where T: BitStore
 				if let Some((head, elem)) = head {
 					let shamt = head.value();
 					set::<T, M>(elem, value, Lsb0::mask(head, None), shamt);
-					if M::BITS > T::Mem::BITS - shamt {
-						value >>= T::Mem::BITS - shamt;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS - shamt {
+						value >>= <T::Mem as BitMemory>::BITS - shamt;
 					}
 					else {
 						value = M::ZERO;
@@ -951,8 +951,8 @@ where T: BitStore
 
 				for elem in body.iter_mut() {
 					elem.store_value(resize(value));
-					if M::BITS > T::Mem::BITS {
-						value >>= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						value >>= <T::Mem as BitMemory>::BITS;
 					}
 				}
 
@@ -1000,7 +1000,7 @@ where T: BitStore
 				if let Some((elem, tail)) = tail {
 					set::<T, M>(elem, value, Lsb0::mask(None, tail), 0);
 					let shamt = tail.value();
-					if M::BITS > shamt {
+					if <M as BitMemory>::BITS > shamt {
 						value >>= shamt;
 					}
 					else {
@@ -1010,8 +1010,8 @@ where T: BitStore
 
 				for elem in body.iter_mut().rev() {
 					elem.store_value(resize(value));
-					if M::BITS > T::Mem::BITS {
-						value >>= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						value >>= <T::Mem as BitMemory>::BITS;
 					}
 				}
 
@@ -1084,7 +1084,7 @@ where T: BitStore
 			Domain::Enclave { head, elem, tail } => get::<T, M>(
 				elem,
 				Msb0::mask(head, tail),
-				T::Mem::BITS - tail.value(),
+				<T::Mem as BitMemory>::BITS - tail.value(),
 			),
 			Domain::Region { head, body, tail } => {
 				let mut accum = M::ZERO;
@@ -1093,20 +1093,20 @@ where T: BitStore
 					accum = get::<T, M>(
 						elem,
 						Msb0::mask(None, tail),
-						T::Mem::BITS - tail.value(),
+						<T::Mem as BitMemory>::BITS - tail.value(),
 					);
 				}
 
 				for elem in body.iter().rev().map(BitStore::load_value) {
-					if M::BITS > T::Mem::BITS {
-						accum <<= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						accum <<= <T::Mem as BitMemory>::BITS;
 					}
 					accum |= resize::<T::Mem, M>(elem);
 				}
 
 				if let Some((head, elem)) = head {
-					let shamt = T::Mem::BITS - head.value();
-					if M::BITS > shamt {
+					let shamt = <T::Mem as BitMemory>::BITS - head.value();
+					if <M as BitMemory>::BITS > shamt {
 						accum <<= shamt;
 					}
 					else {
@@ -1173,7 +1173,7 @@ where T: BitStore
 			Domain::Enclave { head, elem, tail } => get::<T, M>(
 				elem,
 				Msb0::mask(head, tail),
-				T::Mem::BITS - tail.value(),
+				<T::Mem as BitMemory>::BITS - tail.value(),
 			),
 			Domain::Region { head, body, tail } => {
 				let mut accum = M::ZERO;
@@ -1183,15 +1183,15 @@ where T: BitStore
 				}
 
 				for elem in body.iter().map(BitStore::load_value) {
-					if M::BITS > T::Mem::BITS {
-						accum <<= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						accum <<= <T::Mem as BitMemory>::BITS;
 					}
 					accum |= resize::<T::Mem, M>(elem);
 				}
 
 				if let Some((elem, tail)) = tail {
 					let shamt = tail.value();
-					if M::BITS > shamt {
+					if <M as BitMemory>::BITS > shamt {
 						accum <<= shamt;
 					}
 					else {
@@ -1200,7 +1200,7 @@ where T: BitStore
 					accum |= get::<T, M>(
 						elem,
 						Msb0::mask(None, tail),
-						T::Mem::BITS - shamt,
+						<T::Mem as BitMemory>::BITS - shamt,
 					);
 				}
 
@@ -1243,13 +1243,13 @@ where T: BitStore
 				elem,
 				value,
 				Msb0::mask(head, tail),
-				T::Mem::BITS - tail.value(),
+				<T::Mem as BitMemory>::BITS - tail.value(),
 			),
 			DomainMut::Region { head, body, tail } => {
 				if let Some((head, elem)) = head {
 					set::<T, M>(elem, value, Msb0::mask(head, None), 0);
-					let shamt = T::Mem::BITS - head.value();
-					if M::BITS > shamt {
+					let shamt = <T::Mem as BitMemory>::BITS - head.value();
+					if <M as BitMemory>::BITS > shamt {
 						value >>= shamt;
 					}
 					else {
@@ -1259,8 +1259,8 @@ where T: BitStore
 
 				for elem in body.iter_mut() {
 					elem.store_value(resize(value));
-					if M::BITS > T::Mem::BITS {
-						value >>= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						value >>= <T::Mem as BitMemory>::BITS;
 					}
 				}
 
@@ -1269,7 +1269,7 @@ where T: BitStore
 						elem,
 						value,
 						Msb0::mask(None, tail),
-						T::Mem::BITS - tail.value(),
+						<T::Mem as BitMemory>::BITS - tail.value(),
 					);
 				}
 			},
@@ -1310,7 +1310,7 @@ where T: BitStore
 				elem,
 				value,
 				Msb0::mask(head, tail),
-				T::Mem::BITS - tail.value(),
+				<T::Mem as BitMemory>::BITS - tail.value(),
 			),
 			DomainMut::Region { head, body, tail } => {
 				if let Some((elem, tail)) = tail {
@@ -1318,9 +1318,9 @@ where T: BitStore
 						elem,
 						value,
 						Msb0::mask(None, tail),
-						T::Mem::BITS - tail.value(),
+						<T::Mem as BitMemory>::BITS - tail.value(),
 					);
-					if M::BITS > tail.value() {
+					if <M as BitMemory>::BITS > tail.value() {
 						value >>= tail.value();
 					}
 					else {
@@ -1330,8 +1330,8 @@ where T: BitStore
 
 				for elem in body.iter_mut().rev() {
 					elem.store_value(resize(value));
-					if M::BITS > T::Mem::BITS {
-						value >>= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						value >>= <T::Mem as BitMemory>::BITS;
 					}
 				}
 
@@ -1435,11 +1435,11 @@ where
 /// [`M::BITS`]: crate::mem::BitMemory::BITS
 fn check<M>(action: &'static str, len: usize)
 where M: BitMemory {
-	if !(1 ..= M::BITS as usize).contains(&len) {
+	if !(1 ..= <M as BitMemory>::BITS as usize).contains(&len) {
 		panic!(
 			"Cannot {} {} bits from a {}-bit region",
 			action,
-			M::BITS,
+			<M as BitMemory>::BITS,
 			len,
 		);
 	}

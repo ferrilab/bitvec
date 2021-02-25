@@ -225,7 +225,7 @@ where
 		let mut boxed = ManuallyDrop::new(boxed);
 
 		BitPtr::from_mut_slice(&mut boxed[..])
-			.span(boxed.len() * T::Mem::BITS as usize)
+			.span(boxed.len() * <T::Mem as BitMemory>::BITS as usize)
 			.map(|bitspan| Self { bitspan })
 			.map_err(|_| ManuallyDrop::into_inner(boxed))
 	}
@@ -438,7 +438,7 @@ where
 		let (_, head, bits) = bp.raw_parts();
 		let head = head.value() as usize;
 		let tail = head + bits;
-		let full = crate::mem::elts::<T::Mem>(tail) * T::Mem::BITS as usize;
+		let full = crate::mem::elts::<T::Mem>(tail) * <T::Mem as BitMemory>::BITS as usize;
 		unsafe {
 			bp.set_head(BitIdx::ZERO);
 			bp.set_len(full);

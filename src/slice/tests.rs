@@ -420,7 +420,7 @@ fn unspecialized() {
 			BitIdx,
 			BitPos,
 		},
-		mem::BitRegister,
+		mem::{BitRegister, BitMemory},
 		prelude::*,
 	};
 
@@ -429,7 +429,7 @@ fn unspecialized() {
 	unsafe impl BitOrder for Swizzle {
 		fn at<R>(index: BitIdx<R>) -> BitPos<R>
 		where R: BitRegister {
-			match R::BITS {
+			match <R as BitMemory>::BITS {
 				8 => BitPos::new(index.value() ^ 0b100).unwrap(),
 				16 => BitPos::new(index.value() ^ 0b1100).unwrap(),
 				32 => BitPos::new(index.value() ^ 0b11100).unwrap(),
