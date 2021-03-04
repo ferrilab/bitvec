@@ -558,7 +558,7 @@ either a crash or incorrect memory access.
 This type can only be publicly constructed through [`BitIdx::span`].
 
 [`BitIdx`]: crate::index::BitIdx
-[`R::BITS`]: crate::mem::BitMemory::BITS
+[`R::BITS`]: funty::IsNumber::BITS
 **/
 #[repr(transparent)]
 #[derive(Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -701,7 +701,7 @@ where R: BitRegister
 	///
 	/// [`BitIdx::ZERO`]: crate::index::BitIdx::ZERO
 	/// [`BitTail::LAST`]: crate::index::BitTail::LAST
-	pub(crate) fn span(self, len: usize) -> (usize, Self) {
+	pub fn span(self, len: usize) -> (usize, Self) {
 		if len == 0 {
 			return (0, self);
 		}
@@ -780,7 +780,7 @@ values.
 
 [`BitIdx`]: crate::index::BitIdx
 [`BitOrder::at`]: crate::order::BitOrder::at
-[`R::BITS`]: crate::mem::BitMemory::BITS
+[`R::BITS`]: funty::IsNumber::BITS
 **/
 // #[rustc_layout_scalar_valid_range_end(R::BITS)]
 #[repr(transparent)]
