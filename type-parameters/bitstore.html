@@ -166,7 +166,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#bitstore" id="bitstore">BitStore</a></h1>
+                        <h1 id="bitstore"><a class="header" href="#bitstore">BitStore</a></h1>
 <p>The <code>BitStore</code> trait governs the processor behaviors used to interact with the
 memory of a <code>BitSlice</code> buffer. These include both the width of the processor
 register used to contain a memory element, and the load/store instructions the
@@ -175,7 +175,7 @@ processor uses to move data across the memory bus.</p>
 types and constants. It cannot be implemented outside <code>bitvec</code>, and is a closed
 portion of the API. You can freely use the trait as a bound in types that
 contain <code>bitvec</code> structures, but should not otherwise attempt to make use of it.</p>
-<h2><a class="header" href="#implementations" id="implementations">Implementations</a></h2>
+<h2 id="implementations"><a class="header" href="#implementations">Implementations</a></h2>
 <p><code>BitStore</code> is implemented on all unsigned integer types not larger than a target
 processor’s word size, all <code>Cell&lt;T&gt;</code> wrappers of them (as <code>Cell</code> is a compiler
 directive), and their <code>AtomicT</code> variants.</p>
@@ -192,7 +192,7 @@ register that does have atomic instructions, or by disabling <code>default-featu
 and not enabling the <code>&quot;atomic&quot;</code> feature. <em><strong>Please</strong></em> file an issue with
 <a href="https://github.com/mystor/radium/"><code>radium</code></a> with your target and failing type, so that we can improve our
 precision.</p>
-<h2><a class="header" href="#associated-types" id="associated-types">Associated Types</a></h2>
+<h2 id="associated-types"><a class="header" href="#associated-types">Associated Types</a></h2>
 <p>The <code>Mem</code> associated type names the scalar integer corresponding to the
 <code>BitStore</code> type. <code>u8</code>, <code>Cell&lt;u8&gt;</code>, and <code>AtomicU8</code> all implement <code>BitStore</code> with
 their <code>Mem</code> type assigned as <code>u8</code>; the same is true for the wider registers.</p>

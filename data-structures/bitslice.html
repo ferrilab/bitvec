@@ -166,7 +166,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#slices----omit-in-toc---" id="slices----omit-in-toc---">Slices <!-- omit in toc --></a></h1>
+                        <h1 id="slices----omit-in-toc---"><a class="header" href="#slices----omit-in-toc---">Slices <!-- omit in toc --></a></h1>
 <ol>
 <li><a href="#getting-a-bitslice">Getting a <code>BitSlice</code></a>
 <ol>
@@ -204,14 +204,14 @@ to address only ⅛<sup>th</sup> of the indices that <code>[bool]</code> can.</p
 <p>This is 64 <a href="https://en.wikipedia.org/wiki/Mebibyte" title="Wikipedia: Mebibyte">Mebibytes</a> on a 32-bit system, and 256 <a href="https://en.wikipedia.org/wiki/Pebibyte" title="Wikipedia: Pebibyte">Pebibytes</a> on a 64-bit
 system. You’ll be fine.</p>
 </blockquote>
-<h2><a class="header" href="#getting-a-bitslice" id="getting-a-bitslice">Getting a <code>BitSlice</code></a></h2>
+<h2 id="getting-a-bitslice"><a class="header" href="#getting-a-bitslice">Getting a <code>BitSlice</code></a></h2>
 <p><code>BitSlice</code> is strictly a borrowed region. It can neither be created nor
 destroyed; rather, views to it are aquired from a memory buffer that some other
 binding owns.</p>
 <p>The <a href="../type-parameters/bitstore.html" title="BitStore type parameter"><code>BitStore</code> chapter</a> covers this in more detail, but only sequences of the
 unsigned integers <code>u8</code>, <code>u16</code>, <code>u32</code>, <code>usize</code>, and (on 64-bit targets) <code>u64</code> can
 be used as the source memory for a <code>BitSlice</code>.</p>
-<h3><a class="header" href="#borrowing-constructors" id="borrowing-constructors">Borrowing Constructors</a></h3>
+<h3 id="borrowing-constructors"><a class="header" href="#borrowing-constructors">Borrowing Constructors</a></h3>
 <p>The simplest way to create a <code>BitSlice</code> reference is to borrow it from ordinary
 Rust data. The <a href="https://docs.rs/bitvec/latest/bitvec/view/trait.BitView.html"><code>BitView</code></a> trait, available in the <a href="https://docs.rs/bitvec/latest/bitvec/prelude">prelude</a>, implements methods
 on the supported unsigned integers, all<sup class="footnote-reference"><a href="#1">1</a></sup> arrays of them, and their slices.</p>
@@ -241,7 +241,7 @@ methods are generally easier, and certainly shorter to write, but they all do
 the same work.</p>
 <p>Lastly, empty slices can be produced with the <code>::empty</code> or <code>::empty_mut</code>
 functions, since there is no <code>&amp;[]</code> or <code>&amp;mut []</code> literal available.</p>
-<h3><a class="header" href="#macro-constructor" id="macro-constructor">Macro Constructor</a></h3>
+<h3 id="macro-constructor"><a class="header" href="#macro-constructor">Macro Constructor</a></h3>
 <p>In addition to these method constructors, you may also use the <a href="https://docs.rs/bitvec/latest/bitvec/macro.bits.html"><code>bits!</code></a>
 constructor macro. This macro runs at compile-time to produce a <code>static</code> buffer
 containing the correct data values, then borrows it as a <code>BitSlice</code> reference.
@@ -321,17 +321,17 @@ endian-flipping methods in its process of assigning to <code>static</code>s, bec
 <code>bitvec</code> does not.</p>
 <p>If this is a problem that affects you, please file an issue!</p>
 </blockquote>
-<h2><a class="header" href="#what-bitslice-can-do" id="what-bitslice-can-do">What <code>BitSlice</code> Can Do</a></h2>
+<h2 id="what-bitslice-can-do"><a class="header" href="#what-bitslice-can-do">What <code>BitSlice</code> Can Do</a></h2>
 <p>Now that you have acquired a <code>BitSlice</code> reference, either by borrowing memory
 from elsewhere in your program or by creating a secret <code>static</code>, it is time to
 do some actual work with it.</p>
-<h3><a class="header" href="#-that-bool-can" id="-that-bool-can">… That <code>[bool]</code> Can</a></h3>
+<h3 id="-that-bool-can"><a class="header" href="#-that-bool-can">… That <code>[bool]</code> Can</a></h3>
 <p>Everything<sup class="footnote-reference"><a href="#2">2</a></sup>. I am not going to rewrite the standard library’s slice
 documentation here.</p>
-<h3><a class="header" href="#-that-bool-cannot" id="-that-bool-cannot">… That <code>[bool]</code> Cannot</a></h3>
+<h3 id="-that-bool-cannot"><a class="header" href="#-that-bool-cannot">… That <code>[bool]</code> Cannot</a></h3>
 <p>In addition to the standard library <code>[bool]</code> API, <code>BitSlice</code> offers some
 inherent methods tailored to its specialization.</p>
-<h3><a class="header" href="#set-queries" id="set-queries">Set Queries</a></h3>
+<h3 id="set-queries"><a class="header" href="#set-queries">Set Queries</a></h3>
 <p>The five query methods <code>.any()</code>, <code>.all()</code>, <code>.not_any()</code>, <code>.not_all()</code>, and
 <code>.some()</code> test how many bits in a region are set to <code>1</code>. As you can guess from
 the names, these methods have the following truth table:</p>
@@ -346,7 +346,7 @@ is the Boolean XOR operator.</p>
 are set to one or zero, rather than merely indicating whether any exist. These
 methods are slower than the Boolean queries, which are capable of
 short-circuiting once satisfied.</p>
-<h3><a class="header" href="#boolean-arithmetic" id="boolean-arithmetic">Boolean Arithmetic</a></h3>
+<h3 id="boolean-arithmetic"><a class="header" href="#boolean-arithmetic">Boolean Arithmetic</a></h3>
 <p><code>BitSlice</code> implements the three Boolean operators <code>|=</code>, <code>&amp;=</code>, and <code>^=</code> against
 any iterator that produces <code>bool</code>s, allowing you to write set-arithmetic
 expressions.</p>
@@ -368,7 +368,7 @@ let mut xor  =  bits![mut 0, 0, 1, 1];
 assert_eq!(xor, bits![    0, 1, 1, 0]);
 <span class="boring">}
 </span></code></pre></pre>
-<h3><a class="header" href="#writing-to-memory" id="writing-to-memory">Writing To Memory</a></h3>
+<h3 id="writing-to-memory"><a class="header" href="#writing-to-memory">Writing To Memory</a></h3>
 <p>You can set all bits in a region to a new value by using the <code>.set_all</code> method,
 or you can set one bit in a region to a new value by using either the <code>.set</code> or
 <code>.get_mut</code> methods. <code>.get_mut</code> produces a proxy type which acts like a <code>bool</code>
@@ -407,7 +407,7 @@ method, which takes <code>self</code> by value, destroying it and releasing the 
 index and value pair to a function <code>(usize, bool) -&gt; bool</code>, then writes the
 value this function returns back into the slice. This can be used to rapidly
 rewrite a slice with the contents of a new generator function.</p>
-<h3><a class="header" href="#viewing-the-underlying-memory" id="viewing-the-underlying-memory">Viewing the Underlying Memory</a></h3>
+<h3 id="viewing-the-underlying-memory"><a class="header" href="#viewing-the-underlying-memory">Viewing the Underlying Memory</a></h3>
 <p>The slice of memory that any given <code>BitSlice</code> region occupies can be resurfaced
 without releasing the <code>BitSlice</code> borrow. This action is subject to some
 restrictions: while <code>BitSlice</code> can start or end anywhere in an element, ordinary
@@ -479,7 +479,7 @@ which can correctly cope with mutation of the referent memory outside of their
 control, and <code>.as_mut_slice</code> and <code>.as_raw_slice</code> exclude the aliased memory
 elements from their slices.</p>
 <p>The <a href="../memory-model.html" title="bitvec memory model"><em>Memory Model</em> chapter</a> discusses the type system used to handle aliasing.</p>
-<h2><a class="header" href="#footnotes" id="footnotes">Footnotes</a></h2>
+<h2 id="footnotes"><a class="header" href="#footnotes">Footnotes</a></h2>
 <div class="footnote-definition" id="1"><sup class="footnote-definition-label">1</sup>
 <p>Currently, <code>0 &lt;= N &lt;= 32</code>; once the type-level-integer feature stabilizes,
 <em>all</em></p>

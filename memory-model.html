@@ -166,7 +166,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#bitvec-memory-model" id="bitvec-memory-model"><code>bitvec</code> Memory Model</a></h1>
+                        <h1 id="bitvec-memory-model"><a class="header" href="#bitvec-memory-model"><code>bitvec</code> Memory Model</a></h1>
 <p><code>bitvec</code> addresses individual bits, while computer hardware addresses register
 elements. As a result, <code>bitvec</code> has a more complex memory model than the Rust
 language does. The library implementation strives to satisfy users’
@@ -186,7 +186,7 @@ program execution, memory access will be consistent and sound.</p>
 <code>store</code> model to maximize performance. This document will discuss primarily
 <code>store</code>, and use <code>domain</code> only to provide examples of how <code>store</code> is used in
 practice to accomplish the library’s implementation.</p>
-<h2><a class="header" href="#aliasing" id="aliasing">Aliasing</a></h2>
+<h2 id="aliasing"><a class="header" href="#aliasing">Aliasing</a></h2>
 <p>To Rust and LLVM, “aliasing” occurs whenever there are two paths to a memory
 region, and at least one of them has write privileges. In Rust, this is
 represented by the <code>&amp;mut</code> reference exclusion rule: it is always, always,
@@ -208,7 +208,7 @@ in memory.</p>
 cannot ever create an <code>&amp;mut T</code> through which it may write to memory, because it
 has no way of ensuring that no other <code>&amp;T</code> or <code>&amp;mut T</code> reference exists which is
 capable of viewing the memory region into which it writes.</p>
-<h3><a class="header" href="#rust-shared-mutation" id="rust-shared-mutation">Rust Shared Mutation</a></h3>
+<h3 id="rust-shared-mutation"><a class="header" href="#rust-shared-mutation">Rust Shared Mutation</a></h3>
 <p>The problem isn’t just that the Rust standard library doesn’t offer any
 non-<code>unsafe</code> APIs to produce such references. The problem is that this is about
 the most illegal thing you can do in the eyes of the Rust compiler, and if it
@@ -246,7 +246,7 @@ guaranteed way to write into memory through a shared reference: <a href="https:/
 <p>And <em>voilà</em>: <code>&amp;mut BitSlice&lt;_, T&gt;</code> simply constructs <code>&amp;Cell&lt;T&gt;</code> when writing,
 the Rust compiler does not see a violation of the <code>&amp;mut</code> exclusion principle,
 and we are done.</p>
-<h3><a class="header" href="#llvm-shared-mutation" id="llvm-shared-mutation">LLVM Shared Mutation</a></h3>
+<h3 id="llvm-shared-mutation"><a class="header" href="#llvm-shared-mutation">LLVM Shared Mutation</a></h3>
 <p>No we’re not. If it was that easy, there wouldn’t be a trait system or this
 document dedicated specifically to dealing with this problem.</p>
 <p><code>Cell</code> is not thread-safe, because <code>Cell</code> does not modify the instructions used
@@ -276,7 +276,7 @@ undefined<sup class="footnote-reference"><a href="#3">3</a></sup>.</p>
 <p>So if <code>bitvec</code> wants to be threadsafe, which it does, and it wants to insist on
 its ability to safely alias the same memory location from mulitple handles,
 which is non-negotiable, there’s only one avenue left to take.</p>
-<h3><a class="header" href="#atomic-powered-microscopes" id="atomic-powered-microscopes">Atomic Powered Microscopes</a></h3>
+<h3 id="atomic-powered-microscopes"><a class="header" href="#atomic-powered-microscopes">Atomic Powered Microscopes</a></h3>
 <p>Rust doesn’t actually model atomics. It doesn’t have to do so: no harm can ever
 come from multiple handles reading out of the same immutable location, harm can
 only occur when writes are observable, and writes are not observable due to the
@@ -295,7 +295,7 @@ the default universal choice for all memory access in <code>bitvec</code> for so
 its costs<sup class="footnote-reference"><a href="#4">4</a></sup> called for a more prudent behavior.</p>
 <p>It’s time for a new trick, something that the Rust compiler does at the region
 level, and that <code>bitvec</code> now does at the element level:</p>
-<h2><a class="header" href="#run-time-alias-analysis" id="run-time-alias-analysis">Run Time Alias Analysis</a></h2>
+<h2 id="run-time-alias-analysis"><a class="header" href="#run-time-alias-analysis">Run Time Alias Analysis</a></h2>
 <p><code>BitSlice</code> handles can only be constructed from ordinary Rust references to
 memory, which Rust guarantees start out unaliased. The potential for aliasing
 only occurs when a <code>&amp;mut BitSlice</code> is split into multiple subslices using any
@@ -340,7 +340,7 @@ each subslice as bits, but this transformation can only be done if the partition
 point is known at compile-time to fall on an element boundary. There is no need
 for the subslices <code>one</code> and <code>two</code> to use alias-safe operations, as accesses to
 memory through them do not conflict with each other.</p>
-<h3><a class="header" href="#bit-slice-domains" id="bit-slice-domains">Bit Slice Domains</a></h3>
+<h3 id="bit-slice-domains"><a class="header" href="#bit-slice-domains">Bit Slice Domains</a></h3>
 <p>The in-memory domain of any bit slice can be generalized to one of two formats:
 either the slice touches zero element edges, or it touches at least one edge
 element. Consider three bytes of memory (any element will do, but the extra
@@ -404,7 +404,7 @@ single-threaded <code>Cell</code> or concurrency-safe atomics. These domain comp
 be calculated from the three components of a slice pointer: the base address,
 the starting bit index, and the bit count.</p>
 <p>This is expressed in the <code>domain</code> module’s four enums.</p>
-<h3><a class="header" href="#bitdomain-and-bitdomainmut" id="bitdomain-and-bitdomainmut"><code>BitDomain</code> and <code>BitDomainMut</code></a></h3>
+<h3 id="bitdomain-and-bitdomainmut"><a class="header" href="#bitdomain-and-bitdomainmut"><code>BitDomain</code> and <code>BitDomainMut</code></a></h3>
 <p>These enums split any <code>BitSlice</code> region into its subcomponents, immutably or
 mutably, respectively. They have the definition</p>
 <pre><pre class="playground"><code class="language-rust">
@@ -432,7 +432,7 @@ aliasing never occurs, so synchrony is never required. If the slice is mutable,
 then the only way to get a partial edge slice is to either forget about some
 bits from the main slice, which is <em>not</em> an alias event, or to split the slice,
 which <em>is</em>, and splitting already marks the alias.</p>
-<h3><a class="header" href="#domain-and-domainmut" id="domain-and-domainmut"><code>Domain</code> and <code>DomainMut</code></a></h3>
+<h3 id="domain-and-domainmut"><a class="header" href="#domain-and-domainmut"><code>Domain</code> and <code>DomainMut</code></a></h3>
 <p>The bit domains are still bit slices, and do not offer a way to access the
 backing memory. For operations where raw memory access is required, these enums
 produce the same domain definitions, but typed for the bare elements rather than
@@ -471,7 +471,7 @@ alias condition. This is necessary in order to avoid production of <code>&amp;mu
 references which alias (as this is undefined in the Rust abstract machine,
 regardless of behavior), and safe because any other references to the same
 location will be similarly aliased and capable of handling external mutation.</p>
-<h2><a class="header" href="#llvm-suboptimizations" id="llvm-suboptimizations">LLVM Suboptimizations</a></h2>
+<h2 id="llvm-suboptimizations"><a class="header" href="#llvm-suboptimizations">LLVM Suboptimizations</a></h2>
 <p>LLVM considers a “racing read”, that is, any read from memory that could occur
 contemporaneously with an atomic write, to be undefined behavior. This is a
 reasonable view to take, but a pessimistic one. <code>bitvec</code> has information that
@@ -508,7 +508,7 @@ value of other bits in the component.</p>
 <code>bitvec</code> can only be used to access storage cells mapped in the RAM address
 space, which tend to all have this stability property.</p>
 </blockquote>
-<h2><a class="header" href="#summary" id="summary">Summary</a></h2>
+<h2 id="summary"><a class="header" href="#summary">Summary</a></h2>
 <p>The formal definition of the <code>bitvec</code> memory model extends the Rust
 mutable-exclusion rules by refining memory regions to have bit-precision instead
 of element-precision. The Rust compiler is only weakly capable of tracking the
@@ -526,7 +526,7 @@ This is a soundness hole in the type system, as a sibling <code>T::Mem</code> vi
 memory affected by the mutation is freely permitted to exist. This API will not
 be published as part of the crate until the library is enabled to prevent the
 simultaneous production of <code>::Mem</code> and <code>::Alias</code> aliasing references.</p>
-<h2><a class="header" href="#footnotes" id="footnotes">Footnotes</a></h2>
+<h2 id="footnotes"><a class="header" href="#footnotes">Footnotes</a></h2>
 <div class="footnote-definition" id="1"><sup class="footnote-definition-label">1</sup>
 <p>all references to <code>T</code> where <code>T</code> is either <code>!Sized</code>, or
 <code>mem::size_of::&lt;T&gt;()</code> is non-zero, that is. A fun quirk of Rust’s

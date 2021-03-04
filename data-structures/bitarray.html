@@ -166,7 +166,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#arrays" id="arrays">Arrays</a></h1>
+                        <h1 id="arrays"><a class="header" href="#arrays">Arrays</a></h1>
 <p>While <code>BitSlice</code> describes a region of borrowed data, <code>BitArray</code> provides a
 container that can hold and manage such a region.</p>
 <p>It is most comparable to the C++ type <a href="https://en.cppreference.com/w/cpp/utility/bitset" title="C++ std::bitset documentation"><code>std::bitset&lt;N&gt;</code></a>. Unfortunately, the
@@ -195,7 +195,7 @@ type parameters <code>&lt;O: BitOrder, T: BitStore, const N: usize&gt;</code>, m
 <p>This array dereferences to a <code>BitSlice</code> region over its entire length. It does
 not currently permit shortening its <code>BitSlice</code> from either end. If this is a
 behavior you want, please file an issue.</p>
-<h2><a class="header" href="#using-a-bitarray" id="using-a-bitarray">Using a <code>BitArray</code></a></h2>
+<h2 id="using-a-bitarray"><a class="header" href="#using-a-bitarray">Using a <code>BitArray</code></a></h2>
 <p>The <code>::zeroed</code> function constructs a new <code>BitArray</code> with its memory completely
 zeroed. The <code>::new</code> function wraps an existing element or array into a
 <code>BitArray</code>. In addition, the macro constructor <code>bitarr!</code> takes the exact same

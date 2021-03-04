@@ -168,7 +168,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#dedication" id="dedication">Dedication</a></h1>
+                        <h1 id="dedication"><a class="header" href="#dedication">Dedication</a></h1>
 <p>I begain working on <code>bitvec</code> shortly before I was told that my father had been
 diagnosed with cancer for the third time. Developing the library gave me
 something into which to sink my attention and keep my mind from dwelling on his
@@ -182,7 +182,7 @@ work of which I’m most proud, and which I most wish he could have seen.</p>
 <p>The <code>bitvec</code> project is dedicated to the memory of my father, George M. Payne,
 who inspired me to build quality work, supported my search to find my talents,
 and taught me to work for the benefit of others beyond myself.</p>
-<h1><a class="header" href="#introduction" id="introduction">Introduction</a></h1>
+<h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
 <p>Programmers have sought to model memory as a one-dimensional stream of bits for
 as long as hardware manufacturers have sought to chunk it into wider and wider
 words. <code>bitvec</code> is far from the first library to provide this model, and it will
@@ -202,7 +202,7 @@ replacement for standard library types, and is able to do so without taking a
 performance loss. Thanks to excellent compiler engineering by the Rust and LLVM
 teams, it often produces code that exactly matches, and sometimes surpasses,
 the bit-shift/mask assembly logic you would write yourself.</p>
-<h2><a class="header" href="#goals-of-this-book" id="goals-of-this-book">Goals of This Book</a></h2>
+<h2 id="goals-of-this-book"><a class="header" href="#goals-of-this-book">Goals of This Book</a></h2>
 <p>I intend for this book to serve as an explanation of <code>bitvec</code>’s design choices
 and philosophy. It is not a detailed exploration of the crate APIs – <a href="https://docs.rs/bitvec" title="bitvec API documentation">docs.rs</a>
 exists – but instead seeks to communicate how to think about <code>bitvec</code> so that
@@ -214,7 +214,7 @@ questions through the channels listed in the repository’s <a href="https://git
 document, and throughout the book I will periodically remind you that if a
 section is unclear, it is an error on my part, and I would appreciate an issue
 or other contact so that I can improve it.</p>
-<h1><a class="header" href="#data-structures" id="data-structures">Data Structures</a></h1>
+<h1 id="data-structures"><a class="header" href="#data-structures">Data Structures</a></h1>
 <p><code>bitvec</code>’s primary exports are four data structures: <a href="https://docs.rs/bitvec/latest/bitvec/slice/struct.BitSlice.html" title="BitSlice API documentation"><code>BitSlice</code></a>, <a href="https://docs.rs/bitvec/latest/bitvec/array/struct.BitArray.html" title="BitArray API documentation"><code>BitArray</code></a>,
 <a href="https://docs.rs/bitvec/latest/bitvec/boxed/struct.BitBox.html" title="BitBox API documentation"><code>BitBox</code></a>, and <a href="https://docs.rs/bitvec/latest/bitvec/vec/struct.BitVec.html" title="BitVec API documentation"><code>BitVec</code></a>. These correspond to the <a href="https://doc.rust-lang.org/stable/std/primitive.slice.html" title="slice API documentation"><code>[bool]</code></a>,
 <a href="https://doc.rust-lang.org/stable/std/primitive.array.html" title="array API documentation"><code>[bool; N]</code></a>, <a href="https://doc.rust-lang.org/stable/alloc/boxed/struct.Box.html" title="Box API documentation"><code>Box&lt;[bool]&gt;</code></a>, and <a href="https://doc.rust-lang.org/stable/alloc/vec/struct.Vec.html" title="Vec API documentation"><code>Vec&lt;bool&gt;</code></a> types in the
@@ -260,7 +260,7 @@ of the <code>bitvec</code> abstraction is that you cannot write a better bitset,
 </ol>
 <p>Now that the disclaimers are over, we can talk about how the types actually
 work.</p>
-<h1><a class="header" href="#slices----omit-in-toc---" id="slices----omit-in-toc---">Slices <!-- omit in toc --></a></h1>
+<h1 id="slices----omit-in-toc---"><a class="header" href="#slices----omit-in-toc---">Slices <!-- omit in toc --></a></h1>
 <ol>
 <li><a href="data-structures/bitslice.html#getting-a-bitslice">Getting a <code>BitSlice</code></a>
 <ol>
@@ -298,14 +298,14 @@ to address only ⅛<sup>th</sup> of the indices that <code>[bool]</code> can.</p
 <p>This is 64 <a href="https://en.wikipedia.org/wiki/Mebibyte" title="Wikipedia: Mebibyte">Mebibytes</a> on a 32-bit system, and 256 <a href="https://en.wikipedia.org/wiki/Pebibyte" title="Wikipedia: Pebibyte">Pebibytes</a> on a 64-bit
 system. You’ll be fine.</p>
 </blockquote>
-<h2><a class="header" href="#getting-a-bitslice" id="getting-a-bitslice">Getting a <code>BitSlice</code></a></h2>
+<h2 id="getting-a-bitslice"><a class="header" href="#getting-a-bitslice">Getting a <code>BitSlice</code></a></h2>
 <p><code>BitSlice</code> is strictly a borrowed region. It can neither be created nor
 destroyed; rather, views to it are aquired from a memory buffer that some other
 binding owns.</p>
 <p>The <a href="data-structures/../type-parameters/bitstore.html" title="BitStore type parameter"><code>BitStore</code> chapter</a> covers this in more detail, but only sequences of the
 unsigned integers <code>u8</code>, <code>u16</code>, <code>u32</code>, <code>usize</code>, and (on 64-bit targets) <code>u64</code> can
 be used as the source memory for a <code>BitSlice</code>.</p>
-<h3><a class="header" href="#borrowing-constructors" id="borrowing-constructors">Borrowing Constructors</a></h3>
+<h3 id="borrowing-constructors"><a class="header" href="#borrowing-constructors">Borrowing Constructors</a></h3>
 <p>The simplest way to create a <code>BitSlice</code> reference is to borrow it from ordinary
 Rust data. The <a href="https://docs.rs/bitvec/latest/bitvec/view/trait.BitView.html"><code>BitView</code></a> trait, available in the <a href="https://docs.rs/bitvec/latest/bitvec/prelude">prelude</a>, implements methods
 on the supported unsigned integers, all<sup class="footnote-reference"><a href="#1">1</a></sup> arrays of them, and their slices.</p>
@@ -335,7 +335,7 @@ methods are generally easier, and certainly shorter to write, but they all do
 the same work.</p>
 <p>Lastly, empty slices can be produced with the <code>::empty</code> or <code>::empty_mut</code>
 functions, since there is no <code>&amp;[]</code> or <code>&amp;mut []</code> literal available.</p>
-<h3><a class="header" href="#macro-constructor" id="macro-constructor">Macro Constructor</a></h3>
+<h3 id="macro-constructor"><a class="header" href="#macro-constructor">Macro Constructor</a></h3>
 <p>In addition to these method constructors, you may also use the <a href="https://docs.rs/bitvec/latest/bitvec/macro.bits.html"><code>bits!</code></a>
 constructor macro. This macro runs at compile-time to produce a <code>static</code> buffer
 containing the correct data values, then borrows it as a <code>BitSlice</code> reference.
@@ -415,17 +415,17 @@ endian-flipping methods in its process of assigning to <code>static</code>s, bec
 <code>bitvec</code> does not.</p>
 <p>If this is a problem that affects you, please file an issue!</p>
 </blockquote>
-<h2><a class="header" href="#what-bitslice-can-do" id="what-bitslice-can-do">What <code>BitSlice</code> Can Do</a></h2>
+<h2 id="what-bitslice-can-do"><a class="header" href="#what-bitslice-can-do">What <code>BitSlice</code> Can Do</a></h2>
 <p>Now that you have acquired a <code>BitSlice</code> reference, either by borrowing memory
 from elsewhere in your program or by creating a secret <code>static</code>, it is time to
 do some actual work with it.</p>
-<h3><a class="header" href="#-that-bool-can" id="-that-bool-can">… That <code>[bool]</code> Can</a></h3>
+<h3 id="-that-bool-can"><a class="header" href="#-that-bool-can">… That <code>[bool]</code> Can</a></h3>
 <p>Everything<sup class="footnote-reference"><a href="#2">2</a></sup>. I am not going to rewrite the standard library’s slice
 documentation here.</p>
-<h3><a class="header" href="#-that-bool-cannot" id="-that-bool-cannot">… That <code>[bool]</code> Cannot</a></h3>
+<h3 id="-that-bool-cannot"><a class="header" href="#-that-bool-cannot">… That <code>[bool]</code> Cannot</a></h3>
 <p>In addition to the standard library <code>[bool]</code> API, <code>BitSlice</code> offers some
 inherent methods tailored to its specialization.</p>
-<h3><a class="header" href="#set-queries" id="set-queries">Set Queries</a></h3>
+<h3 id="set-queries"><a class="header" href="#set-queries">Set Queries</a></h3>
 <p>The five query methods <code>.any()</code>, <code>.all()</code>, <code>.not_any()</code>, <code>.not_all()</code>, and
 <code>.some()</code> test how many bits in a region are set to <code>1</code>. As you can guess from
 the names, these methods have the following truth table:</p>
@@ -440,7 +440,7 @@ is the Boolean XOR operator.</p>
 are set to one or zero, rather than merely indicating whether any exist. These
 methods are slower than the Boolean queries, which are capable of
 short-circuiting once satisfied.</p>
-<h3><a class="header" href="#boolean-arithmetic" id="boolean-arithmetic">Boolean Arithmetic</a></h3>
+<h3 id="boolean-arithmetic"><a class="header" href="#boolean-arithmetic">Boolean Arithmetic</a></h3>
 <p><code>BitSlice</code> implements the three Boolean operators <code>|=</code>, <code>&amp;=</code>, and <code>^=</code> against
 any iterator that produces <code>bool</code>s, allowing you to write set-arithmetic
 expressions.</p>
@@ -462,7 +462,7 @@ let mut xor  =  bits![mut 0, 0, 1, 1];
 assert_eq!(xor, bits![    0, 1, 1, 0]);
 <span class="boring">}
 </span></code></pre></pre>
-<h3><a class="header" href="#writing-to-memory" id="writing-to-memory">Writing To Memory</a></h3>
+<h3 id="writing-to-memory"><a class="header" href="#writing-to-memory">Writing To Memory</a></h3>
 <p>You can set all bits in a region to a new value by using the <code>.set_all</code> method,
 or you can set one bit in a region to a new value by using either the <code>.set</code> or
 <code>.get_mut</code> methods. <code>.get_mut</code> produces a proxy type which acts like a <code>bool</code>
@@ -501,7 +501,7 @@ method, which takes <code>self</code> by value, destroying it and releasing the 
 index and value pair to a function <code>(usize, bool) -&gt; bool</code>, then writes the
 value this function returns back into the slice. This can be used to rapidly
 rewrite a slice with the contents of a new generator function.</p>
-<h3><a class="header" href="#viewing-the-underlying-memory" id="viewing-the-underlying-memory">Viewing the Underlying Memory</a></h3>
+<h3 id="viewing-the-underlying-memory"><a class="header" href="#viewing-the-underlying-memory">Viewing the Underlying Memory</a></h3>
 <p>The slice of memory that any given <code>BitSlice</code> region occupies can be resurfaced
 without releasing the <code>BitSlice</code> borrow. This action is subject to some
 restrictions: while <code>BitSlice</code> can start or end anywhere in an element, ordinary
@@ -573,7 +573,7 @@ which can correctly cope with mutation of the referent memory outside of their
 control, and <code>.as_mut_slice</code> and <code>.as_raw_slice</code> exclude the aliased memory
 elements from their slices.</p>
 <p>The <a href="data-structures/../memory-model.html" title="bitvec memory model"><em>Memory Model</em> chapter</a> discusses the type system used to handle aliasing.</p>
-<h2><a class="header" href="#footnotes" id="footnotes">Footnotes</a></h2>
+<h2 id="footnotes"><a class="header" href="#footnotes">Footnotes</a></h2>
 <div class="footnote-definition" id="1"><sup class="footnote-definition-label">1</sup>
 <p>Currently, <code>0 &lt;= N &lt;= 32</code>; once the type-level-integer feature stabilizes,
 <em>all</em></p>
@@ -582,7 +582,7 @@ elements from their slices.</p>
 <p>Except write-assignment through indexing. I am not going to keep
 mentioning this exception.</p>
 </div>
-<h1><a class="header" href="#arrays" id="arrays">Arrays</a></h1>
+<h1 id="arrays"><a class="header" href="#arrays">Arrays</a></h1>
 <p>While <code>BitSlice</code> describes a region of borrowed data, <code>BitArray</code> provides a
 container that can hold and manage such a region.</p>
 <p>It is most comparable to the C++ type <a href="https://en.cppreference.com/w/cpp/utility/bitset" title="C++ std::bitset documentation"><code>std::bitset&lt;N&gt;</code></a>. Unfortunately, the
@@ -611,7 +611,7 @@ type parameters <code>&lt;O: BitOrder, T: BitStore, const N: usize&gt;</code>, m
 <p>This array dereferences to a <code>BitSlice</code> region over its entire length. It does
 not currently permit shortening its <code>BitSlice</code> from either end. If this is a
 behavior you want, please file an issue.</p>
-<h2><a class="header" href="#using-a-bitarray" id="using-a-bitarray">Using a <code>BitArray</code></a></h2>
+<h2 id="using-a-bitarray"><a class="header" href="#using-a-bitarray">Using a <code>BitArray</code></a></h2>
 <p>The <code>::zeroed</code> function constructs a new <code>BitArray</code> with its memory completely
 zeroed. The <code>::new</code> function wraps an existing element or array into a
 <code>BitArray</code>. In addition, the macro constructor <code>bitarr!</code> takes the exact same
@@ -633,7 +633,7 @@ no behavior in its own right. It is useful for programs that do not have access
 to a dynamic allocator, and do not wish to use <code>static</code> buffers. However, if you
 do have access to an allocator, you will probably prefer to use <code>BitVec</code>
 instead.</p>
-<h1><a class="header" href="#vectors" id="vectors">Vectors</a></h1>
+<h1 id="vectors"><a class="header" href="#vectors">Vectors</a></h1>
 <p><code>bitvec</code> has two types that require compiling the crate with <code>feature = &quot;alloc&quot;</code>
 (and linking against the Rust distribution crate <code>alloc</code>): <code>BitVec</code> and
 <code>BitBox</code>. <code>BitVec</code> is a dynamically resizable vector, equivalent to the C++ type
@@ -643,7 +643,7 @@ vector, incapable of changing its length, equivalent to the Rust type
 <p>Since <code>BitBox</code> is a vector that cannot <code>.push</code> or <code>.pop</code>, I will not discuss it
 in detail here. It is a heap-allocated <code>BitSlice</code>, and is otherwise
 uninteresting.</p>
-<h2><a class="header" href="#getting-a-bitvec" id="getting-a-bitvec">Getting a <code>BitVec</code></a></h2>
+<h2 id="getting-a-bitvec"><a class="header" href="#getting-a-bitvec">Getting a <code>BitVec</code></a></h2>
 <p><code>BitVec</code> implements the constructors shown in the standard library: <code>::new</code>
 creates a handle without any allocation, <code>BitSlice</code> implements the <code>.to_bitvec</code>
 method, and the <code>Clone</code> and <code>ToOwned</code> traits, to copy a slice into a new vector,
@@ -667,7 +667,7 @@ let g = [true, false, true, false]
   .collect::&lt;BitVec&gt;();
 <span class="boring">}
 </span></code></pre></pre>
-<h2><a class="header" href="#using-a-bitvec" id="using-a-bitvec">Using a <code>BitVec</code></a></h2>
+<h2 id="using-a-bitvec"><a class="header" href="#using-a-bitvec">Using a <code>BitVec</code></a></h2>
 <p>Once constructed, <code>BitVec</code> implements the entire API that <code>Vec</code> does in the
 standard library. This remains uninteresting to write out.</p>
 <p>Like <code>BitSlice</code>, <code>BitVec</code> and <code>BitBox</code> are implemented as stack handles that use
@@ -688,7 +688,7 @@ happen when copying a vector from a source slice that was misaligned. The
 <code>.force_align</code> method moves the vector’s live slice down to start at the zero
 index. Once done, extending the live slice to reach the last index of an element
 ensures that viewing the buffer as raw memory will have no uninitialized bits.</p>
-<h1><a class="header" href="#type-parameters" id="type-parameters">Type Parameters</a></h1>
+<h1 id="type-parameters"><a class="header" href="#type-parameters">Type Parameters</a></h1>
 <p><code>bitvec</code> uses type parameters to permit precise user control of its behavior and
 in-memory representation. The Rust generic system permits <code>bitvec</code> to have a
 more powerful and capable behavior than any other bitstream library yet
@@ -715,7 +715,7 @@ the default parameters when attempting to elide the parameters with
 types: <code>let bv: BitVec = BitVec::new();</code> will use the default type parameters in
 the <code>: BitVec</code> type annotation, which then completes the type of the expression
 on the right side of the assignment <code>=</code>.</p>
-<h1><a class="header" href="#bit-ordering----omit-in-toc---" id="bit-ordering----omit-in-toc---">Bit Ordering <!-- omit in toc --></a></h1>
+<h1 id="bit-ordering----omit-in-toc---"><a class="header" href="#bit-ordering----omit-in-toc---">Bit Ordering <!-- omit in toc --></a></h1>
 <ol>
 <li><a href="type-parameters/bitorder.html#provided-orderings">Provided Orderings</a>
 <ol>
@@ -745,20 +745,20 @@ to implement. Most users will not implement it; almost all users want one of the
 two monotonic orderings provided for you. However, some specialized users may
 have an ordering of their own, and they are still able to encode that ordering
 away from their index logic.</p>
-<h2><a class="header" href="#provided-orderings" id="provided-orderings">Provided Orderings</a></h2>
+<h2 id="provided-orderings"><a class="header" href="#provided-orderings">Provided Orderings</a></h2>
 <p><code>bitvec</code> provides two orderings: <code>Lsb0</code> and <code>Msb0</code>. These each refer to which
 numeric bit in a register element is considered to be the zero-index.</p>
 <p>You can think of these as corresponding to the little-endian and big-endian
 processor byte orderings if you like, as long as you remember that your choice
 of bit-ordering is not at all related to the byte-ordering of your target
 processor.</p>
-<h3><a class="header" href="#lsb0" id="lsb0"><code>Lsb0</code></a></h3>
+<h3 id="lsb0"><a class="header" href="#lsb0"><code>Lsb0</code></a></h3>
 <p>The <code>Lsb0</code> type sets the zero index at the least significant bit of a register
 (numeric value <math><mn>1</mn></math>) and each successive index selects the
 next more significant bit in the register, until the most significant bit is at
 the final index.</p>
 <p>It is the expression <code>mask = 1 &lt;&lt; index;</code>.</p>
-<h3><a class="header" href="#msb0" id="msb0"><code>Msb0</code></a></h3>
+<h3 id="msb0"><a class="header" href="#msb0"><code>Msb0</code></a></h3>
 <p>The <code>Msb0</code> type sets the zero index at the most significant bit of a register
 (numeric value
 <math><msup><mn>2</mn><mrow><mi>n</mi><mo>-</mo><mn>1</mn></mrow></msup></math>
@@ -766,14 +766,14 @@ for an <code>n</code>-bit register) and each successive index selects the next l
 significant bit in the register, until the least significant bit is at the final
 index.</p>
 <p>It is the expression <code>mask = (iN::MIN as uN) &gt;&gt; index;</code>.</p>
-<h3><a class="header" href="#localbits" id="localbits"><code>LocalBits</code></a></h3>
+<h3 id="localbits"><a class="header" href="#localbits"><code>LocalBits</code></a></h3>
 <p>The type alias <code>LocalBits</code> refers to the ordering that your target’s C compiler
 will likely choose for its bitfield direction. This is <code>Lsb0</code> on little-endian
 byte-ordered processors, and <code>Msb0</code> on big-endian byte-ordered processors.
 Remember that the <code>BitOrder</code> implementations and processor byte orderings have
 no relation to each other! This is only a custom, not a requirement of the
 processor architecture.</p>
-<h3><a class="header" href="#default-ordering-parameter" id="default-ordering-parameter">Default Ordering Parameter</a></h3>
+<h3 id="default-ordering-parameter"><a class="header" href="#default-ordering-parameter">Default Ordering Parameter</a></h3>
 <p><code>Lsb0</code> is the default type parameter used by the sequence types, as it produces
 selection masks using the starting value <code>1</code>, which encodes to smaller
 instructions than the <code>Msb0</code> starting value.</p>
@@ -788,7 +788,7 @@ code and disassembly:</p>
 <p>The <code>Msb0</code> load requires an additional four bytes of zeros in its immediate,
 and the 64-bit modifier prefix (<code>0x48</code>), in order to encode <code>movabsq</code> instead of
 <code>movl</code></p>
-<h2><a class="header" href="#implementing-bitorder" id="implementing-bitorder">Implementing <code>BitOrder</code></a></h2>
+<h2 id="implementing-bitorder"><a class="header" href="#implementing-bitorder">Implementing <code>BitOrder</code></a></h2>
 <p>As stated above, this is an <code>unsafe trait</code> because <code>bitvec</code> relies on its
 implementations to uphold certain mathematical invariants. Failure will result
 in memory unsafety and/or program crashes.</p>
@@ -824,7 +824,7 @@ produce a register value that selects every bit in the indexed range.</p>
 required to maintain this behavior in your override.</p>
 </li>
 </ul>
-<h3><a class="header" href="#support-types" id="support-types">Support Types</a></h3>
+<h3 id="support-types"><a class="header" href="#support-types">Support Types</a></h3>
 <p>The <code>BitOrder</code> trait APIs use supporting types to enforce requirements on the
 bare numbers being passed through it. These types are documented in the <a href="https://docs.rs/bitvec/latest/bitvec/index/index.html" title="index module documentation"><code>index</code></a>
 module. They all provide a <code>.value()</code> method that removes the wrapper and yields
@@ -859,7 +859,7 @@ upon <code>cfg(test)</code>, and accept a <code>verbose: bool</code> parameter t
 functions to print diagnostics to <code>stdout</code> during evaluation.</p>
 <p>If the verification functions panic, your implementation is incorrect, and
 cannot be safely used in <code>bitvec</code>.</p>
-<h1><a class="header" href="#bitstore" id="bitstore">BitStore</a></h1>
+<h1 id="bitstore"><a class="header" href="#bitstore">BitStore</a></h1>
 <p>The <code>BitStore</code> trait governs the processor behaviors used to interact with the
 memory of a <code>BitSlice</code> buffer. These include both the width of the processor
 register used to contain a memory element, and the load/store instructions the
@@ -868,7 +868,7 @@ processor uses to move data across the memory bus.</p>
 types and constants. It cannot be implemented outside <code>bitvec</code>, and is a closed
 portion of the API. You can freely use the trait as a bound in types that
 contain <code>bitvec</code> structures, but should not otherwise attempt to make use of it.</p>
-<h2><a class="header" href="#implementations" id="implementations">Implementations</a></h2>
+<h2 id="implementations"><a class="header" href="#implementations">Implementations</a></h2>
 <p><code>BitStore</code> is implemented on all unsigned integer types not larger than a target
 processor’s word size, all <code>Cell&lt;T&gt;</code> wrappers of them (as <code>Cell</code> is a compiler
 directive), and their <code>AtomicT</code> variants.</p>
@@ -885,7 +885,7 @@ register that does have atomic instructions, or by disabling <code>default-featu
 and not enabling the <code>&quot;atomic&quot;</code> feature. <em><strong>Please</strong></em> file an issue with
 <a href="https://github.com/mystor/radium/"><code>radium</code></a> with your target and failing type, so that we can improve our
 precision.</p>
-<h2><a class="header" href="#associated-types" id="associated-types">Associated Types</a></h2>
+<h2 id="associated-types"><a class="header" href="#associated-types">Associated Types</a></h2>
 <p>The <code>Mem</code> associated type names the scalar integer corresponding to the
 <code>BitStore</code> type. <code>u8</code>, <code>Cell&lt;u8&gt;</code>, and <code>AtomicU8</code> all implement <code>BitStore</code> with
 their <code>Mem</code> type assigned as <code>u8</code>; the same is true for the wider registers.</p>
@@ -902,14 +902,14 @@ all subsequent accesses.</p>
 <p>The <code>Mem</code> and <code>Alias</code> types are exposed in public APIs according to local alias
 information. The <code>Access</code> type is never publicly exposed, and only used for code
 generation.</p>
-<h1><a class="header" href="#practical-use" id="practical-use">Practical Use</a></h1>
+<h1 id="practical-use"><a class="header" href="#practical-use">Practical Use</a></h1>
 <p>That’s enough theory; let’s talk about how to use the crate. This chapter is
 divided into two subsections, one for use cases that want an ordinary <code>bool</code>
 collection library with transparent memory compaction, and one for use cases
 that want a convenient way to precisely sculpt memory. Before getting in to
 either, let’s quickly recap how the <code>bitvec</code> types interact with memory
 ownership.</p>
-<h2><a class="header" href="#rustic-memory-management" id="rustic-memory-management">Rustic Memory Management</a></h2>
+<h2 id="rustic-memory-management"><a class="header" href="#rustic-memory-management">Rustic Memory Management</a></h2>
 <p>The first and most important thing to remember is that, despite the extra
 complexity just discussed about memory parameters and aliasing behavior,
 <code>bitvec</code> is <em>just Rust</em>. It obeys all of the rules and patterns that the rest of
@@ -980,7 +980,7 @@ has reference types, and therefore users coming from, e.g., <code>bit-vec</code>
 same <code>BitSlice</code> name and attempt to use their habits from that crate.</p>
 <p><code>bitvec</code> is not like any other bitstream library, in Rust, C++, or another
 language. <code>bitvec</code> is like ordinary Rust. I promise.</p>
-<h1><a class="header" href="#bit-collections" id="bit-collections">Bit Collections</a></h1>
+<h1 id="bit-collections"><a class="header" href="#bit-collections">Bit Collections</a></h1>
 <p>As discussed in the <a href="practical-use/../type-parameters.html">Type Parameters</a> chapter, you should use <code>usize</code> as the
 <code>BitStore</code> parameter for optimal performance in the generated program.</p>
 <p>Once you have created some memory that you can view as individual bits, it is
@@ -1059,7 +1059,7 @@ think this section is very useful or educational. If you want to read more
 about how to use <code>bitvec</code> for <code>usize =&gt; bool</code> collections, please let me know
 and I will expound!</p>
 </blockquote>
-<h1><a class="header" href="#bitfields" id="bitfields">Bitfields</a></h1>
+<h1 id="bitfields"><a class="header" href="#bitfields">Bitfields</a></h1>
 <p><code>bitvec</code>’s more technically-interesting capability is that it provides
 load/store memory access behaviors that allow you to write values into, and read
 them back out of, any <code>BitSlice</code> in memory rather than being constrained to
@@ -1115,7 +1115,7 @@ the ordering of <em>bytes</em> within registers. However, when the register bein
 stored or stored does not fit within one register of the storage <code>BitSlice</code>, it
 must be split into multiple segments, and those segments must somehow be ordered
 in memory.</p>
-<h2><a class="header" href="#segment-orderings" id="segment-orderings">Segment Orderings</a></h2>
+<h2 id="segment-orderings"><a class="header" href="#segment-orderings">Segment Orderings</a></h2>
 <p>There are two segment orderings: little-endian and big-endian. You may select
 the segment endianness you prefer by using the <code>_le</code> or <code>_be</code> suffix,
 respectively, on the <code>.load</code> and <code>.store</code> methods. The unsuffixed method is an
@@ -1146,7 +1146,7 @@ second row uses <code>.store_le</code>, and the third row uses <code>.store_be</
 <p>The only change is in how the segments are placed into memory. The ordering of
 bits within a segment never changes, and is always the processor’s significance
 order as implemented in hardware.</p>
-<h2><a class="header" href="#how-to-use-bitfield" id="how-to-use-bitfield">How to Use <code>BitField</code></a></h2>
+<h2 id="how-to-use-bitfield"><a class="header" href="#how-to-use-bitfield">How to Use <code>BitField</code></a></h2>
 <p>You will probably find real use of the <code>BitField</code> trait more educational than
 the previous section. It has a very straightforward API, that you can combine
 with <code>println!</code>-debugging or your favorite means of viewing memory in order to
@@ -1190,7 +1190,7 @@ issue.</p>
 <p>You can see an example that uses the <code>BitField</code> trait to implement an I/O
 protocol in the <code>examples/ipv4.rs</code> program in the repository. Use
 <code>cargo run --example ipv4</code> to see it in action.</p>
-<h1><a class="header" href="#bitvec-memory-model" id="bitvec-memory-model"><code>bitvec</code> Memory Model</a></h1>
+<h1 id="bitvec-memory-model"><a class="header" href="#bitvec-memory-model"><code>bitvec</code> Memory Model</a></h1>
 <p><code>bitvec</code> addresses individual bits, while computer hardware addresses register
 elements. As a result, <code>bitvec</code> has a more complex memory model than the Rust
 language does. The library implementation strives to satisfy users’
@@ -1210,7 +1210,7 @@ program execution, memory access will be consistent and sound.</p>
 <code>store</code> model to maximize performance. This document will discuss primarily
 <code>store</code>, and use <code>domain</code> only to provide examples of how <code>store</code> is used in
 practice to accomplish the library’s implementation.</p>
-<h2><a class="header" href="#aliasing" id="aliasing">Aliasing</a></h2>
+<h2 id="aliasing"><a class="header" href="#aliasing">Aliasing</a></h2>
 <p>To Rust and LLVM, “aliasing” occurs whenever there are two paths to a memory
 region, and at least one of them has write privileges. In Rust, this is
 represented by the <code>&amp;mut</code> reference exclusion rule: it is always, always,
@@ -1232,7 +1232,7 @@ in memory.</p>
 cannot ever create an <code>&amp;mut T</code> through which it may write to memory, because it
 has no way of ensuring that no other <code>&amp;T</code> or <code>&amp;mut T</code> reference exists which is
 capable of viewing the memory region into which it writes.</p>
-<h3><a class="header" href="#rust-shared-mutation" id="rust-shared-mutation">Rust Shared Mutation</a></h3>
+<h3 id="rust-shared-mutation"><a class="header" href="#rust-shared-mutation">Rust Shared Mutation</a></h3>
 <p>The problem isn’t just that the Rust standard library doesn’t offer any
 non-<code>unsafe</code> APIs to produce such references. The problem is that this is about
 the most illegal thing you can do in the eyes of the Rust compiler, and if it
@@ -1270,7 +1270,7 @@ guaranteed way to write into memory through a shared reference: <a href="https:/
 <p>And <em>voilà</em>: <code>&amp;mut BitSlice&lt;_, T&gt;</code> simply constructs <code>&amp;Cell&lt;T&gt;</code> when writing,
 the Rust compiler does not see a violation of the <code>&amp;mut</code> exclusion principle,
 and we are done.</p>
-<h3><a class="header" href="#llvm-shared-mutation" id="llvm-shared-mutation">LLVM Shared Mutation</a></h3>
+<h3 id="llvm-shared-mutation"><a class="header" href="#llvm-shared-mutation">LLVM Shared Mutation</a></h3>
 <p>No we’re not. If it was that easy, there wouldn’t be a trait system or this
 document dedicated specifically to dealing with this problem.</p>
 <p><code>Cell</code> is not thread-safe, because <code>Cell</code> does not modify the instructions used
@@ -1300,7 +1300,7 @@ undefined<sup class="footnote-reference"><a href="#3">3</a></sup>.</p>
 <p>So if <code>bitvec</code> wants to be threadsafe, which it does, and it wants to insist on
 its ability to safely alias the same memory location from mulitple handles,
 which is non-negotiable, there’s only one avenue left to take.</p>
-<h3><a class="header" href="#atomic-powered-microscopes" id="atomic-powered-microscopes">Atomic Powered Microscopes</a></h3>
+<h3 id="atomic-powered-microscopes"><a class="header" href="#atomic-powered-microscopes">Atomic Powered Microscopes</a></h3>
 <p>Rust doesn’t actually model atomics. It doesn’t have to do so: no harm can ever
 come from multiple handles reading out of the same immutable location, harm can
 only occur when writes are observable, and writes are not observable due to the
@@ -1319,7 +1319,7 @@ the default universal choice for all memory access in <code>bitvec</code> for so
 its costs<sup class="footnote-reference"><a href="#4">4</a></sup> called for a more prudent behavior.</p>
 <p>It’s time for a new trick, something that the Rust compiler does at the region
 level, and that <code>bitvec</code> now does at the element level:</p>
-<h2><a class="header" href="#run-time-alias-analysis" id="run-time-alias-analysis">Run Time Alias Analysis</a></h2>
+<h2 id="run-time-alias-analysis"><a class="header" href="#run-time-alias-analysis">Run Time Alias Analysis</a></h2>
 <p><code>BitSlice</code> handles can only be constructed from ordinary Rust references to
 memory, which Rust guarantees start out unaliased. The potential for aliasing
 only occurs when a <code>&amp;mut BitSlice</code> is split into multiple subslices using any
@@ -1364,7 +1364,7 @@ each subslice as bits, but this transformation can only be done if the partition
 point is known at compile-time to fall on an element boundary. There is no need
 for the subslices <code>one</code> and <code>two</code> to use alias-safe operations, as accesses to
 memory through them do not conflict with each other.</p>
-<h3><a class="header" href="#bit-slice-domains" id="bit-slice-domains">Bit Slice Domains</a></h3>
+<h3 id="bit-slice-domains"><a class="header" href="#bit-slice-domains">Bit Slice Domains</a></h3>
 <p>The in-memory domain of any bit slice can be generalized to one of two formats:
 either the slice touches zero element edges, or it touches at least one edge
 element. Consider three bytes of memory (any element will do, but the extra
@@ -1428,7 +1428,7 @@ single-threaded <code>Cell</code> or concurrency-safe atomics. These domain comp
 be calculated from the three components of a slice pointer: the base address,
 the starting bit index, and the bit count.</p>
 <p>This is expressed in the <code>domain</code> module’s four enums.</p>
-<h3><a class="header" href="#bitdomain-and-bitdomainmut" id="bitdomain-and-bitdomainmut"><code>BitDomain</code> and <code>BitDomainMut</code></a></h3>
+<h3 id="bitdomain-and-bitdomainmut"><a class="header" href="#bitdomain-and-bitdomainmut"><code>BitDomain</code> and <code>BitDomainMut</code></a></h3>
 <p>These enums split any <code>BitSlice</code> region into its subcomponents, immutably or
 mutably, respectively. They have the definition</p>
 <pre><pre class="playground"><code class="language-rust">
@@ -1456,7 +1456,7 @@ aliasing never occurs, so synchrony is never required. If the slice is mutable,
 then the only way to get a partial edge slice is to either forget about some
 bits from the main slice, which is <em>not</em> an alias event, or to split the slice,
 which <em>is</em>, and splitting already marks the alias.</p>
-<h3><a class="header" href="#domain-and-domainmut" id="domain-and-domainmut"><code>Domain</code> and <code>DomainMut</code></a></h3>
+<h3 id="domain-and-domainmut"><a class="header" href="#domain-and-domainmut"><code>Domain</code> and <code>DomainMut</code></a></h3>
 <p>The bit domains are still bit slices, and do not offer a way to access the
 backing memory. For operations where raw memory access is required, these enums
 produce the same domain definitions, but typed for the bare elements rather than
@@ -1495,7 +1495,7 @@ alias condition. This is necessary in order to avoid production of <code>&amp;mu
 references which alias (as this is undefined in the Rust abstract machine,
 regardless of behavior), and safe because any other references to the same
 location will be similarly aliased and capable of handling external mutation.</p>
-<h2><a class="header" href="#llvm-suboptimizations" id="llvm-suboptimizations">LLVM Suboptimizations</a></h2>
+<h2 id="llvm-suboptimizations"><a class="header" href="#llvm-suboptimizations">LLVM Suboptimizations</a></h2>
 <p>LLVM considers a “racing read”, that is, any read from memory that could occur
 contemporaneously with an atomic write, to be undefined behavior. This is a
 reasonable view to take, but a pessimistic one. <code>bitvec</code> has information that
@@ -1532,7 +1532,7 @@ value of other bits in the component.</p>
 <code>bitvec</code> can only be used to access storage cells mapped in the RAM address
 space, which tend to all have this stability property.</p>
 </blockquote>
-<h2><a class="header" href="#summary" id="summary">Summary</a></h2>
+<h2 id="summary"><a class="header" href="#summary">Summary</a></h2>
 <p>The formal definition of the <code>bitvec</code> memory model extends the Rust
 mutable-exclusion rules by refining memory regions to have bit-precision instead
 of element-precision. The Rust compiler is only weakly capable of tracking the
@@ -1550,7 +1550,7 @@ This is a soundness hole in the type system, as a sibling <code>T::Mem</code> vi
 memory affected by the mutation is freely permitted to exist. This API will not
 be published as part of the crate until the library is enabled to prevent the
 simultaneous production of <code>::Mem</code> and <code>::Alias</code> aliasing references.</p>
-<h2><a class="header" href="#footnotes-1" id="footnotes-1">Footnotes</a></h2>
+<h2 id="footnotes-1"><a class="header" href="#footnotes-1">Footnotes</a></h2>
 <div class="footnote-definition" id="1"><sup class="footnote-definition-label">1</sup>
 <p>all references to <code>T</code> where <code>T</code> is either <code>!Sized</code>, or
 <code>mem::size_of::&lt;T&gt;()</code> is non-zero, that is. A fun quirk of Rust’s
@@ -1583,13 +1583,13 @@ atomic access is a strict performance cost.</p>
 support for multithreading, so the penalty for aliasing is reduced to an
 inability to remove redundant reads.</p>
 </div>
-<h1><a class="header" href="#bit-slice-pointer-encoding" id="bit-slice-pointer-encoding">Bit Slice Pointer Encoding</a></h1>
+<h1 id="bit-slice-pointer-encoding"><a class="header" href="#bit-slice-pointer-encoding">Bit Slice Pointer Encoding</a></h1>
 <p><code>bitvec</code>’s core value proposition rests on the fact that it is capable of
 defining an unsized slice type, and controlling references to it. The Rust
 language rests heavily on the two reference types <code>&amp;</code> and <code>&amp;mut</code>, and does not
 ordinarily allow these to be faked or created by anything other than the
 compiler.</p>
-<h2><a class="header" href="#rust-reference-rules" id="rust-reference-rules">Rust Reference Rules</a></h2>
+<h2 id="rust-reference-rules"><a class="header" href="#rust-reference-rules">Rust Reference Rules</a></h2>
 <p>It so happens that not only does rust strongly guarantee the <a href="https://github.com/rust-lang/rust/blob/8558ccd/src/libcore/ptr/mod.rs#L220-L231">in-memory layout</a>
 of a reference to a slice, it also provides a stable API for
 <a href="https://github.com/rust-lang/rust/blob/8558ccd/src/libcore/slice/mod.rs#L5642-L5739">constructing values</a> of <code>&amp;[T]</code> type without using <code>mem::transmute</code>. Subject to
@@ -1622,7 +1622,7 @@ where
 <p><code>BitSlice</code> is <code>[()]</code> with some markers that only the type-checker can see.
 <code>&amp;BitSlice</code> is thus <code>&amp;[()]</code>, and <code>&amp;[()]</code> can have any values it wants (except,
 of course, null).</p>
-<h2><a class="header" href="#pointer-encoding" id="pointer-encoding">Pointer Encoding</a></h2>
+<h2 id="pointer-encoding"><a class="header" href="#pointer-encoding">Pointer Encoding</a></h2>
 <p>Slice references contain two pieces of information: the address of the base
 element, and the number of elements, starting at the base, contained in the
 slice region. Theoretically, bit-slice references have the same pair of
@@ -1681,10 +1681,10 @@ null pointer and becomes subject to the same peephole optimization that allows
 unconditionally a pointer to <code>u8</code>, we declare that all low bits of the address
 value are in use, and none can be used as slots for anything else (since our
 encoding is using them to select a byte within the <code>T</code>).</p>
-<h2><a class="header" href="#significant-values" id="significant-values">Significant Values</a></h2>
+<h2 id="significant-values"><a class="header" href="#significant-values">Significant Values</a></h2>
 <p>The null value, <code>{ ptr: 0, len: 0 }</code>, is not valid in <code>BitSpan&lt;T&gt;</code>, but rather is
 used to mark <code>Option::&lt;BitSpan&lt;T&gt;&gt;::None</code>.</p>
-<h3><a class="header" href="#empty-slices" id="empty-slices">Empty Slices</a></h3>
+<h3 id="empty-slices"><a class="header" href="#empty-slices">Empty Slices</a></h3>
 <p>All slices with a <code>bits</code> <em>logical</em> field are considered equally empty, and equal
 to each other. The <code>addr</code> and <code>head</code> logical fields can be anything. However,
 they are not required to be clamped to <code>1</code> and <code>0</code>, respectively, because they
@@ -1692,14 +1692,14 @@ can contain important information about the region.</p>
 <p>Specifically, the <code>BitVec</code> type is an owning type that manages a buffer assigned
 to it by the memory allocator. It is never allowed to forget the address of its
 buffer, even if the user has removed all live bits from the vector.</p>
-<h2><a class="header" href="#summary-1" id="summary-1">Summary</a></h2>
+<h2 id="summary-1"><a class="header" href="#summary-1">Summary</a></h2>
 <p>Rust requires that slice references have a specific ABI, but makes no
 requirements about the encoding of values of those references for certain types.
 We can supply our own ABI-equivalent structure, define functions that use the
 structural encoding to compute the information needed to actually interact with
 memory, and convert our structures into Rust-accepted slices through the
 provided compiler API in <code>core</code>.</p>
-<h2><a class="header" href="#footnotes-2" id="footnotes-2">Footnotes</a></h2>
+<h2 id="footnotes-2"><a class="header" href="#footnotes-2">Footnotes</a></h2>
 <div class="footnote-definition" id="1"><sup class="footnote-definition-label">1</sup>
 <p>On AMD64, pointers are actually aggregates of <a href="https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details">MMU translation pages</a>, and
 processors only decode the low 48 or 57 bits of them, leaving the high 16

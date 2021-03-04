@@ -166,7 +166,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#bit-ordering----omit-in-toc---" id="bit-ordering----omit-in-toc---">Bit Ordering <!-- omit in toc --></a></h1>
+                        <h1 id="bit-ordering----omit-in-toc---"><a class="header" href="#bit-ordering----omit-in-toc---">Bit Ordering <!-- omit in toc --></a></h1>
 <ol>
 <li><a href="#provided-orderings">Provided Orderings</a>
 <ol>
@@ -196,20 +196,20 @@ to implement. Most users will not implement it; almost all users want one of the
 two monotonic orderings provided for you. However, some specialized users may
 have an ordering of their own, and they are still able to encode that ordering
 away from their index logic.</p>
-<h2><a class="header" href="#provided-orderings" id="provided-orderings">Provided Orderings</a></h2>
+<h2 id="provided-orderings"><a class="header" href="#provided-orderings">Provided Orderings</a></h2>
 <p><code>bitvec</code> provides two orderings: <code>Lsb0</code> and <code>Msb0</code>. These each refer to which
 numeric bit in a register element is considered to be the zero-index.</p>
 <p>You can think of these as corresponding to the little-endian and big-endian
 processor byte orderings if you like, as long as you remember that your choice
 of bit-ordering is not at all related to the byte-ordering of your target
 processor.</p>
-<h3><a class="header" href="#lsb0" id="lsb0"><code>Lsb0</code></a></h3>
+<h3 id="lsb0"><a class="header" href="#lsb0"><code>Lsb0</code></a></h3>
 <p>The <code>Lsb0</code> type sets the zero index at the least significant bit of a register
 (numeric value <math><mn>1</mn></math>) and each successive index selects the
 next more significant bit in the register, until the most significant bit is at
 the final index.</p>
 <p>It is the expression <code>mask = 1 &lt;&lt; index;</code>.</p>
-<h3><a class="header" href="#msb0" id="msb0"><code>Msb0</code></a></h3>
+<h3 id="msb0"><a class="header" href="#msb0"><code>Msb0</code></a></h3>
 <p>The <code>Msb0</code> type sets the zero index at the most significant bit of a register
 (numeric value
 <math><msup><mn>2</mn><mrow><mi>n</mi><mo>-</mo><mn>1</mn></mrow></msup></math>
@@ -217,14 +217,14 @@ for an <code>n</code>-bit register) and each successive index selects the next l
 significant bit in the register, until the least significant bit is at the final
 index.</p>
 <p>It is the expression <code>mask = (iN::MIN as uN) &gt;&gt; index;</code>.</p>
-<h3><a class="header" href="#localbits" id="localbits"><code>LocalBits</code></a></h3>
+<h3 id="localbits"><a class="header" href="#localbits"><code>LocalBits</code></a></h3>
 <p>The type alias <code>LocalBits</code> refers to the ordering that your target’s C compiler
 will likely choose for its bitfield direction. This is <code>Lsb0</code> on little-endian
 byte-ordered processors, and <code>Msb0</code> on big-endian byte-ordered processors.
 Remember that the <code>BitOrder</code> implementations and processor byte orderings have
 no relation to each other! This is only a custom, not a requirement of the
 processor architecture.</p>
-<h3><a class="header" href="#default-ordering-parameter" id="default-ordering-parameter">Default Ordering Parameter</a></h3>
+<h3 id="default-ordering-parameter"><a class="header" href="#default-ordering-parameter">Default Ordering Parameter</a></h3>
 <p><code>Lsb0</code> is the default type parameter used by the sequence types, as it produces
 selection masks using the starting value <code>1</code>, which encodes to smaller
 instructions than the <code>Msb0</code> starting value.</p>
@@ -239,7 +239,7 @@ code and disassembly:</p>
 <p>The <code>Msb0</code> load requires an additional four bytes of zeros in its immediate,
 and the 64-bit modifier prefix (<code>0x48</code>), in order to encode <code>movabsq</code> instead of
 <code>movl</code></p>
-<h2><a class="header" href="#implementing-bitorder" id="implementing-bitorder">Implementing <code>BitOrder</code></a></h2>
+<h2 id="implementing-bitorder"><a class="header" href="#implementing-bitorder">Implementing <code>BitOrder</code></a></h2>
 <p>As stated above, this is an <code>unsafe trait</code> because <code>bitvec</code> relies on its
 implementations to uphold certain mathematical invariants. Failure will result
 in memory unsafety and/or program crashes.</p>
@@ -275,7 +275,7 @@ produce a register value that selects every bit in the indexed range.</p>
 required to maintain this behavior in your override.</p>
 </li>
 </ul>
-<h3><a class="header" href="#support-types" id="support-types">Support Types</a></h3>
+<h3 id="support-types"><a class="header" href="#support-types">Support Types</a></h3>
 <p>The <code>BitOrder</code> trait APIs use supporting types to enforce requirements on the
 bare numbers being passed through it. These types are documented in the <a href="https://docs.rs/bitvec/latest/bitvec/index/index.html" title="index module documentation"><code>index</code></a>
 module. They all provide a <code>.value()</code> method that removes the wrapper and yields

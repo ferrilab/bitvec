@@ -166,14 +166,14 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#practical-use" id="practical-use">Practical Use</a></h1>
+                        <h1 id="practical-use"><a class="header" href="#practical-use">Practical Use</a></h1>
 <p>That’s enough theory; let’s talk about how to use the crate. This chapter is
 divided into two subsections, one for use cases that want an ordinary <code>bool</code>
 collection library with transparent memory compaction, and one for use cases
 that want a convenient way to precisely sculpt memory. Before getting in to
 either, let’s quickly recap how the <code>bitvec</code> types interact with memory
 ownership.</p>
-<h2><a class="header" href="#rustic-memory-management" id="rustic-memory-management">Rustic Memory Management</a></h2>
+<h2 id="rustic-memory-management"><a class="header" href="#rustic-memory-management">Rustic Memory Management</a></h2>
 <p>The first and most important thing to remember is that, despite the extra
 complexity just discussed about memory parameters and aliasing behavior,
 <code>bitvec</code> is <em>just Rust</em>. It obeys all of the rules and patterns that the rest of

@@ -166,7 +166,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#vectors" id="vectors">Vectors</a></h1>
+                        <h1 id="vectors"><a class="header" href="#vectors">Vectors</a></h1>
 <p><code>bitvec</code> has two types that require compiling the crate with <code>feature = &quot;alloc&quot;</code>
 (and linking against the Rust distribution crate <code>alloc</code>): <code>BitVec</code> and
 <code>BitBox</code>. <code>BitVec</code> is a dynamically resizable vector, equivalent to the C++ type
@@ -176,7 +176,7 @@ vector, incapable of changing its length, equivalent to the Rust type
 <p>Since <code>BitBox</code> is a vector that cannot <code>.push</code> or <code>.pop</code>, I will not discuss it
 in detail here. It is a heap-allocated <code>BitSlice</code>, and is otherwise
 uninteresting.</p>
-<h2><a class="header" href="#getting-a-bitvec" id="getting-a-bitvec">Getting a <code>BitVec</code></a></h2>
+<h2 id="getting-a-bitvec"><a class="header" href="#getting-a-bitvec">Getting a <code>BitVec</code></a></h2>
 <p><code>BitVec</code> implements the constructors shown in the standard library: <code>::new</code>
 creates a handle without any allocation, <code>BitSlice</code> implements the <code>.to_bitvec</code>
 method, and the <code>Clone</code> and <code>ToOwned</code> traits, to copy a slice into a new vector,
@@ -200,7 +200,7 @@ let g = [true, false, true, false]
   .collect::&lt;BitVec&gt;();
 <span class="boring">}
 </span></code></pre></pre>
-<h2><a class="header" href="#using-a-bitvec" id="using-a-bitvec">Using a <code>BitVec</code></a></h2>
+<h2 id="using-a-bitvec"><a class="header" href="#using-a-bitvec">Using a <code>BitVec</code></a></h2>
 <p>Once constructed, <code>BitVec</code> implements the entire API that <code>Vec</code> does in the
 standard library. This remains uninteresting to write out.</p>
 <p>Like <code>BitSlice</code>, <code>BitVec</code> and <code>BitBox</code> are implemented as stack handles that use

@@ -166,13 +166,13 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#bit-slice-pointer-encoding" id="bit-slice-pointer-encoding">Bit Slice Pointer Encoding</a></h1>
+                        <h1 id="bit-slice-pointer-encoding"><a class="header" href="#bit-slice-pointer-encoding">Bit Slice Pointer Encoding</a></h1>
 <p><code>bitvec</code>’s core value proposition rests on the fact that it is capable of
 defining an unsized slice type, and controlling references to it. The Rust
 language rests heavily on the two reference types <code>&amp;</code> and <code>&amp;mut</code>, and does not
 ordinarily allow these to be faked or created by anything other than the
 compiler.</p>
-<h2><a class="header" href="#rust-reference-rules" id="rust-reference-rules">Rust Reference Rules</a></h2>
+<h2 id="rust-reference-rules"><a class="header" href="#rust-reference-rules">Rust Reference Rules</a></h2>
 <p>It so happens that not only does rust strongly guarantee the <a href="https://github.com/rust-lang/rust/blob/8558ccd/src/libcore/ptr/mod.rs#L220-L231">in-memory layout</a>
 of a reference to a slice, it also provides a stable API for
 <a href="https://github.com/rust-lang/rust/blob/8558ccd/src/libcore/slice/mod.rs#L5642-L5739">constructing values</a> of <code>&amp;[T]</code> type without using <code>mem::transmute</code>. Subject to
@@ -205,7 +205,7 @@ where
 <p><code>BitSlice</code> is <code>[()]</code> with some markers that only the type-checker can see.
 <code>&amp;BitSlice</code> is thus <code>&amp;[()]</code>, and <code>&amp;[()]</code> can have any values it wants (except,
 of course, null).</p>
-<h2><a class="header" href="#pointer-encoding" id="pointer-encoding">Pointer Encoding</a></h2>
+<h2 id="pointer-encoding"><a class="header" href="#pointer-encoding">Pointer Encoding</a></h2>
 <p>Slice references contain two pieces of information: the address of the base
 element, and the number of elements, starting at the base, contained in the
 slice region. Theoretically, bit-slice references have the same pair of
@@ -264,10 +264,10 @@ null pointer and becomes subject to the same peephole optimization that allows
 unconditionally a pointer to <code>u8</code>, we declare that all low bits of the address
 value are in use, and none can be used as slots for anything else (since our
 encoding is using them to select a byte within the <code>T</code>).</p>
-<h2><a class="header" href="#significant-values" id="significant-values">Significant Values</a></h2>
+<h2 id="significant-values"><a class="header" href="#significant-values">Significant Values</a></h2>
 <p>The null value, <code>{ ptr: 0, len: 0 }</code>, is not valid in <code>BitSpan&lt;T&gt;</code>, but rather is
 used to mark <code>Option::&lt;BitSpan&lt;T&gt;&gt;::None</code>.</p>
-<h3><a class="header" href="#empty-slices" id="empty-slices">Empty Slices</a></h3>
+<h3 id="empty-slices"><a class="header" href="#empty-slices">Empty Slices</a></h3>
 <p>All slices with a <code>bits</code> <em>logical</em> field are considered equally empty, and equal
 to each other. The <code>addr</code> and <code>head</code> logical fields can be anything. However,
 they are not required to be clamped to <code>1</code> and <code>0</code>, respectively, because they
@@ -275,14 +275,14 @@ can contain important information about the region.</p>
 <p>Specifically, the <code>BitVec</code> type is an owning type that manages a buffer assigned
 to it by the memory allocator. It is never allowed to forget the address of its
 buffer, even if the user has removed all live bits from the vector.</p>
-<h2><a class="header" href="#summary" id="summary">Summary</a></h2>
+<h2 id="summary"><a class="header" href="#summary">Summary</a></h2>
 <p>Rust requires that slice references have a specific ABI, but makes no
 requirements about the encoding of values of those references for certain types.
 We can supply our own ABI-equivalent structure, define functions that use the
 structural encoding to compute the information needed to actually interact with
 memory, and convert our structures into Rust-accepted slices through the
 provided compiler API in <code>core</code>.</p>
-<h2><a class="header" href="#footnotes" id="footnotes">Footnotes</a></h2>
+<h2 id="footnotes"><a class="header" href="#footnotes">Footnotes</a></h2>
 <div class="footnote-definition" id="1"><sup class="footnote-definition-label">1</sup>
 <p>On AMD64, pointers are actually aggregates of <a href="https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details">MMU translation pages</a>, and
 processors only decode the low 48 or 57 bits of them, leaving the high 16

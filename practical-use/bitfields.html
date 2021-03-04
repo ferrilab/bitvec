@@ -166,7 +166,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#bitfields" id="bitfields">Bitfields</a></h1>
+                        <h1 id="bitfields"><a class="header" href="#bitfields">Bitfields</a></h1>
 <p><code>bitvec</code>’s more technically-interesting capability is that it provides
 load/store memory access behaviors that allow you to write values into, and read
 them back out of, any <code>BitSlice</code> in memory rather than being constrained to
@@ -222,7 +222,7 @@ the ordering of <em>bytes</em> within registers. However, when the register bein
 stored or stored does not fit within one register of the storage <code>BitSlice</code>, it
 must be split into multiple segments, and those segments must somehow be ordered
 in memory.</p>
-<h2><a class="header" href="#segment-orderings" id="segment-orderings">Segment Orderings</a></h2>
+<h2 id="segment-orderings"><a class="header" href="#segment-orderings">Segment Orderings</a></h2>
 <p>There are two segment orderings: little-endian and big-endian. You may select
 the segment endianness you prefer by using the <code>_le</code> or <code>_be</code> suffix,
 respectively, on the <code>.load</code> and <code>.store</code> methods. The unsuffixed method is an
@@ -253,7 +253,7 @@ second row uses <code>.store_le</code>, and the third row uses <code>.store_be</
 <p>The only change is in how the segments are placed into memory. The ordering of
 bits within a segment never changes, and is always the processor’s significance
 order as implemented in hardware.</p>
-<h2><a class="header" href="#how-to-use-bitfield" id="how-to-use-bitfield">How to Use <code>BitField</code></a></h2>
+<h2 id="how-to-use-bitfield"><a class="header" href="#how-to-use-bitfield">How to Use <code>BitField</code></a></h2>
 <p>You will probably find real use of the <code>BitField</code> trait more educational than
 the previous section. It has a very straightforward API, that you can combine
 with <code>println!</code>-debugging or your favorite means of viewing memory in order to
