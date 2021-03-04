@@ -8,6 +8,7 @@ This document is written according to the [Keep a Changelog][kac] style.
    1. [Added](#added)
    1. [Changed](#changed)
    1. [Fixed](#fixed)
+1. [0.20.2](#0202)
 1. [0.20.0](#0200)
    1. [Added](#added-1)
       1. [Pointer Overhaul](#pointer-overhaul)
@@ -100,6 +101,13 @@ This document is written according to the [Keep a Changelog][kac] style.
 
 GitHub user [@ordian] fixed incorrect `len()` exclusion from `BitVec::insert` in
 [Pull Requst #104].
+
+## 0.20.2
+
+Fixed overly vague `funty` dependency, as the `1.2` release moved `BITS` from
+`bitvec` into it, but old `bitvec`s now collided. Apologies to *everyone* who
+dealt with this problem after I published and *immediately* went on vacation for
+two weeks!
 
 ## 0.20.0
 
