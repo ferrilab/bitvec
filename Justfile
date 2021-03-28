@@ -35,8 +35,9 @@ clean:
 	cargo clean
 
 # Produces coverage statistics for the (non-doc) test suite.
-cover *ARGS: format check lint
-	docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.16.0 cargo-tarpaulin tarpaulin -- {{ARGS}}
+cover *ARGS: format check
+	cargo tarpaulin -- {{ARGS}}
+	@# docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.16.0 cargo-tarpaulin tarpaulin -- {{ARGS}}
 	@tokei
 
 # This runs the cross-compile battery on a development machine. It is not
