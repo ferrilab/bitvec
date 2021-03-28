@@ -105,7 +105,7 @@ fn parse(header: BitArray<Msb0, [u8; 20]>) {
 	assert!(header[50], "Unexpected fragmentation");
 
 	eprintln!("Final packet: [");
-	for byte in &header.value() {
+	for byte in &header.into_inner() {
 		eprintln!("    {:08b}", *byte);
 	}
 	eprintln!("]");

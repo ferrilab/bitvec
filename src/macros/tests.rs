@@ -31,9 +31,9 @@ fn compile_bitarr_typedef() {
 
 	assert_eq!(SLOTS, slots);
 
-	assert_eq!(slots.all.value(), [!0u8, 192]);
-	assert_eq!(slots.typ.value(), [!0u8, 3]);
-	let def: [usize; 1] = slots.def.value();
+	assert_eq!(slots.all.into_inner(), [!0u8, 192]);
+	assert_eq!(slots.typ.into_inner(), [!0u8, 3]);
+	let def: [usize; 1] = slots.def.into_inner();
 	assert_eq!(def[0].count_ones(), 10);
 }
 
@@ -85,10 +85,10 @@ fn constexpr_macros() {
 #[test]
 fn compile_bitarr() {
 	let uint: BitArray<Lsb0, [u8; 1]> = bitarr![Lsb0, u8; 1, 0, 1, 0];
-	assert_eq!(uint.value(), [5u8]);
+	assert_eq!(uint.into_inner(), [5u8]);
 	let cell: BitArray<Lsb0, [Cell<u8>; 1]> =
 		bitarr![Lsb0, Cell<u8>; 1, 0, 1, 0];
-	assert_eq!(cell.value()[0].get(), 5u8);
+	assert_eq!(cell.into_inner()[0].get(), 5u8);
 
 	let uint: BitArray<Msb0, [u16; 2]> = bitarr![Msb0, u16;
 		0, 1, 0, 1, 0, 1, 0, 1,
@@ -96,43 +96,43 @@ fn compile_bitarr() {
 		0, 1, 1, 0, 1, 1, 1, 0,
 		0, 1, 1, 1, 0, 1, 0, 0,
 	];
-	assert_eq!(uint.value(), [0x5569, 0x6e74]);
+	assert_eq!(uint.into_inner(), [0x5569, 0x6e74]);
 	let cell: BitArray<Msb0, [Cell<u16>; 2]> = bitarr![Msb0, Cell<u16>;
 		0, 1, 0, 1, 0, 1, 0, 1,
 		0, 1, 1, 0, 1, 0, 0, 1,
 		0, 1, 1, 0, 1, 1, 1, 0,
 		0, 1, 1, 1, 0, 1, 0, 0,
 	];
-	let cells = cell.value();
+	let cells = cell.into_inner();
 	assert_eq!(cells[0].get(), 0x5569);
 	assert_eq!(cells[1].get(), 0x6e74);
 
 	let uint: BitArray<Lsb0, [u32; 1]> = bitarr![crate::order::Lsb0, u32;
 		1, 0, 1, 1,
 	];
-	assert_eq!(uint.value(), [13u32]);
+	assert_eq!(uint.into_inner(), [13u32]);
 	let cell: BitArray<Lsb0, [Cell<u32>; 1]> = bitarr![
 		crate::order::Lsb0, Cell<u32>;
 		1, 0, 1, 1,
 	];
-	assert_eq!(cell.value()[0].get(), 13u32);
+	assert_eq!(cell.into_inner()[0].get(), 13u32);
 
 	#[cfg(target_pointer_width = "64")]
 	{
 		let uint: BitArray<LocalBits, [u64; 2]> = bitarr![LocalBits, u64; 1; 70];
-		assert_eq!(uint.value(), [!0u64; 2]);
+		assert_eq!(uint.into_inner(), [!0u64; 2]);
 
 		let cell: BitArray<LocalBits, [Cell<u64>; 2]> = bitarr![
 			LocalBits, Cell<u64>; 1; 70
 		];
-		assert_eq!(cell.clone().value()[0].get(), !0u64);
-		assert_eq!(cell.value()[1].get(), !0u64);
+		assert_eq!(cell.clone().into_inner()[0].get(), !0u64);
+		assert_eq!(cell.into_inner()[1].get(), !0u64);
 	}
 
 	let uint: BitArray<Lsb0, [usize; 1]> = bitarr![1, 0, 1];
-	assert_eq!(uint.value(), [5usize]);
+	assert_eq!(uint.into_inner(), [5usize]);
 	let uint: BitArray<Lsb0, [usize; 1]> = bitarr![1; 30];
-	assert_eq!(uint.value(), [!0usize]);
+	assert_eq!(uint.into_inner(), [!0usize]);
 }
 
 #[test]

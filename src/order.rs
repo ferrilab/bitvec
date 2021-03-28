@@ -85,7 +85,7 @@ index-to-position.
 /// pub struct HiLo;
 /// unsafe impl BitOrder for HiLo {
 ///   fn at<R: BitRegister>(idx: BitIdx<R>) -> BitPos<R> {
-///     BitPos::new(idx.value() ^ 4).unwrap()
+///     BitPos::new(idx.into_inner() ^ 4).unwrap()
 ///   }
 /// }
 ///

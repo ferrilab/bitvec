@@ -198,7 +198,7 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let bitarr = bitarr![Lsb0, usize; 0; 30];
-	/// let native: [usize; 1] = bitarr.value();
+	/// let native: [usize; 1] = bitarr.into_inner();
 	/// ```
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]

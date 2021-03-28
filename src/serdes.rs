@@ -231,7 +231,7 @@ where
 		let bits = cmp::min(
 			bits,
 			data.len()
-				.saturating_mul(T::Mem::BITS as usize)
+				.saturating_mul(<T::Mem as IsNumber>::BITS as usize)
 				.saturating_sub(head as usize),
 		);
 		//  Assemble a pointer to the start bit,
