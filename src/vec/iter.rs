@@ -38,6 +38,7 @@ use crate::{
 	slice::{
 		BitSlice,
 		Iter,
+		IterMut,
 	},
 	store::BitStore,
 	vec::BitVec,
@@ -263,7 +264,7 @@ where
 	/// A [`BitSlice`] iterator over the vector’s contents.
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
-	iter: Iter<'static, O, T>,
+	iter: IterMut<'static, O, T>,
 }
 
 impl<O, T> IntoIter<O, T>
@@ -275,12 +276,12 @@ where
 	///
 	/// [`BitVec`]: crate::vec::BitVec
 	fn new(bv: BitVec<O, T>) -> Self {
-		let capa = bv.capacity;
 		//  Construct a `BitSlice` iterator over the region, and detach its
 		//  lifetime.
-		let iter = bv.bitspan.to_bitslice_ref().iter();
+		let iter = bv.bitspan.to_bitslice_mut().iter_mut();
 		//  Only the allocation’s base and capacity need to be kept for `Drop`.
 		let base = bv.bitspan.address().to_nonnull();
+		let capa = bv.capacity;
 		mem::forget(bv);
 		Self { base, capa, iter }
 	}
@@ -305,8 +306,9 @@ where
 	/// ```
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
+	#[inline(always)]
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
-		self.iter.as_bitslice()
+		unsafe { &*(self.iter.as_bitslice() as *const _ as *const _) }
 	}
 
 	#[doc(hidden)]
@@ -339,10 +341,11 @@ where
 	/// ```
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
+	#[inline(always)]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
-		let span = self.iter.as_bitslice().as_bitspan();
-		let span_mut = unsafe { span.assert_mut() };
-		span_mut.to_bitslice_mut()
+		//  This is sound because Vec -> IntoIter -> as_mut_bitslice locks the
+		//  chain of custody, ensuring exclusive access to the buffer.
+		unsafe { &mut *(self.iter.as_mut_bitslice() as *mut _ as *mut _) }
 	}
 
 	#[doc(hidden)]

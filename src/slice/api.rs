@@ -14,10 +14,6 @@ use core::{
 };
 
 use funty::IsNumber;
-use tap::{
-	pipe::Pipe,
-	tap::Tap,
-};
 
 #[cfg(feature = "alloc")]
 use crate::vec::BitVec;
@@ -2565,160 +2561,138 @@ where
 }
 
 /// Implement indexing for the different range types.
+
 macro_rules! range_impl {
-	( $r:ty { $get:item $unchecked:item } ) => {
+	($r:ty { check $check:expr; select $select:expr; }) => {
 		impl<'a, O, T> BitSliceIndex<'a, O, T> for $r
-		where O: BitOrder, T: BitStore {
+		where
+			O: BitOrder,
+			T: BitStore,
+		{
 			type Immut = &'a BitSlice<O, T>;
 			type Mut = &'a mut BitSlice<O, T>;
 
 			#[inline]
-			$get
-
-			#[inline]
-			fn get_mut(self, slice: Self::Mut) -> Option<Self::Mut> {
-				self.get(slice).map(|s| unsafe {
-					s.as_bitspan().assert_mut()
+			#[allow(
+				clippy::blocks_in_if_conditions,
+				clippy::redundant_closure_call
+			)]
+			fn get(self, slice: Self::Immut) -> Option<Self::Immut> {
+				if ($check)(self.clone(), slice.as_bitspan()) {
+					Some(unsafe { self.get_unchecked(slice) })
 				}
-				.to_bitslice_mut())
+				else {
+					None
+				}
 			}
 
 			#[inline]
-			$unchecked
+			#[allow(
+				clippy::blocks_in_if_conditions,
+				clippy::redundant_closure_call
+			)]
+			fn get_mut(self, slice: Self::Mut) -> Option<Self::Mut> {
+				if ($check)(self.clone(), slice.as_bitspan()) {
+					Some(unsafe { self.get_unchecked_mut(slice) })
+				}
+				else {
+					None
+				}
+			}
 
 			#[inline]
+			#[allow(clippy::redundant_closure_call)]
+			unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
+				($select)(self, slice.as_bitspan()).to_bitslice_ref()
+			}
+
+			#[inline]
+			#[allow(clippy::redundant_closure_call)]
 			unsafe fn get_unchecked_mut(self, slice: Self::Mut) -> Self::Mut {
-				self.get_unchecked(slice)
-					.as_bitspan()
-					.assert_mut()
-					.to_bitslice_mut()
+				($select)(self, slice.as_mut_bitspan()).to_bitslice_mut()
 			}
 
 			#[inline]
 			fn index(self, slice: Self::Immut) -> Self::Immut {
 				let r = self.clone();
 				let l = slice.len();
-				self.get(slice)
-					.unwrap_or_else(|| {
-						panic!("Range {:?} out of bounds: {}", r, l)
-					})
+				self.get(slice).unwrap_or_else(|| {
+					panic!("Range {:?} out of bounds: {}", r, l)
+				})
 			}
 
 			#[inline]
 			fn index_mut(self, slice: Self::Mut) -> Self::Mut {
-				self.index(slice).as_bitspan().pipe(|span| unsafe {
-					span.assert_mut()
+				let r = self.clone();
+				let l = slice.len();
+				self.get_mut(slice).unwrap_or_else(|| {
+					panic!("Range {:?} out of bounds: {}", r, l)
 				})
-				.to_bitslice_mut()
 			}
 		}
 	};
-
-	( $( $r:ty => map $func:expr; )* ) => { $(
-		impl<'a, O, T> BitSliceIndex<'a, O, T> for $r
-		where O: BitOrder, T: BitStore {
-			type Immut = &'a BitSlice<O, T>;
-			type Mut = &'a mut BitSlice<O, T>;
-
-			#[inline]
-			fn get(self, slice: Self::Immut) -> Option<Self::Immut> {
-				$func(self).get(slice)
-			}
-
-			#[inline]
-			fn get_mut(self, slice: Self::Mut) -> Option<Self::Mut> {
-				$func(self).get_mut(slice)
-			}
-
-			#[inline]
-			unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
-				$func(self).get_unchecked(slice)
-			}
-
-			#[inline]
-			unsafe fn get_unchecked_mut(self, slice: Self::Mut) -> Self::Mut {
-				$func(self).get_unchecked_mut(slice)
-			}
-
-			#[inline]
-			fn index(self, slice: Self::Immut) -> Self::Immut {
-				$func(self).index(slice)
-			}
-
-			#[inline]
-			fn index_mut(self, slice: Self::Mut) -> Self::Mut {
-				$func(self).index_mut(slice)
-			}
-		}
-	)* };
 }
 
 range_impl!(Range<usize> {
-	fn get(self, slice: Self::Immut) -> Option<Self::Immut> {
-		let len = slice.len();
+	check |range: Self, span: BitSpan<_, _, _>| {
+		let len = span.len();
 
-		if self.start > len || self.end > len || self.start > self.end {
-			return None;
-		}
+		range.start < len && range.end <= len && range.start <= range.end
+	};
 
-		Some(unsafe { (self.start .. self.end).get_unchecked(slice) })
-	}
-
-	unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
-		slice.as_bitptr()
-			.add(self.start)
-			.span_unchecked(self.len())
-			.to_bitslice_ref()
-	}
+	select |range: Self, span: BitSpan<_, _, _>| {
+		span.as_bitptr().add(range.start).span_unchecked(range.len())
+	};
 });
 
 range_impl!(RangeFrom<usize> {
-	fn get(self, slice: Self::Immut) -> Option<Self::Immut> {
-		let len = slice.len();
-		if self.start <= len {
-			Some(unsafe { (self.start ..).get_unchecked(slice) })
-		}
-		else {
-			None
-		}
-	}
+	check |range: Self, span: BitSpan<_, _, _>| {
+		let len = span.len();
+		range.start <= len
+	};
 
-	unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
-		slice.as_bitptr()
-			.add(self.start)
-			.span_unchecked(slice.len() - self.start)
-			.to_bitslice_ref()
-	}
+	select |range: Self, span: BitSpan<_, _, _>| {
+		span.as_bitptr().add(range.start).span_unchecked(span.len() - range.start)
+	};
 });
 
 range_impl!(RangeTo<usize> {
-	// `.. end` only changes the length
-	fn get(self, slice: Self::Immut) -> Option<Self::Immut> {
-		let len = slice.len();
-		if self.end <= len {
-			Some(unsafe { (.. self.end).get_unchecked(slice) })
-		}
-		else {
-			None
-		}
-	}
+	check |range: Self, span: BitSpan<_, _, _>| {
+		range.end <= span.len()
+	};
 
-	unsafe fn get_unchecked(self, slice: Self::Immut) -> Self::Immut {
-		slice.as_bitspan().tap_mut(|bp| bp.set_len(self.end)).to_bitslice_ref()
-	}
+	select |range: Self, mut span: BitSpan<_, _, _>| {
+		span.set_len(range.end);
+		span
+	};
 });
 
-range_impl! {
-	RangeInclusive<usize> => map |this: Self| {
-		#[allow(clippy::range_plus_one)]
-		(*this.start() .. *this.end() + 1)
+range_impl!(RangeInclusive<usize> {
+	check |range: Self, span: BitSpan<_, _, _>| {
+		let len = span.len();
+		let start = *range.start();
+		let end = *range.end();
+
+		start < len && end < len && start <= end
 	};
 
-	RangeToInclusive<usize> => map |RangeToInclusive { end }| {
-		#[allow(clippy::range_plus_one)]
-		(.. end + 1)
+	select |range: Self, span: BitSpan<_, _, _>| {
+		let start = *range.start();
+		let end = *range.end();
+		span.as_bitptr().add(start).span_unchecked(end + 1 - start)
 	};
-}
+});
+
+range_impl!(RangeToInclusive<usize> {
+	check |range: Self, span: BitSpan<_, _, _>| {
+		range.end < span.len()
+	};
+
+	select |range: Self, mut span: BitSpan<_, _, _>| {
+		span.set_len(range.end + 1);
+		span
+	};
+});
 
 /// `RangeFull` is the identity function.
 #[cfg(not(tarpaulin_include))]

@@ -914,22 +914,6 @@ where
 			_ty: PhantomData,
 		}
 	}
-
-	/// Assert that an immutable span pointer is in fact mutable.
-	///
-	/// This can only be called from a context where a mutable span descriptor
-	/// was lowered to immutable and needs to be re-raised; it is Undefined
-	/// Behavior in the compiler to call it on a span descriptor that was never
-	/// mutable.
-	pub(crate) unsafe fn assert_mut(self) -> BitSpan<Mut, O, T> {
-		let Self { ptr, len, _or, .. } = self;
-		BitSpan {
-			ptr,
-			len,
-			_or,
-			_ty: PhantomData,
-		}
-	}
 }
 
 impl<O, T> BitSpan<Mut, O, T>

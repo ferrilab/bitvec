@@ -424,8 +424,12 @@ where
 		self.into_bitslice()
 	}
 
-	/// Used only for `Debug` printing.
-	pub(super) fn as_bitslice(&self) -> &BitSlice<O, T::Alias> {
+	pub(crate) fn as_bitslice(&self) -> &BitSlice<O, T::Alias> {
+		unsafe { core::ptr::read(self) }.into_bitslice()
+	}
+
+	#[cfg(feature = "alloc")]
+	pub(crate) fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T::Alias> {
 		unsafe { core::ptr::read(self) }.into_bitslice()
 	}
 }

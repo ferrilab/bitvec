@@ -41,7 +41,10 @@ the [`core`] and [`std`] distribution libraries.
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 #[cfg(feature = "alloc")]
-use core::mem::ManuallyDrop;
+use core::{
+	convert::TryInto,
+	mem::ManuallyDrop,
+};
 use core::{
 	marker::PhantomData,
 	ops::RangeBounds,
@@ -2648,7 +2651,19 @@ where
 			bitspan
 				.set_address(Address::new_unchecked(vec.as_mut_ptr() as usize));
 			BitVec::from_fields(
-				bitspan.assert_mut().cast::<T::Unalias>(),
+				BitSpan::new_unchecked(
+					vec.as_mut_ptr()
+						.cast::<T::Unalias>()
+						.try_into()
+						.unwrap_or_else(|err| {
+							unreachable!(
+								"The allocator produced an improper address: {}",
+								err
+							)
+						}),
+					bitspan.head(),
+					bitspan.len(),
+				),
 				capacity,
 			)
 		}

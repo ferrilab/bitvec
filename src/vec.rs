@@ -25,6 +25,7 @@ dynamic resizing, and provide some specializations that cannot safely be done on
 use alloc::vec;
 use alloc::vec::Vec;
 use core::{
+	convert::TryInto,
 	mem::{
 		self,
 		ManuallyDrop,
@@ -327,7 +328,7 @@ where
 	/// [`force_align`]: Self::force_align
 	#[inline]
 	pub fn from_bitslice(slice: &BitSlice<O, T>) -> Self {
-		let mut bitspan = slice.as_bitspan();
+		let bitspan = slice.as_bitspan();
 
 		let mut vec = bitspan
 			.elements()
@@ -348,8 +349,19 @@ where
 		}
 
 		let bitspan = unsafe {
-			bitspan.set_address(vec.as_ptr() as *const T);
-			bitspan.assert_mut()
+			BitSpan::new_unchecked(
+				vec.as_mut_ptr()
+					.cast::<T>()
+					.try_into()
+					.unwrap_or_else(|err| {
+						unreachable!(
+							"The allocator produced an improper address: {}",
+							err
+						)
+					}),
+				bitspan.head(),
+				bitspan.len(),
+			)
 		};
 
 		let capacity = vec.capacity();
