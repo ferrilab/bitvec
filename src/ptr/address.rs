@@ -1,10 +1,7 @@
 //! Non-null, well-aligned, `BitStore` addresses with limited casting capability
 
 use core::{
-	any::{
-		type_name,
-		TypeId,
-	},
+	any::type_name,
 	cmp,
 	convert::{
 		Infallible,
@@ -29,6 +26,7 @@ use core::{
 use tap::pipe::Pipe;
 
 use crate::{
+	devel as dvl,
 	mem::BitMemory,
 	mutability::{
 		Const,
@@ -299,8 +297,7 @@ where
 {
 	#[inline]
 	fn eq(&self, other: &Address<M2, T2>) -> bool {
-		TypeId::of::<T1::Mem>() == TypeId::of::<T2::Mem>()
-			&& self.value() == other.value()
+		dvl::match_store::<T1::Mem, T2::Mem>() && self.value() == other.value()
 	}
 }
 
@@ -327,7 +324,7 @@ where
 {
 	#[inline]
 	fn partial_cmp(&self, other: &Address<M2, T2>) -> Option<cmp::Ordering> {
-		if TypeId::of::<T1::Mem>() != TypeId::of::<T2::Mem>() {
+		if !dvl::match_store::<T1::Mem, T2::Mem>() {
 			return None;
 		};
 		self.value().partial_cmp(&other.value())

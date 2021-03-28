@@ -97,6 +97,18 @@ where
 	TypeId::of::<O1>() == TypeId::of::<O2>()
 }
 
+/// Tests if two `BitStore` type parameters match each other.
+///
+/// This evaluates to a compile-time constant, and is removed during codegen.
+#[inline(always)]
+pub fn match_store<T1, T2>() -> bool
+where
+	T1: BitStore,
+	T2: BitStore,
+{
+	TypeId::of::<T1>() == TypeId::of::<T2>()
+}
+
 /// Tests if two `<O, T>` type parameter pairs match each other.
 ///
 /// This evaluates to a compile-time constant, and is removed during codegen.
@@ -108,7 +120,7 @@ where
 	O2: BitOrder,
 	T2: BitStore,
 {
-	match_order::<O1, O2>() && TypeId::of::<T1>() == TypeId::of::<T2>()
+	match_order::<O1, O2>() && match_store::<T1, T2>()
 }
 
 #[cfg(all(test, feature = "std"))]

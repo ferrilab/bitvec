@@ -1,7 +1,6 @@
 //! Implementation of `Range<BitPtr>`.
 
 use core::{
-	any::TypeId,
 	fmt::{
 		self,
 		Debug,
@@ -21,6 +20,7 @@ use core::{
 };
 
 use crate::{
+	devel as dvl,
 	mutability::Mutability,
 	order::{
 		BitOrder,
@@ -244,7 +244,7 @@ where
 {
 	#[inline(always)]
 	fn eq(&self, other: &BitPtrRange<M2, O, T2>) -> bool {
-		if TypeId::of::<T1::Mem>() != TypeId::of::<T2::Mem>() {
+		if !dvl::match_store::<T1::Mem, T2::Mem>() {
 			return false;
 		}
 		self.start == other.start && self.end == other.end

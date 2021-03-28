@@ -3,7 +3,6 @@
 #[cfg(feature = "alloc")]
 use alloc::borrow::ToOwned;
 use core::{
-	any::TypeId,
 	cmp,
 	convert::TryFrom,
 	fmt::{
@@ -29,6 +28,7 @@ use tap::pipe::Pipe;
 #[cfg(feature = "alloc")]
 use crate::vec::BitVec;
 use crate::{
+	devel as dvl,
 	domain::Domain,
 	order::{
 		BitOrder,
@@ -83,17 +83,15 @@ where
 				.all(|(l, r)| l == r)
 		};
 
-		if TypeId::of::<O1>() == TypeId::of::<O2>()
-			&& TypeId::of::<T1>() == TypeId::of::<T2>()
-		{
-			if TypeId::of::<O1>() == TypeId::of::<Lsb0>() {
+		if dvl::match_types::<O1, T1, O2, T2>() {
+			if dvl::match_order::<O1, Lsb0>() {
 				let this: &BitSlice<Lsb0, T1> =
 					unsafe { &*(self as *const _ as *const _) };
 				let that: &BitSlice<Lsb0, T1> =
 					unsafe { &*(rhs as *const _ as *const _) };
 				this.sp_eq(that)
 			}
-			else if TypeId::of::<O1>() == TypeId::of::<Msb0>() {
+			else if dvl::match_order::<O1, Msb0>() {
 				let this: &BitSlice<Msb0, T1> =
 					unsafe { &*(self as *const _ as *const _) };
 				let that: &BitSlice<Msb0, T1> =

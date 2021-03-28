@@ -31,6 +31,7 @@ use wyz::fmt::FmtForward;
 
 use crate::{
 	access::BitAccess,
+	devel as dvl,
 	index::{
 		BitIdx,
 		BitIdxError,
@@ -744,7 +745,7 @@ where
 		T2: BitStore,
 	{
 		//  If the orderings match, then overlap is permitted and defined.
-		if TypeId::of::<O>() == TypeId::of::<O2>() {
+		if dvl::match_order::<O, O2>() {
 			let (addr, head) = dest.raw_parts();
 			let dst = BitPtr::<Mut, O, T2>::new(addr, head);
 			let src_pair = self.range(count);
@@ -1272,7 +1273,7 @@ where
 {
 	#[inline]
 	fn eq(&self, other: &BitPtr<M2, O, T2>) -> bool {
-		if TypeId::of::<T1::Mem>() != TypeId::of::<T2::Mem>() {
+		if !dvl::match_store::<T1::Mem, T2::Mem>() {
 			return false;
 		}
 		self.get_addr().value() == other.get_addr().value()
@@ -1291,7 +1292,7 @@ where
 {
 	#[inline]
 	fn partial_cmp(&self, other: &BitPtr<M2, O, T2>) -> Option<cmp::Ordering> {
-		if TypeId::of::<T1::Mem>() != TypeId::of::<T2::Mem>() {
+		if !dvl::match_store::<T1::Mem, T2::Mem>() {
 			return None;
 		}
 		match (self.get_addr().value()).cmp(&other.get_addr().value()) {
