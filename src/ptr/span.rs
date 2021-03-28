@@ -330,8 +330,8 @@ where
 		head: BitIdx<T::Mem>,
 		bits: usize,
 	) -> Self {
-		let head = head.value() as usize;
-		let ptr_data = addr.value() & Self::PTR_ADDR_MASK;
+		let head = head.into_inner() as usize;
+		let ptr_data = addr.into_inner() & Self::PTR_ADDR_MASK;
 		let ptr_head = head >> Self::LEN_HEAD_BITS;
 
 		let len_head = head & Self::LEN_HEAD_MASK;
@@ -498,7 +498,7 @@ where
 					Some((head, addr)) => BitSpan::new_unchecked(
 						Address::new_unchecked(addr as *const _ as usize),
 						head,
-						t_bits - head.value() as usize + l_bits,
+						t_bits - head.into_inner() as usize + l_bits,
 					),
 					//  If the head does not exist, then the left span only
 					//  covers `l`. If `l` is empty, then so is the span.
@@ -549,7 +549,7 @@ where
 							Address::new_unchecked(r_addr as *const T as usize)
 						},
 						BitIdx::ZERO,
-						tail.value() as usize + r_bits,
+						tail.into_inner() as usize + r_bits,
 					),
 					//  If the tail does not exist, then the right span is only
 					//  `r`.
@@ -615,7 +615,7 @@ where
 		A::Error: Debug,
 	{
 		let addr = addr.try_into().unwrap();
-		let mut addr_value = addr.value();
+		let mut addr_value = addr.into_inner();
 		addr_value &= Self::PTR_ADDR_MASK;
 		addr_value |= self.ptr.as_ptr() as usize & Self::PTR_HEAD_MASK;
 		self.ptr = NonNull::new_unchecked(addr_value as *mut ());
@@ -657,7 +657,7 @@ where
 	/// `.addr` or `.bits`.
 	#[cfg(any(feature = "alloc", test))]
 	pub(crate) unsafe fn set_head(&mut self, head: BitIdx<T::Mem>) {
-		let head = head.value() as usize;
+		let head = head.into_inner() as usize;
 		let mut ptr = self.ptr.as_ptr() as usize;
 
 		ptr &= Self::PTR_ADDR_MASK;
@@ -742,7 +742,7 @@ where
 	/// [`self.address()`]: Self::pointer
 	pub(crate) fn elements(&self) -> usize {
 		//  Find the distance of the last bit from the base address.
-		let total = self.len() + self.head().value() as usize;
+		let total = self.len() + self.head().into_inner() as usize;
 		//  The element count is always the bit count divided by the bit width,
 		let base = total >> T::Mem::INDX;
 		//  plus whether any fractional element exists after the division.
@@ -766,13 +766,13 @@ where
 	pub(crate) fn tail(&self) -> BitTail<T::Mem> {
 		let (head, len) = (self.head(), self.len());
 
-		if head.value() == 0 && len == 0 {
+		if head.into_inner() == 0 && len == 0 {
 			return BitTail::ZERO;
 		}
 
 		//  Compute the in-element tail index as the head plus the length,
 		//  modulated by the element width.
-		let tail = (head.value() as usize + len) & T::Mem::MASK as usize;
+		let tail = (head.into_inner() as usize + len) & T::Mem::MASK as usize;
 		/* If the tail is zero, wrap it to `T::Mem::BITS` as the maximal. This
 		upshifts `1` (tail is zero) or `0` (tail is not), then sets the upshift
 		on the rest of the tail, producing something in the range
@@ -802,7 +802,7 @@ where
 	/// [`T::Mem`]: crate::store::BitStore::Mem
 	pub(crate) unsafe fn incr_head(&mut self) {
 		//  Increment the cursor, permitting rollover to `T::Mem::BITS`.
-		let head = self.head().value() as usize + 1;
+		let head = self.head().into_inner() as usize + 1;
 
 		//  Write the low bits into the `.len` field, then discard them.
 		self.len &= !Self::LEN_HEAD_MASK;
@@ -994,8 +994,8 @@ where
 		//  Since ::BITS is an associated const, the compiler will automatically
 		//  replace the entire function with `false` when the types don’t match.
 		T1::Mem::BITS == T2::Mem::BITS
-			&& addr_a.value() == addr_b.value()
-			&& head_a.value() == head_b.value()
+			&& addr_a.into_inner() == addr_b.into_inner()
+			&& head_a.into_inner() == head_b.into_inner()
 			&& bits_a == bits_b
 	}
 }

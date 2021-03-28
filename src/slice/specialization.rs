@@ -127,20 +127,21 @@ where T: BitStore
 
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
-				let val = (Lsb0::mask(head, tail) & elem.load_value()).value();
+				let val =
+					(Lsb0::mask(head, tail) & elem.load_value()).into_inner();
 				if val != T::Mem::ZERO {
-					accum +=
-						val.trailing_zeros() as usize - head.value() as usize;
+					accum += val.trailing_zeros() as usize
+						- head.into_inner() as usize;
 					return Some(accum);
 				}
 				None
 			},
 			Domain::Region { head, body, tail } => {
 				if let Some((head, elem)) = head {
-					let val =
-						(Lsb0::mask(head, None) & elem.load_value()).value();
-					accum +=
-						val.trailing_zeros() as usize - head.value() as usize;
+					let val = (Lsb0::mask(head, None) & elem.load_value())
+						.into_inner();
+					accum += val.trailing_zeros() as usize
+						- head.into_inner() as usize;
 					if val != T::Mem::ZERO {
 						return Some(accum);
 					}
@@ -155,8 +156,8 @@ where T: BitStore
 				}
 
 				if let Some((elem, tail)) = tail {
-					let val =
-						(Lsb0::mask(None, tail) & elem.load_value()).value();
+					let val = (Lsb0::mask(None, tail) & elem.load_value())
+						.into_inner();
 					if val != T::Mem::ZERO {
 						accum += val.trailing_zeros() as usize;
 						return Some(accum);
@@ -176,8 +177,9 @@ where T: BitStore
 		};
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
-				let val = (Lsb0::mask(head, tail) & elem.load_value()).value();
-				let dead_bits = T::Mem::BITS as u8 - tail.value();
+				let val =
+					(Lsb0::mask(head, tail) & elem.load_value()).into_inner();
+				let dead_bits = T::Mem::BITS as u8 - tail.into_inner();
 				if val != T::Mem::ZERO {
 					out -= val.leading_zeros() as usize - dead_bits as usize;
 					return Some(out);
@@ -186,10 +188,10 @@ where T: BitStore
 			},
 			Domain::Region { head, body, tail } => {
 				if let Some((elem, tail)) = tail {
-					let val =
-						(Lsb0::mask(None, tail) & elem.load_value()).value();
+					let val = (Lsb0::mask(None, tail) & elem.load_value())
+						.into_inner();
 					let dead_bits =
-						T::Mem::BITS as usize - tail.value() as usize;
+						T::Mem::BITS as usize - tail.into_inner() as usize;
 					out -= val.leading_zeros() as usize - dead_bits;
 					if val != T::Mem::ZERO {
 						return Some(out);
@@ -205,8 +207,8 @@ where T: BitStore
 				}
 
 				if let Some((head, elem)) = head {
-					let val =
-						(Lsb0::mask(head, None) & elem.load_value()).value();
+					let val = (Lsb0::mask(head, None) & elem.load_value())
+						.into_inner();
 					if val != T::Mem::ZERO {
 						out -= val.leading_zeros() as usize;
 						return Some(out);
@@ -225,8 +227,10 @@ where T: BitStore
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
 				//  Load, invert, then mask and search for `1`.
-				let val = (Lsb0::mask(head, tail) & !elem.load_value()).value();
-				accum += val.trailing_zeros() as usize - head.value() as usize;
+				let val =
+					(Lsb0::mask(head, tail) & !elem.load_value()).into_inner();
+				accum +=
+					val.trailing_zeros() as usize - head.into_inner() as usize;
 				if val != T::Mem::ZERO {
 					return Some(accum);
 				}
@@ -234,10 +238,10 @@ where T: BitStore
 			},
 			Domain::Region { head, body, tail } => {
 				if let Some((head, elem)) = head {
-					let val =
-						(Lsb0::mask(head, None) & !elem.load_value()).value();
-					accum +=
-						val.trailing_zeros() as usize - head.value() as usize;
+					let val = (Lsb0::mask(head, None) & !elem.load_value())
+						.into_inner();
+					accum += val.trailing_zeros() as usize
+						- head.into_inner() as usize;
 					if val != T::Mem::ZERO {
 						return Some(accum);
 					}
@@ -252,8 +256,8 @@ where T: BitStore
 				}
 
 				if let Some((elem, tail)) = tail {
-					let val =
-						(Lsb0::mask(None, tail) & !elem.load_value()).value();
+					let val = (Lsb0::mask(None, tail) & !elem.load_value())
+						.into_inner();
 					accum += val.trailing_zeros() as usize;
 					if val != T::Mem::ZERO {
 						return Some(accum);
@@ -273,8 +277,9 @@ where T: BitStore
 		};
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
-				let val = (Lsb0::mask(head, tail) & !elem.load_value()).value();
-				let dead_bits = T::Mem::BITS as u8 - tail.value();
+				let val =
+					(Lsb0::mask(head, tail) & !elem.load_value()).into_inner();
+				let dead_bits = T::Mem::BITS as u8 - tail.into_inner();
 				if val != T::Mem::ZERO {
 					out -= val.leading_zeros() as usize - dead_bits as usize;
 					return Some(out);
@@ -283,10 +288,10 @@ where T: BitStore
 			},
 			Domain::Region { head, body, tail } => {
 				if let Some((elem, tail)) = tail {
-					let val =
-						(Lsb0::mask(None, tail) & !elem.load_value()).value();
+					let val = (Lsb0::mask(None, tail) & !elem.load_value())
+						.into_inner();
 					let dead_bits =
-						T::Mem::BITS as usize - tail.value() as usize;
+						T::Mem::BITS as usize - tail.into_inner() as usize;
 					out -= val.leading_zeros() as usize - dead_bits;
 					if val != T::Mem::ZERO {
 						return Some(out);
@@ -302,8 +307,8 @@ where T: BitStore
 				}
 
 				if let Some((head, elem)) = head {
-					let val =
-						(Lsb0::mask(head, None) & !elem.load_value()).value();
+					let val = (Lsb0::mask(head, None) & !elem.load_value())
+						.into_inner();
 					if val != T::Mem::ZERO {
 						out -= val.leading_zeros() as usize;
 						return Some(out);
@@ -397,8 +402,10 @@ where T: BitStore
 
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
-				let val = (Msb0::mask(head, tail) & elem.load_value()).value();
-				accum += val.leading_zeros() as usize - head.value() as usize;
+				let val =
+					(Msb0::mask(head, tail) & elem.load_value()).into_inner();
+				accum +=
+					val.leading_zeros() as usize - head.into_inner() as usize;
 				if val != T::Mem::ZERO {
 					return Some(accum);
 				}
@@ -406,10 +413,10 @@ where T: BitStore
 			},
 			Domain::Region { head, body, tail } => {
 				if let Some((head, elem)) = head {
-					let val =
-						(Msb0::mask(head, None) & elem.load_value()).value();
-					accum +=
-						val.leading_zeros() as usize - head.value() as usize;
+					let val = (Msb0::mask(head, None) & elem.load_value())
+						.into_inner();
+					accum += val.leading_zeros() as usize
+						- head.into_inner() as usize;
 					if val != T::Mem::ZERO {
 						return Some(accum);
 					}
@@ -424,8 +431,8 @@ where T: BitStore
 				}
 
 				if let Some((elem, tail)) = tail {
-					let val =
-						(Msb0::mask(None, tail) & elem.load_value()).value();
+					let val = (Msb0::mask(None, tail) & elem.load_value())
+						.into_inner();
 					accum += val.leading_zeros() as usize;
 					if val != T::Mem::ZERO {
 						return Some(accum);
@@ -446,8 +453,9 @@ where T: BitStore
 		};
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
-				let val = (Msb0::mask(head, tail) & elem.load_value()).value();
-				let dead_bits = T::Mem::BITS as u8 - tail.value();
+				let val =
+					(Msb0::mask(head, tail) & elem.load_value()).into_inner();
+				let dead_bits = T::Mem::BITS as u8 - tail.into_inner();
 				if val != T::Mem::ZERO {
 					out -= val.trailing_zeros() as usize - dead_bits as usize;
 					return Some(out);
@@ -456,10 +464,10 @@ where T: BitStore
 			},
 			Domain::Region { head, body, tail } => {
 				if let Some((elem, tail)) = tail {
-					let val =
-						(Msb0::mask(None, tail) & elem.load_value()).value();
+					let val = (Msb0::mask(None, tail) & elem.load_value())
+						.into_inner();
 					let dead_bits =
-						T::Mem::BITS as usize - tail.value() as usize;
+						T::Mem::BITS as usize - tail.into_inner() as usize;
 					out -= val.trailing_zeros() as usize - dead_bits;
 					if val != T::Mem::ZERO {
 						return Some(out);
@@ -475,8 +483,8 @@ where T: BitStore
 				}
 
 				if let Some((head, elem)) = head {
-					let val =
-						(Msb0::mask(head, None) & elem.load_value()).value();
+					let val = (Msb0::mask(head, None) & elem.load_value())
+						.into_inner();
 					if val != T::Mem::ZERO {
 						out -= val.trailing_zeros() as usize;
 						return Some(out);
@@ -494,8 +502,10 @@ where T: BitStore
 
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
-				let val = (Msb0::mask(head, tail) & !elem.load_value()).value();
-				accum += val.leading_zeros() as usize - head.value() as usize;
+				let val =
+					(Msb0::mask(head, tail) & !elem.load_value()).into_inner();
+				accum +=
+					val.leading_zeros() as usize - head.into_inner() as usize;
 				if val != T::Mem::ZERO {
 					return Some(accum);
 				}
@@ -503,10 +513,10 @@ where T: BitStore
 			},
 			Domain::Region { head, body, tail } => {
 				if let Some((head, elem)) = head {
-					let val =
-						(Msb0::mask(head, None) & !elem.load_value()).value();
-					accum +=
-						val.leading_zeros() as usize - head.value() as usize;
+					let val = (Msb0::mask(head, None) & !elem.load_value())
+						.into_inner();
+					accum += val.leading_zeros() as usize
+						- head.into_inner() as usize;
 					if val != T::Mem::ZERO {
 						return Some(accum);
 					}
@@ -521,8 +531,8 @@ where T: BitStore
 				}
 
 				if let Some((elem, tail)) = tail {
-					let val =
-						(Msb0::mask(None, tail) & !elem.load_value()).value();
+					let val = (Msb0::mask(None, tail) & !elem.load_value())
+						.into_inner();
 					accum += val.leading_zeros() as usize;
 					if val != T::Mem::ZERO {
 						return Some(accum);
@@ -542,8 +552,9 @@ where T: BitStore
 		};
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
-				let val = (Msb0::mask(head, tail) & !elem.load_value()).value();
-				let dead_bits = T::Mem::BITS as u8 - tail.value();
+				let val =
+					(Msb0::mask(head, tail) & !elem.load_value()).into_inner();
+				let dead_bits = T::Mem::BITS as u8 - tail.into_inner();
 				if val != T::Mem::ZERO {
 					out -= val.trailing_zeros() as usize - dead_bits as usize;
 					return Some(out);
@@ -552,10 +563,10 @@ where T: BitStore
 			},
 			Domain::Region { head, body, tail } => {
 				if let Some((elem, tail)) = tail {
-					let val =
-						(Msb0::mask(None, tail) & !elem.load_value()).value();
+					let val = (Msb0::mask(None, tail) & !elem.load_value())
+						.into_inner();
 					let dead_bits =
-						T::Mem::BITS as usize - tail.value() as usize;
+						T::Mem::BITS as usize - tail.into_inner() as usize;
 					out -= val.trailing_zeros() as usize - dead_bits;
 					if val != T::Mem::ZERO {
 						return Some(out);
@@ -571,8 +582,8 @@ where T: BitStore
 				}
 
 				if let Some((head, elem)) = head {
-					let val =
-						(Msb0::mask(head, None) & !elem.load_value()).value();
+					let val = (Msb0::mask(head, None) & !elem.load_value())
+						.into_inner();
 					if val != T::Mem::ZERO {
 						out -= val.trailing_zeros() as usize;
 						return Some(out);

@@ -31,7 +31,7 @@ fn create_arrays() {
 fn wrap_unwrap() {
 	let data: [u8; 15] = *b"Saluton, mondo!";
 	let bits = BitArray::<LocalBits, _>::new(data);
-	assert_eq!(bits.value(), data);
+	assert_eq!(bits.into_inner(), data);
 }
 
 #[test]

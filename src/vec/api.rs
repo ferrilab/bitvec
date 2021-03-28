@@ -287,7 +287,7 @@ where
 			//  Don’t forget to subtract any dead bits in the front of the base!
 			//  This has to be saturating, becase a non-zero head on a zero
 			//  capacity underflows.
-			.saturating_sub(self.bitspan.head().value() as usize)
+			.saturating_sub(self.bitspan.head().into_inner() as usize)
 	}
 
 	/// Reserves capacity for at least `additional` more bits to be inserted in

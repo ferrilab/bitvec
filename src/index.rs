@@ -181,17 +181,17 @@ where R: BitRegister
 
 	/// Casts to a new index type.
 	///
-	/// This will always succeed if `self.value()` is a valid index in the `S`
-	/// register; it will return an error if the `self` index is too wide for
-	/// `S`.
+	/// This will always succeed if `self.into_inner()` is a valid index in the
+	/// `S` register; it will return an error if the `self` index is too wide
+	/// for `S`.
 	pub fn cast<S>(self) -> Result<BitIdx<S>, BitIdxError<S>>
 	where S: BitRegister {
-		BitIdx::new(self.value())
+		BitIdx::new(self.into_inner())
 	}
 
 	/// Removes the index wrapper, leaving the internal counter.
 	#[cfg(not(tarpaulin_include))]
-	pub fn value(self) -> u8 {
+	pub fn into_inner(self) -> u8 {
 		self.idx
 	}
 
@@ -298,7 +298,7 @@ where R: BitRegister
 	+ DoubleEndedIterator
 	+ ExactSizeIterator
 	+ FusedIterator {
-		let (from, upto) = (self.value(), upto.value());
+		let (from, upto) = (self.into_inner(), upto.into_inner());
 		debug_assert!(from <= upto, "Ranges must run from low to high");
 		(from .. upto).map(|val| unsafe { Self::new_unchecked(val) })
 	}
@@ -333,7 +333,7 @@ where R: BitRegister
 	///
 	/// [`ptr::offset`]: https://doc.rust-lang.org/stable/std/primitive.pointer.html#method.offset
 	pub fn offset(self, by: isize) -> (isize, Self) {
-		let val = self.value();
+		let val = self.into_inner();
 
 		/* Signed-add `val` to the jump distance. This will almost certainly not
 		overflow (as the crate imposes restrictions well below `isize::MAX`),
@@ -407,7 +407,7 @@ where R: BitRegister
 	///
 	/// [`BitTail::span`]: crate::index::BitTail::span
 	pub fn span(self, len: usize) -> (usize, BitTail<R>) {
-		unsafe { BitTail::<R>::new_unchecked(self.value()) }.span(len)
+		unsafe { BitTail::<R>::new_unchecked(self.into_inner()) }.span(len)
 	}
 }
 
@@ -493,7 +493,7 @@ where R: BitRegister
 
 	/// Removes the error wrapper, leaving the internal counter.
 	#[cfg(not(tarpaulin_include))]
-	pub fn value(self) -> u8 {
+	pub fn into_inner(self) -> u8 {
 		self.err
 	}
 }
@@ -641,7 +641,7 @@ where R: BitRegister
 
 	/// Removes the tail wrapper, leaving the internal counter.
 	#[cfg(not(tarpaulin_include))]
-	pub fn value(self) -> u8 {
+	pub fn into_inner(self) -> u8 {
 		self.end
 	}
 
@@ -848,7 +848,7 @@ where R: BitRegister
 
 	/// Removes the position wrapper, leaving the internal counter.
 	#[cfg(not(tarpaulin_include))]
-	pub fn value(self) -> u8 {
+	pub fn into_inner(self) -> u8 {
 		self.pos
 	}
 
@@ -875,7 +875,7 @@ where R: BitRegister
 	+ ExactSizeIterator
 	+ FusedIterator {
 		BitIdx::<R>::range_all()
-			.map(|idx| unsafe { Self::new_unchecked(idx.value()) })
+			.map(|idx| unsafe { Self::new_unchecked(idx.into_inner()) })
 	}
 }
 
@@ -1001,7 +1001,7 @@ where R: BitRegister
 
 	/// Removes the selector wrapper, leaving the internal counter.
 	#[cfg(not(tarpaulin_include))]
-	pub fn value(self) -> R {
+	pub fn into_inner(self) -> R {
 		self.sel
 	}
 
@@ -1112,7 +1112,7 @@ where R: BitRegister
 
 	/// Removes the mask wrapper, leaving the internal value.
 	#[cfg(not(tarpaulin_include))]
-	pub fn value(self) -> R {
+	pub fn into_inner(self) -> R {
 		self.mask
 	}
 

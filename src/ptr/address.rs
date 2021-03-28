@@ -195,7 +195,7 @@ where
 
 	/// Gets the raw numeric value of the address.
 	#[inline(always)]
-	pub(crate) fn value(self) -> usize {
+	pub(crate) fn into_inner(self) -> usize {
 		self.inner.as_ptr() as usize
 	}
 }
@@ -297,7 +297,8 @@ where
 {
 	#[inline]
 	fn eq(&self, other: &Address<M2, T2>) -> bool {
-		dvl::match_store::<T1::Mem, T2::Mem>() && self.value() == other.value()
+		dvl::match_store::<T1::Mem, T2::Mem>()
+			&& self.into_inner() == other.into_inner()
 	}
 }
 
@@ -326,8 +327,8 @@ where
 	fn partial_cmp(&self, other: &Address<M2, T2>) -> Option<cmp::Ordering> {
 		if !dvl::match_store::<T1::Mem, T2::Mem>() {
 			return None;
-		};
-		self.value().partial_cmp(&other.value())
+		}
+		self.into_inner().partial_cmp(&other.into_inner())
 	}
 }
 

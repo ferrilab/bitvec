@@ -202,7 +202,7 @@ where
 	/// ```
 	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	pub fn value(self) -> V {
+	pub fn into_inner(self) -> V {
 		self.data
 	}
 

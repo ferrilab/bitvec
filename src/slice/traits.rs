@@ -451,7 +451,8 @@ macro_rules! fmt {
 						let bits = tmp.view_bits::<O>();
 						unsafe {
 							bits.get_unchecked(
-								head.value() as usize .. tail.value() as usize,
+								head.into_inner() as usize
+									.. tail.into_inner() as usize,
 							)
 						}
 						.pipe(writer);
@@ -462,7 +463,7 @@ macro_rules! fmt {
 							let tmp = elem.load_value();
 							let bits = tmp.view_bits::<O>();
 							unsafe {
-								bits.get_unchecked(head.value() as usize ..)
+								bits.get_unchecked(head.into_inner() as usize ..)
 							}
 							.pipe(&mut writer);
 						}
@@ -473,7 +474,7 @@ macro_rules! fmt {
 							let tmp = elem.load_value();
 							let bits = tmp.view_bits::<O>();
 							unsafe {
-								bits.get_unchecked(.. tail.value() as usize)
+								bits.get_unchecked(.. tail.into_inner() as usize)
 							}
 							.pipe(&mut writer);
 						}

@@ -770,7 +770,7 @@ where T: BitStore
 			//  In Lsb0, a `head` index counts distance from LSedge, and a
 			//  `tail` index counts element width minus distance from MSedge.
 			Domain::Enclave { head, elem, tail } => {
-				get::<T, M>(elem, Lsb0::mask(head, tail), head.value())
+				get::<T, M>(elem, Lsb0::mask(head, tail), head.into_inner())
 			},
 			Domain::Region { head, body, tail } => {
 				let mut accum = M::ZERO;
@@ -798,15 +798,15 @@ where T: BitStore
 					As a const-expression, this branch folds at compile-time to
 					conditionally remove or retain the instruction.
 					*/
-					if M::BITS > T::Mem::BITS {
-						accum <<= T::Mem::BITS;
+					if M::BITS > <T::Mem as IsNumber>::BITS {
+						accum <<= <T::Mem as IsNumber>::BITS;
 					}
 					accum |= resize::<T::Mem, M>(elem);
 				}
 
 				if let Some((head, elem)) = head {
-					let shamt = head.value();
-					let rshamt = T::Mem::BITS as u8 - shamt;
+					let shamt = head.into_inner();
+					let rshamt = <T::Mem as IsNumber>::BITS as u8 - shamt;
 					if M::BITS as u8 > rshamt {
 						accum <<= rshamt;
 					}
@@ -872,25 +872,28 @@ where T: BitStore
 
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
-				get::<T, M>(elem, Lsb0::mask(head, tail), head.value())
+				get::<T, M>(elem, Lsb0::mask(head, tail), head.into_inner())
 			},
 			Domain::Region { head, body, tail } => {
 				let mut accum = M::ZERO;
 
 				if let Some((head, elem)) = head {
-					accum =
-						get::<T, M>(elem, Lsb0::mask(head, None), head.value());
+					accum = get::<T, M>(
+						elem,
+						Lsb0::mask(head, None),
+						head.into_inner(),
+					);
 				}
 
 				for elem in body.iter().map(BitStore::load_value) {
-					if M::BITS > T::Mem::BITS {
-						accum <<= T::Mem::BITS;
+					if M::BITS > <T::Mem as IsNumber>::BITS {
+						accum <<= <T::Mem as IsNumber>::BITS;
 					}
 					accum |= resize::<T::Mem, M>(elem);
 				}
 
 				if let Some((elem, tail)) = tail {
-					let shamt = tail.value();
+					let shamt = tail.into_inner();
 					if M::BITS as u8 > shamt {
 						accum <<= shamt;
 					}
@@ -936,13 +939,18 @@ where T: BitStore
 
 		match self.domain_mut() {
 			DomainMut::Enclave { head, elem, tail } => {
-				set::<T, M>(elem, value, Lsb0::mask(head, tail), head.value());
+				set::<T, M>(
+					elem,
+					value,
+					Lsb0::mask(head, tail),
+					head.into_inner(),
+				);
 			},
 			DomainMut::Region { head, body, tail } => {
 				if let Some((head, elem)) = head {
-					let shamt = head.value();
+					let shamt = head.into_inner();
 					set::<T, M>(elem, value, Lsb0::mask(head, None), shamt);
-					let lshamt = T::Mem::BITS as u8 - shamt;
+					let lshamt = <T::Mem as IsNumber>::BITS as u8 - shamt;
 					if M::BITS as u8 > lshamt {
 						value >>= lshamt;
 					}
@@ -953,8 +961,8 @@ where T: BitStore
 
 				for elem in body.iter_mut() {
 					elem.store_value(resize(value));
-					if M::BITS > T::Mem::BITS {
-						value >>= T::Mem::BITS;
+					if M::BITS > <T::Mem as IsNumber>::BITS {
+						value >>= <T::Mem as IsNumber>::BITS;
 					}
 				}
 
@@ -996,12 +1004,17 @@ where T: BitStore
 
 		match self.domain_mut() {
 			DomainMut::Enclave { head, elem, tail } => {
-				set::<T, M>(elem, value, Lsb0::mask(head, tail), head.value());
+				set::<T, M>(
+					elem,
+					value,
+					Lsb0::mask(head, tail),
+					head.into_inner(),
+				);
 			},
 			DomainMut::Region { head, body, tail } => {
 				if let Some((elem, tail)) = tail {
 					set::<T, M>(elem, value, Lsb0::mask(None, tail), 0);
-					let shamt = tail.value();
+					let shamt = tail.into_inner();
 					if M::BITS as u8 > shamt {
 						value >>= shamt;
 					}
@@ -1012,8 +1025,8 @@ where T: BitStore
 
 				for elem in body.iter_mut().rev() {
 					elem.store_value(resize(value));
-					if M::BITS > T::Mem::BITS {
-						value >>= T::Mem::BITS;
+					if M::BITS > <T::Mem as IsNumber>::BITS {
+						value >>= <T::Mem as IsNumber>::BITS;
 					}
 				}
 
@@ -1022,7 +1035,7 @@ where T: BitStore
 						elem,
 						value,
 						Lsb0::mask(head, None),
-						head.value(),
+						head.into_inner(),
 					);
 				}
 			},
@@ -1086,7 +1099,7 @@ where T: BitStore
 			Domain::Enclave { head, elem, tail } => get::<T, M>(
 				elem,
 				Msb0::mask(head, tail),
-				T::Mem::BITS as u8 - tail.value(),
+				<T::Mem as IsNumber>::BITS as u8 - tail.into_inner(),
 			),
 			Domain::Region { head, body, tail } => {
 				let mut accum = M::ZERO;
@@ -1095,19 +1108,20 @@ where T: BitStore
 					accum = get::<T, M>(
 						elem,
 						Msb0::mask(None, tail),
-						T::Mem::BITS as u8 - tail.value(),
+						<T::Mem as IsNumber>::BITS as u8 - tail.into_inner(),
 					);
 				}
 
 				for elem in body.iter().rev().map(BitStore::load_value) {
-					if M::BITS > T::Mem::BITS {
-						accum <<= T::Mem::BITS;
+					if M::BITS > <T::Mem as IsNumber>::BITS {
+						accum <<= <T::Mem as IsNumber>::BITS;
 					}
 					accum |= resize::<T::Mem, M>(elem);
 				}
 
 				if let Some((head, elem)) = head {
-					let shamt = T::Mem::BITS as u8 - head.value();
+					let shamt =
+						<T::Mem as IsNumber>::BITS as u8 - head.into_inner();
 					if M::BITS as u8 > shamt {
 						accum <<= shamt;
 					}
@@ -1175,7 +1189,7 @@ where T: BitStore
 			Domain::Enclave { head, elem, tail } => get::<T, M>(
 				elem,
 				Msb0::mask(head, tail),
-				T::Mem::BITS as u8 - tail.value(),
+				<T::Mem as IsNumber>::BITS as u8 - tail.into_inner(),
 			),
 			Domain::Region { head, body, tail } => {
 				let mut accum = M::ZERO;
@@ -1185,14 +1199,14 @@ where T: BitStore
 				}
 
 				for elem in body.iter().map(BitStore::load_value) {
-					if M::BITS > T::Mem::BITS {
-						accum <<= T::Mem::BITS;
+					if M::BITS > <T::Mem as IsNumber>::BITS {
+						accum <<= <T::Mem as IsNumber>::BITS;
 					}
 					accum |= resize::<T::Mem, M>(elem);
 				}
 
 				if let Some((elem, tail)) = tail {
-					let shamt = tail.value();
+					let shamt = tail.into_inner();
 					if M::BITS as u8 > shamt {
 						accum <<= shamt;
 					}
@@ -1202,7 +1216,7 @@ where T: BitStore
 					accum |= get::<T, M>(
 						elem,
 						Msb0::mask(None, tail),
-						T::Mem::BITS as u8 - shamt,
+						<T::Mem as IsNumber>::BITS as u8 - shamt,
 					);
 				}
 
@@ -1245,12 +1259,13 @@ where T: BitStore
 				elem,
 				value,
 				Msb0::mask(head, tail),
-				T::Mem::BITS as u8 - tail.value(),
+				<T::Mem as IsNumber>::BITS as u8 - tail.into_inner(),
 			),
 			DomainMut::Region { head, body, tail } => {
 				if let Some((head, elem)) = head {
 					set::<T, M>(elem, value, Msb0::mask(head, None), 0);
-					let shamt = T::Mem::BITS as u8 - head.value();
+					let shamt =
+						<T::Mem as IsNumber>::BITS as u8 - head.into_inner();
 					if M::BITS as u8 > shamt {
 						value >>= shamt;
 					}
@@ -1261,8 +1276,8 @@ where T: BitStore
 
 				for elem in body.iter_mut() {
 					elem.store_value(resize(value));
-					if M::BITS > T::Mem::BITS {
-						value >>= T::Mem::BITS;
+					if M::BITS > <T::Mem as IsNumber>::BITS {
+						value >>= <T::Mem as IsNumber>::BITS;
 					}
 				}
 
@@ -1271,7 +1286,7 @@ where T: BitStore
 						elem,
 						value,
 						Msb0::mask(None, tail),
-						T::Mem::BITS as u8 - tail.value(),
+						<T::Mem as IsNumber>::BITS as u8 - tail.into_inner(),
 					);
 				}
 			},
@@ -1312,7 +1327,7 @@ where T: BitStore
 				elem,
 				value,
 				Msb0::mask(head, tail),
-				T::Mem::BITS as u8 - tail.value(),
+				<T::Mem as IsNumber>::BITS as u8 - tail.into_inner(),
 			),
 			DomainMut::Region { head, body, tail } => {
 				if let Some((elem, tail)) = tail {
@@ -1320,10 +1335,10 @@ where T: BitStore
 						elem,
 						value,
 						Msb0::mask(None, tail),
-						T::Mem::BITS as u8 - tail.value(),
+						<T::Mem as IsNumber>::BITS as u8 - tail.into_inner(),
 					);
-					if M::BITS as u8 > tail.value() {
-						value >>= tail.value();
+					if M::BITS as u8 > tail.into_inner() {
+						value >>= tail.into_inner();
 					}
 					else {
 						value = M::ZERO;
@@ -1332,8 +1347,8 @@ where T: BitStore
 
 				for elem in body.iter_mut().rev() {
 					elem.store_value(resize(value));
-					if M::BITS > T::Mem::BITS {
-						value >>= T::Mem::BITS;
+					if M::BITS > <T::Mem as IsNumber>::BITS {
+						value >>= <T::Mem as IsNumber>::BITS;
 					}
 				}
 
@@ -1497,7 +1512,7 @@ where
 	//  Read the value out of the `elem` reference
 	elem.load_value()
 		//  Mask it against the slot
-		.pipe(|val| val & &mask.value())
+		.pipe(|val| val & &mask.into_inner())
 		//  Shift it down to the LSedge
 		.pipe(|val| val >> &(shamt as usize))
 		//  And resize to the expected output
@@ -1549,7 +1564,7 @@ where
 	M: BitMemory,
 {
 	//  Convert the `mask` type to fit into the accessor.
-	let mask = BitMask::new(mask.value());
+	let mask = BitMask::new(mask.into_inner());
 	let value = value
 		//  Resize the value to the expected input
 		.pipe(resize::<M, T::Mem>)

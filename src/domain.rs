@@ -232,7 +232,7 @@ macro_rules! bit_domain {
 				let (e, t) = h.span(bitspan.len());
 				let w = T::Mem::BITS as u8;
 
-				match (h.value(), e, t.value()) {
+				match (h.into_inner(), e, t.into_inner()) {
 					(_, 0, _) => Self::empty(),
 					(0, _, t) if t == w => Self::spanning(slice),
 					(_, _, t) if t == w => Self::partial_head(slice, h),
@@ -257,11 +257,11 @@ macro_rules! bit_domain {
 			) -> Self {
 				let (head, rest) = bit_domain!(split $($m)?
 					slice,
-					(T::Mem::BITS as u8 - head.value()) as usize,
+					(T::Mem::BITS as u8 - head.into_inner()) as usize,
 				);
 				let (body, tail) = bit_domain!(split $($m)?
 					rest,
-					rest.len() - (tail.value() as usize),
+					rest.len() - (tail.into_inner() as usize),
 				);
 				Self::Region {
 					head: bit_domain!(retype $($m)? head),
@@ -288,7 +288,7 @@ macro_rules! bit_domain {
 			) -> Self {
 				let (head, rest) = bit_domain!(split $($m)?
 					slice,
-					(T::Mem::BITS as u8 - head.value()) as usize,
+					(T::Mem::BITS as u8 - head.into_inner()) as usize,
 				);
 				let (head, body) = (
 					bit_domain!(retype $($m)? head),
@@ -313,7 +313,7 @@ macro_rules! bit_domain {
 			) -> Self {
 				let (rest, tail) = bit_domain!(split $($m)?
 					slice,
-					slice.len() - (tail.value() as usize),
+					slice.len() - (tail.into_inner() as usize),
 				);
 				let (body, tail) = (
 					bit_domain!(retype $($m)? rest),
@@ -538,7 +538,7 @@ macro_rules! domain {
 				let tail = bitspan.tail();
 				let bits = T::Mem::BITS as u8;
 				let base = bitspan.address().to_const() as *const _;
-				match (head.value(), elts, tail.value()) {
+				match (head.into_inner(), elts, tail.into_inner()) {
 					(_, 0, _) => Self::empty(),
 					(0, _, t) if t == bits => Self::spanning(base, elts),
 					(_, _, t) if t == bits => Self::partial_head(base, elts, head),

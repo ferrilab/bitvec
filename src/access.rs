@@ -79,7 +79,7 @@ where <Self as Radium>::Item: BitRegister
 	///
 	/// [`BitMask`]: crate::index::BitMask
 	fn clear_bits(&self, mask: BitMask<Self::Item>) {
-		self.fetch_and(!mask.value(), atomic::Ordering::Relaxed);
+		self.fetch_and(!mask.into_inner(), atomic::Ordering::Relaxed);
 	}
 
 	/// Sets any number of bits in a memory register to `1`.
@@ -101,7 +101,7 @@ where <Self as Radium>::Item: BitRegister
 	/// cleared. All bits in `*self` that are not selected (cleared to `0` in
 	/// the `mask`) are unchanged.
 	fn set_bits(&self, mask: BitMask<Self::Item>) {
-		self.fetch_or(mask.value(), atomic::Ordering::Relaxed);
+		self.fetch_or(mask.into_inner(), atomic::Ordering::Relaxed);
 	}
 
 	/// Inverts any number of bits in a memory register.
@@ -123,7 +123,7 @@ where <Self as Radium>::Item: BitRegister
 	/// inverted. All bits in `*self` that are not selected (cleared to `0` in
 	/// the `mask`) are unchanged.
 	fn invert_bits(&self, mask: BitMask<Self::Item>) {
-		self.fetch_xor(mask.value(), atomic::Ordering::Relaxed);
+		self.fetch_xor(mask.into_inner(), atomic::Ordering::Relaxed);
 	}
 
 	/// Writes a value to one bit in a memory register.
@@ -147,13 +147,13 @@ where <Self as Radium>::Item: BitRegister
 	where O: BitOrder {
 		if value {
 			self.fetch_or(
-				index.select::<O>().value(),
+				index.select::<O>().into_inner(),
 				atomic::Ordering::Relaxed,
 			);
 		}
 		else {
 			self.fetch_and(
-				!index.select::<O>().value(),
+				!index.select::<O>().into_inner(),
 				atomic::Ordering::Relaxed,
 			);
 		}

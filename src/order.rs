@@ -264,12 +264,12 @@ pub struct Lsb0;
 unsafe impl BitOrder for Lsb0 {
 	fn at<R>(index: BitIdx<R>) -> BitPos<R>
 	where R: BitRegister {
-		unsafe { BitPos::new_unchecked(index.value()) }
+		unsafe { BitPos::new_unchecked(index.into_inner()) }
 	}
 
 	fn select<R>(index: BitIdx<R>) -> BitSel<R>
 	where R: BitRegister {
-		unsafe { BitSel::new_unchecked(R::ONE << index.value()) }
+		unsafe { BitSel::new_unchecked(R::ONE << index.into_inner()) }
 	}
 
 	fn mask<R>(
@@ -279,8 +279,8 @@ unsafe impl BitOrder for Lsb0 {
 	where
 		R: BitRegister,
 	{
-		let from = from.into().unwrap_or(BitIdx::ZERO).value();
-		let upto = upto.into().unwrap_or(BitTail::LAST).value();
+		let from = from.into().unwrap_or(BitIdx::ZERO).into_inner();
+		let upto = upto.into().unwrap_or(BitTail::LAST).into_inner();
 		debug_assert!(
 			from <= upto,
 			"Ranges must run from low index ({}) to high ({})",
@@ -307,7 +307,7 @@ pub struct Msb0;
 unsafe impl BitOrder for Msb0 {
 	fn at<R>(index: BitIdx<R>) -> BitPos<R>
 	where R: BitRegister {
-		unsafe { BitPos::new_unchecked(R::MASK - index.value()) }
+		unsafe { BitPos::new_unchecked(R::MASK - index.into_inner()) }
 	}
 
 	fn select<R>(index: BitIdx<R>) -> BitSel<R>
@@ -317,7 +317,7 @@ unsafe impl BitOrder for Msb0 {
 		subtraction followed by a rshift, while this lowers to a single rshift.
 		*/
 		let msbit: R = R::ONE << R::MASK;
-		unsafe { BitSel::new_unchecked(msbit >> index.value()) }
+		unsafe { BitSel::new_unchecked(msbit >> index.into_inner()) }
 	}
 
 	fn mask<R>(
@@ -327,8 +327,8 @@ unsafe impl BitOrder for Msb0 {
 	where
 		R: BitRegister,
 	{
-		let from = from.into().unwrap_or(BitIdx::ZERO).value();
-		let upto = upto.into().unwrap_or(BitTail::LAST).value();
+		let from = from.into().unwrap_or(BitIdx::ZERO).into_inner();
+		let upto = upto.into().unwrap_or(BitTail::LAST).into_inner();
 		debug_assert!(
 			from <= upto,
 			"Ranges must run from low index ({}) to high ({})",
@@ -459,19 +459,19 @@ where
 				oname,
 				mname,
 				n,
-				pos.value(),
+				pos.into_inner(),
 			);
 		}
 
 		//  If the computed position exceeds the valid range, fail.
 		assert!(
-			pos.value() < R::BITS as u8,
+			pos.into_inner() < R::BITS as u8,
 			"Error when verifying the implementation of `BitOrder` for `{}`: \
 			 Index {} produces a bit position ({}) that exceeds the type width \
 			 {}",
 			oname,
 			n,
-			pos.value(),
+			pos.into_inner(),
 			R::BITS,
 		);
 
@@ -487,7 +487,7 @@ where
 
 		//  If the selector bit is not one-hot, fail.
 		assert_eq!(
-			sel.value().count_ones(),
+			sel.into_inner().count_ones(),
 			1,
 			"Error when verifying the implementation of `BitOrder` for `{}`: \
 			 Index {} produces a bit selector ({:b}) that is not a one-hot mask",
@@ -509,7 +509,7 @@ where
 			oname,
 			n,
 			sel,
-			pos.value(),
+			pos.into_inner(),
 			shl,
 		);
 
@@ -522,7 +522,7 @@ where
 			 produced by a prior index",
 			oname,
 			n,
-			pos.value(),
+			pos.into_inner(),
 		);
 		accum.insert(sel);
 		if verbose {

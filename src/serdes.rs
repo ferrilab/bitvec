@@ -95,7 +95,7 @@ where
 		let head = self.as_bitspan().head();
 		let mut state = serializer.serialize_struct("BitSeq", 3)?;
 
-		state.serialize_field("head", &head.value())?;
+		state.serialize_field("head", &head.into_inner())?;
 		state.serialize_field("bits", &(self.len() as u64))?;
 		state.serialize_field("data", &self.domain())?;
 
@@ -130,7 +130,7 @@ where
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		unsafe { core::ptr::read(self) }
-			.value()
+			.into_inner()
 			.serialize(serializer)
 	}
 }
@@ -243,7 +243,7 @@ where
 			.map_err(|err| match err {
 				BitSpanError::InvalidBitptr(BitPtrError::InvalidIndex(err)) => {
 					de::Error::invalid_value(
-						Unexpected::Unsigned(err.value() as u64),
+						Unexpected::Unsigned(err.into_inner() as u64),
 						&"a head-bit index less than the deserialized element \
 						  type’s bit width",
 					)

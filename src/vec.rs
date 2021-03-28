@@ -703,7 +703,7 @@ where
 	/// [`as_bitslice`]: Self::as_bitslice
 	#[inline]
 	pub fn set_uninitialized(&mut self, value: bool) {
-		let head = self.as_bitspan().head().value() as usize;
+		let head = self.as_bitspan().head().into_inner() as usize;
 		let tail = head + self.len();
 		let capa = self.capacity();
 		let mut bp = self.as_mut_bitspan();
@@ -740,7 +740,7 @@ where
 	#[inline]
 	pub fn force_align(&mut self) {
 		let bitspan = self.as_mut_bitspan();
-		let head = bitspan.head().value() as usize;
+		let head = bitspan.head().into_inner() as usize;
 		if head == 0 {
 			return;
 		}
@@ -1072,7 +1072,8 @@ where
 		let bitspan = self.bitspan;
 		let head = bitspan.head();
 		let elts = bitspan.elements();
-		let new_elts = crate::mem::elts::<T>(head.value() as usize + new_len);
+		let new_elts =
+			crate::mem::elts::<T>(head.into_inner() as usize + new_len);
 		let extra = new_elts - elts;
 		self.with_vec(|vec| {
 			func(&mut **vec, extra);

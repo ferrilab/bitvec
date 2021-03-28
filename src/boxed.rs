@@ -435,7 +435,7 @@ where
 	pub fn set_uninitialized(&mut self, value: bool) {
 		let mut bp = self.bitspan;
 		let (_, head, bits) = bp.raw_parts();
-		let head = head.value() as usize;
+		let head = head.into_inner() as usize;
 		let tail = head + bits;
 		let full = crate::mem::elts::<T::Mem>(tail) * T::Mem::BITS as usize;
 		unsafe {

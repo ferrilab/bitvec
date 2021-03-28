@@ -1059,12 +1059,12 @@ where
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => (O::mask(head, tail)
 				& elem.load_value())
-			.value()
+			.into_inner()
 			.count_ones() as usize,
 			Domain::Region { head, body, tail } => {
 				head.map_or(0, |(head, elem)| {
 					(O::mask(head, None) & elem.load_value())
-						.value()
+						.into_inner()
 						.count_ones() as usize
 				}) + body
 					.iter()
@@ -1072,7 +1072,7 @@ where
 					.map(|e| e.count_ones() as usize)
 					.sum::<usize>() + tail.map_or(0, |(elem, tail)| {
 					(O::mask(None, tail) & elem.load_value())
-						.value()
+						.into_inner()
 						.count_ones() as usize
 				})
 			},
@@ -1104,12 +1104,12 @@ where
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => (!O::mask(head, tail)
 				| elem.load_value())
-			.value()
+			.into_inner()
 			.count_zeros() as usize,
 			Domain::Region { head, body, tail } => {
 				head.map_or(0, |(head, elem)| {
 					(!O::mask(head, None) | elem.load_value())
-						.value()
+						.into_inner()
 						.count_zeros() as usize
 				}) + body
 					.iter()
@@ -1117,7 +1117,7 @@ where
 					.map(|e| e.count_zeros() as usize)
 					.sum::<usize>() + tail.map_or(0, |(elem, tail)| {
 					(!O::mask(None, tail) | elem.load_value())
-						.value()
+						.into_inner()
 						.count_zeros() as usize
 				})
 			},

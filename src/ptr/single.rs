@@ -601,14 +601,14 @@ where
 		this uses pure numeric arithmetic on the address values.
 		*/
 		self.addr
-			.value()
-			.wrapping_sub(origin.addr.value())
+			.into_inner()
+			.wrapping_sub(origin.addr.into_inner())
 			//  Pointers step by `T`, but **address values** step by `u8`.
 			.wrapping_mul(<u8 as IsNumber>::BITS as usize)
 			//  `self.head` moves the end farther from origin,
-			.wrapping_add(self.head.value() as usize)
+			.wrapping_add(self.head.into_inner() as usize)
 			//  and `origin.head` moves the origin closer to the end.
-			.wrapping_sub(origin.head.value() as usize) as isize
+			.wrapping_sub(origin.head.into_inner() as usize) as isize
 	}
 
 	/// Calculates the offset from a pointer (convenience for `.offset(count as
@@ -855,7 +855,7 @@ where
 		let width = <T::Mem as IsNumber>::BITS as usize;
 		match (
 			self.addr.to_const().align_offset(align),
-			self.head.value() as usize,
+			self.head.into_inner() as usize,
 		) {
 			(0, 0) => 0,
 			(0, head) => align * 8 - head,
@@ -1171,7 +1171,7 @@ where
 	/// [`ptr::write_volatile`]: crate::ptr::write_volatile
 	#[inline]
 	pub unsafe fn write_volatile(self, val: bool) {
-		let select = O::select(self.head).value();
+		let select = O::select(self.head).into_inner();
 		let mut tmp = self.addr.to_mem().read_volatile();
 		if val {
 			tmp |= &select;
@@ -1276,8 +1276,8 @@ where
 		if !dvl::match_store::<T1::Mem, T2::Mem>() {
 			return false;
 		}
-		self.get_addr().value() == other.get_addr().value()
-			&& self.head.value() == other.head.value()
+		self.get_addr().into_inner() == other.get_addr().into_inner()
+			&& self.head.into_inner() == other.head.into_inner()
 	}
 }
 
@@ -1295,9 +1295,10 @@ where
 		if !dvl::match_store::<T1::Mem, T2::Mem>() {
 			return None;
 		}
-		match (self.get_addr().value()).cmp(&other.get_addr().value()) {
+		match (self.get_addr().into_inner()).cmp(&other.get_addr().into_inner())
+		{
 			cmp::Ordering::Equal => {
-				self.head.value().partial_cmp(&other.head.value())
+				self.head.into_inner().partial_cmp(&other.head.into_inner())
 			},
 			ord => Some(ord),
 		}
@@ -1498,7 +1499,7 @@ mod tests {
 		let bitptr = BitPtr::<Const, Lsb0, _>::try_new(&data, head).unwrap();
 		let (addr, indx) = bitptr.raw_parts();
 		assert_eq!(addr.to_const(), &data as *const _);
-		assert_eq!(indx.value(), head);
+		assert_eq!(indx.into_inner(), head);
 	}
 
 	#[test]
