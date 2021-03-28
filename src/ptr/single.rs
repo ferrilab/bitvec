@@ -1145,7 +1145,7 @@ where
 	#[inline]
 	#[allow(clippy::clippy::missing_safety_doc)]
 	pub unsafe fn write(self, value: bool) {
-		(&*self.addr.to_access()).write_bit::<O>(self.head, value);
+		self.replace(value);
 	}
 
 	/// Performs a volatile write of a memory location with the given bit.
@@ -1195,9 +1195,7 @@ where
 	/// [`ptr::replace`]: crate::ptr::replace
 	#[inline]
 	pub unsafe fn replace(self, src: bool) -> bool {
-		let out = self.read();
-		self.write(src);
-		out
+		(&*self.addr.to_access()).write_bit::<O>(self.head, src)
 	}
 
 	/// Swaps the bits at two mutable locations. They may overlap.
@@ -1217,9 +1215,7 @@ where
 		O2: BitOrder,
 		T2: BitStore,
 	{
-		let (a, b) = (self.read(), with.read());
-		self.write(b);
-		with.write(a);
+		self.write(with.replace(self.read()));
 	}
 }
 

@@ -21,6 +21,7 @@ same location may write.
 
 use core::sync::atomic;
 
+use funty::IsInteger;
 use radium::Radium;
 
 use crate::{
@@ -138,25 +139,28 @@ where <Self as Radium>::Item: BitRegister
 	/// - `index`: The semantic index of the bit in `*self` to write.
 	/// - `value`: The bit value to write into `*self` at `index`.
 	///
+	/// # Returns
+	///
+	/// The bit previously stored in `*self` at `index`. As these operations are
+	/// required to load the `*self` value from memory in order to work, the
+	/// previous value can be retained to reduce spurious loads elsewhere in the
+	/// crate.
+	///
 	/// # Effects
 	///
 	/// The memory register at address `self` has the bit corresponding to the
 	/// `index` cursor under the `O` order written with the new `value`, and all
 	/// other bits are unchanged.
-	fn write_bit<O>(&self, index: BitIdx<Self::Item>, value: bool)
+	fn write_bit<O>(&self, index: BitIdx<Self::Item>, value: bool) -> bool
 	where O: BitOrder {
-		if value {
-			self.fetch_or(
-				index.select::<O>().into_inner(),
-				atomic::Ordering::Relaxed,
-			);
-		}
-		else {
-			self.fetch_and(
-				!index.select::<O>().into_inner(),
-				atomic::Ordering::Relaxed,
-			);
-		}
+		let select = index.select::<O>().into_inner();
+		select
+			& if value {
+				self.fetch_or(select, atomic::Ordering::Relaxed)
+			}
+			else {
+				self.fetch_and(!select, atomic::Ordering::Relaxed)
+			} != <Self::Item>::ZERO
 	}
 
 	/// Gets the function that writes `value` into all bits under a mask.
