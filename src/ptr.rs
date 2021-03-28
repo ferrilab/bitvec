@@ -96,25 +96,27 @@ pub(crate) mod range;
 mod single;
 mod span;
 
-pub(crate) use self::span::BitSpan;
-pub use crate::{
-	mutability::{
+pub(crate) use self::{
+	address::AddressExt,
+	span::BitSpan,
+};
+pub use self::{
+	address::{
+		check_alignment,
+		Address,
 		Const,
+		MisalignError,
 		Mut,
+		Mutability,
+		NullPtrError,
 	},
-	ptr::{
-		address::{
-			Address,
-			AddressError,
-		},
-		proxy::BitRef,
-		range::BitPtrRange,
-		single::{
-			BitPtr,
-			BitPtrError,
-		},
-		span::BitSpanError,
+	proxy::BitRef,
+	range::BitPtrRange,
+	single::{
+		BitPtr,
+		BitPtrError,
 	},
+	span::BitSpanError,
 };
 
 /// Copies `count` bits from `src` to `dst`. The source and destination may

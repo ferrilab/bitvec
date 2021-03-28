@@ -47,10 +47,6 @@ use crate::{
 	domain::Domain,
 	index::BitIdx,
 	mem::BitRegister,
-	mutability::{
-		Const,
-		Mut,
-	},
 	order::{
 		BitOrder,
 		Lsb0,
@@ -59,6 +55,8 @@ use crate::{
 		BitPtr,
 		BitSpan,
 		BitSpanError,
+		Const,
+		Mut,
 	},
 	slice::BitSlice,
 	store::BitStore,

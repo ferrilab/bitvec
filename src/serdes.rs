@@ -69,10 +69,11 @@ use crate::{
 	domain::Domain,
 	order::BitOrder,
 	ptr::{
-		AddressError,
 		BitPtr,
 		BitPtrError,
 		BitSpanError,
+		MisalignError,
+		NullPtrError,
 	},
 	slice::BitSlice,
 	store::BitStore,
@@ -241,7 +242,7 @@ where
 			.and_then(|bp| bp.span(bits))
 			//  Capture the errors that can arise from the deser data,
 			.map_err(|err| match err {
-				BitSpanError::InvalidBitptr(BitPtrError::InvalidIndex(err)) => {
+				BitSpanError::InvalidBitptr(BitPtrError::BadIndex(err)) => {
 					de::Error::invalid_value(
 						Unexpected::Unsigned(err.into_inner() as u64),
 						&"a head-bit index less than the deserialized element \
@@ -257,13 +258,13 @@ where
 					"The allocator will not produce a vector too high in the \
 					 memory space"
 				),
-				BitSpanError::InvalidBitptr(BitPtrError::InvalidAddress(
-					AddressError::Null,
+				BitSpanError::InvalidBitptr(BitPtrError::Null(
+					NullPtrError,
 				)) => {
 					unreachable!("The allocator will not produce a null pointer")
 				},
-				BitSpanError::InvalidBitptr(BitPtrError::InvalidAddress(
-					AddressError::Misaligned(_),
+				BitSpanError::InvalidBitptr(BitPtrError::Misaligned(
+					MisalignError { ptr: _ },
 				)) => {
 					unreachable!(
 						"The allocator will not produce a misaligned buffer"

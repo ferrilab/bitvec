@@ -15,15 +15,13 @@ use tap::pipe::Pipe;
 use crate::{
 	boxed::BitBox,
 	index::BitTail,
-	mutability::{
-		Const,
-		Mut,
-	},
 	order::BitOrder,
 	ptr::{
-		Address,
+		AddressExt,
 		BitPtr,
 		BitSpan,
+		Const,
+		Mut,
 	},
 	slice::BitSlice,
 	store::BitStore,
@@ -126,9 +124,7 @@ where
 			.pipe(Vec::<T>::with_capacity)
 			.pipe(ManuallyDrop::new);
 		let (addr, capacity) = (vec.as_mut_ptr(), vec.capacity());
-		let bitspan = BitSpan::uninhabited(unsafe {
-			Address::new_unchecked(addr as usize)
-		});
+		let bitspan = BitSpan::uninhabited(unsafe { addr.force_wrap() });
 		Self { bitspan, capacity }
 	}
 

@@ -29,9 +29,11 @@ use tap::pipe::Pipe;
 
 use crate::{
 	boxed::BitBox,
-	mutability::Mut,
 	order::BitOrder,
-	ptr::BitSpan,
+	ptr::{
+		BitSpan,
+		Mut,
+	},
 	slice::BitSlice,
 	store::BitStore,
 	vec::BitVec,

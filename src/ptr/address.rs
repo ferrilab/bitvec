@@ -1,12 +1,12 @@
-//! Non-null, well-aligned, `BitStore` addresses with limited casting capability
+/*! Address management.
+
+This module only provides utilities for requiring that `T: BitStore` addresses
+are well aligned to their type. It also exports the type-level mutability
+tracking behavior now provided by [`wyz::comu`].
+!*/
 
 use core::{
-	any::type_name,
-	cmp,
-	convert::{
-		Infallible,
-		TryFrom,
-	},
+	any,
 	fmt::{
 		self,
 		Debug,
@@ -14,408 +14,154 @@ use core::{
 		Formatter,
 		Pointer,
 	},
-	hash::{
-		Hash,
-		Hasher,
-	},
-	marker::PhantomData,
-	mem::align_of,
-	ptr::NonNull,
+	mem,
 };
 
-use tap::pipe::Pipe;
-
-use crate::{
-	devel as dvl,
-	mem::BitMemory,
-	mutability::{
-		Const,
-		Mut,
-		Mutability,
-	},
-	store::BitStore,
+use tap::{
+	Pipe,
+	TryConv,
 };
+pub use wyz::comu::{
+	Address,
+	Const,
+	Mut,
+	Mutability,
+	NullPtrError,
+};
+use wyz::FmtForward;
 
-/** A non-null, well-aligned, `BitStore` element address.
-
-This adds non-null and well-aligned requirements to memory addresses so that the
-crate can rely on these invariants throughout its implementation. The type is
-public API, but opaque, and only constructible through conversions of pointer
-and reference values.
-
-# Type Parameters
-
-- `M`: The mutability permissions of the source pointer.
-- `T`: The referent type of the source pointer.
-**/
-#[repr(transparent)]
-pub struct Address<M, T = usize>
-where
-	M: Mutability,
-	T: BitStore,
-{
-	/// `Address` is just a wrapper over `NonNull` with some additional casting
-	/// abilities.
-	inner: NonNull<T>,
-	/// In addition, `Address` tracks the write permissions of its source.
-	_mut: PhantomData<M>,
+/// Ensures that an address is well-aligned to its referent type.
+#[inline]
+pub fn check_alignment<M, T>(
+	addr: Address<M, T>,
+) -> Result<Address<M, T>, MisalignError<T>>
+where M: Mutability {
+	let ptr = addr.to_const();
+	let mask = mem::align_of::<T>() - 1;
+	if ptr as usize & mask != 0 {
+		Err(MisalignError { ptr })
+	}
+	else {
+		Ok(addr)
+	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<M, T> Address<M, T>
-where
-	M: Mutability,
-	T: BitStore,
-{
-	/// The dangling address.
-	pub(crate) const DANGLING: Self = Self {
-		inner: NonNull::dangling(),
-		_mut: PhantomData,
-	};
+/// Extension methods for raw pointers.
+pub(crate) trait AddressExt<T> {
+	/// Tracks the original mutation capability of the source pointer.
+	type Permission: Mutability;
 
-	/// Attempts to create a new `Address` from a location value.
+	/// Forcibly wraps the raw pointer as an `Address`, without handling errors.
 	///
-	/// # Parameters
-	///
-	/// - `addr`: Any location value.
-	///
-	/// # Returns
-	///
-	/// If `addr` is not the null address, and is well-aligned for `T`, this
-	/// returns an `Address` wrapping it; if either condition is violated, this
-	/// returns the corresponding error.
-	#[inline]
-	pub(crate) fn new(addr: usize) -> Result<Self, AddressError<T>> {
-		let align_mask = align_of::<T>() - 1;
-		if addr & align_mask != 0 {
-			return Err(AddressError::Misaligned(addr as *const T));
-		}
-		NonNull::new(addr as *mut T)
-			.ok_or(AddressError::Null)
-			.map(|inner| Self {
-				inner,
-				_mut: PhantomData,
-			})
-	}
-
-	/// Creates a new `Address` without checking the value for correctness.
+	/// In debug builds, this will panic on null or misaligned pointers. In
+	/// release builds, it is permitted to remove the error-handling codepaths
+	/// and assume those invariants are upheld by the caller.
 	///
 	/// # Safety
 	///
-	/// `addr` must be well-aligned and not null.
-	#[inline(always)]
-	pub(crate) unsafe fn new_unchecked(addr: usize) -> Self {
-		Self {
-			inner: NonNull::new_unchecked(addr as *mut T),
-			_mut: PhantomData,
-		}
-	}
+	/// The caller must ensure that this is only called on non-null,
+	/// well-aligned, pointers. Pointers derived from Rust references or calls
+	/// to the Rust allocator API will always satisfy this.
+	unsafe fn force_wrap(self) -> Address<Self::Permission, T>;
+}
 
-	/// Removes write permissions from the `Address`.
-	#[inline(always)]
-	pub(crate) fn immut(self) -> Address<Const, T> {
-		let Self { inner, .. } = self;
-		Address {
-			inner,
-			..Address::DANGLING
-		}
-	}
+impl<T> AddressExt<T> for *const T {
+	type Permission = Const;
 
-	/// Adds write permissions to the `Address`.
-	///
-	/// # Safety
-	///
-	/// When called on an `Address<Const, _>`, the address must have been
-	/// previously constructed from a mutable location and lowered with `immut`.
-	#[inline(always)]
-	pub(crate) unsafe fn assert_mut(self) -> Address<Mut, T> {
-		let Self { inner, .. } = self;
-		Address {
-			inner,
-			..Address::DANGLING
-		}
+	unsafe fn force_wrap(self) -> Address<Const, T> {
+		self.try_conv::<Address<_, _>>()
+			//  Don’t call this with null pointers.
+			.unwrap_or_else(|err| unreachable!("{}", err))
+			.pipe(check_alignment)
+			//  Don’t call this with misaligned pointers either.
+			.unwrap_or_else(|err| unreachable!("{}", err))
 	}
+}
 
-	/// Applies `<*mut T>::offset`.
-	///
-	/// # Panics
-	///
-	/// This panics if the result of applying the offset is the null pointer.
+impl<T> AddressExt<T> for *mut T {
+	type Permission = Mut;
+
+	unsafe fn force_wrap(self) -> Address<Mut, T> {
+		self.try_conv::<Address<_, _>>()
+			.unwrap_or_else(|err| unreachable!("{}", err))
+			.pipe(check_alignment)
+			.unwrap_or_else(|err| unreachable!("{}", err))
+	}
+}
+
+/// Error produced when an address is insufficiently aligned to its type.
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MisalignError<T> {
+	/// The misaligned pointer.
+	pub ptr: *const T,
+}
+
+impl<T> MisalignError<T> {
+	const ALIGN: usize = mem::align_of::<T>();
+	const CTTZ: usize = Self::ALIGN.trailing_zeros() as usize;
+}
+
+impl<T> Debug for MisalignError<T> {
 	#[inline]
-	pub(crate) unsafe fn offset(mut self, count: isize) -> Self {
-		self.inner = self
-			.inner
-			.as_ptr()
-			.offset(count)
-			.pipe(NonNull::new)
-			.expect("Offset cannot produce the null pointer");
-		self
-	}
-
-	/// Applies `<*mut T>::wrapping_offset`.
-	///
-	/// # Panics
-	///
-	/// This panics if the result of applying the offset is the null pointer.
-	#[inline]
-	pub(crate) fn wrapping_offset(mut self, count: isize) -> Self {
-		self.inner = self
-			.inner
-			.as_ptr()
-			.wrapping_offset(count)
-			.pipe(NonNull::new)
-			.expect("Wrapping offset cannot produce the null pointer");
-		self
-	}
-
-	/// Gets the address as a pointer to the access type.
-	#[inline(always)]
-	pub(crate) fn to_access(self) -> *const T::Access {
-		self.to_const().cast::<T::Access>()
-	}
-
-	/// Gets the address as a read-only pointer.
-	#[inline(always)]
-	pub fn to_const(self) -> *const T {
-		self.inner.as_ptr() as *const T
-	}
-
-	/// Gets the address as a read-only pointer to the register type.
-	#[inline(always)]
-	pub(crate) fn to_mem(self) -> *const T::Mem {
-		self.to_const().cast::<T::Mem>()
-	}
-
-	/// Gets the address as a non-null pointer.
-	#[inline(always)]
-	#[cfg(feature = "alloc")]
-	pub(crate) fn to_nonnull(self) -> NonNull<T> {
-		self.inner
-	}
-
-	/// Gets the raw numeric value of the address.
-	#[inline(always)]
-	pub(crate) fn into_inner(self) -> usize {
-		self.inner.as_ptr() as usize
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<T> Address<Mut, T>
-where T: BitStore
-{
-	/// Gets the address as a write-capable pointer.
-	#[inline(always)]
-	#[allow(clippy::clippy::wrong_self_convention)]
-	pub fn to_mut(self) -> *mut T {
-		self.inner.as_ptr()
-	}
-
-	/// Gets the address as a write-capable pointer to the register type.
-	#[inline(always)]
-	pub(crate) fn to_mem_mut(self) -> *mut T::Mem {
-		self.to_mut().cast::<T::Mem>()
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<M, T> Clone for Address<M, T>
-where
-	M: Mutability,
-	T: BitStore,
-{
-	#[inline(always)]
-	fn clone(&self) -> Self {
-		*self
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<T> From<&T> for Address<Const, T>
-where T: BitStore
-{
-	#[inline(always)]
-	fn from(elem: &T) -> Self {
-		Self {
-			inner: elem.into(),
-			_mut: PhantomData,
-		}
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<T> From<&mut T> for Address<Mut, T>
-where T: BitStore
-{
-	#[inline(always)]
-	fn from(elem: &mut T) -> Self {
-		Self {
-			inner: elem.into(),
-			_mut: PhantomData,
-		}
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<T> TryFrom<*const T> for Address<Const, T>
-where T: BitStore
-{
-	type Error = AddressError<T>;
-
-	#[inline(always)]
-	fn try_from(elem: *const T) -> Result<Self, Self::Error> {
-		Self::new(elem as usize)
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<T> TryFrom<*mut T> for Address<Mut, T>
-where T: BitStore
-{
-	type Error = AddressError<T>;
-
-	#[inline(always)]
-	fn try_from(elem: *mut T) -> Result<Self, Self::Error> {
-		Self::new(elem as usize)
-	}
-}
-
-impl<M, T> Eq for Address<M, T>
-where
-	M: Mutability,
-	T: BitStore,
-{
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<M1, M2, T1, T2> PartialEq<Address<M2, T2>> for Address<M1, T1>
-where
-	M1: Mutability,
-	M2: Mutability,
-	T1: BitStore,
-	T2: BitStore,
-{
-	#[inline]
-	fn eq(&self, other: &Address<M2, T2>) -> bool {
-		dvl::match_store::<T1::Mem, T2::Mem>()
-			&& self.into_inner() == other.into_inner()
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<M, T> Ord for Address<M, T>
-where
-	M: Mutability,
-	T: BitStore,
-{
-	#[inline]
-	fn cmp(&self, other: &Self) -> cmp::Ordering {
-		self.partial_cmp(&other)
-			.expect("Addresses have a total ordering")
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<M1, M2, T1, T2> PartialOrd<Address<M2, T2>> for Address<M1, T1>
-where
-	M1: Mutability,
-	M2: Mutability,
-	T1: BitStore,
-	T2: BitStore,
-{
-	#[inline]
-	fn partial_cmp(&self, other: &Address<M2, T2>) -> Option<cmp::Ordering> {
-		if !dvl::match_store::<T1::Mem, T2::Mem>() {
-			return None;
-		}
-		self.into_inner().partial_cmp(&other.into_inner())
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<M, T> Debug for Address<M, T>
-where
-	M: Mutability,
-	T: BitStore,
-{
-	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		Debug::fmt(&self.to_const(), fmt)
+		fmt.debug_tuple("Misalign")
+			.field(&self.ptr.fmt_pointer())
+			.field(&Self::ALIGN)
+			.finish()
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<M, T> Pointer for Address<M, T>
-where
-	M: Mutability,
-	T: BitStore,
-{
-	#[inline(always)]
+impl<T> Display for MisalignError<T> {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		Pointer::fmt(&self.to_const(), fmt)
+		write!(
+			fmt,
+			"Type {} requires {}-byte alignment: address ",
+			any::type_name::<T>(),
+			Self::ALIGN,
+		)?;
+		Pointer::fmt(&self.ptr, fmt)?;
+		write!(fmt, " must clear its least {} bits", Self::CTTZ)
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<M, T> Hash for Address<M, T>
-where
-	M: Mutability,
-	T: BitStore,
-{
-	#[inline(always)]
-	fn hash<H>(&self, state: &mut H)
-	where H: Hasher {
-		self.inner.hash(state)
-	}
+unsafe impl<T> Send for MisalignError<T> {
 }
 
-impl<M, T> Copy for Address<M, T>
-where
-	M: Mutability,
-	T: BitStore,
-{
-}
-
-/// An error produced when consuming `BitStore` memory addresses.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum AddressError<T>
-where T: BitStore
-{
-	/// `Address` cannot use the null pointer.
-	Null,
-	/// `Address` cannot be misaligned for the referent type `T`.
-	Misaligned(*const T),
-}
-
-impl<T> From<Infallible> for AddressError<T>
-where T: BitStore
-{
-	fn from(_: Infallible) -> Self {
-		unreachable!("Infallible errors can never be produced");
-	}
-}
-
-impl<T> Display for AddressError<T>
-where T: BitStore
-{
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		match *self {
-			Self::Null => {
-				fmt.write_str("`bitvec` will not operate on the null pointer")
-			},
-			Self::Misaligned(ptr) => write!(
-				fmt,
-				"`bitvec` requires that the address {:p} clear its least {} \
-				 bits to be aligned for type {}",
-				ptr,
-				T::Mem::INDX - 3,
-				type_name::<T::Mem>(),
-			),
-		}
-	}
+unsafe impl<T> Sync for MisalignError<T> {
 }
 
 #[cfg(feature = "std")]
-impl<T> std::error::Error for AddressError<T> where T: BitStore
-{
+impl<T> std::error::Error for MisalignError<T> {
+}
+
+#[test]
+#[cfg(feature = "alloc")]
+fn render() {
+	#[cfg(not(feature = "std"))]
+	use alloc::format;
+	use core::ptr::NonNull;
+
+	assert_eq!(
+		format!(
+			"{}",
+			check_alignment(Address::<Const, u16>::new(
+				NonNull::new(0x13579 as *mut _).unwrap()
+			))
+			.unwrap_err()
+		),
+		"Type u16 requires 2-byte alignment: address 0x13579 must clear its \
+		 least 1 bits"
+	);
+	assert_eq!(
+		format!(
+			"{}",
+			check_alignment(Address::<Const, u32>::new(
+				NonNull::new(0x13579 as *mut _).unwrap()
+			))
+			.unwrap_err()
+		),
+		"Type u32 requires 4-byte alignment: address 0x13579 must clear its \
+		 least 2 bits"
+	);
 }

@@ -34,16 +34,16 @@ use core::{
 };
 
 use crate::{
-	mutability::{
-		Const,
-		Mut,
-		Mutability,
-	},
 	order::{
 		BitOrder,
 		Lsb0,
 	},
-	ptr::BitPtr,
+	ptr::{
+		BitPtr,
+		Const,
+		Mut,
+		Mutability,
+	},
 	store::BitStore,
 };
 

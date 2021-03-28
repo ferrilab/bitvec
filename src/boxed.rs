@@ -40,7 +40,6 @@ use tap::pipe::Pipe;
 
 use crate::{
 	index::BitIdx,
-	mutability::Mut,
 	order::{
 		BitOrder,
 		Lsb0,
@@ -48,6 +47,7 @@ use crate::{
 	ptr::{
 		BitPtr,
 		BitSpan,
+		Mut,
 	},
 	slice::BitSlice,
 	store::BitStore,

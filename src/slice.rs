@@ -41,10 +41,7 @@ the [`core`] and [`std`] distribution libraries.
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 #[cfg(feature = "alloc")]
-use core::{
-	convert::TryInto,
-	mem::ManuallyDrop,
-};
+use core::mem::ManuallyDrop;
 use core::{
 	marker::PhantomData,
 	ops::RangeBounds,
@@ -73,10 +70,6 @@ use crate::{
 	},
 	index::BitMask,
 	mem::BitRegister,
-	mutability::{
-		Const,
-		Mut,
-	},
 	order::{
 		BitOrder,
 		Lsb0,
@@ -88,12 +81,14 @@ use crate::{
 		BitRef,
 		BitSpan,
 		BitSpanError,
+		Const,
+		Mut,
 	},
 	store::BitStore,
 };
 #[cfg(feature = "alloc")]
 use crate::{
-	ptr::Address,
+	ptr::AddressExt,
 	vec::BitVec,
 };
 
@@ -1254,7 +1249,7 @@ where
 	/// ```
 	#[inline]
 	pub fn leading_ones(&self) -> usize {
-		self.first_zero().unwrap_or(0)
+		self.first_zero().unwrap_or_default()
 	}
 
 	/// Counts the number of bits from the start of the bit-slice to the first
@@ -1273,7 +1268,7 @@ where
 	/// ```
 	#[inline]
 	pub fn leading_zeros(&self) -> usize {
-		self.first_one().unwrap_or(0)
+		self.first_one().unwrap_or_default()
 	}
 
 	/// Counts the number of bits from the end of the bit-slice to the last bit
@@ -1294,7 +1289,7 @@ where
 	pub fn trailing_ones(&self) -> usize {
 		self.last_zero()
 			.map(|idx| self.len() - 1 - idx)
-			.unwrap_or(0)
+			.unwrap_or_default()
 	}
 
 	/// Counts the number of bits from the end of the bit-slice to the last bit
@@ -1313,7 +1308,9 @@ where
 	/// ```
 	#[inline]
 	pub fn trailing_zeros(&self) -> usize {
-		self.last_one().map(|idx| self.len() - 1 - idx).unwrap_or(0)
+		self.last_one()
+			.map(|idx| self.len() - 1 - idx)
+			.unwrap_or_default()
 	}
 
 	/// Copies the bits from `src` into `self`.
@@ -2643,24 +2640,14 @@ where
 	///
 	/// [`BitVec`]: crate::vec::BitVec
 	pub fn to_bitvec(&self) -> BitVec<O, T::Unalias> {
-		let mut bitspan = self.as_bitspan();
+		let bitspan = self.as_bitspan();
 		//  Create an allocation and copy `*self` into it.
 		let mut vec = self.domain().collect::<Vec<_>>().pipe(ManuallyDrop::new);
 		let capacity = vec.capacity();
 		unsafe {
-			bitspan
-				.set_address(Address::new_unchecked(vec.as_mut_ptr() as usize));
 			BitVec::from_fields(
 				BitSpan::new_unchecked(
-					vec.as_mut_ptr()
-						.cast::<T::Unalias>()
-						.try_into()
-						.unwrap_or_else(|err| {
-							unreachable!(
-								"The allocator produced an improper address: {}",
-								err
-							)
-						}),
+					vec.as_mut_ptr().cast::<T::Unalias>().force_wrap(),
 					bitspan.head(),
 					bitspan.len(),
 				),

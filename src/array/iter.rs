@@ -14,9 +14,11 @@ use tap::pipe::Pipe;
 
 use crate::{
 	array::BitArray,
-	mutability::Const,
 	order::BitOrder,
-	ptr::BitPtr,
+	ptr::{
+		BitPtr,
+		Const,
+	},
 	slice::BitSlice,
 	view::BitViewSized,
 };

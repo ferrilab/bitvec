@@ -29,11 +29,6 @@ use crate::{
 		BitTail,
 	},
 	mem::BitMemory,
-	mutability::{
-		Const,
-		Mut,
-		Mutability,
-	},
 	order::{
 		BitOrder,
 		Lsb0,
@@ -42,6 +37,9 @@ use crate::{
 		Address,
 		BitPtr,
 		BitPtrError,
+		Const,
+		Mut,
+		Mutability,
 	},
 	slice::BitSlice,
 	store::BitStore,
@@ -281,7 +279,7 @@ where
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn uninhabited(addr: Address<M, T>) -> Self {
 		Self {
-			ptr: addr.to_nonnull().cast::<()>(),
+			ptr: addr.into_inner().cast::<()>(),
 			len: 0,
 			_or: PhantomData,
 			_ty: PhantomData,
@@ -331,7 +329,7 @@ where
 		bits: usize,
 	) -> Self {
 		let head = head.into_inner() as usize;
-		let ptr_data = addr.into_inner() & Self::PTR_ADDR_MASK;
+		let ptr_data = addr.to_const() as usize & Self::PTR_ADDR_MASK;
 		let ptr_head = head >> Self::LEN_HEAD_BITS;
 
 		let len_head = head & Self::LEN_HEAD_MASK;
@@ -496,7 +494,7 @@ where
 					runs for the remaining bits in it, and all the bits of `l`.
 					*/
 					Some((head, addr)) => BitSpan::new_unchecked(
-						Address::new_unchecked(addr as *const _ as usize),
+						Address::new(NonNull::from(addr)),
 						head,
 						t_bits - head.into_inner() as usize + l_bits,
 					),
@@ -508,7 +506,7 @@ where
 						}
 						else {
 							BitSpan::new_unchecked(
-								Address::new_unchecked(l_addr as usize),
+								Address::new(NonNull::new(l_addr).unwrap()),
 								BitIdx::ZERO,
 								l_bits,
 							)
@@ -521,7 +519,7 @@ where
 				}
 				else {
 					BitSpan::new_unchecked(
-						Address::new_unchecked(c_addr as usize),
+						Address::new(NonNull::new(c_addr).unwrap()),
 						BitIdx::ZERO,
 						c_bits,
 					)
@@ -543,10 +541,10 @@ where
 						//  If the `r` slice exists, then the right span
 						//  *begins* in it.
 						if r.is_empty() {
-							Address::new_unchecked(addr as *const T as usize)
+							Address::new(NonNull::from(addr))
 						}
 						else {
-							Address::new_unchecked(r_addr as *const T as usize)
+							Address::new(NonNull::new(r_addr).unwrap())
 						},
 						BitIdx::ZERO,
 						tail.into_inner() as usize + r_bits,
@@ -557,7 +555,7 @@ where
 						//  If `r` exists, then the right span covers it.
 						if !r.is_empty() {
 							BitSpan::new_unchecked(
-								Address::new_unchecked(r_addr as usize),
+								Address::new(NonNull::new(r_addr).unwrap()),
 								BitIdx::ZERO,
 								r_bits,
 							)
@@ -589,9 +587,9 @@ where
 	/// access type.
 	pub(crate) fn address(&self) -> Address<M, T> {
 		unsafe {
-			Address::new_unchecked(
-				self.ptr.as_ptr() as usize & Self::PTR_ADDR_MASK,
-			)
+			Address::new(NonNull::new_unchecked(
+				(self.ptr.as_ptr() as usize & Self::PTR_ADDR_MASK) as *mut T,
+			))
 		}
 	}
 
@@ -615,7 +613,7 @@ where
 		A::Error: Debug,
 	{
 		let addr = addr.try_into().unwrap();
-		let mut addr_value = addr.into_inner();
+		let mut addr_value = addr.to_const() as usize;
 		addr_value &= Self::PTR_ADDR_MASK;
 		addr_value |= self.ptr.as_ptr() as usize & Self::PTR_HEAD_MASK;
 		self.ptr = NonNull::new_unchecked(addr_value as *mut ());
@@ -994,7 +992,7 @@ where
 		//  Since ::BITS is an associated const, the compiler will automatically
 		//  replace the entire function with `false` when the types don’t match.
 		T1::Mem::BITS == T2::Mem::BITS
-			&& addr_a.into_inner() == addr_b.into_inner()
+			&& addr_a.to_const() as usize == addr_b.to_const() as usize
 			&& head_a.into_inner() == head_b.into_inner()
 			&& bits_a == bits_b
 	}
@@ -1140,25 +1138,32 @@ impl<T> std::error::Error for BitSpanError<T> where T: BitStore
 #[cfg(test)]
 mod tests {
 	use core::{
+		convert::TryFrom,
 		mem,
 		ptr,
 	};
 
+	use tap::Pipe;
+
 	use super::*;
 	use crate::{
 		prelude::*,
-		ptr::AddressError,
+		ptr::{
+			check_alignment,
+			MisalignError,
+			NullPtrError,
+		},
 	};
 
 	#[test]
 	fn ctor() {
 		assert!(matches!(
-			Address::<Const, u8>::new(0),
-			Err(AddressError::Null)
+			Address::<Const, u8>::try_from(ptr::null()),
+			Err(NullPtrError),
 		));
 		assert!(matches!(
-			Address::<Const, u16>::new(3),
-			Err(AddressError::Misaligned(addr)) if addr as usize == 3
+			Address::<Const, u16>::try_from(3 as *const u16).unwrap().pipe(check_alignment),
+			Err(MisalignError { ptr }) if ptr as usize == 3,
 		));
 
 		//  Double check the null pointers, but they are in practice impossible
@@ -1175,7 +1180,7 @@ mod tests {
 		let mut addr = Address::from(&data);
 		let head = BitIdx::new(5).unwrap();
 		assert!(BitSpan::<_, Lsb0, _>::new(addr, head, !3).is_err());
-		addr = unsafe { Address::new_unchecked(!1) };
+		addr = Address::try_from(!1 as *const u16).unwrap();
 		assert!(BitSpan::<_, Lsb0, _>::new(addr, head, 50).is_err());
 	}
 
@@ -1249,28 +1254,6 @@ mod tests {
 		assert_eq!(
 			mem::size_of::<Option<BitSpan<Const, LocalBits, usize>>>(),
 			mem::size_of::<*const [usize]>()
-		);
-	}
-
-	#[test]
-	#[cfg(feature = "alloc")]
-	fn render() {
-		#[cfg(not(feature = "std"))]
-		use alloc::format;
-
-		assert_eq!(
-			format!("{}", Address::<Const, u8>::new(0).unwrap_err()),
-			"`bitvec` will not operate on the null pointer"
-		);
-		assert_eq!(
-			format!("{}", Address::<Const, u16>::new(0x13579).unwrap_err()),
-			"`bitvec` requires that the address 0x13579 clear its least 1 bits \
-			 to be aligned for type u16"
-		);
-		assert_eq!(
-			format!("{}", Address::<Const, u32>::new(0x13579).unwrap_err()),
-			"`bitvec` requires that the address 0x13579 clear its least 2 bits \
-			 to be aligned for type u32"
 		);
 	}
 }

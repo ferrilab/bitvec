@@ -14,10 +14,6 @@ use core::{
 
 use crate::{
 	devel as dvl,
-	mutability::{
-		Const,
-		Mut,
-	},
 	order::{
 		BitOrder,
 		Lsb0,
@@ -26,6 +22,8 @@ use crate::{
 	ptr::{
 		BitPtrRange,
 		BitRef,
+		Const,
+		Mut,
 	},
 	slice::{
 		BitSlice,

@@ -27,7 +27,10 @@ use core::{
 };
 
 use funty::IsNumber;
-use wyz::fmt::FmtForward;
+use wyz::{
+	comu::Frozen,
+	fmt::FmtForward,
+};
 
 use crate::{
 	access::BitAccess,
@@ -36,22 +39,22 @@ use crate::{
 		BitIdx,
 		BitIdxError,
 	},
-	mutability::{
-		Const,
-		Mut,
-		Mutability,
-	},
 	order::{
 		BitOrder,
 		Lsb0,
 	},
 	ptr::{
 		Address,
-		AddressError,
+		AddressExt,
 		BitPtrRange,
 		BitRef,
 		BitSpan,
 		BitSpanError,
+		Const,
+		MisalignError,
+		Mut,
+		Mutability,
+		NullPtrError,
 	},
 	store::BitStore,
 };
@@ -138,9 +141,7 @@ where
 	/// access on `.addr` through a reference except through this method.
 	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub(crate) fn get_addr(&self) -> Address<M, T> {
-		unsafe {
-			ptr::read_unaligned(self as *const Self as *const Address<M, T>)
-		}
+		unsafe { ptr::addr_of!(self.addr).read_unaligned() }
 	}
 
 	/// Tries to construct a `BitPtr` from a memory location and a bit index.
@@ -327,6 +328,21 @@ where
 		let Self { addr, head, .. } = self;
 		BitPtr {
 			addr: addr.assert_mut(),
+			head,
+			..BitPtr::DANGLING
+		}
+	}
+
+	/// Freezes the pointer, forbidding direct mutation.
+	///
+	/// This is used as a necessary prerequisite to all mutation of memory.
+	/// `BitPtr` uses an implementation scoped to `Frozen<_>` to perform
+	/// alias-aware writes; see below.
+	#[inline]
+	pub(crate) fn freeze(self) -> BitPtr<Frozen<M>, O, T> {
+		let Self { addr, head, .. } = self;
+		BitPtr {
+			addr: addr.freeze(),
 			head,
 			..BitPtr::DANGLING
 		}
@@ -600,9 +616,9 @@ where
 		both its costs, and the implicit scaling present in pointer arithmetic,
 		this uses pure numeric arithmetic on the address values.
 		*/
-		self.addr
-			.into_inner()
-			.wrapping_sub(origin.addr.into_inner())
+		(self.addr
+			.to_const() as usize)
+			.wrapping_sub(origin.addr.to_const()as usize)
 			//  Pointers step by `T`, but **address values** step by `u8`.
 			.wrapping_mul(<u8 as IsNumber>::BITS as usize)
 			//  `self.head` moves the end farther from origin,
@@ -925,10 +941,7 @@ where
 	/// [`from_ref`]: Self::from_ref
 	#[inline]
 	pub fn from_slice(slice: &[T]) -> Self {
-		Self::new(
-			unsafe { Address::new_unchecked(slice.as_ptr() as usize) },
-			BitIdx::ZERO,
-		)
+		Self::new(unsafe { slice.as_ptr().force_wrap() }, BitIdx::ZERO)
 	}
 
 	/// Gets the pointer to the base memory location containing the referent
@@ -1011,10 +1024,7 @@ where
 	/// [`from_mut`]: Self::from_mut
 	#[inline]
 	pub fn from_mut_slice(slice: &mut [T]) -> Self {
-		Self::new(
-			unsafe { Address::new_unchecked(slice.as_mut_ptr() as usize) },
-			BitIdx::ZERO,
-		)
+		Self::new(unsafe { slice.as_mut_ptr().force_wrap() }, BitIdx::ZERO)
 	}
 
 	/// Gets the pointer to the base memory location containing the referent
@@ -1172,14 +1182,15 @@ where
 	#[inline]
 	pub unsafe fn write_volatile(self, val: bool) {
 		let select = O::select(self.head).into_inner();
-		let mut tmp = self.addr.to_mem().read_volatile();
+		let ptr = self.addr.cast::<T::Mem>().to_mut();
+		let mut tmp = ptr.read_volatile();
 		if val {
 			tmp |= &select;
 		}
 		else {
 			tmp &= &!select;
 		}
-		self.addr.to_mem_mut().write_volatile(tmp);
+		ptr.write_volatile(tmp);
 	}
 
 	/// Replaces the bit at `*self` with `src`, returning the old bit.
@@ -1195,7 +1206,7 @@ where
 	/// [`ptr::replace`]: crate::ptr::replace
 	#[inline]
 	pub unsafe fn replace(self, src: bool) -> bool {
-		(&*self.addr.to_access()).write_bit::<O>(self.head, src)
+		self.freeze().frozen_write_bit(src)
 	}
 
 	/// Swaps the bits at two mutable locations. They may overlap.
@@ -1216,6 +1227,31 @@ where
 		T2: BitStore,
 	{
 		self.write(with.replace(self.read()));
+	}
+}
+
+impl<M, O, T> BitPtr<Frozen<M>, O, T>
+where
+	M: Mutability,
+	O: BitOrder,
+	T: BitStore,
+{
+	/// Writes to a bit in memory.
+	///
+	/// # Safety
+	///
+	/// The caller is responsible for ensuring that the referent bit is safe to
+	/// modify. `bitvec` uses `&ref`/`*const` pointers for aliased write-capable
+	/// views, which the mutability tracking system currently does not support.
+	///
+	/// Once a pointer is frozen, even if it does *not* have write permissions
+	/// through either `Mut` or `Radium` in its start state, this method becomes
+	/// available. Use on incorrect pointers (f.ex. freezing an `&u8`) is
+	/// undefined.
+	#[inline]
+	unsafe fn frozen_write_bit(self, value: bool) -> bool {
+		(&*self.addr.cast::<T::Access>().to_const())
+			.write_bit::<O>(self.head, value)
 	}
 }
 
@@ -1272,7 +1308,8 @@ where
 		if !dvl::match_store::<T1::Mem, T2::Mem>() {
 			return false;
 		}
-		self.get_addr().into_inner() == other.get_addr().into_inner()
+		self.get_addr().to_const() as usize
+			== other.get_addr().to_const() as usize
 			&& self.head.into_inner() == other.head.into_inner()
 	}
 }
@@ -1291,7 +1328,8 @@ where
 		if !dvl::match_store::<T1::Mem, T2::Mem>() {
 			return None;
 		}
-		match (self.get_addr().into_inner()).cmp(&other.get_addr().into_inner())
+		match (self.get_addr().to_const() as usize)
+			.cmp(&(other.get_addr().to_const() as usize))
 		{
 			cmp::Ordering::Equal => {
 				self.head.into_inner().partial_cmp(&other.head.into_inner())
@@ -1417,19 +1455,31 @@ where
 pub enum BitPtrError<T>
 where T: BitStore
 {
-	/// The element address was somehow invalid.
-	InvalidAddress(AddressError<T>),
-	/// The bit index was somehow invalid.
-	InvalidIndex(BitIdxError<T::Mem>),
+	/// The null address was provided.
+	Null(NullPtrError),
+	/// The address was misaligned for the element type.
+	Misaligned(MisalignError<T>),
+	/// The bit index was invalid for the element type.
+	BadIndex(BitIdxError<T::Mem>),
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T> From<AddressError<T>> for BitPtrError<T>
+impl<T> From<NullPtrError> for BitPtrError<T>
 where T: BitStore
 {
 	#[inline(always)]
-	fn from(err: AddressError<T>) -> Self {
-		Self::InvalidAddress(err)
+	fn from(err: NullPtrError) -> Self {
+		Self::Null(err)
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<T> From<MisalignError<T>> for BitPtrError<T>
+where T: BitStore
+{
+	#[inline(always)]
+	fn from(err: MisalignError<T>) -> Self {
+		Self::Misaligned(err)
 	}
 }
 
@@ -1439,7 +1489,7 @@ where T: BitStore
 {
 	#[inline(always)]
 	fn from(err: BitIdxError<T::Mem>) -> Self {
-		Self::InvalidIndex(err)
+		Self::BadIndex(err)
 	}
 }
 
@@ -1460,18 +1510,11 @@ where T: BitStore
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		match self {
-			Self::InvalidAddress(addr) => Display::fmt(addr, fmt),
-			Self::InvalidIndex(index) => Display::fmt(index, fmt),
+			Self::Null(err) => Display::fmt(err, fmt),
+			Self::Misaligned(err) => Display::fmt(err, fmt),
+			Self::BadIndex(err) => Display::fmt(err, fmt),
 		}
 	}
-}
-
-unsafe impl<T> Send for BitPtrError<T> where T: BitStore
-{
-}
-
-unsafe impl<T> Sync for BitPtrError<T> where T: BitStore
-{
 }
 
 #[cfg(feature = "std")]
@@ -1483,8 +1526,8 @@ impl<T> std::error::Error for BitPtrError<T> where T: BitStore
 mod tests {
 	use super::*;
 	use crate::{
-		mutability::Const,
 		prelude::Lsb0,
+		ptr::Const,
 	};
 
 	#[test]

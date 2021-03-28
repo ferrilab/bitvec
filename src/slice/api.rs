@@ -20,16 +20,14 @@ use crate::vec::BitVec;
 use crate::{
 	array::BitArray,
 	devel as dvl,
-	mutability::{
-		Const,
-		Mut,
-	},
 	order::BitOrder,
 	ptr::{
 		BitPtr,
 		BitPtrRange,
 		BitSpan,
 		BitSpanError,
+		Const,
+		Mut,
 	},
 	slice::{
 		iter::{

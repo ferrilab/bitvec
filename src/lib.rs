@@ -290,7 +290,6 @@ pub mod domain;
 pub mod field;
 pub mod index;
 pub mod mem;
-mod mutability;
 pub mod order;
 pub mod prelude;
 pub mod ptr;

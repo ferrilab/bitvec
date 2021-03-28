@@ -5,12 +5,14 @@ use core::cell::Cell;
 use static_assertions::assert_not_impl_any;
 
 use crate::{
-	mutability::Const,
 	order::{
 		Lsb0,
 		Msb0,
 	},
-	ptr::BitPtr,
+	ptr::{
+		BitPtr,
+		Const,
+	},
 	slice::BitSlice,
 };
 

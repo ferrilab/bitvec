@@ -32,9 +32,11 @@ use tap::{
 
 use crate::{
 	devel as dvl,
-	mutability::Mutability,
 	order::BitOrder,
-	ptr::BitRef,
+	ptr::{
+		BitRef,
+		Mutability,
+	},
 	slice::{
 		BitSlice,
 		Iter,
@@ -280,7 +282,7 @@ where
 		//  lifetime.
 		let iter = bv.bitspan.to_bitslice_mut().iter_mut();
 		//  Only the allocation’s base and capacity need to be kept for `Drop`.
-		let base = bv.bitspan.address().to_nonnull();
+		let base = bv.bitspan.address().into_inner();
 		let capa = bv.capacity;
 		mem::forget(bv);
 		Self { base, capa, iter }

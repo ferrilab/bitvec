@@ -21,7 +21,6 @@ use core::{
 
 use crate::{
 	devel as dvl,
-	mutability::Mutability,
 	order::{
 		BitOrder,
 		Lsb0,
@@ -29,6 +28,7 @@ use crate::{
 	ptr::{
 		BitPtr,
 		BitSpan,
+		Mutability,
 	},
 	store::BitStore,
 };
@@ -436,8 +436,8 @@ mod tests {
 
 	use super::*;
 	use crate::{
-		mutability::Const,
 		order::Lsb0,
+		ptr::Const,
 	};
 
 	#[test]
