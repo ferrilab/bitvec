@@ -103,6 +103,7 @@ fn slice_only() {
 #[test]
 #[rustfmt::skip]
 #[cfg(feature = "alloc")]
+#[allow(clippy::eq_op)] // The matrix diagonal is a deliberate style choice.
 fn with_alloc() {
 	let a = bits![Msb0, u8; 0, 1];
 	let b = bits![mut Lsb0, u16; 0, 1];

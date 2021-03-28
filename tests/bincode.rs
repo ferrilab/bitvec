@@ -20,7 +20,6 @@ an ABI, it will only be modified in `0.X` or `X.0` releases.
 
 #![cfg(feature = "serde")]
 
-use bincode;
 use bitvec::prelude::*;
 
 #[test]

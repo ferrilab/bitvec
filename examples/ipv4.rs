@@ -6,6 +6,8 @@ each modification so that the user can manually step to the next, by running it
 with the argument "pause": `cargo run --example ipv4 -- pause`
 !*/
 
+#![allow(clippy::single_char_add_str)]
+
 use std::{
 	collections::BTreeSet,
 	fmt::{

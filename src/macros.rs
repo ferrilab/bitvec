@@ -158,11 +158,10 @@ macro_rules! bitarr {
 		type Celled = core::cell::Cell<$store>;
 
 		const ELTS: usize = $crate::__count_elts!($store; $($val),*);
-		type Data = [Celled; ELTS];
-		const DATA: Data =
-			$crate::__encode_bits!($order, Cell<$store>; $($val),*);
+		type Data = [$store; ELTS];
+		const DATA: Data = $crate::__encode_bits!($order, $store; $($val),*);
 
-		type This = $crate::array::BitArray<$order, Data>;
+		type This = $crate::array::BitArray<$order, [Celled; ELTS]>;
 		unsafe { core::mem::transmute::<_, This>(DATA) }
 	}};
 	(const $order:ident, $store:ident; $($val:expr),* $(,)?) => {{

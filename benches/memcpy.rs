@@ -11,11 +11,9 @@ in an element individually.
 use std::mem::MaybeUninit;
 
 use bitvec::{
-	mem::{
-		elts,
-	},
+	mem::elts,
 	prelude::*,
-};use funty::IsNumber;
+};
 use criterion::{
 	criterion_group,
 	criterion_main,
@@ -24,6 +22,7 @@ use criterion::{
 	SamplingMode,
 	Throughput,
 };
+use funty::IsNumber;
 use tap::tap::Tap;
 
 //  One kibibyte

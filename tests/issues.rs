@@ -1,5 +1,7 @@
 //! Test cases for defect reports.
 
+#![allow(clippy::unusual_byte_groupings)]
+
 #[cfg(feature = "alloc")]
 use bitvec::prelude::*;
 

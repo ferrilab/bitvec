@@ -266,6 +266,16 @@ the standard libraries.
 #![cfg_attr(debug_assertions, warn(missing_docs))]
 #![cfg_attr(not(debug_assertions), deny(missing_docs))]
 #![deny(unconditional_recursion)]
+//  Clippy controls applicable in ordinary code.
+#![allow(
+	clippy::single_char_add_str, // Bypass UTF-8 encoding.
+)]
+//  Clippy controls only applicable in #[cfg(test)] testing modules.
+#![cfg_attr(test, allow(
+	clippy::many_single_char_names, // Tests do not need descriptive bind names.
+	clippy::redundant_clone, // Does not matter in tests.
+	clippy::unusual_byte_groupings, // Literals are for region patterns.
+))]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

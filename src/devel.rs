@@ -130,6 +130,7 @@ mod tests {
 	use super::*;
 
 	#[test]
+	#[allow(clippy::reversed_empty_ranges)] // I know.
 	fn check_range_asserts() {
 		assert!(catch_unwind(|| assert_range(7 .. 2, None)).is_err());
 		assert!(catch_unwind(|| assert_range(0 .. 8, 4)).is_err());

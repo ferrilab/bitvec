@@ -1,0 +1,9 @@
+########################################################################
+#                         Clippy Configuration                         #
+#                                                                      #
+# This file controls the `cargo clippy` linter for the lints where it  #
+# accepts external input. Relatively few lints do; most require        #
+# attributes set directly in the source code.                          #
+########################################################################
+
+msrv = "1.51.0"
