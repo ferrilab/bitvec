@@ -6,7 +6,7 @@
 
 [package]
 name = "bitvec"
-version = "0.21.1"
+version = "0.22.0"
 authors = [
 	"myrrlyn <self@myrrlyn.dev>",
 ]
@@ -65,7 +65,8 @@ optional = true
 version = "1"
 
 [dependencies.wyz]
-version = "0.2"
+path = "../../myrrlyn/wyz"
+# version = "0.4"
 default-features = false
 
 # Crates required when running the test suite.

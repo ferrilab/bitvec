@@ -278,15 +278,15 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<M, O, T> Into<Range<BitPtr<M, O, T>>> for BitPtrRange<M, O, T>
+impl<M, O, T> From<BitPtrRange<M, O, T>> for Range<BitPtr<M, O, T>>
 where
 	M: Mutability,
 	O: BitOrder,
 	T: BitStore,
 {
 	#[inline(always)]
-	fn into(self) -> Range<BitPtr<M, O, T>> {
-		self.into_range()
+	fn from(bpr: BitPtrRange<M, O, T>) -> Self {
+		bpr.into_range()
 	}
 }
 

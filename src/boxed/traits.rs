@@ -251,14 +251,14 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> Into<Box<[T]>> for BitBox<O, T>
+impl<O, T> From<BitBox<O, T>> for Box<[T]>
 where
 	O: BitOrder,
 	T: BitStore,
 {
 	#[inline(always)]
-	fn into(self) -> Box<[T]> {
-		self.into_boxed_slice()
+	fn from(bb: BitBox<O, T>) -> Self {
+		bb.into_boxed_slice()
 	}
 }
 

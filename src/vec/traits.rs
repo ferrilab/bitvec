@@ -231,13 +231,13 @@ where
 	}
 }
 
-impl<O, T> Into<Vec<T>> for BitVec<O, T>
+impl<O, T> From<BitVec<O, T>> for Vec<T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	fn into(self) -> Vec<T> {
-		self.into_vec()
+	fn from(bv: BitVec<O, T>) -> Self {
+		bv.into_vec()
 	}
 }
 

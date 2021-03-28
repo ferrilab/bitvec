@@ -110,7 +110,7 @@ assert!(b.len() >= 5);
 
 let c = bitarr![Lsb0, Cell<u16>; 0, 1, 0, 0, 1];
 radium::if_atomic! { if atomic(32) {
-	let d = bitarr![Msb0, AtomicU32; 0, 0, 1, 0, 1];
+  let d = bitarr![Msb0, AtomicU32; 0, 0, 1, 0, 1];
 } }
 
 let e: BitArr!(for 20, in LocalBits, u8) = bitarr![LocalBits, u8; 0; 20];
