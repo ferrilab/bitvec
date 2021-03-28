@@ -13,7 +13,7 @@ declaration is
 # use bitvec::prelude::*;
 pub struct BitArray<
   O: BitOrder,
-  V: BitView,
+  V: BitViewSized,
 > {
   _ord: PhantomData<O>,
   data: V,
