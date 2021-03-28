@@ -34,12 +34,7 @@ use funty::IsNumber;
 use crate::{
 	mem::BitRegister,
 	order::BitOrder,
-	ptr::BitPtr,
-	slice::{
-		from_raw_parts_unchecked,
-		from_raw_parts_unchecked_mut,
-		BitSlice,
-	},
+	slice::BitSlice,
 	store::BitStore,
 };
 
@@ -98,20 +93,6 @@ pub trait BitView {
 	/// [`BitSlice`]: crate::slice::BitSlice
 	fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, Self::Store>
 	where O: BitOrder;
-
-	/// Produces the number of bits that the implementing type can hold.
-	#[doc(hidden)]
-	#[inline]
-	fn const_bits() -> usize
-	where Self: Sized {
-		Self::const_elts()
-			* <<Self::Store as BitStore>::Mem as IsNumber>::BITS as usize
-	}
-
-	/// Produces the number of memory elements that the implementing type holds.
-	#[doc(hidden)]
-	fn const_elts() -> usize
-	where Self: Sized;
 }
 
 #[cfg(not(tarpaulin_include))]
@@ -130,12 +111,6 @@ where T: BitStore
 	fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
 	where O: BitOrder {
 		BitSlice::from_element_mut(self)
-	}
-
-	#[doc(hidden)]
-	#[inline(always)]
-	fn const_elts() -> usize {
-		1
 	}
 }
 
@@ -156,81 +131,49 @@ where T: BitStore
 		BitSlice::from_slice_mut(self)
 			.expect("slice was too long to view as bits")
 	}
-
-	/// Slices cannot implement this function.
-	#[cold]
-	#[doc(hidden)]
-	#[inline(never)]
-	fn const_elts() -> usize {
-		unreachable!("This cannot be called on unsized slices")
-	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<T> BitView for [T; 0]
+impl<T, const N: usize> BitView for [T; N]
 where T: BitStore
 {
 	type Store = T;
 
-	#[inline(always)]
+	#[inline]
 	fn view_bits<O>(&self) -> &BitSlice<O, T>
 	where O: BitOrder {
-		BitSlice::empty()
+		BitSlice::from_slice(&self[..])
+			.expect("array was too long to view as bits")
 	}
 
-	#[inline(always)]
+	#[inline]
 	fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
 	where O: BitOrder {
-		BitSlice::empty_mut()
-	}
-
-	#[doc(hidden)]
-	fn const_elts() -> usize {
-		0
+		BitSlice::from_slice_mut(&mut self[..])
+			.expect("array was too long to view as bits")
 	}
 }
 
-//  Replace with a const-generic once that becomes available.
-macro_rules! view_bits {
-	($($n:expr),+ $(,)?) => { $(
-		impl<T> BitView for [T; $n]
-		where T: BitStore {
-			type Store = T;
-
-			#[inline]
-			fn view_bits<O>(&self) -> &BitSlice<O, T>
-			where O: BitOrder {
-				unsafe { from_raw_parts_unchecked(
-					BitPtr::from_slice(&self[..]),
-					$n * T::Mem::BITS as usize,
-				) }
-			}
-
-			#[inline]
-			fn view_bits_mut<O>(&mut self) -> &mut BitSlice<O, T>
-			where O: BitOrder {
-				unsafe { from_raw_parts_unchecked_mut(
-					BitPtr::from_mut_slice(&mut self[..]),
-					$n * T::Mem::BITS as usize,
-				) }
-			}
-
-			#[doc(hidden)]
-			#[inline(always)]
-			#[cfg(not(tarpaulin_include))]
-			fn const_elts() -> usize {
-				$n
-			}
-		}
-	)+ };
+/// Helper for size awareness on `Sized` storage regions.
+pub trait BitViewSized: BitView + Sized {
+	/// Counts the number of elements `T` contained in the type.
+	const ELTS: usize;
+	/// Counts the number of bits contained in the type.
+	const BITS: usize =
+		Self::ELTS * <<Self::Store as BitStore>::Mem as IsNumber>::BITS as usize;
 }
 
-view_bits!(
-	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-	22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
-	41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
-	60, 61, 62, 63, 64
-);
+/// Elements are equivalent to `[T; 1]`.
+impl<T> BitViewSized for T
+where T: BitStore
+{
+	const ELTS: usize = 1;
+}
+
+impl<T, const N: usize> BitViewSized for [T; N]
+where T: BitStore
+{
+	const ELTS: usize = N;
+}
 
 /** Views a region as an immutable [`BitSlice`] only.
 
@@ -358,7 +301,10 @@ where
 
 #[cfg(test)]
 mod tests {
-	use crate::prelude::*;
+	use crate::{
+		prelude::*,
+		view::BitViewSized,
+	};
 
 	#[test]
 	fn impls() {
@@ -375,13 +321,13 @@ mod tests {
 		assert!(blank.view_bits::<LocalBits>().is_empty());
 		assert!(blank.view_bits_mut::<LocalBits>().is_empty());
 
-		assert_eq!(<u8 as BitView>::const_bits(), 8);
-		assert_eq!(<u16 as BitView>::const_bits(), 16);
-		assert_eq!(<u32 as BitView>::const_bits(), 32);
+		assert_eq!(<u8 as BitViewSized>::BITS, 8);
+		assert_eq!(<u16 as BitViewSized>::BITS, 16);
+		assert_eq!(<u32 as BitViewSized>::BITS, 32);
 
 		#[cfg(target_pointer_width = "64")]
 		{
-			assert_eq!(<u64 as BitView>::const_bits(), 64);
+			assert_eq!(<u64 as BitViewSized>::BITS, 64);
 		}
 	}
 }

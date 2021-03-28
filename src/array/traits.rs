@@ -32,14 +32,14 @@ use crate::{
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
-	view::BitView,
+	view::BitViewSized,
 };
 
 #[cfg(not(tarpaulin_include))]
 impl<O, V> Borrow<BitSlice<O, V::Store>> for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline(always)]
 	fn borrow(&self) -> &BitSlice<O, V::Store> {
@@ -51,7 +51,7 @@ where
 impl<O, V> BorrowMut<BitSlice<O, V::Store>> for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline(always)]
 	fn borrow_mut(&mut self) -> &mut BitSlice<O, V::Store> {
@@ -62,7 +62,7 @@ where
 impl<O, V> Clone for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline]
 	fn clone(&self) -> Self {
@@ -79,14 +79,14 @@ where
 impl<O, V> Eq for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 }
 
 impl<O, V> Ord for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline]
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
@@ -98,7 +98,7 @@ impl<O1, O2, V, T> PartialEq<BitArray<O2, V>> for BitSlice<O1, T>
 where
 	O1: BitOrder,
 	O2: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 	T: BitStore,
 {
 	#[inline]
@@ -110,7 +110,7 @@ where
 impl<O, V, Rhs> PartialEq<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 	Rhs: ?Sized,
 	BitSlice<O, V::Store>: PartialEq<Rhs>,
 {
@@ -123,7 +123,7 @@ where
 impl<O, V, T> PartialOrd<BitArray<O, V>> for BitSlice<O, T>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 	T: BitStore,
 {
 	#[inline]
@@ -135,7 +135,7 @@ where
 impl<O, V, Rhs> PartialOrd<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 	Rhs: ?Sized,
 	BitSlice<O, V::Store>: PartialOrd<Rhs>,
 {
@@ -149,7 +149,7 @@ where
 impl<O, V> AsRef<BitSlice<O, V::Store>> for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline(always)]
 	fn as_ref(&self) -> &BitSlice<O, V::Store> {
@@ -161,7 +161,7 @@ where
 impl<O, V> AsMut<BitSlice<O, V::Store>> for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline(always)]
 	fn as_mut(&mut self) -> &mut BitSlice<O, V::Store> {
@@ -173,7 +173,7 @@ where
 impl<O, V> From<V> for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline(always)]
 	fn from(data: V) -> Self {
@@ -184,13 +184,13 @@ where
 impl<'a, O, V> TryFrom<&'a BitSlice<O, V::Store>> for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	type Error = TryFromBitSliceError<'a, O, V::Store>;
 
 	#[inline]
 	fn try_from(src: &'a BitSlice<O, V::Store>) -> Result<Self, Self::Error> {
-		if src.len() != V::const_bits() {
+		if src.len() != V::BITS {
 			return Self::Error::err(src);
 		}
 		let mut out = Self::zeroed();
@@ -202,7 +202,7 @@ where
 impl<'a, O, V> TryFrom<&'a BitSlice<O, V::Store>> for &'a BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	type Error = TryFromBitSliceError<'a, O, V::Store>;
 
@@ -211,7 +211,7 @@ where
 		let bitspan = src.as_bitspan();
 		//  This pointer cast can only happen if the slice is exactly as long as
 		//  the array, and is aligned to the front of the element.
-		if src.len() != V::const_bits() || bitspan.head() != BitIdx::ZERO {
+		if src.len() != V::BITS || bitspan.head() != BitIdx::ZERO {
 			return Self::Error::err(src);
 		}
 		Ok(unsafe { &*(bitspan.address().to_const() as *const BitArray<O, V>) })
@@ -221,7 +221,7 @@ where
 impl<'a, O, V> TryFrom<&'a mut BitSlice<O, V::Store>> for &'a mut BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	type Error = TryFromBitSliceError<'a, O, V::Store>;
 
@@ -230,7 +230,7 @@ where
 		src: &'a mut BitSlice<O, V::Store>,
 	) -> Result<Self, Self::Error> {
 		let bitspan = src.as_mut_bitspan();
-		if src.len() != V::const_bits() || bitspan.head() != BitIdx::ZERO {
+		if src.len() != V::BITS || bitspan.head() != BitIdx::ZERO {
 			return Self::Error::err(&*src);
 		}
 		Ok(unsafe { &mut *(bitspan.address().to_mut() as *mut BitArray<O, V>) })
@@ -241,7 +241,7 @@ where
 impl<O, V> Default for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline(always)]
 	fn default() -> Self {
@@ -253,7 +253,7 @@ where
 impl<O, V> Binary for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -264,7 +264,7 @@ where
 impl<O, V> Debug for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -278,7 +278,7 @@ where
 impl<O, V> Display for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -290,7 +290,7 @@ where
 impl<O, V> LowerHex for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -302,7 +302,7 @@ where
 impl<O, V> Octal for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -314,7 +314,7 @@ where
 impl<O, V> UpperHex for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -326,7 +326,7 @@ where
 impl<O, V> Hash for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline]
 	fn hash<H>(&self, hasher: &mut H)
@@ -339,7 +339,7 @@ where
 impl<O, V> IntoIterator for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	type IntoIter = IntoIter<O, V>;
 	type Item = bool;
@@ -354,7 +354,7 @@ where
 impl<'a, O, V> IntoIterator for &'a BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	type IntoIter = <&'a BitSlice<O, V::Store> as IntoIterator>::IntoIter;
 	type Item = <&'a BitSlice<O, V::Store> as IntoIterator>::Item;
@@ -369,7 +369,7 @@ where
 impl<'a, O, V> IntoIterator for &'a mut BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	type IntoIter = <&'a mut BitSlice<O, V::Store> as IntoIterator>::IntoIter;
 	type Item = <&'a mut BitSlice<O, V::Store> as IntoIterator>::Item;
@@ -383,14 +383,14 @@ where
 impl<O, V> Copy for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView + Copy,
+	V: BitViewSized + Copy,
 {
 }
 
 impl<O, V> Unpin for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 }
 

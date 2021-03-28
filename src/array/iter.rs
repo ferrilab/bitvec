@@ -18,7 +18,7 @@ use crate::{
 	order::BitOrder,
 	ptr::BitPtr,
 	slice::BitSlice,
-	view::BitView,
+	view::BitViewSized,
 };
 
 /** A by-value [bit-array] iterator.
@@ -41,7 +41,7 @@ libraries.
 pub struct IntoIter<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	/// The array being iterated.
 	array: BitArray<O, V>,
@@ -50,14 +50,14 @@ where
 	///
 	/// Invariants:
 	/// - `alive.start <= alive.end`
-	/// - `alive.end <= V::const_bits()`
+	/// - `alive.end <= V::BITS`
 	alive: Range<usize>,
 }
 
 impl<O, V> IntoIter<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	/// Creates a new iterator over the given `array`.
 	///
@@ -68,7 +68,7 @@ where
 	pub(super) fn new(array: BitArray<O, V>) -> Self {
 		Self {
 			array,
-			alive: 0 .. V::const_bits(),
+			alive: 0 .. V::BITS,
 		}
 	}
 
@@ -129,7 +129,7 @@ where
 impl<O, V> Debug for IntoIter<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -142,7 +142,7 @@ where
 impl<O, V> Iterator for IntoIter<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	type Item = bool;
 
@@ -178,7 +178,7 @@ where
 impl<O, V> DoubleEndedIterator for IntoIter<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
@@ -195,7 +195,7 @@ where
 impl<O, V> ExactSizeIterator for IntoIter<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline(always)]
 	fn len(&self) -> usize {
@@ -206,6 +206,6 @@ where
 impl<O, V> FusedIterator for IntoIter<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 }

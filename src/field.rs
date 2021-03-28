@@ -224,7 +224,7 @@ use crate::{
 	},
 	slice::BitSlice,
 	store::BitStore,
-	view::BitView,
+	view::BitViewSized,
 };
 #[cfg(feature = "alloc")]
 use crate::{
@@ -1363,7 +1363,7 @@ where T: BitStore
 impl<O, V> BitField for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 	BitSlice<O, V::Store>: BitField,
 {
 	fn load_le<M>(&self) -> M

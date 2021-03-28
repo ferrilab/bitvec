@@ -19,13 +19,13 @@ use crate::{
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
-	view::BitView,
+	view::BitViewSized,
 };
 
 impl<O, V, Rhs> BitAnd<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 	BitSlice<O, V::Store>: BitAndAssign<Rhs>,
 {
 	type Output = Self;
@@ -40,7 +40,7 @@ where
 impl<O, V, Rhs> BitAndAssign<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 	BitSlice<O, V::Store>: BitAndAssign<Rhs>,
 {
 	#[inline]
@@ -52,7 +52,7 @@ where
 impl<O, V, Rhs> BitOr<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 	BitSlice<O, V::Store>: BitOrAssign<Rhs>,
 {
 	type Output = Self;
@@ -67,7 +67,7 @@ where
 impl<O, V, Rhs> BitOrAssign<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 	BitSlice<O, V::Store>: BitOrAssign<Rhs>,
 {
 	#[inline]
@@ -79,7 +79,7 @@ where
 impl<O, V, Rhs> BitXor<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 	BitSlice<O, V::Store>: BitXorAssign<Rhs>,
 {
 	type Output = Self;
@@ -94,7 +94,7 @@ where
 impl<O, V, Rhs> BitXorAssign<Rhs> for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 	BitSlice<O, V::Store>: BitXorAssign<Rhs>,
 {
 	#[inline]
@@ -107,7 +107,7 @@ where
 impl<O, V> Deref for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	type Target = BitSlice<O, V::Store>;
 
@@ -121,7 +121,7 @@ where
 impl<O, V> DerefMut for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	#[inline(always)]
 	fn deref_mut(&mut self) -> &mut Self::Target {
@@ -132,7 +132,7 @@ where
 impl<O, V, Idx> Index<Idx> for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 	BitSlice<O, V::Store>: Index<Idx>,
 {
 	type Output = <BitSlice<O, V::Store> as Index<Idx>>::Output;
@@ -146,7 +146,7 @@ where
 impl<O, V, Idx> IndexMut<Idx> for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 	BitSlice<O, V::Store>: IndexMut<Idx>,
 {
 	#[inline]
@@ -158,7 +158,7 @@ where
 impl<O, V> Not for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	type Output = Self;
 

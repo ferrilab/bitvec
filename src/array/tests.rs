@@ -4,7 +4,10 @@
 
 use tap::conv::TryConv;
 
-use crate::prelude::*;
+use crate::{
+	prelude::*,
+	view::BitViewSized,
+};
 
 #[test]
 fn create_arrays() {
@@ -75,7 +78,7 @@ fn convert() {
 #[allow(deprecated)]
 fn iter() {
 	let mut iter = bitarr![0, 0, 0, 1, 1, 1, 0, 0, 0].into_iter();
-	let width = <[usize; 1] as BitView>::const_bits();
+	let width = <[usize; 1] as BitViewSized>::BITS;
 
 	let slice = iter.as_slice();
 	let iter_slice = iter.as_bitslice();

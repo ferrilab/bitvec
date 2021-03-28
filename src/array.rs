@@ -27,7 +27,7 @@ use crate::{
 		Lsb0,
 	},
 	slice::BitSlice,
-	view::BitView,
+	view::BitViewSized,
 };
 
 /* Note on C++ `std::bitset<N>` compatibility:
@@ -149,7 +149,7 @@ behavior of ordinary arrays `[T; N]` as they stand today.
 pub struct BitArray<O = Lsb0, V = [usize; 1]>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	/// The ordering of bits within a storage element `V::Store`.
 	_ord: PhantomData<O>,
@@ -160,7 +160,7 @@ where
 impl<O, V> BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView,
+	V: BitViewSized,
 {
 	/// Constructs a new `BitArray` with its memory set to zero.
 	#[inline]
@@ -230,7 +230,7 @@ where
 		unsafe {
 			slice::from_raw_parts(
 				&self.data as *const V as *const V::Store,
-				V::const_elts(),
+				V::ELTS,
 			)
 		}
 	}
@@ -241,7 +241,7 @@ where
 		unsafe {
 			slice::from_raw_parts_mut(
 				&mut self.data as *mut V as *mut V::Store,
-				V::const_elts(),
+				V::ELTS,
 			)
 		}
 	}

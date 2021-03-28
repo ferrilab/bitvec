@@ -76,7 +76,7 @@ use crate::{
 	},
 	slice::BitSlice,
 	store::BitStore,
-	view::BitView,
+	view::BitViewSized,
 };
 #[cfg(feature = "alloc")]
 use crate::{
@@ -124,7 +124,7 @@ where
 impl<O, V> Serialize for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView + Serialize,
+	V: BitViewSized + Serialize,
 {
 	#[inline]
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -164,7 +164,7 @@ where
 impl<'de, O, V> Deserialize<'de> for BitArray<O, V>
 where
 	O: BitOrder,
-	V: BitView + Deserialize<'de>,
+	V: BitViewSized + Deserialize<'de>,
 {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
