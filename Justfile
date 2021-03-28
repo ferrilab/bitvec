@@ -19,12 +19,12 @@ build:
 
 # Checks the library for syntax and HIR errors.
 check:
-	cargo check --no-default-features
-	cargo check --no-default-features --features alloc
-	cargo check --all-features
+	cargo clippy --no-default-features
+	cargo clippy --no-default-features --features alloc
+	cargo clippy --all-features
 
 # Runs all of the recipes necessary for pre-publish.
-checkout: format check lint build doc test package
+checkout: format check build doc test package
 
 # Continually runs the development routines.
 ci:
@@ -65,7 +65,7 @@ cross_seq:
 	xargs -n1 -I'{}' cargo check --no-default-features --target '{}' < ci/target_local.txt
 
 # Runs the development routines.
-dev: format lint doc test cover
+dev: format doc test cover
 	@echo "Complete at $(date)"
 
 # Builds the crate documentation.
@@ -75,12 +75,6 @@ doc *ARGS:
 # Runs the formatter on all Rust files.
 format:
 	cargo +nightly fmt -- --config-path rustfmt-nightly.toml
-
-# Runs the linter.
-lint: check
-	cargo clippy --no-default-features
-	cargo clippy --no-default-features --features alloc
-	cargo clippy --all-features
 
 # Continually runs some recipe from this file.
 loop +ACTIONS:
@@ -99,7 +93,7 @@ publish: checkout
 	cargo publish
 
 # Runs the test suites.
-test *ARGS: check lint
+test *ARGS: check
 	cargo test --no-default-features -q --lib --tests {{ARGS}}
 	cargo test --no-default-features --features alloc -q --lib --tests {{ARGS}}
 	cargo test --all-features -q --lib --tests {{ARGS}}
