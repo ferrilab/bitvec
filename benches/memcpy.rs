@@ -13,10 +13,9 @@ use std::mem::MaybeUninit;
 use bitvec::{
 	mem::{
 		elts,
-		BitMemory,
 	},
 	prelude::*,
-};
+};use funty::IsNumber;
 use criterion::{
 	criterion_group,
 	criterion_main,
@@ -68,7 +67,7 @@ pub fn benchmarks(crit: &mut Criterion) {
 		SCALARS.iter().map(|&n| {
 			(
 				move |name| BenchmarkId::new(name, n),
-				n * FACTOR * <u8 as BitMemory>::BITS as usize,
+				n * FACTOR * <u8 as IsNumber>::BITS as usize,
 				Throughput::Bytes((n * FACTOR) as u64),
 			)
 		})
@@ -93,8 +92,8 @@ pub fn benchmarks(crit: &mut Criterion) {
 	let mut group = mkgrp!(crit, "Element-wise");
 	for (id, bits, thrpt) in steps() {
 		group.throughput(thrpt);
-		let words = bits / <usize as BitMemory>::BITS as usize;
-		let bytes = bits / <u8 as BitMemory>::BITS as usize;
+		let words = bits / <usize as IsNumber>::BITS as usize;
+		let bytes = bits / <u8 as IsNumber>::BITS as usize;
 
 		let (src_words, dst_words) =
 			(&src_words[.. words], &mut dst_words[.. words]);
@@ -135,8 +134,8 @@ pub fn benchmarks(crit: &mut Criterion) {
 	let mut group = mkgrp!(crit, "Bit-wise accelerated");
 	for (id, bits, thrpt) in steps() {
 		group.throughput(thrpt);
-		let words = bits / <usize as BitMemory>::BITS as usize;
-		let bytes = bits / <u8 as BitMemory>::BITS as usize;
+		let words = bits / <usize as IsNumber>::BITS as usize;
+		let bytes = bits / <u8 as IsNumber>::BITS as usize;
 
 		let (src_words, dst_words) =
 			(&src_words[.. words], &mut dst_words[.. words]);
@@ -199,8 +198,8 @@ pub fn benchmarks(crit: &mut Criterion) {
 	let mut group = mkgrp!(crit, "Bit-wise crawl");
 	for (id, bits, thrpt) in steps() {
 		group.throughput(thrpt);
-		let words = bits / <usize as BitMemory>::BITS as usize;
-		let bytes = bits / <u8 as BitMemory>::BITS as usize;
+		let words = bits / <usize as IsNumber>::BITS as usize;
+		let bytes = bits / <u8 as IsNumber>::BITS as usize;
 
 		let (src_words, dst_words) =
 			(&src_words[.. words], &mut dst_words[.. words]);
