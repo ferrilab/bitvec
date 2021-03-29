@@ -137,12 +137,14 @@ where
 }
 
 #[cfg(feature = "alloc")]
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Serialize for BitBox<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 	T::Mem: Serialize,
 {
+	#[inline(always)]
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		self.as_bitslice().serialize(serializer)
@@ -150,12 +152,14 @@ where
 }
 
 #[cfg(feature = "alloc")]
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Serialize for BitVec<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 	T::Mem: Serialize,
 {
+	#[inline(always)]
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		self.as_bitslice().serialize(serializer)
@@ -167,6 +171,7 @@ where
 	O: BitOrder,
 	V: BitViewSized + Deserialize<'de>,
 {
+	#[inline]
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		deserializer
@@ -284,6 +289,7 @@ where
 {
 	type Value = BitVec<O, T>;
 
+	#[inline]
 	fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.write_str("a BitSeq data series")
 	}
@@ -356,6 +362,7 @@ where
 	O: BitOrder,
 	T: BitStore + Deserialize<'de>,
 {
+	#[inline]
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		deserializer
@@ -370,6 +377,7 @@ where
 	O: BitOrder,
 	T: BitStore + Deserialize<'de>,
 {
+	#[inline]
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		deserializer.deserialize_struct(

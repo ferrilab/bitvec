@@ -12,6 +12,13 @@ use core::{
 use funty::IsNumber;
 use tap::pipe::Pipe;
 
+use super::{
+	iter::{
+		Drain,
+		Splice,
+	},
+	BitVec,
+};
 use crate::{
 	boxed::BitBox,
 	index::BitTail,
@@ -25,13 +32,6 @@ use crate::{
 	},
 	slice::BitSlice,
 	store::BitStore,
-	vec::{
-		iter::{
-			Drain,
-			Splice,
-		},
-		BitVec,
-	},
 };
 
 /// Port of the `Vec<T>` inherent API.
@@ -257,7 +257,10 @@ where
 	) -> Self {
 		Self {
 			bitspan: bitptr.span_unchecked(length),
-			capacity: crate::mem::elts::<T>(capacity),
+			capacity: crate::mem::elts::<T>(
+				//  The capacity counts from `head`, not from 0.
+				capacity.saturating_add(bitptr.head().into_inner() as usize),
+			),
 		}
 	}
 
@@ -365,7 +368,7 @@ where
 	/// bv.shrink_to_fit();
 	/// assert!(bv.capacity() >= 3);
 	/// ```
-	#[inline]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn shrink_to_fit(&mut self) {
 		self.with_vec(|vec| vec.shrink_to_fit());
 	}

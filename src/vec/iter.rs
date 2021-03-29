@@ -19,60 +19,76 @@ use core::{
 		Range,
 		RangeBounds,
 	},
-	ptr::NonNull,
 };
 
 use tap::{
-	pipe::Pipe,
-	tap::{
-		Tap,
-		TapOptional,
-	},
+	Pipe,
+	Tap,
+	TapOptional,
 };
 
+use super::BitVec;
 use crate::{
+	boxed::BitBox,
 	devel as dvl,
 	order::BitOrder,
 	ptr::{
+		BitPtrRange,
 		BitRef,
+		Mut,
 		Mutability,
 	},
-	slice::{
-		BitSlice,
-		Iter,
-		IterMut,
-	},
+	slice::BitSlice,
 	store::BitStore,
-	vec::BitVec,
+	view::BitView,
 };
 
+/** Extends a `BitVec` from a `bool` producer.
+
+# Notes
+
+This is the second-slowest possible way to append bits to a bit-vector, second
+only to `for bit in bits { bitvec.push(bit); }`. **Do not** use this if you have
+any other choice.
+
+If you are extending a bit-vector from the contents of a bit-slice, use
+[`BitVec::extend_from_bitslice`] instead. That method will never be *slower*
+than this. When the source bit-slice does not match the destination bit-vector’s
+type parameters, it will still be faster by virtue of knowing the bit-slice
+length upfront; when the type parameters match, it will optimize to `memcpy`
+with some bookkeeping.
+**/
 impl<O, T> Extend<bool> for BitVec<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn extend<I>(&mut self, iter: I)
 	where I: IntoIterator<Item = bool> {
 		let mut iter = iter.into_iter();
-		match iter.size_hint() {
-			(n, None) | (_, Some(n)) => {
-				// This body exists to try to accelerate the push-per-bit loop.
-				self.reserve(n);
-				let len = self.len();
-				let new_len = len + n;
-				let new = unsafe { self.get_unchecked_mut(len .. new_len) };
-				let mut pulled = 0;
-				for (slot, bit) in
-					unsafe { new.iter_mut().remove_alias() }.zip(iter.by_ref())
-				{
-					slot.set(bit);
-					pulled += 1;
-				}
+		#[allow(irrefutable_let_patterns)] // Removing the `if` is unstable.
+		if let (_, Some(n)) | (n, None) = iter.size_hint() {
+			self.reserve(n);
+			let len = self.len();
+			let new_len = len + n;
+			let new = unsafe { self.get_unchecked_mut(len .. new_len) };
+
+			let mut pulled = 0;
+			//  In theory, using direct pointer writes ought to be the fastest
+			//  general condition.
+			for (ptr, bit) in new.as_mut_bitptr_range().zip(iter.by_ref()) {
 				unsafe {
-					self.set_len(len + pulled);
+					ptr.write(bit);
 				}
-			},
+				pulled += 1;
+			}
+			unsafe {
+				self.set_len(len + pulled);
+			}
 		}
+
+		//  Well-behaved iterators will reduce this to a single branch.
 		iter.for_each(|bit| self.push(bit));
 	}
 }
@@ -82,12 +98,15 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn extend<I>(&mut self, iter: I)
 	where I: IntoIterator<Item = &'a bool> {
 		self.extend(iter.into_iter().copied());
 	}
 }
 
+/// ***DO NOT*** use this. You clearly have a [`BitSlice`]. Use
+/// [`BitVec::extend_from_bitslice`].
 impl<'a, M, O1, O2, T1, T2> Extend<BitRef<'a, M, O2, T2>> for BitVec<O1, T1>
 where
 	M: Mutability,
@@ -96,6 +115,7 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn extend<I>(&mut self, iter: I)
 	where I: IntoIterator<Item = BitRef<'a, M, O2, T2>> {
 		self.extend(iter.into_iter().map(|bit| *bit));
@@ -107,10 +127,11 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn extend<I>(&mut self, iter: I)
 	where I: IntoIterator<Item = T> {
 		for elem in iter.into_iter() {
-			self.extend(BitSlice::<O, T>::from_element(&elem));
+			self.extend_from_bitslice(elem.view_bits::<O>());
 		}
 	}
 }
@@ -120,10 +141,11 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn extend<I>(&mut self, iter: I)
 	where I: IntoIterator<Item = &'a T> {
 		for elem in iter.into_iter() {
-			self.extend(BitSlice::<O, T>::from_element(elem));
+			self.extend_from_bitslice(elem.view_bits::<O>());
 		}
 	}
 }
@@ -133,12 +155,15 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn from_iter<I>(iter: I) -> Self
 	where I: IntoIterator<Item = bool> {
 		Self::new().tap_mut(|bv| bv.extend(iter.into_iter()))
 	}
 }
 
+/// ***DO NOT*** use this. You clearly have a [`BitSlice`]. Use
+/// [`BitVec::from_bitslice`] instead.
 impl<'a, M, O1, O2, T1, T2> FromIterator<BitRef<'a, M, O2, T2>>
 	for BitVec<O1, T1>
 where
@@ -148,6 +173,7 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn from_iter<I>(iter: I) -> Self
 	where I: IntoIterator<Item = BitRef<'a, M, O2, T2>> {
 		Self::new().tap_mut(|bv| bv.extend(iter.into_iter()))
@@ -159,6 +185,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn from_iter<I>(iter: I) -> Self
 	where I: IntoIterator<Item = &'a bool> {
 		iter.into_iter().copied().pipe(Self::from_iter)
@@ -171,13 +198,14 @@ This is a short-hand for, and implemented as, `iter.collect::<Vec<_>>().into()`.
 
 This is not a standard-library API, and was added for [Issue #83].
 
-[Issue #83]: https://github.com/myrrlyn/bitvec/issues/83
+[Issue #83]: https://github.com/bitvecto-rs/bitvec/issues/83
 **/
 impl<O, T> FromIterator<T> for BitVec<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn from_iter<I>(iter: I) -> Self
 	where I: IntoIterator<Item = T> {
 		iter.into_iter().collect::<Vec<_>>().pipe(Self::from_vec)
@@ -189,6 +217,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn from_iter<I>(iter: I) -> Self
 	where I: IntoIterator<Item = &'a T> {
 		let mut vec = iter
@@ -202,19 +231,22 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> IntoIterator for BitVec<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
-	type IntoIter = IntoIter<O, T>;
-	type Item = bool;
+	type IntoIter = <BitBox<O, T> as IntoIterator>::IntoIter;
+	type Item = <BitBox<O, T> as IntoIterator>::Item;
 
+	#[inline(always)]
 	fn into_iter(self) -> Self::IntoIter {
-		IntoIter::new(self)
+		self.into_boxed_bitslice().into_iter()
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<'a, O, T> IntoIterator for &'a BitVec<O, T>
 where
 	O: BitOrder,
@@ -223,11 +255,13 @@ where
 	type IntoIter = <&'a BitSlice<O, T> as IntoIterator>::IntoIter;
 	type Item = <&'a BitSlice<O, T> as IntoIterator>::Item;
 
+	#[inline(always)]
 	fn into_iter(self) -> Self::IntoIter {
 		self.as_bitslice().into_iter()
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<'a, O, T> IntoIterator for &'a mut BitVec<O, T>
 where
 	O: BitOrder,
@@ -236,209 +270,9 @@ where
 	type IntoIter = <&'a mut BitSlice<O, T> as IntoIterator>::IntoIter;
 	type Item = <&'a mut BitSlice<O, T> as IntoIterator>::Item;
 
+	#[inline(always)]
 	fn into_iter(self) -> Self::IntoIter {
 		self.as_mut_bitslice().into_iter()
-	}
-}
-
-/** An iterator that moves out of a [`BitVec`].
-
-This `struct` is created by the [`into_iter`] method on [`BitVec`] (provided by
-the [`IntoIterator`] trait).
-
-# Original
-
-[`vec::IntoIter`](alloc::vec::IntoIter)
-
-[`BitVec`]: crate::vec::BitVec
-[`IntoIterator`]: core::iter::IntoIterator
-[`into_iter`]: core::iter::IntoIterator::into_iter
-**/
-pub struct IntoIter<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	/// The base address of the allocation.
-	base: NonNull<T>,
-	/// The allocation capacity, measured in elements `T`.
-	capa: usize,
-	/// A [`BitSlice`] iterator over the vector’s contents.
-	///
-	/// [`BitSlice`]: crate::slice::BitSlice
-	iter: IterMut<'static, O, T>,
-}
-
-impl<O, T> IntoIter<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	/// Constructs an iterator over a [`BitVec`].
-	///
-	/// [`BitVec`]: crate::vec::BitVec
-	fn new(bv: BitVec<O, T>) -> Self {
-		//  Construct a `BitSlice` iterator over the region, and detach its
-		//  lifetime.
-		let iter = bv.bitspan.to_bitslice_mut().iter_mut();
-		//  Only the allocation’s base and capacity need to be kept for `Drop`.
-		let base = bv.bitspan.address().into_inner();
-		let capa = bv.capacity;
-		mem::forget(bv);
-		Self { base, capa, iter }
-	}
-
-	/// Returns the remaining bits of this iterator as a [`BitSlice`].
-	///
-	/// # Original
-	///
-	/// [`vec::IntoIter::as_slice`](alloc::vec::IntoIter::as_slice)
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bv = bitvec![0, 1, 0, 1];
-	/// let mut into_iter = bv.into_iter();
-	///
-	/// assert_eq!(into_iter.as_bitslice(), bits![0, 1, 0, 1]);
-	/// let _ = into_iter.next().unwrap();
-	/// assert_eq!(into_iter.as_bitslice(), bits![1, 0, 1]);
-	/// ```
-	///
-	/// [`BitSlice`]: crate::slice::BitSlice
-	#[inline(always)]
-	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
-		unsafe { &*(self.iter.as_bitslice() as *const _ as *const _) }
-	}
-
-	#[doc(hidden)]
-	#[inline(always)]
-	#[cfg(not(tarpalin_include))]
-	#[deprecated = "Use `as_bitslice` to view the underlying slice"]
-	pub fn as_slice(&self) -> &BitSlice<O, T> {
-		self.as_bitslice()
-	}
-
-	/// Returns the remaining bits of this iterator as a mutable [`BitSlice`].
-	///
-	/// # Original
-	///
-	/// [`vec::IntoIter::as_mut_slice`](alloc::vec::IntoIter::as_mut_slice)
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bv = bitvec![0, 1, 0, 1];
-	/// let mut into_iter = bv.into_iter();
-	///
-	/// assert_eq!(into_iter.as_bitslice(), bits![0, 1, 0, 1]);
-	/// into_iter.as_mut_bitslice().set(2, true);
-	/// assert!(!into_iter.next().unwrap());
-	/// assert!(into_iter.next().unwrap());
-	/// assert!(into_iter.next().unwrap());
-	/// ```
-	///
-	/// [`BitSlice`]: crate::slice::BitSlice
-	#[inline(always)]
-	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
-		//  This is sound because Vec -> IntoIter -> as_mut_bitslice locks the
-		//  chain of custody, ensuring exclusive access to the buffer.
-		unsafe { &mut *(self.iter.as_mut_bitslice() as *mut _ as *mut _) }
-	}
-
-	#[doc(hidden)]
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	#[deprecated = "Use `as_mut_bitslice` to view the underlying slice"]
-	pub fn as_mut_slice(&mut self) -> &mut BitSlice<O, T> {
-		self.as_mut_bitslice()
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<O, T> Debug for IntoIter<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		fmt.debug_tuple("IntoIter")
-			.field(&self.as_bitslice())
-			.finish()
-	}
-}
-
-impl<O, T> Iterator for IntoIter<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	type Item = bool;
-
-	fn next(&mut self) -> Option<Self::Item> {
-		self.iter.next().as_deref().copied()
-	}
-
-	fn size_hint(&self) -> (usize, Option<usize>) {
-		self.iter.size_hint()
-	}
-
-	fn count(self) -> usize {
-		self.len()
-	}
-
-	fn nth(&mut self, n: usize) -> Option<Self::Item> {
-		self.iter.nth(n).as_deref().copied()
-	}
-
-	fn last(mut self) -> Option<Self::Item> {
-		self.next_back()
-	}
-}
-
-impl<O, T> DoubleEndedIterator for IntoIter<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn next_back(&mut self) -> Option<Self::Item> {
-		self.iter.next_back().as_deref().copied()
-	}
-
-	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-		self.iter.nth_back(n).as_deref().copied()
-	}
-}
-
-impl<O, T> ExactSizeIterator for IntoIter<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn len(&self) -> usize {
-		self.iter.len()
-	}
-}
-
-impl<O, T> FusedIterator for IntoIter<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-}
-
-impl<O, T> Drop for IntoIter<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	fn drop(&mut self) {
-		//  Rebuild the `Vec` governing the allocation, and run its destructor.
-		drop(unsafe { Vec::from_raw_parts(self.base.as_ptr(), 0, self.capa) });
 	}
 }
 
@@ -459,9 +293,9 @@ where
 	T: BitStore,
 {
 	/// Exclusive reference to the vector this drains.
-	source: NonNull<BitVec<O, T>>,
+	source: &'a mut BitVec<O, T>,
 	/// The range of the source vector’s buffer being drained.
-	drain: Iter<'a, O, T>,
+	drain: BitPtrRange<Mut, O, T>,
 	/// The range of the source vector’s preserved tail. This runs from the back
 	/// edge of the drained region to the vector’s original length.
 	tail: Range<usize>,
@@ -488,14 +322,11 @@ where
 			source.set_len(drain.start);
 			//  Grab the drain range and produce an iterator over it.
 			source
-				.as_bitslice()
-				.get_unchecked(drain)
+				.as_mut_bitslice()
+				.get_unchecked_mut(drain)
 				//  Detach the region from the `source` borrow.
-				.as_bitspan()
-				.to_bitslice_ref()
-				.iter()
+				.as_mut_bitptr_range()
 		};
-		let source = source.into();
 		Self {
 			source,
 			drain,
@@ -515,8 +346,9 @@ where
 	/// element slice.
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
+	#[inline]
 	pub fn as_bitslice(&self) -> &'a BitSlice<O, T> {
-		self.drain.as_bitslice()
+		self.drain.clone().into_bitspan().to_bitslice_ref()
 	}
 
 	#[doc(hidden)]
@@ -551,21 +383,24 @@ where
 	/// destructor.
 	fn fill<I>(&mut self, iter: &mut I) -> FillStatus
 	where I: Iterator<Item = bool> {
-		let bitvec = unsafe { self.source.as_mut() };
+		let bitvec = &mut *self.source;
 		//  Get the length of the source vector. This will be grown as `iter`
 		//  writes into the drain span.
 		let mut len = bitvec.len();
-		//  Get the drain span as a bit-slice.
-		let span = unsafe { bitvec.get_unchecked_mut(len .. self.tail.start) };
+		//  Get the drain span as a bit-pointer range.
+		let span = unsafe { bitvec.get_unchecked_mut(len .. self.tail.start) }
+			.as_mut_bitptr_range();
 
 		//  Set the exit flag to assume completion.
 		let mut out = FillStatus::FullSpan;
 		//  Write the `iter` bits into the drain `span`.
-		for slot in span {
+		for ptr in span {
 			//  While the `iter` is not exhausted, write it into the span and
 			//  increase the vector length counter.
 			if let Some(bit) = iter.next() {
-				slot.set(bit);
+				unsafe {
+					ptr.write(bit);
+				}
 				len += 1;
 			}
 			//  If the `iter` exhausts before the drain `span` is filled, set
@@ -602,7 +437,7 @@ where
 			return;
 		}
 
-		let bitvec = self.source.as_mut();
+		let bitvec = &mut *self.source;
 		let tail_len = self.tail.end - self.tail.start;
 
 		//  Reserve allocation capacity for `additional` and the tail.
@@ -625,11 +460,13 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> AsRef<BitSlice<O, T>> for Drain<'_, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn as_ref(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
 	}
@@ -641,10 +478,9 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		fmt.debug_tuple("Drain")
-			.field(&self.drain.as_bitslice())
-			.finish()
+		fmt.debug_tuple("Drain").field(&self.as_bitslice()).finish()
 	}
 }
 
@@ -655,22 +491,27 @@ where
 {
 	type Item = bool;
 
+	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
-		self.drain.next().as_deref().copied()
+		self.drain.next().map(crate::ptr::range::read_raw)
 	}
 
+	#[inline(always)]
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		self.drain.size_hint()
 	}
 
+	#[inline(always)]
 	fn count(self) -> usize {
 		self.len()
 	}
 
+	#[inline]
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
-		self.drain.nth(n).as_deref().copied()
+		self.drain.nth(n).map(crate::ptr::range::read_raw)
 	}
 
+	#[inline(always)]
 	fn last(mut self) -> Option<Self::Item> {
 		self.next_back()
 	}
@@ -681,12 +522,14 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
-		self.drain.next_back().as_deref().copied()
+		self.drain.next_back().map(crate::ptr::range::read_raw)
 	}
 
+	#[inline]
 	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-		self.drain.nth_back(n).as_deref().copied()
+		self.drain.nth_back(n).map(crate::ptr::range::read_raw)
 	}
 }
 
@@ -695,6 +538,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn len(&self) -> usize {
 		self.drain.len()
 	}
@@ -736,7 +580,7 @@ where
 			return;
 		}
 		//  Otherwise, access the source vector,
-		let bitvec = unsafe { self.source.as_mut() };
+		let bitvec = &mut *self.source;
 		//  And grab its current end.
 		let old_len = bitvec.len();
 		let new_len = old_len + tail_len;
@@ -797,8 +641,14 @@ where
 	I: Iterator<Item = bool>,
 {
 	/// Constructs a splice out of a drain and a replacement.
-	pub(super) fn new<II>(drain: Drain<'a, O, T>, splice: II) -> Self
-	where II: IntoIterator<IntoIter = I, Item = bool> {
+	#[inline]
+	pub(super) fn new<IntoIter>(
+		drain: Drain<'a, O, T>,
+		splice: IntoIter,
+	) -> Self
+	where
+		IntoIter: IntoIterator<IntoIter = I, Item = bool>,
+	{
 		let splice = splice.into_iter();
 		Self { drain, splice }
 	}
@@ -812,6 +662,7 @@ where
 {
 	type Item = bool;
 
+	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
 		self.drain.next().tap_some(|_| {
 			/* Attempt to write a bit into the now-vacated slot at the front of
@@ -823,7 +674,7 @@ where
 			*/
 			if let Some(bit) = self.splice.next() {
 				unsafe {
-					let bv = self.drain.source.as_mut();
+					let bv = &mut *self.drain.source;
 					let len = bv.len();
 					bv.set_len_unchecked(len + 1);
 					bv.set_unchecked(len, bit);
@@ -832,14 +683,17 @@ where
 		})
 	}
 
+	#[inline(always)]
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		self.drain.size_hint()
 	}
 
+	#[inline(always)]
 	fn count(self) -> usize {
 		self.len()
 	}
 
+	#[inline(always)]
 	fn last(mut self) -> Option<Self::Item> {
 		self.next_back()
 	}
@@ -851,10 +705,12 @@ where
 	T: BitStore,
 	I: Iterator<Item = bool>,
 {
+	#[inline(always)]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.drain.next_back()
 	}
 
+	#[inline(always)]
 	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
 		self.drain.nth_back(n)
 	}
@@ -866,6 +722,7 @@ where
 	T: BitStore,
 	I: Iterator<Item = bool>,
 {
+	#[inline(always)]
 	fn len(&self) -> usize {
 		self.drain.len()
 	}
@@ -888,7 +745,7 @@ where
 	fn drop(&mut self) {
 		let tail = self.drain.tail.clone();
 		let tail_len = tail.end - tail.start;
-		let bitvec = unsafe { self.drain.source.as_mut() };
+		let bitvec = &mut *self.drain.source;
 
 		//  If the `drain` has no tail span, then extend the vector with the
 		//  splice and exit.

@@ -23,11 +23,11 @@ use core::{
 	},
 };
 
+use super::{
+	BitArray,
+	IntoIter,
+};
 use crate::{
-	array::{
-		iter::IntoIter,
-		BitArray,
-	},
 	index::BitIdx,
 	order::BitOrder,
 	slice::BitSlice,

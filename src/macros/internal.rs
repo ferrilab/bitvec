@@ -396,8 +396,8 @@ macro_rules! __ty_from_bytes {
 }
 
 /// Construct a `u8` from bits applied in Lsb0-order.
-#[allow(clippy::many_single_char_names)]
-#[allow(clippy::too_many_arguments)]
+#[cfg_attr(not(tarpaulin_include), inline(always))]
+#[allow(clippy::many_single_char_names, clippy::too_many_arguments)]
 pub const fn u8_from_le_bits(
 	a: bool,
 	b: bool,
@@ -419,8 +419,8 @@ pub const fn u8_from_le_bits(
 }
 
 /// Construct a `u8` from bits applied in Msb0-order.
-#[allow(clippy::many_single_char_names)]
-#[allow(clippy::too_many_arguments)]
+#[cfg_attr(not(tarpaulin_include), inline(always))]
+#[allow(clippy::many_single_char_names, clippy::too_many_arguments)]
 pub const fn u8_from_be_bits(
 	a: bool,
 	b: bool,

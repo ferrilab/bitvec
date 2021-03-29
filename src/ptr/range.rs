@@ -19,16 +19,17 @@ use core::{
 	},
 };
 
+use super::{
+	BitPtr,
+	BitSpan,
+	Mut,
+	Mutability,
+};
 use crate::{
 	devel as dvl,
 	order::{
 		BitOrder,
 		Lsb0,
-	},
-	ptr::{
-		BitPtr,
-		BitSpan,
-		Mutability,
 	},
 	store::BitStore,
 };
@@ -90,7 +91,7 @@ where
 	};
 
 	/// Destructures the range back into its start and end pointers.
-	#[inline]
+	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
 	pub fn raw_parts(&self) -> (BitPtr<M, O, T>, BitPtr<M, O, T>) {
 		(self.start, self.end)
@@ -124,7 +125,8 @@ where
 	/// range.next();
 	/// assert!(range.is_empty());
 	/// ```
-	#[inline]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	pub fn is_empty(&self) -> bool {
 		self.start == self.end
 	}
@@ -171,7 +173,7 @@ where
 	/// let casted = ptr.cast::<Cell<u16>>();
 	/// assert!(range.contains(&unsafe { casted.add(8) }));
 	/// ```
-	#[inline]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn contains<M2, T2>(&self, pointer: &BitPtr<M2, O, T2>) -> bool
 	where
 		M2: Mutability,
@@ -193,7 +195,7 @@ where
 	/// start.
 	///
 	/// This method may only be called when the range is non-empty.
-	#[inline]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn take_front(&mut self) -> BitPtr<M, O, T> {
 		let start = self.start;
 		self.start = unsafe { start.add(1) };
@@ -203,7 +205,7 @@ where
 	/// Decrements the current end pointer, then returns it.
 	///
 	/// This method may only be called when the range is non-empty.
-	#[inline]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn take_back(&mut self) -> BitPtr<M, O, T> {
 		let prev = unsafe { self.end.sub(1) };
 		self.end = prev;
@@ -347,7 +349,8 @@ where
 		Some(self.take_front())
 	}
 
-	#[inline]
+	#[inline(always)]
+	#[cfg(not(tarpaulin_include))]
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		let len = self.len();
 		(len, Some(len))
@@ -428,6 +431,18 @@ where
 	fn end_bound(&self) -> Bound<&BitPtr<M, O, T>> {
 		Bound::Excluded(&self.end)
 	}
+}
+
+/// Dereferences the bit-pointer. This is guaranteed to be valid by the
+/// iterator.
+#[inline(always)]
+#[cfg(feature = "alloc")]
+pub(crate) fn read_raw<O, T>(bp: BitPtr<Mut, O, T>) -> bool
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	unsafe { bp.read() }
 }
 
 #[cfg(test)]

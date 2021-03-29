@@ -15,14 +15,14 @@ use core::ops::{
 	RangeToInclusive,
 };
 
+use super::{
+	BitSlice,
+	BitSliceIndex,
+};
 use crate::{
 	access::BitAccess,
 	domain::DomainMut,
 	order::BitOrder,
-	slice::{
-		BitSlice,
-		BitSliceIndex,
-	},
 	store::BitStore,
 };
 
@@ -32,6 +32,7 @@ where
 	T: BitStore,
 	Rhs: IntoIterator<Item = bool>,
 {
+	#[inline]
 	fn bitand_assign(&mut self, rhs: Rhs) {
 		let mut iter = rhs.into_iter();
 		self.for_each(|_, bit| bit & iter.next().unwrap_or(false));
@@ -44,6 +45,7 @@ where
 	T: BitStore,
 	Rhs: IntoIterator<Item = bool>,
 {
+	#[inline]
 	fn bitor_assign(&mut self, rhs: Rhs) {
 		let mut iter = rhs.into_iter();
 		self.for_each(|_, bit| bit | iter.next().unwrap_or(false));
@@ -56,6 +58,7 @@ where
 	T: BitStore,
 	Rhs: IntoIterator<Item = bool>,
 {
+	#[inline]
 	fn bitxor_assign(&mut self, rhs: Rhs) {
 		let mut iter = rhs.into_iter();
 		self.for_each(|_, bit| bit ^ iter.next().unwrap_or(false));
@@ -94,6 +97,7 @@ where
 	/// let bits = bits![0,  ];
 	/// bits[1]; // --------^
 	/// ```
+	#[inline]
 	fn index(&self, index: usize) -> &Self::Output {
 		//  Convert the `BitRef` to `&'static bool`
 		match *index.index(self) {
@@ -113,6 +117,8 @@ macro_rules! index {
 		{
 			type Output = Self;
 
+			#[inline(always)]
+			#[cfg(not(tarpaulin_include))]
 			fn index(&self, index: $t) -> &Self::Output {
 				index.index(self)
 			}
@@ -123,6 +129,8 @@ macro_rules! index {
 			O: BitOrder,
 			T: BitStore,
 		{
+			#[inline(always)]
+			#[cfg(not(tarpaulin_include))]
 			fn index_mut(&mut self, index: $t) -> &mut Self::Output {
 				index.index_mut(self)
 			}

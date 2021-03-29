@@ -22,6 +22,15 @@ use core::{
 use funty::IsNumber;
 use wyz::fmt::FmtForward;
 
+use super::{
+	Address,
+	BitPtr,
+	BitPtrError,
+	BitPtrRange,
+	Const,
+	Mut,
+	Mutability,
+};
 use crate::{
 	domain::Domain,
 	index::{
@@ -32,14 +41,6 @@ use crate::{
 	order::{
 		BitOrder,
 		Lsb0,
-	},
-	ptr::{
-		Address,
-		BitPtr,
-		BitPtrError,
-		Const,
-		Mut,
-		Mutability,
 	},
 	slice::BitSlice,
 	store::BitStore,
@@ -275,6 +276,7 @@ where
 	/// received from the allocation system are required to satisfy this
 	/// constraint, so a failure is an exceptional program fault rather than an
 	/// expected logical mistake.
+	#[inline(always)]
 	#[cfg(feature = "alloc")]
 	#[cfg(not(tarpaulin_include))]
 	pub(crate) fn uninhabited(addr: Address<M, T>) -> Self {
@@ -286,6 +288,7 @@ where
 		}
 	}
 
+	#[inline]
 	pub(crate) fn new(
 		addr: Address<M, T>,
 		head: BitIdx<T::Mem>,
@@ -323,6 +326,7 @@ where
 	/// See [`::new`].
 	///
 	/// [`::new`]: Self::new
+	#[inline]
 	pub(crate) unsafe fn new_unchecked(
 		addr: Address<M, T>,
 		head: BitIdx<T::Mem>,
@@ -379,6 +383,7 @@ where
 	///
 	/// [`::from_bitslice_ptr()`]: Self::from_bitslice_ptr
 	//  Mutable or immutable span descriptors can become immutable pointers.
+	#[inline]
 	pub(crate) fn to_bitslice_ptr(self) -> *const BitSlice<O, T> {
 		ptr::slice_from_raw_parts(
 			self.ptr.as_ptr() as *const u8 as *const (),
@@ -418,6 +423,7 @@ where
 	/// This does not alter the encoded value of the pointer! It only
 	/// reinterprets the element type, and the encoded value may shift
 	/// significantly in the result type. Use with caution.
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub(crate) fn cast<U>(self) -> BitSpan<M, O, U>
 	where U: BitStore {
 		let Self { ptr, len, .. } = self;
@@ -585,6 +591,7 @@ where
 	/// The address of the starting element of the memory region. This address
 	/// is weakly typed so that it can be cast by call sites to the most useful
 	/// access type.
+	#[inline]
 	pub(crate) fn address(&self) -> Address<M, T> {
 		unsafe {
 			Address::new(NonNull::new_unchecked(
@@ -606,6 +613,7 @@ where
 	/// None. The invariants of [`::new`] must be checked at the caller.
 	///
 	/// [`::new`]: Self::new
+	#[inline]
 	#[cfg(any(feature = "alloc", test))]
 	pub(crate) unsafe fn set_address<A>(&mut self, addr: A)
 	where
@@ -632,6 +640,7 @@ where
 	///
 	/// [`BitIdx`]: crate::index::BitIdx
 	/// [`self.address()`]: Self::pointer
+	#[inline]
 	pub(crate) fn head(&self) -> BitIdx<T::Mem> {
 		//  Get the high part of the head counter out of the pointer.
 		let ptr = self.ptr.as_ptr() as usize;
@@ -653,6 +662,7 @@ where
 	///
 	/// `head` is written into the `.head` logical field, without affecting
 	/// `.addr` or `.bits`.
+	#[inline]
 	#[cfg(any(feature = "alloc", test))]
 	pub(crate) unsafe fn set_head(&mut self, head: BitIdx<T::Mem>) {
 		let head = head.into_inner() as usize;
@@ -675,6 +685,7 @@ where
 	/// # Returns
 	///
 	/// A count of how many live bits the region pointer describes.
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub(crate) fn len(&self) -> usize {
 		self.len >> Self::LEN_HEAD_BITS
 	}
@@ -692,6 +703,7 @@ where
 	/// The `new_len` value is written directly into the `.bits` logical field.
 	///
 	/// [`REGION_MAX_BITS`]: Self::REGION_MAX_BITS
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub(crate) unsafe fn set_len(&mut self, new_len: usize) {
 		debug_assert!(
 			new_len <= Self::REGION_MAX_BITS,
@@ -703,8 +715,14 @@ where
 	}
 
 	/// Gets a pointer to the starting bit of the span.
+	#[inline]
 	pub(crate) fn as_bitptr(self) -> BitPtr<M, O, T> {
 		BitPtr::new(self.address(), self.head())
+	}
+
+	#[inline]
+	pub(crate) fn as_bitptr_range(self) -> BitPtrRange<M, O, T> {
+		unsafe { self.as_bitptr().range(self.len()) }
 	}
 
 	/// Gets the three logical components of the pointer.
@@ -719,6 +737,7 @@ where
 	/// - `.1`: The index of the first live bit in the first element of the
 	///   region.
 	/// - `.2`: The number of live bits in the region.
+	#[inline]
 	pub(crate) fn raw_parts(&self) -> (Address<M, T>, BitIdx<T::Mem>, usize) {
 		(self.address(), self.head(), self.len())
 	}
@@ -738,6 +757,7 @@ where
 	/// live bits included in the referent region.
 	///
 	/// [`self.address()`]: Self::pointer
+	#[inline]
 	pub(crate) fn elements(&self) -> usize {
 		//  Find the distance of the last bit from the base address.
 		let total = self.len() + self.head().into_inner() as usize;
@@ -761,6 +781,7 @@ where
 	/// T::Mem::BITS`.
 	///
 	/// It will be zero only when `self` is empty.
+	#[inline]
 	pub(crate) fn tail(&self) -> BitTail<T::Mem> {
 		let (head, len) = (self.head(), self.len());
 
@@ -798,6 +819,7 @@ where
 	/// stepping.
 	///
 	/// [`T::Mem`]: crate::store::BitStore::Mem
+	#[inline]
 	pub(crate) unsafe fn incr_head(&mut self) {
 		//  Increment the cursor, permitting rollover to `T::Mem::BITS`.
 		let head = self.head().into_inner() as usize + 1;
@@ -898,6 +920,7 @@ where
 	///
 	/// [`mem::transmute`]: core::mem::transmute
 	//  Immutable pointers can only become immutable span descriptors.
+	#[inline]
 	pub(crate) fn from_bitslice_ptr(raw: *const BitSlice<O, T>) -> Self {
 		let slice_nn = match NonNull::new(raw as *const [()] as *mut [()]) {
 			Some(nn) => nn,
@@ -965,6 +988,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn clone(&self) -> Self {
 		*self
 	}
@@ -986,6 +1010,7 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn eq(&self, other: &BitSpan<M2, O, T2>) -> bool {
 		let (addr_a, head_a, bits_a) = self.raw_parts();
 		let (addr_b, head_b, bits_b) = other.raw_parts();

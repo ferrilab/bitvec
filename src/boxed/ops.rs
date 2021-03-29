@@ -17,13 +17,14 @@ use core::{
 	},
 };
 
+use super::BitBox;
 use crate::{
-	boxed::BitBox,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
 };
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitAnd<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -39,6 +40,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitAndAssign<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -51,6 +53,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitOr<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -66,6 +69,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitOrAssign<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -78,6 +82,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitXor<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -93,6 +98,7 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T, Rhs> BitXorAssign<Rhs> for BitBox<O, T>
 where
 	O: BitOrder,

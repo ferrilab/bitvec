@@ -140,6 +140,7 @@ where R: BitRegister
 	///
 	/// [`Self::LAST`]: Self::LAST
 	/// [`Self::ZERO`]: Self::ZERO
+	#[inline]
 	pub fn new(value: u8) -> Result<Self, BitIdxError<R>> {
 		if value >= R::BITS as u8 {
 			return Err(BitIdxError::new(value));
@@ -166,6 +167,7 @@ where R: BitRegister
 	///
 	/// [`Self::LAST`]: Self::LAST
 	/// [`Self::ZERO`]: Self::ZERO
+	#[inline]
 	pub unsafe fn new_unchecked(value: u8) -> Self {
 		debug_assert!(
 			value < R::BITS as u8,
@@ -184,13 +186,14 @@ where R: BitRegister
 	/// This will always succeed if `self.into_inner()` is a valid index in the
 	/// `S` register; it will return an error if the `self` index is too wide
 	/// for `S`.
+	#[inline]
 	pub fn cast<S>(self) -> Result<BitIdx<S>, BitIdxError<S>>
 	where S: BitRegister {
 		BitIdx::new(self.into_inner())
 	}
 
 	/// Removes the index wrapper, leaving the internal counter.
-	#[cfg(not(tarpaulin_include))]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn into_inner(self) -> u8 {
 		self.idx
 	}
@@ -205,6 +208,7 @@ where R: BitRegister
 	///
 	/// - `.0`: The next index after `self`.
 	/// - `.1`: Indicates that the new index is in the next register.
+	#[inline]
 	pub fn next(self) -> (Self, bool) {
 		let next = self.idx + 1;
 		(
@@ -223,6 +227,7 @@ where R: BitRegister
 	///
 	/// - `.0`: The previous index before `self`.
 	/// - `.1`: Indicates that the new index is in the previous register.
+	#[inline]
 	pub fn prev(self) -> (Self, bool) {
 		let prev = self.idx.wrapping_sub(1);
 		(
@@ -237,7 +242,7 @@ where R: BitRegister
 	/// constructor for a position counter.
 	///
 	/// [`O::at::<R>`]: crate::order::BitOrder::at
-	#[cfg(not(tarpaulin_include))]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn position<O>(self) -> BitPos<R>
 	where O: BitOrder {
 		O::at::<R>(self)
@@ -249,7 +254,7 @@ where R: BitRegister
 	/// constructor for a bit selector.
 	///
 	/// [`O::select::<R>`]: crate::order::BitOrder::select
-	#[cfg(not(tarpaulin_include))]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn select<O>(self) -> BitSel<R>
 	where O: BitOrder {
 		O::select::<R>(self)
@@ -260,7 +265,7 @@ where R: BitRegister
 	/// This is a type-cast over [`Self::select`].
 	///
 	/// [`Self::select`]: Self::select
-	#[cfg(not(tarpaulin_include))]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn mask<O>(self) -> BitMask<R>
 	where O: BitOrder {
 		self.select::<O>().mask()
@@ -291,6 +296,7 @@ where R: BitRegister
 	///
 	/// [`RangeBounds`]: core::ops::RangeBounds
 	/// [`Range<BitIdx<R>>`]: core::ops::Range
+	#[inline]
 	pub fn range(
 		self,
 		upto: BitTail<R>,
@@ -304,6 +310,7 @@ where R: BitRegister
 	}
 
 	/// Iterates over all possible index values.
+	#[inline]
 	pub fn range_all() -> impl Iterator<Item = Self>
 	+ DoubleEndedIterator
 	+ ExactSizeIterator
@@ -406,32 +413,39 @@ where R: BitRegister
 	/// - `.1`: The tail counter of the span’s end point.
 	///
 	/// [`BitTail::span`]: crate::index::BitTail::span
+	#[inline]
 	pub fn span(self, len: usize) -> (usize, BitTail<R>) {
 		unsafe { BitTail::<R>::new_unchecked(self.into_inner()) }.span(len)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> TryFrom<u8> for BitIdx<R>
 where R: BitRegister
 {
 	type Error = BitIdxError<R>;
 
+	#[inline(always)]
 	fn try_from(value: u8) -> Result<Self, Self::Error> {
 		Self::new(value)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> Binary for BitIdx<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "{:0>1$b}", self.idx, R::INDX as usize)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> Debug for BitIdx<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitIdx<{}>({})", any::type_name::<R>(), self)
 	}
@@ -478,6 +492,7 @@ where R: BitRegister
 	/// # Panics
 	///
 	/// Debug builds panic when `value` is a valid index for `R`.
+	#[inline]
 	pub(crate) fn new(value: u8) -> Self {
 		debug_assert!(
 			value >= R::BITS as u8,
@@ -492,15 +507,17 @@ where R: BitRegister
 	}
 
 	/// Removes the error wrapper, leaving the internal counter.
-	#[cfg(not(tarpaulin_include))]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn into_inner(self) -> u8 {
 		self.err
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> Debug for BitIdxError<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitIdxErr<{}>({})", any::type_name::<R>(), self.err)
 	}
@@ -510,6 +527,7 @@ where R: BitRegister
 impl<R> Display for BitIdxError<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(
 			fmt,
@@ -600,6 +618,7 @@ where R: BitRegister
 	///
 	/// [`Self::LAST`]: Self::LAST
 	/// [`Self::ZERO`]: Self::ZERO
+	#[inline]
 	pub fn new(value: u8) -> Option<Self> {
 		if value > R::BITS as u8 {
 			return None;
@@ -626,6 +645,7 @@ where R: BitRegister
 	///
 	/// [`Self::LAST`]: Self::LAST
 	/// [`Self::ZERO`]: Self::ZERO
+	#[inline]
 	pub(crate) unsafe fn new_unchecked(value: u8) -> Self {
 		debug_assert!(
 			value <= R::BITS as u8,
@@ -640,7 +660,7 @@ where R: BitRegister
 	}
 
 	/// Removes the tail wrapper, leaving the internal counter.
-	#[cfg(not(tarpaulin_include))]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn into_inner(self) -> u8 {
 		self.end
 	}
@@ -664,6 +684,7 @@ where R: BitRegister
 	///
 	/// [`RangeBounds`]: core::ops::RangeBounds
 	/// [`Range<BitTail<R>>`]: core::ops::Range
+	#[inline]
 	pub fn range_from(
 		from: BitIdx<R>,
 	) -> impl Iterator<Item = Self>
@@ -727,17 +748,21 @@ where R: BitRegister
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> Binary for BitTail<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "{:0>1$b}", self.end, R::INDX as usize + 1)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> Debug for BitTail<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitTail<{}>({})", any::type_name::<R>(), self)
 	}
@@ -809,6 +834,7 @@ where R: BitRegister
 	///
 	/// This returns `Some(value)` when it is in the valid range `0 .. R::BITS`,
 	/// and `None` when it is not.
+	#[inline]
 	pub fn new(value: u8) -> Option<Self> {
 		if value >= R::BITS as u8 {
 			return None;
@@ -833,6 +859,7 @@ where R: BitRegister
 	/// If the `value` is outside the valid range, then the program is
 	/// incorrect. Debug builds will panic; release builds do not inspect the
 	/// `value`.
+	#[inline]
 	pub unsafe fn new_unchecked(value: u8) -> Self {
 		debug_assert!(
 			value < R::BITS as u8,
@@ -847,7 +874,7 @@ where R: BitRegister
 	}
 
 	/// Removes the position wrapper, leaving the internal counter.
-	#[cfg(not(tarpaulin_include))]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn into_inner(self) -> u8 {
 		self.pos
 	}
@@ -855,6 +882,7 @@ where R: BitRegister
 	/// Computes the bit selector corresponding to `self`.
 	///
 	/// This is always `1 << self.pos`.
+	#[inline(always)]
 	pub fn select(self) -> BitSel<R> {
 		unsafe { BitSel::new_unchecked(R::ONE << self.pos) }
 	}
@@ -864,12 +892,13 @@ where R: BitRegister
 	/// This is a type-cast over [`Self::select`].
 	///
 	/// [`Self::select`]: Self::select
-	#[cfg(not(tarpaulin_include))]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn mask(self) -> BitMask<R> {
 		self.select().mask()
 	}
 
 	/// Iterates over all possible position values.
+	#[inline]
 	pub(crate) fn range_all() -> impl Iterator<Item = Self>
 	+ DoubleEndedIterator
 	+ ExactSizeIterator
@@ -879,17 +908,21 @@ where R: BitRegister
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> Binary for BitPos<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "{:0>1$b}", self.pos, R::INDX as usize)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> Debug for BitPos<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitPos<{}>({})", any::type_name::<R>(), self)
 	}
@@ -962,6 +995,7 @@ where R: BitRegister
 	/// [`BitOrder::at`]: crate:order::BitOrder::at
 	/// [`BitOrder::select`]: crate::order::BitOrder::select
 	/// [`BitPos`]: crate::index::BitPos
+	#[inline]
 	pub fn new(value: R) -> Option<Self> {
 		if value.count_ones() != 1 {
 			return None;
@@ -989,6 +1023,7 @@ where R: BitRegister
 	/// implementation that is verified to be correct.
 	///
 	/// [`BitOrder::select`]: crate::order::BitOrder::select
+	#[inline]
 	pub unsafe fn new_unchecked(value: R) -> Self {
 		debug_assert!(
 			value.count_ones() == 1,
@@ -1000,7 +1035,7 @@ where R: BitRegister
 	}
 
 	/// Removes the selector wrapper, leaving the internal counter.
-	#[cfg(not(tarpaulin_include))]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn into_inner(self) -> R {
 		self.sel
 	}
@@ -1013,6 +1048,7 @@ where R: BitRegister
 	}
 
 	/// Iterates over all possible selector values.
+	#[inline]
 	pub fn range_all() -> impl Iterator<Item = Self>
 	+ DoubleEndedIterator
 	+ ExactSizeIterator
@@ -1021,17 +1057,21 @@ where R: BitRegister
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> Binary for BitSel<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "{:0>1$b}", self.sel, R::BITS as usize)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> Debug for BitSel<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitSel<{}>({})", any::type_name::<R>(), self)
 	}
@@ -1106,12 +1146,13 @@ where R: BitRegister
 	///
 	/// [`BitOrder::mask`]: crate::order::BitOrder::mask
 	/// [`BitSel`]: crate::index::BitSel
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn new(value: R) -> Self {
 		Self { mask: value }
 	}
 
 	/// Removes the mask wrapper, leaving the internal value.
-	#[cfg(not(tarpaulin_include))]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn into_inner(self) -> R {
 		self.mask
 	}
@@ -1126,6 +1167,7 @@ where R: BitRegister
 	/// # Returns
 	///
 	/// Whether `self` is set high at `sel`.
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn test(&self, sel: BitSel<R>) -> bool {
 		self.mask & sel.sel != R::ZERO
 	}
@@ -1140,6 +1182,7 @@ where R: BitRegister
 	/// # Effects
 	///
 	/// The bit at `sel` is set high in `self`.
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn insert(&mut self, sel: BitSel<R>) {
 		self.mask |= sel.sel;
 	}
@@ -1154,6 +1197,7 @@ where R: BitRegister
 	/// # Returns
 	///
 	/// A copy of `self`, with `sel` set high.
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn combine(self, sel: BitSel<R>) -> Self {
 		Self {
 			mask: self.mask | sel.sel,
@@ -1161,17 +1205,21 @@ where R: BitRegister
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> Binary for BitMask<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "{:0>1$b}", self.mask, R::BITS as usize)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> Debug for BitMask<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitMask<{}>({})", any::type_name::<R>(), self)
 	}
@@ -1187,20 +1235,24 @@ where R: BitRegister
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> Sum<BitSel<R>> for BitMask<R>
 where R: BitRegister
 {
+	#[inline]
 	fn sum<I>(iter: I) -> Self
 	where I: Iterator<Item = BitSel<R>> {
 		iter.fold(Self::ZERO, Self::combine)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> BitAnd<R> for BitMask<R>
 where R: BitRegister
 {
 	type Output = Self;
 
+	#[inline]
 	fn bitand(self, rhs: R) -> Self::Output {
 		Self {
 			mask: self.mask & rhs,
@@ -1208,11 +1260,13 @@ where R: BitRegister
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> BitOr<R> for BitMask<R>
 where R: BitRegister
 {
 	type Output = Self;
 
+	#[inline]
 	fn bitor(self, rhs: R) -> Self::Output {
 		Self {
 			mask: self.mask | rhs,
@@ -1220,11 +1274,13 @@ where R: BitRegister
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<R> Not for BitMask<R>
 where R: BitRegister
 {
 	type Output = Self;
 
+	#[inline]
 	fn not(self) -> Self::Output {
 		Self { mask: !self.mask }
 	}

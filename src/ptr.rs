@@ -190,7 +190,7 @@ pub use self::{
 /// [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
 /// [`copy_nonoverlapping`]: crate::ptr::copy_nonoverlapping
 /// [`memmove`]: https://en.cppreference.com/w/c/string/byte/memmove
-#[inline]
+#[cfg_attr(not(tarpaulin_include), inline(always))]
 pub unsafe fn copy<O1, O2, T1, T2>(
 	src: BitPtr<Const, O1, T1>,
 	dst: BitPtr<Mut, O2, T2>,
@@ -251,7 +251,7 @@ pub unsafe fn copy<O1, O2, T1, T2>(
 /// [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
 /// [`copy`]: crate::ptr::copy
 /// [`memcpy`]: https://en.cppreference.com/w/c/string/byte/memcpy
-#[inline]
+#[cfg_attr(not(tarpaulin_include), inline(always))]
 pub unsafe fn copy_nonoverlapping<O1, O2, T1, T2>(
 	src: BitPtr<Const, O1, T1>,
 	dst: BitPtr<Mut, O2, T2>,
@@ -297,7 +297,7 @@ let cell_ptr = bare_ptr.cast::<Cell<u8>>();
 assert!(bitvec::ptr::eq(bare_ptr, cell_ptr));
 ```
 **/
-#[inline]
+#[cfg_attr(not(tarpaulin_include), inline(always))]
 pub fn eq<O, T1, T2>(a: BitPtr<Const, O, T1>, b: BitPtr<Const, O, T2>) -> bool
 where
 	O: BitOrder,
@@ -317,7 +317,7 @@ referent bit.
 
 [`ptr::hash`](core::ptr::hash)
 **/
-#[inline]
+#[inline(always)]
 #[cfg(not(tarpaulin_include))]
 pub fn hash<O, T, S>(hashee: BitPtr<Const, O, T>, into: &mut S)
 where
@@ -355,7 +355,7 @@ assert!(unsafe {
 
 [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
 **/
-#[inline]
+#[cfg_attr(not(tarpaulin_include), inline(always))]
 pub unsafe fn read<O, T>(src: BitPtr<Const, O, T>) -> bool
 where
 	O: BitOrder,
@@ -416,7 +416,7 @@ unsafe {
 [c11]: http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf
 [valid]: https://doc.rust-lang.org/core/ptr/index.html#safety
 **/
-#[inline]
+#[cfg_attr(not(tarpaulin_include), inline(always))]
 pub unsafe fn read_volatile<O, T>(src: BitPtr<Const, O, T>) -> bool
 where
 	O: BitOrder,
@@ -458,7 +458,7 @@ assert_eq!(data, 0);
 [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
 [`BitPtr::replace`]: crate::ptr::BitRef::replace
 **/
-#[inline]
+#[cfg_attr(not(tarpaulin_include), inline(always))]
 pub unsafe fn replace<O, T>(dst: BitPtr<Mut, O, T>, src: bool) -> bool
 where
 	O: BitOrder,
@@ -492,7 +492,7 @@ assert_eq!(unsafe { &*bitslice }[2], true);
 
 [`slice::from_raw_parts`]: crate::slice::from_raw_parts
 **/
-#[inline]
+#[cfg_attr(not(tarpaulin_include), inline(always))]
 pub fn bitslice_from_raw_parts<O, T>(
 	data: BitPtr<Const, O, T>,
 	len: usize,
@@ -533,7 +533,7 @@ assert!(unsafe { &*bitslice }[0]);
 [`bitslice_from_raw_parts`]: crate::ptr::bitslice_from_raw_parts
 [`slice::from_raw_parts_mut`]: crate::slice::from_raw_parts_mut
 **/
-#[inline]
+#[cfg_attr(not(tarpaulin_include), inline(always))]
 pub fn bitslice_from_raw_parts_mut<O, T>(
 	data: BitPtr<Mut, O, T>,
 	len: usize,
@@ -581,7 +581,7 @@ assert_eq!(data, 1);
 [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
 [`BitRef::swap`]: crate::ptr::BitRef::swap
 **/
-#[inline]
+#[cfg_attr(not(tarpaulin_include), inline(always))]
 pub unsafe fn swap<O1, O2, T1, T2>(
 	x: BitPtr<Mut, O1, T1>,
 	y: BitPtr<Mut, O2, T2>,
@@ -633,7 +633,7 @@ assert_eq!(y, 0);
 
 [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
 **/
-#[inline]
+#[cfg_attr(not(tarpaulin_include), inline(always))]
 pub unsafe fn swap_nonoverlapping<O1, O2, T1, T2>(
 	x: BitPtr<Mut, O1, T1>,
 	y: BitPtr<Mut, O2, T2>,
@@ -685,7 +685,7 @@ assert_eq!(data, 4);
 [valid]: https://doc.rust-lang.org/std/ptr/index.html#safety
 [`core::ptr::write`]: core::ptr::write
 **/
-#[inline]
+#[cfg_attr(not(tarpaulin_include), inline(always))]
 pub unsafe fn write<O, T>(dst: BitPtr<Mut, O, T>, value: bool)
 where
 	O: BitOrder,
@@ -752,7 +752,7 @@ unsafe {
 [c11]: http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf
 [valid]: https://doc.rust-lang.org/core/ptr/index.html#safety
 **/
-#[inline]
+#[cfg_attr(not(tarpaulin_include), inline(always))]
 pub unsafe fn write_volatile<O, T>(dst: BitPtr<Mut, O, T>, value: bool)
 where
 	O: BitOrder,

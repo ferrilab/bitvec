@@ -1,10 +1,7 @@
 //! A pointer to a single bit.
 
 use core::{
-	any::{
-		type_name,
-		TypeId,
-	},
+	any,
 	cmp,
 	convert::{
 		Infallible,
@@ -32,6 +29,19 @@ use wyz::{
 	fmt::FmtForward,
 };
 
+use super::{
+	Address,
+	AddressExt,
+	BitPtrRange,
+	BitRef,
+	BitSpan,
+	BitSpanError,
+	Const,
+	MisalignError,
+	Mut,
+	Mutability,
+	NullPtrError,
+};
 use crate::{
 	access::BitAccess,
 	devel as dvl,
@@ -42,19 +52,6 @@ use crate::{
 	order::{
 		BitOrder,
 		Lsb0,
-	},
-	ptr::{
-		Address,
-		AddressExt,
-		BitPtrRange,
-		BitRef,
-		BitSpan,
-		BitSpanError,
-		Const,
-		MisalignError,
-		Mut,
-		Mutability,
-		NullPtrError,
 	},
 	store::BitStore,
 };
@@ -214,6 +211,13 @@ where
 	#[cfg(not(tarpaulin_include))]
 	pub fn raw_parts(self) -> (Address<M, T>, BitIdx<T::Mem>) {
 		(self.addr, self.head)
+	}
+
+	/// Gets just the head counter.
+	#[inline(always)]
+	#[cfg(feature = "alloc")]
+	pub(crate) fn head(self) -> BitIdx<T::Mem> {
+		self.head
 	}
 
 	/// Produces a `BitSpan`, starting at `self` and running for `bits`.
@@ -1249,7 +1253,7 @@ where
 	/// available. Use on incorrect pointers (f.ex. freezing an `&u8`) is
 	/// undefined.
 	#[inline]
-	unsafe fn frozen_write_bit(self, value: bool) -> bool {
+	pub(crate) unsafe fn frozen_write_bit(self, value: bool) -> bool {
 		(&*self.addr.cast::<T::Access>().to_const())
 			.write_bit::<O>(self.head, value)
 	}
@@ -1397,17 +1401,14 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(
 			fmt,
-			"*{} Bit<{}, {}>",
-			match TypeId::of::<M>() {
-				t if t == TypeId::of::<Const>() => "const",
-				t if t == TypeId::of::<Mut>() => "mut",
-				_ => unreachable!("No other implementors exist"),
-			},
-			type_name::<O>(),
-			type_name::<T>()
+			"{} Bit<{}, {}>",
+			M::RENDER,
+			any::type_name::<O>(),
+			any::type_name::<T>(),
 		)?;
 		Pointer::fmt(self, fmt)
 	}
@@ -1419,6 +1420,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_tuple("")
 			.field(&self.get_addr().fmt_pointer())

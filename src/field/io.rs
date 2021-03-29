@@ -31,8 +31,8 @@ use std::io::{
 	Write,
 };
 
+use super::BitField;
 use crate::{
-	field::BitField,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,

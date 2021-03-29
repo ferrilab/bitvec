@@ -32,7 +32,6 @@ generic type system of any library without undue effort.
 use funty::IsNumber;
 
 use crate::{
-	mem::BitRegister,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
@@ -277,7 +276,7 @@ where T: BitStore
 impl<A, T> AsBits<T> for A
 where
 	A: AsRef<[T]>,
-	T: BitStore + BitRegister,
+	T: BitStore,
 {
 	#[inline]
 	fn as_bits<O>(&self) -> &BitSlice<O, T>
@@ -290,7 +289,7 @@ where
 impl<A, T> AsBitsMut<T> for A
 where
 	A: AsMut<[T]>,
-	T: BitStore + BitRegister,
+	T: BitStore,
 {
 	#[inline]
 	fn as_bits_mut<O>(&mut self) -> &mut BitSlice<O, T>

@@ -54,6 +54,13 @@ use crate::{
 	vec::BitVec,
 };
 
+mod api;
+mod iter;
+mod ops;
+mod traits;
+
+pub use iter::IntoIter;
+
 /** A frozen heap-allocated buffer of individual bits.
 
 This is essentially a [`BitVec`] that has frozen its allocation, and given up
@@ -155,6 +162,7 @@ where
 	/// ```
 	///
 	/// [`BitVec::from_bitslice`]: crate::vec::BitVec::from_bitslice
+	#[inline]
 	pub fn from_bitslice(slice: &BitSlice<O, T>) -> Self {
 		BitVec::from_bitslice(slice).into_boxed_bitslice()
 	}
@@ -187,6 +195,7 @@ where
 	/// ```
 	///
 	/// [`BitSlice::MAX_ELTS`]: crate::slice::BitSlice::MAX_ELTS
+	#[inline]
 	pub fn from_boxed_slice(boxed: Box<[T]>) -> Self {
 		Self::try_from_boxed_slice(boxed)
 			.expect("Slice was too long to be converted into a `BitBox`")
@@ -220,6 +229,7 @@ where
 	/// assert_eq!(bb[..], bits![0; 32]);
 	/// assert_eq!(addr, bb.as_slice().as_ptr());
 	/// ```
+	#[inline]
 	pub fn try_from_boxed_slice(boxed: Box<[T]>) -> Result<Self, Box<[T]>> {
 		let mut boxed = ManuallyDrop::new(boxed);
 
@@ -253,6 +263,7 @@ where
 	/// assert_eq!(boxed[..], [0][..]);
 	/// assert_eq!(addr, boxed.as_ptr());
 	/// ```
+	#[inline]
 	pub fn into_boxed_slice(self) -> Box<[T]> {
 		self.pipe(ManuallyDrop::new)
 			.as_mut_slice()
@@ -340,6 +351,7 @@ where
 	/// let bb = bitbox![0, 1, 1, 0];
 	/// let bits = bb.as_bitslice();
 	/// ```
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
 		self.bitspan.to_bitslice_ref()
 	}
@@ -357,6 +369,7 @@ where
 	/// let bits = bv.as_mut_bitslice();
 	/// bits.set(0, true);
 	/// ```
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
 		self.bitspan.to_bitslice_mut()
 	}
@@ -379,6 +392,7 @@ where
 	/// ```
 	///
 	/// [`.as_bitslice()`]: Self::as_bitslice
+	#[inline]
 	pub fn as_slice(&self) -> &[T] {
 		let (data, len) =
 			(self.bitspan.address().to_const(), self.bitspan.elements());
@@ -404,6 +418,7 @@ where
 	/// ```
 	///
 	/// [`.as_mut_bitslice()`]: Self::as_mut_bitslice
+	#[inline]
 	pub fn as_mut_slice(&mut self) -> &mut [T] {
 		let (data, len) =
 			(self.bitspan.address().to_mut(), self.bitspan.elements());
@@ -478,10 +493,6 @@ where
 			.pipe_ref_mut(func)
 	}
 }
-
-mod api;
-mod ops;
-mod traits;
 
 #[cfg(test)]
 mod tests;

@@ -27,8 +27,8 @@ use core::{
 
 use tap::pipe::Pipe;
 
+use super::BitBox;
 use crate::{
-	boxed::BitBox,
 	order::BitOrder,
 	ptr::{
 		BitSpan,
@@ -311,7 +311,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
+	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Display::fmt(self.as_bitslice(), fmt)
 	}
@@ -323,7 +323,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
+	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(self.as_bitslice(), fmt)
 	}
@@ -335,7 +335,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
+	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		LowerHex::fmt(self.as_bitslice(), fmt)
 	}
@@ -347,7 +347,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
+	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Octal::fmt(self.as_bitslice(), fmt)
 	}
@@ -359,7 +359,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
+	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		self.as_bitspan().render(fmt, "Box", None)
 	}
@@ -371,7 +371,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
+	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		UpperHex::fmt(self.as_bitslice(), fmt)
 	}
@@ -383,27 +383,10 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
-	#[inline]
+	#[inline(always)]
 	fn hash<H>(&self, state: &mut H)
 	where H: Hasher {
 		self.as_bitslice().hash(state)
-	}
-}
-
-/// This is not present on `Box<[T]>`, but is needed to fit into the general
-/// operator implementations.
-#[cfg(not(tarpaulin_include))]
-impl<O, T> IntoIterator for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	type IntoIter = <crate::vec::BitVec<O, T> as IntoIterator>::IntoIter;
-	type Item = <Self::IntoIter as Iterator>::Item;
-
-	#[inline]
-	fn into_iter(self) -> Self::IntoIter {
-		self.into_bitvec().into_iter()
 	}
 }
 

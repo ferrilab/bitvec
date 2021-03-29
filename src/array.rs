@@ -30,6 +30,12 @@ use crate::{
 	view::BitViewSized,
 };
 
+mod iter;
+mod ops;
+mod traits;
+
+pub use self::iter::IntoIter;
+
 /* Note on C++ `std::bitset<N>` compatibility:
 
 The ideal API for `BitArray` is as follows:
@@ -276,12 +282,6 @@ where
 		&mut self.data
 	}
 }
-
-mod iter;
-mod ops;
-mod traits;
-
-pub use self::iter::IntoIter;
 
 #[cfg(test)]
 mod tests;

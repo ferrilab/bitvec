@@ -10,7 +10,6 @@ type [`std::bitset<N>::reference`].
 !*/
 
 use core::{
-	any::TypeId,
 	cell::Cell,
 	cmp,
 	fmt::{
@@ -33,16 +32,16 @@ use core::{
 	},
 };
 
+use super::{
+	BitPtr,
+	Const,
+	Mut,
+	Mutability,
+};
 use crate::{
 	order::{
 		BitOrder,
 		Lsb0,
-	},
-	ptr::{
-		BitPtr,
-		Const,
-		Mut,
-		Mutability,
 	},
 	store::BitStore,
 };
@@ -486,10 +485,9 @@ where
 	fn drop(&mut self) {
 		//  `Drop` cannot specialize, but only mutable proxies can commit to
 		//  memory.
-		if TypeId::of::<M>() == TypeId::of::<Mut>() {
-			let value = self.data;
+		if M::CONTAINS_MUTABILITY {
 			unsafe {
-				self.bitptr.assert_mut().write(value);
+				self.bitptr.assert_mut().write(self.data);
 			}
 		}
 	}

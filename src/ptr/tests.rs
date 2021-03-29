@@ -4,14 +4,14 @@ use core::cell::Cell;
 
 use static_assertions::assert_not_impl_any;
 
+use super::{
+	BitPtr,
+	Const,
+};
 use crate::{
 	order::{
 		Lsb0,
 		Msb0,
-	},
-	ptr::{
-		BitPtr,
-		Const,
 	},
 	slice::BitSlice,
 };

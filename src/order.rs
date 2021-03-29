@@ -202,7 +202,9 @@ pub unsafe trait BitOrder: 'static {
 	///
 	/// [`BitIdx`]: crate::index::BitIdx
 	/// [`Self::at`]: Self::at
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
+
 	fn select<R>(index: BitIdx<R>) -> BitSel<R>
 	where R: BitRegister {
 		Self::at::<R>(index).select()
@@ -262,16 +264,19 @@ pub unsafe trait BitOrder: 'static {
 pub struct Lsb0;
 
 unsafe impl BitOrder for Lsb0 {
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn at<R>(index: BitIdx<R>) -> BitPos<R>
 	where R: BitRegister {
 		unsafe { BitPos::new_unchecked(index.into_inner()) }
 	}
 
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn select<R>(index: BitIdx<R>) -> BitSel<R>
 	where R: BitRegister {
 		unsafe { BitSel::new_unchecked(R::ONE << index.into_inner()) }
 	}
 
+	#[inline]
 	fn mask<R>(
 		from: impl Into<Option<BitIdx<R>>>,
 		upto: impl Into<Option<BitTail<R>>>,
@@ -305,11 +310,13 @@ unsafe impl BitOrder for Lsb0 {
 pub struct Msb0;
 
 unsafe impl BitOrder for Msb0 {
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn at<R>(index: BitIdx<R>) -> BitPos<R>
 	where R: BitRegister {
 		unsafe { BitPos::new_unchecked(R::MASK - index.into_inner()) }
 	}
 
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn select<R>(index: BitIdx<R>) -> BitSel<R>
 	where R: BitRegister {
 		/* Shift the MSbit down by the index count. This is not equivalent to
@@ -320,6 +327,7 @@ unsafe impl BitOrder for Msb0 {
 		unsafe { BitSel::new_unchecked(msbit >> index.into_inner()) }
 	}
 
+	#[inline]
 	fn mask<R>(
 		from: impl Into<Option<BitIdx<R>>>,
 		upto: impl Into<Option<BitTail<R>>>,
@@ -397,6 +405,7 @@ for `O`.
 [`BitOrder`]: crate::order::BitOrder
 [`BitRegister`]: crate::mem::BitRegister
 **/
+#[inline(never)]
 pub fn verify<O>(verbose: bool)
 where O: BitOrder {
 	verify_for_type::<O, u8>(verbose);
@@ -435,6 +444,7 @@ for the combination of input types and index values.
 [`BitOrder`]: crate::order::BitOrder
 [`BitRegister`]: crate::mem::BitRegister
 **/
+#[inline(never)]
 pub fn verify_for_type<O, R>(verbose: bool)
 where
 	O: BitOrder,

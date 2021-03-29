@@ -19,12 +19,14 @@ use core::{
 		Hash,
 		Hasher,
 	},
+	hint,
 	str,
 };
 
 use funty::IsNumber;
 use tap::pipe::Pipe;
 
+use super::BitSlice;
 #[cfg(feature = "alloc")]
 use crate::vec::BitVec;
 use crate::{
@@ -35,7 +37,6 @@ use crate::{
 		Lsb0,
 		Msb0,
 	},
-	slice::BitSlice,
 	store::BitStore,
 	view::BitView,
 };
@@ -52,6 +53,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn cmp(&self, rhs: &Self) -> cmp::Ordering {
 		self.partial_cmp(rhs)
 			.expect("BitSlice has a total ordering")
@@ -72,6 +74,7 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn eq(&self, rhs: &BitSlice<O2, T2>) -> bool {
 		let fallback = || {
 			if self.len() != rhs.len() {
@@ -110,6 +113,7 @@ where
 
 //  ref-to-val equality
 
+#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<BitSlice<O2, T2>> for &BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -117,11 +121,13 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn eq(&self, rhs: &BitSlice<O2, T2>) -> bool {
 		**self == rhs
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<BitSlice<O2, T2>> for &mut BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -129,6 +135,7 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn eq(&self, rhs: &BitSlice<O2, T2>) -> bool {
 		**self == rhs
 	}
@@ -136,6 +143,7 @@ where
 
 //  val-to-ref equality
 
+#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<&BitSlice<O2, T2>> for BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -143,11 +151,13 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn eq(&self, rhs: &&BitSlice<O2, T2>) -> bool {
 		*self == **rhs
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialEq<&mut BitSlice<O2, T2>> for BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -155,6 +165,7 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn eq(&self, rhs: &&mut BitSlice<O2, T2>) -> bool {
 		*self == **rhs
 	}
@@ -174,6 +185,7 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn partial_cmp(&self, rhs: &BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		for (l, r) in self.iter().zip(rhs.iter()) {
 			match (*l, *r) {
@@ -188,6 +200,7 @@ where
 
 //  ref-to-val ordering
 
+#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialOrd<BitSlice<O2, T2>> for &BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -195,11 +208,13 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn partial_cmp(&self, rhs: &BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		(*self).partial_cmp(rhs)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialOrd<BitSlice<O2, T2>> for &mut BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -207,6 +222,7 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn partial_cmp(&self, rhs: &BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		(**self).partial_cmp(rhs)
 	}
@@ -214,6 +230,7 @@ where
 
 //  val-to-ref ordering
 
+#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialOrd<&BitSlice<O2, T2>> for BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -221,11 +238,13 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn partial_cmp(&self, rhs: &&BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		(*self).partial_cmp(&**rhs)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialOrd<&mut BitSlice<O2, T2>> for BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -233,6 +252,7 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn partial_cmp(&self, rhs: &&mut BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		(*self).partial_cmp(&**rhs)
 	}
@@ -240,6 +260,7 @@ where
 
 //  &mut-to-& ordering
 
+#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialOrd<&mut BitSlice<O2, T2>> for &BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -247,11 +268,13 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn partial_cmp(&self, rhs: &&mut BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		(**self).partial_cmp(&**rhs)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O1, O2, T1, T2> PartialOrd<&BitSlice<O2, T2>> for &mut BitSlice<O1, T1>
 where
 	O1: BitOrder,
@@ -259,11 +282,13 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn partial_cmp(&self, rhs: &&BitSlice<O2, T2>) -> Option<cmp::Ordering> {
 		(**self).partial_cmp(&**rhs)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<'a, O, T> TryFrom<&'a [T]> for &'a BitSlice<O, T>
 where
 	O: BitOrder,
@@ -271,11 +296,13 @@ where
 {
 	type Error = &'a [T];
 
+	#[inline]
 	fn try_from(slice: &'a [T]) -> Result<Self, Self::Error> {
 		BitSlice::from_slice(slice).map_err(|_| slice)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<'a, O, T> TryFrom<&'a mut [T]> for &'a mut BitSlice<O, T>
 where
 	O: BitOrder,
@@ -283,27 +310,32 @@ where
 {
 	type Error = &'a mut [T];
 
+	#[inline]
 	fn try_from(slice: &'a mut [T]) -> Result<Self, Self::Error> {
 		let slice_ptr = slice as *mut [T];
 		BitSlice::from_slice_mut(slice).map_err(|_| unsafe { &mut *slice_ptr })
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Default for &BitSlice<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn default() -> Self {
 		BitSlice::empty()
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Default for &mut BitSlice<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn default() -> Self {
 		BitSlice::empty_mut()
 	}
@@ -314,6 +346,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		self.as_bitspan().render(fmt, "Slice", None)?;
 		fmt.write_str(" ")?;
@@ -321,11 +354,13 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Display for BitSlice<O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(self, fmt)
 	}
@@ -366,7 +401,9 @@ macro_rules! fmt {
 			fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 				/// Renders an accumulated text buffer as UTF-8.
 				struct Seq<'a>(&'a [u8]);
+				#[cfg(not(tarpaulin_include))]
 				impl Debug for Seq<'_> {
+					#[inline(always)]
 					fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 						fmt.write_str(unsafe {
 							str::from_utf8_unchecked(self.0)
@@ -428,7 +465,7 @@ macro_rules! fmt {
 						w[end] = match val {
 							v @ 0 ..= 9 => b'0' + v,
 							v @ 10 ..= 16 => $base + (v - 10),
-							_ => unsafe { core::hint::unreachable_unchecked() },
+							_ => unsafe { hint::unreachable_unchecked() },
 						};
 						end += 1;
 					}
@@ -498,10 +535,11 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn hash<H>(&self, hasher: &mut H)
 	where H: Hasher {
-		for bit in self {
-			hasher.write_u8(*bit as u8);
+		for bit in self.as_bitptr_range() {
+			hasher.write_u8(unsafe { bit.read() } as u8);
 		}
 	}
 }
@@ -573,6 +611,7 @@ where
 {
 	type Owned = BitVec<O, T>;
 
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn to_owned(&self) -> Self::Owned {
 		BitVec::from_bitslice(self)
 	}

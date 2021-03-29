@@ -15,6 +15,31 @@ use core::{
 
 use funty::IsNumber;
 
+use super::{
+	iter::{
+		Chunks,
+		ChunksExact,
+		ChunksExactMut,
+		ChunksMut,
+		Iter,
+		IterMut,
+		RChunks,
+		RChunksExact,
+		RChunksExactMut,
+		RChunksMut,
+		RSplit,
+		RSplitMut,
+		RSplitN,
+		RSplitNMut,
+		Split,
+		SplitMut,
+		SplitN,
+		SplitNMut,
+		Windows,
+	},
+	BitRef,
+	BitSlice,
+};
 #[cfg(feature = "alloc")]
 use crate::vec::BitVec;
 use crate::{
@@ -28,31 +53,6 @@ use crate::{
 		BitSpanError,
 		Const,
 		Mut,
-	},
-	slice::{
-		iter::{
-			Chunks,
-			ChunksExact,
-			ChunksExactMut,
-			ChunksMut,
-			Iter,
-			IterMut,
-			RChunks,
-			RChunksExact,
-			RChunksExactMut,
-			RChunksMut,
-			RSplit,
-			RSplitMut,
-			RSplitN,
-			RSplitNMut,
-			Split,
-			SplitMut,
-			SplitN,
-			SplitNMut,
-			Windows,
-		},
-		BitRef,
-		BitSlice,
 	},
 	store::BitStore,
 };
@@ -398,7 +398,7 @@ where
 	/// assert_eq!(None, v.get(3));
 	/// assert_eq!(None, v.get(0 .. 4));
 	/// ```
-	#[inline]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn get<'a, I>(&'a self, index: I) -> Option<I::Immut>
 	where I: BitSliceIndex<'a, O, T> {
 		index.get(self)
@@ -433,7 +433,7 @@ where
 	///
 	/// [`BitRef`]: crate::ptr::BitRef
 	/// [`.get()`]: Self::get
-	#[inline]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn get_mut<'a, I>(&'a mut self, index: I) -> Option<I::Mut>
 	where I: BitSliceIndex<'a, O, T> {
 		index.get_mut(self)
@@ -463,8 +463,8 @@ where
 	///
 	/// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
 	/// [`.get()`]: Self::get
-	#[inline]
 	#[allow(clippy::missing_safety_doc)]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub unsafe fn get_unchecked<'a, I>(&'a self, index: I) -> I::Immut
 	where I: BitSliceIndex<'a, O, T> {
 		index.get_unchecked(self)
@@ -505,8 +505,8 @@ where
 	/// [`BitRef`]: crate::ptr::BitRef
 	/// [`get_mut`]: Self::get_mut
 	/// [undefined behavior]: ../../reference/behavior-considered-undefined.html
-	#[inline]
 	#[allow(clippy::missing_safety_doc)]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub unsafe fn get_unchecked_mut<'a, I>(&'a mut self, index: I) -> I::Mut
 	where I: BitSliceIndex<'a, O, T> {
 		index.get_unchecked_mut(self)
@@ -2180,7 +2180,7 @@ where
 		out
 	}
 
-	/* As of 1.44, the `concat` and `join` methods use still-unstable traits to
+	/* As of 1.51, the `concat` and `join` methods use still-unstable traits to
 	govern the collection of multiple subslices into one vector. These are
 	possible to copy over and redefine locally, but unless a user asks for it,
 	doing so is considered a low priority.

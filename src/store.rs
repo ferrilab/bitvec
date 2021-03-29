@@ -194,6 +194,7 @@ pub trait BitStore: 'static + seal::Sealed + Debug {
 	/// The value of the bit in `*self` at `index`.
 	///
 	/// [`BitAccess`]: crate::access::BitAccess
+	#[inline]
 	fn get_bit<O>(&self, index: BitIdx<Self::Mem>) -> bool
 	where O: BitOrder {
 		self.load_value()
@@ -223,10 +224,12 @@ macro_rules! store {
 			type Alias = $safe;
 			type Unalias = Self;
 
+			#[inline(always)]
 			fn load_value(&self) -> Self::Mem {
 				*self
 			}
 
+			#[inline(always)]
 			fn store_value(&mut self, value: Self::Mem) {
 				*self = value;
 			}
@@ -323,10 +326,12 @@ macro_rules! atomic_store {
 				type Alias = Self;
 				type Unalias = Self;
 
+				#[inline]
 				fn load_value(&self) -> Self::Mem {
 					self.load(core::sync::atomic::Ordering::Relaxed)
 				}
 
+				#[inline]
 				fn store_value(&mut self, value: Self::Mem) {
 					self.store(value, core::sync::atomic::Ordering::Relaxed);
 				}

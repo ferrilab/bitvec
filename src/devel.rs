@@ -88,7 +88,7 @@ pub fn assert_range(range: Range<usize>, end: impl Into<Option<usize>>) {
 /// Tests if two `BitOrder` type parameters match each other.
 ///
 /// This evaluates to a compile-time constant, and is removed during codegen.
-#[inline(always)]
+#[cfg_attr(not(tarpaulin_include), inline(always))]
 pub fn match_order<O1, O2>() -> bool
 where
 	O1: BitOrder,
@@ -100,7 +100,7 @@ where
 /// Tests if two `BitStore` type parameters match each other.
 ///
 /// This evaluates to a compile-time constant, and is removed during codegen.
-#[inline(always)]
+#[cfg_attr(not(tarpaulin_include), inline(always))]
 pub fn match_store<T1, T2>() -> bool
 where
 	T1: BitStore,
@@ -112,7 +112,7 @@ where
 /// Tests if two `<O, T>` type parameter pairs match each other.
 ///
 /// This evaluates to a compile-time constant, and is removed during codegen.
-#[inline(always)]
+#[cfg_attr(not(tarpaulin_include), inline(always))]
 pub fn match_types<O1, T1, O2, T2>() -> bool
 where
 	O1: BitOrder,

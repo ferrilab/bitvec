@@ -10,7 +10,7 @@ pub use crate::{
 	array::BitArray,
 	bitarr,
 	bits,
-	field::BitField,
+	field::BitField as _,
 	order::{
 		BitOrder,
 		LocalBits,
@@ -24,7 +24,7 @@ pub use crate::{
 	},
 	slice::BitSlice,
 	store::BitStore,
-	view::BitView,
+	view::BitView as _,
 	BitArr,
 };
 #[cfg(feature = "alloc")]

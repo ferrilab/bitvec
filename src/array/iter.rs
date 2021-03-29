@@ -12,8 +12,8 @@ use core::{
 
 use tap::pipe::Pipe;
 
+use super::BitArray;
 use crate::{
-	array::BitArray,
 	order::BitOrder,
 	ptr::{
 		BitPtr,
@@ -28,13 +28,6 @@ use crate::{
 # Original
 
 [`array::IntoIter`](core::array::IntoIter)
-
-# API Differences
-
-The standard-library iterator is still unstable, as it depends on
-const-generics. The [`BitView`] trait provides a rough simulacrum of
-const-generic arrays until this feature stabilizes for use outside the standard
-libraries.
 
 [bit-array]: crate::array::BitArray
 [`BitView`]: crate::view::BitView

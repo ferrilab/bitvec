@@ -15,6 +15,7 @@ use funty::{
 	IsNumber,
 };
 
+use super::BitSlice;
 use crate::{
 	devel as dvl,
 	domain::Domain,
@@ -24,7 +25,6 @@ use crate::{
 		Lsb0,
 		Msb0,
 	},
-	slice::BitSlice,
 	store::BitStore,
 };
 
@@ -41,6 +41,7 @@ impl<T> BitSlice<Lsb0, T>
 where T: BitStore
 {
 	/// Accelerates copies between disjoint slices with batch loads.
+	#[inline]
 	pub(crate) fn sp_copy_from_bitslice(&mut self, src: &Self) {
 		assert_eq!(
 			self.len(),
@@ -58,6 +59,7 @@ where T: BitStore
 
 	/// Accelerates possibly-overlapping copies within a single slice with batch
 	/// loads.
+	#[inline]
 	pub(crate) unsafe fn sp_copy_within_unchecked<R>(
 		&mut self,
 		src: R,
@@ -111,6 +113,7 @@ where T: BitStore
 	}
 
 	/// Accelerates equality checking with batch loads.
+	#[inline]
 	pub(crate) fn sp_eq(&self, other: &Self) -> bool {
 		if self.len() != other.len() {
 			return false;
@@ -122,6 +125,7 @@ where T: BitStore
 	}
 
 	/// Seeks the index of the first `1` bit in the bit-slice.
+	#[inline]
 	pub(crate) fn sp_iter_ones_first(&self) -> Option<usize> {
 		let mut accum = 0;
 
@@ -170,6 +174,7 @@ where T: BitStore
 	}
 
 	/// Seeks the index of the last `1` bit in the bit-slice.
+	#[inline]
 	pub(crate) fn sp_iter_ones_last(&self) -> Option<usize> {
 		let mut out = match self.len() {
 			0 => return None,
@@ -221,6 +226,7 @@ where T: BitStore
 	}
 
 	/// Seeks the index of the first `0` bit in the bit-slice.
+	#[inline]
 	pub(crate) fn sp_iter_zeros_first(&self) -> Option<usize> {
 		let mut accum = 0;
 
@@ -270,6 +276,7 @@ where T: BitStore
 	}
 
 	/// Seeks the index of the last `0` bit in the bit-slice.
+	#[inline]
 	pub(crate) fn sp_iter_zeros_last(&self) -> Option<usize> {
 		let mut out = match self.len() {
 			0 => return None,
@@ -334,6 +341,7 @@ impl<T> BitSlice<Msb0, T>
 where T: BitStore
 {
 	/// Accelerates copies between disjoint slices with batch loads.
+	#[inline]
 	pub(crate) fn sp_copy_from_bitslice(&mut self, src: &Self) {
 		assert_eq!(
 			self.len(),
@@ -351,6 +359,7 @@ where T: BitStore
 
 	/// Accelerates possibly-overlapping copies within a single slice with batch
 	/// loads.
+	#[inline]
 	pub(crate) unsafe fn sp_copy_within_unchecked<R>(
 		&mut self,
 		src: R,
@@ -386,6 +395,7 @@ where T: BitStore
 	}
 
 	/// Accelerates equality checking with batch loads.
+	#[inline]
 	pub(crate) fn sp_eq(&self, other: &Self) -> bool {
 		if self.len() != other.len() {
 			return false;
@@ -397,6 +407,7 @@ where T: BitStore
 	}
 
 	/// Seeks the index of the first `1` bit in the bit-slice.
+	#[inline]
 	pub(crate) fn sp_iter_ones_first(&self) -> Option<usize> {
 		let mut accum = 0;
 
@@ -445,6 +456,7 @@ where T: BitStore
 	}
 
 	/// Seeks the index of the last `1` bit in the bit-slice.
+	#[inline]
 	pub(crate) fn sp_iter_ones_last(&self) -> Option<usize> {
 		//  Set the state tracker to the last live index in the bit-slice.
 		let mut out = match self.len() {
@@ -497,6 +509,7 @@ where T: BitStore
 	}
 
 	/// Seeks the index of the first `0` bit in the bit-slice.
+	#[inline]
 	pub(crate) fn sp_iter_zeros_first(&self) -> Option<usize> {
 		let mut accum = 0;
 
@@ -545,6 +558,7 @@ where T: BitStore
 	}
 
 	/// Seeks the index of the last `0` bit in the bit-slice.
+	#[inline]
 	pub(crate) fn sp_iter_zeros_last(&self) -> Option<usize> {
 		let mut out = match self.len() {
 			0 => return None,

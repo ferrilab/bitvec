@@ -8,8 +8,8 @@ use core::{
 
 use tap::pipe::Pipe;
 
+use super::BitBox;
 use crate::{
-	boxed::BitBox,
 	order::BitOrder,
 	ptr::BitSpan,
 	slice::BitSlice,

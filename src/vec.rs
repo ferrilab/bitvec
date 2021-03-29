@@ -42,6 +42,11 @@ use tap::{
 	tap::Tap,
 };
 
+pub use self::iter::{
+	Drain,
+	Splice,
+};
+pub use crate::boxed::IntoIter;
 use crate::{
 	boxed::BitBox,
 	domain::Domain,
@@ -61,6 +66,11 @@ use crate::{
 	slice::BitSlice,
 	store::BitStore,
 };
+
+mod api;
+mod iter;
+mod ops;
+mod traits;
 
 /** A contiguous growable array of bits.
 
@@ -411,6 +421,7 @@ where
 	///
 	/// [`BitSlice::<O, T>::MAX_ELTS`]: crate::slice::BitSlice::MAX_ELTS
 	/// [`BitSlice::<O, T>::from_slice`]: crate::slice::BitSlice::from_slice
+	#[inline]
 	pub fn from_slice(slice: &[T]) -> Result<Self, BitSpanError<T>> {
 		slice.pipe(BitSlice::from_slice).map(Self::from_bitslice)
 	}
@@ -855,7 +866,7 @@ where
 	/// [`UnsafeCell`]: core::cell::UnsafeCell
 	/// [`as_raw_ptr`]: Self::as_raw_ptr
 	/// [`as_mut_bitptr`]: Self::as_mut_bitptr
-	#[inline]
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn as_bitptr(&self) -> BitPtr<Const, O, T> {
 		self.bitspan.as_bitptr().immut()
 	}
@@ -1036,6 +1047,7 @@ where
 	/// The arguments must be derived from a known-good buffer allocation and
 	/// span description. They will be directly used to construct the returned
 	/// bit-vector, and drive all future memory access and allocation control.
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub(crate) unsafe fn from_fields(
 		bitspan: BitSpan<Mut, O, T>,
 		capacity: usize,
@@ -1044,9 +1056,10 @@ where
 	}
 
 	/// Removes the `::Unalias` marker from a bit-vector’s type signature.
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn strip_unalias(this: BitVec<O, T::Unalias>) -> Self {
 		let (bitspan, capacity) = (this.bitspan.cast::<T>(), this.capacity);
-		core::mem::forget(this);
+		mem::forget(this);
 		Self { bitspan, capacity }
 	}
 
@@ -1105,17 +1118,6 @@ where
 		out
 	}
 }
-
-mod api;
-mod iter;
-mod ops;
-mod traits;
-
-pub use self::iter::{
-	Drain,
-	IntoIter,
-	Splice,
-};
 
 #[cfg(test)]
 mod tests;

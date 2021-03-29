@@ -12,6 +12,10 @@ use core::{
 	mem,
 };
 
+use super::{
+	BitSlice,
+	BitSliceIndex,
+};
 use crate::{
 	devel as dvl,
 	order::{
@@ -25,13 +29,10 @@ use crate::{
 		Const,
 		Mut,
 	},
-	slice::{
-		BitSlice,
-		BitSliceIndex,
-	},
 	store::BitStore,
 };
 
+#[cfg(not(tarpaulin_include))]
 impl<'a, O, T> IntoIterator for &'a BitSlice<O, T>
 where
 	O: BitOrder,
@@ -40,11 +41,13 @@ where
 	type IntoIter = Iter<'a, O, T>;
 	type Item = <Self::IntoIter as Iterator>::Item;
 
+	#[inline(always)]
 	fn into_iter(self) -> Self::IntoIter {
 		Iter::new(self)
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<'a, O, T> IntoIterator for &'a mut BitSlice<O, T>
 where
 	O: BitOrder,
@@ -53,6 +56,7 @@ where
 	type IntoIter = IterMut<'a, O, T>;
 	type Item = <Self::IntoIter as Iterator>::Item;
 
+	#[inline(always)]
 	fn into_iter(self) -> Self::IntoIter {
 		IterMut::new(self)
 	}
@@ -83,7 +87,7 @@ for bit in bits.iter() {
 [`BitSlice`]: crate::slice::BitSlice
 [`.iter()`]: crate::slice::BitSlice::iter
 **/
-#[repr(C)]
+#[repr(transparent)]
 pub struct Iter<'a, O, T>
 where
 	O: BitOrder,
@@ -106,6 +110,7 @@ where
 	T: BitStore,
 {
 	/// Constructs a new slice iterator from a slice reference.
+	#[inline]
 	pub(super) fn new(slice: &'a BitSlice<O, T>) -> Self {
 		Self {
 			range: unsafe { slice.as_bitptr().range(slice.len()) },
@@ -151,6 +156,7 @@ where
 	/// ```
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
+	#[inline]
 	pub fn as_bitslice(&self) -> &'a BitSlice<O, T> {
 		self.range.clone().into_bitspan().to_bitslice_ref()
 	}
@@ -193,6 +199,7 @@ where
 	/// assert_eq!(iter.next(), Some(&true));
 	/// assert!(iter.next().is_none());
 	/// ```
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn by_ref(
 		self,
 	) -> impl 'a
@@ -237,6 +244,7 @@ where
 	/// ```
 	///
 	/// [`Iterator::copied`]: core::iter::Iterator::copied
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn by_val(
 		self,
 	) -> impl 'a
@@ -272,11 +280,13 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Clone for Iter<'_, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn clone(&self) -> Self {
 		Self {
 			range: self.range.clone(),
@@ -285,11 +295,13 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> AsRef<BitSlice<O, T>> for Iter<'_, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn as_ref(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()
 	}
@@ -301,6 +313,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_tuple("Iter").field(&self.as_bitslice()).finish()
 	}
@@ -331,7 +344,7 @@ assert_eq!(bits, bits![1; 2]);
 [`BitSlice`]: crate::slice::BitSlice
 [`.iter_mut()`]: crate::slice::BitSlice::iter_mut
 **/
-#[repr(C)]
+#[repr(transparent)]
 pub struct IterMut<'a, O, T>
 where
 	O: BitOrder,
@@ -354,6 +367,7 @@ where
 	T: BitStore,
 {
 	/// Constructs a new slice mutable iterator from a slice reference.
+	#[inline]
 	pub(super) fn new(slice: &'a mut BitSlice<O, T>) -> Self {
 		let len = slice.len();
 		Self {
@@ -410,6 +424,7 @@ where
 	/// ```
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
+	#[inline]
 	pub fn into_bitslice(self) -> &'a mut BitSlice<O, T::Alias> {
 		self.range.into_bitspan().to_bitslice_mut()
 	}
@@ -422,12 +437,8 @@ where
 		self.into_bitslice()
 	}
 
+	#[inline]
 	pub(crate) fn as_bitslice(&self) -> &BitSlice<O, T::Alias> {
-		unsafe { core::ptr::read(self) }.into_bitslice()
-	}
-
-	#[cfg(feature = "alloc")]
-	pub(crate) fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T::Alias> {
 		unsafe { core::ptr::read(self) }.into_bitslice()
 	}
 }
@@ -438,6 +449,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_tuple("IterMut")
 			.field(&self.as_bitslice())
@@ -455,6 +467,7 @@ macro_rules! iter {
 		{
 			type Item = $i;
 
+			#[inline]
 			fn next(&mut self) -> Option<Self::Item> {
 				self.range
 					.next()
@@ -471,6 +484,7 @@ macro_rules! iter {
 				self.len()
 			}
 
+			#[inline]
 			fn nth(&mut self, n: usize) -> Option<Self::Item> {
 				self.range
 					.nth(n)
@@ -488,12 +502,14 @@ macro_rules! iter {
 			O: BitOrder,
 			T: BitStore,
 		{
+			#[inline]
 			fn next_back(&mut self) -> Option<Self::Item> {
 				self.range
 				.next_back()
 				.map(|bp| unsafe { BitRef::from_bitptr(bp) })
 			}
 
+			#[inline]
 			fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
 				self.range
 				.nth_back(n)
@@ -561,19 +577,24 @@ macro_rules! group {
 		{
 			type Item = $item;
 
+			#[inline]
 			$next
 
+			#[inline]
 			$nth
 
+			#[inline(always)]
 			fn size_hint(&self) -> (usize, Option<usize>) {
 				let len = self.len();
 				(len, Some(len))
 			}
 
+			#[inline(always)]
 			fn count(self) -> usize {
 				self.len()
 			}
 
+			#[inline(always)]
 			fn last(mut self) -> Option<Self::Item> {
 				self.next_back()
 			}
@@ -584,8 +605,10 @@ macro_rules! group {
 			O: BitOrder,
 			T: BitStore,
 		{
+			#[inline]
 			$next_back
 
+			#[inline]
 			$nth_back
 		}
 
@@ -594,6 +617,7 @@ macro_rules! group {
 			O: BitOrder,
 			T: BitStore,
 		{
+			#[inline]
 			$len
 		}
 
@@ -948,6 +972,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	pub(super) fn new(slice: &'a BitSlice<O, T>, width: usize) -> Self {
 		let len = slice.len();
 		let rem = len % width;
@@ -968,6 +993,7 @@ where
 	/// [`slice::ChunksExact::remainder`](core::slice::ChunksExact::remainder)
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn remainder(&self) -> &'a BitSlice<O, T> {
 		self.extra
 	}
@@ -1074,6 +1100,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	pub(super) fn new(slice: &'a mut BitSlice<O, T>, width: usize) -> Self {
 		let len = slice.len();
 		let rem = len % width;
@@ -1100,6 +1127,7 @@ where
 	///
 	/// [orig]: core::slice::ChunksExactMut::into_remainder
 	/// [`BitSlice`]: crate::slice::BitSlice
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn into_remainder(self) -> &'a mut BitSlice<O, T::Alias> {
 		self.extra
 	}
@@ -1424,6 +1452,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	pub(super) fn new(slice: &'a BitSlice<O, T>, width: usize) -> Self {
 		let (extra, slice) =
 			unsafe { slice.split_at_unchecked(slice.len() % width) };
@@ -1443,6 +1472,7 @@ where
 	/// [`slice::RChunksExact::remainder`](core::slice::RChunksExact::remainder)
 	///
 	/// [`BitSlice`]: crate::slice::BitSlice
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn remainder(&self) -> &'a BitSlice<O, T> {
 		self.extra
 	}
@@ -1550,6 +1580,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	pub(super) fn new(slice: &'a mut BitSlice<O, T>, width: usize) -> Self {
 		let (extra, slice) =
 			unsafe { slice.split_at_unchecked_mut(slice.len() % width) };
@@ -1575,6 +1606,7 @@ where
 	///
 	/// [orig]: core::slice::RChunksExactMut::into_remainder
 	/// [`BitSlice`]: crate::slice::BitSlice
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub fn into_remainder(self) -> &'a mut BitSlice<O, T::Alias> {
 		self.extra
 	}
@@ -1648,6 +1680,7 @@ macro_rules! new_group {
 			O: BitOrder,
 			T: BitStore
 		{
+			#[inline]
 			#[allow(clippy::redundant_field_names)]
 			pub(super) fn new(
 				slice: &'a $($m)? BitSlice<O, T>,
@@ -1678,6 +1711,7 @@ macro_rules! split {
 			T: BitStore,
 			P: FnMut(usize, &bool) -> bool,
 		{
+			#[cfg_attr(not(tarpaulin_include), inline(always))]
 			pub(super) fn new(slice: $item, pred: P) -> Self {
 				Self {
 					slice,
@@ -1693,6 +1727,7 @@ macro_rules! split {
 			T: BitStore,
 			P: FnMut(usize, &bool) -> bool,
 		{
+			#[inline]
 			fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 				fmt.debug_struct(stringify!($iter))
 					.field("slice", &self.slice)
@@ -1709,8 +1744,10 @@ macro_rules! split {
 		{
 			type Item = $item;
 
+			#[inline]
 			$next
 
+			#[inline]
 			fn size_hint(&self) -> (usize, Option<usize>) {
 				if self.done {
 					(0, Some(0))
@@ -1727,6 +1764,7 @@ macro_rules! split {
 			T: BitStore,
 			P: FnMut(usize, &bool) -> bool,
 		{
+			#[inline]
 			$next_back
 		}
 
@@ -1744,6 +1782,7 @@ macro_rules! split {
 			T: BitStore,
 			P: FnMut(usize, &bool) -> bool,
 		{
+			#[inline]
 			fn finish(&mut self) -> Option<Self::Item> {
 				if self.done {
 					None
@@ -2171,6 +2210,7 @@ macro_rules! split_n {
 			T: BitStore,
 			P: FnMut(usize, &bool) -> bool,
 		{
+			#[inline]
 			pub(super) fn new(
 				slice: $item,
 				pred: P,
@@ -2188,6 +2228,7 @@ macro_rules! split_n {
 			T: BitStore,
 			P: FnMut(usize, &bool) -> bool
 		{
+			#[inline]
 			fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 				fmt.debug_struct(stringify!($outer))
 					.field("slice", &self.inner.slice)
@@ -2205,6 +2246,7 @@ macro_rules! split_n {
 		{
 			type Item = <$inner <'a, O, T, P> as Iterator>::Item;
 
+			#[inline]
 			fn next(&mut self) -> Option<Self::Item> {
 				match self.count {
 					0 => None,
@@ -2219,6 +2261,7 @@ macro_rules! split_n {
 				}
 			}
 
+			#[inline]
 			fn size_hint(&self) -> (usize, Option<usize>) {
 				let (low, hi) = self.inner.size_hint();
 				(low, hi.map(|h| cmp::min(self.count, h)))
@@ -2265,6 +2308,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub(super) fn new(slice: &'a BitSlice<O, T>) -> Self {
 		Self {
 			inner: slice,
@@ -2273,11 +2317,13 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Default for IterOnes<'_, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn default() -> Self {
 		Self {
 			inner: Default::default(),
@@ -2293,6 +2339,7 @@ where
 {
 	type Item = usize;
 
+	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
 		let pos = if dvl::match_order::<O, Lsb0>() {
 			let slice = unsafe {
@@ -2328,15 +2375,18 @@ where
 		}
 	}
 
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		let len = self.len();
 		(len, Some(len))
 	}
 
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn count(self) -> usize {
 		self.len()
 	}
 
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn last(mut self) -> Option<Self::Item> {
 		self.next_back()
 	}
@@ -2383,6 +2433,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn len(&self) -> usize {
 		self.inner.count_ones()
 	}
@@ -2419,6 +2470,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub(super) fn new(slice: &'a BitSlice<O, T>) -> Self {
 		Self {
 			inner: slice,
@@ -2427,11 +2479,13 @@ where
 	}
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<O, T> Default for IterZeros<'_, O, T>
 where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline(always)]
 	fn default() -> Self {
 		Self {
 			inner: Default::default(),
@@ -2479,15 +2533,18 @@ where
 		}
 	}
 
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		let len = self.len();
 		(len, Some(len))
 	}
 
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn count(self) -> usize {
 		self.len()
 	}
 
+	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	fn last(mut self) -> Option<Self::Item> {
 		self.next_back()
 	}
@@ -2534,6 +2591,7 @@ where
 	O: BitOrder,
 	T: BitStore,
 {
+	#[inline]
 	fn len(&self) -> usize {
 		self.inner.count_zeros()
 	}
@@ -2621,6 +2679,7 @@ macro_rules! noalias {
 			///
 			/// [`T::Alias`]: crate::store::BitStore::Alias
 			/// [`T::Mem`]: crate::store::BitStore::Mem
+			#[inline(always)]
 			pub unsafe fn remove_alias(self) -> $to <'a, O, T $( , $p )? > {
 				$to ::new(self)
 			}
@@ -2632,6 +2691,7 @@ macro_rules! noalias {
 			T: BitStore,
 			$( $p : FnMut(usize, &bool) -> bool, )?
 		{
+			#[inline(always)]
 			fn new(inner: $from<'a, O, T $( , $p )? >) -> Self {
 				Self { inner }
 			}
@@ -2645,22 +2705,27 @@ macro_rules! noalias {
 		{
 			type Item = $item;
 
+			#[inline]
 			fn next(&mut self) -> Option<Self::Item> {
 				self.inner.next().map(|item| unsafe { $map(item) })
 			}
 
+			#[cfg_attr(not(tarpaulin_include), inline(always))]
 			fn size_hint(&self) -> (usize, Option<usize>) {
 				self.inner.size_hint()
 			}
 
+			#[cfg_attr(not(tarpaulin_include), inline(always))]
 			fn count(self) -> usize {
 				self.inner.count()
 			}
 
+			#[inline]
 			fn nth(&mut self, n: usize) -> Option<Self::Item> {
 				self.inner.nth(n).map(|item| unsafe { $map(item) })
 			}
 
+			#[inline]
 			fn last(self) -> Option<Self::Item> {
 				self.inner.last().map(|item| unsafe { $map(item) })
 			}
@@ -2673,12 +2738,14 @@ macro_rules! noalias {
 			$from <'a, O, T $( , $p )? >: DoubleEndedIterator<Item = $alias >,
 			$( $p : FnMut(usize, &bool) -> bool, )?
 		{
+			#[inline]
 			fn next_back(&mut self) -> Option<Self::Item> {
 				self.inner
 					.next_back()
 					.map(|item| unsafe { $map(item) })
 			}
 
+			#[inline]
 			fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
 				self.inner
 					.nth_back(n)
@@ -2693,6 +2760,7 @@ macro_rules! noalias {
 			$from <'a, O, T $( , $p )? >: ExactSizeIterator,
 			$( $p : FnMut(usize, &bool) -> bool, )?
 		{
+			#[cfg_attr(not(tarpaulin_include), inline(always))]
 			fn len(&self) -> usize {
 				self.inner.len()
 			}
