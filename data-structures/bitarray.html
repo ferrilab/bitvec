@@ -177,7 +177,7 @@ declaration is</p>
 <pre><code class="language-rust ignore"><span class="boring">use bitvec::prelude::*;
 </span>pub struct BitArray&lt;
   O: BitOrder,
-  V: BitView,
+  V: BitViewSized,
 &gt; {
   _ord: PhantomData&lt;O&gt;,
   data: V,
