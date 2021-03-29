@@ -19,10 +19,11 @@ use core::{
 	},
 };
 
+#[cfg(feature = "alloc")]
+use super::Mut;
 use super::{
 	BitPtr,
 	BitSpan,
-	Mut,
 	Mutability,
 };
 use crate::{

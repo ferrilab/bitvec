@@ -65,8 +65,7 @@ optional = true
 version = "1"
 
 [dependencies.wyz]
-path = "../../myrrlyn/wyz"
-# version = "0.4"
+version = "0.4"
 default-features = false
 
 # Crates required when running the test suite.

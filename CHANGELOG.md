@@ -4,6 +4,7 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+1. [0.22](#022)
 1. [0.21](#021)
    1. [0.21.1](#0211)
    1. [0.21.0](#0210)
@@ -63,6 +64,20 @@ This document is written according to the [Keep a Changelog][kac] style.
 1. [0.3.0](#030)
 1. [0.2.0](#020-1)
 1. [0.1.0](#010-1)
+
+## 0.22
+
+### 0.22.0 <!-- omit in toc -->
+
+This updates the MSRV to Rust 1.51 in order to use const-generics and other new
+APIs.
+
+It also extracts the pointer mutability tracking to `wyz 0.4` and takes
+advantage of `0.20`’s pointer overhaul to improve performance in `BitSlice`
+methods.
+
+While some internal APIs have been reshuffled, the test suite indicates that no
+user-facing changes have occurred except for the MSRV raise.
 
 ## 0.21
 
