@@ -23,6 +23,8 @@ use core::{
 	},
 };
 
+use funty::IsNumber;
+
 use super::{
 	BitArray,
 	IntoIter,
@@ -181,16 +183,16 @@ where
 	}
 }
 
-impl<'a, O, V> TryFrom<&'a BitSlice<O, V::Store>> for BitArray<O, V>
+impl<'a, O, T> TryFrom<&'a BitSlice<O, T>> for BitArray<O, T>
 where
 	O: BitOrder,
-	V: BitViewSized,
+	T: BitStore,
 {
-	type Error = TryFromBitSliceError<'a, O, V::Store>;
+	type Error = TryFromBitSliceError<'a, O, T>;
 
 	#[inline]
-	fn try_from(src: &'a BitSlice<O, V::Store>) -> Result<Self, Self::Error> {
-		if src.len() != V::BITS {
+	fn try_from(src: &'a BitSlice<O, T>) -> Result<Self, Self::Error> {
+		if src.len() != <T::Mem as IsNumber>::BITS as usize {
 			return Self::Error::err(src);
 		}
 		let mut out = Self::zeroed();
@@ -199,41 +201,106 @@ where
 	}
 }
 
-impl<'a, O, V> TryFrom<&'a BitSlice<O, V::Store>> for &'a BitArray<O, V>
+impl<'a, O, T, const N: usize> TryFrom<&'a BitSlice<O, T>>
+	for BitArray<O, [T; N]>
 where
 	O: BitOrder,
-	V: BitViewSized,
+	T: BitStore,
 {
-	type Error = TryFromBitSliceError<'a, O, V::Store>;
+	type Error = TryFromBitSliceError<'a, O, T>;
 
 	#[inline]
-	fn try_from(src: &'a BitSlice<O, V::Store>) -> Result<Self, Self::Error> {
-		let bitspan = src.as_bitspan();
-		//  This pointer cast can only happen if the slice is exactly as long as
-		//  the array, and is aligned to the front of the element.
-		if src.len() != V::BITS || bitspan.head() != BitIdx::ZERO {
+	fn try_from(src: &'a BitSlice<O, T>) -> Result<Self, Self::Error> {
+		if src.len() != <T::Mem as IsNumber>::BITS as usize * N {
 			return Self::Error::err(src);
 		}
-		Ok(unsafe { &*(bitspan.address().to_const() as *const BitArray<O, V>) })
+		let mut out = Self::zeroed();
+		out.copy_from_bitslice(src);
+		Ok(out)
 	}
 }
 
-impl<'a, O, V> TryFrom<&'a mut BitSlice<O, V::Store>> for &'a mut BitArray<O, V>
+impl<'a, O, T> TryFrom<&'a BitSlice<O, T>> for &'a BitArray<O, T>
 where
 	O: BitOrder,
-	V: BitViewSized,
+	T: BitStore,
 {
-	type Error = TryFromBitSliceError<'a, O, V::Store>;
+	type Error = TryFromBitSliceError<'a, O, T>;
 
 	#[inline]
-	fn try_from(
-		src: &'a mut BitSlice<O, V::Store>,
-	) -> Result<Self, Self::Error> {
+	fn try_from(src: &'a BitSlice<O, T>) -> Result<Self, Self::Error> {
+		let bitspan = src.as_bitspan();
+		//  This pointer cast can only happen if the slice is exactly as long as
+		//  the array, and is aligned to the front of the element.
+		if src.len() != <T::Mem as IsNumber>::BITS as usize
+			|| bitspan.head() != BitIdx::ZERO
+		{
+			return Self::Error::err(src);
+		}
+		Ok(unsafe { &*(bitspan.address().to_const() as *const BitArray<O, T>) })
+	}
+}
+
+impl<'a, O, T, const N: usize> TryFrom<&'a BitSlice<O, T>>
+	for &'a BitArray<O, [T; N]>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	type Error = TryFromBitSliceError<'a, O, T>;
+
+	#[inline]
+	fn try_from(src: &'a BitSlice<O, T>) -> Result<Self, Self::Error> {
+		let bitspan = src.as_bitspan();
+		if src.len() != <T::Mem as IsNumber>::BITS as usize * N
+			|| bitspan.head() != BitIdx::ZERO
+		{
+			return Self::Error::err(src);
+		}
+		Ok(unsafe {
+			&*(bitspan.address().to_const() as *const BitArray<O, [T; N]>)
+		})
+	}
+}
+
+impl<'a, O, T> TryFrom<&'a mut BitSlice<O, T>> for &'a mut BitArray<O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	type Error = TryFromBitSliceError<'a, O, T>;
+
+	#[inline]
+	fn try_from(src: &'a mut BitSlice<O, T>) -> Result<Self, Self::Error> {
 		let bitspan = src.as_mut_bitspan();
-		if src.len() != V::BITS || bitspan.head() != BitIdx::ZERO {
+		if src.len() != <T::Mem as IsNumber>::BITS as usize
+			|| bitspan.head() != BitIdx::ZERO
+		{
 			return Self::Error::err(&*src);
 		}
-		Ok(unsafe { &mut *(bitspan.address().to_mut() as *mut BitArray<O, V>) })
+		Ok(unsafe { &mut *(bitspan.address().to_mut() as *mut BitArray<O, T>) })
+	}
+}
+
+impl<'a, O, T, const N: usize> TryFrom<&'a mut BitSlice<O, T>>
+	for &'a mut BitArray<O, [T; N]>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	type Error = TryFromBitSliceError<'a, O, T>;
+
+	#[inline]
+	fn try_from(src: &'a mut BitSlice<O, T>) -> Result<Self, Self::Error> {
+		let bitspan = src.as_mut_bitspan();
+		if src.len() != <T::Mem as IsNumber>::BITS as usize * N
+			|| bitspan.head() != BitIdx::ZERO
+		{
+			return Self::Error::err(&*src);
+		}
+		Ok(unsafe {
+			&mut *(bitspan.address().to_mut() as *mut BitArray<O, [T; N]>)
+		})
 	}
 }
 
