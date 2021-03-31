@@ -38,6 +38,7 @@ fn compile_bitarr_typedef() {
 }
 
 #[test]
+#[allow(clippy::declare_interior_mutable_const)]
 fn constexpr_macros() {
 	const A: BitArr!(for 20, in Lsb0, Cell<u8>) =
 		bitarr!(const Lsb0, Cell<u8>; 1; 20);
