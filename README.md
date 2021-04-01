@@ -601,7 +601,7 @@ synchronization control.
 
 [`&/mut BitSlice`]: https://docs.rs/bitvec/latest/bitvec/slice/struct.BitSlice.html "BitSlice API reference"
 
-[Bit Ordering]: https://github.com/myrrlyn/bitvec/blob/HEAD/develop/book/bit-ordering.md
+[Bit Ordering]: https://github.com/bitvecto-rs/bitvec/blob/HEAD/book/bit-ordering.md
 [docs.rs]: https://docs.rs/bitvec/latest/bitvec "crate API reference"
 [examples]: https://github.com/myrrlyn/bitvec/blob/HEAD/examples
 [macro]: https://docs.rs/bitvec/latest/bitvec/#macros
