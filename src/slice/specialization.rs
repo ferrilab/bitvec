@@ -172,9 +172,9 @@ where T: BitStore
 	pub(crate) fn sp_iter_ones_last(&self) -> Option<usize> {
 		let mut out = match self.len() {
 			0 => return None,
-			n => n - 1,
+			n => n,
 		};
-		match self.domain() {
+		(|| match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
 				let val = (Lsb0::mask(head, tail) & elem.load_value()).value();
 				let dead_bits = T::Mem::BITS as u8 - tail.value();
@@ -215,7 +215,8 @@ where T: BitStore
 
 				None
 			},
-		}
+		})()
+		.map(|idx| idx - 1)
 	}
 
 	/// Seeks the index of the first `0` bit in the bit-slice.
@@ -269,9 +270,9 @@ where T: BitStore
 	pub(crate) fn sp_iter_zeros_last(&self) -> Option<usize> {
 		let mut out = match self.len() {
 			0 => return None,
-			n => n - 1,
+			n => n,
 		};
-		match self.domain() {
+		(|| match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
 				let val = (Lsb0::mask(head, tail) & !elem.load_value()).value();
 				let dead_bits = T::Mem::BITS as u8 - tail.value();
@@ -312,7 +313,8 @@ where T: BitStore
 
 				None
 			},
-		}
+		})()
+		.map(|idx| idx - 1)
 	}
 }
 
