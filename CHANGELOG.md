@@ -67,6 +67,11 @@ This document is written according to the [Keep a Changelog][kac] style.
 
 ## 0.22
 
+### 0.22.1 <!-- omit in toc -->
+
+Fixes [Issue #114], submitted by GitHub user [@VilleHallivuori]. The fix is also
+backported to the `0.21`, `0.20`, `0.19`, and `0.18` series.
+
 ### 0.22.0 <!-- omit in toc -->
 
 This updates the MSRV to Rust 1.51 in order to use const-generics and other new
@@ -1212,6 +1217,7 @@ Initial implementation and release.
 [@GeorgeGkas]: https://github.com/GeorgeGkas
 [@HamishWMC]: https://github.com/HamishWMC
 [@ImmemorConsultrixContrarie]: https://github.com/ImmemorConsultrixContrarie
+[@VilleHallivuori]: https://github.com/VilleHallivuori
 [@arucil]: https://github.com/arucil
 [@caelunshun]: https://github.com/caelunshun
 [@geq1t]: https://github.com/geq1t
@@ -1250,6 +1256,7 @@ Initial implementation and release.
 [Issue #75]: https://github.com/bitvecto-rs/bitvec/issues/75
 [Issue #83]: https://github.com/bitvecto-rs/bitvec/issues/83
 [Issue #103]: https://github.com/bitvecto-rs/bitvec/issues/103
+[Issue #114]: https://github.com/bitvecto-rs/bitvec/issues/114
 [Pull Request #34]: https://github.com/bitvecto-rs/bitvec/pull/34
 [Pull Request #41]: https://github.com/bitvecto-rs/bitvec/pull/41
 [Pull Request #68]: https://github.com/bitvecto-rs/bitvec/pull/68

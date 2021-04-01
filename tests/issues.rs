@@ -2,7 +2,6 @@
 
 #![allow(clippy::unusual_byte_groupings)]
 
-#[cfg(feature = "alloc")]
 use bitvec::prelude::*;
 
 /** Test case for [Issue #10], opened by [@overminder].
@@ -272,4 +271,49 @@ fn issue_77() {
 	// Also notice, `bv` only contains `true`, but with `N` < 4, the `last_few`
 	// are all `false`!!!
 	assert_eq!(&[&true; N], last_few.as_slice());
+}
+
+/** Test case for [Issue #114], opened by [@VilleHallivuori].
+
+This report describes an overflowing-subtraction error encountered when
+attempting to find the last index of an un/set bit in a bit-slice that does not
+have any.
+
+This is not a surprising crash: the reverse gallop by indices through a slice is
+a cumbersome operation that is fraught with potential for failure, thanks to the
+half-open nature of indices within a length.
+
+The fix turned out to be incredibly simple: defer the derement operation (to go
+from len to last valid index) from the *start* of the search to the *end*.
+
+I am not confident in the categorical correctness of this solution, but it fixes
+the provided test cases and does not break the existing tests.
+
+I will need to devise test cases that thoroughly check all possible branches of
+the galloping searches, but for now, this is an improvement over the existing
+behavior, so I am going to call it sufficient for the bug as reported, publish
+patches, and await further reports.
+
+[Issue #114]: https://github.com/bitvecto-rs/bitvec/issues/114
+[@VilleHallivuori]: https://github.com/VilleHallivuori
+**/
+#[test]
+fn issue_114() {
+	let one_zero = bits![0];
+	let one_one = bits![1];
+
+	assert_eq!(one_zero.count_zeros(), 1);
+	assert_eq!(one_zero.count_ones(), 0);
+	assert_eq!(one_one.count_zeros(), 0);
+	assert_eq!(one_one.count_ones(), 1);
+
+	assert!(one_zero.first_one().is_none());
+	assert!(one_zero.last_one().is_none());
+	assert!(one_one.first_zero().is_none());
+	assert!(one_one.last_zero().is_none());
+
+	assert_eq!(one_zero.first_zero(), Some(0));
+	assert_eq!(one_zero.last_zero(), Some(0));
+	assert_eq!(one_one.first_one(), Some(0));
+	assert_eq!(one_one.last_one(), Some(0));
 }
