@@ -4,6 +4,7 @@ All notable changes will be documented in this file.
 
 This document is written according to the [Keep a Changelog][kac] style.
 
+1. [0.20.3](#0203)
 1. [0.20.2](#0202)
 1. [0.20.1](#0201)
 1. [0.20.0](#0200)
@@ -58,6 +59,10 @@ This document is written according to the [Keep a Changelog][kac] style.
 1. [0.3.0](#030)
 1. [0.2.0](#020)
 1. [0.1.0](#010)
+
+## 0.20.3
+
+Backports [#114].
 
 ## 0.20.2
 
@@ -1129,6 +1134,7 @@ Initial implementation and release.
 [@Fotosmile]: https://github.com/Fotosmile
 [@GeorgeGkas]: https://github.com/GeorgeGkas
 [@ImmemorConsultrixContrarie]: https://github.com/ImmemorConsultrixContrarie
+[@VilleHallivuori]: https://github.com/VilleHallivuori
 [@arucil]: https://github.com/arucil
 [@caelunshun]: https://github.com/caelunshun
 [@geq1t]: https://github.com/geq1t
@@ -1163,6 +1169,7 @@ Initial implementation and release.
 [Issue #69]: https://github.com/myrrlyn/bitvec/issues/69
 [Issue #75]: https://github.com/myrrlyn/bitvec/issues/75
 [Issue #83]: https://github.com/myrrlyn/bitvec/issues/83
+[Issue #114]: https://github.com/myrrlyn/bitvec/issues/114
 [Pull Request #34]: https://github.com/myrrlyn/bitvec/pull/34
 [Pull Request #41]: https://github.com/myrrlyn/bitvec/pull/41
 [Pull Request #68]: https://github.com/myrrlyn/bitvec/pull/68
