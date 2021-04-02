@@ -252,7 +252,7 @@ where
 	/// - `self`: The base bit-address of the returned span descriptor.
 	/// - `bits`: The length in bits of the returned span descriptor.
 	///
-	/// # Retuns
+	/// # Returns
 	///
 	/// `self` and `bits` encoded into a `BitSpan`. This `BitSpan` may be
 	/// semantically invalid, and it may have modulated its length.
@@ -409,7 +409,7 @@ where
 	/// # Safety
 	///
 	/// Since `BitPtr` does not permit null or misaligned pointers, this method
-	/// will always dereference the pointer and you must ensure the following
+	/// will always dereference the pointer, and you must ensure the following
 	/// conditions are met:
 	///
 	/// - the pointer must be dereferencable as defined in the standard library

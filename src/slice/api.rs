@@ -2000,7 +2000,7 @@ where
 	/// # Safety
 	///
 	/// This method is essentially a [`mem::transmute`][mt] with respect to the
-	/// memory region in the retured middle slice, so all of the usual caveats
+	/// memory region in the returned middle slice, so all of the usual caveats
 	/// pertaining to [`mem::transmute::<T, U>`][mt] also apply here.
 	///
 	/// # Examples
@@ -2080,7 +2080,7 @@ where
 	/// # Safety
 	///
 	/// This method is essentially a [`mem::transmute`][mt] with respect to the
-	/// memory region in the retured middle slice, so all of the usual caveats
+	/// memory region in the returned middle slice, so all of the usual caveats
 	/// pertaining to [`mem::transmute::<T, U>`][mt] also apply here.
 	///
 	/// # Examples
@@ -2359,7 +2359,7 @@ where
 ///
 /// Behavior is undefined if any of the following conditions are violated:
 ///
-/// - `data` must be [valid] for boths reads and writes for `len` many bits, and
+/// - `data` must be [valid] for both reads and writes for `len` many bits, and
 ///   it must be properly aligned. This means in particular:
 ///   - The entire memory range of this slice must be contained within a single
 ///     allocated object! Slices can never span across multiple allocated

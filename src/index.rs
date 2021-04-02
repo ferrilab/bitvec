@@ -136,7 +136,7 @@ where R: BitRegister
 	/// # Returns
 	///
 	/// This returns `value`, marked as either a valid or invalid index by
-	/// whether or not it is within the valid range `0 .. R::BITS`.
+	/// whether it is within the valid range `0 .. R::BITS`.
 	///
 	/// [`Self::LAST`]: Self::LAST
 	/// [`Self::ZERO`]: Self::ZERO

@@ -200,7 +200,7 @@ where
 	///   constructed from a pointer allocated by [`Vec<T>`].
 	/// - `T` needs to have the same size and alignment as what `bitptr` was
 	///   allocated with. (`T` having a less strict alignment is not sufficient;
-	///   the alignment really needs to be equal to satisf the [`dealloc`]
+	///   the alignment really needs to be equal to satisfy the [`dealloc`]
 	///   requirement that memory must be allocated and deällocated with the
 	///   same layout.) However, you can safely cast between bare integers,
 	///   `BitSafe` integers, `Cell` wrappers, and atomic integers, as long as
@@ -350,7 +350,7 @@ where
 
 	/// Shrinks the capacity of the bit-vector as much as possible.
 	///
-	/// It will drop down as close as possible to the length but the allocator
+	/// It will drop down as close as possible to the length, but the allocator
 	/// may still inform the bit-vector that there is space for a few more bits.
 	///
 	/// # Original
@@ -483,7 +483,7 @@ where
 	/// Forces the length of the bit-vector to `new_len`.
 	///
 	/// This is a low-level operation that maintains none of the normal
-	/// invariants of the type. Normall changing the length of a bit-vector is
+	/// invariants of the type. Normal changing the length of a bit-vector is
 	/// done using one of the safe operations instead, such as [`truncate`],
 	/// [`resize`], [`extend`], or [`clear`].
 	///

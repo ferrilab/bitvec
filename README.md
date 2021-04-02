@@ -416,7 +416,7 @@ a full `serde::Serialize`/[`serde::Deserialize`] implementation on [`BitArray`],
 [`BitBox`], and [`BitVec`]. This feature allows you to transport bit collections
 through I/O protocols.
 
-Note that this behavior is **very** different than using `bitvec` to manage a
+Note that this behavior is **very** different from using `bitvec` to manage a
 buffer whose *contents* are an I/O protocol message! You may choose to implement
 a `serde::Serializer`/`serde::Deserializer` protocol using `bitvec` to control
 layout of your packets, but the `De`/`Serialize` implementations provided do not
@@ -499,7 +499,7 @@ are useful for developing the crate itself, or extensions to it.
 
 The `devel` module contains snippets of type manipulation or value checking used
 in the crate internals. These functions are not part of the public API, but are
-pieces of logic that occur often enough in crate internals to be worth naming,
+pieces of logic that often occur enough in crate internals to be worth naming,
 and are likely to be useful in extension code as well.
 
 The `index` module contains typed indices into register elements. Implementors
