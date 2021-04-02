@@ -504,7 +504,7 @@ where
 	///
 	/// [`BitRef`]: crate::ptr::BitRef
 	/// [`get_mut`]: Self::get_mut
-	/// [undefined behavior]: ../../reference/behavior-considered-undefined.html
+	/// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
 	#[allow(clippy::missing_safety_doc)]
 	#[cfg_attr(not(tarpaulin_include), inline(always))]
 	pub unsafe fn get_unchecked_mut<'a, I>(&'a mut self, index: I) -> I::Mut
