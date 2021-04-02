@@ -250,7 +250,7 @@ where
 	///
 	/// # Returns
 	///
-	/// An ordinary boxed slice containing all of the bit-slice’s memory buffer.
+	/// An ordinary boxed slice containing all the bit-slice’s memory buffer.
 	///
 	/// # Examples
 	///

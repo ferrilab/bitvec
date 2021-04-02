@@ -1852,7 +1852,7 @@ where
 	///
 	/// # Returns
 	///
-	/// The distance in (semantic) bits betwen the heads of each region. The
+	/// The distance in (semantic) bits between the heads of each region. The
 	/// value is positive when `other` is higher in the address space than
 	/// `self`, and negative when `other` is lower in the address space than
 	/// `self`.
@@ -2077,7 +2077,7 @@ where
 	/// or any bit-pointer derived from it. If you need to mutate the contents
 	/// of the slice, use [`.as_mut_bitptr()`].
 	///
-	/// Modifying the container referenced by this bit-slice may cause its
+	/// Modifying the container referenced by this bit-slice may cause it's
 	/// buffer to be reällocated, which would also make any bit-pointers to it
 	/// invalid.
 	///
@@ -2121,7 +2121,7 @@ where
 	/// The caller must ensure that the bit-slice outlives the bit-pointer this
 	/// function returns, or else it will end up pointing to garbage.
 	///
-	/// Modifying the container referenced by this bit-slice may cause its
+	/// Modifying the container referenced by this bit-slice may cause it's
 	/// buffer to be reällocated, which would also make any bit-pointers to it
 	/// invalid.
 	///
@@ -2131,7 +2131,7 @@ where
 	///
 	/// # API Differences
 	///
-	/// This returns `*mut BitSlice`, which is the equivalont of `*mut [T]`
+	/// This returns `*mut BitSlice`, which is the equivalent of `*mut [T]`
 	/// instead of `*mut T`. The pointer encoding used requires more than one
 	/// CPU word of space to address a single bit, so there is no advantage to
 	/// removing the length information from the encoded pointer value.
@@ -2330,7 +2330,7 @@ where
 	/// boundaries.
 	///
 	/// This splits `self` into the memory locations that it partially fills and
-	/// the memory locatinos that it completely fills. The locations that are
+	/// the memory locations that it completely fills. The locations that are
 	/// completely filled may be accessed without any `bitvec`-imposed alias
 	/// conditions, while the locations that are only partially filled are left
 	/// unchanged.
