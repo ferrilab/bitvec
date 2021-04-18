@@ -483,7 +483,7 @@ where
 	/// Forces the length of the bit-vector to `new_len`.
 	///
 	/// This is a low-level operation that maintains none of the normal
-	/// invariants of the type. Normal changing the length of a bit-vector is
+	/// invariants of the type. Normally changing the length of a bit-vector is
 	/// done using one of the safe operations instead, such as [`truncate`],
 	/// [`resize`], [`extend`], or [`clear`].
 	///

@@ -2077,7 +2077,7 @@ where
 	/// or any bit-pointer derived from it. If you need to mutate the contents
 	/// of the slice, use [`.as_mut_bitptr()`].
 	///
-	/// Modifying the container referenced by this bit-slice may cause it's
+	/// Modifying the container referenced by this bit-slice may cause its
 	/// buffer to be reällocated, which would also make any bit-pointers to it
 	/// invalid.
 	///
@@ -2121,7 +2121,7 @@ where
 	/// The caller must ensure that the bit-slice outlives the bit-pointer this
 	/// function returns, or else it will end up pointing to garbage.
 	///
-	/// Modifying the container referenced by this bit-slice may cause it's
+	/// Modifying the container referenced by this bit-slice may cause its
 	/// buffer to be reällocated, which would also make any bit-pointers to it
 	/// invalid.
 	///

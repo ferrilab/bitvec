@@ -830,7 +830,7 @@ where
 	///
 	/// The caller must ensure that the bit-vector outlives the bit-pointer this
 	/// function returns, or else it will end up pointing to garbage. Modifying
-	/// the bit-vector may cause it's buffer to be reällocated, which would also
+	/// the bit-vector may cause its buffer to be reällocated, which would also
 	/// make any bit-pointers to it invalid.
 	///
 	/// The caller must also ensure that the memory the bit-pointer
@@ -875,7 +875,7 @@ where
 	///
 	/// The caller must ensure that the bit-vector outlives the bit-pointer this
 	/// function returns, or else it will end up pointing to garbage. Modifying
-	/// the bit-vector may cause it's buffer to be reällocated, which would also
+	/// the bit-vector may cause its buffer to be reällocated, which would also
 	/// make any bit-pointers to it invalid.
 	///
 	/// # Original
