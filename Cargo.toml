@@ -6,7 +6,7 @@
 
 [package]
 name = "bitvec"
-version = "0.22.2"
+version = "0.22.3"
 authors = [
 	"myrrlyn <self@myrrlyn.dev>",
 ]

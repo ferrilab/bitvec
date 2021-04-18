@@ -67,11 +67,15 @@ This document is written according to the [Keep a Changelog][kac] style.
 
 ## 0.22
 
-### 0.22.2
+### 0.22.3 <!-- omit in toc -->
 
 Provides named types as the result of `Iter::by_ref` and `Iter::by_val`. Renames
 `BitTail` to `BitEnd`, which is publicly visible. Reduced to a patch change by
 provididng a type alias.
+
+### 0.22.2 <!-- omit in toc -->
+
+Yanked.
 
 ### 0.22.1 <!-- omit in toc -->
 

@@ -67,6 +67,8 @@ pub use self::{
 		BitSliceIndex,
 	},
 	iter::{
+		BitRefIter,
+		BitValIter,
 		Chunks,
 		ChunksExact,
 		ChunksExactMut,
