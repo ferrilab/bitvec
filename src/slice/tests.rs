@@ -6,6 +6,7 @@ use tap::conv::TryConv;
 
 use crate::prelude::*;
 
+/// Tests that constructors have the expected behavior and failures.
 #[test]
 fn construction() {
 	#[cfg(not(miri))]
@@ -42,6 +43,7 @@ fn construction() {
 	assert!((&mut data[..]).try_conv::<&mut BitSlice<Msb0, _>>().is_ok());
 }
 
+/// Tests lexicographic ordering of bitstreams
 #[test]
 fn cmp() {
 	let data = 0x45u8;
@@ -69,6 +71,7 @@ fn cmp() {
 	assert_eq!(l, r);
 }
 
+/// Tests that memory read/writes work correctly
 #[test]
 fn get_set() {
 	let bits = bits![mut LocalBits, u8; 0; 8];
@@ -110,6 +113,20 @@ fn get_set() {
 
 	shared.set_aliased(0, true);
 	assert!(shared_2[0]);
+}
+
+/// Test indexing to make sure that it stays compliant with core
+#[test]
+fn indexing() {
+	let empty = bits![];
+	let slice = bits![0, 1, 0, 1, 1, 0, 1, 1];
+	let len = slice.len();
+
+	assert_eq!(slice[.. len], slice);
+	assert_eq!(slice[..], slice);
+
+	assert_eq!(slice[len ..], empty);
+	assert_eq!(slice[len .. len], empty);
 }
 
 #[test]

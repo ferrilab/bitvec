@@ -2635,7 +2635,7 @@ range_impl!(Range<usize> {
 	check |range: Self, span: BitSpan<_, _, _>| {
 		let len = span.len();
 
-		range.start < len && range.end <= len && range.start <= range.end
+		range.start <= len && range.end <= len && range.start <= range.end
 	};
 
 	select |range: Self, span: BitSpan<_, _, _>| {
