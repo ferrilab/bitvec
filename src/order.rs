@@ -28,7 +28,7 @@ use crate::{
 		BitMask,
 		BitPos,
 		BitSel,
-		BitTail,
+		BitEnd,
 	},
 	mem::BitRegister,
 };
@@ -244,14 +244,14 @@ pub unsafe trait BitOrder: 'static {
 	/// [`Self::select`]: Self::select
 	fn mask<R>(
 		from: impl Into<Option<BitIdx<R>>>,
-		upto: impl Into<Option<BitTail<R>>>,
+		upto: impl Into<Option<BitEnd<R>>>,
 	) -> BitMask<R>
 	where
 		R: BitRegister,
 	{
 		let (from, upto) = match (from.into(), upto.into()) {
 			(None, None) => return BitMask::ALL,
-			(Some(from), None) => (from, BitTail::LAST),
+			(Some(from), None) => (from, BitEnd::LAST),
 			(None, Some(upto)) => (BitIdx::ZERO, upto),
 			(Some(from), Some(upto)) => (from, upto),
 		};
@@ -279,13 +279,13 @@ unsafe impl BitOrder for Lsb0 {
 	#[inline]
 	fn mask<R>(
 		from: impl Into<Option<BitIdx<R>>>,
-		upto: impl Into<Option<BitTail<R>>>,
+		upto: impl Into<Option<BitEnd<R>>>,
 	) -> BitMask<R>
 	where
 		R: BitRegister,
 	{
 		let from = from.into().unwrap_or(BitIdx::ZERO).into_inner();
-		let upto = upto.into().unwrap_or(BitTail::LAST).into_inner();
+		let upto = upto.into().unwrap_or(BitEnd::LAST).into_inner();
 		debug_assert!(
 			from <= upto,
 			"Ranges must run from low index ({}) to high ({})",
@@ -330,13 +330,13 @@ unsafe impl BitOrder for Msb0 {
 	#[inline]
 	fn mask<R>(
 		from: impl Into<Option<BitIdx<R>>>,
-		upto: impl Into<Option<BitTail<R>>>,
+		upto: impl Into<Option<BitEnd<R>>>,
 	) -> BitMask<R>
 	where
 		R: BitRegister,
 	{
 		let from = from.into().unwrap_or(BitIdx::ZERO).into_inner();
-		let upto = upto.into().unwrap_or(BitTail::LAST).into_inner();
+		let upto = upto.into().unwrap_or(BitEnd::LAST).into_inner();
 		debug_assert!(
 			from <= upto,
 			"Ranges must run from low index ({}) to high ({})",
@@ -558,7 +558,7 @@ where
 
 	//  Check that `O::mask` is correct for all range combinations.
 	for from in BitIdx::<R>::range_all() {
-		for upto in BitTail::<R>::range_from(from) {
+		for upto in BitEnd::<R>::range_from(from) {
 			let mask = O::mask(from, upto);
 			let check = from
 				.range(upto)

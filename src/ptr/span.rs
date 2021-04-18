@@ -35,7 +35,7 @@ use crate::{
 	domain::Domain,
 	index::{
 		BitIdx,
-		BitTail,
+		BitEnd,
 	},
 	mem::BitMemory,
 	order::{
@@ -776,17 +776,17 @@ where
 	///
 	/// # Returns
 	///
-	/// A `BitTail` that is the index of the first dead bit after the last live
+	/// A `BitEnd` that is the index of the first dead bit after the last live
 	/// bit in the last element. This will almost always be in the range `1 ..=
 	/// T::Mem::BITS`.
 	///
 	/// It will be zero only when `self` is empty.
 	#[inline]
-	pub(crate) fn tail(&self) -> BitTail<T::Mem> {
+	pub(crate) fn tail(&self) -> BitEnd<T::Mem> {
 		let (head, len) = (self.head(), self.len());
 
 		if head.into_inner() == 0 && len == 0 {
-			return BitTail::ZERO;
+			return BitEnd::ZERO;
 		}
 
 		//  Compute the in-element tail index as the head plus the length,
@@ -798,7 +798,7 @@ where
 		`1 ..= T::Mem::BITS`.
 		*/
 		unsafe {
-			BitTail::new_unchecked(
+			BitEnd::new_unchecked(
 				(((tail == 0) as u8) << T::Mem::INDX) | tail as u8,
 			)
 		}

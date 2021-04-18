@@ -41,7 +41,7 @@ use wyz::fmt::FmtForward;
 use crate::{
 	index::{
 		BitIdx,
-		BitTail,
+		BitEnd,
 	},
 	order::BitOrder,
 	slice::BitSlice,
@@ -121,7 +121,7 @@ macro_rules! bit_domain {
 				/// for structural similarity with the rest of the module.
 				///
 				/// [`BitSlice`]: crate::slice::BitSlice
-				tail: BitTail<T::Mem>,
+				tail: BitEnd<T::Mem>,
 			},
 			/// Indicates that a [`BitSlice`] region touches at least one edge
 			/// index of any number of elements.
@@ -180,7 +180,7 @@ macro_rules! bit_domain {
 			pub fn enclave(self) -> Option<(
 				BitIdx<T::Mem>,
 				&'a $($m)? BitSlice<O, T>,
-				BitTail<T::Mem>,
+				BitEnd<T::Mem>,
 			)> {
 				if let Self::Enclave { head, body, tail } = self {
 					Some((head, body, tail))
@@ -258,7 +258,7 @@ macro_rules! bit_domain {
 			fn major(
 				slice: &'a $($m)? BitSlice<O, T>,
 				head: BitIdx<T::Mem>,
-				tail: BitTail<T::Mem>,
+				tail: BitEnd<T::Mem>,
 			) -> Self {
 				let (head, rest) = bit_domain!(split $($m)?
 					slice,
@@ -279,7 +279,7 @@ macro_rules! bit_domain {
 			fn minor(
 				slice: &'a $($m)? BitSlice<O, T>,
 				head: BitIdx<T::Mem>,
-				tail: BitTail<T::Mem>,
+				tail: BitEnd<T::Mem>,
 			) -> Self {
 				Self::Enclave {
 					head,
@@ -317,7 +317,7 @@ macro_rules! bit_domain {
 				constructor function to jump into.
 				*/
 				_head: BitIdx<T::Mem>,
-				tail: BitTail<T::Mem>,
+				tail: BitEnd<T::Mem>,
 			) -> Self {
 				let (rest, tail) = bit_domain!(split $($m)?
 					slice,
@@ -455,7 +455,7 @@ macro_rules! domain {
 				/// The end index of the [`BitSlice`].
 				///
 				/// [`BitSlice`]: crate::slice::BitSlice
-				tail: BitTail<T::Mem>,
+				tail: BitEnd<T::Mem>,
 			},
 			/// Indicates that a [`BitSlice`] region touches at least one edge
 			/// index of any number of elements.
@@ -483,7 +483,7 @@ macro_rules! domain {
 				body: &'a $($m)? [T::Unalias],
 				/// If the `BitSlice` ended in the interior of its last element,
 				/// this contains the ending index and the last address.
-				tail: Option<(&'a T $(::$a)?, BitTail<T::Mem>)>,
+				tail: Option<(&'a T $(::$a)?, BitEnd<T::Mem>)>,
 			}
 		}
 
@@ -507,7 +507,7 @@ macro_rules! domain {
 			pub fn enclave(self) -> Option<(
 				BitIdx<T::Mem>,
 				&'a T $(::$a)?,
-				BitTail<T::Mem>,
+				BitEnd<T::Mem>,
 			)> {
 				if let Self::Enclave { head, elem, tail } = self {
 					Some((head, elem, tail))
@@ -532,7 +532,7 @@ macro_rules! domain {
 			pub fn region(self) -> Option<(
 				Option<(BitIdx<T::Mem>, &'a T $(::$a)?)>,
 				&'a $($m)? [T::Unalias],
-				Option<(&'a T $(::$a)?, BitTail<T::Mem>)>,
+				Option<(&'a T $(::$a)?, BitEnd<T::Mem>)>,
 			)> {
 				if let Self::Region { head, body, tail } = self {
 					Some((head,body,tail))
@@ -575,7 +575,7 @@ macro_rules! domain {
 				base: *const T $(::$a)?,
 				elts: usize,
 				head: BitIdx<T::Mem>,
-				tail: BitTail<T::Mem>,
+				tail: BitEnd<T::Mem>,
 			) -> Self {
 				let h = unsafe { &*base };
 				let t = unsafe { &*base.add(elts - 1) };
@@ -591,7 +591,7 @@ macro_rules! domain {
 			fn minor(
 				addr: *const T $(::$a)?,
 				head: BitIdx<T::Mem>,
-				tail: BitTail<T::Mem>,
+				tail: BitEnd<T::Mem>,
 			) -> Self {
 				Self::Enclave {
 					head,
@@ -619,7 +619,7 @@ macro_rules! domain {
 			fn partial_tail(
 				base: *const T $(::$a)?,
 				elts: usize,
-				tail: BitTail<T::Mem>,
+				tail: BitEnd<T::Mem>,
 			) -> Self {
 				let t = unsafe { &*base.add(elts - 1) };
 				let body = domain!(slice $($m)? base, elts - 1);

@@ -299,7 +299,7 @@ where R: BitRegister
 	#[inline]
 	pub fn range(
 		self,
-		upto: BitTail<R>,
+		upto: BitEnd<R>,
 	) -> impl Iterator<Item = Self>
 	+ DoubleEndedIterator
 	+ ExactSizeIterator
@@ -315,7 +315,7 @@ where R: BitRegister
 	+ DoubleEndedIterator
 	+ ExactSizeIterator
 	+ FusedIterator {
-		BitIdx::ZERO.range(BitTail::LAST)
+		BitIdx::ZERO.range(BitEnd::LAST)
 	}
 
 	/// Computes the jump distance for some number of bits away from a starting
@@ -397,7 +397,7 @@ where R: BitRegister
 	/// The span information is the number of elements in the region that hold
 	/// live bits, and the position of the tail marker after the live bits.
 	///
-	/// This forwards to [`BitTail::span`], as the computation is identical for
+	/// This forwards to [`BitEnd::span`], as the computation is identical for
 	/// the two types. Beginning a span at any `Idx` is equivalent to beginning
 	/// it at the tail of a previous span.
 	///
@@ -412,10 +412,10 @@ where R: BitRegister
 	///   `self`, that contain live bits of the span.
 	/// - `.1`: The tail counter of the span’s end point.
 	///
-	/// [`BitTail::span`]: crate::index::BitTail::span
+	/// [`BitEnd::span`]: crate::index::BitEnd::span
 	#[inline]
-	pub fn span(self, len: usize) -> (usize, BitTail<R>) {
-		unsafe { BitTail::<R>::new_unchecked(self.into_inner()) }.span(len)
+	pub fn span(self, len: usize) -> (usize, BitEnd<R>) {
+		unsafe { BitEnd::<R>::new_unchecked(self.into_inner()) }.span(len)
 	}
 }
 
@@ -580,7 +580,7 @@ This type can only be publicly constructed through [`BitIdx::span`].
 **/
 #[repr(transparent)]
 #[derive(Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct BitTail<R>
+pub struct BitEnd<R>
 where R: BitRegister
 {
 	/// Semantic tail counter within or after a register, contained to `0 ..=
@@ -590,7 +590,11 @@ where R: BitRegister
 	_ty: PhantomData<R>,
 }
 
-impl<R> BitTail<R>
+#[doc(hidden)]
+#[deprecated(since = "0.23.0", note = "Renamed to `BitEnd`")]
+pub type BitTail<R> = BitEnd<R>;
+
+impl<R> BitEnd<R>
 where R: BitRegister
 {
 	/// The inclusive maximum tail within an element `R`.
@@ -670,7 +674,7 @@ where R: BitRegister
 	/// Because implementation details of the range type family, including the
 	/// [`RangeBounds`] trait, are not yet stable, and heterogenous ranges are
 	/// not yet supported, this must be an opaque iterator rather than a direct
-	/// [`Range<BitTail<R>>`].
+	/// [`Range<BitEnd<R>>`].
 	///
 	/// # Parameters
 	///
@@ -683,7 +687,7 @@ where R: BitRegister
 	/// Self::LAST`.
 	///
 	/// [`RangeBounds`]: core::ops::RangeBounds
-	/// [`Range<BitTail<R>>`]: core::ops::Range
+	/// [`Range<BitEnd<R>>`]: core::ops::Range
 	#[inline]
 	pub fn range_from(
 		from: BitIdx<R>,
@@ -692,7 +696,7 @@ where R: BitRegister
 	+ ExactSizeIterator
 	+ FusedIterator {
 		(from.idx ..= Self::LAST.end)
-			.map(|tail| unsafe { BitTail::new_unchecked(tail) })
+			.map(|tail| unsafe { BitEnd::new_unchecked(tail) })
 	}
 
 	/// Computes the span information for a region beginning immediately after a
@@ -717,11 +721,11 @@ where R: BitRegister
 	/// # Behavior
 	///
 	/// If `len` is `0`, this returns `(0, self)`, as the span has no live bits.
-	/// If `self` is [`BitTail::LAST`], then the new region starts at
+	/// If `self` is [`BitEnd::LAST`], then the new region starts at
 	/// [`BitIdx::ZERO`] in the next element.
 	///
 	/// [`BitIdx::ZERO`]: crate::index::BitIdx::ZERO
-	/// [`BitTail::LAST`]: crate::index::BitTail::LAST
+	/// [`BitEnd::LAST`]: crate::index::BitEnd::LAST
 	pub fn span(self, len: usize) -> (usize, Self) {
 		if len == 0 {
 			return (0, self);
@@ -749,7 +753,7 @@ where R: BitRegister
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<R> Binary for BitTail<R>
+impl<R> Binary for BitEnd<R>
 where R: BitRegister
 {
 	#[inline]
@@ -759,17 +763,17 @@ where R: BitRegister
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<R> Debug for BitTail<R>
+impl<R> Debug for BitEnd<R>
 where R: BitRegister
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		write!(fmt, "BitTail<{}>({})", any::type_name::<R>(), self)
+		write!(fmt, "BitEnd<{}>({})", any::type_name::<R>(), self)
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<R> Display for BitTail<R>
+impl<R> Display for BitEnd<R>
 where R: BitRegister
 {
 	#[inline(always)]
@@ -1335,37 +1339,37 @@ mod tests {
 	#[test]
 	fn tail_ctors() {
 		for n in 0 ..= 8 {
-			assert!(BitTail::<u8>::new(n).is_some());
+			assert!(BitEnd::<u8>::new(n).is_some());
 		}
-		assert!(BitTail::<u8>::new(9).is_none());
+		assert!(BitEnd::<u8>::new(9).is_none());
 		for n in 0 ..= 16 {
-			assert!(BitTail::<u16>::new(n).is_some());
+			assert!(BitEnd::<u16>::new(n).is_some());
 		}
-		assert!(BitTail::<u16>::new(17).is_none());
+		assert!(BitEnd::<u16>::new(17).is_none());
 		for n in 0 ..= 32 {
-			assert!(BitTail::<u32>::new(n).is_some());
+			assert!(BitEnd::<u32>::new(n).is_some());
 		}
-		assert!(BitTail::<u32>::new(33).is_none());
+		assert!(BitEnd::<u32>::new(33).is_none());
 
 		#[cfg(target_pointer_width = "64")]
 		{
 			for n in 0 ..= 64 {
-				assert!(BitTail::<u64>::new(n).is_some());
+				assert!(BitEnd::<u64>::new(n).is_some());
 			}
-			assert!(BitTail::<u64>::new(65).is_none());
+			assert!(BitEnd::<u64>::new(65).is_none());
 		}
 
 		if cfg!(target_pointer_width = "32") {
 			for n in 0 ..= 32 {
-				assert!(BitTail::<usize>::new(n).is_some());
+				assert!(BitEnd::<usize>::new(n).is_some());
 			}
-			assert!(BitTail::<usize>::new(33).is_none());
+			assert!(BitEnd::<usize>::new(33).is_none());
 		}
 		else if cfg!(target_pointer_width = "64") {
 			for n in 0 ..= 64 {
-				assert!(BitTail::<usize>::new(n).is_some());
+				assert!(BitEnd::<usize>::new(n).is_some());
 			}
-			assert!(BitTail::<usize>::new(65).is_none());
+			assert!(BitEnd::<usize>::new(65).is_none());
 		}
 	}
 
@@ -1450,9 +1454,9 @@ mod tests {
 		assert_eq!(range.next_back(), BitIdx::new(15).ok());
 		assert_eq!(range.count(), 14);
 
-		let mut range = BitTail::<u8>::range_from(BitIdx::new(1).unwrap());
-		assert_eq!(range.next(), BitTail::new(1));
-		assert_eq!(range.next_back(), BitTail::new(8));
+		let mut range = BitEnd::<u8>::range_from(BitIdx::new(1).unwrap());
+		assert_eq!(range.next(), BitEnd::new(1));
+		assert_eq!(range.next_back(), BitEnd::new(8));
 		assert_eq!(range.count(), 6);
 
 		let mut range = BitPos::<u8>::range_all();
@@ -1518,22 +1522,22 @@ mod tests {
 
 		let (elts, tail) = BitIdx::<u8>::new(4).unwrap().span(0);
 		assert_eq!(elts, 0);
-		assert_eq!(tail, BitTail::new(4).unwrap());
+		assert_eq!(tail, BitEnd::new(4).unwrap());
 
 		let (elts, tail) = BitIdx::<u8>::new(3).unwrap().span(3);
 		assert_eq!(elts, 1);
-		assert_eq!(tail, BitTail::new(6).unwrap());
+		assert_eq!(tail, BitEnd::new(6).unwrap());
 
 		let (elts, tail) = BitIdx::<u16>::new(10).unwrap().span(40);
 		assert_eq!(elts, 4);
-		assert_eq!(tail, BitTail::new(2).unwrap());
+		assert_eq!(tail, BitEnd::new(2).unwrap());
 	}
 
 	#[test]
 	fn mask_operators() {
 		let mut mask = BitIdx::<u8>::new(2)
 			.unwrap()
-			.range(BitTail::new(5).unwrap())
+			.range(BitEnd::new(5).unwrap())
 			.map(BitIdx::select::<Lsb0>)
 			.sum::<BitMask<u8>>();
 		assert_eq!(mask, BitMask::new(28));
@@ -1573,11 +1577,11 @@ mod tests {
 			"BitIdxErr<u32>(32)",
 		);
 
-		assert_eq!(format!("{:?}", BitTail::<u8>::LAST), "BitTail<u8>(1000)");
-		assert_eq!(format!("{:?}", BitTail::<u16>::LAST), "BitTail<u16>(10000)");
+		assert_eq!(format!("{:?}", BitEnd::<u8>::LAST), "BitEnd<u8>(1000)");
+		assert_eq!(format!("{:?}", BitEnd::<u16>::LAST), "BitEnd<u16>(10000)");
 		assert_eq!(
-			format!("{:?}", BitTail::<u32>::LAST),
-			"BitTail<u32>(100000)",
+			format!("{:?}", BitEnd::<u32>::LAST),
+			"BitEnd<u32>(100000)",
 		);
 
 		assert_eq!(
@@ -1630,8 +1634,8 @@ mod tests {
 				"BitIdxErr<u64>(64)",
 			);
 			assert_eq!(
-				format!("{:?}", BitTail::<u64>::LAST),
-				"BitTail<u64>(1000000)",
+				format!("{:?}", BitEnd::<u64>::LAST),
+				"BitEnd<u64>(1000000)",
 			);
 			assert_eq!(
 				format!("{:?}", BitIdx::<u64>::LAST.position::<Lsb0>()),

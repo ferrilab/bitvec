@@ -141,8 +141,8 @@ wrapped uphold the type’s requirements.
   ensures that the contained number is a power of two – exactly one bit is set,
   and all others are zero. This type indicates that the mask is guaranteed to
   select exactly one bit in a register.
-- `mask` receives an inclusive `BitIdx<M>` and an exclusive [`BitTail<M>`]
-  argument, and returns a [`BitMask<M>`] value. `BitTail<M>` ensures that the
+- `mask` receives an inclusive `BitIdx<M>` and an exclusive [`BitEnd<M>`]
+  argument, and returns a [`BitMask<M>`] value. `BitEnd<M>` ensures that the
   contained number is in the domain `0 ..= M::BITS`, including the final count,
   and marks a one-past-the-end exclusive boundary. `BitMask<M>` marks that the
   contained number may select any number of bits in a register.
@@ -165,7 +165,7 @@ cannot be safely used in `bitvec`.
 [`BitMask<M>`]: https://docs.rs/bitvec/latest/bitvec/index/struct.BitMask.html "BitMask API documentation"
 [`BitPos<M>`]: https://docs.rs/bitvec/latest/bitvec/index/struct.BitPos.html "BitPos API documentation"
 [`BitSel<M>`]: https://docs.rs/bitvec/latest/bitvec/index/struct.BitSel.html "BitSel API documentation"
-[`BitTail<M>`]: https://docs.rs/bitvec/latest/bitvec/index/struct.BitTail.html "BitTail API documentation"
+[`BitEnd<M>`]: https://docs.rs/bitvec/latest/bitvec/index/struct.BitEnd.html "BitEnd API documentation"
 [`at`]: https://docs.rs/bitvec/latest/bitvec/order/trait.BitOrder.html#tymethod.at "BitOrder::at API documentation"
 [`index`]: https://docs.rs/bitvec/latest/bitvec/index/index.html "index module documentation"
 [`mask`]: https://docs.rs/bitvec/latest/bitvec/order/trait.BitOrder.html#method.mask "BitOrder::mask API documentation"

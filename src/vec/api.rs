@@ -21,7 +21,7 @@ use super::{
 };
 use crate::{
 	boxed::BitBox,
-	index::BitTail,
+	index::BitEnd,
 	order::BitOrder,
 	ptr::{
 		AddressExt,
@@ -736,7 +736,7 @@ where
 			BitSlice::<O, T>::MAX_BITS,
 		);
 		//  Push a new `T` into the underlying buffer if needed
-		if self.is_empty() || self.bitspan.tail() == BitTail::LAST {
+		if self.is_empty() || self.bitspan.tail() == BitEnd::LAST {
 			self.with_vec(|vec| vec.push(unsafe { mem::zeroed() }))
 		}
 		//  Write `value` into the now-safely-allocated `len` slot.
