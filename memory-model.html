@@ -446,7 +446,7 @@ where T: BitStore {
   Enclave {
     head: BitIdx&lt;T::Mem&gt;,
     elem: &amp;'a T /* ::Access */,
-    tail: BitTail&lt;T::Mem&gt;,
+    tail: BitEnd&lt;T::Mem&gt;,
   },
   Region {
     head: Option&lt;(BitIdx&lt;T::Mem&gt;, &amp;'a T /* ::Access */)&gt;,

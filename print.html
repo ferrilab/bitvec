@@ -842,8 +842,8 @@ position within a register.</li>
 ensures that the contained number is a power of two – exactly one bit is set,
 and all others are zero. This type indicates that the mask is guaranteed to
 select exactly one bit in a register.</li>
-<li><code>mask</code> receives an inclusive <code>BitIdx&lt;M&gt;</code> and an exclusive <a href="https://docs.rs/bitvec/latest/bitvec/index/struct.BitTail.html" title="BitTail API documentation"><code>BitTail&lt;M&gt;</code></a>
-argument, and returns a <a href="https://docs.rs/bitvec/latest/bitvec/index/struct.BitMask.html" title="BitMask API documentation"><code>BitMask&lt;M&gt;</code></a> value. <code>BitTail&lt;M&gt;</code> ensures that the
+<li><code>mask</code> receives an inclusive <code>BitIdx&lt;M&gt;</code> and an exclusive <a href="https://docs.rs/bitvec/latest/bitvec/index/struct.BitEnd.html" title="BitEnd API documentation"><code>BitEnd&lt;M&gt;</code></a>
+argument, and returns a <a href="https://docs.rs/bitvec/latest/bitvec/index/struct.BitMask.html" title="BitMask API documentation"><code>BitMask&lt;M&gt;</code></a> value. <code>BitEnd&lt;M&gt;</code> ensures that the
 contained number is in the domain <code>0 ..= M::BITS</code>, including the final count,
 and marks a one-past-the-end exclusive boundary. <code>BitMask&lt;M&gt;</code> marks that the
 contained number may select any number of bits in a register.</li>
@@ -1470,7 +1470,7 @@ where T: BitStore {
   Enclave {
     head: BitIdx&lt;T::Mem&gt;,
     elem: &amp;'a T /* ::Access */,
-    tail: BitTail&lt;T::Mem&gt;,
+    tail: BitEnd&lt;T::Mem&gt;,
   },
   Region {
     head: Option&lt;(BitIdx&lt;T::Mem&gt;, &amp;'a T /* ::Access */)&gt;,
