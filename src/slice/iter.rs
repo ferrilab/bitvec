@@ -200,17 +200,10 @@ where
 	/// assert!(iter.next().is_none());
 	/// ```
 	#[cfg_attr(not(tarpaulin_include), inline(always))]
-	pub fn by_ref(
-		self,
-	) -> impl 'a
-	+ Iterator<Item = &'a bool>
-	+ DoubleEndedIterator
-	+ ExactSizeIterator
-	+ FusedIterator {
-		self.map(|bit| match *bit {
-			true => &true,
-			false => &false,
-		})
+	pub fn by_ref(self) -> BitRefIter<'a, O, T> {
+		BitRefIter {
+			inner: self.by_val(),
+		}
 	}
 
 	/// Adapts the iterator to yield `bool` values rather than `BitRef` proxy
@@ -245,14 +238,8 @@ where
 	///
 	/// [`Iterator::copied`]: core::iter::Iterator::copied
 	#[cfg_attr(not(tarpaulin_include), inline(always))]
-	pub fn by_val(
-		self,
-	) -> impl 'a
-	+ Iterator<Item = bool>
-	+ DoubleEndedIterator
-	+ ExactSizeIterator
-	+ FusedIterator {
-		self.map(|bit| *bit)
+	pub fn by_val(self) -> BitValIter<'a, O, T> {
+		BitValIter { inner: self }
 	}
 
 	/// Forwards to [`by_val`].
@@ -269,13 +256,7 @@ where
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "`Iterator::copied` does not exist on this iterator. Use \
 	                `by_val` instead to achieve the same effect."]
-	pub fn copied(
-		self,
-	) -> impl 'a
-	+ Iterator<Item = bool>
-	+ DoubleEndedIterator
-	+ ExactSizeIterator
-	+ FusedIterator {
+	pub fn copied(self) -> BitValIter<'a, O, T> {
 		self.by_val()
 	}
 }
@@ -317,6 +298,174 @@ where
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_tuple("Iter").field(&self.as_bitslice()).finish()
 	}
+}
+
+/// An iterator over `BitSlice` that produces ordinary `&bool`. May be faster in
+/// some cases. Produced by [`Iter::by_ref`].
+#[repr(transparent)]
+#[derive(Clone, Debug)]
+pub struct BitRefIter<'a, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	inner: BitValIter<'a, O, T>,
+}
+
+impl<'a, O, T> Iterator for BitRefIter<'a, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	type Item = &'a bool;
+
+	#[inline(always)]
+	fn next(&mut self) -> Option<Self::Item> {
+		self.inner
+			.next()
+			.map(|bit| if bit { &true } else { &false })
+	}
+
+	#[inline(always)]
+	fn nth(&mut self, n: usize) -> Option<Self::Item> {
+		self.inner
+			.nth(n)
+			.map(|bit| if bit { &true } else { &false })
+	}
+
+	#[inline(always)]
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		self.inner.size_hint()
+	}
+
+	#[inline(always)]
+	fn count(self) -> usize {
+		self.len()
+	}
+
+	#[inline(always)]
+	fn last(self) -> Option<Self::Item> {
+		self.inner
+			.last()
+			.map(|bit| if bit { &true } else { &false })
+	}
+}
+
+impl<O, T> DoubleEndedIterator for BitRefIter<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline(always)]
+	fn next_back(&mut self) -> Option<Self::Item> {
+		self.inner
+			.next_back()
+			.map(|bit| if bit { &true } else { &false })
+	}
+
+	#[inline(always)]
+	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+		self.inner
+			.nth_back(n)
+			.map(|bit| if bit { &true } else { &false })
+	}
+}
+
+impl<O, T> ExactSizeIterator for BitRefIter<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline(always)]
+	fn len(&self) -> usize {
+		self.inner.len()
+	}
+}
+
+impl<O, T> FusedIterator for BitRefIter<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+}
+
+/// An iterator over `BitSlice` that produces ordinary `bool`. May be faster in
+/// some cases. Produced by [`Iter::by_val`].
+#[repr(transparent)]
+#[derive(Clone, Debug)]
+pub struct BitValIter<'a, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	inner: Iter<'a, O, T>,
+}
+
+impl<O, T> Iterator for BitValIter<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	type Item = bool;
+
+	#[inline(always)]
+	fn next(&mut self) -> Option<Self::Item> {
+		self.inner.range.next().map(|bp| unsafe { bp.read() })
+	}
+
+	#[inline(always)]
+	fn nth(&mut self, n: usize) -> Option<Self::Item> {
+		self.inner.range.nth(n).map(|bp| unsafe { bp.read() })
+	}
+
+	#[inline(always)]
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		self.inner.size_hint()
+	}
+
+	#[inline(always)]
+	fn count(self) -> usize {
+		self.inner.count()
+	}
+
+	#[inline(always)]
+	fn last(mut self) -> Option<Self::Item> {
+		self.next_back()
+	}
+}
+
+impl<O, T> DoubleEndedIterator for BitValIter<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline(always)]
+	fn next_back(&mut self) -> Option<Self::Item> {
+		self.inner.range.next_back().map(|bp| unsafe { bp.read() })
+	}
+
+	#[inline(always)]
+	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+		self.inner.range.nth_back(n).map(|bp| unsafe { bp.read() })
+	}
+}
+
+impl<O, T> ExactSizeIterator for BitValIter<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
+	#[inline(always)]
+	fn len(&self) -> usize {
+		self.inner.len()
+	}
+}
+
+impl<O, T> FusedIterator for BitValIter<'_, O, T>
+where
+	O: BitOrder,
+	T: BitStore,
+{
 }
 
 /** Mutable [`BitSlice`] iterator.
