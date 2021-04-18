@@ -1579,10 +1579,7 @@ mod tests {
 
 		assert_eq!(format!("{:?}", BitEnd::<u8>::LAST), "BitEnd<u8>(1000)");
 		assert_eq!(format!("{:?}", BitEnd::<u16>::LAST), "BitEnd<u16>(10000)");
-		assert_eq!(
-			format!("{:?}", BitEnd::<u32>::LAST),
-			"BitEnd<u32>(100000)",
-		);
+		assert_eq!(format!("{:?}", BitEnd::<u32>::LAST), "BitEnd<u32>(100000)");
 
 		assert_eq!(
 			format!("{:?}", BitIdx::<u8>::LAST.position::<Msb0>()),

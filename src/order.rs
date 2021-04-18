@@ -24,11 +24,11 @@ performance. These can all be proven by use of the [`verify`] or
 
 use crate::{
 	index::{
+		BitEnd,
 		BitIdx,
 		BitMask,
 		BitPos,
 		BitSel,
-		BitEnd,
 	},
 	mem::BitRegister,
 };

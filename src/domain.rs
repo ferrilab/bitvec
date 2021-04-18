@@ -40,8 +40,8 @@ use wyz::fmt::FmtForward;
 
 use crate::{
 	index::{
-		BitIdx,
 		BitEnd,
+		BitIdx,
 	},
 	order::BitOrder,
 	slice::BitSlice,

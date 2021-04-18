@@ -34,8 +34,8 @@ use super::{
 use crate::{
 	domain::Domain,
 	index::{
-		BitIdx,
 		BitEnd,
+		BitIdx,
 	},
 	mem::BitMemory,
 	order::{
