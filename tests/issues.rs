@@ -325,7 +325,7 @@ of the opposite bit. If the opposite bit does not exist, the correct behavior
 is to return the whole length of the slice, rather than 0.
 
 [Issue #120]: https://github.com/bitvecto-rs/bitvec/issues/120
-[@VilleHallivuori]: https://github.com/hzuo
+[@hzuo]: https://github.com/hzuo
 **/
 #[test]
 fn issue_120() {
