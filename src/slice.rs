@@ -1239,6 +1239,86 @@ where
 		self.iter_zeros().next_back()
 	}
 
+	/// Counts the number of bits from the start of the bit-slice to the first
+	/// bit set to `0`.
+	///
+	/// This returns `0` if the bit-slice is empty.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// assert_eq!(bits![].leading_ones(), 0);
+	/// assert_eq!(bits![0].leading_ones(), 0);
+	/// assert_eq!(bits![1, 0, 1, 1].leading_ones(), 1);
+	/// assert_eq!(bits![1, 1, 1, 1].leading_ones(), 4);
+	/// ```
+	#[inline]
+	pub fn leading_ones(&self) -> usize {
+		self.first_zero().unwrap_or(self.len())
+	}
+
+	/// Counts the number of bits from the start of the bit-slice to the first
+	/// bit set to `1`.
+	///
+	/// This returns `0` if the bit-slice is empty.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// assert_eq!(bits![].leading_zeros(), 0);
+	/// assert_eq!(bits![1].leading_zeros(), 0);
+	/// assert_eq!(bits![0, 1, 0, 0].leading_zeros(), 1);
+	/// assert_eq!(bits![0, 0, 0, 0].leading_zeros(), 4);
+	/// ```
+	#[inline]
+	pub fn leading_zeros(&self) -> usize {
+		self.first_one().unwrap_or(self.len())
+	}
+
+	/// Counts the number of bits from the end of the bit-slice to the last bit
+	/// set to `0`.
+	///
+	/// This returns `0` if the bit-slice is empty.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// assert_eq!(bits![].trailing_ones(), 0);
+	/// assert_eq!(bits![0].trailing_ones(), 0);
+	/// assert_eq!(bits![1, 0, 1, 1].trailing_ones(), 2);
+	/// ```
+	#[inline]
+	pub fn trailing_ones(&self) -> usize {
+		let len = self.len();
+		self.last_zero().map(|idx| len - 1 - idx).unwrap_or(len)
+	}
+
+	/// Counts the number of bits from the end of the bit-slice to the last bit
+	/// set to `1`.
+	///
+	/// This returns `0` if the bit-slice is empty.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// assert_eq!(bits![].trailing_zeros(), 0);
+	/// assert_eq!(bits![1].trailing_zeros(), 0);
+	/// assert_eq!(bits![0, 1, 0, 0].trailing_zeros(), 2);
+	/// ```
+	#[inline]
+	pub fn trailing_zeros(&self) -> usize {
+		let len = self.len();
+		self.last_one().map(|idx| len - 1 - idx).unwrap_or(len)
+	}
+
 	/// Copies the bits from `src` into `self`.
 	///
 	/// The length of `src` must be the same as `self.

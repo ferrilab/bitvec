@@ -317,3 +317,24 @@ fn issue_114() {
 	assert_eq!(one_one.first_one(), Some(0));
 	assert_eq!(one_one.last_one(), Some(0));
 }
+
+/** Test case for [Issue #???], opened by [@hzuo].
+
+The logic for `{leading, trailing}_{zeros, ones}` works by finding the index
+of the opposite bit. If the opposite bit does not exist, the correct behavior
+is to return the whole length of the slice, rather than 0.
+
+[Issue #???]: https://github.com/bitvecto-rs/bitvec/issues/???
+[@VilleHallivuori]: https://github.com/hzuo
+**/
+#[test]
+fn issue_next() {
+	let one_zero = bits![0];
+	let one_one = bits![1];
+
+	assert_eq!(one_zero.leading_zeros(), 1);
+	assert_eq!(one_one.leading_ones(), 1);
+
+	assert_eq!(one_zero.trailing_zeros(), 1);
+	assert_eq!(one_one.trailing_ones(), 1);
+}
