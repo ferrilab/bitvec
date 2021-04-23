@@ -1179,6 +1179,66 @@ where
 		IterZeros::new(self)
 	}
 
+	/// Gets the index of the first bit in the bit-slice set to `1`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// assert!(bits![].first_one().is_none());
+	/// assert_eq!(bits![0, 0, 1].first_one().unwrap(), 2);
+	/// ```
+	#[inline]
+	pub fn first_one(&self) -> Option<usize> {
+		self.iter_ones().next()
+	}
+
+	/// Gets the index of the first bit in the bit-slice set to `0`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// assert!(bits![].first_zero().is_none());
+	/// assert_eq!(bits![1, 1, 0].first_zero().unwrap(), 2);
+	/// ```
+	#[inline]
+	pub fn first_zero(&self) -> Option<usize> {
+		self.iter_zeros().next()
+	}
+
+	/// Gets the index of the last bit in the bit-slice set to `1`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// assert!(bits![].last_one().is_none());
+	/// assert_eq!(bits![1, 0, 0, 1].last_one().unwrap(), 3);
+	/// ```
+	#[inline]
+	pub fn last_one(&self) -> Option<usize> {
+		self.iter_ones().next_back()
+	}
+
+	/// Gets the index of the last bit in the bit-slice set to `0`.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// assert!(bits![].last_zero().is_none());
+	/// assert_eq!(bits![0, 1, 1, 0].last_zero().unwrap(), 3);
+	/// ```
+	#[inline]
+	pub fn last_zero(&self) -> Option<usize> {
+		self.iter_zeros().next_back()
+	}
+
 	/// Copies the bits from `src` into `self`.
 	///
 	/// The length of `src` must be the same as `self.
