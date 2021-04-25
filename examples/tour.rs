@@ -30,7 +30,7 @@ use funty::IsNumber;
 
 #[cfg(feature = "std")]
 fn main() {
-	//  Default types are `order::LocalBits` and `usize`
+	//  Default types are `order::Lsb0` and `usize`
 	let bits = bits![Msb0, u8;
 		0, 0, 0, 0, 0, 0, 0, 1,
 		0, 0, 0, 0, 0, 0, 1, 0,
