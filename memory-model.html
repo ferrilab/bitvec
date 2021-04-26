@@ -274,7 +274,7 @@ destroy it before reading, you’re fine.</p>
 <p>As soon as you attempt to read the bit-wise value of <code>poison</code>, your program is
 undefined<sup class="footnote-reference"><a href="#3">3</a></sup>.</p>
 <p>So if <code>bitvec</code> wants to be threadsafe, which it does, and it wants to insist on
-its ability to safely alias the same memory location from mulitple handles,
+its ability to safely alias the same memory location from multiple handles,
 which is non-negotiable, there’s only one avenue left to take.</p>
 <h3 id="atomic-powered-microscopes"><a class="header" href="#atomic-powered-microscopes">Atomic Powered Microscopes</a></h3>
 <p>Rust doesn’t actually model atomics. It doesn’t have to do so: no harm can ever
@@ -516,7 +516,7 @@ region status of individual bits, and only in compiler-internal structures. LLVM
 has a more robust arbitrary-bit-tracking capability, but similarly limits its
 interface to external code.</p>
 <p>Barring any errors in the <code>bitvec</code> implementation, the <code>bitvec</code> memory model is
-fully sound in its behavior with regard to single-observer unsynchrony.
+fully sound in its behavior with regard to single-observer race freedom.
 Synchronization is only added in order to correctly interface with <code>rustc</code> and
 LLVM without causing either of them to introduce undefined behavior due to a
 lack of information.</p>
@@ -555,8 +555,8 @@ much luck producing a benchmark that firmly demonstrates that unneeded
 atomic access is a strict performance cost.</p>
 </div>
 <div class="footnote-definition" id="5"><sup class="footnote-definition-label">5</sup>
-<p>In multithreading environments. Disabling atomics also disables <code>bitvec</code>’s
-support for multithreading, so the penalty for aliasing is reduced to an
+<p>In multi-threaded environments. Disabling atomics also disables <code>bitvec</code>’s
+support for multi-threaded, so the penalty for aliasing is reduced to an
 inability to remove redundant reads.</p>
 </div>
 

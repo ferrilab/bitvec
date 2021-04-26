@@ -169,7 +169,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="dedication"><a class="header" href="#dedication">Dedication</a></h1>
-<p>I begain working on <code>bitvec</code> shortly before I was told that my father had been
+<p>I began working on <code>bitvec</code> shortly before I was told that my father had been
 diagnosed with cancer for the third time. Developing the library gave me
 something into which to sink my attention and keep my mind from dwelling on his
 rapidly-progressing illness. I wrote the core pointer representation that
@@ -300,7 +300,7 @@ system. You’ll be fine.</p>
 </blockquote>
 <h2 id="getting-a-bitslice"><a class="header" href="#getting-a-bitslice">Getting a <code>BitSlice</code></a></h2>
 <p><code>BitSlice</code> is strictly a borrowed region. It can neither be created nor
-destroyed; rather, views to it are aquired from a memory buffer that some other
+destroyed; rather, views to it are acquired from a memory buffer that some other
 binding owns.</p>
 <p>The <a href="data-structures/../type-parameters/bitstore.html" title="BitStore type parameter"><code>BitStore</code> chapter</a> covers this in more detail, but only sequences of the
 unsigned integers <code>u8</code>, <code>u16</code>, <code>u32</code>, <code>usize</code>, and (on 64-bit targets) <code>u64</code> can
@@ -1298,7 +1298,7 @@ destroy it before reading, you’re fine.</p>
 <p>As soon as you attempt to read the bit-wise value of <code>poison</code>, your program is
 undefined<sup class="footnote-reference"><a href="#3">3</a></sup>.</p>
 <p>So if <code>bitvec</code> wants to be threadsafe, which it does, and it wants to insist on
-its ability to safely alias the same memory location from mulitple handles,
+its ability to safely alias the same memory location from multiple handles,
 which is non-negotiable, there’s only one avenue left to take.</p>
 <h3 id="atomic-powered-microscopes"><a class="header" href="#atomic-powered-microscopes">Atomic Powered Microscopes</a></h3>
 <p>Rust doesn’t actually model atomics. It doesn’t have to do so: no harm can ever
@@ -1540,7 +1540,7 @@ region status of individual bits, and only in compiler-internal structures. LLVM
 has a more robust arbitrary-bit-tracking capability, but similarly limits its
 interface to external code.</p>
 <p>Barring any errors in the <code>bitvec</code> implementation, the <code>bitvec</code> memory model is
-fully sound in its behavior with regard to single-observer unsynchrony.
+fully sound in its behavior with regard to single-observer race freedom.
 Synchronization is only added in order to correctly interface with <code>rustc</code> and
 LLVM without causing either of them to introduce undefined behavior due to a
 lack of information.</p>
@@ -1579,8 +1579,8 @@ much luck producing a benchmark that firmly demonstrates that unneeded
 atomic access is a strict performance cost.</p>
 </div>
 <div class="footnote-definition" id="5"><sup class="footnote-definition-label">5</sup>
-<p>In multithreading environments. Disabling atomics also disables <code>bitvec</code>’s
-support for multithreading, so the penalty for aliasing is reduced to an
+<p>In multi-threaded environments. Disabling atomics also disables <code>bitvec</code>’s
+support for multi-threaded, so the penalty for aliasing is reduced to an
 inability to remove redundant reads.</p>
 </div>
 <h1 id="bit-slice-pointer-encoding"><a class="header" href="#bit-slice-pointer-encoding">Bit Slice Pointer Encoding</a></h1>
@@ -1597,7 +1597,7 @@ certain value requirements imposed by types, slice references can be constructed
 through these functions and the compiler will accept them as valid.</p>
 <p>These requirements traditionally make it difficult to encode non-address
 information into a bare reference, since the compiler has a very firm
-expectation that a reference to a type is immediately dereferencable to a value
+expectation that a reference to a type is immediately dereferencëable to a value
 of that type, but if your type happens to be zero-sized, then it can never exist
 in memory, no loads or stores to it can ever be produced, and the compiler no
 longer concerns itself with the actual bit-pattern value of references to it.</p>
@@ -1652,7 +1652,7 @@ struct BitSpan&lt;T&gt; {
 
   uintptr_t ptr_head : __builtin_ctzll(alignof(T));
   uintptr_t ptr_addr : sizeof(uintptr_t) * CHAR_BITS;
-                     - __builtin_tczll(alignof(T));
+                     - __builtin_ctzll(alignof(T));
 
   size_t len_head : 3;
   size_t len_bits : sizeof(size_t) * 8 - 3;
