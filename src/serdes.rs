@@ -319,8 +319,8 @@ where
 		let mut bits: Option<u64> = None;
 		let mut data: Option<Vec<T>> = None;
 
-		while let Some(key) = map.next_key()? {
-			match key {
+		while let Some(key) = map.next_key::<String>()? {
+			match key.as_str() {
 				"head" => {
 					if head.replace(map.next_value()?).is_some() {
 						return Err(de::Error::duplicate_field("head"));
