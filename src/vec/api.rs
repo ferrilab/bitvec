@@ -284,7 +284,7 @@ where
 			.checked_mul(T::Mem::BITS as usize)
 			.expect("Bit-Vector capacity exceeded")
 			//  Don’t forget to subtract any dead bits in the front of the base!
-			//  This has to be saturating, becase a non-zero head on a zero
+			//  This has to be saturating, because a non-zero head on a zero
 			//  capacity underflows.
 			.saturating_sub(self.bitspan.head().into_inner() as usize)
 	}

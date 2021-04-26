@@ -56,7 +56,7 @@ use crate::{
 	store::BitStore,
 };
 
-/** Pointer to an individual bit in a memory element. Analagous to `*bool`.
+/** Pointer to an individual bit in a memory element. analogous to `*bool`.
 
 # Original
 
@@ -412,7 +412,7 @@ where
 	/// will always dereference the pointer, and you must ensure the following
 	/// conditions are met:
 	///
-	/// - the pointer must be dereferencable as defined in the standard library
+	/// - the pointer must be dereferenceable as defined in the standard library
 	///   documentation
 	/// - the pointer must point to an initialized instance of `T`
 	/// - you must ensure that no other pointer will race to modify the referent
@@ -930,7 +930,7 @@ where
 	///
 	/// # Parameters
 	///
-	/// - `slice`: An immutabily borrowed slice of memory.
+	/// - `slice`: An immutably borrowed slice of memory.
 	///
 	/// # Returns
 	///
@@ -1013,7 +1013,7 @@ where
 	///
 	/// # Parameters
 	///
-	/// - `slice`: A mutabily borrowed slice of memory.
+	/// - `slice`: A mutably borrowed slice of memory.
 	///
 	/// # Returns
 	///
@@ -1066,7 +1066,7 @@ where
 	/// will always dereference the pointer and you must ensure the following
 	/// conditions are met:
 	///
-	/// - the pointer must be dereferencable as defined in the standard library
+	/// - the pointer must be dereferenceable as defined in the standard library
 	///   documentation
 	/// - the pointer must point to an initialized instance of `T`
 	/// - you must ensure that no other pointer will race to modify the referent

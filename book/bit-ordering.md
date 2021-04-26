@@ -106,7 +106,7 @@ bit  ║ 76543210│76543210│76543210│76543210│76543210│76543210│76543
 
 On big-endian machines, the most-significant *byte* of a register type is stored
 at the lowest memory address, and each byte higher is one step less numerically
-signifcant than the last.
+significant than the last.
 
 ```text
 byte ║ 00000000│11111111│22222222│33333333│44444444│55555555│66666666│77777777

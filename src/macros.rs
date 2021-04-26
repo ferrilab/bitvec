@@ -67,7 +67,7 @@ and a [`BitStore`] implementor as the `BitArray`’s type arguments.
 Bit expressions must be integer literals. Ambiguity restrictions in the macro
 syntax forbid the use of identifiers to existing variables, even `const` values.
 These are converted to `bool` through the expression `$val != 0`. Any non-zero
-enteger becomes `true`, and `0` becomes `false`.
+integer becomes `true`, and `0` becomes `false`.
 
 You may use any name or path to a [`BitOrder`] implementation. However, the
 identifier tokens `Lsb0`, `Msb0`, and `LocalBits` are matched directly and
@@ -254,7 +254,7 @@ as a `BitSlice`. The compiler should extend the lifetime of the underlying
 
 This macro takes a superset of the [`vec!`] argument syntax: it may be invoked
 with either a sequence of bit expressions, or a single bit expression and a
-repetiton counter. Additionally, you may provide the names of a [`BitOrder`] and
+repetition counter. Additionally, you may provide the names of a [`BitOrder`] and
 a [`BitStore`] implementor as the `BitArray`’s type arguments. You may also use
 `mut` as the first argument of the macro in order to produce an `&mut BitSlice`
 reference rather than a `&BitSlice` immutable reference.
@@ -264,7 +264,7 @@ reference rather than a `&BitSlice` immutable reference.
 Bit expressions must be integer literals. Ambiguity restrictions in the macro
 syntax forbid the use of identifiers to existing variables, even `const` values.
 These are converted to `bool` through the expression `$val != 0`. Any non-zero
-enteger becomes `true`, and `0` becomes `false`.
+integer becomes `true`, and `0` becomes `false`.
 
 You may use any name or path to a [`BitOrder`] implementation. However, the
 identifier tokens `Lsb0`, `Msb0`, and `LocalBits` are matched directly and
@@ -504,7 +504,7 @@ and a [`BitStore`] implementor as the `BitVec`’s type arguments.
 Bit expressions must be integer literals. Ambiguity restrictions in the macro
 syntax forbid the use of identifiers to existing variables, even `const` values.
 These are converted to `bool` through the expression `$val != 0`. Any non-zero
-enteger becomes `true`, and `0` becomes `false`.
+integer becomes `true`, and `0` becomes `false`.
 
 You may use any name or path to a [`BitOrder`] implementation. However, the
 identifier tokens `Lsb0`, `Msb0`, and `LocalBits` are matched directly and

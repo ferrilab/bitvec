@@ -11,13 +11,13 @@ code.
 relationship to the [`BitSlice`] and [`BitVec`] types. Most of the interesting
 work to be done on a bit-sequence is implemented in `BitSlice`, to which
 `BitBox` dereferences, and the box container itself only exists to maintain
-wonership and provide some specializations that cannot safely be done on
+ownership and provide some specializations that cannot safely be done on
 `BitSlice` alone.
 
 There is almost never a reason to use this type, as it is a mixture of
 [`BitArray`]’s fixed width and [`BitVec`]’s heap allocation. You should only use
 it when you have a bit-sequence whose width is either unknowable at compile-time
-or inexpressable in `BitArray`, and are constructing the sequence in a `BitVec`
+or inexpressible in `BitArray`, and are constructing the sequence in a `BitVec`
 before freezing it.
 
 [`BitArray`]: crate::array::BitArray
@@ -64,7 +64,7 @@ pub use iter::IntoIter;
 /** A frozen heap-allocated buffer of individual bits.
 
 This is essentially a [`BitVec`] that has frozen its allocation, and given up
-the ability to change size. It is analagous to `Box<[bool]>`. You should prefer
+the ability to change size. It is analogous to `Box<[bool]>`. You should prefer
 [`BitArray`] over `BitBox` where possible, and may freely box it if you need the
 indirection.
 
@@ -331,7 +331,7 @@ where
 		slice length as the buffer capacity. However, this is *not* a behavior
 		guaranteed by the distribution, and so the pipeline above must remain in
 		place in the event that this behavior ever changes. It should compile
-		away to nothing, as it is almost entirely typesystem manipulation.
+		away to nothing, as it is almost entirely type system manipulation.
 		*/
 		unsafe {
 			bitspan.set_address(raw.as_mut_ptr());

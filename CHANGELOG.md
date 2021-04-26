@@ -12,7 +12,7 @@ This document is written according to the [Keep a Changelog][kac] style.
    1. [0.20.2](#0202)
    1. [0.20.0](#0200)
       1. [Pointer Overhaul](#pointer-overhaul)
-      1. [Aliasing Typesystem](#aliasing-typesystem)
+      1. [Aliasing Type System](#aliasing-type-system)
       1. [`&bool` to `BitRef`](#bool-to-bitref)
 1. [0.19](#019)
    1. [0.19.4](#0194)
@@ -71,7 +71,7 @@ This document is written according to the [Keep a Changelog][kac] style.
 
 Provides named types as the result of `Iter::by_ref` and `Iter::by_val`. Renames
 `BitTail` to `BitEnd`, which is publicly visible. Reduced to a patch change by
-provididng a type alias.
+providing a type alias.
 
 ### 0.22.2 <!-- omit in toc -->
 
@@ -143,7 +143,7 @@ This has been a valuable lesson for future work, especially as 1.0 approaches.
 #### Fixed <!-- omit in toc -->
 
 GitHub user [@ordian] fixed incorrect `len()` exclusion from `BitVec::insert` in
-[Pull Requst #104].
+[Pull Request #104].
 
 ## 0.20
 
@@ -184,7 +184,7 @@ notices.
   into the same scope.
 
   This adapter permits loops that satisfy this condition to remove the
-  performance cost of alias-safed memory accesses where the user has ensured
+  performance cost of alias-safe memory accesses where the user has ensured
   that no alias conditions will exist.
 
   As an example, the following loop may safely use `.remove_alias()`:
@@ -222,7 +222,7 @@ notices.
 
 The pointer infrastructure in the crate has been entirely rewritten. This does
 not affect the encoding structure used in `*BitSlice` pointers; it is primarily
-a typesystem arrangement.
+a type-system arrangement.
 
 The previous `BitPtr` type has bene renamed to `BitSpan`. `BitSpan` retains all
 responsibility for managing the encoding of `*BitSlice` pointers, and is
@@ -248,7 +248,7 @@ components: the exact types used when marking bit-slices as aliased, and the
 removal of `&bool` references in favor of the same proxy type that had been
 standing in for `&mut bool`.
 
-#### Aliasing Typesystem
+#### Aliasing Type System
 
 The types used when a `&mut BitSlice` aliases its underlying memory are now
 specialized wrappers rather than bare `Atomic` or `Cell<>` types. These new
@@ -437,7 +437,7 @@ them internally.
 #### Added <!-- omit in toc -->
 
 - The CI test harness now covers targets beyond `x86_64-unknown-linux-gnu`,
-  thanks to GitHub user [@Alexhuszagh]. `bitvec` guarantees support for all
+  thanks to GitHub user [@AlexHuszagh]. `bitvec` guarantees support for all
   targets listed in the CI matrix through at least the next major release. If
   your target is not in this list, please file an issue for inclusion.
 
@@ -453,7 +453,7 @@ past, such as in GitHub [issue #32], and is still (as of writing) not able to be
 array type that is large enough to hold the number of bits that the user wants.
 
 The `bitarr!` macro constructs either values of `BitArray<O, V>` with the same
-syntax as the other three macros, or constructs `BitArary<O, V>` typenames
+syntax as the other three macros, or constructs `BitArray<O, V>` type names
 suitable for a number of bits in a given order/store array. Invoked as
 `bitarr!(for BITS, in ORDER, STORE)`, it produces a typename that can be used to
 correctly type locations that cannot use inference from a value assigned  into
@@ -554,7 +554,7 @@ management error in the `0.17` series, and is demonstrated to exist back to
 
 #### Fixed <!-- omit in toc -->
 
-GitHub users [@Alexhuszagh] and [@obeah] noted in [Issue #43] that the sequence
+GitHub users [@AlexHuszagh] and [@obeah] noted in [Issue #43] that the sequence
 storage constructors used by the `bits!` macro yielded incorrect behavior. The
 error was a copy-paste error in the production of byte reördering functions used
 by the macro.
@@ -604,7 +604,7 @@ The `AsBits::as_{mut_,}bitslice` deprecation aliases have been removed.
 
 - `BitField` trait now has `{load,store}_{le,be}` methods for explicitly
   choosing *element* order when performing storage. The `load`/`store` methods
-  default to the target’s byte endiannes as a convenience. These may be
+  default to the target’s byte endianness as a convenience. These may be
   deprecated in the future, if the explicit choice is strongly preferred.
 
   See the module and trait documentation for more detail.
@@ -612,7 +612,7 @@ The `AsBits::as_{mut_,}bitslice` deprecation aliases have been removed.
 - GitHub user [@mystor] provided a `bits!` macro in [Pull Request #34] which
   enables compile-time construction of `&'static BitSlice<O, T>` regions. This
   macro is currently limited to working with the literal `BitOrder`
-  implementator names `Local`, `Lsb0`, and `Msb0`. This is a restriction in the
+  implementor names `Local`, `Lsb0`, and `Msb0`. This is a restriction in the
   Rust language (identifiers are not yet associated with types during macro
   expansion), and `bitvec` does not promise to expand support to other names or
   types in the future.
@@ -665,7 +665,7 @@ it expected to be present.
   respectively; `as_bitslice` and `as_mut_bitslice` are marked deprecated and
   will be removed in `0.17`.
 - The `BitField` trait allows `BitSlice<BigEndian, _>` and
-  `BitSlice<LittleEndian, _>` to provide behavior analagous to bitfields in C
+  `BitSlice<LittleEndian, _>` to provide behavior analogous to bitfields in C
   and C++ `struct` definitions. This trait provides `load` and `store` methods
   on `BitSlice`s with those two `Cursor`s which allow for parallel access to the
   underlying memory. This trait is currently not able to be implemented by
@@ -861,7 +861,7 @@ dependency on `alloc`, and the allocating types. The `std` feature alone now
 
 - **SEE THE RENAME BELOW.** The `Bits` and `BitsMut` traits provide reference
   conversion from many Rust fundamental types to `BitSlice` regions. `Bits` is
-  analagous to `AsRef`, and `BitsMut` to `AsMut`. These traits are implemented
+  analogous to `AsRef`, and `BitsMut` to `AsMut`. These traits are implemented
   on the `BitStore` fundamentals, slices of them, and arrays up to 32.
 
 - `BitSlice::get_unchecked` and `BitSlice::set_unchecked` perform read and write
@@ -1222,7 +1222,7 @@ Initial implementation and release.
 - `BitVec` type with basic `Vec` idioms and parallel trait implementations
 - `bitvec!` generator macro
 
-[@Alexhuszagh]: https://github.com/Alexhuszagh
+[@AlexHuszagh]: https://github.com/AlexHuszagh
 [@Fotosmile]: https://github.com/Fotosmile
 [@GeorgeGkas]: https://github.com/GeorgeGkas
 [@HamishWMC]: https://github.com/HamishWMC

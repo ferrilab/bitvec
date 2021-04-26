@@ -8,8 +8,6 @@
 [![Documentation][docs_img]][docs]
 [![License][license_img]][license_file]
 
-[![Continuous Integration][travis_img]][travis]
-[![Code Coverage][codecov_img]][codecov]
 [![Crate Downloads][downloads_img]][crate]
 [![Crate Size][loc_img]][loc]
 
@@ -46,7 +44,7 @@ registers are powers of bytes in size. Data that does not evenly fill a byte, or
 a power of a byte, creates inconveniences for the machine and for the
 programmer.
 
-`bitvec` removes the human-facing inconveniences by modelling memory as if it
+`bitvec` removes the human-facing inconveniences by modeling memory as if it
 were addressed as individual bits, and registers as if they supported any width.
 
 If you need to work with data that does not evenly fill one of the fundamental
@@ -398,7 +396,7 @@ then `bitvec` will fall back to non-atomic, non-threadsafe, behavior for that
 integer.
 
 You may disable this feature to unconditionally use [`Cell`]-based memory access
-to aliased locations, thereby disabling multithreading support in
+to aliased locations, thereby disabling multi-threading support in
 [`&/mut BitSlice`] and ensuring that memory access always uses ordinary
 load/store instructions.
 

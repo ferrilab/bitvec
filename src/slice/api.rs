@@ -219,8 +219,8 @@ where
 	/// ```
 	///
 	/// [`BitRef`]: crate::ptr::BitRef
-	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
-	//  so this will not be aliased.
+	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherent
+	//  methods, so this will not be aliased.
 	#[inline]
 	#[allow(clippy::type_complexity)]
 	pub fn split_first_mut(
@@ -300,8 +300,8 @@ where
 	/// ```
 	///
 	/// [`BitRef`]: crate::slice::BitSlice
-	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
-	//  so this will not be aliased.
+	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherent
+	//  methods, so this will not be aliased.
 	#[inline]
 	#[allow(clippy::type_complexity)]
 	pub fn split_last_mut(
@@ -1257,7 +1257,7 @@ where
 	/// [`T::Alias`]: crate::store::BitStore::Alias
 	/// [`.bit_domain`()]: Self::bit_domain
 	/// [`.bit_domain_mut`()]: Self::bit_domain_mut
-	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherents,
+	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherent method,
 	//  so this will not be aliased.
 	#[inline]
 	#[allow(clippy::type_complexity)]

@@ -56,13 +56,13 @@ fn issue_10() {
 /** Test case for [Issue #33], opened by [@jonas-schievink].
 
 This report discovered an error in the implementation of `BitVec::reserve`,
-which caused it to fail to reällocate in certain conditions.
+which caused it to fail to reällocate in certain conditions.
 
 The error was that the `reserve` method was testing the reservation amount
 passed in to `Vec::reserve` against the currently-allocated *capacity*, not the
 currently-occupied *element length*. `Vec::reserve` expects the difference to be
 against the element length, so `BitVec::reserve` was estimating too few elements
-and `Vec::reserve` did not see the request amount as requiring a reällocation.
+and `Vec::reserve` did not see the request amount as requiring a reällocation.
 
 `BitVec::reserve` now tests the reservation amount against the current element
 length, which produces the correct reservation request for `Vec::reserve`,
@@ -74,20 +74,20 @@ fixing the error.
 #[test]
 #[cfg(feature = "alloc")]
 fn issue_33() {
-	let mut swdio = BitVec::<Lsb0, u8>::new();
+	let mut iostream = BitVec::<Lsb0, u8>::new();
 
-	swdio.resize(64, true);
+	iostream.resize(64, true);
 
 	let mut seq = 0xE79E; // LSb first
 	for _ in 0 .. 16 {
-		swdio.push(seq & 0b1 != 0);
+		iostream.push(seq & 0b1 != 0);
 		seq >>= 1;
 	}
 
-	swdio.reserve(64);
-	swdio.resize(swdio.len() + 64, true);
+	iostream.reserve(64);
+	iostream.resize(iostream.len() + 64, true);
 
-	swdio.resize(swdio.len() + 10, false);
+	iostream.resize(iostream.len() + 10, false);
 }
 
 /** Test case for [Issue #62], reported by GitHub user [@sharksforarms].
@@ -240,7 +240,7 @@ scaled by the bit width of the `T` storage parameter, while pointers are
 *always* byte-stepped, and should only be scaled by the bit width of a byte, not
 the bit width of `T`.
 
-Embarassingly, I made the same mistake in the `ptr_diff` implementation used in
+Embarrassingly, I made the same mistake in the `ptr_diff` implementation used in
 the `nom` compatibility branch. At least I’m consistent.
 
 The overly-large scaling in computation of `.len()` caused `Rev<>`, which relies
@@ -283,7 +283,7 @@ This is not a surprising crash: the reverse gallop by indices through a slice is
 a cumbersome operation that is fraught with potential for failure, thanks to the
 half-open nature of indices within a length.
 
-The fix turned out to be incredibly simple: defer the derement operation (to go
+The fix turned out to be incredibly simple: defer the decrement operation (to go
 from len to last valid index) from the *start* of the search to the *end*.
 
 I am not confident in the categorical correctness of this solution, but it fixes

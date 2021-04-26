@@ -204,7 +204,7 @@ where
 	}
 }
 
-#[cfg(not(tarpauln_include))]
+#[cfg(not(tarpaulin_include))]
 impl<O, T> AsRef<BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,
@@ -216,7 +216,7 @@ where
 	}
 }
 
-#[cfg(not(tarpauln_include))]
+#[cfg(not(tarpaulin_include))]
 impl<O, T> AsMut<BitSlice<O, T>> for BitBox<O, T>
 where
 	O: BitOrder,

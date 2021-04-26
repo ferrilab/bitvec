@@ -101,7 +101,7 @@ where
 
 	#[doc(hidden)]
 	#[inline(always)]
-	#[cfg(not(tarpalin_include))]
+	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "Use `as_bitslice` to view the underlying slice"]
 	pub fn as_slice(&self) -> &BitSlice<O, T> {
 		self.as_bitslice()

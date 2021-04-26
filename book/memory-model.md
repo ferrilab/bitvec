@@ -126,7 +126,7 @@ As soon as you attempt to read the bit-wise value of `poison`, your program is
 undefined[^3].
 
 So if `bitvec` wants to be threadsafe, which it does, and it wants to insist on
-its ability to safely alias the same memory location from mulitple handles,
+its ability to safely alias the same memory location from multiple handles,
 which is non-negotiable, there’s only one avenue left to take.
 
 ### Atomic Powered Microscopes
@@ -393,7 +393,7 @@ has a more robust arbitrary-bit-tracking capability, but similarly limits its
 interface to external code.
 
 Barring any errors in the `bitvec` implementation, the `bitvec` memory model is
-fully sound in its behavior with regard to single-observer unsynchrony.
+fully sound in its behavior with regard to single-observer race freedom.
 Synchronization is only added in order to correctly interface with `rustc` and
 LLVM without causing either of them to introduce undefined behavior due to a
 lack of information.
@@ -430,8 +430,8 @@ simultaneous production of `::Mem` and `::Alias` aliasing references.
       much luck producing a benchmark that firmly demonstrates that unneeded
       atomic access is a strict performance cost.
 
-[^5]: In multithreading environments. Disabling atomics also disables `bitvec`’s
-      support for multithreading, so the penalty for aliasing is reduced to an
+[^5]: In multi-threaded environments. Disabling atomics also disables `bitvec`’s
+      support for multi-threaded, so the penalty for aliasing is reduced to an
       inability to remove redundant reads.
 
 [bv_ord]: https://github.com/myrrlyn/bitvec/blob/HEAD/src/order.rs

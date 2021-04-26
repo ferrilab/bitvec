@@ -1,6 +1,6 @@
 # Dedication
 
-I begain working on `bitvec` shortly before I was told that my father had been
+I began working on `bitvec` shortly before I was told that my father had been
 diagnosed with cancer for the third time. Developing the library gave me
 something into which to sink my attention and keep my mind from dwelling on his
 rapidly-progressing illness. I wrote the core pointer representation that

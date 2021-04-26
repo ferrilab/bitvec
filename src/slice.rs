@@ -25,7 +25,7 @@ API, this module is organized very differently than the slice implementation in
 the [`core`] and [`std`] distribution libraries.
 
 - the root module `slice` contains new APIs that have no counterpart in `[T]`
-- `slice/api` contains reïmplementations of the `[T]` inherent methods
+- `slice/api` contains reïmplementations of the `[T]` inherent methods
 - `slice/iter` implements all of the iteration capability
 - `slice/ops` implements the traits in `core::ops`
 - `slice/proxy` implements the proxy reference used in place of `&mut bool`
@@ -222,7 +222,7 @@ of type arguments informs nearly every part of this library’s behavior.
 [`BitStore`] is the simpler of the two parameters. It refers to the integer type
 used to hold bits. It must be one of the Rust unsigned integer fundamentals:
 `u8`, `u16`, `u32`, `usize`, and on 64-bit systems only, `u64`. In addition, it
-can also be an alias-safed wrapper over them (see the [`access`] module) in
+can also be an alias-safe wrapper over them (see the [`access`] module) in
 order to permit bit-slices to share underlying memory without interfering with
 each other.
 
@@ -296,7 +296,7 @@ your choice of ordering is dictated by the protocol definition.
 
 `BitSlice` is designed to never introduce new memory unsafety that you did not
 provide yourself, either before or during the use of this crate. Bugs do, and
-have, occured, and you are encouraged to submit any discovered flaw as a defect
+have, occurred, and you are encouraged to submit any discovered flaw as a defect
 report.
 
 The `&BitSlice` reference type uses a private encoding scheme to hold all the
@@ -473,7 +473,7 @@ where
 	/// Rust has firm requirements that *any* reference that is directly usable
 	/// to dereference a real value must conform to its rules about address
 	/// liveness, type alignment, and for slices, trustworthy length. It is
-	/// undefined behavior for a slice reference *to a dereferencable type* to
+	/// undefined behavior for a slice reference *to a dereferenceable type* to
 	/// violate any of these restrictions.
 	///
 	/// However, the value of a reference to a zero-sized type has *no* such
@@ -1242,7 +1242,7 @@ where
 	/// ```
 	#[inline]
 	pub fn leading_ones(&self) -> usize {
-		self.first_zero().unwrap_or(self.len())
+		self.first_zero().unwrap_or_else(|| self.len())
 	}
 
 	/// Counts the number of bits from the start of the bit-slice to the first
@@ -1261,7 +1261,7 @@ where
 	/// ```
 	#[inline]
 	pub fn leading_zeros(&self) -> usize {
-		self.first_one().unwrap_or(self.len())
+		self.first_one().unwrap_or_else(|| self.len())
 	}
 
 	/// Counts the number of bits from the end of the bit-slice to the last bit
@@ -2735,7 +2735,7 @@ where
 
 # Parameters
 
-- `data`: A `BitPtr` to a dereferencable region of memory.
+- `data`: A `BitPtr` to a dereferenceable region of memory.
 - `len`: The length, in bits, of the region beginning at `*data`. This is not
   checked against the maximum value, and is encoded directly into the bit-slice
   reference. If it exceeds [`BitSlice::MAX_BITS`], it will be modulated to fit
@@ -2770,7 +2770,7 @@ the `len` argument.
 
 # Parameters
 
-- `data`: A `BitPtr` to a dereferencable region of memory.
+- `data`: A `BitPtr` to a dereferenceable region of memory.
 - `len`: The length, in bits, of the region beginning at `*data`. This is not
   checked against the maximum value, and is encoded directly into the bit-slice
   reference. If it exceeds [`BitSlice::MAX_BITS`], it will be modulated to fit

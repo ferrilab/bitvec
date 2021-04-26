@@ -1085,7 +1085,7 @@ group!(ChunksMut => &'a mut BitSlice<O, T::Alias> {
 bits at a time), starting at the beginning of the slice.
 
 When the slice length is not evenly divided by the chunk size, the last up to
-`chunk_size-1` bits will be ommitted but can be retrieved from the
+`chunk_size-1` bits will be omitted but can be retrieved from the
 [`.remainder()`] function from the iterator.
 
 This struct is created by the [`.chunks_exact()`] method on [`BitSlice`]s.

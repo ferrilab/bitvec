@@ -250,7 +250,7 @@ trait to operate on a de/serialization buffer, where the exact bit pattern in
 memory is important to your work and/or you need to be aware of the processor
 byte endianness, you must not use these methods.
 
-Instead, use [`load_le`], [`load_be`], [`store_le`], or[`store_be`] directly.
+Instead, use [`load_le`], [`load_be`], [`store_le`], or [`store_be`] directly.
 
 The un-suffixed methods choose their implementation based on the target
 processor byte endianness; the suffixed methods have a consistent and fixed
@@ -1042,6 +1042,24 @@ where T: BitStore
 				}
 			},
 		}
+	}
+
+	fn load<M>(&self) -> M
+	where M: BitMemory {
+		#[cfg(target_endian = "little")]
+		return self.load_le::<M>();
+
+		#[cfg(target_endian = "big")]
+		return self.load_be::<M>();
+	}
+
+	fn store<M>(&mut self, value: M)
+	where M: BitMemory {
+		#[cfg(target_endian = "little")]
+		self.store_le(value);
+
+		#[cfg(target_endian = "big")]
+		self.store_be(value);
 	}
 }
 

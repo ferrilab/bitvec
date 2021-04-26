@@ -15,11 +15,11 @@ use bitvec::prelude::{
 	bits,
 	//  element-traversal trait (you shouldn’t explicitly need this)
 	BitOrder,
-	//  slice type, analagous to `[u1]`
+	//  slice type, analogous to `[u1]`
 	BitSlice,
 	//  trait unifying the primitives (you shouldn’t explicitly need this)
 	BitStore,
-	//  vector type, analagous to `Vec<u1>`
+	//  vector type, analogous to `Vec<u1>`
 	BitVec,
 	//  directionality type markers
 	Lsb0,

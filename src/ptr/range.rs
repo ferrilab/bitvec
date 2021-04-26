@@ -59,7 +59,7 @@ implementation is provided.
 - `O`: The bit-ordering within a storage element used to access bits.
 - `T`: The storage element type containing the referent bits.
 **/
-// Restore alignemnt properties, since `BitPtr` does not have them.
+// Restore alignment properties, since `BitPtr` does not have them.
 #[cfg_attr(target_pointer_width = "32", repr(C, align(4)))]
 #[cfg_attr(target_pointer_width = "64", repr(C, align(8)))]
 #[cfg_attr(

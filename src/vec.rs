@@ -75,7 +75,7 @@ mod traits;
 /** A contiguous growable array of bits.
 
 This is a managed, heap-allocated, buffer that contains a [`BitSlice`] region.
-It is analagous to [`Vec<bool>`], and is written to be very nearly a drop-in
+It is analogous to [`Vec<bool>`], and is written to be very nearly a drop-in
 replacement for it. This type contains little interesting behavior in its own
 right; most of its behavior is provided by dereferencing to its managed
 [`BitSlice`] buffer. It instead serves primarily as an interface to the

@@ -114,7 +114,7 @@ This type is useful for marking that some value is always to be used as a
 ///     Self {
 ///       header: 0,
 ///       // creates a value object.
-///       // the type paramaters must be repeated.
+///       // the type parameters must be repeated.
 ///       fields: bitarr![Msb0, u8; 0; 20],
 ///     }
 ///   }

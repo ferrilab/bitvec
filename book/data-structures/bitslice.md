@@ -35,7 +35,7 @@ to address only ⅛<sup>th</sup> of the indices that `[bool]` can.
 ## Getting a `BitSlice`
 
 `BitSlice` is strictly a borrowed region. It can neither be created nor
-destroyed; rather, views to it are aquired from a memory buffer that some other
+destroyed; rather, views to it are acquired from a memory buffer that some other
 binding owns.
 
 The [`BitStore` chapter] covers this in more detail, but only sequences of the

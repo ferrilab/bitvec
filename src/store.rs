@@ -6,7 +6,7 @@ required to perform memory accesses from a data structure handle.
 # `bitvec` Memory Model
 
 `bitvec` considers all memory within [`BitSlice`] regions as if it were composed
-of discrete bits, each divisible and indipendent from its neighbors, just as the
+of discrete bits, each divisible and independent from its neighbors, just as the
 Rust memory model considers elements `T` in a slice `[T]`. Much as ordinary byte
 slices `[u8]` provide an API where each byte is distinct and independent from
 its neighbors, but the underlying processor silicon clusters them in words and
@@ -128,7 +128,7 @@ bits but *do* alias memory, and enforces that these handles use `Cell` or atomic
 behavior to access the underlying memory, even though individual bits in the
 slices are not contended.
 
-# Integer Width Restricitons
+# Integer Width Restrictions
 
 Currently, [`bitvec`] is only tested on 32- and 64- bit architectures. This
 means that `u8`, `u16`, `u32`, and `usize` unconditionally implement `BitStore`,
@@ -411,7 +411,7 @@ mod tests {
 	}
 
 	/// Unaliased `BitSlice`s are universally threadsafe, because they satisfy
-	/// Rust’s unysnchronized mutation rules.
+	/// Rust’s unsynchronized mutation rules.
 	#[test]
 	fn unaliased_send_sync() {
 		assert_impl_all!(BitSlice<LocalBits, u8>: Send, Sync);
@@ -438,11 +438,11 @@ mod tests {
 	/// sent across threads.
 	///
 	/// This test cannot be meaningfully expressed in atomic builds, because the
-	/// atomiticy of a `BitSafeUN` type is target-specific, and expressed in
+	/// atomicity of a `BitSafeUN` type is target-specific, and expressed in
 	/// `radium` rather than in `bitvec`.
 	#[test]
 	#[cfg(not(feature = "atomic"))]
-	fn aliased_nonatomic_unsend_unsync() {
+	fn aliased_non_atomic_unsend_unsync() {
 		use crate::access::*;
 
 		assert_not_impl_any!(BitSlice<LocalBits, BitSafeU8>: Send, Sync);

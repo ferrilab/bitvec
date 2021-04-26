@@ -7,7 +7,7 @@ unaliased access events.
 
 The [`BitAccess`] trait provides capabilities to access bits in memory elements
 through shared references, and its implementations are responsible for
-coördinating synchronization and contention as needed.
+coördinating synchronization and contention as needed.
 
 The [`BitSafe`] trait abstracts over wrappers to the [`Cell`] and [atomic] types
 that forbid writing through their references, even when other references to the
@@ -349,22 +349,22 @@ mod tests {
 		let (c, _): (&mut BitSlice<Msb0, BitSafeU8>, _) = c.split_at_mut(16);
 
 		//  Get a write-capable shared reference to the base address,
-		let l_redge: &<BitSafeU8 as BitSafe>::Rad =
+		let l_r_edge: &<BitSafeU8 as BitSafe>::Rad =
 			l.domain_mut().region().unwrap().2.unwrap().0;
 		//  and a write-incapable shared reference to the same base address.
-		let c_ledge: &BitSafeU8 = c.domain().region().unwrap().0.unwrap().1;
+		let c_l_edge: &BitSafeU8 = c.domain().region().unwrap().0.unwrap().1;
 
 		//  The split location means that the two subdomains share a location.
 		assert_eq!(
-			l_redge as *const _ as *const u8,
-			c_ledge as *const _ as *const u8,
+			l_r_edge as *const _ as *const u8,
+			c_l_edge as *const _ as *const u8,
 		);
 
 		//  The center reference can only read,
-		assert_eq!(c_ledge.load(), 0);
+		assert_eq!(c_l_edge.load(), 0);
 		//  while the left reference can write,
-		l_redge.set_bits(BitMask::new(6));
+		l_r_edge.set_bits(BitMask::new(6));
 		//  and be observed by the center.
-		assert_eq!(c_ledge.load(), 6);
+		assert_eq!(c_l_edge.load(), 6);
 	}
 }

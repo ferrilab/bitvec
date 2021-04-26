@@ -3,8 +3,8 @@
 # Types
 
 As `bitvec` is not the standard library, it does not have the freedom to use
-language builtins such as actual pointers. Instead, `bitvec` uses its own
-analagous structures:
+language built-ins such as actual pointers. Instead, `bitvec` uses its own
+analogous structures:
 
 - [`BitPtr<M, O, T>`]: This represents a pointer to a single bit, and is vaguely
   similar to `*const bool`, `*mut bool`, and `NonNull<bool>`. It consists of a
@@ -319,13 +319,13 @@ referent bit.
 **/
 #[inline(always)]
 #[cfg(not(tarpaulin_include))]
-pub fn hash<O, T, S>(hashee: BitPtr<Const, O, T>, into: &mut S)
+pub fn hash<O, T, S>(ptr: BitPtr<Const, O, T>, into: &mut S)
 where
 	O: BitOrder,
 	T: BitStore,
 	S: Hasher,
 {
-	hashee.hash(into);
+	ptr.hash(into);
 }
 
 /** Reads the bit from `src`.
@@ -375,7 +375,7 @@ be elided or reördered by the compiler across other volatile operations.
 
 # Notes
 
-Rust does not curretnly have a rigorously and formally defined memory model, so
+Rust does not currently have a rigorously and formally defined memory model, so
 the precise semantics of what “volatile” means here is subject to change over
 time. That being said, the semantics will almost always end up pretty similar to
 [C11’s definition of volatile][c11].
@@ -711,7 +711,7 @@ operations.
 
 # Notes
 
-Rust does not curretnly have a rigorously and formally defined memory model,
+Rust does not currently have a rigorously and formally defined memory model,
 so the precise semantics of what “volatile” means here is subject to change
 over time. That being said, the semantics will almost always end up pretty
 similar to [C11’s definition of volatile][c11].

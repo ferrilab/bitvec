@@ -373,12 +373,12 @@ where
 	/// # Returns
 	///
 	/// Whether the drained span was completely filled, or if the replacement
-	/// source `iter`ator was exhausted first.
+	/// source iterator was exhausted first.
 	///
 	/// # Effects
 	///
 	/// The source vector is extended to include all bits filled in from the
-	/// replacement `iter`ator, but is *not* extended to include the tail, even
+	/// replacement iterator, but is *not* extended to include the tail, even
 	/// if drained region is completely filled. This work is done in the
 	/// destructor.
 	fn fill<I>(&mut self, iter: &mut I) -> FillStatus

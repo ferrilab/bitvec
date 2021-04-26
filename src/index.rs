@@ -275,7 +275,7 @@ where R: BitRegister
 	/// point.
 	///
 	/// Because implementation details of the range type family, including the
-	/// [`RangeBounds`] trait, are not yet stable, and heterogenous ranges are
+	/// [`RangeBounds`] trait, are not yet stable, and heterogeneous ranges are
 	/// not supported, this must be an opaque iterator rather than a direct
 	/// [`Range<BitIdx<R>>`].
 	///
@@ -549,9 +549,9 @@ element `R`.
 
 This type is a counter in the ring `0 ..= R::BITS`, and serves to mark a
 semantic index of a dead bit *after* a live region. As such, following in the
-C++ and LLVM memory model of first-live/first-dead region descriptiors, it marks
-an endpoint outside some bit-region, and may be used to compute the startpoint
-of a bit-region immediately succeeding, but not overlapping, the source.
+C++ and LLVM memory model of first-live/first-dead region descriptors, it marks
+an endpoint outside some bit-region, and may be used to compute the starting
+point of a bit-region immediately succeeding, but not overlapping, the source.
 
 As a dead-bit index, this *cannot* be used for indexing into a register. It is
 used only in abstract region computation.
@@ -672,7 +672,7 @@ where R: BitRegister
 	/// Iterates over all tail indices at and after an inclusive starting point.
 	///
 	/// Because implementation details of the range type family, including the
-	/// [`RangeBounds`] trait, are not yet stable, and heterogenous ranges are
+	/// [`RangeBounds`] trait, are not yet stable, and heterogeneous ranges are
 	/// not yet supported, this must be an opaque iterator rather than a direct
 	/// [`Range<BitEnd<R>>`].
 	///

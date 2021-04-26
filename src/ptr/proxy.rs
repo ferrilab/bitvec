@@ -101,7 +101,7 @@ assert_eq!(bits, bits![1; 2]);
 
 [`std::bitset<N>::reference`]: https://en.cppreference.com/w/cpp/utility/bitset/reference
 **/
-// Restore alignemnt properties, since `BitPtr` does not have them.
+// Restore alignment properties, since `BitPtr` does not have them.
 #[cfg_attr(target_pointer_width = "32", repr(C, align(4)))]
 #[cfg_attr(target_pointer_width = "64", repr(C, align(8)))]
 #[cfg_attr(
@@ -116,7 +116,7 @@ where
 {
 	/// The proxied address.
 	bitptr: BitPtr<M, O, T>,
-	/// A local, dereferencable, cache of the proxied bit.
+	/// A local, dereferenceable, cache of the proxied bit.
 	data: bool,
 	/// Pad the structure out to be two words wide.
 	_pad: [u8; PADDING],
@@ -533,7 +533,7 @@ mod tests {
 		drop(proxy);
 
 		//  The proxy commits the cache on drop, releasing its lock on the main
-		//  buffer, permitting us to see that the writeback occurred.
+		//  buffer, permitting us to see that the write-back occurred.
 		assert!(bits[0]);
 
 		let proxy = bits.get_mut(1).unwrap();

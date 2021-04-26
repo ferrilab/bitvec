@@ -906,7 +906,7 @@ where
 	///
 	/// This should compile down to a noöp, but the implementation should
 	/// nevertheless be an explicit deconstruction and reconstruction rather
-	/// than a bare [`mem::transmute`], to guard against unforseen compiler
+	/// than a bare [`mem::transmute`], to guard against unforeseen compiler
 	/// reördering.
 	///
 	/// # Parameters
@@ -1109,8 +1109,8 @@ where T: BitStore
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		let tname = any::type_name::<T>();
-		write!(fmt, "BitSpanError<{}>::", tname,)?;
+		let type_name = any::type_name::<T>();
+		write!(fmt, "BitSpanError<{}>::", type_name)?;
 		match self {
 			Self::InvalidBitptr(err) => {
 				fmt.debug_tuple("InvalidBitptr").field(&err).finish()

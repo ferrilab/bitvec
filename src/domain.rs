@@ -86,7 +86,7 @@ macro_rules! bit_domain {
 		/// # Aliasing Awareness
 		///
 		/// This enum does not grant access to memory outside the scope of the
-		/// original [`BitSlice`] handle, and so does not need to modfiy any
+		/// original [`BitSlice`] handle, and so does not need to modify any
 		/// aliasing conditions.
 		///
 		/// [`BitSlice`]: crate::slice::BitSlice
