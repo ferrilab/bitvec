@@ -1452,7 +1452,7 @@ where
 	///
 	/// let slice = bits![mut 0, 0, 0, 1, 1];
 	///
-	/// slice[.. 2].copy_from_bitslice(&bits[3 ..]); // compile fail!
+	/// slice[.. 2].copy_from_bitslice(&slice[3 ..]); // compile fail!
 	/// ```
 	///
 	/// To work around this, we can use [`.split_at_mut()`] to create two
