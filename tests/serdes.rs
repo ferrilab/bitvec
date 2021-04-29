@@ -29,12 +29,22 @@ fn serdes_array() {
 #[cfg(all(feature = "alloc", feature = "serde"))]
 fn serdes_vector() {
 	let bv = bitvec![Msb0, u8; 1, 0, 1, 1, 0, 0, 1, 0];
+
+	// Store and load via String.
 	let json = serde_json::to_string(&bv).expect("cannot fail to serialize");
 	assert_eq!(json.trim(), r#"{"head":0,"bits":8,"data":[178]}"#);
 
 	let bb: BitBox<Msb0, u8> =
 		serde_json::from_str(&json).expect("cannot fail to deserialize");
-
 	assert!(bb[0]);
 	assert_eq!(bb.as_slice()[0], 178);
+
+	// Store and load via Write/Read.
+	let tmp_file = tempfile::tempfile().unwrap();
+	let mut clone_file = tmp_file.try_clone().unwrap();
+	serde_json::to_writer_pretty(tmp_file, &bv).unwrap();
+	use std::io::Seek;
+	clone_file.seek(std::io::SeekFrom::Start(0)).unwrap();
+	let new_bv: BitVec<Msb0, u8> = serde_json::from_reader(clone_file).unwrap();
+	assert_eq!(bv, new_bv);
 }
