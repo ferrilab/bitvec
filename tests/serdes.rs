@@ -38,3 +38,11 @@ fn serdes_vector() {
 	assert!(bb[0]);
 	assert_eq!(bb.as_slice()[0], 178);
 }
+
+#[test]
+#[cfg(all(feature = "alloc", feature = "serde"))]
+fn serdes_escaped() {
+	let json = r#"{ "he\u0061d": 1, "\u0062its": 6, "d\u0061ta": [105] }"#;
+
+	let _: BitVec<Msb0, u8> = serde_json::from_str(&json).unwrap();
+}

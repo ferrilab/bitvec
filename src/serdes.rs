@@ -34,6 +34,8 @@ only be modified in a major release (`0.X.n` to `0.Y.0` or `X.m.n` to `Y.0.0`).
 
 #![cfg(feature = "serde")]
 
+#[cfg(feature = "alloc")]
+use alloc::borrow::Cow;
 use core::{
 	cmp,
 	fmt::{
@@ -319,8 +321,10 @@ where
 		let mut bits: Option<u64> = None;
 		let mut data: Option<Vec<T>> = None;
 
-		while let Some(key) = map.next_key()? {
-			match key {
+		//  Deserializing into a `Cow` instead of a `&'de str` allows string
+		//  transformation such as unescaping to take place.
+		while let Some(key) = map.next_key::<Cow<'de, str>>()? {
+			match &*key {
 				"head" => {
 					if head.replace(map.next_value()?).is_some() {
 						return Err(de::Error::duplicate_field("head"));
