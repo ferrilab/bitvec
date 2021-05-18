@@ -1238,6 +1238,7 @@ where
 	///
 	/// assert_eq!(bits![].leading_ones(), 0);
 	/// assert_eq!(bits![0].leading_ones(), 0);
+	/// assert_eq!(bits![1, 1].leading_ones(), 2);
 	/// assert_eq!(bits![1, 0, 1, 1].leading_ones(), 1);
 	/// ```
 	#[inline]
@@ -1257,6 +1258,7 @@ where
 	///
 	/// assert_eq!(bits![].leading_zeros(), 0);
 	/// assert_eq!(bits![1].leading_zeros(), 0);
+	/// assert_eq!(bits![0, 0].leading_zeros(), 2);
 	/// assert_eq!(bits![0, 1, 0, 0].leading_zeros(), 1);
 	/// ```
 	#[inline]

@@ -1257,8 +1257,8 @@ where
 	/// [`T::Alias`]: crate::store::BitStore::Alias
 	/// [`.bit_domain`()]: Self::bit_domain
 	/// [`.bit_domain_mut`()]: Self::bit_domain_mut
-	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherent method,
-	//  so this will not be aliased.
+	//  `pub type Aliased = BitSlice<O, T::Alias>;` is not allowed in inherent
+	//  methods,  so this will not be aliased.
 	#[inline]
 	#[allow(clippy::type_complexity)]
 	pub fn split_at_mut(
