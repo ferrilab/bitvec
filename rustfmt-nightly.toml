@@ -1,12 +1,13 @@
-################################################################################
-#                           Rust Style Configuration                           #
-#                                                                              #
-# This file controls the operation of `rustfmt` and `cargo fmt`. As the        #
-# `rustfmt` tool is still unstable, this file is only usable by the nightly    #
-# release of Rust at least as of the date this file was last touched.          #
-#                                                                              #
-# See <https://rust-lang.github.io/rustfmt/?version=v1.4.36>                   #
-################################################################################
+########################################################################
+#                       Rust Style Configuration                       #
+#                                                                      #
+# This file controls the operation of `rustfmt` and `cargo fmt`. As    #
+# the `rustfmt` tool is still unstable, this file is only usable by    #
+# the nightly release of Rust at least as of the date this file was    #
+# last touched.                                                        #
+#                                                                      #
+# See <https://rust-lang.github.io/rustfmt/?version=v1.4.36>           #
+########################################################################
 
 # Stable as of current nightly
 edition = "2018"

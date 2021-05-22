@@ -1,14 +1,15 @@
-################################################################################
-#                           Rust Style Configuration                           #
-#                                                                              #
-# This file controls the operation of `rustfmt` and `cargo fmt`. As the        #
-# `rustfmt` tool is still unstable, this file only contains the configurations #
-# that are stable as of the pinned Rust version in `rust-toolchain`. The file  #
-# `rustfmt-nightly.toml` contains the configurations that are available as of  #
-# the nightly Rust release when that file was last touched.                    #
-#                                                                              #
-# See <https://rust-lang.github.io/rustfmt/?version=v1.4.20>                   #
-################################################################################
+########################################################################
+#                       Rust Style Configuration                       #
+#                                                                      #
+# This file controls the operation of `rustfmt` and `cargo fmt`. As    #
+# the `rustfmt` tool is still unstable, this file only contains the    #
+# configurations that are stable as of the pinned Rust version in      #
+# `rust-toolchain.toml`. The file `rustfmt-nightly.toml` contains the  #
+# configurations that are available as of the nightly Rust release     #
+# when that file was last touched.                                     #
+#                                                                      #
+# See <https://rust-lang.github.io/rustfmt/?version=v1.4.20>           #
+########################################################################
 
 edition = "2018"
 fn_args_layout = "Tall"

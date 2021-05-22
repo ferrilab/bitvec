@@ -1,9 +1,9 @@
-################################################################################
-#                                   Justfile                                   #
-#                                                                              #
-# Set of routines to execute for development work. As of 2019-05-01, `just`    #
-# does not work on Windows.                                                    #
-################################################################################
+########################################################################
+#                               Justfile                               #
+#                                                                      #
+# Set of routines to execute for development work. As of 2019-05-01,   #
+# `just` does not work on Windows.                                     #
+########################################################################
 
 # Runs the benchmark suite
 bench *ARGS:

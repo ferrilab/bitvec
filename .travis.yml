@@ -1,10 +1,10 @@
-################################################################################
-#                 Continuous Integration Control for Travis CI                 #
-#                                                                              #
-# This file controls the build and test process run on Travis CI on every push #
-# to the master branch. It runs the test suite and then produces a tarpaulin   #
-# coverage report.                                                             #
-################################################################################
+########################################################################
+#             Continuous Integration Control for Travis CI             #
+#                                                                      #
+# This file controls the build and test process run on Travis CI on    #
+# every push to the master branch. It runs the test suite and then     #
+# produces a tarpaulin coverage report.                                #
+########################################################################
 
 os: linux
 language: rust

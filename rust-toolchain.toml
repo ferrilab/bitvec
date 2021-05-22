@@ -1,0 +1,10 @@
+########################################################################
+#                     Rust Toolchain Configuration                     #
+#                                                                      #
+# This file governs the Rust toolchain used to build and operate the   #
+# project.                                                             #
+########################################################################
+
+[toolchain]
+channel = "1.51.0"
+profile = "default"

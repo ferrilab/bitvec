@@ -1,8 +1,9 @@
-################################################################################
-#                               Project Manifest                               #
-#                                                                              #
-# This file describes the `bitvec` Rust project to the Rust build tool, Cargo. #
-################################################################################
+########################################################################
+#                           Project Manifest                           #
+#                                                                      #
+# This file describes the `bitvec` Rust project to the Rust build      #
+# tool, Cargo.                                                         #
+########################################################################
 
 [package]
 name = "bitvec"

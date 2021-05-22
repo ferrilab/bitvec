@@ -1,9 +1,9 @@
-################################################################################
-#                             Editor Configuration                             #
-#                                                                              #
-# Configuration file controlling language-specific editor settings for text    #
-# editors capable of understanding this file.                                  #
-################################################################################
+########################################################################
+#                         Editor Configuration                         #
+#                                                                      #
+# Configuration file controlling language-specific editor settings for #
+# text editors capable of understanding this file.                     #
+########################################################################
 
 # All files must be encoded in UTF-8, use ␊ line endings, and include a final
 # newline.

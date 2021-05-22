@@ -1,9 +1,10 @@
-################################################################################
-#                          MarkdownLint Configuration                          #
-#                                                                              #
-# This file controls a Markdown linter used to govern prose in the project.    #
-# See <https://github.com/DavidAnson/vscode-markdownlint> for more details.    #
-################################################################################
+########################################################################
+#                      MarkdownLint Configuration                      #
+#                                                                      #
+# This file controls a Markdown linter used to govern prose in the     #
+# project. See <https://github.com/DavidAnson/vscode-markdownlint> for #
+# more details.                                                        #
+########################################################################
 
 MD024:
   siblings_only: true
