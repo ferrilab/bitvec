@@ -1,7 +1,6 @@
 //! Port of the `Box<[T]>` inherent API.
 
 use core::{
-	marker::Unpin,
 	mem,
 	pin::Pin,
 };
@@ -68,12 +67,9 @@ where
 	/// [`new`]: Self::new
 	#[inline]
 	#[cfg(not(tarpaulin_include))]
-	pub fn pin(x: &BitSlice<O, T>) -> Pin<Self>
-	where
-		O: Unpin,
-		T: Unpin,
-	{
-		x.pipe(Self::from_bitslice).pipe(Pin::new)
+	pub fn pin(x: &BitSlice<O, T>) -> Pin<Self> {
+		x.pipe(Self::from_bitslice)
+			.pipe(|x| unsafe { Pin::new_unchecked(x) })
 	}
 
 	/// Constructs a bit-box from a raw bit-slice pointer.

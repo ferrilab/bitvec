@@ -301,6 +301,9 @@ pub mod view;
 pub mod boxed;
 
 #[cfg(feature = "alloc")]
+pub mod rc;
+
+#[cfg(feature = "alloc")]
 pub mod vec;
 
 #[cfg(feature = "serde")]

@@ -578,5 +578,39 @@ macro_rules! bitbox {
 	};
 }
 
+/** Constructs a new [`BitRc`] from a bit-pattern description.
+
+This forwards all its arguments to [`bits!`], and then calls
+[`BitRc::from_bitslice`] on the result to allocate it with reference counts.
+
+[`BitRc`]: crate::rc::BitRc
+[`BitRc::from_bitslice`]: crate::rc::BitRefStrong::from_bitslice
+[`bits!`]: macro@crate::bits
+**/
+#[macro_export]
+#[cfg(feature = "alloc")]
+macro_rules! bitrc {
+	($($arg:tt)*) => {
+		$crate::rc::BitRc::from_bitslice(&$crate::bits!($($arg)*))
+	};
+}
+
+/** Constructs a new [`BitArc`] from a bit-pattern description.
+
+This forwards all its arguments to [`bits!`], and then calls
+[`BitArc::from_bitslice`] on the result to allocate it with reference counts.
+
+[`BitArc`]: crate::rc::BitArc
+[`BitArc::from_bitslice`]: crate::rc::BitRefStrong::from_bitslice
+[`bits!`]: macro@crate::bits
+**/
+#[macro_export]
+#[cfg(feature = "alloc")]
+macro_rules! bitarc {
+	($($arg:tt)*) => {
+		$crate::rc::BitArc::from_bitslice(&$crate::bits!($($arg)*))
+	};
+}
+
 #[cfg(test)]
 mod tests;
