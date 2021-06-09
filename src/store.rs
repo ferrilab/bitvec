@@ -146,7 +146,7 @@ but `u64` will only do so on 64-bit targets. This is a necessary restriction of
 [`.set_aliased()`]: crate::slice::BitSlice::set_aliased
 [`.set_aliased_unchecked()`]: crate::slice::BitSlice::set_aliased_unchecked
 **/
-pub trait BitStore: 'static + seal::Sealed + Debug {
+pub trait BitStore: 'static + Debug {
 	/// The register type used in the slice region underlying a [`BitSlice`]
 	/// handle. It is always an unsigned integer.
 	///
@@ -306,10 +306,6 @@ macro_rules! store {
 			#[doc(hidden)]
 			const __ALIAS_WIDTH: [(); 0] = [];
 		}
-
-		impl seal::Sealed for $base {}
-		impl seal::Sealed for $safe {}
-		impl seal::Sealed for Cell<$base> {}
 	)+ };
 }
 
@@ -354,8 +350,6 @@ macro_rules! atomic_store {
 				#[doc(hidden)]
 				const __ALIAS_WIDTH: [(); 0] = [];
 			}
-
-			impl seal::Sealed for $atom {}
 		});
 	)+ };
 }
@@ -376,18 +370,6 @@ compile_fail!(concat!(
 	"This architecture is currently not supported. File an issue at ",
 	env!("CARGO_PKG_REPOSITORY")
 ));
-
-/// Enclose the `Sealed` trait against client use.
-mod seal {
-	/// Marker trait to seal `BitStore` against downstream implementation.
-	///
-	/// This trait is public in the module, so that other modules in the crate
-	/// can use it, but so long as it is not exported by the crate root and this
-	/// module is private, this trait effectively forbids downstream
-	/// implementation of the `BitStore` trait.
-	#[doc(hidden)]
-	pub trait Sealed {}
-}
 
 #[cfg(test)]
 mod tests {
