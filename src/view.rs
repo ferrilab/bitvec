@@ -159,6 +159,8 @@ pub trait BitViewSized: BitView + Sized {
 	/// Counts the number of bits contained in the type.
 	const BITS: usize =
 		Self::ELTS * <<Self::Store as BitStore>::Mem as IsNumber>::BITS as usize;
+	/// The zero constant.
+	const ZERO: Self;
 }
 
 /// Elements are equivalent to `[T; 1]`.
@@ -166,12 +168,14 @@ impl<T> BitViewSized for T
 where T: BitStore
 {
 	const ELTS: usize = 1;
+	const ZERO: Self = T::ZERO;
 }
 
 impl<T, const N: usize> BitViewSized for [T; N]
 where T: BitStore
 {
 	const ELTS: usize = N;
+	const ZERO: Self = [T::ZERO; N];
 }
 
 /** Views a region as an immutable [`BitSlice`] only.

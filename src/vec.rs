@@ -307,7 +307,12 @@ where
 		unsafe {
 			out.set_len(len);
 		}
-		out.set_elements(if bit { T::Mem::ALL } else { T::Mem::ZERO });
+		out.set_elements(if bit {
+			T::Mem::ALL
+		}
+		else {
+			<T::Mem as IsInteger>::ZERO
+		});
 		out
 	}
 

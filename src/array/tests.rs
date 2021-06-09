@@ -13,13 +13,13 @@ use crate::{
 fn create_arrays() {
 	macro_rules! make {
 		($($elts:literal),+ $(,)?) => { $(
-			let _ = BitArray::<LocalBits, [u8; $elts]>::zeroed();
-			let _ = BitArray::<LocalBits, [u16; $elts]>::zeroed();
-			let _ = BitArray::<LocalBits, [u32; $elts]>::zeroed();
-			let _ = BitArray::<LocalBits, [usize; $elts]>::zeroed();
+			let _ = BitArray::<LocalBits, [u8; $elts]>::ZERO;
+			let _ = BitArray::<LocalBits, [u16; $elts]>::ZERO;
+			let _ = BitArray::<LocalBits, [u32; $elts]>::ZERO;
+			let _ = BitArray::<LocalBits, [usize; $elts]>::ZERO;
 
 			#[cfg(target_pointer_width = "64")] {
-			let _ = BitArray::<LocalBits, [u64; $elts]>::zeroed();
+			let _ = BitArray::<LocalBits, [u64; $elts]>::ZERO;
 			}
 		)+ };
 	}

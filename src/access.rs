@@ -215,6 +215,9 @@ pub trait BitSafe {
 	/// without having to re-select it based on crate configuration.
 	type Rad: Radium<Item = Self::Mem>;
 
+	#[doc(hidden)]
+	const ZERO: Self;
+
 	/// Reads the value out of memory only if a shared reference to the location
 	/// can be produced.
 	fn load(&self) -> Self::Mem;
@@ -258,6 +261,16 @@ macro_rules! safe {
 
 			#[cfg(not(feature = "atomic"))]
 			type Rad = core::cell::Cell<$t>;
+
+			#[cfg(feature = "atomic")]
+			const ZERO: Self = Self {
+				inner: <$r>::new(0),
+			};
+
+			#[cfg(not(feature = "atomic"))]
+			const ZERO: Self = Self {
+				inner: Cell::new(0),
+			};
 
 			fn load(&self) -> $t {
 				radium::Radium::load(

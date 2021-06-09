@@ -68,7 +68,7 @@ where
 {
 	#[inline]
 	fn clone(&self) -> Self {
-		let mut out = Self::zeroed();
+		let mut out = Self::ZERO;
 		for (dst, src) in
 			out.as_mut_raw_slice().iter_mut().zip(self.as_raw_slice())
 		{
@@ -195,7 +195,7 @@ where
 		if src.len() != <T::Mem as IsNumber>::BITS as usize {
 			return Self::Error::err(src);
 		}
-		let mut out = Self::zeroed();
+		let mut out = Self::ZERO;
 		out.copy_from_bitslice(src);
 		Ok(out)
 	}
@@ -214,7 +214,7 @@ where
 		if src.len() != <T::Mem as IsNumber>::BITS as usize * N {
 			return Self::Error::err(src);
 		}
-		let mut out = Self::zeroed();
+		let mut out = Self::ZERO;
 		out.copy_from_bitslice(src);
 		Ok(out)
 	}
@@ -312,7 +312,7 @@ where
 {
 	#[inline(always)]
 	fn default() -> Self {
-		Self::zeroed()
+		Self::ZERO
 	}
 }
 

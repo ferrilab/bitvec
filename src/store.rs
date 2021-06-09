@@ -168,6 +168,9 @@ pub trait BitStore: 'static + seal::Sealed + Debug {
 	/// [`BitSlice`]: crate::slice::BitSlice
 	type Unalias: BitStore<Mem = Self::Mem>;
 
+	/// The zero constant.
+	const ZERO: Self;
+
 	/// Loads a value out of the memory system according to the `::Access`
 	/// rules.
 	fn load_value(&self) -> Self::Mem;
@@ -224,6 +227,8 @@ macro_rules! store {
 			type Alias = $safe;
 			type Unalias = Self;
 
+			const ZERO: Self = 0;
+
 			#[inline(always)]
 			fn load_value(&self) -> Self::Mem {
 				*self
@@ -255,6 +260,8 @@ macro_rules! store {
 			type Alias = Self;
 			type Unalias = $base;
 
+			const ZERO: Self = <Self as BitSafe>::ZERO;
+
 			#[inline(always)]
 			fn load_value(&self) -> Self::Mem {
 				self.load()
@@ -279,6 +286,8 @@ macro_rules! store {
 			type Access = Self;
 			type Alias = Self;
 			type Unalias = Self;
+
+			const ZERO: Self = Self::new(0);
 
 			#[inline(always)]
 			fn load_value(&self) -> Self::Mem {
@@ -325,6 +334,8 @@ macro_rules! atomic_store {
 				type Access = Self;
 				type Alias = Self;
 				type Unalias = Self;
+
+				const ZERO: Self = Self::new(0);
 
 				#[inline]
 				fn load_value(&self) -> Self::Mem {

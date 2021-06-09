@@ -94,6 +94,15 @@ array of twelve bits.
 - `V`: Some buffer which can be used as the basis for a [`BitSlice`] view. This
   will usually be an array of `[T: BitRegister; N]`.
 
+## Fields
+
+- `_ord`: A `PhantomData` holding the `BitOrder` type parameter.
+- `data`: The wrapped data storage.
+
+The fields are public so that this can be const-initialized. When able, the
+[`Self::new`] and [`Self::into_inner`] functions will be made `const` and these
+fields will be made private.
+
 # Examples
 
 This type is useful for marking that some value is always to be used as a
@@ -158,9 +167,9 @@ where
 	V: BitViewSized,
 {
 	/// The ordering of bits within a storage element `V::Store`.
-	_ord: PhantomData<O>,
+	pub _ord: PhantomData<O>,
 	/// The wrapped data store.
-	data: V,
+	pub data: V,
 }
 
 impl<O, V> BitArray<O, V>
@@ -168,12 +177,19 @@ where
 	O: BitOrder,
 	V: BitViewSized,
 {
+	/// A bit-array with all bits set to zero.
+	pub const ZERO: Self = Self {
+		_ord: PhantomData,
+		data: V::ZERO,
+	};
+
 	/// Constructs a new `BitArray` with its memory set to zero.
 	#[inline]
+	#[deprecated(since = "1.0", note = "Use the `::ZERO` constant")]
 	pub fn zeroed() -> Self {
 		Self {
 			_ord: PhantomData,
-			data: unsafe { MaybeUninit::zeroed().assume_init() },
+			data: unsafe { core::mem::MaybeUninit::zeroed().assume_init() },
 		}
 	}
 

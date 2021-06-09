@@ -133,7 +133,7 @@ where T: BitStore
 			Domain::Enclave { head, elem, tail } => {
 				let val =
 					(Lsb0::mask(head, tail) & elem.load_value()).into_inner();
-				if val != T::Mem::ZERO {
+				if val != <T::Mem as IsInteger>::ZERO {
 					accum += val.trailing_zeros() as usize
 						- head.into_inner() as usize;
 					return Some(accum);
@@ -146,7 +146,7 @@ where T: BitStore
 						.into_inner();
 					accum += val.trailing_zeros() as usize
 						- head.into_inner() as usize;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(accum);
 					}
 				}
@@ -154,7 +154,7 @@ where T: BitStore
 				for elem in body {
 					let val = elem.load_value();
 					accum += val.trailing_zeros() as usize;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(accum);
 					}
 				}
@@ -162,7 +162,7 @@ where T: BitStore
 				if let Some((elem, tail)) = tail {
 					let val = (Lsb0::mask(None, tail) & elem.load_value())
 						.into_inner();
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						accum += val.trailing_zeros() as usize;
 						return Some(accum);
 					}
@@ -185,7 +185,7 @@ where T: BitStore
 				let val =
 					(Lsb0::mask(head, tail) & elem.load_value()).into_inner();
 				let dead_bits = T::Mem::BITS as u8 - tail.into_inner();
-				if val != T::Mem::ZERO {
+				if val != <T::Mem as IsInteger>::ZERO {
 					out -= val.leading_zeros() as usize - dead_bits as usize;
 					return Some(out);
 				}
@@ -198,7 +198,7 @@ where T: BitStore
 					let dead_bits =
 						(T::Mem::BITS as usize) - (tail.into_inner() as usize);
 					out -= val.leading_zeros() as usize - dead_bits;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(out);
 					}
 				}
@@ -206,7 +206,7 @@ where T: BitStore
 				for elem in body.iter().rev() {
 					let val = elem.load_value();
 					out -= val.leading_zeros() as usize;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(out);
 					}
 				}
@@ -214,7 +214,7 @@ where T: BitStore
 				if let Some((head, elem)) = head {
 					let val = (Lsb0::mask(head, None) & elem.load_value())
 						.into_inner();
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						out -= val.leading_zeros() as usize;
 						return Some(out);
 					}
@@ -238,7 +238,7 @@ where T: BitStore
 					(Lsb0::mask(head, tail) & !elem.load_value()).into_inner();
 				accum +=
 					val.trailing_zeros() as usize - head.into_inner() as usize;
-				if val != T::Mem::ZERO {
+				if val != <T::Mem as IsInteger>::ZERO {
 					return Some(accum);
 				}
 				None
@@ -249,7 +249,7 @@ where T: BitStore
 						.into_inner();
 					accum += val.trailing_zeros() as usize
 						- head.into_inner() as usize;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(accum);
 					}
 				}
@@ -257,7 +257,7 @@ where T: BitStore
 				for elem in body {
 					let val = !elem.load_value();
 					accum += val.trailing_zeros() as usize;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(accum);
 					}
 				}
@@ -266,7 +266,7 @@ where T: BitStore
 					let val = (Lsb0::mask(None, tail) & !elem.load_value())
 						.into_inner();
 					accum += val.trailing_zeros() as usize;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(accum);
 					}
 				}
@@ -288,7 +288,7 @@ where T: BitStore
 				let val =
 					(Lsb0::mask(head, tail) & !elem.load_value()).into_inner();
 				let dead_bits = T::Mem::BITS as u8 - tail.into_inner();
-				if val != T::Mem::ZERO {
+				if val != <T::Mem as IsInteger>::ZERO {
 					out -= val.leading_zeros() as usize - dead_bits as usize;
 					return Some(out);
 				}
@@ -301,7 +301,7 @@ where T: BitStore
 					let dead_bits =
 						T::Mem::BITS as usize - tail.into_inner() as usize;
 					out -= val.leading_zeros() as usize - dead_bits;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(out);
 					}
 				}
@@ -309,7 +309,7 @@ where T: BitStore
 				for elem in body.iter().rev() {
 					let val = !elem.load_value();
 					out -= val.leading_zeros() as usize;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(out);
 					}
 				}
@@ -317,7 +317,7 @@ where T: BitStore
 				if let Some((head, elem)) = head {
 					let val = (Lsb0::mask(head, None) & !elem.load_value())
 						.into_inner();
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						out -= val.leading_zeros() as usize;
 						return Some(out);
 					}
@@ -419,7 +419,7 @@ where T: BitStore
 					(Msb0::mask(head, tail) & elem.load_value()).into_inner();
 				accum +=
 					val.leading_zeros() as usize - head.into_inner() as usize;
-				if val != T::Mem::ZERO {
+				if val != <T::Mem as IsInteger>::ZERO {
 					return Some(accum);
 				}
 				None
@@ -430,7 +430,7 @@ where T: BitStore
 						.into_inner();
 					accum += val.leading_zeros() as usize
 						- head.into_inner() as usize;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(accum);
 					}
 				}
@@ -438,7 +438,7 @@ where T: BitStore
 				for elem in body {
 					let val = elem.load_value();
 					accum += val.leading_zeros() as usize;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(accum);
 					}
 				}
@@ -447,7 +447,7 @@ where T: BitStore
 					let val = (Msb0::mask(None, tail) & elem.load_value())
 						.into_inner();
 					accum += val.leading_zeros() as usize;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(accum);
 					}
 				}
@@ -470,7 +470,7 @@ where T: BitStore
 				let val =
 					(Msb0::mask(head, tail) & elem.load_value()).into_inner();
 				let dead_bits = T::Mem::BITS as u8 - tail.into_inner();
-				if val != T::Mem::ZERO {
+				if val != <T::Mem as IsInteger>::ZERO {
 					out -= val.trailing_zeros() as usize - dead_bits as usize;
 					return Some(out);
 				}
@@ -483,7 +483,7 @@ where T: BitStore
 					let dead_bits =
 						T::Mem::BITS as usize - tail.into_inner() as usize;
 					out -= val.trailing_zeros() as usize - dead_bits;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(out);
 					}
 				}
@@ -491,7 +491,7 @@ where T: BitStore
 				for elem in body.iter().rev() {
 					let val = elem.load_value();
 					out -= val.trailing_zeros() as usize;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(out);
 					}
 				}
@@ -499,7 +499,7 @@ where T: BitStore
 				if let Some((head, elem)) = head {
 					let val = (Msb0::mask(head, None) & elem.load_value())
 						.into_inner();
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						out -= val.trailing_zeros() as usize;
 						return Some(out);
 					}
@@ -521,7 +521,7 @@ where T: BitStore
 					(Msb0::mask(head, tail) & !elem.load_value()).into_inner();
 				accum +=
 					val.leading_zeros() as usize - head.into_inner() as usize;
-				if val != T::Mem::ZERO {
+				if val != <T::Mem as IsInteger>::ZERO {
 					return Some(accum);
 				}
 				None
@@ -532,7 +532,7 @@ where T: BitStore
 						.into_inner();
 					accum += val.leading_zeros() as usize
 						- head.into_inner() as usize;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(accum);
 					}
 				}
@@ -540,7 +540,7 @@ where T: BitStore
 				for elem in body {
 					let val = !elem.load_value();
 					accum += val.leading_zeros() as usize;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(accum);
 					}
 				}
@@ -549,7 +549,7 @@ where T: BitStore
 					let val = (Msb0::mask(None, tail) & !elem.load_value())
 						.into_inner();
 					accum += val.leading_zeros() as usize;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(accum);
 					}
 				}
@@ -571,7 +571,7 @@ where T: BitStore
 				let val =
 					(Msb0::mask(head, tail) & !elem.load_value()).into_inner();
 				let dead_bits = T::Mem::BITS as u8 - tail.into_inner();
-				if val != T::Mem::ZERO {
+				if val != <T::Mem as IsInteger>::ZERO {
 					out -= val.trailing_zeros() as usize - dead_bits as usize;
 					return Some(out);
 				}
@@ -584,7 +584,7 @@ where T: BitStore
 					let dead_bits =
 						T::Mem::BITS as usize - tail.into_inner() as usize;
 					out -= val.trailing_zeros() as usize - dead_bits;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(out);
 					}
 				}
@@ -592,7 +592,7 @@ where T: BitStore
 				for elem in body.iter().rev() {
 					let val = !elem.load_value();
 					out -= val.trailing_zeros() as usize;
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						return Some(out);
 					}
 				}
@@ -600,7 +600,7 @@ where T: BitStore
 				if let Some((head, elem)) = head {
 					let val = (Msb0::mask(head, None) & !elem.load_value())
 						.into_inner();
-					if val != T::Mem::ZERO {
+					if val != <T::Mem as IsInteger>::ZERO {
 						out -= val.trailing_zeros() as usize;
 						return Some(out);
 					}

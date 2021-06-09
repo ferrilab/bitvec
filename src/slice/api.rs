@@ -1810,7 +1810,7 @@ where
 		There is no reason to use a stack temporary smaller than a processor
 		word, so this uses `usize` instead of `T` for performance benefits.
 		*/
-		let mut tmp = BitArray::<O, usize>::zeroed();
+		let mut tmp = BitArray::<O, usize>::ZERO;
 		while by > 0 {
 			let shamt = cmp::min(<usize as IsNumber>::BITS as usize, by);
 			unsafe {
@@ -1873,7 +1873,7 @@ where
 		if by == 0 || by == len {
 			return;
 		}
-		let mut tmp = BitArray::<O, usize>::zeroed();
+		let mut tmp = BitArray::<O, usize>::ZERO;
 		while by > 0 {
 			let shamt = cmp::min(<usize as IsNumber>::BITS as usize, by);
 			let mid = len - shamt;
