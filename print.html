@@ -4,40 +4,28 @@
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
         <title>A User’s Guide to the &#x60;bitvec&#x60; Project</title>
-        
-        <meta name="robots" content="noindex" />
-        
-        
-
+                <meta name="robots" content="noindex" />
+                
 
         <!-- Custom HTML head -->
         
-
 
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="A more thorough manual of the &#x60;bitvec&#x60; project">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff" />
 
-        
-        <link rel="icon" href="favicon.svg">
-        
-        
-        <link rel="shortcut icon" href="favicon.png">
-        
-        <link rel="stylesheet" href="css/variables.css">
+                <link rel="icon" href="favicon.svg">
+                        <link rel="shortcut icon" href="favicon.png">
+                <link rel="stylesheet" href="css/variables.css">
         <link rel="stylesheet" href="css/general.css">
         <link rel="stylesheet" href="css/chrome.css">
+                <link rel="stylesheet" href="css/print.css" media="print">
         
-        <link rel="stylesheet" href="css/print.css" media="print">
-        
-
         <!-- Fonts -->
         <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+                <link rel="stylesheet" href="fonts/fonts.css">
         
-        <link rel="stylesheet" href="fonts/fonts.css">
-        
-
         <!-- Highlight.js Stylesheets -->
         <link rel="stylesheet" href="highlight.css">
         <link rel="stylesheet" href="tomorrow-night.css">
@@ -45,12 +33,9 @@
 
         <!-- Custom theme stylesheets -->
         
-
-        
-        <!-- MathJax -->
+                <!-- MathJax -->
         <script async type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-        
-    </head>
+            </head>
     <body>
         <!-- Provide site root to javascript -->
         <script type="text/javascript">
@@ -100,8 +85,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="dedication.html">Dedication</a></li><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="data-structures.html"><strong aria-hidden="true">2.</strong> Data Structures</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="data-structures/bitslice.html"><strong aria-hidden="true">2.1.</strong> BitSlice</a></li><li class="chapter-item expanded "><a href="data-structures/bitarray.html"><strong aria-hidden="true">2.2.</strong> BitArray</a></li><li class="chapter-item expanded "><a href="data-structures/bitvec.html"><strong aria-hidden="true">2.3.</strong> BitVec and BitBox</a></li></ol></li><li class="chapter-item expanded "><a href="type-parameters.html"><strong aria-hidden="true">3.</strong> Type Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="type-parameters/bitorder.html"><strong aria-hidden="true">3.1.</strong> BitOrder</a></li><li class="chapter-item expanded "><a href="type-parameters/bitstore.html"><strong aria-hidden="true">3.2.</strong> BitStore</a></li></ol></li><li class="chapter-item expanded "><a href="practical-use.html"><strong aria-hidden="true">4.</strong> Practical Use</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="practical-use/collections.html"><strong aria-hidden="true">4.1.</strong> bool Collections</a></li><li class="chapter-item expanded "><a href="practical-use/bitfields.html"><strong aria-hidden="true">4.2.</strong> C-Style Bitfields</a></li></ol></li><li class="chapter-item expanded "><a href="memory-model.html"><strong aria-hidden="true">5.</strong> Memory Model</a></li><li class="chapter-item expanded "><a href="pointer-encoding.html"><strong aria-hidden="true">6.</strong> Pointer Encoding</a></li></ol>
-            </div>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="dedication.html">Dedication</a></li><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="data-structures.html"><strong aria-hidden="true">2.</strong> Data Structures</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="data-structures/bitslice.html"><strong aria-hidden="true">2.1.</strong> BitSlice</a></li><li class="chapter-item expanded "><a href="data-structures/bitarray.html"><strong aria-hidden="true">2.2.</strong> BitArray</a></li><li class="chapter-item expanded "><a href="data-structures/bitvec.html"><strong aria-hidden="true">2.3.</strong> BitVec and BitBox</a></li></ol></li><li class="chapter-item expanded "><a href="type-parameters.html"><strong aria-hidden="true">3.</strong> Type Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="type-parameters/bitorder.html"><strong aria-hidden="true">3.1.</strong> BitOrder</a></li><li class="chapter-item expanded "><a href="type-parameters/bitstore.html"><strong aria-hidden="true">3.2.</strong> BitStore</a></li></ol></li><li class="chapter-item expanded "><a href="practical-use.html"><strong aria-hidden="true">4.</strong> Practical Use</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="practical-use/collections.html"><strong aria-hidden="true">4.1.</strong> bool Collections</a></li><li class="chapter-item expanded "><a href="practical-use/bitfields.html"><strong aria-hidden="true">4.2.</strong> C-Style Bitfields</a></li></ol></li><li class="chapter-item expanded "><a href="memory-model.html"><strong aria-hidden="true">5.</strong> Memory Model</a></li><li class="chapter-item expanded "><a href="pointer-encoding.html"><strong aria-hidden="true">6.</strong> Pointer Encoding</a></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -125,29 +109,22 @@
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                        
-                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                                <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
-                        
-                    </div>
+                                            </div>
 
                     <h1 class="menu-title">A User’s Guide to the &#x60;bitvec&#x60; Project</h1>
 
                     <div class="right-buttons">
-                        
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                                                <a href="print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
-                        
-                        
-                        
-
+                                                                        
                     </div>
                 </div>
 
-                
-                <div id="search-wrapper" class="hidden">
+                                <div id="search-wrapper" class="hidden">
                     <form id="searchbar-outer" class="searchbar-outer">
                         <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
                     </form>
@@ -158,7 +135,6 @@
                     </div>
                 </div>
                 
-
                 <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
                 <script type="text/javascript">
                     document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
@@ -184,7 +160,7 @@ work of which I’m most proud, and which I most wish he could have seen.</p>
 <p>The <code>bitvec</code> project is dedicated to the memory of my father, George M. Payne,
 who inspired me to build quality work, supported my search to find my talents,
 and taught me to work for the benefit of others beyond myself.</p>
-<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
 <p>Programmers have sought to model memory as a one-dimensional stream of bits for
 as long as hardware manufacturers have sought to chunk it into wider and wider
 words. <code>bitvec</code> is far from the first library to provide this model, and it will
@@ -216,7 +192,7 @@ questions through the channels listed in the repository’s <a href="https://git
 document, and throughout the book I will periodically remind you that if a
 section is unclear, it is an error on my part, and I would appreciate an issue
 or other contact so that I can improve it.</p>
-<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="data-structures"><a class="header" href="#data-structures">Data Structures</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="data-structures"><a class="header" href="#data-structures">Data Structures</a></h1>
 <p><code>bitvec</code>’s primary exports are four data structures: <a href="https://docs.rs/bitvec/latest/bitvec/slice/struct.BitSlice.html" title="BitSlice API documentation"><code>BitSlice</code></a>, <a href="https://docs.rs/bitvec/latest/bitvec/array/struct.BitArray.html" title="BitArray API documentation"><code>BitArray</code></a>,
 <a href="https://docs.rs/bitvec/latest/bitvec/boxed/struct.BitBox.html" title="BitBox API documentation"><code>BitBox</code></a>, and <a href="https://docs.rs/bitvec/latest/bitvec/vec/struct.BitVec.html" title="BitVec API documentation"><code>BitVec</code></a>. These correspond to the <a href="https://doc.rust-lang.org/stable/std/primitive.slice.html" title="slice API documentation"><code>[bool]</code></a>,
 <a href="https://doc.rust-lang.org/stable/std/primitive.array.html" title="array API documentation"><code>[bool; N]</code></a>, <a href="https://doc.rust-lang.org/stable/alloc/boxed/struct.Box.html" title="Box API documentation"><code>Box&lt;[bool]&gt;</code></a>, and <a href="https://doc.rust-lang.org/stable/alloc/vec/struct.Vec.html" title="Vec API documentation"><code>Vec&lt;bool&gt;</code></a> types in the
@@ -262,7 +238,7 @@ of the <code>bitvec</code> abstraction is that you cannot write a better bitset,
 </ol>
 <p>Now that the disclaimers are over, we can talk about how the types actually
 work.</p>
-<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="slices----omit-in-toc---"><a class="header" href="#slices----omit-in-toc---">Slices <!-- omit in toc --></a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="slices----omit-in-toc---"><a class="header" href="#slices----omit-in-toc---">Slices <!-- omit in toc --></a></h1>
 <ol>
 <li><a href="data-structures/bitslice.html#getting-a-bitslice">Getting a <code>BitSlice</code></a>
 <ol>
@@ -584,7 +560,7 @@ elements from their slices.</p>
 <p>Except write-assignment through indexing. I am not going to keep
 mentioning this exception.</p>
 </div>
-<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="arrays"><a class="header" href="#arrays">Arrays</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="arrays"><a class="header" href="#arrays">Arrays</a></h1>
 <p>While <code>BitSlice</code> describes a region of borrowed data, <code>BitArray</code> provides a
 container that can hold and manage such a region.</p>
 <p>It is most comparable to the C++ type <a href="https://en.cppreference.com/w/cpp/utility/bitset" title="C++ std::bitset documentation"><code>std::bitset&lt;N&gt;</code></a>. Unfortunately, the
@@ -635,7 +611,7 @@ no behavior in its own right. It is useful for programs that do not have access
 to a dynamic allocator, and do not wish to use <code>static</code> buffers. However, if you
 do have access to an allocator, you will probably prefer to use <code>BitVec</code>
 instead.</p>
-<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="vectors"><a class="header" href="#vectors">Vectors</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="vectors"><a class="header" href="#vectors">Vectors</a></h1>
 <p><code>bitvec</code> has two types that require compiling the crate with <code>feature = &quot;alloc&quot;</code>
 (and linking against the Rust distribution crate <code>alloc</code>): <code>BitVec</code> and
 <code>BitBox</code>. <code>BitVec</code> is a dynamically resizable vector, equivalent to the C++ type
@@ -690,7 +666,7 @@ happen when copying a vector from a source slice that was misaligned. The
 <code>.force_align</code> method moves the vector’s live slice down to start at the zero
 index. Once done, extending the live slice to reach the last index of an element
 ensures that viewing the buffer as raw memory will have no uninitialized bits.</p>
-<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="type-parameters"><a class="header" href="#type-parameters">Type Parameters</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="type-parameters"><a class="header" href="#type-parameters">Type Parameters</a></h1>
 <p><code>bitvec</code> uses type parameters to permit precise user control of its behavior and
 in-memory representation. The Rust generic system permits <code>bitvec</code> to have a
 more powerful and capable behavior than any other bitstream library yet
@@ -717,7 +693,7 @@ the default parameters when attempting to elide the parameters with
 types: <code>let bv: BitVec = BitVec::new();</code> will use the default type parameters in
 the <code>: BitVec</code> type annotation, which then completes the type of the expression
 on the right side of the assignment <code>=</code>.</p>
-<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="bit-ordering----omit-in-toc---"><a class="header" href="#bit-ordering----omit-in-toc---">Bit Ordering <!-- omit in toc --></a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="bit-ordering----omit-in-toc---"><a class="header" href="#bit-ordering----omit-in-toc---">Bit Ordering <!-- omit in toc --></a></h1>
 <ol>
 <li><a href="type-parameters/bitorder.html#provided-orderings">Provided Orderings</a>
 <ol>
@@ -861,7 +837,7 @@ upon <code>cfg(test)</code>, and accept a <code>verbose: bool</code> parameter t
 functions to print diagnostics to <code>stdout</code> during evaluation.</p>
 <p>If the verification functions panic, your implementation is incorrect, and
 cannot be safely used in <code>bitvec</code>.</p>
-<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="bitstore"><a class="header" href="#bitstore">BitStore</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="bitstore"><a class="header" href="#bitstore">BitStore</a></h1>
 <p>The <code>BitStore</code> trait governs the processor behaviors used to interact with the
 memory of a <code>BitSlice</code> buffer. These include both the width of the processor
 register used to contain a memory element, and the load/store instructions the
@@ -904,7 +880,7 @@ all subsequent accesses.</p>
 <p>The <code>Mem</code> and <code>Alias</code> types are exposed in public APIs according to local alias
 information. The <code>Access</code> type is never publicly exposed, and only used for code
 generation.</p>
-<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="practical-use"><a class="header" href="#practical-use">Practical Use</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="practical-use"><a class="header" href="#practical-use">Practical Use</a></h1>
 <p>That’s enough theory; let’s talk about how to use the crate. This chapter is
 divided into two subsections, one for use cases that want an ordinary <code>bool</code>
 collection library with transparent memory compaction, and one for use cases
@@ -982,7 +958,7 @@ has reference types, and therefore users coming from, e.g., <code>bit-vec</code>
 same <code>BitSlice</code> name and attempt to use their habits from that crate.</p>
 <p><code>bitvec</code> is not like any other bitstream library, in Rust, C++, or another
 language. <code>bitvec</code> is like ordinary Rust. I promise.</p>
-<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="bit-collections"><a class="header" href="#bit-collections">Bit Collections</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="bit-collections"><a class="header" href="#bit-collections">Bit Collections</a></h1>
 <p>As discussed in the <a href="practical-use/../type-parameters.html">Type Parameters</a> chapter, you should use <code>usize</code> as the
 <code>BitStore</code> parameter for optimal performance in the generated program.</p>
 <p>Once you have created some memory that you can view as individual bits, it is
@@ -1061,7 +1037,7 @@ think this section is very useful or educational. If you want to read more
 about how to use <code>bitvec</code> for <code>usize =&gt; bool</code> collections, please let me know
 and I will expound!</p>
 </blockquote>
-<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="bitfields"><a class="header" href="#bitfields">Bitfields</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="bitfields"><a class="header" href="#bitfields">Bitfields</a></h1>
 <p><code>bitvec</code>’s more technically-interesting capability is that it provides
 load/store memory access behaviors that allow you to write values into, and read
 them back out of, any <code>BitSlice</code> in memory rather than being constrained to
@@ -1192,7 +1168,7 @@ issue.</p>
 <p>You can see an example that uses the <code>BitField</code> trait to implement an I/O
 protocol in the <code>examples/ipv4.rs</code> program in the repository. Use
 <code>cargo run --example ipv4</code> to see it in action.</p>
-<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="bitvec-memory-model"><a class="header" href="#bitvec-memory-model"><code>bitvec</code> Memory Model</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="bitvec-memory-model"><a class="header" href="#bitvec-memory-model"><code>bitvec</code> Memory Model</a></h1>
 <p><code>bitvec</code> addresses individual bits, while computer hardware addresses register
 elements. As a result, <code>bitvec</code> has a more complex memory model than the Rust
 language does. The library implementation strives to satisfy users’
@@ -1585,7 +1561,7 @@ atomic access is a strict performance cost.</p>
 support for multi-threaded, so the penalty for aliasing is reduced to an
 inability to remove redundant reads.</p>
 </div>
-<div id="chapter_begin" style="break-before: page; page-break-before: always;"></div><h1 id="bit-slice-pointer-encoding"><a class="header" href="#bit-slice-pointer-encoding">Bit Slice Pointer Encoding</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="bit-slice-pointer-encoding"><a class="header" href="#bit-slice-pointer-encoding">Bit Slice Pointer Encoding</a></h1>
 <p><code>bitvec</code>’s core value proposition rests on the fact that it is capable of
 defining an unsized slice type, and controlling references to it. The Rust
 language rests heavily on the two reference types <code>&amp;</code> and <code>&amp;mut</code>, and does not
@@ -1721,9 +1697,7 @@ to their own extra rules</p>
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
                         
-
                         
-
                         <div style="clear: both"></div>
                     </nav>
                 </div>
@@ -1731,50 +1705,35 @@ to their own extra rules</p>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
-
-                
-            </nav>
+                            </nav>
 
         </div>
 
         
-
         
-
         
-
-        
-        <script type="text/javascript">
+                <script type="text/javascript">
             window.playground_copyable = true;
         </script>
         
-
         
-
-        
-        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+                <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
         
-
         <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
         <script src="book.js" type="text/javascript" charset="utf-8"></script>
 
         <!-- Custom JS scripts -->
         
-
-        
-        
-        <script type="text/javascript">
+                        <script type="text/javascript">
         window.addEventListener('load', function() {
             MathJax.Hub.Register.StartupHook('End', function() {
                 window.setTimeout(window.print, 100);
             });
         });
         </script>
-        
-        
-
+                
     </body>
 </html>
