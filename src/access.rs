@@ -99,7 +99,7 @@ where <Self as Radium>::Item: BitRegister
 	/// # Effects
 	///
 	/// All bits in `*self` that are selected (set to `1` in the `mask`) will be
-	/// cleared. All bits in `*self` that are not selected (cleared to `0` in
+	/// set to `1`. All bits in `*self` that are not selected (cleared to `0` in
 	/// the `mask`) are unchanged.
 	fn set_bits(&self, mask: BitMask<Self::Item>) {
 		self.fetch_or(mask.into_inner(), atomic::Ordering::Relaxed);
