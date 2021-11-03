@@ -119,7 +119,7 @@ are dominant."
 		println!("{:?}", bs.domain());
 		println!("Show the bits in memory");
 		for elt in bs.domain() {
-			println!("{:0w$b} ", elt, w = T::Mem::BITS as usize);
+			println!("{:0w$b} ", elt, w = <T::Mem as BitMemory>::BITS as usize);
 		}
 		println!();
 	}

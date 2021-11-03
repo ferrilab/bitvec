@@ -203,34 +203,21 @@ in a way that matches a debugger or other memory inspections.
 use crate::{
 	access::BitAccess,
 	array::BitArray,
-	domain::{
-		Domain,
-		DomainMut,
-	},
+	domain::{Domain, DomainMut},
 	index::BitMask,
 	mem::BitMemory,
-	order::{
-		BitOrder,
-		Lsb0,
-		Msb0,
-	},
+	order::{BitOrder, Lsb0, Msb0},
 	slice::BitSlice,
 	store::BitStore,
 	view::BitView,
 };
 
-use core::{
-	mem,
-	ptr,
-};
+use core::{mem, ptr};
 
 use tap::pipe::Pipe;
 
 #[cfg(feature = "alloc")]
-use crate::{
-	boxed::BitBox,
-	vec::BitVec,
-};
+use crate::{boxed::BitBox, vec::BitVec};
 
 /** Performs C-style bitfield access through a [`BitSlice`].
 
@@ -320,7 +307,9 @@ pub trait BitField {
 	/// [`load_le`]: Self::load_le
 	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn load<M>(&self) -> M
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		#[cfg(target_endian = "little")]
 		return self.load_le::<M>();
 
@@ -370,7 +359,9 @@ pub trait BitField {
 	/// [`store_be`]: Self::store_be
 	/// [`store_le`]: Self::store_le
 	fn store<M>(&mut self, value: M)
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		#[cfg(target_endian = "little")]
 		self.store_le(value);
 
@@ -459,7 +450,8 @@ pub trait BitField {
 	/// [`M::BITS`]: crate::mem::BitMemory::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn load_le<M>(&self) -> M
-	where M: BitMemory;
+	where
+		M: BitMemory;
 
 	/// Loads from `self`, using big-endian element `T` ordering.
 	///
@@ -543,7 +535,8 @@ pub trait BitField {
 	/// [`M::BITS`]: crate::mem::BitMemory::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn load_be<M>(&self) -> M
-	where M: BitMemory;
+	where
+		M: BitMemory;
 
 	/// Stores into `self`, using little-endian element ordering.
 	///
@@ -627,7 +620,8 @@ pub trait BitField {
 	/// [`M::BITS`]: crate::mem::BitMemory::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn store_le<M>(&mut self, value: M)
-	where M: BitMemory;
+	where
+		M: BitMemory;
 
 	/// Stores into `self`, using big-endian element ordering.
 	///
@@ -711,11 +705,13 @@ pub trait BitField {
 	/// [`M::BITS`]: crate::mem::BitMemory::BITS
 	/// [`self.len()`]: crate::slice::BitSlice::len
 	fn store_be<M>(&mut self, value: M)
-	where M: BitMemory;
+	where
+		M: BitMemory;
 }
 
 impl<T> BitField for BitSlice<Lsb0, T>
-where T: BitStore
+where
+	T: BitStore,
 {
 	/// Loads from `self`, using little-endian element ordering if `self` spans
 	/// more than one `T` element.
@@ -763,7 +759,9 @@ where T: BitStore
 	/// [`self.domain()`]: crate::slice::BitSlice::domain
 	/// [`tail`]: crate::domain::Domain::Region::tail
 	fn load_le<M>(&self) -> M
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		check::<M>("load", self.len());
 
 		match self.domain() {
@@ -771,7 +769,7 @@ where T: BitStore
 			//  `tail` index counts element width minus distance from MSedge.
 			Domain::Enclave { head, elem, tail } => {
 				get::<T, M>(elem, Lsb0::mask(head, tail), head.value())
-			},
+			}
 			Domain::Region { head, body, tail } => {
 				let mut accum = M::ZERO;
 
@@ -798,25 +796,26 @@ where T: BitStore
 					As a const-expression, this branch folds at compile-time to
 					conditionally remove or retain the instruction.
 					*/
-					if M::BITS > T::Mem::BITS {
-						accum <<= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						accum <<= <T::Mem as BitMemory>::BITS;
 					}
 					accum |= resize::<T::Mem, M>(elem);
 				}
 
 				if let Some((head, elem)) = head {
 					let shamt = head.value();
-					if M::BITS > T::Mem::BITS - shamt {
+					if <M as BitMemory>::BITS
+						> <T::Mem as BitMemory>::BITS - shamt
+					{
 						accum <<= T::Mem::BITS - shamt;
-					}
-					else {
+					} else {
 						accum = M::ZERO;
 					}
 					accum |= get::<T, M>(elem, Lsb0::mask(head, None), shamt);
 				}
 
 				accum
-			},
+			}
 		}
 	}
 
@@ -866,13 +865,15 @@ where T: BitStore
 	/// [`self.domain()`]: crate::slice::BitSlice::domain
 	/// [`tail`]: crate::domain::Domain::Region::tail
 	fn load_be<M>(&self) -> M
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		check::<M>("load", self.len());
 
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => {
 				get::<T, M>(elem, Lsb0::mask(head, tail), head.value())
-			},
+			}
 			Domain::Region { head, body, tail } => {
 				let mut accum = M::ZERO;
 
@@ -882,25 +883,24 @@ where T: BitStore
 				}
 
 				for elem in body.iter().map(BitStore::load_value) {
-					if M::BITS > T::Mem::BITS {
-						accum <<= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						accum <<= <T::Mem as BitMemory>::BITS;
 					}
 					accum |= resize::<T::Mem, M>(elem);
 				}
 
 				if let Some((elem, tail)) = tail {
 					let shamt = tail.value();
-					if M::BITS > shamt {
+					if <M as BitMemory>::BITS > shamt {
 						accum <<= shamt;
-					}
-					else {
+					} else {
 						accum = M::ZERO;
 					}
 					accum |= get::<T, M>(elem, Lsb0::mask(None, tail), 0);
 				}
 
 				accum
-			},
+			}
 		}
 	}
 
@@ -930,36 +930,39 @@ where T: BitStore
 	/// [`self.domain()`]: crate::slice::BitSlice::domain
 	/// [`tail`]: crate::domain::Domain::Region::tail
 	fn store_le<M>(&mut self, mut value: M)
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		check::<M>("store", self.len());
 
 		match self.domain_mut() {
 			DomainMut::Enclave { head, elem, tail } => {
 				set::<T, M>(elem, value, Lsb0::mask(head, tail), head.value());
-			},
+			}
 			DomainMut::Region { head, body, tail } => {
 				if let Some((head, elem)) = head {
 					let shamt = head.value();
 					set::<T, M>(elem, value, Lsb0::mask(head, None), shamt);
-					if M::BITS > T::Mem::BITS - shamt {
+					if <M as BitMemory>::BITS
+						> <T::Mem as BitMemory>::BITS - shamt
+					{
 						value >>= T::Mem::BITS - shamt;
-					}
-					else {
+					} else {
 						value = M::ZERO;
 					}
 				}
 
 				for elem in body.iter_mut() {
 					elem.store_value(resize(value));
-					if M::BITS > T::Mem::BITS {
-						value >>= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						value >>= <T::Mem as BitMemory>::BITS;
 					}
 				}
 
 				if let Some((elem, tail)) = tail {
 					set::<T, M>(elem, value, Lsb0::mask(None, tail), 0);
 				}
-			},
+			}
 		}
 	}
 
@@ -989,29 +992,30 @@ where T: BitStore
 	/// [`self.domain()`]: crate::slice::BitSlice::domain
 	/// [`tail`]: crate::domain::Domain::Region::tail
 	fn store_be<M>(&mut self, mut value: M)
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		check::<M>("store", self.len());
 
 		match self.domain_mut() {
 			DomainMut::Enclave { head, elem, tail } => {
 				set::<T, M>(elem, value, Lsb0::mask(head, tail), head.value());
-			},
+			}
 			DomainMut::Region { head, body, tail } => {
 				if let Some((elem, tail)) = tail {
 					set::<T, M>(elem, value, Lsb0::mask(None, tail), 0);
 					let shamt = tail.value();
-					if M::BITS > shamt {
+					if <M as BitMemory>::BITS > shamt {
 						value >>= shamt;
-					}
-					else {
+					} else {
 						value = M::ZERO;
 					}
 				}
 
 				for elem in body.iter_mut().rev() {
 					elem.store_value(resize(value));
-					if M::BITS > T::Mem::BITS {
-						value >>= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						value >>= <T::Mem as BitMemory>::BITS;
 					}
 				}
 
@@ -1023,13 +1027,14 @@ where T: BitStore
 						head.value(),
 					);
 				}
-			},
+			}
 		}
 	}
 }
 
 impl<T> BitField for BitSlice<Msb0, T>
-where T: BitStore
+where
+	T: BitStore,
 {
 	/// Loads from `self`, using little-endian element ordering if `self` spans
 	/// more than one `T` element.
@@ -1077,14 +1082,16 @@ where T: BitStore
 	/// [`self.domain()`]: crate::slice::BitSlice::domain
 	/// [`tail`]: crate::domain::Domain::Region::tail
 	fn load_le<M>(&self) -> M
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		check::<M>("load", self.len());
 
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => get::<T, M>(
 				elem,
 				Msb0::mask(head, tail),
-				T::Mem::BITS - tail.value(),
+				<T::Mem as BitMemory>::BITS - tail.value(),
 			),
 			Domain::Region { head, body, tail } => {
 				let mut accum = M::ZERO;
@@ -1093,30 +1100,29 @@ where T: BitStore
 					accum = get::<T, M>(
 						elem,
 						Msb0::mask(None, tail),
-						T::Mem::BITS - tail.value(),
+						<T::Mem as BitMemory>::BITS - tail.value(),
 					);
 				}
 
 				for elem in body.iter().rev().map(BitStore::load_value) {
-					if M::BITS > T::Mem::BITS {
-						accum <<= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						accum <<= <T::Mem as BitMemory>::BITS;
 					}
 					accum |= resize::<T::Mem, M>(elem);
 				}
 
 				if let Some((head, elem)) = head {
 					let shamt = T::Mem::BITS - head.value();
-					if M::BITS > shamt {
+					if <M as BitMemory>::BITS > shamt {
 						accum <<= shamt;
-					}
-					else {
+					} else {
 						accum = M::ZERO;
 					}
 					accum |= get::<T, M>(elem, Msb0::mask(head, None), 0);
 				}
 
 				accum
-			},
+			}
 		}
 	}
 
@@ -1166,14 +1172,16 @@ where T: BitStore
 	/// [`self.domain()`]: crate::slice::BitSlice::domain
 	/// [`tail`]: crate::domain::Domain::Region::tail
 	fn load_be<M>(&self) -> M
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		check::<M>("load", self.len());
 
 		match self.domain() {
 			Domain::Enclave { head, elem, tail } => get::<T, M>(
 				elem,
 				Msb0::mask(head, tail),
-				T::Mem::BITS - tail.value(),
+				<T::Mem as BitMemory>::BITS - tail.value(),
 			),
 			Domain::Region { head, body, tail } => {
 				let mut accum = M::ZERO;
@@ -1183,18 +1191,17 @@ where T: BitStore
 				}
 
 				for elem in body.iter().map(BitStore::load_value) {
-					if M::BITS > T::Mem::BITS {
-						accum <<= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						accum <<= <T::Mem as BitMemory>::BITS;
 					}
 					accum |= resize::<T::Mem, M>(elem);
 				}
 
 				if let Some((elem, tail)) = tail {
 					let shamt = tail.value();
-					if M::BITS > shamt {
+					if <M as BitMemory>::BITS > shamt {
 						accum <<= shamt;
-					}
-					else {
+					} else {
 						accum = M::ZERO;
 					}
 					accum |= get::<T, M>(
@@ -1205,7 +1212,7 @@ where T: BitStore
 				}
 
 				accum
-			},
+			}
 		}
 	}
 
@@ -1235,7 +1242,9 @@ where T: BitStore
 	/// [`self.domain()`]: crate::slice::BitSlice::domain
 	/// [`tail`]: crate::domain::Domain::Region::tail
 	fn store_le<M>(&mut self, mut value: M)
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		check::<M>("store", self.len());
 
 		match self.domain_mut() {
@@ -1243,24 +1252,23 @@ where T: BitStore
 				elem,
 				value,
 				Msb0::mask(head, tail),
-				T::Mem::BITS - tail.value(),
+				<T::Mem as BitMemory>::BITS - tail.value(),
 			),
 			DomainMut::Region { head, body, tail } => {
 				if let Some((head, elem)) = head {
 					set::<T, M>(elem, value, Msb0::mask(head, None), 0);
 					let shamt = T::Mem::BITS - head.value();
-					if M::BITS > shamt {
+					if <M as BitMemory>::BITS > shamt {
 						value >>= shamt;
-					}
-					else {
+					} else {
 						value = M::ZERO;
 					}
 				}
 
 				for elem in body.iter_mut() {
 					elem.store_value(resize(value));
-					if M::BITS > T::Mem::BITS {
-						value >>= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						value >>= <T::Mem as BitMemory>::BITS;
 					}
 				}
 
@@ -1269,10 +1277,10 @@ where T: BitStore
 						elem,
 						value,
 						Msb0::mask(None, tail),
-						T::Mem::BITS - tail.value(),
+						<T::Mem as BitMemory>::BITS - tail.value(),
 					);
 				}
-			},
+			}
 		}
 	}
 
@@ -1302,7 +1310,9 @@ where T: BitStore
 	/// [`self.domain()`]: crate::slice::BitSlice::domain
 	/// [`tail`]: crate::domain::Domain::Region::tail
 	fn store_be<M>(&mut self, mut value: M)
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		check::<M>("store", self.len());
 
 		match self.domain_mut() {
@@ -1310,7 +1320,7 @@ where T: BitStore
 				elem,
 				value,
 				Msb0::mask(head, tail),
-				T::Mem::BITS - tail.value(),
+				<T::Mem as BitMemory>::BITS - tail.value(),
 			),
 			DomainMut::Region { head, body, tail } => {
 				if let Some((elem, tail)) = tail {
@@ -1318,27 +1328,26 @@ where T: BitStore
 						elem,
 						value,
 						Msb0::mask(None, tail),
-						T::Mem::BITS - tail.value(),
+						<T::Mem as BitMemory>::BITS - tail.value(),
 					);
-					if M::BITS > tail.value() {
+					if <M as BitMemory>::BITS > tail.value() {
 						value >>= tail.value();
-					}
-					else {
+					} else {
 						value = M::ZERO;
 					}
 				}
 
 				for elem in body.iter_mut().rev() {
 					elem.store_value(resize(value));
-					if M::BITS > T::Mem::BITS {
-						value >>= T::Mem::BITS;
+					if <M as BitMemory>::BITS > <T::Mem as BitMemory>::BITS {
+						value >>= <T::Mem as BitMemory>::BITS;
 					}
 				}
 
 				if let Some((head, elem)) = head {
 					set::<T, M>(elem, value, Msb0::mask(head, None), 0);
 				}
-			},
+			}
 		}
 	}
 }
@@ -1350,22 +1359,30 @@ where
 	BitSlice<O, V::Store>: BitField,
 {
 	fn load_le<M>(&self) -> M
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		self.as_bitslice().load_le()
 	}
 
 	fn load_be<M>(&self) -> M
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		self.as_bitslice().load_be()
 	}
 
 	fn store_le<M>(&mut self, value: M)
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		self.as_mut_bitslice().store_le(value)
 	}
 
 	fn store_be<M>(&mut self, value: M)
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		self.as_mut_bitslice().store_be(value)
 	}
 }
@@ -1378,22 +1395,30 @@ where
 	BitSlice<O, T>: BitField,
 {
 	fn load_le<M>(&self) -> M
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		self.as_bitslice().load_le()
 	}
 
 	fn load_be<M>(&self) -> M
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		self.as_bitslice().load_be()
 	}
 
 	fn store_le<M>(&mut self, value: M)
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		self.as_mut_bitslice().store_le(value)
 	}
 
 	fn store_be<M>(&mut self, value: M)
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		self.as_mut_bitslice().store_be(value)
 	}
 }
@@ -1406,22 +1431,30 @@ where
 	BitSlice<O, T>: BitField,
 {
 	fn load_le<M>(&self) -> M
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		self.as_bitslice().load_le()
 	}
 
 	fn load_be<M>(&self) -> M
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		self.as_bitslice().load_be()
 	}
 
 	fn store_le<M>(&mut self, value: M)
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		self.as_mut_bitslice().store_le(value)
 	}
 
 	fn store_be<M>(&mut self, value: M)
-	where M: BitMemory {
+	where
+		M: BitMemory,
+	{
 		self.as_mut_bitslice().store_be(value)
 	}
 }
@@ -1434,12 +1467,14 @@ where
 ///
 /// [`M::BITS`]: crate::mem::BitMemory::BITS
 fn check<M>(action: &'static str, len: usize)
-where M: BitMemory {
-	if !(1 ..= M::BITS as usize).contains(&len) {
+where
+	M: BitMemory,
+{
+	if !(1..=<M as BitMemory>::BITS as usize).contains(&len) {
 		panic!(
 			"Cannot {} {} bits from a {}-bit region",
 			action,
-			M::BITS,
+			<M as BitMemory>::BITS,
 			len,
 		);
 	}

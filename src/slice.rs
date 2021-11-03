@@ -488,7 +488,7 @@ where
 	/// [`BitView`]: crate::view::BitView
 	/// [`.view_bits::<O>()`]: crate::view::BitView::view_bits
 	pub fn from_element(elem: &T) -> &Self {
-		unsafe { BitPtr::from_ref(elem).span_unchecked(T::Mem::BITS as usize) }
+		unsafe { BitPtr::from_ref(elem).span_unchecked(<T::Mem as BitMemory>::BITS as usize) }
 			.to_bitslice_ref()
 	}
 
@@ -525,7 +525,7 @@ where
 	/// [`BitView`]: crate::view::BitView
 	/// [`.view_bits_mut::<O>()`]: crate::view::BitView::view_bits_mut
 	pub fn from_element_mut(elem: &mut T) -> &mut Self {
-		unsafe { BitPtr::from_mut(elem).span_unchecked(T::Mem::BITS as usize) }
+		unsafe { BitPtr::from_mut(elem).span_unchecked(<T::Mem as BitMemory>::BITS as usize) }
 			.to_bitslice_mut()
 	}
 
@@ -573,7 +573,7 @@ where
 		//  an inclusive cap. This is also pretty much impossible to hit.
 		if elts >= Self::MAX_ELTS {
 			return Err(BitSpanError::TooLong(
-				elts.saturating_mul(T::Mem::BITS as usize),
+				elts.saturating_mul(<T::Mem as BitMemory>::BITS as usize),
 			));
 		}
 		Ok(unsafe { Self::from_slice_unchecked(slice) })
@@ -641,7 +641,7 @@ where
 		let elts = slice.len();
 		if elts >= Self::MAX_ELTS {
 			return Err(BitSpanError::TooLong(
-				elts.saturating_mul(T::Mem::BITS as usize),
+				elts.saturating_mul(<T::Mem as BitMemory>::BITS as usize),
 			));
 		}
 		Ok(unsafe { Self::from_slice_unchecked_mut(slice) })
@@ -661,7 +661,7 @@ where
 	/// [`MAX_ELTS`]: Self::MAX_ELTS
 	/// [`::from_slice()`]: Self::from_slice
 	pub unsafe fn from_slice_unchecked(slice: &[T]) -> &Self {
-		let bits = slice.len().wrapping_mul(T::Mem::BITS as usize);
+		let bits = slice.len().wrapping_mul(<T::Mem as BitMemory>::BITS as usize);
 		BitPtr::from_slice(slice)
 			.span_unchecked(bits)
 			.to_bitslice_ref()
@@ -681,7 +681,7 @@ where
 	/// [`MAX_ELTS`]: Self::MAX_ELTS
 	/// [`::from_slice_mut()`]: Self::from_slice_mut
 	pub unsafe fn from_slice_unchecked_mut(slice: &mut [T]) -> &mut Self {
-		let bits = slice.len().wrapping_mul(T::Mem::BITS as usize);
+		let bits = slice.len().wrapping_mul(<T::Mem as BitMemory>::BITS as usize);
 		BitPtr::from_mut_slice(slice)
 			.span_unchecked(bits)
 			.to_bitslice_mut()

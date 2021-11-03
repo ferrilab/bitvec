@@ -470,8 +470,8 @@ where
 				//  slices of the original type to merge with `head` and `tail`.
 				let (l, c, r) = body.align_to::<U::Mem>();
 
-				let t_bits = T::Mem::BITS as usize;
-				let u_bits = U::Mem::BITS as usize;
+				let t_bits = <T::Mem as BitMemory>::BITS as usize;
+				let u_bits = <U::Mem as BitMemory>::BITS as usize;
 
 				let l_bits = l.len() * t_bits;
 				let c_bits = c.len() * u_bits;
@@ -1009,7 +1009,7 @@ where
 		let (addr_b, head_b, bits_b) = other.raw_parts();
 		//  Since ::BITS is an associated const, the compiler will automatically
 		//  replace the entire function with `false` when the types don’t match.
-		T1::Mem::BITS == T2::Mem::BITS
+		<T1::Mem as BitMemory>::BITS == <T2::Mem as BitMemory>::BITS
 			&& addr_a.value() == addr_b.value()
 			&& head_a.value() == head_b.value()
 			&& bits_a == bits_b
