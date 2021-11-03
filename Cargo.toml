@@ -6,7 +6,7 @@
 
 [package]
 name = "bitvec"
-version = "0.20.4"
+version = "0.20.5"
 authors = [
 	"myrrlyn <self@myrrlyn.dev>",
 ]
@@ -55,7 +55,7 @@ radium = "0.6.1"
 tap = "1"
 
 [dependencies.funty]
-version = "~1.1"
+version = "1.1"
 default-features = false
 
 [dependencies.serde]
