@@ -269,7 +269,7 @@ macro_rules! safe {
 
 			#[cfg(not(feature = "atomic"))]
 			const ZERO: Self = Self {
-				inner: Cell::new(0),
+				inner: core::cell::Cell::new(0),
 			};
 
 			fn load(&self) -> $t {
