@@ -10,7 +10,7 @@ that wish to safely perform generic programming with `bitvec` region types.
 !*/
 
 #![allow(dead_code)]
-#![cfg_attr(tarpaulin, skip)]
+#![cfg(not(tarpaulin_include))]
 
 use crate::{
 	index::BitMask,

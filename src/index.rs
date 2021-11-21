@@ -66,19 +66,19 @@ macro_rules! make {
 		BitIdx {
 			idx: $e,
 			_ty: PhantomData,
-			}
+		}
 	};
 	(tail $e:expr) => {
 		BitTail {
 			end: $e,
 			_ty: PhantomData,
-			}
+		}
 	};
 	(pos $e:expr) => {
 		BitPos {
 			pos: $e,
 			_ty: PhantomData,
-			}
+		}
 	};
 	(sel $e:expr) => {
 		BitSel { sel: $e }

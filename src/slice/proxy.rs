@@ -118,8 +118,7 @@ where
 	pub(crate) unsafe fn new_unchecked(
 		addr: *const T::Access,
 		head: BitIdx<T::Mem>,
-	) -> Self
-	{
+	) -> Self {
 		Self {
 			_ref: PhantomData,
 			addr: NonNull::new_unchecked(addr as *mut T::Access),

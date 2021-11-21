@@ -440,8 +440,7 @@ where T: BitStore
 		addr: impl Into<Address<T>>,
 		head: BitIdx<T::Mem>,
 		bits: usize,
-	) -> Option<Self>
-	{
+	) -> Option<Self> {
 		let addr = addr.into();
 
 		if addr.to_const().is_null()
@@ -485,8 +484,7 @@ where T: BitStore
 		addr: impl Into<Address<T>>,
 		head: BitIdx<T::Mem>,
 		bits: usize,
-	) -> Self
-	{
+	) -> Self {
 		let (addr, head) = (addr.into(), head.value() as usize);
 
 		let ptr_data = addr.value() & Self::PTR_ADDR_MASK;
@@ -998,8 +996,7 @@ where T: BitStore
 		name: &'a str,
 		ord: Option<&'a str>,
 		fields: impl IntoIterator<Item = &'a (&'a str, &'a dyn Debug)>,
-	) -> fmt::Result
-	{
+	) -> fmt::Result {
 		write!(fmt, "Bit{}<", name)?;
 		if let Some(ord) = ord {
 			write!(fmt, "{}, ", ord)?;
