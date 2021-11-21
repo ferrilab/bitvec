@@ -17,7 +17,6 @@ value position, and delegates to `BitSlice` for all actual work.
 
 use core::{
 	marker::PhantomData,
-	mem::MaybeUninit,
 	slice,
 };
 
