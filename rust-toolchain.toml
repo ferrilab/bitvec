@@ -6,5 +6,10 @@
 ########################################################################
 
 [toolchain]
-channel = "1.51.0"
+channel = "1.56.0"
+# channel = "nightly"
 profile = "default"
+components = [
+	"clippy",
+	"rustfmt",
+]

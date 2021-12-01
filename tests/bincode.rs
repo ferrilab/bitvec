@@ -3,19 +3,19 @@
 This defect was caused by the use of the `[T]` slice implementation when
 serializing a `BitArray`, but the `[T; N]` array implementation when
 deserializing. The bincode format uses a dynamic length-aware encoding for
-slice references, but can permit arrays to be self-describing, without any
-excess data in the transport format.
+slices, but does not encode the length of arrays, rendering their transport
+formats non-interchangeable.
 
-This discrepancy caused `BitArray` to fail to roundtrip through bincode, and has
-been resolved by committing to using only the `[T; N]` de/ser implementation on
-both sides of the `serde` interface.
+This discrepancy caused `BitArray` to fail to roundtrip through bincode, and is
+resolved by separating `BitArray` into its own `serde` implementation that
+uses arrays consistently rather than slices.
 
 In the future, the implementation *may* change to use the `BitSlice` transport
-format. The exact implementation of the transport format is not guaranteed
-between major revisions of the crate; however, as it does technically constitute
-an ABI, it will only be modified in `0.X` or `X.0` releases.
+format, but only if its data buffer can be reconstituted from the slice model.
 
-[Issue #96]: https://github.com/myrrlyn/bitvec/issues/96
+`bitvec` does not guarantee cross-version serialization format compatibility.
+
+[Issue #96]: https://github.com/bitvecto-rs/bitvec/issues/96
 !*/
 
 #![cfg(feature = "serde")]
@@ -24,13 +24,12 @@ use bitvec::prelude::*;
 
 #[test]
 fn serialize_bitarr_bincode() {
-	let ba = bitarr![Msb0, u8; 1, 1, 1, 1, 1, 0, 0, 0];
+	type BA = BitArr!(for 8, in u8, Msb0);
+	let ba: BA = bitarr![u8, Msb0; 1, 1, 1, 1, 1, 0, 0, 0];
 
-	let bytes = bincode::serialize::<BitArray<_, [u8; 1]>>(&ba)
-		.expect("bincode serialization failed");
+	let bytes = bincode::serialize::<BA>(&ba).unwrap();
 
-	let deser = bincode::deserialize::<BitArray<Msb0, [u8; 1]>>(bytes.as_ref())
-		.expect("bincode deserialization failed");
+	let deserialized: BA = bincode::deserialize::<BA>(bytes.as_ref()).unwrap();
 
-	assert_eq!(deser, ba);
+	assert_eq!(deserialized, ba);
 }

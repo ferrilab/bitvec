@@ -1,4 +1,4 @@
-//! By-value buffer iteration.
+#![doc = include_str!("../../doc/boxed/iter.md")]
 
 use core::{
 	fmt::{
@@ -7,149 +7,144 @@ use core::{
 		Formatter,
 	},
 	iter::FusedIterator,
+	ops::Range,
 };
 
 use super::BitBox;
 use crate::{
-	order::BitOrder,
-	ptr::{
-		BitPtrRange,
-		Mut,
+	order::{
+		BitOrder,
+		Lsb0,
 	},
 	slice::BitSlice,
 	store::BitStore,
 };
-/// This is not present on `Box<[T]>`, but is needed to fit into the general
-/// operator implementations.
-#[cfg(not(tarpaulin_include))]
-impl<O, T> IntoIterator for BitBox<O, T>
+
+/// [Original](alloc::vec::IntoIter)
+impl<T, O> IntoIterator for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	type IntoIter = IntoIter<O, T>;
+	type IntoIter = IntoIter<T, O>;
 	type Item = bool;
 
-	#[inline(always)]
 	fn into_iter(self) -> Self::IntoIter {
 		IntoIter::new(self)
 	}
 }
 
-/** An iterator that moves out of a [`BitVec`].
+/** An iterator over a `BitBox`.
 
-This `struct` is created by the [`into_iter`] method on [`BitVec`] (provided by
-the [`IntoIterator`] trait).
-
-# Original
+## Original
 
 [`vec::IntoIter`](alloc::vec::IntoIter)
-
-[`BitVec`]: crate::vec::BitVec
-[`IntoIterator`]: core::iter::IntoIterator
-[`into_iter`]: core::iter::IntoIterator::into_iter
 **/
-pub struct IntoIter<O, T>
+pub struct IntoIter<T = usize, O = Lsb0>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	/// The buffer being iterated.
-	_buf: BitBox<O, T>,
-	/// A bit-pointer iterator over the buffer’s contents.
-	iter: BitPtrRange<Mut, O, T>,
+	/// The original `BitBox`, kept so it can correctly drop.
+	_buf: BitBox<T, O>,
+	/// A range of indices yet to be iterated.
+	//  TODO(myrrlyn): Race this against `BitPtrRange<Mut, T, O>`.
+	iter: Range<usize>,
 }
 
-impl<O, T> IntoIter<O, T>
+impl<T, O> IntoIter<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	/// Constructs an iterator over a [`BitBox`] or [`BitVec`].
-	///
-	/// [`BitBox`]: crate::vec::BitBox
-	/// [`BitVec`]: crate::vec::BitVec
-	fn new(mut this: BitBox<O, T>) -> Self {
-		let iter = this.as_mut_bitptr_range();
+	/// Wraps a bit-array in an iterator view. This is irreversible.
+	fn new(this: BitBox<T, O>) -> Self {
+		let iter = 0 .. this.len();
 		Self { _buf: this, iter }
 	}
 
-	/// Returns the remaining bits of this iterator as a [`BitSlice`].
+	/// Views the remaining unyielded bits as a bit-slice.
 	///
-	/// # Original
+	/// ## Original
 	///
-	/// [`vec::IntoIter::as_slice`](alloc::vec::IntoIter::as_slice)
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bv = bitvec![0, 1, 0, 1];
-	/// let mut into_iter = bv.into_iter();
-	///
-	/// assert_eq!(into_iter.as_bitslice(), bits![0, 1, 0, 1]);
-	/// let _ = into_iter.next().unwrap();
-	/// assert_eq!(into_iter.as_bitslice(), bits![1, 0, 1]);
-	/// ```
-	///
-	/// [`BitSlice`]: crate::slice::BitSlice
-	#[inline]
-	pub fn as_bitslice(&self) -> &BitSlice<O, T> {
-		self.iter.clone().into_bitspan().to_bitslice_ref()
+	/// [`IntoIter::as_slice`](alloc::vec::IntoIter::as_slice)
+	pub fn as_bitslice(&self) -> &BitSlice<T, O> {
+		//  While the memory is never actually deïnitialized, this is still a
+		//  good habit to do.
+		unsafe {
+			self._buf
+				.as_bitptr()
+				.add(self.iter.start)
+				.span_unchecked(self.iter.len())
+				.into_bitslice_ref()
+		}
 	}
 
 	#[doc(hidden)]
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated = "Use `as_bitslice` to view the underlying slice"]
-	pub fn as_slice(&self) -> &BitSlice<O, T> {
+	#[deprecated = "use `.as_bitslice()` instead"]
+	#[allow(missing_docs, clippy::missing_docs_in_private_items)]
+	pub fn as_slice(&self) -> &BitSlice<T, O> {
 		self.as_bitslice()
 	}
 
-	/// Returns the remaining bits of this iterator as a mutable [`BitSlice`].
+	/// Views the remaining unyielded bits as a mutable bit-slice.
 	///
-	/// # Original
+	/// ## Original
 	///
-	/// [`vec::IntoIter::as_mut_slice`](alloc::vec::IntoIter::as_mut_slice)
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let bv = bitvec![0, 1, 0, 1];
-	/// let mut into_iter = bv.into_iter();
-	///
-	/// assert_eq!(into_iter.as_bitslice(), bits![0, 1, 0, 1]);
-	/// into_iter.as_mut_bitslice().set(2, true);
-	/// assert!(!into_iter.next().unwrap());
-	/// assert!(into_iter.next().unwrap());
-	/// assert!(into_iter.next().unwrap());
-	/// ```
-	///
-	/// [`BitSlice`]: crate::slice::BitSlice
-	#[inline]
-	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, T> {
-		self.iter.clone().into_bitspan().to_bitslice_mut()
+	/// [`IntoIter::as_mut_slice`](alloc::vec::IntoIter::as_mut_slice)
+	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<T, O> {
+		unsafe {
+			self._buf
+				.as_mut_bitptr()
+				.add(self.iter.start)
+				.span_unchecked(self.iter.len())
+				.into_bitslice_mut()
+		}
 	}
 
 	#[doc(hidden)]
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated = "Use `as_mut_bitslice` to view the underlying slice"]
-	pub fn as_mut_slice(&mut self) -> &mut BitSlice<O, T> {
+	#[deprecated = "use `.as_mut_bitslice()` instead"]
+	#[allow(missing_docs, clippy::missing_docs_in_private_items)]
+	pub fn as_mut_slice(&mut self) -> &mut BitSlice<T, O> {
 		self.as_mut_bitslice()
 	}
 }
 
+/// [Original](https://doc.rust-lang.org/alloc/vec/struct.IntoIter.html#impl-AsRef%3C%5BT%5D%3E)
 #[cfg(not(tarpaulin_include))]
-impl<O, T> Debug for IntoIter<O, T>
+impl<T, O> AsRef<BitSlice<T, O>> for IntoIter<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline]
+	fn as_ref(&self) -> &BitSlice<T, O> {
+		self.as_bitslice()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<T, O> Clone for IntoIter<T, O>
+where
+	T: BitStore,
+	O: BitOrder,
+{
+	fn clone(&self) -> Self {
+		Self {
+			_buf: self._buf.clone(),
+			iter: self.iter.clone(),
+		}
+	}
+}
+
+/// [Original](https://doc.rust-lang.org/alloc/vec/struct.IntoIter.html#impl-Debug)
+#[cfg(not(tarpaulin_include))]
+impl<T, O> Debug for IntoIter<T, O>
+where
+	T: BitStore,
+	O: BitOrder,
+{
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_tuple("IntoIter")
 			.field(&self.as_bitslice())
@@ -157,69 +152,76 @@ where
 	}
 }
 
-impl<O, T> Iterator for IntoIter<O, T>
+impl<T, O> Iterator for IntoIter<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
 	type Item = bool;
 
-	#[inline]
+	easy_iter!();
+
 	fn next(&mut self) -> Option<Self::Item> {
-		self.iter.next().map(crate::ptr::range::read_raw)
+		self.iter
+			.next()
+			.map(|idx| unsafe { self._buf.as_bitptr().add(idx).read() })
 	}
 
-	#[inline(always)]
-	fn size_hint(&self) -> (usize, Option<usize>) {
-		self.iter.size_hint()
-	}
-
-	#[inline(always)]
-	fn count(self) -> usize {
-		self.len()
-	}
-
-	#[inline]
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
-		self.iter.nth(n).map(crate::ptr::range::read_raw)
-	}
-
-	#[inline(always)]
-	fn last(mut self) -> Option<Self::Item> {
-		self.next_back()
+		self.iter
+			.nth(n)
+			.map(|idx| unsafe { self._buf.as_bitptr().add(idx).read() })
 	}
 }
 
-impl<O, T> DoubleEndedIterator for IntoIter<O, T>
+impl<T, O> DoubleEndedIterator for IntoIter<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
-		self.iter.next_back().map(crate::ptr::range::read_raw)
+		self.iter
+			.next_back()
+			.map(|idx| unsafe { self._buf.as_bitptr().add(idx).read() })
 	}
 
-	#[inline]
 	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-		self.iter.nth_back(n).map(crate::ptr::range::read_raw)
+		self.iter
+			.nth_back(n)
+			.map(|idx| unsafe { self._buf.as_bitptr().add(idx).read() })
 	}
 }
 
-impl<O, T> ExactSizeIterator for IntoIter<O, T>
+impl<T, O> ExactSizeIterator for IntoIter<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline(always)]
 	fn len(&self) -> usize {
 		self.iter.len()
 	}
 }
 
-impl<O, T> FusedIterator for IntoIter<O, T>
+impl<T, O> FusedIterator for IntoIter<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
+{
+}
+
+/// [Original](https://doc.rust-lang.org/alloc/vec/struct.IntoIter.html#impl-Send)
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl<T, O> Send for IntoIter<T, O>
+where
+	T: BitStore + Sync,
+	O: BitOrder,
+{
+}
+
+/// [Original](https://doc.rust-lang.org/alloc/vec/struct.IntoIter.html#impl-Sync)
+unsafe impl<T, O> Sync for IntoIter<T, O>
+where
+	T: BitStore + Sync,
+	O: BitOrder,
 {
 }

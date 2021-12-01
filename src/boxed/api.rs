@@ -1,12 +1,8 @@
 //! Port of the `Box<[T]>` inherent API.
 
-use core::{
-	marker::Unpin,
-	mem,
-	pin::Pin,
-};
+use core::mem;
 
-use tap::pipe::Pipe;
+use tap::Tap;
 
 use super::BitBox;
 use crate::{
@@ -17,204 +13,123 @@ use crate::{
 	vec::BitVec,
 };
 
-impl<O, T> BitBox<O, T>
+impl<T, O> BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	/// Allocates memory on the heap and then copies `x` into it.
-	///
-	/// This doesn’t actually allocate if `x` is zero-length.
-	///
-	/// # Original
-	///
-	/// [`Box::new`](alloc::boxed::Box::new)
-	///
-	/// # API Differences
-	///
-	/// `Box::<[T]>::new` does not exist, because unsized types cannot be taken
-	/// by value. Instead, this takes a slice reference, and boxes the referent
-	/// slice.
-	///
-	/// # Examples
-	///
-	/// ```rust
-	/// use bitvec::prelude::*;
-	///
-	/// let boxed = BitBox::new(bits![0; 5]);
-	/// ```
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	#[deprecated = "Prefer `from_bitslice`"]
-	pub fn new(x: &BitSlice<O, T>) -> Self {
-		Self::from_bitslice(x)
-	}
-
-	/// Constructs a new `Pin<BitBox<O, T>>`.
-	///
-	/// [`BitSlice`] is always [`Unpin`], so this has no actual effect.
-	///
-	/// # Original
-	///
-	/// [`Box::pin`](alloc::boxed::Box::pin)
-	///
-	/// # API Differences
-	///
-	/// As with [`new`], this only exists on `Box` when `T` is not unsized. This
-	/// takes a slice reference, and pins the referent slice.
-	///
-	/// [`BitSlice`]: crate::slice::BitSlice
-	/// [`Unpin`]: core::marker::Unpin
-	/// [`new`]: Self::new
-	#[inline]
-	#[cfg(not(tarpaulin_include))]
-	pub fn pin(x: &BitSlice<O, T>) -> Pin<Self>
-	where
-		O: Unpin,
-		T: Unpin,
-	{
-		x.pipe(Self::from_bitslice).pipe(Pin::new)
-	}
-
 	/// Constructs a bit-box from a raw bit-slice pointer.
 	///
-	/// After calling this function, the raw bit-slice pointer is owned by the
-	/// resulting `BitBox`. Specifically, the `BitBox` destructor will free the
-	/// memory allocation at the bit-slice pointer’s address. For this to be
-	/// safe, the bit-slice pointer can only have been produced by a `BitBox`
-	/// previously destroyed using [`into_raw`].
+	/// This converts a `*mut BitSlice` pointer that had previously been
+	/// produced by either [`::into_raw()`] or [`::leak()`] and restores the
+	/// bit-box containing it.
 	///
-	/// # Original
+	/// ## Original
 	///
 	/// [`Box::from_raw`](alloc::boxed::Box::from_raw)
 	///
-	/// # Safety
+	/// ## Safety
 	///
-	/// This function is unsafe because improper use may lead to memory
-	/// problems. For example, a double-free may occur if the function is called
-	/// twice on the same raw bit-slice pointer.
+	/// You must only call this function on pointers produced by leaking a prior
+	/// `BitBox`; you may not modify the value of a pointer returned by
+	/// [`::into_raw()`], nor may you conjure pointer values of your own. Doing
+	/// so will corrupt the allocator state.
 	///
-	/// # Examples
+	/// You must only call this function on any given leaked pointer at most
+	/// once. Not calling it at all will merely render the allocated memory
+	/// unreachable for the duration of the program runtime, a normal (and safe)
+	/// memory leak. Calling it once restores ordinary functionality, and
+	/// ensures ordinary destruction at or before program termination. However,
+	/// calling it more than once on the same pointer will introduce data races,
+	/// use-after-free, and/or double-free errors.
 	///
-	/// Recreate a `BitBox` which was previously converted to a raw bit-slice
-	/// pointer using [`BitBox::into_raw`]:
+	/// ## Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let x = bitbox![0; 10];
-	/// let ptr = BitBox::into_raw(x);
-	/// let x = unsafe { BitBox::from_raw(ptr) };
+	/// let bb = bitbox![0; 80];
+	/// let ptr: *mut BitSlice = BitBox::into_raw(bb);
+	/// let bb = unsafe { BitBox::from_raw(ptr) };
+	/// // unsafe { BitBox::from_raw(ptr) }; // UAF crash!
 	/// ```
 	///
-	/// [`BitBox::into_raw`]: Self::into_raw
-	/// [`into_raw`]: Self::into_raw
-	#[inline]
-	pub unsafe fn from_raw(raw: *mut BitSlice<O, T>) -> Self {
+	/// [`::into_raw()`]: Self::into_raw
+	/// [`::leak()`]: Self::leak
+	pub unsafe fn from_raw(raw: *mut BitSlice<T, O>) -> Self {
 		Self {
 			bitspan: BitSpan::from_bitslice_ptr_mut(raw),
 		}
 	}
 
-	/// Consumes the `BitBox`, returning a raw bit-slice pointer.
+	/// Consumes the bit-box, returning a raw bit-slice pointer.
 	///
-	/// The bit-slice pointer will be properly encoded and non-null.
+	/// Bit-slice pointers are always correctly encoded and non-null. The
+	/// referent region is dereferenceäble *as a `BitSlice` for the remainder of
+	/// the program, or until it is first passed to [`::from_raw()`], whichever
+	/// comes first. Once the pointer is first passed to `::from_raw()`, all
+	/// copies of that pointer become invalid to dereference.
 	///
-	/// After calling this function, the caller is responsible for the memory
-	/// previously managed by the `BitBox`. In particular, the caller should
-	/// properly release the memory by converting the bit-slice pointer back
-	/// into a `BitBox` with the [`from_raw`] function, allowing the `BitBox`
-	/// destructor to perform the cleanup.
-	///
-	/// Note: this is an associated function, which means that you have to call
-	/// it as `BitBox::into_raw(b)` instead of `b.into_raw()`. This is to match
-	/// signatures with the standard library’s [`Box`] API; there will never be
-	/// a name conflict with [`BitSlice`].
-	///
-	/// # Original
+	/// ## Original
 	///
 	/// [`Box::into_raw`](alloc::boxed::Box::into_raw)
 	///
-	/// # Examples
-	///
-	/// Converting the raw bit-slice pointer back into a `BitBox` with
-	/// [`BitBox::from_raw`] for automatic cleanup:
+	/// ## Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let x = bitbox![0; 50];
-	/// let p = BitBox::into_raw(x);
-	/// let x = unsafe { BitBox::from_raw(p) };
+	/// let bb = bitbox![0; 80];
+	/// let ptr = BitBox::into_raw(bb);
+	/// let bb = unsafe { BitBox::from_raw(ptr) };
 	/// ```
 	///
-	/// You may not deällocate pointers produced by this function through any
-	/// other manner.
+	/// You **may not** deällocate pointers produced by this function through
+	/// any other means.
 	///
-	/// [`BitBox::from_raw`]: Self::from_raw
-	/// [`BitSlice`]: crate::slice::BitSlice
-	/// [`Box`]: alloc::boxed::Box
-	/// [`from_raw`]: Self::from_raw
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub fn into_raw(this: Self) -> *mut BitSlice<O, T> {
+	/// [`::from_raw()`]: Self::from_raw
+	pub fn into_raw(this: Self) -> *mut BitSlice<T, O> {
 		Self::leak(this)
 	}
 
-	/// Consumes and leaks the `BitBox`, returning a mutable reference, `&'a mut
-	/// BitSlice<O, T>`. This is eligible to be promoted to the `'static`
-	/// lifetime.
+	/// Deliberately leaks the allocated memory, returning an
+	/// `&'static mut BitSlice` reference.
 	///
-	/// # Original
+	/// This differs from [`::into_raw()`] in that the reference is safe to use
+	/// and can be tracked by the Rust borrow-checking system. Like the
+	/// bit-slice pointer produced by `::into_raw()`, this reference can be
+	/// un-leaked by passing it into [`::from_raw()`] to reclaim the memory.
 	///
-	/// [`Box::leak`](alloc::boxed::Box::leak)
-	///
-	/// This function is mainly useful for data that lives for the remainder
-	/// of the program’s life. Dropping the returned reference will cause a
-	/// memory leak. If this is not acceptable, the reference should first be
-	/// wrapped with the [`BitBox::from_raw`] function producing a `BitBox`.
-	/// This `BitBox` can then be dropped which will properly deällocate the
-	/// memory.
-	///
-	/// Note: this is an associated function, which means that you have to call
-	/// it as `BitBox::leak(b)` instead of `b.leak()`. This is to match
-	/// signatures with the standard library’s [`Box`] API; there will never be
-	/// a name conflict with [`BitSlice`].
-	///
-	/// # Original
+	/// ## Original
 	///
 	/// [`Box::leak`](alloc::boxed::Box::leak)
 	///
-	/// # Examples
-	///
-	/// Simple usage:
+	/// ## Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let b = bitbox![0; 50];
-	/// let static_ref: &'static mut BitSlice = BitBox::leak(b);
+	/// let bb = bitbox![0; 80];
+	/// let static_ref: &'static mut BitSlice = BitBox::leak(bb);
+	///
 	/// static_ref.set(0, true);
 	/// assert!(static_ref[0]);
-	/// # drop(unsafe { BitBox::from_raw(static_ref) });
+	/// let _ = unsafe {
+	///   BitBox::from_raw(static_ref)
+	/// };
 	/// ```
 	///
-	/// [`BitBox::from_raw`]: Self::from_raw
-	/// [`BitSlice`]: crate::slice::BitSlice
-	/// [`Box`]: alloc::boxed::Box
-	#[inline]
-	pub fn leak<'a>(this: Self) -> &'a mut BitSlice<O, T>
+	/// [`::from_raw()`]: Self::from_raw
+	/// [`::into_raw()`]: Self::into_raw
+	pub fn leak<'a>(this: Self) -> &'a mut BitSlice<T, O>
 	where T: 'a {
-		let out = this.bitspan.to_bitslice_mut();
-		mem::forget(this);
-		out
+		unsafe { this.bitspan.into_bitslice_mut() }.tap(|_| mem::forget(this))
 	}
 
 	#[doc(hidden)]
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated = "Prefer `into_bitvec`"]
-	pub fn into_vec(self) -> BitVec<O, T> {
+	#[deprecated = "use `.into_bitvec()` instead"]
+	pub fn into_vec(self) -> BitVec<T, O> {
 		self.into_bitvec()
 	}
 }

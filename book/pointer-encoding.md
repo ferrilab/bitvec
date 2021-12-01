@@ -16,7 +16,7 @@ through these functions and the compiler will accept them as valid.
 
 These requirements traditionally make it difficult to encode non-address
 information into a bare reference, since the compiler has a very firm
-expectation that a reference to a type is immediately dereferencëable to a value
+expectation that a reference to a type is immediately dereferenceäble to a value
 of that type, but if your type happens to be zero-sized, then it can never exist
 in memory, no loads or stores to it can ever be produced, and the compiler no
 longer concerns itself with the actual bit-pattern value of references to it.
@@ -27,7 +27,7 @@ Which is why the definition of `BitSlice` is
 //  src/slice.rs
 
 #[repr(transparent)]
-pub struct BitSlice<O, T>
+pub struct BitSlice<T, O>
 where
   O: BitOrder,
   T: BitStore,
@@ -78,7 +78,7 @@ struct BitSpan<T> {
 
   uintptr_t ptr_head : __builtin_ctzll(alignof(T));
   uintptr_t ptr_addr : sizeof(uintptr_t) * CHAR_BITS;
-                     - __builtin_ctzll(alignof(T));
+                     - __builtin_tczll(alignof(T));
 
   size_t len_head : 3;
   size_t len_bits : sizeof(size_t) * 8 - 3;

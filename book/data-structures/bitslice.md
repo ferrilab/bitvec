@@ -46,7 +46,7 @@ be used as the source memory for a `BitSlice`.
 
 The simplest way to create a `BitSlice` reference is to borrow it from ordinary
 Rust data. The [`BitView`] trait, available in the [prelude], implements methods
-on the supported unsigned integers, all[^1] arrays of them, and their slices.
+on the supported unsigned integers, all arrays of them, and their slices.
 
 ```rust
 use bitvec::prelude::*;
@@ -110,11 +110,9 @@ specify them, the macro uses the default parameters of `LocalBits` ordering and
 ```rust
 use bitvec::prelude::*;
 
-let in_bytes = bits![Local, u8; 0, 1, 0, 1];
-let in_shorts = bits![Lsb0, u16; 0, 1, 0, 1];
-let in_ints = bits![mut Msb0, u32; 0; 4];
-
-let in_usize = bits![mut Local; 0; 4];
+let in_bytes = bits![u8, LocalBits; 0, 1, 0, 1];
+let in_shorts = bits![u16, Lsb0; 0, 1, 0, 1];
+let in_ints = bits![mut u32, Msb0; 0; 4];
 ```
 
 You can specify the bit-order without the storage, but you cannot specify the
@@ -126,7 +124,7 @@ To summarize the macro rules:
 - If the first macro argument is `mut`, then the macro produces `&mut BitSlice`,
   otherwise it produces `&BitSlice`. You do not need to bind the name as `mut`
   unless you want to reässign it to a different slice.
-- You may then optionally provide the ordering and storage type parameters,
+- You may then optionally provide the storage and ordering type parameters,
   followed by a semicolon. If you choose to add type parameters:
   - You *must* provide the bit-ordering parameter.
   - You *may* provide the storage parameter.
@@ -158,7 +156,7 @@ do some actual work with it.
 
 ### … That `[bool]` Can
 
-Everything[^2]. I am not going to rewrite the standard library’s slice
+Everything[^1]. I am not going to rewrite the standard library’s slice
 documentation here.
 
 ### … That `[bool]` Cannot
@@ -196,15 +194,15 @@ expressions.
 use bitvec::prelude::*;
 
 let mut or  =  bits![mut 0, 0, 1, 1];
-        or |=  bits![    0, 1, 0, 1].iter().copied();
+        or |=  bits![    0, 1, 0, 1];
 assert_eq!(or, bits![    0, 1, 1, 1]);
 
 let mut and  =  bits![mut 0, 0, 1, 1];
-        and &=  bits![    0, 1, 0, 1].iter().copied();
+        and &=  bits![    0, 1, 0, 1];
 assert_eq!(and, bits![    0, 0, 0, 1]);
 
 let mut xor  =  bits![mut 0, 0, 1, 1];
-        xor ^=  bits![    0, 1, 0, 1].iter().copied();
+        xor ^=  bits![    0, 1, 0, 1];
 assert_eq!(xor, bits![    0, 1, 1, 0]);
 ```
 
@@ -327,10 +325,7 @@ The [*Memory Model* chapter] discusses the type system used to handle aliasing.
 
 ## Footnotes
 
-[^1]: Currently, `0 <= N <= 32`; once the type-level-integer feature stabilizes,
-      *all*
-
-[^2]: Except write-assignment through indexing. I am not going to keep
+[^1]: Except write-assignment through indexing. I am not going to keep
       mentioning this exception.
 
 [`BitOrder` chapter]: ../type-parameters/bitorder.html "BitOrder type parameter"

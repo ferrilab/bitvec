@@ -8,7 +8,7 @@ time to actually use it. Here is the one-sentence summary of what `bitvec` can
 do:
 
 > Every API present in the standard library is replicated in `bitvec`, except
-> for `BitSlice<O, T> as IndexMut<usize>`, because `bitvec` cannot produce `&mut
+> for `BitSlice<T, O> as IndexMut<usize>`, because `bitvec` cannot produce `&mut
 > bool`.
 
 If you were using ordinary collections to manage sequences of `bool`s, then
@@ -52,7 +52,7 @@ Mutation works:
 use bitvec::prelude::*;
 use std::{iter, thread};
 
-let bits: &'static mut BitSlice<_, _> = bits![mut 0; 8];
+let bits: &'static mut BitSlice = bits![mut 0; 8];
 
 {
   let (left, right) = bits.split_at_mut(4);

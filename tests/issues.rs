@@ -20,13 +20,13 @@ In the future, it may be possible to revert to the original
 `<[T] as ToOwned>::to_owned` implementation, if `BitVec` becomes capable of
 partial heads without loss of pointer information.
 
-[Issue #10]: https://github.com/myrrlyn/bitvec/issues/10
+[Issue #10]: https://github.com/bitvecto-rs/bitvec/issues/10
 [@overminder]: https://github.com/overminder
 **/
 #[test]
 #[cfg(feature = "alloc")]
 fn issue_10() {
-	let bv = bitvec![LocalBits, u8;
+	let bv = bitvec![u8, LocalBits;
 		0, 0, 0, 0,
 		0, 0, 0, 1,
 		1, 0, 0, 0,
@@ -48,7 +48,7 @@ fn issue_10() {
 	assert!(!bv2[7]);
 
 	bv2.force_align();
-	//  These may be removed in the future.
+
 	assert_eq!(bv2.as_raw_slice().len(), 1);
 	assert_eq!(bv2.as_raw_slice()[0], 0x18);
 }
@@ -68,13 +68,13 @@ and `Vec::reserve` did not see the request amount as requiring a reällocation.
 length, which produces the correct reservation request for `Vec::reserve`,
 fixing the error.
 
-[Issue #33]: https://github.com/myrrlyn/bitvec/issues/33
+[Issue #33]: https://github.com/bitvecto-rs/bitvec/issues/33
 [@jonas-schievink]: https://github.com/jonas-schievink
 **/
 #[test]
 #[cfg(feature = "alloc")]
 fn issue_33() {
-	let mut iostream = BitVec::<Lsb0, u8>::new();
+	let mut iostream = BitVec::<u8, Lsb0>::new();
 
 	iostream.resize(64, true);
 
@@ -104,7 +104,7 @@ class in `bitvec`. This is the same bug class that occurred in #65, and has the
 same solution: uninitialized memory in the `BitVec` buffer is not required to be
 zeroed.
 
-[Issue #62]: https://github.com/myrrlyn/bitvec/issues/62
+[Issue #62]: https://github.com/bitvecto-rs/bitvec/issues/62
 [@sharksforarms]: https://github.com/sharksforarms
 **/
 #[test]
@@ -115,7 +115,7 @@ fn issue_62() {
 			&self,
 			output_is_le: bool,
 			bit_size: Option<usize>,
-		) -> BitVec<Msb0, u8>;
+		) -> BitVec<u8, Msb0>;
 	}
 
 	impl Writer for u32 {
@@ -123,17 +123,17 @@ fn issue_62() {
 			&self,
 			output_is_le: bool,
 			bit_size: Option<usize>,
-		) -> BitVec<Msb0, u8> {
+		) -> BitVec<u8, Msb0> {
 			let input = if output_is_le {
 				self.to_le_bytes()
 			}
 			else {
 				self.to_be_bytes()
 			};
-			let input_bits: BitVec<Msb0, u8> =
-				BitSlice::from_slice(&input).unwrap().into();
+			let input_bits: BitVec<u8, Msb0> =
+				BitSlice::from_slice(&input).into();
 
-			let res_bits: BitVec<Msb0, u8> = {
+			let res_bits: BitVec<u8, Msb0> = {
 				if let Some(bit_size) = bit_size {
 					if bit_size > input_bits.len() {
 						todo!() // TODO: return err
@@ -142,7 +142,7 @@ fn issue_62() {
 					if output_is_le {
 						// Example read 10 bits u32 [0xAB, 0b11_000000]
 						// => [10101011, 00000011, 00000000, 00000000]
-						let mut res_bits = BitVec::<Msb0, u8>::new();
+						let mut res_bits = BitVec::<u8, Msb0>::new();
 						let mut remaining_bits = bit_size;
 						// println!("input_bits: {}", input_bits);
 						for chunk in input_bits.chunks(8) {
@@ -154,7 +154,7 @@ fn issue_62() {
 								break;
 							}
 							else {
-								res_bits.extend_from_bitslice(chunk)
+								res_bits.extend_from_bitslice(chunk);
 							}
 							remaining_bits -= chunk.len();
 						}
@@ -178,7 +178,7 @@ fn issue_62() {
 
 	let data = 0x03ABu32;
 	let data_bits = data.write(true, Some(10));
-	assert_eq!(bitvec![Msb0, u8; 1,0,1,0,1,0,1,1, 1,1], data_bits);
+	assert_eq!(bitvec![u8, Msb0; 1,0,1,0,1,0,1,1, 1,1], data_bits);
 	let data_vec = data_bits.into_vec();
 	assert_eq!(vec![0xAB, 0b11_000000], data_vec);
 
@@ -200,14 +200,14 @@ fn issue_62() {
 This issue found the use of uninitialized memory in
 `BitVec::extend_from_bitslice` causing non-deterministic behavior.
 
-[Issue #65]: https://github.com/myrrlyn/bitvec/issues/65
+[Issue #65]: https://github.com/bitvecto-rs/bitvec/issues/65
 [@inikulin]: https://github.com/inikulin
 **/
 #[test]
 #[cfg(feature = "alloc")]
 fn issue_65() {
-	let mut v = BitVec::<Msb0, u8>::default();
-	v.extend_from_bitslice(bits![Msb0, u8; 0, 1]);
+	let mut v = BitVec::<u8, Msb0>::default();
+	v.extend_from_bitslice(bits![u8, Msb0; 0, 1]);
 	assert_eq!(v.into_vec(), [0b0100_0000u8]);
 }
 
@@ -221,7 +221,7 @@ alarms.
 This test is only useful when run under `cargo +nightly miri test`. It asserts
 that the allocation pointer is correctly managed during drop.
 
-[Issue #10]: https://github.com/myrrlyn/bitvec/issues/69
+[Issue #10]: https://github.com/bitvecto-rs/bitvec/issues/69
 [@YoshikiTakashima]: https://github.com/YoshikiTakashima
 **/
 #[test]
@@ -247,30 +247,31 @@ The overly-large scaling in computation of `.len()` caused `Rev<>`, which relies
 on a correct implementation of `.len()`, to attempt to access memory out of
 bounds inside `Iter::nth`.
 
-[Issue #77]: https://github.com/myrrlyn/bitvec/issues/77
+[Issue #77]: https://github.com/bitvecto-rs/bitvec/issues/77
 [@Cryptjar]: https://github.com/Cryptjar
 **/
 #[test]
 #[cfg(feature = "alloc")]
 fn issue_77() {
-	// The argument of `take`. If above "SOME" threshold, it will panic!
-	// If below "the" threshold, the assert will fail instead.
-	//
-	// It appears that the threshold for normal execution is 4,
-	// but when executing the binary via `gdb` it is 6.
+	/// The argument of `take`. If above "SOME" threshold, it will panic!
+	/// If below "the" threshold, the assert will fail instead.
+	///
+	/// It appears that the threshold for normal execution is 4,
+	/// but when executing the binary via `gdb` it is 6.
 	const N: usize = 6;
 
 	let mut bv: BitVec = BitVec::new();
 	// Must be at least the 'register size', but may be much larger
 	bv.resize(64, true);
 
-	// Here the complete iter-rev-take-rev-sequence is mandatory to reproduce the
-	// error, just the `collect` is here for convenience.
-	let last_few: Vec<_> = bv.iter().by_ref().rev().take(N).rev().collect();
+	// Here the complete iter-rev-take-rev sequence is mandatory to reproduce
+	// the error; the additional `collect` is just here for convenience.
+	let last_few: Vec<_> =
+		bv.iter().by_vals().by_ref().rev().take(N).rev().collect();
 
 	// Also notice, `bv` only contains `true`, but with `N` < 4, the `last_few`
 	// are all `false`!!!
-	assert_eq!(&[&true; N], last_few.as_slice());
+	assert_eq!(&[true; N], last_few.as_slice());
 }
 
 /** Test case for [Issue #114], opened by [@VilleHallivuori].
@@ -337,4 +338,26 @@ fn issue_120() {
 
 	assert_eq!(one_zero.trailing_zeros(), 1);
 	assert_eq!(one_one.trailing_ones(), 1);
+}
+
+/** Test case for [Issue #142], opened by [@jmmaloney4].
+
+I incorrectly implemented parts of `ChunksExact`, subtracting more than was
+correct. I have repaired this by directly transcribing from the standard library
+implementation.
+
+[Issue #142]: https://github.com/bitvecto-rs/bitvec/issues/142
+[@jmmaloney4]: https://github.com/jmmaloney4
+**/
+#[test]
+#[cfg(target_pointer_width = "64")]
+fn issue_142() {
+	let a: u64 = 1581109321816487388;
+	assert_eq!(a.view_bits::<Msb0>().chunks(6).nth(10).unwrap(), bits![
+		1, 1, 0, 0
+	]);
+	assert_eq!(
+		a.view_bits::<Msb0>().chunks_exact(6).nth(9).unwrap(),
+		bits![0, 1, 1, 1, 0, 1]
+	);
 }

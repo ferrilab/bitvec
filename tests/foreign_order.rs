@@ -12,7 +12,11 @@ use bitvec::{
 		BitIdx,
 		BitPos,
 	},
-	mem::BitRegister,
+	mem::{
+		bits_of,
+		BitRegister,
+	},
+	order::verify_for_type,
 	prelude::*,
 };
 
@@ -21,7 +25,7 @@ pub struct Swizzle;
 unsafe impl BitOrder for Swizzle {
 	fn at<R>(index: BitIdx<R>) -> BitPos<R>
 	where R: BitRegister {
-		match R::BITS {
+		match bits_of::<R>() {
 			8 => BitPos::new(index.into_inner() ^ 0b100).unwrap(),
 			16 => BitPos::new(index.into_inner() ^ 0b1100).unwrap(),
 			32 => BitPos::new(index.into_inner() ^ 0b11100).unwrap(),
@@ -32,7 +36,31 @@ unsafe impl BitOrder for Swizzle {
 }
 
 #[test]
-#[cfg(not(miri))]
-fn check_impl() {
-	bitvec::order::verify::<Swizzle>(cfg!(feature = "testing"));
+fn verify_u8() {
+	verify_for_type::<u8, Swizzle>(cfg!(feature = "verbose"));
+}
+
+#[test]
+#[cfg(not(tarpaulin))]
+fn verify_u16() {
+	verify_for_type::<u16, Swizzle>(cfg!(feature = "verbose"));
+}
+
+#[test]
+#[cfg(not(tarpaulin))]
+fn verify_u32() {
+	verify_for_type::<u32, Swizzle>(cfg!(feature = "verbose"));
+}
+
+#[test]
+#[cfg(not(tarpaulin))]
+#[cfg(target_pointer_width = "64")]
+fn verify_u64() {
+	verify_for_type::<u64, Swizzle>(cfg!(feature = "verbose"));
+}
+
+#[test]
+#[cfg(not(tarpaulin))]
+fn verify_usize() {
+	verify_for_type::<usize, Swizzle>(cfg!(feature = "verbose"));
 }

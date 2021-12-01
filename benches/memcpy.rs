@@ -11,7 +11,10 @@ in an element individually.
 use std::mem::MaybeUninit;
 
 use bitvec::{
-	mem::elts,
+	mem::{
+		bits_of,
+		elts,
+	},
 	prelude::*,
 };
 use criterion::{
@@ -22,12 +25,12 @@ use criterion::{
 	SamplingMode,
 	Throughput,
 };
-use funty::IsNumber;
-use tap::tap::Tap;
+use tap::Tap;
 
 //  One kibibyte
 const KIBIBYTE: usize = 1024;
 //  Some number of kibibytes
+#[allow(clippy::identity_op)]
 const FACTOR: usize = 1 * KIBIBYTE;
 
 //  Scalars applied to FACTOR to get a range of action
@@ -66,7 +69,7 @@ pub fn benchmarks(crit: &mut Criterion) {
 		SCALARS.iter().map(|&n| {
 			(
 				move |name| BenchmarkId::new(name, n),
-				n * FACTOR * <u8 as IsNumber>::BITS as usize,
+				n * FACTOR * bits_of::<u8>(),
 				Throughput::Bytes((n * FACTOR) as u64),
 			)
 		})
@@ -91,8 +94,8 @@ pub fn benchmarks(crit: &mut Criterion) {
 	let mut group = mkgrp!(crit, "Element-wise");
 	for (id, bits, thrpt) in steps() {
 		group.throughput(thrpt);
-		let words = bits / <usize as IsNumber>::BITS as usize;
-		let bytes = bits / <u8 as IsNumber>::BITS as usize;
+		let words = bits / bits_of::<usize>();
+		let bytes = bits / bits_of::<u8>();
 
 		let (src_words, dst_words) =
 			(&src_words[.. words], &mut dst_words[.. words]);
@@ -133,8 +136,8 @@ pub fn benchmarks(crit: &mut Criterion) {
 	let mut group = mkgrp!(crit, "Bit-wise accelerated");
 	for (id, bits, thrpt) in steps() {
 		group.throughput(thrpt);
-		let words = bits / <usize as IsNumber>::BITS as usize;
-		let bytes = bits / <u8 as IsNumber>::BITS as usize;
+		let words = bits / bits_of::<usize>();
+		let bytes = bits / bits_of::<u8>();
 
 		let (src_words, dst_words) =
 			(&src_words[.. words], &mut dst_words[.. words]);
@@ -197,8 +200,8 @@ pub fn benchmarks(crit: &mut Criterion) {
 	let mut group = mkgrp!(crit, "Bit-wise crawl");
 	for (id, bits, thrpt) in steps() {
 		group.throughput(thrpt);
-		let words = bits / <usize as IsNumber>::BITS as usize;
-		let bytes = bits / <u8 as IsNumber>::BITS as usize;
+		let words = bits / bits_of::<usize>();
+		let bytes = bits / bits_of::<u8>();
 
 		let (src_words, dst_words) =
 			(&src_words[.. words], &mut dst_words[.. words]);

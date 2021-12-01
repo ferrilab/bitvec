@@ -1,6 +1,9 @@
-//! Non-operator trait implementations.
+//! General trait implementations for boxed bit-slices.
 
-use alloc::boxed::Box;
+use alloc::{
+	borrow::Cow,
+	boxed::Box,
+};
 use core::{
 	borrow::{
 		Borrow,
@@ -10,403 +13,354 @@ use core::{
 	convert::TryFrom,
 	fmt::{
 		self,
-		Binary,
 		Debug,
 		Display,
 		Formatter,
-		LowerHex,
-		Octal,
-		Pointer,
-		UpperHex,
 	},
 	hash::{
 		Hash,
 		Hasher,
 	},
+	iter::FromIterator,
 };
 
-use tap::pipe::Pipe;
+use tap::Pipe;
 
 use super::BitBox;
 use crate::{
+	array::BitArray,
 	order::BitOrder,
-	ptr::{
-		BitSpan,
-		Mut,
-	},
 	slice::BitSlice,
 	store::BitStore,
 	vec::BitVec,
+	view::BitViewSized,
 };
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> Borrow<BitSlice<O, T>> for BitBox<O, T>
+impl<T, O> Borrow<BitSlice<T, O>> for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline(always)]
-	fn borrow(&self) -> &BitSlice<O, T> {
+	fn borrow(&self) -> &BitSlice<T, O> {
 		self.as_bitslice()
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> BorrowMut<BitSlice<O, T>> for BitBox<O, T>
+impl<T, O> BorrowMut<BitSlice<T, O>> for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline(always)]
-	fn borrow_mut(&mut self) -> &mut BitSlice<O, T> {
+	fn borrow_mut(&mut self) -> &mut BitSlice<T, O> {
 		self.as_mut_bitslice()
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> Clone for BitBox<O, T>
+impl<T, O> Clone for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline]
 	fn clone(&self) -> Self {
 		self.as_bitslice().pipe(Self::from_bitslice)
 	}
 }
 
-impl<O, T> Eq for BitBox<O, T>
+#[cfg(not(tarpaulin_include))]
+impl<T, O> Eq for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> Ord for BitBox<O, T>
+impl<T, O> Ord for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline]
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
 		self.as_bitslice().cmp(other.as_bitslice())
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O1, O2, T1, T2> PartialEq<BitBox<O2, T2>> for BitSlice<O1, T1>
+impl<O1, O2, T1, T2> PartialEq<BitBox<T2, O2>> for BitSlice<T1, O1>
 where
 	O1: BitOrder,
 	O2: BitOrder,
 	T1: BitStore,
 	T2: BitStore,
 {
-	#[inline]
-	fn eq(&self, other: &BitBox<O2, T2>) -> bool {
+	fn eq(&self, other: &BitBox<T2, O2>) -> bool {
 		self == other.as_bitslice()
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O1, O2, T1, T2> PartialEq<BitBox<O2, T2>> for &BitSlice<O1, T1>
+impl<O1, O2, T1, T2> PartialEq<BitBox<T2, O2>> for &BitSlice<T1, O1>
 where
 	O1: BitOrder,
 	O2: BitOrder,
 	T1: BitStore,
 	T2: BitStore,
 {
-	#[inline]
-	fn eq(&self, other: &BitBox<O2, T2>) -> bool {
+	fn eq(&self, other: &BitBox<T2, O2>) -> bool {
 		*self == other.as_bitslice()
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O1, O2, T1, T2> PartialEq<BitBox<O2, T2>> for &mut BitSlice<O1, T1>
+impl<O1, O2, T1, T2> PartialEq<BitBox<T2, O2>> for &mut BitSlice<T1, O1>
 where
 	O1: BitOrder,
 	O2: BitOrder,
 	T1: BitStore,
 	T2: BitStore,
 {
-	#[inline]
-	fn eq(&self, other: &BitBox<O2, T2>) -> bool {
+	fn eq(&self, other: &BitBox<T2, O2>) -> bool {
 		**self == other.as_bitslice()
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T, Rhs> PartialEq<Rhs> for BitBox<O, T>
+impl<T, O, Rhs> PartialEq<Rhs> for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
-	Rhs: ?Sized + PartialEq<BitSlice<O, T>>,
+	O: BitOrder,
+	Rhs: ?Sized + PartialEq<BitSlice<T, O>>,
 {
-	#[inline]
 	fn eq(&self, other: &Rhs) -> bool {
 		other == self.as_bitslice()
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O1, O2, T1, T2> PartialOrd<BitBox<O2, T2>> for BitSlice<O1, T1>
+impl<O1, O2, T1, T2> PartialOrd<BitBox<T2, O2>> for BitSlice<T1, O1>
 where
 	O1: BitOrder,
 	O2: BitOrder,
 	T1: BitStore,
 	T2: BitStore,
 {
-	#[inline]
-	fn partial_cmp(&self, other: &BitBox<O2, T2>) -> Option<cmp::Ordering> {
+	fn partial_cmp(&self, other: &BitBox<T2, O2>) -> Option<cmp::Ordering> {
 		self.partial_cmp(other.as_bitslice())
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T, Rhs> PartialOrd<Rhs> for BitBox<O, T>
+impl<T, O, Rhs> PartialOrd<Rhs> for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
-	Rhs: ?Sized + PartialOrd<BitSlice<O, T>>,
+	O: BitOrder,
+	Rhs: ?Sized + PartialOrd<BitSlice<T, O>>,
 {
-	#[inline]
 	fn partial_cmp(&self, other: &Rhs) -> Option<cmp::Ordering> {
 		other.partial_cmp(self.as_bitslice())
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<'a, O1, O2, T1, T2> PartialOrd<BitBox<O2, T2>> for &'a BitSlice<O1, T1>
+impl<'a, O1, O2, T1, T2> PartialOrd<BitBox<T2, O2>> for &'a BitSlice<T1, O1>
 where
 	O1: BitOrder,
 	O2: BitOrder,
 	T1: BitStore,
 	T2: BitStore,
 {
-	#[inline]
-	fn partial_cmp(&self, other: &BitBox<O2, T2>) -> Option<cmp::Ordering> {
+	fn partial_cmp(&self, other: &BitBox<T2, O2>) -> Option<cmp::Ordering> {
 		self.partial_cmp(other.as_bitslice())
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<'a, O1, O2, T1, T2> PartialOrd<BitBox<O2, T2>> for &'a mut BitSlice<O1, T1>
+impl<'a, O1, O2, T1, T2> PartialOrd<BitBox<T2, O2>> for &'a mut BitSlice<T1, O1>
 where
 	O1: BitOrder,
 	O2: BitOrder,
 	T1: BitStore,
 	T2: BitStore,
 {
-	#[inline]
-	fn partial_cmp(&self, other: &BitBox<O2, T2>) -> Option<cmp::Ordering> {
+	fn partial_cmp(&self, other: &BitBox<T2, O2>) -> Option<cmp::Ordering> {
 		self.partial_cmp(other.as_bitslice())
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> AsRef<BitSlice<O, T>> for BitBox<O, T>
+impl<T, O> AsRef<BitSlice<T, O>> for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline(always)]
-	fn as_ref(&self) -> &BitSlice<O, T> {
+	fn as_ref(&self) -> &BitSlice<T, O> {
 		self.as_bitslice()
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> AsMut<BitSlice<O, T>> for BitBox<O, T>
+impl<T, O> AsMut<BitSlice<T, O>> for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline(always)]
-	fn as_mut(&mut self) -> &mut BitSlice<O, T> {
+	fn as_mut(&mut self) -> &mut BitSlice<T, O> {
 		self.as_mut_bitslice()
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<'a, O, T> From<&'a BitSlice<O, T>> for BitBox<O, T>
+impl<T, O> From<&'_ BitSlice<T, O>> for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline(always)]
-	fn from(slice: &'a BitSlice<O, T>) -> Self {
-		Self::from_bitslice(slice)
+	fn from(slice: &BitSlice<T, O>) -> Self {
+		slice.pipe(Self::from_bitslice)
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, T> From<BitVec<O, T>> for BitBox<O, T>
+impl<A, O> From<BitArray<A, O>> for BitBox<A::Store, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	T: BitStore,
 {
-	#[inline(always)]
-	fn from(bv: BitVec<O, T>) -> Self {
+	fn from(array: BitArray<A, O>) -> Self {
+		array.as_bitslice().pipe(Self::from_bitslice)
+	}
+}
+
+impl<T, O> From<Box<T>> for BitBox<T, O>
+where
+	T: BitStore,
+	O: BitOrder,
+{
+	fn from(elem: Box<T>) -> Self {
+		unsafe {
+			Box::from_raw(Box::into_raw(elem).cast::<[T; 1]>() as *mut [T])
+		}
+		.pipe(Self::from_boxed_slice)
+	}
+}
+
+impl<'a, T, O> From<Cow<'a, BitSlice<T, O>>> for BitBox<T, O>
+where
+	T: BitStore,
+	O: BitOrder,
+{
+	fn from(cow: Cow<'a, BitSlice<T, O>>) -> Self {
+		cow.into_owned().into_boxed_bitslice()
+	}
+}
+
+impl<T, O> From<BitVec<T, O>> for BitBox<T, O>
+where
+	T: BitStore,
+	O: BitOrder,
+{
+	fn from(bv: BitVec<T, O>) -> Self {
 		bv.into_boxed_bitslice()
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, T> From<BitBox<O, T>> for Box<[T]>
+impl<T, O> From<BitBox<T, O>> for Box<[T]>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline(always)]
-	fn from(bb: BitBox<O, T>) -> Self {
+	fn from(bb: BitBox<T, O>) -> Self {
 		bb.into_boxed_slice()
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, T> TryFrom<Box<[T]>> for BitBox<O, T>
+impl<T, O> TryFrom<Box<[T]>> for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
 	type Error = Box<[T]>;
 
-	#[inline(always)]
 	fn try_from(boxed: Box<[T]>) -> Result<Self, Self::Error> {
 		Self::try_from_boxed_slice(boxed)
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, T> Default for BitBox<O, T>
+impl<T, O> Default for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline(always)]
 	fn default() -> Self {
-		Self {
-			bitspan: BitSpan::<Mut, O, T>::EMPTY,
-		}
+		Self::from_bitslice(BitSlice::<T, O>::empty())
 	}
 }
 
-impl<O, T> Debug for BitBox<O, T>
+impl<T, O> Debug for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		Pointer::fmt(self, fmt)?;
+		self.bitspan.render(fmt, "Box", None)?;
 		fmt.write_str(" ")?;
 		Display::fmt(self, fmt)
 	}
 }
 
+easy_fmt! {
+	impl Binary
+	impl Display
+	impl LowerHex
+	impl Octal
+	impl Pointer
+	impl UpperHex
+	for BitBox
+}
+
 #[cfg(not(tarpaulin_include))]
-impl<O, T> Display for BitBox<O, T>
+impl<T, O, I> FromIterator<I> for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
+	BitVec<T, O>: FromIterator<I>,
 {
-	#[inline(always)]
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		Display::fmt(self.as_bitslice(), fmt)
+	fn from_iter<II>(iter: II) -> Self
+	where II: IntoIterator<Item = I> {
+		BitVec::from_iter(iter).into_boxed_bitslice()
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> Binary for BitBox<O, T>
+impl<T, O> Hash for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
-{
-	#[inline(always)]
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		Binary::fmt(self.as_bitslice(), fmt)
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<O, T> LowerHex for BitBox<O, T>
-where
 	O: BitOrder,
-	T: BitStore,
 {
-	#[inline(always)]
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		LowerHex::fmt(self.as_bitslice(), fmt)
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<O, T> Octal for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	#[inline(always)]
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		Octal::fmt(self.as_bitslice(), fmt)
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<O, T> Pointer for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	#[inline(always)]
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		self.as_bitspan().render(fmt, "Box", None)
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<O, T> UpperHex for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	#[inline(always)]
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		UpperHex::fmt(self.as_bitslice(), fmt)
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<O, T> Hash for BitBox<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	#[inline(always)]
 	fn hash<H>(&self, state: &mut H)
 	where H: Hasher {
 		self.as_bitslice().hash(state)
 	}
 }
 
-unsafe impl<O, T> Send for BitBox<O, T>
+unsafe impl<T, O> Send for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
 }
 
-unsafe impl<O, T> Sync for BitBox<O, T>
+unsafe impl<T, O> Sync for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
 }
 
-impl<O, T> Unpin for BitBox<O, T>
+impl<T, O> Unpin for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
 }

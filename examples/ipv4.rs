@@ -1,9 +1,9 @@
 /*! This example demonstrates building an IPv4 packet header using `BitField`.
 
 The example program will run through the construction of the header at the speed
-of your terminal's buffer. The program can be made interactive, pausing after
+of your terminal’s buffer. The program can be made interactive, pausing after
 each modification so that the user can manually step to the next, by running it
-with the argument "pause": `cargo run --example ipv4 -- pause`
+with the argument “pause”: `cargo run --example ipv4 -- pause`.
 !*/
 
 #![allow(clippy::single_char_add_str)]
@@ -22,27 +22,36 @@ use std::{
 use bitvec::prelude::*;
 use wyz::fmt::FmtForward;
 
-type Ipv4Header = BitArray<Msb0, [u8; 20]>;
+#[cfg(feature = "std")]
+macro_rules! qprintln {
+	($($t:tt)*) => {
+		if !cfg!(feature = "testing") {
+			println!($($t)*);
+		}
+	};
+}
+
+type Ipv4Header = BitArray<[u8; 20], Msb0>;
 
 /// Build up an IPv4 packet
 fn build() -> Ipv4Header {
-	let mut pkt: Ipv4Header = BitArray::zeroed();
+	let mut pkt: Ipv4Header = BitArray::ZERO;
 	render("Starting with a blank packet", &pkt, 0 .. 0);
 
-	//  Set IPv4
+	//  Set IPv4.
 	pkt[.. 4].store(4u8);
 	render("Set IP version to 4", &pkt, 0 .. 4);
-	//  Set an IHL of 5 words
+	//  Set an IHL of 5 words.
 	pkt[4 .. 8].store(5u8);
 	render(
 		"Set header length to 5 32-bit words (20 bytes)",
 		&pkt,
 		4 .. 8,
 	);
-	//  Set the DSCP to "low drop, class 3" per Wikipedia
+	//  Set the DSCP to "low drop, class 3" per Wikipedia.
 	pkt[8 .. 14].store(0b011010u8);
 	render("Set DSCP number", &pkt, 8 .. 14);
-	//  Set the ECN flag to "ECT(0)", per RFC 3168
+	//  Set the ECN flag to "ECT(0)", per RFC 3168.
 	pkt[14 .. 16].store(0b10u8);
 	render("Set ECN flag", &pkt, 14 .. 16);
 
@@ -55,29 +64,29 @@ fn build() -> Ipv4Header {
 		16 .. 32,
 	);
 
-	//  Set the identification fingerprint
+	//  Set the identification fingerprint.
 	pkt[32 .. 48].store_be(0xACABu16);
 	render("Set an identifying fingerprint", &pkt, 32 .. 48);
 
-	//  Set the flags
+	//  Set the flags.
 	*pkt.get_mut(48).unwrap() = true;
 	*pkt.get_mut(49).unwrap() = false;
 	*pkt.get_mut(50).unwrap() = true;
 	render("Set some flags", &pkt, 48 .. 51);
 
-	//  Set the fragment offset to be 758, the age of the library in days
+	//  Set the fragment offset to be 758, the age of the library in days.
 	pkt[51 .. 64].store_be(758u16);
 	render("Set the fragment offset to 758", &pkt, 51 .. 64);
 
-	//  Set the TTL to 27 (my age in years)
-	pkt.as_mut_raw_slice()[8] = 27;
+	//  Set the TTL to 27 (my age in years).
+	pkt.as_raw_mut_slice()[8] = 27;
 	render("Set the TTL", &pkt, 64 .. 72);
-	//  Set the protocol number to 17 (UDP)
-	pkt.as_mut_raw_slice()[9] = 17;
+	//  Set the protocol number to 17 (UDP).
+	pkt.as_raw_mut_slice()[9] = 17;
 	render("Set the protocol number", &pkt, 72 .. 80);
 
-	//  Fill in the IP addresses using ordinary byte accesses
-	for (slot, byte) in pkt.as_mut_raw_slice()[12 .. 20]
+	//  Fill in the IP addresses using ordinary byte accesses.
+	for (slot, byte) in pkt.as_raw_mut_slice()[12 .. 20]
 		.iter_mut()
 		.zip(&[127, 0, 0, 1, 192, 168, 1, 254])
 	{
@@ -85,7 +94,7 @@ fn build() -> Ipv4Header {
 	}
 	render("Fill the source IP addresses", &pkt, 96 .. 160);
 
-	//  Last, set the checksum
+	//  Last, set the checksum.
 	let csum = ipv4_csum(&pkt[..]);
 	pkt[80 .. 96].store_be::<u16>(csum);
 	render("Set the checksum", &pkt, 80 .. 96);
@@ -93,11 +102,11 @@ fn build() -> Ipv4Header {
 	pkt
 }
 
-fn parse(header: BitArray<Msb0, [u8; 20]>) {
+fn parse(header: Ipv4Header) {
 	assert_eq!(ipv4_csum(&header[..]), 0);
 
 	//  Check that the version field is `4`, by `load`ing it and by direct
-	//  inspection
+	//  inspection.
 	assert_eq!(header[.. 4].load::<u8>(), 4);
 	assert_eq!(header.as_raw_slice()[0] & 0xF0, 0x40);
 
@@ -106,22 +115,24 @@ fn parse(header: BitArray<Msb0, [u8; 20]>) {
 	assert!(!header[49], "Unexpected fragmentation");
 	assert!(header[50], "Unexpected fragmentation");
 
-	eprintln!("Final packet: [");
+	qprintln!("Final packet: [");
 	for byte in &header.into_inner() {
-		eprintln!("    {:08b}", *byte);
+		qprintln!("    {:08b}", *byte);
 	}
-	eprintln!("]");
+	qprintln!("]");
 }
 
 fn main() {
-	eprintln!("Press <Enter> to move through the steps of the example");
+	qprintln!("Press <Enter> to move through the steps of the example");
 	parse(build());
 }
 
-fn ipv4_csum(header: &BitSlice<Msb0, u8>) -> u16 {
-	if !(160 .. 288).contains(&header.len()) {
-		panic!("IPv4 headers must be between 160 and 288 bits");
-	}
+fn ipv4_csum(header: &BitSlice<u8, Msb0>) -> u16 {
+	assert!(
+		(160 .. 288).contains(&header.len()),
+		"IPv4 headers must be between 160 and 288 bits"
+	);
+
 	let mut accum = 0u32;
 	for pair in header.chunks(16) {
 		accum += pair.load_be::<u16>() as u32;
@@ -135,7 +146,7 @@ fn ipv4_csum(header: &BitSlice<Msb0, u8>) -> u16 {
 }
 
 fn render(title: &'static str, packet: &Ipv4Header, range: Range<usize>) {
-	eprintln!("{}: {:#}", title, AnnotatedArray::new(packet, range));
+	qprintln!("{}: {:#}", title, AnnotatedArray::new(packet, range));
 	if std::env::args().last().unwrap() == "pause" {
 		let _ = io::stdin().read_line(&mut String::new()).unwrap();
 	}
@@ -143,7 +154,7 @@ fn render(title: &'static str, packet: &Ipv4Header, range: Range<usize>) {
 
 struct AnnotatedArray<'a> {
 	packet: &'a Ipv4Header,
-	range: Range<usize>,
+	range:  Range<usize>,
 }
 
 impl<'a> AnnotatedArray<'a> {
@@ -161,7 +172,7 @@ impl<'a> Display for AnnotatedArray<'a> {
 		for (idx, word) in self.packet.as_bitslice().chunks(32).enumerate() {
 			let start_bit = idx * 32;
 			let bits = start_bit .. start_bit + 32;
-			for (bit, idx) in word.iter().by_val().zip(bits) {
+			for (bit, idx) in word.iter().by_vals().zip(bits) {
 				word_string.push_str(if bit { "1" } else { "0" });
 				mark_string.push_str(if marked_bits.contains(&idx) {
 					"^"
@@ -184,3 +195,6 @@ impl<'a> Display for AnnotatedArray<'a> {
 		out.finish()
 	}
 }
+
+#[cfg(not(feature = "std"))]
+compile_error!("This example requires the standard library.");

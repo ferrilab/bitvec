@@ -1,14 +1,7 @@
-/*! Internal implementation macros for the public exports.
-
-The macros in this module are required to be exported from the crate, as the
-public macros will call them from client contexts (`macro_rules!` expansion
-bodies are not in source crate scope, as they are token expansion rather than
-symbolic calls). However, they are not part of the public *API* of the crate,
-and are not intended for use anywhere but in the expansion bodies of the
-public-API constructor macros.
-!*/
-
 #![doc(hidden)]
+#![doc = include_str!("../../doc/macros/internal.md")]
+
+//  Provide known mount-points of dependency crates.
 
 #[doc(hidden)]
 pub use core;
@@ -16,95 +9,106 @@ pub use core;
 #[doc(hidden)]
 pub use funty;
 
-/** Encodes a sequence of bits into an array of `BitStore` types.
-
-This is able to encode a bitstream into any of the fundamental integers, their
-atomics, and their cells. It always produces an array of the requested type,
-even if the array is one element long.
-**/
 #[doc(hidden)]
 #[macro_export]
+#[doc = include_str!("../../doc/macros/encode_bits.md")]
 macro_rules! __encode_bits {
-	//  Capture the `BitStore` storage arguments literally. The macro cannot
-	//  accept unknown typenames, as it must use them to chunk the bitstream.
+	/* ENTRY POINTS
+	 *
+	 * These arms match the syntax provided by the public macros, and dispatch
+	 * by storage type width.
+	 */
 
-	($ord:tt, u8; $($val:expr),*) => {
-		$crate::__encode_bits!($ord, u8 as u8; $($val),*)
+	(u8, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(u8 as u8, $ord; $($val),*)
 	};
-	($ord:tt, Cell<u8>; $($val:expr),*) => {
-		$crate::__encode_bits!($ord, Cell<u8> as u8; $($val),*)
+	(Cell<u8>, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(Cell<u8> as u8, $ord; $($val),*)
 	};
-	($ord:tt, AtomicU8; $($val:expr),*) => {
-		$crate::__encode_bits!($ord, AtomicU8 as u8; $($val),*)
+	(AtomicU8, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(AtomicU8 as u8, $ord; $($val),*)
 	};
-
-	($ord:tt, u16; $($val:expr),*) => {
-		$crate::__encode_bits!($ord, u16 as u16; $($val),*)
-	};
-	($ord:tt, Cell<u16>; $($val:expr),*) => {
-		$crate::__encode_bits!($ord, Cell<u16> as u16; $($val),*)
-	};
-	($ord:tt, AtomicU16; $($val:expr),*) => {
-		$crate::__encode_bits!($ord, AtomicU16 as u16; $($val),*)
+	(RadiumU8, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(RadiumU8 as u8, $ord; $($val),*)
 	};
 
-	($ord:tt, u32; $($val:expr),*) => {
-		$crate::__encode_bits!($ord, u32 as u32; $($val),*)
+	(u16, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(u16 as u16, $ord; $($val),*)
 	};
-	($ord:tt, Cell<u32>; $($val:expr),*) => {
-		$crate::__encode_bits!($ord, Cell<u32> as u32; $($val),*)
+	(Cell<u16>, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(Cell<u16> as u16, $ord; $($val),*)
 	};
-	($ord:tt, AtomicU32; $($val:expr),*) => {
-		$crate::__encode_bits!($ord, AtomicU32 as u32; $($val),*)
+	(AtomicU16, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(AtomicU16 as u16, $ord; $($val),*)
 	};
-
-	($ord:tt, u64; $($val:expr),*) => {
-		$crate::__encode_bits!($ord, u64 as u64; $($val),*)
-	};
-	($ord:tt, Cell<u64>; $($val:expr),*) => {
-		$crate::__encode_bits!($ord, Cell<u64> as u64; $($val),*)
-	};
-	($ord:tt, AtomicU64; $($val:expr),*) => {
-		$crate::__encode_bits!($ord, AtomicU64 as u64; $($val),*)
+	(RadiumU16, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(RadiumU16 as u16, $ord; $($val),*)
 	};
 
-	($ord:tt, usize; $($val:expr),*) => {
-		$crate::__encode_bits!($ord, usize as usize; $($val),*)
+	(u32, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(u32 as u32, $ord; $($val),*)
 	};
-	($ord:tt, Cell<usize>; $($val:expr),*) => {
-		$crate::__encode_bits!($ord, Cell<usize> as usize; $($val),*)
+	(Cell<u32>, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(Cell<u32> as u32, $ord; $($val),*)
 	};
-	($ord:tt, AtomicUsize; $($val:expr),*) => {
-		$crate::__encode_bits!($ord, AtomicUsize as usize; $($val),*)
+	(AtomicU32, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(AtomicU32 as u32, $ord; $($val),*)
+	};
+	(RadiumU32, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(RadiumU32 as u32, $ord; $($val),*)
 	};
 
-	//  Capture `$typ as usize`, and forward them to the correct known-width
-	//  integer for construction.
-	($ord:tt, $typ:ty as usize; $($val:expr),*) => {{
+	(u64, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(u64 as u64, $ord; $($val),*)
+	};
+	(Cell<u64>, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(Cell<u64> as u64, $ord; $($val),*)
+	};
+	(AtomicU64, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(AtomicU64 as u64, $ord; $($val),*)
+	};
+	(RadiumU64, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(RadiumU64 as u64, $ord; $($val),*)
+	};
+
+	(usize, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(usize as usize, $ord; $($val),*)
+	};
+	(Cell<usize>, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(Cell<usize> as usize, $ord; $($val),*)
+	};
+	(AtomicUsize, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(AtomicUsize as usize, $ord; $($val),*)
+	};
+	(RadiumUsize, $ord:tt; $($val:expr),*) => {
+		$crate::__encode_bits!(RadiumUsize as usize, $ord; $($val),*)
+	};
+
+	//  This arm routes `usize` into `u32` or `u64`, depending on target, and
+	//  marks them to return to `usize` after chunking.
+	($typ:ty as usize, $ord:tt; $($val:expr),*) => {{
 		const LEN: usize = $crate::__count_elts!(usize; $($val),*);
 
+		let out: [$typ; LEN];
+
 		#[cfg(target_pointer_width = "32")]
-		let out: [$typ; LEN] = $crate::__encode_bits!(
-			$ord, $typ as u32 as usize; $($val),*
-		);
+		{
+			out = $crate::__encode_bits!($typ as u32 as usize, $ord; $($val),*);
+		}
 
 		#[cfg(target_pointer_width = "64")]
-		let out: [$typ; LEN] = $crate::__encode_bits!(
-			$ord, $typ as u64 as usize; $($val),*
-		);
+		{
+			out = $crate::__encode_bits!($typ as u64 as usize, $ord; $($val),*);
+		}
 
 		out
 	}};
 
-	/* All matchers above forward to this matcher, which then forwards to those
-	below.
-
-	This block extends the bitstream with 64 `0` literals, ensuring that *any*
-	provided bitstream can fit into the chunking matchers for subdivision.
-	*/
-	($ord:tt, $typ:ty as $uint:ident $(as $usz:ident)?; $($val:expr),*) => {
+	//  ZERO EXTENSION: Supply literal `0, ` tokens to ensure that elements can
+	//  be completely filled with bits.
+	($typ:ty as $uint:ident $(as $usz:ident)?, $ord:tt; $($val:expr),*) => {
 		$crate::__encode_bits!(
-			$ord, $typ as $uint $(as $usz)?, []; $($val,)*
+			$typ as $uint $(as $usz)?, $ord; []; $($val,)*
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 16
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 32
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 48
@@ -112,66 +116,66 @@ macro_rules! __encode_bits {
 		)
 	};
 
-	/* This block is the last invoked. It requires a sequence of chunked element
-	candidates (the `$bit` tokens are actually an opaque sequence of bit
-	expressions), followed by literal `0` tokens. Tokens provided by the caller
-	are already opaque; only the zeros created in the previous arm are visible.
-
-	As such, this enters only when the caller-provided bit tokens are exhausted.
-
-	Once entered, this matcher converts each tuple of bit expressions into the
-	requested storage type, and collects them into an array. This array is the
-	return value of the originally-called macro.
-	*/
+	/* EXIT POINT.
+	 *
+	 * This arm enters once the only remaining bit-expression tokens are the
+	 * literal `0, `s provided above. It does not enter while any opaque
+	 * user-provided bit expressions remain, and matching falls through to the
+	 * chunkers, below.
+	 *
+	 * Once entered, this converts each chunk of bit expressions into the
+	 * requested storage element, then emits an array of the encoded elements.
+	 * This array is the final value of the originally-invoked macro. The
+	 * invoker is responsible for turning the array into a `bitvec` type.
+	 */
 	(
-		$ord:tt,
-		$typ:ty as $uint:ident $(as usize)?,
-		[$( ( $($bit:tt),* ) )*]; $(0,)*
+		$typ:ty as $uint:ident as usize, $ord:tt;
+		[$([$($bit:tt,)+],)*]; $(0,)*
 	) => {
-		[$($crate::__make_elem!(
-			$ord,
-			$typ as $uint;
-			$($bit),*
-		)),*]
+		[$($crate::__make_elem!($typ as $uint as usize, $ord; $($bit,)+),)*]
+	};
+	(
+		$typ:ty as $uint:ident, $ord:tt;
+		[$([$($bit:tt,)+],)*]; $(0,)*
+	) => {
+		[$($crate::__make_elem!($typ as $uint, $ord; $($bit,)+),)*]
 	};
 
-	/* These matchers chunk a stream of bit expressions into storage elements.
+	/* CHUNKERS
+	 *
+	 * These arms munch through the token stream, creating a sequence of chunks
+	 * of bits. Each chunk contains bits to exactly fill one element, and gets
+	 * passed into `__make_elem!` for final encoding.
+	 */
 
-	On each entry, one element’s worth of bit tokens are pulled from the front
-	of the stream (possibly including the literal `0` tokens provided above) and
-	appended to the accumulator array as a n-tuple of bit expressions. This
-	process continues until no more caller-provided bitstream tokens remain, at
-	which point recursion traps in the above matchers, terminating the chunking
-	and proceeding to element construction.
-	*/
 	(
-		$ord:tt, $typ:tt as u8, [$( $elem:tt )*];
+		$typ:ty as u8, $ord:tt; [$($elem:tt)*];
 		$a0:tt, $b0:tt, $c0:tt, $d0:tt, $e0:tt, $f0:tt, $g0:tt, $h0:tt,
 		$($t:tt)*
 	) => {
 		$crate::__encode_bits!(
-			$ord, $typ as u8, [$($elem)* (
-				$a0, $b0, $c0, $d0, $e0, $f0, $g0, $h0
-			)]; $($t)*
+			$typ as u8, $ord; [$($elem)* [
+				$a0, $b0, $c0, $d0, $e0, $f0, $g0, $h0,
+			],]; $($t)*
 		)
 	};
 
 	(
-		$ord:tt, $typ:tt as u16, [$( $elem:tt )*];
+		$typ:ty as u16, $ord:tt; [$($elem:tt)*];
 		$a0:tt, $b0:tt, $c0:tt, $d0:tt, $e0:tt, $f0:tt, $g0:tt, $h0:tt,
 		$a1:tt, $b1:tt, $c1:tt, $d1:tt, $e1:tt, $f1:tt, $g1:tt, $h1:tt,
 		$($t:tt)*
 	) => {
 		$crate::__encode_bits!(
-			$ord, $typ as u16, [$($elem)* (
+			$typ as u16, $ord; [$($elem)* [
 				$a0, $b0, $c0, $d0, $e0, $f0, $g0, $h0,
-				$a1, $b1, $c1, $d1, $e1, $f1, $g1, $h1
-			)]; $($t)*
+				$a1, $b1, $c1, $d1, $e1, $f1, $g1, $h1,
+			],]; $($t)*
 		)
 	};
 
 	(
-		$ord:tt, $typ:tt as u32 $(as $usz:ident)?, [$( $elem:tt )*];
+		$typ:ty as u32 $(as $usz:ident)?, $ord:tt; [$($elem:tt)*];
 		$a0:tt, $b0:tt, $c0:tt, $d0:tt, $e0:tt, $f0:tt, $g0:tt, $h0:tt,
 		$a1:tt, $b1:tt, $c1:tt, $d1:tt, $e1:tt, $f1:tt, $g1:tt, $h1:tt,
 		$a2:tt, $b2:tt, $c2:tt, $d2:tt, $e2:tt, $f2:tt, $g2:tt, $h2:tt,
@@ -179,17 +183,17 @@ macro_rules! __encode_bits {
 		$($t:tt)*
 	) => {
 		$crate::__encode_bits!(
-			$ord, $typ as u32 $(as $usz)?, [$($elem)* (
+			$typ as u32 $(as $usz)?, $ord; [$($elem)* [
 				$a0, $b0, $c0, $d0, $e0, $f0, $g0, $h0,
 				$a1, $b1, $c1, $d1, $e1, $f1, $g1, $h1,
 				$a2, $b2, $c2, $d2, $e2, $f2, $g2, $h2,
-				$a3, $b3, $c3, $d3, $e3, $f3, $g3, $h3
-			)]; $($t)*
+				$a3, $b3, $c3, $d3, $e3, $f3, $g3, $h3,
+			],]; $($t)*
 		)
 	};
 
 	(
-		$ord:tt, $typ:tt as u64 $(as $usz:ident)?, [$( $elem:tt )*];
+		$typ:ty as u64 $(as $usz:ident)?, $ord:tt; [$($elem:tt)*];
 		$a0:tt, $b0:tt, $c0:tt, $d0:tt, $e0:tt, $f0:tt, $g0:tt, $h0:tt,
 		$a1:tt, $b1:tt, $c1:tt, $d1:tt, $e1:tt, $f1:tt, $g1:tt, $h1:tt,
 		$a2:tt, $b2:tt, $c2:tt, $d2:tt, $e2:tt, $f2:tt, $g2:tt, $h2:tt,
@@ -201,7 +205,7 @@ macro_rules! __encode_bits {
 		$($t:tt)*
 	) => {
 		$crate::__encode_bits!(
-			$ord, $typ as u64 $(as $usz)?, [$($elem)* (
+			$typ as u64 $(as $usz)?, $ord; [$($elem)* [
 				$a0, $b0, $c0, $d0, $e0, $f0, $g0, $h0,
 				$a1, $b1, $c1, $d1, $e1, $f1, $g1, $h1,
 				$a2, $b2, $c2, $d2, $e2, $f2, $g2, $h2,
@@ -209,195 +213,155 @@ macro_rules! __encode_bits {
 				$a4, $b4, $c4, $d4, $e4, $f4, $g4, $h4,
 				$a5, $b5, $c5, $d5, $e5, $f5, $g5, $h5,
 				$a6, $b6, $c6, $d6, $e6, $f6, $g6, $h6,
-				$a7, $b7, $c7, $d7, $e7, $f7, $g7, $h7
-			)]; $($t)*
+				$a7, $b7, $c7, $d7, $e7, $f7, $g7, $h7,
+			],]; $($t)*
 		)
 	};
 }
 
-/// Counts the number of repetitions inside a `$()*` sequence.
+/// Counts the number of expression tokens in a repetition sequence.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __count {
 	(@ $val:expr) => { 1 };
-	($($val:expr),*) => {{
-		/* Clippy warns that `.. EXPR + 1`, for any value of `EXPR`, should be
-		replaced with `..= EXPR`. This means that `.. $crate::__count!` raises
-		the lint, causing `bits![(val,)…]` to have an unfixable lint warning.
-		By binding to a `const`, then returning the `const`, this syntax
-		construction is avoided as macros only expand to
-		`.. { const LEN = …; LEN }` rather than `.. 0 (+ 1)…`.
-		*/
-		const LEN: usize = 0usize $(+ $crate::__count!(@ $val))*;
+	($($val:expr),* $(,)?) => {{
+		const LEN: usize = 0 $(+ $crate::__count!(@ $val))*;
 		LEN
 	}};
 }
 
-/// Counts the number of elements needed to store a number of bits.
+/// Counts the number of storage elements needed to store a bit sequence.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __count_elts {
-	($t:ty; $($val:expr),*) => {{
+	($t:ty; $($val:expr),*) => {
 		$crate::mem::elts::<$t>($crate::__count!($($val),*))
-	}};
+	};
 }
 
-/** Constructs a `T: BitStore` element from a byte-chunked sequence of bits.
-
-# Arguments
-
-- one of `Lsb0`, `Msb0`, `LocalBits`, or some path to a `BitOrder` implementor:
-  the ordering parameter to use. Token matching against the three named
-  orderings allows immediate work; unknown tokens invoke their trait
-  implementation.
-- `$typ` as `$uint`: Any `BitStore` implementor and its `::Mem` type.
-- A sequence of any number of `(`, eight expressions, then `)`. These cluster
-  bits into bytes, bytes into `$uint`, and then `$uint` into `$typ`.
-
-# Returns
-
-Exactly one `$typ`, whose bit-pattern is set to the provided sequence according
-to the provided ordering.
-
-# Safety
-
-This uses `mem::transmute` internally, and so must be invoked within a
-caller-provided `unsafe` block. It does not use its own `unsafe` block in order
-to avoid a compiler warning about nested blocks.
-**/
 #[doc(hidden)]
 #[macro_export]
+#[doc = include_str!("../../doc/macros/make_elem.md")]
 macro_rules! __make_elem {
 	//  Token-matching ordering names can use specialized work.
-	(Lsb0, $typ:ty as $uint:ident; $(
+	($typ:ty as $uint:ident $(as $usz:ident)?, Lsb0; $(
 		$a:expr, $b:expr, $c:expr, $d:expr,
-		$e:expr, $f:expr, $g:expr, $h:expr
-	),*) => { unsafe {
-		use $crate::macros::internal::core;
+		$e:expr, $f:expr, $g:expr, $h:expr,
+	)*) => {{
 		const ELEM: $uint = $crate::__ty_from_bytes!(
-			Lsb0, $uint, [$($crate::macros::internal::u8_from_le_bits(
+			$uint, Lsb0, [$($crate::macros::internal::u8_from_le_bits(
 				$a != 0, $b != 0, $c != 0, $d != 0,
 				$e != 0, $f != 0, $g != 0, $h != 0,
 			)),*]
 		);
-		core::mem::transmute::<$uint, $typ>(ELEM)
-	} };
-	(Msb0, $typ:ty as $uint:ident; $(
+		$crate::mem::BitElement::<$typ>::new(ELEM $(as $usz)?).elem
+	}};
+	($typ:ty as $uint:ident $(as $usz:ident)?, Msb0; $(
 		$a:expr, $b:expr, $c:expr, $d:expr,
-		$e:expr, $f:expr, $g:expr, $h:expr
-	),*) => { unsafe {
-		use $crate::macros::internal::core;
+		$e:expr, $f:expr, $g:expr, $h:expr,
+	)*) => {{
 		const ELEM: $uint = $crate::__ty_from_bytes!(
-			Msb0, $uint, [$($crate::macros::internal::u8_from_be_bits(
+			$uint, Msb0, [$($crate::macros::internal::u8_from_be_bits(
 				$a != 0, $b != 0, $c != 0, $d != 0,
 				$e != 0, $f != 0, $g != 0, $h != 0,
 			)),*]
 		);
-		core::mem::transmute::<$uint, $typ>(ELEM)
-	} };
-	(LocalBits, $typ:ty as $uint:ident; $(
+		$crate::mem::BitElement::<$typ>::new(ELEM $(as $usz)?).elem
+	}};
+	($typ:ty as $uint:ident $(as $usz:ident)?, LocalBits; $(
 		$a:expr, $b:expr, $c:expr, $d:expr,
-		$e:expr, $f:expr, $g:expr, $h:expr
-	),*) => { unsafe {
-		use $crate::macros::internal::core;
+		$e:expr, $f:expr, $g:expr, $h:expr,
+	)*) => {{
 		const ELEM: $uint = $crate::__ty_from_bytes!(
-			LocalBits, $uint, [$($crate::macros::internal::u8_from_ne_bits(
+			$uint, LocalBits, [$($crate::macros::internal::u8_from_ne_bits(
 				$a != 0, $b != 0, $c != 0, $d != 0,
 				$e != 0, $f != 0, $g != 0, $h != 0,
 			)),*]
 		);
-		core::mem::transmute::<$uint, $typ>(ELEM)
-	} };
+		$crate::mem::BitElement::<$typ>::new(ELEM $(as $usz)?).elem
+	}};
 	//  Otherwise, invoke `BitOrder` for each bit and accumulate.
-	($ord:tt, $typ:ty as $uint:ident; $($bit:expr),* $(,)?) => { unsafe {
-		use $crate::macros::internal::core;
+	($typ:ty as $uint:ident $(as $usz:ident)?, $ord:tt; $($bit:expr),* $(,)?) => {{
 		let mut tmp: $uint = 0;
-		let _bits = $crate::slice::BitSlice::<$ord, $uint>::from_element_mut(
+		let _bits = $crate::slice::BitSlice::<$uint, $ord>::from_element_mut(
 			&mut tmp
 		);
 		let mut _idx = 0;
 		$( _bits.set(_idx, $bit != 0); _idx += 1; )*
-		core::mem::transmute::<$uint, $typ>(tmp)
-	} };
+		$crate::mem::BitElement::<$typ>::new(tmp $(as $usz)?).elem
+	}};
 }
 
-/** Extend a single bit to fill an element.
-
-# Parameters
-
-- `$val`: An integer expression to be tested as non-zero.
-- `$typ`: Some opaque type expression.
-
-# Returns
-
-`$val != 0`, as `<$typ as BitStore>::Mem`.
-**/
+/// Translates `false` into `0` and `true` into `!0`.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __extend_bool {
 	($val:expr, $typ:tt) => {{
-		type Mem = <$typ as BitStore>::Mem;
-		[
-			<Mem as $crate::macros::internal::funty::IsInteger>::ZERO,
-			<Mem as $crate::mem::BitRegister>::ALL,
-		][($val != 0) as usize]
+		type Mem = <$typ as $crate::store::BitStore>::Mem;
+		if $val != 0 {
+			<Mem as $crate::mem::BitRegister>::ALL
+		}
+		else {
+			<Mem as $crate::macros::internal::funty::Integral>::ZERO
+		}
 	}};
 }
 
-/// Constructs a fundamental integer from a list of bytes.
+/// Constructs an unsigned integer from a list of *bytes*.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __ty_from_bytes {
-	(Msb0, u8, [$($byte:expr),*]) => {
+	(u8, Msb0, [$($byte:expr),*]) => {
 		u8::from_be_bytes([$($byte),*])
 	};
-	(Lsb0, u8, [$($byte:expr),*]) => {
+	(u8, Lsb0, [$($byte:expr),*]) => {
 		u8::from_le_bytes([$($byte),*])
 	};
-	(LocalBits, u8, [$($byte:expr),*]) => {
+	(u8, LocalBits, [$($byte:expr),*]) => {
 		u8::from_ne_bytes([$($byte),*])
 	};
-	(Msb0, u16, [$($byte:expr),*]) => {
+	(u16, Msb0, [$($byte:expr),*]) => {
 		u16::from_be_bytes([$($byte),*])
 	};
-	(Lsb0, u16, [$($byte:expr),*]) => {
+	(u16, Lsb0, [$($byte:expr),*]) => {
 		u16::from_le_bytes([$($byte),*])
 	};
-	(LocalBits, u16, [$($byte:expr),*]) => {
+	(u16, LocalBits, [$($byte:expr),*]) => {
 		u16::from_ne_bytes([$($byte),*])
 	};
-	(Msb0, u32, [$($byte:expr),*]) => {
+	(u32, Msb0, [$($byte:expr),*]) => {
 		u32::from_be_bytes([$($byte),*])
 	};
-	(Lsb0, u32, [$($byte:expr),*]) => {
+	(u32, Lsb0, [$($byte:expr),*]) => {
 		u32::from_le_bytes([$($byte),*])
 	};
-	(LocalBits, u32, [$($byte:expr),*]) => {
+	(u32, LocalBits, [$($byte:expr),*]) => {
 		u32::from_ne_bytes([$($byte),*])
 	};
-	(Msb0, u64, [$($byte:expr),*]) => {
+	(u64, Msb0, [$($byte:expr),*]) => {
 		u64::from_be_bytes([$($byte),*])
 	};
-	(Lsb0, u64, [$($byte:expr),*]) => {
+	(u64, Lsb0, [$($byte:expr),*]) => {
 		u64::from_le_bytes([$($byte),*])
 	};
-	(LocalBits, u64, [$($byte:expr),*]) => {
+	(u64, LocalBits, [$($byte:expr),*]) => {
 		u64::from_ne_bytes([$($byte),*])
 	};
-	(Msb0, usize, [$($byte:expr),*]) => {
+	(usize, Msb0, [$($byte:expr),*]) => {
 		usize::from_be_bytes([$($byte),*])
 	};
-	(Lsb0, usize, [$($byte:expr),*]) => {
+	(usizeLsb0, , [$($byte:expr),*]) => {
 		usize::from_le_bytes([$($byte),*])
 	};
-	(LocalBits, usize, [$($byte:expr),*]) => {
+	(usize, LocalBits, [$($byte:expr),*]) => {
 		usize::from_ne_bytes([$($byte),*])
 	};
 }
 
-/// Construct a `u8` from bits applied in Lsb0-order.
-#[cfg_attr(not(tarpaulin_include), inline(always))]
-#[allow(clippy::many_single_char_names, clippy::too_many_arguments)]
+/// Constructs a `u8` from bits applied in `Lsb0` order (`a` low, `h` high).
+#[doc(hidden)]
+#[inline(always)]
+#[cfg(not(tarpaulin_include))]
 pub const fn u8_from_le_bits(
 	a: bool,
 	b: bool,
@@ -418,9 +382,10 @@ pub const fn u8_from_le_bits(
 		| ((h as u8) << 7)
 }
 
-/// Construct a `u8` from bits applied in Msb0-order.
-#[cfg_attr(not(tarpaulin_include), inline(always))]
-#[allow(clippy::many_single_char_names, clippy::too_many_arguments)]
+/// Constructs a `u8` from bits applied in `Msb0` order (`a` high, `h` low).
+#[doc(hidden)]
+#[inline(always)]
+#[cfg(not(tarpaulin_include))]
 pub const fn u8_from_be_bits(
 	a: bool,
 	b: bool,
@@ -447,21 +412,3 @@ pub use self::u8_from_be_bits as u8_from_ne_bits;
 #[doc(hidden)]
 #[cfg(target_endian = "little")]
 pub use self::u8_from_le_bits as u8_from_ne_bits;
-
-#[cfg(test)]
-mod tests {
-	use super::*;
-
-	#[test]
-	fn byte_assembly() {
-		assert_eq!(
-			u8_from_le_bits(false, false, true, true, false, true, false, true),
-			0b1010_1100
-		);
-
-		assert_eq!(
-			u8_from_be_bits(false, false, true, true, false, true, false, true),
-			0b0011_0101
-		);
-	}
-}

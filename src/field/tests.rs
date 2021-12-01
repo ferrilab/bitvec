@@ -1,201 +1,315 @@
-//! Unit tests for the `field` module.
+#![cfg(test)]
 
-use super::*;
+#[cfg(feature = "std")]
+use std::io;
+
+use rand::prelude::*;
+
 use crate::prelude::*;
 
 #[test]
-fn get_value() {
-	let data = [5u32 << 3, 0x01234567, !5];
-	let bits = data.view_bits::<Lsb0>();
+fn lsb0_u8_any_u5() {
+	let mut bits = BitArray::<u8, Lsb0>::ZERO;
 
-	let (head, elem, tail) = bits[3 .. 6].domain().enclave().unwrap();
-	let byte = get::<u32, u8>(elem, Lsb0::mask(head, tail), 3);
-	assert_eq!(byte, 5u8);
+	let val = random::<u8>() & 0x1Fu8;
+	bits[2 .. 7].store_le(val);
+	assert_eq!(
+		bits.as_raw_slice()[0],
+		val << 2,
+		"{:08b} != {:08b}",
+		bits.as_raw_slice()[0],
+		val << 2,
+	);
+	assert_eq!(bits[2 .. 7].load_le::<u8>(), val);
 
-	let (head, body, tail) = bits[32 .. 48].domain().region().unwrap();
-	assert!(head.is_none());
-	assert!(body.is_empty());
-	let (elem, tail) = tail.unwrap();
-	let short = get::<u32, u16>(elem, Lsb0::mask(None, tail), 0);
-	assert_eq!(short, 0x4567u16);
+	let neg = val | 0xF0;
+	bits[2 .. 7].store_le(neg);
+	assert_eq!(bits[2 .. 7].load_le::<i8>(), neg as i8);
 
-	let (head, body, tail) = bits[48 .. 64].domain().region().unwrap();
-	assert!(tail.is_none());
-	assert!(body.is_empty());
-	let (head, elem) = head.unwrap();
-	let short = get::<u32, u16>(elem, Lsb0::mask(head, None), 16);
-	assert_eq!(short, 0x0123u16);
+	let val = random::<u8>() & 0x1Fu8;
+	bits[2 .. 7].store_be(val);
+	assert_eq!(
+		bits.as_raw_slice()[0],
+		val << 2,
+		"{:08b} != {:08b}",
+		bits.as_raw_slice()[0],
+		val << 2,
+	);
+	assert_eq!(bits[2 .. 7].load_be::<u8>(), val);
 
-	let (head, body, tail) = bits[64 .. 96].domain().region().unwrap();
-	assert!(head.is_none());
-	assert_eq!(body, &[!5]);
-	assert!(tail.is_none());
+	let neg = val | 0xF0;
+	bits[2 .. 7].store_be(neg);
+	assert_eq!(bits[2 .. 7].load_be::<i8>(), neg as i8);
 }
 
 #[test]
-fn set_value() {
-	let mut data = [0u32; 3];
-	let bits = data.view_bits_mut::<Lsb0>();
+fn lsb0_u8_le_u20() {
+	let mut bits = BitArray::<[u8; 3], Lsb0>::ZERO;
 
-	let (head, elem, tail) = bits[3 .. 6].domain_mut().enclave().unwrap();
-	set::<u32, u16>(elem, 13u16, Lsb0::mask(head, tail), 3);
+	let val = random::<u32>() & 0x00_0F_FF_FFu32;
+	let bytes = (val << 2).to_le_bytes();
+	bits[2 .. 22].store_le(val);
+	assert_eq!(bits.as_raw_slice(), &bytes[.. 3]);
+	assert_eq!(bits[2 .. 22].load_le::<u32>(), val);
 
-	let (head, body, tail) = bits[32 .. 48].domain_mut().region().unwrap();
-	assert!(head.is_none());
-	assert!(body.is_empty());
-	let (elem, tail) = tail.unwrap();
-	set::<u32, u16>(elem, 0x4567u16, Lsb0::mask(None, tail), 0);
-
-	let (head, body, tail) = bits[48 .. 64].domain_mut().region().unwrap();
-	assert!(tail.is_none());
-	assert!(body.is_empty());
-	let (head, elem) = head.unwrap();
-	set::<u32, u16>(elem, 0x0123u16, Lsb0::mask(head, None), 16);
-
-	assert_eq!(data[0], 5 << 3);
-	assert_eq!(data[1], 0x01234567u32);
+	let neg = val | 0xFF_F8_00_00u32;
+	bits[2 .. 22].store_le(neg);
+	assert_eq!(
+		bits[2 .. 22].load_le::<i32>(),
+		neg as i32,
+		"{:08x} != {:08x}",
+		bits[2 .. 22].load_le::<i32>(),
+		neg as i32,
+	);
 }
 
 #[test]
-fn byte_fields() {
-	let mut data = [0u8; 3];
+fn lsb0_u8_be_u20() {
+	let mut bits = BitArray::<[u8; 3], Lsb0>::ZERO;
 
-	data.view_bits_mut::<Msb0>()[4 .. 20].store_be(0xABCDu16);
-	assert_eq!(data, [0x0A, 0xBC, 0xD0]);
-	assert_eq!(data.view_bits::<Msb0>()[4 .. 20].load_be::<u16>(), 0xABCD);
+	let val = random::<u32>() & 0x00_0F_FF_FFu32;
+	let mut bytes = (val << 2).to_be_bytes();
+	// Lsb0 _be has *weird* effects in raw memory.
+	bytes[1] <<= 2;
+	bytes[3] >>= 2;
+	bits[2 .. 22].store_be(val);
+	assert_eq!(bits.as_raw_slice(), &bytes[1 ..]);
+	assert_eq!(bits[2 .. 22].load_be::<u32>(), val);
 
-	data.view_bits_mut::<Msb0>()[2 .. 6].store_be(9u8);
-	assert_eq!(data, [0x26, 0xBC, 0xD0]);
-	assert_eq!(data.view_bits::<Msb0>()[2 .. 6].load_be::<u8>(), 9);
-
-	data = [0; 3];
-	data.view_bits_mut::<Lsb0>()[4 .. 20].store_be(0xABCDu16);
-	assert_eq!(data, [0xA0, 0xBC, 0x0D]);
-	assert_eq!(data.view_bits::<Lsb0>()[4 .. 20].load_be::<u16>(), 0xABCD);
-
-	data.view_bits_mut::<Lsb0>()[2 .. 6].store_be(9u8);
-	//  0b1010_0000 | 0b00_1001_00
-	assert_eq!(data, [0xA4, 0xBC, 0x0D]);
-	assert_eq!(data.view_bits::<Lsb0>()[2 .. 6].load_be::<u8>(), 9);
-
-	data = [0; 3];
-	data.view_bits_mut::<Msb0>()[4 .. 20].store_le(0xABCDu16);
-	assert_eq!(data, [0x0D, 0xBC, 0xA0]);
-	assert_eq!(data.view_bits::<Msb0>()[4 .. 20].load_le::<u16>(), 0xABCD);
-
-	data.view_bits_mut::<Msb0>()[.. 8].set_all(false);
-	data.view_bits_mut::<Msb0>()[2 .. 6].store_le(5u8);
-	assert_eq!(data[0], 20);
-	assert_eq!(data.view_bits::<Msb0>()[2 .. 6].load_le::<u8>(), 5);
-
-	data = [0; 3];
-	data.view_bits_mut::<Lsb0>()[4 .. 20].store_le(0xABCDu16);
-	assert_eq!(data, [0xD0, 0xBC, 0x0A]);
-	assert_eq!(data.view_bits::<Lsb0>()[4 .. 20].load_le::<u16>(), 0xABCD);
-
-	data.view_bits_mut::<Lsb0>()[.. 8].set_all(false);
-	data.view_bits_mut::<Lsb0>()[2 .. 6].store_le(5u8);
-	assert_eq!(data[0], 20);
-	assert_eq!(data.view_bits::<Lsb0>()[2 .. 6].load_le::<u8>(), 5);
+	let neg = val | 0xFF_F8_00_00u32;
+	bits[2 .. 22].store_be(neg);
+	assert_eq!(
+		bits[2 .. 22].load_be::<i32>(),
+		neg as i32,
+		"{:08x} != {:08x}",
+		bits[2 .. 22].load_le::<i32>(),
+		neg as i32,
+	);
 }
 
 #[test]
-fn narrow_byte_fields() {
-	let mut data = [0u16; 2];
+fn msb0_u8_any_u5() {
+	let mut bits = BitArray::<u8, Msb0>::ZERO;
 
-	data.view_bits_mut::<Msb0>()[16 .. 24].store_be(0x12u8);
-	assert_eq!(data, [0x0000, 0x1200]);
-	assert_eq!(data.view_bits::<Msb0>()[16 .. 24].load_be::<u8>(), 0x12);
+	let val = random::<u8>() & 0x1Fu8;
+	bits[2 .. 7].store_le(val);
+	assert_eq!(
+		bits.as_raw_slice()[0],
+		val << 1,
+		"{:08b} != {:08b}",
+		bits.as_raw_slice()[0],
+		val << 1,
+	);
+	assert_eq!(bits[2 .. 7].load_le::<u8>(), val);
 
-	data.view_bits_mut::<Msb0>()[8 .. 16].store_be(0x34u8);
-	assert_eq!(data, [0x0034, 0x1200]);
-	assert_eq!(data.view_bits::<Msb0>()[8 .. 16].load_be::<u8>(), 0x34);
+	let neg = val | 0xF0;
+	bits[2 .. 7].store_le(neg);
+	assert_eq!(bits[2 .. 7].load_le::<i8>(), neg as i8);
 
-	data.view_bits_mut::<Msb0>()[0 .. 8].store_be(0x56u8);
-	assert_eq!(data, [0x5634, 0x1200]);
-	assert_eq!(data.view_bits::<Msb0>()[0 .. 8].load_be::<u8>(), 0x56);
+	let val = random::<u8>() & 0x1Fu8;
+	bits[2 .. 7].store_be(val);
+	assert_eq!(
+		bits.as_raw_slice()[0],
+		val << 1,
+		"{:08b} != {:08b}",
+		bits.as_raw_slice()[0],
+		val << 1,
+	);
+	assert_eq!(bits[2 .. 7].load_be::<u8>(), val);
 
-	data = [0; 2];
-
-	data.view_bits_mut::<Msb0>()[16 .. 24].store_le(0x12u8);
-	assert_eq!(data, [0x0000, 0x1200]);
-	assert_eq!(data.view_bits::<Msb0>()[16 .. 24].load_le::<u8>(), 0x12);
-
-	data.view_bits_mut::<Msb0>()[8 .. 16].store_le(0x34u8);
-	assert_eq!(data, [0x0034, 0x1200]);
-	assert_eq!(data.view_bits::<Msb0>()[8 .. 16].load_le::<u8>(), 0x34);
-
-	data.view_bits_mut::<Msb0>()[0 .. 8].store_le(0x56u8);
-	assert_eq!(data, [0x5634, 0x1200]);
-	assert_eq!(data.view_bits::<Msb0>()[0 .. 8].load_le::<u8>(), 0x56);
-
-	data = [0; 2];
-
-	data.view_bits_mut::<Lsb0>()[16 .. 24].store_be(0x12u8);
-	assert_eq!(data, [0x0000, 0x0012]);
-	assert_eq!(data.view_bits::<Lsb0>()[16 .. 24].load_be::<u8>(), 0x12);
-
-	data.view_bits_mut::<Lsb0>()[8 .. 16].store_be(0x34u8);
-	assert_eq!(data, [0x3400, 0x0012]);
-	assert_eq!(data.view_bits::<Lsb0>()[8 .. 16].load_be::<u8>(), 0x34);
-
-	data.view_bits_mut::<Lsb0>()[0 .. 8].store_be(0x56u8);
-	assert_eq!(data, [0x3456, 0x0012]);
-	assert_eq!(data.view_bits::<Lsb0>()[0 .. 8].load_be::<u8>(), 0x56);
-
-	data = [0; 2];
-
-	data.view_bits_mut::<Lsb0>()[16 .. 24].store_le(0x12u8);
-	assert_eq!(data, [0x0000, 0x0012]);
-	assert_eq!(data.view_bits::<Lsb0>()[16 .. 24].load_le::<u8>(), 0x12);
-
-	data.view_bits_mut::<Lsb0>()[8 .. 16].store_le(0x34u8);
-	assert_eq!(data, [0x3400, 0x0012]);
-	assert_eq!(data.view_bits::<Lsb0>()[8 .. 16].load_le::<u8>(), 0x34);
-
-	data.view_bits_mut::<Lsb0>()[0 .. 8].store_le(0x56u8);
-	assert_eq!(data, [0x3456, 0x0012]);
-	assert_eq!(data.view_bits::<Lsb0>()[0 .. 8].load_le::<u8>(), 0x56);
+	let neg = val | 0xF0;
+	bits[2 .. 7].store_be(neg);
+	assert_eq!(bits[2 .. 7].load_be::<i8>(), neg as i8);
 }
 
 #[test]
-fn wide_load() {
-	let mut data = bitarr![Lsb0, u16; 0; 256];
-	assert_eq!(data[16 .. 144].load::<u128>(), 0u128);
-	data[16 .. 144].store(!0u128);
-	assert_eq!(data[16 .. 144].load::<u128>(), !0u128);
+fn msb0_u8_le_u20() {
+	let mut bits = BitArray::<[u8; 3], Msb0>::ZERO;
+
+	let val = random::<u32>() & 0x00_0F_FF_FFu32;
+	let mut bytes = (val << 2).to_le_bytes();
+	// Msb0 _le has *weird* effects in raw memory.
+	bytes[0] >>= 2;
+	bytes[2] <<= 2;
+	bits[2 .. 22].store_le(val);
+	assert_eq!(bits.as_raw_slice(), &bytes[.. 3]);
+	assert_eq!(bits[2 .. 22].load_le::<u32>(), val);
+
+	let neg = val | 0xFF_F8_00_00u32;
+	bits[2 .. 22].store_le(neg);
+	assert_eq!(
+		bits[2 .. 22].load_le::<i32>(),
+		neg as i32,
+		"{:08x} != {:08x}",
+		bits[2 .. 22].load_le::<i32>(),
+		neg as i32,
+	);
 }
 
 #[test]
-#[should_panic]
-#[cfg(not(target_arch = "riscv64"))]
-fn check_panic() {
-	check::<u8>("fail", 10);
+fn msb0_u8_be_u20() {
+	let mut bits = BitArray::<[u8; 3], Msb0>::ZERO;
+
+	let val = random::<u32>() & 0x00_0F_FF_FFu32;
+	let bytes = (val << 2).to_be_bytes();
+	bits[2 .. 22].store_be(val);
+	assert_eq!(bits.as_raw_slice(), &bytes[1 ..]);
+	assert_eq!(bits[2 .. 22].load_be::<u32>(), val);
+
+	let neg = val | 0xFF_F8_00_00u32;
+	bits[2 .. 22].store_be(neg);
+	assert_eq!(
+		bits[2 .. 22].load_be::<i32>(),
+		neg as i32,
+		"{:08x} != {:08x}",
+		bits[2 .. 22].load_le::<i32>(),
+		neg as i32,
+	);
 }
 
 #[test]
-#[cfg(feature = "alloc")]
-fn wrappers() {
-	let mut a = bitarr![Msb0, u8; 0; 8];
-	let b = bits![1; 8];
-	let mut c = bitbox![0; 8];
-	let mut d = bitvec![0; 8];
+fn lsb0_u8_le_u24() {
+	let mut bits = BitArray::<[u8; 3], Lsb0>::ZERO;
 
-	a.store_le::<u8>(b.load_le::<u8>());
-	a.store_be::<u8>(b.load_be::<u8>());
-	assert_eq!(a[.. 8], b);
-	assert_eq!(a.load_le::<u8>(), !0);
-	assert_eq!(a.load_be::<u8>(), !0);
+	let val = random::<u32>() & 0x00_FF_FF_FFu32;
+	let bytes = val.to_le_bytes();
+	bits.store_le(val);
+	assert_eq!(bits.as_raw_slice(), &bytes[.. 3]);
+	assert_eq!(
+		bits.load_le::<u32>(),
+		val,
+		"{:08x} != {:08x}",
+		bits.load_le::<i32>(),
+		val,
+	);
 
-	c.store_le::<u8>(b.load_le::<u8>());
-	c.store_be::<u8>(b.load_be::<u8>());
-	assert_eq!(c, b);
-	assert_eq!(c.load_le::<u8>(), !0);
-	assert_eq!(c.load_be::<u8>(), !0);
+	let neg = val | 0xFF_80_00_00u32;
+	bits.store_le(neg);
+	assert_eq!(
+		bits.load_le::<i32>(),
+		neg as i32,
+		"{:08x} != {:08x}",
+		bits.load_le::<i32>(),
+		neg as i32,
+	);
+}
 
-	d.store_le::<u8>(b.load_le::<u8>());
-	d.store_be::<u8>(b.load_be::<u8>());
-	assert_eq!(d, b);
-	assert_eq!(d.load_le::<u8>(), !0);
-	assert_eq!(d.load_be::<u8>(), !0);
+#[test]
+fn lsb0_u8_be_u24() {
+	let mut bits = BitArray::<[u8; 3], Lsb0>::ZERO;
+
+	let val = random::<u32>() & 0x00_FF_FF_FFu32;
+	let bytes = val.to_be_bytes();
+	bits.store_be(val);
+	assert_eq!(bits.as_raw_slice(), &bytes[1 ..]);
+	assert_eq!(bits.load_be::<u32>(), val);
+
+	let neg = val | 0xFF_80_00_00u32;
+	bits.store_be(neg);
+	assert_eq!(
+		bits.load_be::<i32>(),
+		neg as i32,
+		"{:08x} != {:08x}",
+		bits.load_be::<i32>(),
+		neg as i32,
+	);
+}
+
+#[test]
+fn msb0_u8_le_u24() {
+	let mut bits = BitArray::<[u8; 3], Msb0>::ZERO;
+
+	let val = random::<u32>() & 0x00_FF_FF_FFu32;
+	let bytes = val.to_le_bytes();
+	bits.store_le(val);
+	assert_eq!(bits.as_raw_slice(), &bytes[.. 3]);
+	assert_eq!(bits.load_le::<u32>(), val);
+
+	let neg = val | 0xFF_80_00_00u32;
+	bits.store_le(neg);
+	assert_eq!(
+		bits.load_le::<i32>(),
+		neg as i32,
+		"{:08x} != {:08x}",
+		bits.load_le::<i32>(),
+		neg as i32,
+	);
+}
+
+#[test]
+fn msb0_u8_be_u24() {
+	let mut bits = BitArray::<[u8; 3], Msb0>::ZERO;
+
+	let val = random::<u32>() & 0x00_FF_FF_FFu32;
+	let bytes = val.to_be_bytes();
+	bits.store_be(val);
+	assert_eq!(bits.as_raw_slice(), &bytes[1 ..]);
+	assert_eq!(bits.load_be::<u32>(), val);
+
+	let neg = val | 0xFF_80_00_00u32;
+	bits.store_be(neg);
+	assert_eq!(
+		bits.load_be::<i32>(),
+		neg as i32,
+		"{:08x} != {:08x}",
+		bits.load_be::<i32>(),
+		neg as i32,
+	);
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn read_bits() {
+	let data = [0x136Cu16, 0x8C63];
+	let base = data.view_bits::<Msb0>().as_bitptr();
+	let mut bits = &data.view_bits::<Msb0>()[4 ..];
+
+	assert_eq!(unsafe { bits.as_bitptr().offset_from(base) }, 4);
+	assert_eq!(bits.len(), 28);
+
+	let mut transfer = [0u8; 4];
+	let last_ptr = &mut transfer[3] as *mut _;
+	let mut transfer_handle = &mut transfer[..];
+
+	assert_eq!(io::copy(&mut bits, &mut transfer_handle).unwrap(), 3);
+	assert_eq!(unsafe { bits.as_bitptr().offset_from(base) }, 28);
+	assert_eq!(transfer_handle.as_mut_ptr() as *mut _, last_ptr);
+	assert_eq!(transfer[.. 3], [0x36, 0xC8, 0xC6][..]);
+
+	let mut bv = data.view_bits::<Msb0>()[4 ..].to_bitvec();
+	let mut transfer = [0u8; 3];
+	assert_eq!(io::copy(&mut bv, &mut &mut transfer[..]).unwrap(), 3);
+	assert_eq!(bv, bits![0, 0, 1, 1]);
+	assert_eq!(transfer, [0x36, 0xC8, 0xC6]);
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn write_bits() {
+	let mut bv = bitvec![usize, Msb0; 0; 4];
+	assert_eq!(
+		io::copy(&mut &[0xC3u8, 0xF0, 0x69][..], &mut bv).unwrap(),
+		3,
+	);
+
+	assert_eq!(bv, bits![
+		0, 0, 0, 0, // original
+		1, 1, 0, 0, 0, 0, 1, 1, // byte 0
+		1, 1, 1, 1, 0, 0, 0, 0, // byte 1
+		0, 1, 1, 0, 1, 0, 0, 1, // byte 2
+	]);
+
+	let mut data = [0u8; 4];
+	let base = data.view_bits_mut::<Lsb0>().as_mut_bitptr();
+	let mut bits = &mut data.view_bits_mut::<Lsb0>()[4 ..];
+	assert_eq!(unsafe { bits.as_mut_bitptr().offset_from(base) }, 4);
+	assert_eq!(bits.len(), 28);
+	assert_eq!(
+		io::copy(&mut &[0xA5u8, 0xB4, 0x3C][..], &mut bits).unwrap(),
+		3,
+	);
+	assert_eq!(unsafe { bits.as_mut_bitptr().offset_from(base) }, 28);
+	assert_eq!(bits.len(), 4);
+
+	assert_eq!(data, [0b1010_0000, 0b1011_0101, 0b0011_0100, 0b0000_1100]);
 }

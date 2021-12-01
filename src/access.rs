@@ -1,27 +1,8 @@
-/*! Memory access guards.
+#![doc = include_str!("../doc/access.md")]
 
-[`bitvec`] allows a program to produce handles over memory that do not logically
-alias their bits, but may alias in hardware. This module provides a unified
-interface for memory accesses that can be specialized to handle aliased and
-unaliased access events.
+use core::sync::atomic::Ordering;
 
-The [`BitAccess`] trait provides capabilities to access bits in memory elements
-through shared references, and its implementations are responsible for
-coördinating synchronization and contention as needed.
-
-The [`BitSafe`] trait abstracts over wrappers to the [`Cell`] and [atomic] types
-that forbid writing through their references, even when other references to the
-same location may write.
-
-[`BitAccess`]: crate::access::BitAccess
-[`BitSafe`]: crate::access::BitSafe
-[`Cell`]: core::cell::Cell
-[`bitvec`]: crate
-!*/
-
-use core::sync::atomic;
-
-use funty::IsInteger;
+use funty::Integral;
 use radium::Radium;
 
 use crate::{
@@ -33,152 +14,143 @@ use crate::{
 	order::BitOrder,
 };
 
-/** Abstracts over the instructions used when accessing a memory location.
-
-This trait provides functions to manipulate bits in a referent memory register
-through the appropriate access instructions, so that use sites elsewhere in the
-crate can select their required behavior without changing their interface.
-
-This is automatically implemented for all types that permit shared/mutable
-memory access to memory registers through the [`radium`] crate. Its use is
-constrained in the [`store`] module.
-
-This trait is only ever used by [`bitvec`] internals, and is never exposed
-outside the crate. It must be marked as public so that it can be used as an
-associated item in [`BitStore`], even though it is never made accessible.
-
-[`BitStore`]: crate::store::BitStore
-[`bitvec`]: crate
-[`radium`]: radium
-[`store`]: crate::store
-**/
+#[doc = include_str!("../doc/access/BitAccess.md")]
 pub trait BitAccess: Radium
 where <Self as Radium>::Item: BitRegister
 {
-	/// Clears any number of bits in a memory register to `0`.
+	/// Clears bits within a memory element to `0`.
 	///
 	/// The mask provided to this method must be constructed from indices that
 	/// are valid in the caller’s context. As the mask is already computed by
 	/// the caller, this does not take an ordering type parameter.
 	///
-	/// # Parameters
+	/// ## Parameters
 	///
-	/// - `&self`
 	/// - `mask`: A mask of any number of bits. This is a selection mask: all
-	///   bits in the mask that are set to `1` will be modified in the element
-	///   at `*self`.
+	///   bits in the mask that are set to `1` will set the corresponding bit in
+	///   `*self` to `0`.
 	///
-	/// # Effects
+	/// ## Returns
 	///
-	/// All bits in `*self` that are selected (set to `1` in the `mask`) will be
-	/// cleared. All bits in `*self` that are not selected (cleared to `0` in
-	/// the `mask`) are unchanged.
+	/// The prior value of the memory element.
 	///
-	/// Do not invert the `mask` prior to calling this function in order to save
-	/// the unselected bits and clear the selected bits. [`BitMask`] is a
-	/// selection type, not a bitwise-operation argument.
+	/// ## Effects
+	///
+	/// All bits in `*self` corresponding to `1` bits in the `mask` are cleared
+	/// to `0`; all others retain their original value.
+	///
+	/// Do not invert the `mask` prior to calling this function. [`BitMask`] is
+	/// a selection type, not a bitwise-operation argument.
 	///
 	/// [`BitMask`]: crate::index::BitMask
-	fn clear_bits(&self, mask: BitMask<Self::Item>) {
-		self.fetch_and(!mask.into_inner(), atomic::Ordering::Relaxed);
+	fn clear_bits(&self, mask: BitMask<Self::Item>) -> Self::Item {
+		self.fetch_and(!mask.into_inner(), Ordering::Relaxed)
 	}
 
-	/// Sets any number of bits in a memory register to `1`.
+	/// Sets bits within a memory element to `1`.
 	///
 	/// The mask provided to this method must be constructed from indices that
 	/// are valid in the caller’s context. As the mask is already computed by
 	/// the caller, this does not take an ordering type parameter.
 	///
-	/// # Parameters
+	/// ## Parameters
 	///
-	/// - `&self`
 	/// - `mask`: A mask of any number of bits. This is a selection mask: all
-	///   bits in the mask that are set to `1` will be modified in the element
-	///   at `*self`.
+	///   bits in the mask that are set to `1` will set the corresponding bit in
+	///   `*self` to `1`.
 	///
-	/// # Effects
+	/// ## Returns
 	///
-	/// All bits in `*self` that are selected (set to `1` in the `mask`) will be
-	/// cleared. All bits in `*self` that are not selected (cleared to `0` in
-	/// the `mask`) are unchanged.
-	fn set_bits(&self, mask: BitMask<Self::Item>) {
-		self.fetch_or(mask.into_inner(), atomic::Ordering::Relaxed);
+	/// The prior value of the memory element.
+	///
+	/// ## Effects
+	///
+	/// All bits in `*self` corresponding to `1` bits in the `mask` are set to
+	/// `1`; all others retain their original value.
+	fn set_bits(&self, mask: BitMask<Self::Item>) -> Self::Item {
+		self.fetch_or(mask.into_inner(), Ordering::Relaxed)
 	}
 
-	/// Inverts any number of bits in a memory register.
+	/// Inverts bits within a memory element.
 	///
 	/// The mask provided to this method must be constructed from indices that
 	/// are valid in the caller’s context. As the mask is already computed by
 	/// the caller, this does not take an ordering type parameter.
 	///
-	/// # Parameters
+	/// ## Parameters
 	///
-	/// - `&self`
 	/// - `mask`: A mask of any number of bits. This is a selection mask: all
-	///   bits in the mask that are set to `1` will be modified in the element
-	///   at `*self`.
+	///   bits in the mask that are set to `1` will invert the corresponding bit
+	///   in `*self`.
 	///
-	/// # Effects
+	/// ## Returns
 	///
-	/// All bits in `*self` that are selected (set to `1` in the `mask`) will be
-	/// inverted. All bits in `*self` that are not selected (cleared to `0` in
-	/// the `mask`) are unchanged.
-	fn invert_bits(&self, mask: BitMask<Self::Item>) {
-		self.fetch_xor(mask.into_inner(), atomic::Ordering::Relaxed);
+	/// The prior value of the memory element.
+	///
+	/// ## Effects
+	///
+	/// All bits in `*self` corresponding to `1` bits in the `mask` are
+	/// inverted; all others retain their original value.
+	fn invert_bits(&self, mask: BitMask<Self::Item>) -> Self::Item {
+		self.fetch_xor(mask.into_inner(), Ordering::Relaxed)
 	}
 
-	/// Writes a value to one bit in a memory register.
+	/// Writes a value to one bit in a memory element, returning the previous
+	/// value.
 	///
-	/// # Type Parameters
+	/// ## Type Parameters
 	///
-	/// - `O`: A bit ordering.
+	/// - `O`: An ordering of bits in a memory element that translates the
+	///   `index` into a real position.
 	///
-	/// # Parameters
+	/// ## Parameters
 	///
-	/// - `&self`
-	/// - `index`: The semantic index of the bit in `*self` to write.
-	/// - `value`: The bit value to write into `*self` at `index`.
+	/// - `index`: The semantic index of the bit in `*self` to modify.
+	/// - `value`: The new bit value to write into `*self` at the `index`.
 	///
-	/// # Returns
+	/// ## Returns
 	///
-	/// The bit previously stored in `*self` at `index`. As these operations are
-	/// required to load the `*self` value from memory in order to work, the
-	/// previous value can be retained to reduce spurious loads elsewhere in the
-	/// crate.
+	/// The bit previously stored in `*self` at `index`. These operations are
+	/// required to load the `*self` value from memory in order to operate, and
+	/// so always have the prior value available for use. This can reduce
+	/// spurious loads throughout the crate.
 	///
-	/// # Effects
+	/// ## Effects
 	///
-	/// The memory register at address `self` has the bit corresponding to the
-	/// `index` cursor under the `O` order written with the new `value`, and all
-	/// other bits are unchanged.
+	/// `*self` is updated with the bit at `index` set to `value`; all other
+	/// bits remain unchanged.
 	fn write_bit<O>(&self, index: BitIdx<Self::Item>, value: bool) -> bool
 	where O: BitOrder {
 		let select = index.select::<O>().into_inner();
 		select
 			& if value {
-				self.fetch_or(select, atomic::Ordering::Relaxed)
+				self.fetch_or(select, Ordering::Relaxed)
 			}
 			else {
-				self.fetch_and(!select, atomic::Ordering::Relaxed)
+				self.fetch_and(!select, Ordering::Relaxed)
 			} != <Self::Item>::ZERO
 	}
 
-	/// Gets the function that writes `value` into all bits under a mask.
+	/// Gets the function that will write `value` into all bits under a mask.
 	///
-	/// # Parameters
+	/// This is useful for preparing bulk operations that all write the same
+	/// data into memory, and only need to provide the shape of memory to write.
 	///
-	/// - `value`: The bit that will be directly written by the returned
-	///   function.
+	/// ## Parameters
 	///
-	/// # Returns
+	/// - `value`: The bit that will be written by the returned function.
 	///
-	/// A function which, when applied to a reference and a mask, will write
-	/// `value` into memory. If `value` is `false`, then this produces
-	/// [`clear_bits`]; if it is `true`, then this produces [`set_bits`].
+	/// ## Returns
+	///
+	/// A function which writes `value` into memory at a given address and under
+	/// a given mask. If `value` is `false`, then this produces [`clear_bits`];
+	/// if it is `true`, then this produces [`set_bits`].
 	///
 	/// [`clear_bits`]: Self::clear_bits
 	/// [`set_bits`]: Self::set_bits
-	fn get_writers(value: bool) -> for<'a> fn(&'a Self, BitMask<Self::Item>) {
+	fn get_writers(
+		value: bool,
+	) -> for<'a> fn(&'a Self, BitMask<Self::Item>) -> Self::Item {
 		if value {
 			Self::set_bits
 		}
@@ -195,62 +167,48 @@ where
 {
 }
 
-/** Restricts memory modification to only exclusive references.
-
-The shared-mutability types do not permit locking their references to prevent
-writing through them when inappropriate. Implementors of this trait are able to
-view aliased memory and handle other references writing to it, even though they
-themselves may be forbidden from doing so.
-**/
+#[doc = include_str!("../doc/access/BitSafe.md")]
 pub trait BitSafe {
-	/// The register type being guarded against shared mutation.
+	/// The element type being guarded against improper mutation.
 	///
-	/// This is only present as an extra proof that the type graph all uses the
-	/// same underlying integers.
+	/// This is only present as an extra proof that the type graph has a
+	/// consistent view of the underlying memory.
 	type Mem: BitRegister;
 
-	/// The accessor type being prevented from mutating while shared.
+	/// The memory-access type this guards.
 	///
 	/// This is exposed as an associated type so that `BitStore` can name it
 	/// without having to re-select it based on crate configuration.
 	type Rad: Radium<Item = Self::Mem>;
 
-	#[doc(hidden)]
+	/// The zero constant.
 	const ZERO: Self;
 
-	/// Reads the value out of memory only if a shared reference to the location
-	/// can be produced.
+	/// Loads the value from memory, allowing for the possibility that other
+	/// handles have write permissions to it.
 	fn load(&self) -> Self::Mem;
-
-	/// Writes a value into memory only if an exclusive reference to the
-	/// location can be produced.
-	fn store(&mut self, value: Self::Mem);
 }
 
+/// Constructs a shared-mutable guard type that disallows mutation *through it*.
 macro_rules! safe {
-	($($t:ident => $w:ident => $r:path),+ $(,)?) => { $(
-		/// A wrapper over a shared-mutable type that forbids writing to the
-		/// location through its own reference. Other references to the location
-		/// may still write to it, and reads from this reference will be aware
-		/// of this possibility.
-		///
-		/// This is necessary in order to enforce [`bitvec`]’s memory model,
-		/// which disallows shared mutation to individual bits. [`BitSlice`]s
-		/// may produce memory views that use this type in order to ensure that
-		/// handles that lack write permission to an area may not write to it,
-		/// even if other handles may.
-		///
-		/// Under the `"atomic"` feature, this uses [`radium`]’s best-effort
-		/// atomic alias; when this feature is disabled, then it uses a [`Cell`]
-		/// directly.
-		///
-		/// [`BitSlice`]: crate::slice::BitSlice
-		/// [`Cell`]: core::cell::Cell
-		/// [`radium`]: radium::types
+	($($t:ident => $w:ident => $r:ty);+ $(;)?) => { $(
 		#[derive(Debug)]
 		#[repr(transparent)]
+		#[doc = include_str!("../doc/access/impl_BitSafe.md")]
 		pub struct $w {
 			inner: <Self as BitSafe>::Rad,
+		}
+
+		impl $w {
+			/// Allow construction of the safed value by forwarding to its
+			/// interior constructor.
+			///
+			/// This type is not public API, and general use has no reason to
+			/// construct values of it directly. It is provided for convenience
+			/// as a crate internal.
+			pub(crate) const fn new(value: $t) -> Self {
+				Self { inner: <<Self as BitSafe>::Rad>::new(value) }
+			}
 		}
 
 		impl BitSafe for $w {
@@ -262,38 +220,19 @@ macro_rules! safe {
 			#[cfg(not(feature = "atomic"))]
 			type Rad = core::cell::Cell<$t>;
 
-			#[cfg(feature = "atomic")]
-			const ZERO: Self = Self {
-				inner: <$r>::new(0),
-			};
+			const ZERO: Self = Self::new(0);
 
-			#[cfg(not(feature = "atomic"))]
-			const ZERO: Self = Self {
-				inner: Cell::new(0),
-			};
-
-			fn load(&self) -> $t {
-				radium::Radium::load(
-					&self.inner,
-					core::sync::atomic::Ordering::Relaxed,
-				)
-			}
-
-			fn store(&mut self, value: $t) {
-				radium::Radium::store(
-					&self.inner,
-					value,
-					core::sync::atomic::Ordering::Relaxed,
-				)
+			fn load(&self) -> Self::Mem {
+				self.inner.load(Ordering::Relaxed)
 			}
 		}
 	)+ };
 }
 
 safe! {
-	u8 => BitSafeU8 => radium::types::RadiumU8,
-	u16 => BitSafeU16 => radium::types::RadiumU16,
-	u32 => BitSafeU32 => radium::types::RadiumU32,
+	u8 => BitSafeU8 => radium::types::RadiumU8;
+	u16 => BitSafeU16 => radium::types::RadiumU16;
+	u32 => BitSafeU32 => radium::types::RadiumU32;
 }
 
 #[cfg(target_pointer_width = "64")]
@@ -303,39 +242,29 @@ safe!(usize => BitSafeUsize => radium::types::RadiumUsize);
 
 #[cfg(test)]
 mod tests {
+	use core::cell::Cell;
+
 	use super::*;
 	use crate::prelude::*;
 
 	#[test]
 	fn touch_memory() {
-		let mut data = 0u8;
-		let bits = data.view_bits_mut::<LocalBits>();
-		let accessor = unsafe {
-			&*(bits
-				.as_bitspan()
-				.address()
-				.cast::<<u8 as BitStore>::Access>())
-			.to_const()
-		};
-		let aliased = unsafe {
-			&*(bits.as_bitspan().address().to_const()
-				as *const <u8 as BitStore>::Alias)
-		};
+		let data = Cell::new(0u8);
+		let accessor = &data;
+		let aliased = unsafe { &*(&data as *const _ as *const BitSafeU8) };
 
-		BitAccess::set_bits(accessor, BitMask::ALL);
-		assert_eq!(accessor.get(), !0);
-
-		BitAccess::clear_bits(accessor, BitMask::ALL);
-		assert_eq!(accessor.get(), 0);
-
-		BitAccess::invert_bits(accessor, BitMask::ALL);
-		assert_eq!(accessor.get(), !0);
-
-		assert!(BitStore::get_bit::<Lsb0>(aliased, BitIdx::ZERO));
-		assert_eq!(accessor.get(), !0);
-
-		BitAccess::write_bit::<Lsb0>(accessor, BitIdx::new(1).unwrap(), false);
-		assert_eq!(accessor.get(), !2);
+		assert!(!BitAccess::write_bit::<Lsb0>(
+			accessor,
+			BitIdx::new(1).unwrap(),
+			true
+		));
+		assert_eq!(aliased.load(), 2);
+		assert!(BitAccess::write_bit::<Lsb0>(
+			accessor,
+			BitIdx::new(1).unwrap(),
+			false
+		));
+		assert_eq!(aliased.load(), 0);
 	}
 
 	#[test]
@@ -351,33 +280,5 @@ mod tests {
 			<Cell<u8> as BitAccess>::get_writers(true) as *const (),
 			<Cell<u8> as BitAccess>::set_bits as *const ()
 		);
-	}
-
-	#[test]
-	fn safe_wrappers() {
-		use super::BitSafe;
-
-		let bits = bits![mut Msb0, u8; 0; 24];
-		let (l, c): (&mut BitSlice<Msb0, BitSafeU8>, _) = bits.split_at_mut(4);
-		let (c, _): (&mut BitSlice<Msb0, BitSafeU8>, _) = c.split_at_mut(16);
-
-		//  Get a write-capable shared reference to the base address,
-		let l_r_edge: &<BitSafeU8 as BitSafe>::Rad =
-			l.domain_mut().region().unwrap().2.unwrap().0;
-		//  and a write-incapable shared reference to the same base address.
-		let c_l_edge: &BitSafeU8 = c.domain().region().unwrap().0.unwrap().1;
-
-		//  The split location means that the two subdomains share a location.
-		assert_eq!(
-			l_r_edge as *const _ as *const u8,
-			c_l_edge as *const _ as *const u8,
-		);
-
-		//  The center reference can only read,
-		assert_eq!(c_l_edge.load(), 0);
-		//  while the left reference can write,
-		l_r_edge.set_bits(BitMask::new(6));
-		//  and be observed by the center.
-		assert_eq!(c_l_edge.load(), 6);
 	}
 }

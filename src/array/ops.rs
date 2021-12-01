@@ -1,4 +1,4 @@
-//! Port of the `[T; N]` operator implementations.
+//! Operator trait implementations for bit-arrays.
 
 use core::ops::{
 	BitAnd,
@@ -23,156 +23,201 @@ use crate::{
 };
 
 #[cfg(not(tarpaulin_include))]
-impl<O, V, Rhs> BitAnd<Rhs> for BitArray<O, V>
+impl<A, O> BitAndAssign<BitArray<A, O>> for BitSlice<A::Store, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
-	BitSlice<O, V::Store>: BitAndAssign<Rhs>,
+{
+	fn bitand_assign(&mut self, rhs: BitArray<A, O>) {
+		*self &= rhs.as_bitslice()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<A, O> BitAndAssign<&BitArray<A, O>> for BitSlice<A::Store, O>
+where
+	A: BitViewSized,
+	O: BitOrder,
+{
+	fn bitand_assign(&mut self, rhs: &BitArray<A, O>) {
+		*self &= rhs.as_bitslice()
+	}
+}
+
+impl<A, O, Rhs> BitAnd<Rhs> for BitArray<A, O>
+where
+	A: BitViewSized,
+	O: BitOrder,
+	BitSlice<A::Store, O>: BitAndAssign<Rhs>,
 {
 	type Output = Self;
 
-	#[inline]
 	fn bitand(mut self, rhs: Rhs) -> Self::Output {
 		self &= rhs;
 		self
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, V, Rhs> BitAndAssign<Rhs> for BitArray<O, V>
+impl<A, O, Rhs> BitAndAssign<Rhs> for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
-	BitSlice<O, V::Store>: BitAndAssign<Rhs>,
+	BitSlice<A::Store, O>: BitAndAssign<Rhs>,
 {
-	#[inline]
 	fn bitand_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() &= rhs;
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, V, Rhs> BitOr<Rhs> for BitArray<O, V>
+impl<A, O> BitOrAssign<BitArray<A, O>> for BitSlice<A::Store, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
-	BitSlice<O, V::Store>: BitOrAssign<Rhs>,
+{
+	fn bitor_assign(&mut self, rhs: BitArray<A, O>) {
+		*self |= rhs.as_bitslice()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<A, O> BitOrAssign<&BitArray<A, O>> for BitSlice<A::Store, O>
+where
+	A: BitViewSized,
+	O: BitOrder,
+{
+	fn bitor_assign(&mut self, rhs: &BitArray<A, O>) {
+		*self |= rhs.as_bitslice()
+	}
+}
+
+impl<A, O, Rhs> BitOr<Rhs> for BitArray<A, O>
+where
+	A: BitViewSized,
+	O: BitOrder,
+	BitSlice<A::Store, O>: BitOrAssign<Rhs>,
 {
 	type Output = Self;
 
-	#[inline]
 	fn bitor(mut self, rhs: Rhs) -> Self::Output {
 		self |= rhs;
 		self
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, V, Rhs> BitOrAssign<Rhs> for BitArray<O, V>
+impl<A, O, Rhs> BitOrAssign<Rhs> for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
-	BitSlice<O, V::Store>: BitOrAssign<Rhs>,
+	BitSlice<A::Store, O>: BitOrAssign<Rhs>,
 {
-	#[inline]
 	fn bitor_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() |= rhs;
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, V, Rhs> BitXor<Rhs> for BitArray<O, V>
+impl<A, O> BitXorAssign<BitArray<A, O>> for BitSlice<A::Store, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
-	BitSlice<O, V::Store>: BitXorAssign<Rhs>,
+{
+	fn bitxor_assign(&mut self, rhs: BitArray<A, O>) {
+		*self ^= rhs.as_bitslice()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<A, O> BitXorAssign<&BitArray<A, O>> for BitSlice<A::Store, O>
+where
+	A: BitViewSized,
+	O: BitOrder,
+{
+	fn bitxor_assign(&mut self, rhs: &BitArray<A, O>) {
+		*self ^= rhs.as_bitslice()
+	}
+}
+
+impl<A, O, Rhs> BitXor<Rhs> for BitArray<A, O>
+where
+	A: BitViewSized,
+	O: BitOrder,
+	BitSlice<A::Store, O>: BitXorAssign<Rhs>,
 {
 	type Output = Self;
 
-	#[inline]
 	fn bitxor(mut self, rhs: Rhs) -> Self::Output {
 		self ^= rhs;
 		self
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, V, Rhs> BitXorAssign<Rhs> for BitArray<O, V>
+impl<A, O, Rhs> BitXorAssign<Rhs> for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
-	BitSlice<O, V::Store>: BitXorAssign<Rhs>,
+	BitSlice<A::Store, O>: BitXorAssign<Rhs>,
 {
-	#[inline]
 	fn bitxor_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() ^= rhs;
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, V> Deref for BitArray<O, V>
+impl<A, O> Deref for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
-	type Target = BitSlice<O, V::Store>;
+	type Target = BitSlice<A::Store, O>;
 
-	#[inline(always)]
 	fn deref(&self) -> &Self::Target {
 		self.as_bitslice()
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, V> DerefMut for BitArray<O, V>
+impl<A, O> DerefMut for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
-	#[inline(always)]
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		self.as_mut_bitslice()
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, V, Idx> Index<Idx> for BitArray<O, V>
+impl<A, O, Idx> Index<Idx> for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
-	BitSlice<O, V::Store>: Index<Idx>,
+	BitSlice<A::Store, O>: Index<Idx>,
 {
-	type Output = <BitSlice<O, V::Store> as Index<Idx>>::Output;
+	type Output = <BitSlice<A::Store, O> as Index<Idx>>::Output;
 
-	#[inline]
 	fn index(&self, index: Idx) -> &Self::Output {
-		self.as_bitslice().index(index)
+		&self.as_bitslice()[index]
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, V, Idx> IndexMut<Idx> for BitArray<O, V>
+impl<A, O, Idx> IndexMut<Idx> for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
-	BitSlice<O, V::Store>: IndexMut<Idx>,
+	BitSlice<A::Store, O>: IndexMut<Idx>,
 {
-	#[inline]
 	fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
-		self.as_mut_bitslice().index_mut(index)
+		&mut self.as_mut_bitslice()[index]
 	}
 }
 
-impl<O, V> Not for BitArray<O, V>
+impl<A, O> Not for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
 	type Output = Self;
 
-	#[inline]
 	fn not(mut self) -> Self::Output {
-		for elem in self.as_mut_raw_slice() {
+		for elem in self.as_raw_mut_slice() {
 			elem.store_value(!elem.load_value());
 		}
 		self

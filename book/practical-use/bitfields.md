@@ -18,12 +18,12 @@ pub trait BitField {
   fn store<M>(&mut self, value: M);
 }
 
-impl<T> BitField for BitSlice<Lsb0, T> {
+impl<T> BitField for BitSlice<T, Lsb0> {
   fn load<M>(&self) -> M { /**/ }
   fn store<M>(&mut self, value: M) { /**/ }
 }
 
-impl<T> BitField for BitSlice<Msb0, T> {
+impl<T> BitField for BitSlice<T, Msb0> {
   fn load<M>(&self) -> M { /**/ }
   fn store<M>(&mut self, value: M) { /**/ }
 }
@@ -69,7 +69,7 @@ respectively, on the `.load` and `.store` methods. The unsuffixed method is an
 alias for the endianness of your processor: `_be` on big-endian targets, and
 `_le` on little-endian.
 
-Let us imagine a `BitSlice<Lsb0, u8>` used to store a `u16` that is misaligned,
+Let us imagine a `BitSlice<u8, Lsb0>` used to store a `u16` that is misaligned,
 and thus stored in two successive bytes. This algorithm is true for all
 circumstances where the stored region occupies more than one register of the
 backing slice, but smaller examples are simpler to draw.
@@ -128,7 +128,7 @@ range indexing, `[start .. end]`.
 
 ```rust
 # use bitvec::prelude::*;
-# let bits = bits![mut Msb0, u8; 0; 32];
+# let bits = bits![mut u8, Msb0; 0; 32];
 bits[10 ..][.. 13].store_be::<u16>(0x765);
 assert_eq!(bits[10 .. 23].load_be::<u16>(), 0x765);
 

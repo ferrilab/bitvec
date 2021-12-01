@@ -1,105 +1,172 @@
+//! Unit tests for bit-pointers.
+
 #![cfg(test)]
 
-use core::cell::Cell;
+use core::cmp;
 
-use static_assertions::assert_not_impl_any;
-
-use super::{
-	BitPtr,
-	Const,
-};
 use crate::{
-	order::{
-		Lsb0,
-		Msb0,
+	index::BitIdx,
+	prelude::*,
+	ptr::{
+		self as bv_ptr,
+		AddressExt,
+		BitSpan,
+		BitSpanError,
+		Mut,
 	},
-	slice::BitSlice,
 };
 
 #[test]
-fn pointers_not_send_sync() {
-	assert_not_impl_any!(BitPtr<Const, Lsb0, u8>: Send, Sync);
+fn free_functions() {
+	let mut a = [0u8, !0];
+	let mut b = 255u16;
+
+	let one = BitPtr::<Mut, u8, Lsb0>::from_slice_mut(&mut a[..]);
+	let two = one.wrapping_add(8);
+	let three = BitPtr::<Mut, u16, Msb0>::from_mut(&mut b);
+	let four = three.wrapping_add(8);
+
+	unsafe {
+		bv_ptr::copy(two.to_const(), one, 8);
+	}
+	assert_eq!(a[0], !0);
+	unsafe {
+		bv_ptr::copy(three.to_const(), one, 8);
+	}
+	assert_eq!(a[0], 0);
+
+	assert!(!bv_ptr::eq(two.to_const(), one.to_const()));
+
+	unsafe {
+		bv_ptr::swap_nonoverlapping(two, three, 8);
+	}
+	assert_eq!(a[1], 0);
+	assert_eq!(b, !0);
+
+	unsafe {
+		bv_ptr::write_bits(four, false, 8);
+	}
+	assert_eq!(b, 0xFF00);
 }
 
 #[test]
-fn copies() {
-	let mut data = [0xA5u8, 0, 0];
+fn alignment() {
+	let data = 0u16;
+	let a = unsafe { (&data).into_address() };
+	let b = a.cast::<u8>().wrapping_add(1).cast::<u16>();
 
-	let base = BitPtr::<_, Msb0, _>::from_mut_slice(&mut data);
-	let step = unsafe { base.add(8) };
-
-	unsafe {
-		super::copy(base.immut(), step, 8);
-		super::copy_nonoverlapping(base.add(4).immut(), step.add(8), 8);
-	}
-	assert_eq!(data[1], 0xA5);
-	assert_eq!(data[2], 0x5A);
-
-	unsafe {
-		super::copy(base.add(4).immut(), step, 8);
-	}
-	assert_eq!(data[1], 0x5A);
-
-	let mut other = 0u16;
-	let dest = BitPtr::<_, Lsb0, _>::from_mut(&mut other);
-	unsafe {
-		super::copy(base.immut(), dest, 16);
-	}
-	if cfg!(target_endian = "little") {
-		assert_eq!(other, 0x5AA5, "{:04x}", other);
-	}
+	assert!(bv_ptr::check_alignment(a).is_ok());
+	assert!(bv_ptr::check_alignment(b).is_err());
 }
 
 #[test]
-fn misc() {
-	let x = 0u32;
-	let a = BitPtr::<_, Lsb0, _>::from_ref(&x);
-	let b = a.cast::<Cell<u32>>();
-	let c = unsafe { b.add(1) };
+fn proxy() {
+	let mut data = 0u8;
+	{
+		let bits = data.view_bits_mut::<Lsb0>();
+		let (mut a, rest) = bits.split_first_mut().unwrap();
+		let (mut b, _) = rest.split_first_mut().unwrap();
+		assert!(!a.replace(true));
+		a.swap(&mut b);
+		assert!(*b);
+		a.set(true);
+	}
 
-	assert!(super::eq(a, b));
-	assert!(!super::eq(b, c));
-
-	let d = a.cast::<u8>();
-	let step = unsafe { d.add(1) }.align_offset(2);
-	assert_eq!(step, 15);
-	let step = unsafe { d.add(9) }.align_offset(4);
-	assert_eq!(step, 23);
+	assert_eq!(data, 3);
 }
 
 #[test]
-fn io() {
-	let mut data = 0u16;
-	let base = BitPtr::<_, Msb0, _>::from_mut(&mut data);
+fn range() {
+	let data = 0u8;
+	let mut bpr = data.view_bits::<Lsb0>().as_bitptr_range();
+
+	let range = bpr.clone().into_range();
+	let bpr2 = range.into();
+	assert_eq!(bpr, bpr2);
+
+	assert!(bpr.nth_back(9).is_none());
+}
+
+#[test]
+#[allow(deprecated)]
+fn single() {
+	let mut data = 1u16;
+	let bp = data.view_bits_mut::<Lsb0>().as_mut_bitptr();
+
+	assert!(!bp.is_null());
+	let bp2 = bp.wrapping_add(9);
+	assert_ne!(bp2.pointer().cast::<u8>(), bp2.cast::<u8>().pointer());
+
+	assert!(unsafe { bp.read_volatile() });
+	assert!(unsafe { bp.read_unaligned() });
+
+	assert_eq!(bp.align_offset(2), 0);
+	assert_eq!(bp2.align_offset(2), 7);
 
 	unsafe {
-		assert!(!super::read(base.add(1).immut()));
-		super::write(base.add(1), true);
-		assert!(super::read(base.add(1).immut()));
-
-		assert!(!super::read_volatile(base.add(2).immut()));
-		super::write_volatile(base.add(2), true);
-		assert!(super::read_volatile(base.add(2).immut()));
-		super::write_volatile(base.add(2), false);
-
-		assert!(!super::replace(base.add(3), true));
-		assert!(super::read(base.add(3).immut()));
-
-		super::swap(base, base.add(1));
-		assert!(super::read(base.immut()));
-		assert!(!super::read(base.add(1).immut()));
-
-		super::swap_nonoverlapping(base, base.add(4), 4);
+		bp.write_volatile(false);
+		bp.swap(bp2);
+		bp2.write_unaligned(true);
 	}
+
+	assert_eq!(bp.cmp(&bp2), cmp::Ordering::Less);
+	assert_ne!(bp, bp.cast::<u8>());
+	assert!(bp.partial_cmp(&bp.cast::<u8>()).is_none());
 }
 
 #[test]
-fn make_slices() {
-	let mut data = 0u32;
-	let base = BitPtr::<_, Msb0, _>::from_mut(&mut data);
+fn span() {
+	let mut data = [0u32; 2];
+	let addr = unsafe { data.as_mut_ptr().into_address() };
 
-	let a = super::bitslice_from_raw_parts_mut(base, 32);
-	let b = super::bitslice_from_raw_parts(base.immut(), 32);
+	let too_long = BitSpan::<Mut, u32, Lsb0>::REGION_MAX_BITS + 1;
+	assert!(matches!(
+		BitSpan::<_, _, Lsb0>::new(addr, BitIdx::MIN, too_long),
+		Err(BitSpanError::TooLong(ct)) if ct == too_long));
 
-	assert!(core::ptr::eq(a as *const BitSlice<Msb0, u32>, b));
+	let bp = data.view_bits_mut::<Lsb0>().as_mut_bitptr();
+	let bs = bp.cast::<u8>().wrapping_add(8).span(32).unwrap();
+	let (l, c, r) = unsafe { bs.align_to::<u16>() };
+	assert_eq!(l.len(), 8);
+	assert_eq!(c.len(), 16);
+	assert_eq!(r.len(), 8);
+
+	let bs2 = bp.cast::<u8>().wrapping_add(3).span(3).unwrap();
+	assert_eq!(
+		unsafe { bs2.align_to::<u16>() },
+		(bs2, BitSpan::EMPTY, BitSpan::EMPTY)
+	);
+}
+
+#[test]
+#[cfg(feature = "alloc")]
+fn format() {
+	#[cfg(not(feature = "std"))]
+	use alloc::format;
+	use core::any;
+
+	let data = 1u8;
+	let bits = data.view_bits::<Lsb0>();
+
+	let bit = bits.first().unwrap();
+	let render = format!("{:?}", bit);
+	assert!(render.starts_with("BitRef<u8,"));
+	assert!(render.ends_with("bits: 1, bit: true }"));
+
+	let bitptr = bits.as_bitptr();
+	let render = format!("{:?}", bitptr);
+	assert!(render.starts_with("*const Bit<u8,"));
+	assert!(render.ends_with(", 000)"), "{}", render);
+
+	let bitspan = bitptr.wrapping_add(2).span(3).unwrap();
+	let render = format!("{:?}", bitspan);
+	let expected = format!(
+		"BitSpan<u8, {}> {{ addr: {:p}, head: 010, bits: 3 }}",
+		any::type_name::<Lsb0>(),
+		bitspan.address(),
+	);
+	assert_eq!(render, expected);
+	let render = format!("{:p}", bitspan);
+	let expected = format!("{:p}(010)[3]", bitspan.address());
+	assert_eq!(render, expected);
 }

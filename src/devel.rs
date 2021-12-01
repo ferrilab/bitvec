@@ -1,119 +1,78 @@
-//! Internal support utilities.
+//! Support utilities for crate development.
 
-use core::{
-	any::TypeId,
-	ops::{
-		Bound,
-		Range,
-		RangeBounds,
-	},
-};
+use core::any::TypeId;
 
 use crate::{
 	order::BitOrder,
 	store::BitStore,
 };
 
-/** Normalizes any range into a basic `Range`.
-
-This unpacks any range type into an ordinary `Range`, returning the start and
-exclusive end markers. If the start marker is not provided, it is assumed to be
-zero; if the end marker is not provided, then it is assumed to be `end`.
-
-The end marker, if provided, may be greater than `end`. This is not checked in
-the function, and must be inspected by the caller.
-
-# Type Parameters
-
-- `R`: A range of some kind
-
-# Parameters
-
-- `bounds`: A range of some kind
-- `end`: The value to use as the exclusive end, if the range does not have an
-  end.
-
-# Returns
-
-`bounds` normalized to an ordinary `Range`, optionally clamped to `end`.
-**/
-#[inline]
-pub fn normalize_range<R>(bounds: R, end: usize) -> Range<usize>
-where R: RangeBounds<usize> {
-	let min = match bounds.start_bound() {
-		Bound::Included(&n) => n,
-		Bound::Excluded(&n) => n + 1,
-		Bound::Unbounded => 0,
-	};
-	let max = match bounds.end_bound() {
-		Bound::Included(&n) => n + 1,
-		Bound::Excluded(&n) => n,
-		Bound::Unbounded => end,
-	};
-	min .. max
-}
-
-/** Asserts that a range satisfies bounds constraints.
-
-This requires that the range start be not greater than the range end, and the
-range end be not greater than the ending marker (if provided).
-
-# Parameters
-
-- `range`: The range to validate
-- `end`: An optional maximal value that the range cannot exceed
-
-# Panics
-
-This panics if the range fails a requirement.
-**/
-#[inline]
-pub fn assert_range(range: Range<usize>, end: impl Into<Option<usize>>) {
-	if range.start > range.end {
-		panic!(
-			"Malformed range: `{} .. {}` must run from lower to higher",
-			range.start, range.end
-		);
-	}
-	if let Some(end) = end.into() {
-		if range.end > end {
-			panic!(
-				"Range out of bounds: `{} .. {}` must not exceed `{}`",
-				range.start, range.end, end
-			);
+/// Constructs formatting-trait implementations by delegating.
+macro_rules! easy_fmt {
+	($(impl $fmt:ident)+ for BitArray) => { $(
+		impl<A, O> core::fmt::$fmt for $crate::array::BitArray<A, O>
+		where
+			O: $crate::order::BitOrder,
+			A: $crate::view::BitViewSized,
+		{
+			#[cfg(not(tarpaulin_include))]
+			fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+				core::fmt::$fmt::fmt(self.as_bitslice(), fmt)
+			}
 		}
-	}
+	)+ };
+	($(impl $fmt:ident)+ for $this:ident) => { $(
+		impl<T, O> core::fmt::$fmt for $this<T, O>
+		where
+			O: $crate::order::BitOrder,
+			T: $crate::store::BitStore,
+		{
+			#[cfg(not(tarpaulin_include))]
+			fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+				core::fmt::$fmt::fmt(self.as_bitslice(), fmt)
+			}
+		}
+	)+ };
 }
 
-/// Tests if two `BitOrder` type parameters match each other.
-///
-/// This evaluates to a compile-time constant, and is removed during codegen.
-#[cfg_attr(not(tarpaulin_include), inline(always))]
-pub fn match_order<O1, O2>() -> bool
+/// Implements some `Iterator` functions that have boilerplate behavior.
+macro_rules! easy_iter {
+	() => {
+		fn size_hint(&self) -> (usize, Option<usize>) {
+			let len = self.len();
+			(len, Some(len))
+		}
+
+		fn count(self) -> usize {
+			self.len()
+		}
+
+		fn last(mut self) -> Option<Self::Item> {
+			self.next_back()
+		}
+	};
+}
+
+/// Tests if two `BitOrder` implementors are the same.
+pub fn match_order<O, P>() -> bool
 where
-	O1: BitOrder,
-	O2: BitOrder,
+	O: BitOrder,
+	P: BitOrder,
 {
-	TypeId::of::<O1>() == TypeId::of::<O2>()
+	eq_types::<O, P>()
 }
 
-/// Tests if two `BitStore` type parameters match each other.
-///
-/// This evaluates to a compile-time constant, and is removed during codegen.
-#[cfg_attr(not(tarpaulin_include), inline(always))]
-pub fn match_store<T1, T2>() -> bool
+/// Tests if two `BitStore` implementors are the same.
+pub fn match_store<T, U>() -> bool
 where
-	T1: BitStore,
-	T2: BitStore,
+	T: BitStore,
+	U: BitStore,
 {
-	TypeId::of::<T1>() == TypeId::of::<T2>()
+	eq_types::<T, U>()
 }
 
-/// Tests if two `<O, T>` type parameter pairs match each other.
-///
-/// This evaluates to a compile-time constant, and is removed during codegen.
-#[cfg_attr(not(tarpaulin_include), inline(always))]
-pub fn match_types<O1, T1, O2, T2>() -> bool
+/// Tests if two `BitSlice` type parameter pairs match each other.
+pub fn match_types<T1, O1, T2, O2>() -> bool
 where
 	O1: BitOrder,
 	T1: BitStore,
@@ -123,16 +82,24 @@ where
 	match_order::<O1, O2>() && match_store::<T1, T2>()
 }
 
-#[cfg(all(test, feature = "std"))]
-mod tests {
-	use std::panic::catch_unwind;
+/// Tests if a type is known to be an unsigned integer.
+///
+/// Returns `true` for `u{8,16,32,64,128,size}` and `false` for all others.
+pub fn is_unsigned<T>() -> bool
+where T: 'static {
+	eq_types::<T, u8>()
+		|| eq_types::<T, u16>()
+		|| eq_types::<T, u32>()
+		|| eq_types::<T, u64>()
+		|| eq_types::<T, u128>()
+		|| eq_types::<T, usize>()
+}
 
-	use super::*;
-
-	#[test]
-	#[allow(clippy::reversed_empty_ranges)] // I know.
-	fn check_range_asserts() {
-		assert!(catch_unwind(|| assert_range(7 .. 2, None)).is_err());
-		assert!(catch_unwind(|| assert_range(0 .. 8, 4)).is_err());
-	}
+/// Tests if two types are identical, even through different names.
+fn eq_types<T, U>() -> bool
+where
+	T: 'static,
+	U: 'static,
+{
+	TypeId::of::<T>() == TypeId::of::<U>()
 }

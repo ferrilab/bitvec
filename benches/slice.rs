@@ -17,33 +17,33 @@ the return value is a `const` value, and insert the value at all
 
 #[bench]
 fn element(b: &mut Bencher) {
-	b.iter(|| BitSlice::<Msb0, u8>::from_element(&!0));
-	b.iter(|| BitSlice::<Lsb0, u8>::from_element(&!0));
-	b.iter(|| BitSlice::<Msb0, u16>::from_element(&!0));
-	b.iter(|| BitSlice::<Lsb0, u16>::from_element(&!0));
-	b.iter(|| BitSlice::<Msb0, u32>::from_element(&!0));
-	b.iter(|| BitSlice::<Lsb0, u32>::from_element(&!0));
+	b.iter(|| BitSlice::<u8, Msb0>::from_element(&!0));
+	b.iter(|| BitSlice::<u8, Lsb0>::from_element(&!0));
+	b.iter(|| BitSlice::<u16, Msb0>::from_element(&!0));
+	b.iter(|| BitSlice::<u16, Lsb0>::from_element(&!0));
+	b.iter(|| BitSlice::<u32, Msb0>::from_element(&!0));
+	b.iter(|| BitSlice::<u32, Lsb0>::from_element(&!0));
 
 	#[cfg(target_pointer_width = "64")]
 	{
-		b.iter(|| BitSlice::<Msb0, u64>::from_element(&!0));
-		b.iter(|| BitSlice::<Lsb0, u64>::from_element(&!0));
+		b.iter(|| BitSlice::<u64, Msb0>::from_element(&!0));
+		b.iter(|| BitSlice::<u64, Lsb0>::from_element(&!0));
 	}
 }
 
 #[bench]
 fn slice(b: &mut Bencher) {
-	b.iter(|| BitSlice::<Msb0, u8>::from_slice(&[0, 1, !0 - 1, !0][..]));
-	b.iter(|| BitSlice::<Lsb0, u8>::from_slice(&[0, 1, !0 - 1, !0][..]));
-	b.iter(|| BitSlice::<Msb0, u16>::from_slice(&[0, 1, !0 - 1, !0][..]));
-	b.iter(|| BitSlice::<Lsb0, u16>::from_slice(&[0, 1, !0 - 1, !0][..]));
-	b.iter(|| BitSlice::<Msb0, u32>::from_slice(&[0, 1, !0 - 1, !0][..]));
-	b.iter(|| BitSlice::<Lsb0, u32>::from_slice(&[0, 1, !0 - 1, !0][..]));
+	b.iter(|| BitSlice::<u8, Msb0>::from_slice(&[0, 1, !0 - 1, !0][..]));
+	b.iter(|| BitSlice::<u8, Lsb0>::from_slice(&[0, 1, !0 - 1, !0][..]));
+	b.iter(|| BitSlice::<u16, Msb0>::from_slice(&[0, 1, !0 - 1, !0][..]));
+	b.iter(|| BitSlice::<u16, Lsb0>::from_slice(&[0, 1, !0 - 1, !0][..]));
+	b.iter(|| BitSlice::<u32, Msb0>::from_slice(&[0, 1, !0 - 1, !0][..]));
+	b.iter(|| BitSlice::<u32, Lsb0>::from_slice(&[0, 1, !0 - 1, !0][..]));
 
 	#[cfg(target_pointer_width = "64")]
 	{
-		b.iter(|| BitSlice::<Msb0, u64>::from_slice(&[0, 1, !0 - 1, !0][..]));
-		b.iter(|| BitSlice::<Lsb0, u64>::from_slice(&[0, 1, !0 - 1, !0][..]));
+		b.iter(|| BitSlice::<u64, Msb0>::from_slice(&[0, 1, !0 - 1, !0][..]));
+		b.iter(|| BitSlice::<u64, Lsb0>::from_slice(&[0, 1, !0 - 1, !0][..]));
 	}
 }
 

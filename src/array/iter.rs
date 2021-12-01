@@ -1,4 +1,4 @@
-//! Array iteration.
+#![doc = include_str!("../../doc/array/iter.md")]
 
 use core::{
 	fmt::{
@@ -10,88 +10,121 @@ use core::{
 	ops::Range,
 };
 
-use tap::pipe::Pipe;
+use tap::Pipe;
+use wyz::comu::Const;
 
 use super::BitArray;
 use crate::{
+	mem,
 	order::BitOrder,
-	ptr::{
-		BitPtr,
-		Const,
-	},
+	ptr::BitPtr,
 	slice::BitSlice,
 	view::BitViewSized,
 };
 
-/** A by-value [bit-array] iterator.
+/// [Original](https://doc.rust-lang.org/std/primitive.array.html#impl-IntoIterator)
+impl<A, O> IntoIterator for BitArray<A, O>
+where
+	A: BitViewSized,
+	O: BitOrder,
+{
+	type IntoIter = IntoIter<A, O>;
+	type Item = <IntoIter<A, O> as Iterator>::Item;
 
-# Original
+	fn into_iter(self) -> Self::IntoIter {
+		IntoIter::new(self)
+	}
+}
 
-[`array::IntoIter`](core::array::IntoIter)
-
-[bit-array]: crate::array::BitArray
-[`BitView`]: crate::view::BitView
-**/
-#[derive(Clone)]
-pub struct IntoIter<O, V>
+/// [Original](https://doc.rust-lang.org/std/primitive.array.html#impl-IntoIterator-1)
+#[cfg(not(tarpaulin_include))]
+impl<'a, A, O> IntoIterator for &'a BitArray<A, O>
 where
 	O: BitOrder,
-	V: BitViewSized,
+	A: 'a + BitViewSized,
 {
-	/// The array being iterated.
-	array: BitArray<O, V>,
+	type IntoIter = <&'a BitSlice<A::Store, O> as IntoIterator>::IntoIter;
+	type Item = <&'a BitSlice<A::Store, O> as IntoIterator>::Item;
 
-	/// The bits in `array` that have not yet been yielded.
+	fn into_iter(self) -> Self::IntoIter {
+		self.as_bitslice().into_iter()
+	}
+}
+
+/// [Original](https://doc.rust-lang.org/std/primitive.array.html#impl-IntoIterator-2)
+#[cfg(not(tarpaulin_include))]
+impl<'a, A, O> IntoIterator for &'a mut BitArray<A, O>
+where
+	O: BitOrder,
+	A: 'a + BitViewSized,
+{
+	type IntoIter = <&'a mut BitSlice<A::Store, O> as IntoIterator>::IntoIter;
+	type Item = <&'a mut BitSlice<A::Store, O> as IntoIterator>::Item;
+
+	fn into_iter(self) -> Self::IntoIter {
+		self.as_mut_bitslice().into_iter()
+	}
+}
+
+#[derive(Clone)]
+#[doc = include_str!("../../doc/array/IntoIter.md")]
+pub struct IntoIter<A, O>
+where
+	A: BitViewSized,
+	O: BitOrder,
+{
+	/// The bit-array being iterated.
+	array: BitArray<A, O>,
+	/// The indices in `.array` that have not yet been yielded.
 	///
-	/// Invariants:
-	/// - `alive.start <= alive.end`
-	/// - `alive.end <= V::BITS`
+	/// This range is always a strict subset of `0 .. self.array.len()`.
 	alive: Range<usize>,
 }
 
-impl<O, V> IntoIter<O, V>
+impl<A, O> IntoIter<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
-	/// Creates a new iterator over the given `array`.
+	/// Converts a bit-array into its iterator.
 	///
-	/// # Original
+	/// The [`.into_iter()`] method on bit-arrays forwards to this. While
+	/// `BitArray` does deref to `&/mut BitSlice`, which also has
+	/// `.into_iter()`, this behavior has always been present alongside
+	/// `BitArray` and there is no legacy forwarding to preserve.
 	///
-	/// [`IntoIter::new`](core::array::IntoIter::new)
-	#[inline]
-	pub(super) fn new(array: BitArray<O, V>) -> Self {
+	/// ## Original
+	///
+	/// [`IntoIter::new`](core::array::IntoIter::new)s
+	pub fn new(array: BitArray<A, O>) -> Self {
 		Self {
 			array,
-			alive: 0 .. V::BITS,
+			alive: 0 .. mem::bits_of::<A>(),
 		}
 	}
 
-	/// Returns an immutable slice of all bits that have not been yielded yet.
+	/// Views the remaining unyielded bits in the iterator.
 	///
-	/// # Original
+	/// ## Original
 	///
 	/// [`IntoIter::as_slice`](core::array::IntoIter::as_slice)
-	#[inline]
-	pub fn as_bitslice(&self) -> &BitSlice<O, V::Store> {
+	pub fn as_bitslice(&self) -> &BitSlice<A::Store, O> {
 		unsafe { self.array.as_bitslice().get_unchecked(self.alive.clone()) }
 	}
 
-	#[doc(hidden)]
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated = "Use `as_bitslice` to view the underlying slice"]
-	pub fn as_slice(&self) -> &BitSlice<O, V::Store> {
+	#[deprecated = "use `.as_bitslice()` instead"]
+	#[allow(missing_docs, clippy::missing_docs_in_private_items)]
+	pub fn as_slice(&self) -> &BitSlice<A::Store, O> {
 		self.as_bitslice()
 	}
 
-	/// Returns a mutable slice of all bits that have not been yielded yet.
+	/// Mutably views the remaining unyielded bits in the iterator.
 	///
-	/// # Original
+	/// ## Original
 	///
 	/// [`IntoIter::as_mut_slice`](core::array::IntoIter::as_mut_slice)
-	#[inline]
-	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<O, V::Store> {
+	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<A::Store, O> {
 		unsafe {
 			self.array
 				.as_mut_bitslice()
@@ -99,21 +132,19 @@ where
 		}
 	}
 
-	#[doc(hidden)]
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	#[deprecated = "Use `as_mut_bitslice` to view the underlying slice"]
-	pub fn as_mut_slice(&mut self) -> &mut BitSlice<O, V::Store> {
+	#[deprecated = "use `.as_bitslice_mut()` instead"]
+	#[allow(missing_docs, clippy::missing_docs_in_private_items)]
+	pub fn as_mut_slice(&mut self) -> &mut BitSlice<A::Store, O> {
 		self.as_mut_bitslice()
 	}
 
-	/// Extracts a bit from the array.
-	#[inline]
+	/// Gets a bit from the bit-array.
 	fn get(&self, index: usize) -> bool {
 		unsafe {
 			self.array
 				.as_raw_slice()
-				.pipe(BitPtr::<Const, O, V::Store>::from_slice)
+				.pipe(BitPtr::<Const, A::Store, O>::from_slice)
 				.add(index)
 				.read()
 		}
@@ -121,12 +152,11 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, V> Debug for IntoIter<O, V>
+impl<A, O> Debug for IntoIter<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_tuple("IntoIter")
 			.field(&self.as_bitslice())
@@ -134,73 +164,51 @@ where
 	}
 }
 
-impl<O, V> Iterator for IntoIter<O, V>
+impl<A, O> Iterator for IntoIter<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
 	type Item = bool;
 
-	#[inline]
+	easy_iter!();
+
 	fn next(&mut self) -> Option<Self::Item> {
 		self.alive.next().map(|idx| self.get(idx))
 	}
 
-	#[inline]
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
 		self.alive.nth(n).map(|idx| self.get(idx))
 	}
-
-	#[inline]
-	fn size_hint(&self) -> (usize, Option<usize>) {
-		let len = self.len();
-		(len, Some(len))
-	}
-
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	fn count(self) -> usize {
-		self.len()
-	}
-
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	fn last(mut self) -> Option<Self::Item> {
-		self.next_back()
-	}
 }
 
-impl<O, V> DoubleEndedIterator for IntoIter<O, V>
+impl<A, O> DoubleEndedIterator for IntoIter<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
-	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.alive.next_back().map(|idx| self.get(idx))
 	}
 
-	#[inline]
 	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
 		self.alive.nth_back(n).map(|idx| self.get(idx))
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, V> ExactSizeIterator for IntoIter<O, V>
+impl<A, O> ExactSizeIterator for IntoIter<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
-	#[inline(always)]
 	fn len(&self) -> usize {
 		self.alive.len()
 	}
 }
 
-impl<O, V> FusedIterator for IntoIter<O, V>
+impl<A, O> FusedIterator for IntoIter<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
 }

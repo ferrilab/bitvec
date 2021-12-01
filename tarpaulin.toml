@@ -1,8 +1,8 @@
 ########################################################################
 #                        Coverage Configuration                        #
 #                                                                      #
-# This file controls the behavior of `cargo-tarpaulin`, used to        #
-# produce coverage reports for the project.                            #
+# This file controls the behavior of `cargo-tarpaulin`, which produces #
+# test coverage reports for the project.                               #
 ########################################################################
 
 [coverage]

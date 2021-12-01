@@ -6,14 +6,13 @@
 # more details.                                                        #
 ########################################################################
 
+# Allow identical headings as long as they are not siblings.
 MD024:
   siblings_only: true
 MD033:
   allowed_elements:
-    - math
-    - mi
-    - mn
-    - mo
-    - mrow
-    - msup
+    - div
+    - span
+    - style
+    - sub
     - sup

@@ -1,71 +1,28 @@
-/*! Memory element descriptions.
+#![doc = include_str!("../doc/mem.md")]
 
-This module describes memory integers and processor registers used to hold and
-manipulate [`bitvec`] data buffers.
+use core::{
+	cell::Cell,
+	mem,
+};
 
-The [`BitMemory`] trait adds descriptive information to the unsigned integers
-available in the language.
-
-The [`BitRegister`] trait marks the unsigned integers that correspond to
-processor registers, and can therefore be used for buffer control. The integers
-that are `BitMemory` but not `BitRegister` can be composed out of register
-values, but are unable to be used in buffer type parameters.
-
-[`BitMemory`]: crate::mem::BitMemory
-[`BitRegister`]: crate::mem::BitRegister
-[`bitvec`]: crate
-!*/
-
-use core::mem;
-
-use funty::IsUnsigned;
+use funty::Unsigned;
 use radium::marker::BitOps;
 
-/** Description of an integer memory element.
-
-This trait provides information used to describe integer-typed regions of memory
-and enables other parts of the project to adequately describe the memory bus.
-This trait has **no** bearing on the processor instructions or registers used to
-interact with memory. It solely describes integers that can exist on a system.
-
-This trait cannot be implemented outside this crate.
-**/
-pub trait BitMemory: IsUnsigned + seal::Sealed {
+#[doc = include_str!("../doc/mem/BitRegister.md")]
+pub trait BitRegister: Unsigned + BitOps {
 	/// The number of bits required to store an index in the range `0 .. BITS`.
-	const INDX: u8 = Self::BITS.trailing_zeros() as u8;
-
+	const INDX: u8 = bits_of::<Self>().trailing_zeros() as u8;
 	/// A mask over all bits that can be used as an index within the element.
 	/// This is the value with the least significant `INDX`-many bits set high.
-	const MASK: u8 = Self::BITS as u8 - 1;
-}
-
-/** Description of a processor register.
-
-This trait provides information used to describe processor registers. It only
-needs to contain constant values for `1` and `!0`; the rest of its information
-is contained in the presence or absence of its implementation on particular
-integers.
-**/
-pub trait BitRegister: BitMemory + BitOps {
-	/// The literal `1`.
-	const ONE: Self;
+	const MASK: u8 = bits_of::<Self>() as u8 - 1;
 	/// The literal `!0`.
 	const ALL: Self;
 }
 
-macro_rules! memory {
-	($($t:ident),+ $(,)?) => { $(
-		impl BitMemory for $t {}
-		impl seal::Sealed for $t {}
-	)+ };
-}
-
-memory!(u8, u16, u32, u64, u128, usize);
-
+/// Marks certain fundamentals as processor registers.
 macro_rules! register {
-	($($t:ident),+ $(,)?) => { $(
+	($($t:ty),+ $(,)?) => { $(
 		impl BitRegister for $t {
-			const ONE: Self = 1;
 			const ALL: Self = !0;
 		}
 	)+ };
@@ -81,80 +38,93 @@ This implementation is not present on targets with 32-bit processor words.
 #[cfg(target_pointer_width = "64")]
 impl BitRegister for u64 {
 	const ALL: Self = !0;
-	const ONE: Self = 1;
 }
 
 register!(usize);
 
-/** Computes the number of elements required to store some number of bits.
+/// Counts the number of bits in a value of type `T`.
+pub const fn bits_of<T>() -> usize {
+	core::mem::size_of::<T>().saturating_mul(<u8>::BITS as usize)
+}
 
-# Parameters
-
-- `bits`: The number of bits to store in a `[T]` array.
-
-# Returns
-
-The number of elements `T` required to store `bits`.
-
-As this is a const function, when `bits` is a constant expression, this can be
-used to compute the size of an array type `[T; elts(bits)]`.
-**/
-#[doc(hidden)]
+#[doc = include_str!("../doc/mem/elts.md")]
 pub const fn elts<T>(bits: usize) -> usize {
-	let width = mem::size_of::<T>() * 8;
+	let width = bits_of::<T>();
 	if width == 0 {
 		return 0;
 	}
 	bits / width + (bits % width != 0) as usize
 }
 
-/** Tests that a type is aligned to at least its size.
-
-This property is not necessarily true for all integers; for instance, `u64` on
-32-bit x86 is permitted to be 4-byte-aligned. `bitvec` requires this property to
-hold for the pointer representation to correctly function.
-
-# Type Parameters
-
-- `T`: A type whose alignment and size are to be compared
-
-# Returns
-
-`0` if the alignment is at least the size; `1` if the alignment is less.
-**/
+/// Tests if a type has alignment equal to its size.
 #[doc(hidden)]
-pub(crate) const fn aligned_to_size<T>() -> usize {
-	(mem::align_of::<T>() < mem::size_of::<T>()) as usize
+#[cfg(not(tarpaulin_include))]
+pub const fn aligned_to_size<T>() -> bool {
+	mem::align_of::<T>() == mem::size_of::<T>()
 }
 
-/** Tests whether two types have compatible layouts.
-
-# Type Parameters
-
-- `A`
-- `B`
-
-# Returns
-
-Zero if `A` and `B` have equal alignments and sizes, non-zero if they do not.
-
-# Uses
-
-This function is designed to be used in the expression
-`const CHECK: [(): 0] = [(); cmp_layout::<A, B>()];`. It will cause a compiler
-error if the conditions do not hold.
-**/
+/// Tests if two types have identical layouts (size and alignment are equal).
 #[doc(hidden)]
-pub(crate) const fn cmp_layout<A, B>() -> usize {
-	(mem::align_of::<A>() != mem::align_of::<B>()) as usize
-		+ (mem::size_of::<A>() != mem::size_of::<B>()) as usize
+#[cfg(not(tarpaulin_include))]
+pub const fn layout_eq<T, U>() -> bool {
+	mem::align_of::<T>() == mem::align_of::<U>()
+		&& mem::size_of::<T>() == mem::size_of::<U>()
 }
 
 #[doc(hidden)]
-mod seal {
-	#[doc(hidden)]
-	pub trait Sealed {}
+#[repr(transparent)]
+#[doc = include_str!("../doc/mem/BitElement.md")]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct BitElement<T = usize> {
+	pub elem: T,
 }
+
+/// Creates a `BitElement` implementation for an integer and its atomic/cell
+/// variants.
+macro_rules! element {
+	($($size:tt, $bare:ty => $atom:ident);+ $(;)?) => { $(
+		impl BitElement<$bare> {
+			/// Creates a new element wrapper from a raw integer.
+			pub const fn new(elem: $bare) -> Self {
+				Self {
+					elem,
+				}
+			}
+		}
+
+		impl BitElement<Cell<$bare>> {
+			/// Creates a new element wrapper from a raw integer.
+			pub const fn new(elem: $bare) -> Self {
+				Self {
+					elem: Cell::new(elem),
+				}
+			}
+		}
+
+		radium::if_atomic!( if atomic($size) {
+			use core::sync::atomic::$atom;
+			impl BitElement<$atom> {
+				/// Creates a new element wrapper from a raw integer.
+				pub const fn new(elem: $bare) -> Self {
+					Self {
+						elem: <$atom>::new(elem),
+					}
+				}
+			}
+		});
+	)+ };
+}
+
+element! {
+	8, u8 => AtomicU8;
+	16, u16 => AtomicU16;
+	32, u32 => AtomicU32;
+}
+
+#[cfg(target_pointer_width = "64")]
+element!(64, u64 => AtomicU64);
+
+element!(size, usize => AtomicUsize);
 
 #[cfg(test)]
 mod tests {
@@ -163,27 +133,27 @@ mod tests {
 
 	#[test]
 	fn integer_properties() {
-		assert_eq!(aligned_to_size::<u8>(), 0);
-		assert_eq!(aligned_to_size::<BitSafeU8>(), 0);
-		assert_eq!(cmp_layout::<u8, BitSafeU8>(), 0);
+		assert!(aligned_to_size::<u8>());
+		assert!(aligned_to_size::<BitSafeU8>());
+		assert!(layout_eq::<u8, BitSafeU8>());
 
-		assert_eq!(aligned_to_size::<u16>(), 0);
-		assert_eq!(aligned_to_size::<BitSafeU16>(), 0);
-		assert_eq!(cmp_layout::<u16, BitSafeU16>(), 0);
+		assert!(aligned_to_size::<u16>());
+		assert!(aligned_to_size::<BitSafeU16>());
+		assert!(layout_eq::<u16, BitSafeU16>());
 
-		assert_eq!(aligned_to_size::<u32>(), 0);
-		assert_eq!(aligned_to_size::<BitSafeU32>(), 0);
-		assert_eq!(cmp_layout::<u32, BitSafeU32>(), 0);
+		assert!(aligned_to_size::<u32>());
+		assert!(aligned_to_size::<BitSafeU32>());
+		assert!(layout_eq::<u32, BitSafeU32>());
 
-		assert_eq!(aligned_to_size::<usize>(), 0);
-		assert_eq!(aligned_to_size::<BitSafeUsize>(), 0);
-		assert_eq!(cmp_layout::<usize, BitSafeUsize>(), 0);
+		assert!(aligned_to_size::<usize>());
+		assert!(aligned_to_size::<BitSafeUsize>());
+		assert!(layout_eq::<usize, BitSafeUsize>());
 
 		#[cfg(target_pointer_width = "64")]
 		{
-			assert_eq!(aligned_to_size::<u64>(), 0);
-			assert_eq!(aligned_to_size::<BitSafeU64>(), 0);
-			assert_eq!(cmp_layout::<u64, BitSafeU64>(), 0);
+			assert!(aligned_to_size::<u64>());
+			assert!(aligned_to_size::<BitSafeU64>());
+			assert!(layout_eq::<u64, BitSafeU64>());
 		}
 	}
 }

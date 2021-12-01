@@ -1,13 +1,9 @@
-//! A pointer to a single bit.
+#![doc = include_str!("../../doc/ptr/single.md")]
 
 use core::{
 	any,
 	cmp,
-	convert::{
-		Infallible,
-		TryFrom,
-		TryInto,
-	},
+	convert::TryFrom,
 	fmt::{
 		self,
 		Debug,
@@ -23,32 +19,36 @@ use core::{
 	ptr,
 };
 
-use funty::IsNumber;
+use tap::{
+	Pipe,
+	TryConv,
+};
 use wyz::{
-	comu::Frozen,
+	comu::{
+		Address,
+		Const,
+		Frozen,
+		Mut,
+		Mutability,
+		NullPtrError,
+	},
 	fmt::FmtForward,
 };
 
 use super::{
-	Address,
+	check_alignment,
 	AddressExt,
 	BitPtrRange,
 	BitRef,
 	BitSpan,
 	BitSpanError,
-	Const,
 	MisalignError,
-	Mut,
-	Mutability,
-	NullPtrError,
 };
 use crate::{
 	access::BitAccess,
 	devel as dvl,
-	index::{
-		BitIdx,
-		BitIdxError,
-	},
+	index::BitIdx,
+	mem,
 	order::{
 		BitOrder,
 		Lsb0,
@@ -56,361 +56,407 @@ use crate::{
 	store::BitStore,
 };
 
-/** Pointer to an individual bit in a memory element. analogous to `*bool`.
-
-# Original
-
-[`*bool`](https://doc.rust-lang.org/std/primitive.pointer.html) and
-[`NonNull<bool>`](core::ptr::NonNull)
-
-# API Differences
-
-This must be a structure, rather than a raw pointer, for two reasons:
-
-- It is larger than a raw pointer.
-- Raw pointers are not `#[fundamental]` and cannot have foreign implementations.
-
-Additionally, rather than create two structures to map to `*const bool` and
-`*mut bool`, respectively, this takes mutability as a type parameter.
-
-Because the encoded span pointer requires that memory addresses are well
-aligned, this type also imposes the alignment requirement and refuses
-construction for misaligned element addresses. While this type is used in the
-API equivalent of ordinary raw pointers, it is restricted in value to only be
-*references* to memory elements.
-
-# ABI Differences
-
-This has alignment `1`, rather than an alignment to the processor word. This is
-necessary for some crate-internal optimizations.
-
-# Type Parameters
-
-- `M`: Marks whether the pointer permits mutation of memory through it.
-- `O`: The ordering of bits within a memory element.
-- `T`: A memory type used to select both the register size and the access
-  behavior when performing loads/stores.
-
-# Usage
-
-This structure is used as the [`bitvec`] equivalent to `*bool`. It is used in
-all raw-pointer APIs, and provides behavior to emulate raw pointers. It cannot
-be directly dereferenced, as it is not a pointer; it can only be transformed
-back into higher referential types, or used in [`bitvec::ptr`] free functions.
-
-These pointers can never be null, or misaligned.
-
-[`bitvec`]: crate
-[`bitvec::ptr`]: crate::ptr
-**/
 #[repr(C, packed)]
-pub struct BitPtr<M, O = Lsb0, T = usize>
+#[doc = include_str!("../../doc/ptr/BitPtr.md")]
+pub struct BitPtr<M = Const, T = usize, O = Lsb0>
 where
 	M: Mutability,
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
 	/// Memory addresses must be well-aligned and non-null.
-	addr: Address<M, T>,
+	///
+	/// This is not actually a requirement of `BitPtr`, but it is a requirement
+	/// of `BitSpan`, and it is extended across the entire crate for
+	/// consistency.
+	ptr: Address<M, T>,
 	/// The index of the referent bit within `*addr`.
-	head: BitIdx<T::Mem>,
+	bit: BitIdx<T::Mem>,
 	/// The ordering used to select the bit at `head` in `*addr`.
-	_ord: PhantomData<O>,
+	_or: PhantomData<O>,
 }
 
-impl<M, O, T> BitPtr<M, O, T>
+impl<M, T, O> BitPtr<M, T, O>
 where
 	M: Mutability,
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	/// The dangling pointer. This selects the starting bit of the `T` dangling
-	/// address.
+	/// The canonical dangling pointer. This selects the starting bit of the
+	/// canonical dangling pointer for `T`.
 	pub const DANGLING: Self = Self {
-		addr: Address::DANGLING,
-		head: BitIdx::ZERO,
-		_ord: PhantomData,
+		ptr: Address::DANGLING,
+		bit: BitIdx::MIN,
+		_or: PhantomData,
 	};
 
 	/// Loads the address field, sidestepping any alignment problems.
 	///
-	/// This is the only safe way to access `(&self).addr`. Do not perform field
-	/// access on `.addr` through a reference except through this method.
-	#[cfg_attr(not(tarpaulin_include), inline(always))]
-	pub(crate) fn get_addr(&self) -> Address<M, T> {
-		unsafe { ptr::addr_of!(self.addr).read_unaligned() }
+	/// This is the only safe way to access `(&self).ptr`. Do not perform field
+	/// access on `.ptr` through a reference except through this method.
+	fn get_addr(&self) -> Address<M, T> {
+		unsafe { ptr::addr_of!(self.ptr).read_unaligned() }
 	}
 
 	/// Tries to construct a `BitPtr` from a memory location and a bit index.
 	///
-	/// # Type Parameters
+	/// ## Parameters
 	///
-	/// - `A`: This accepts anything that may be used as a memory address.
+	/// - `ptr`: The address of a memory element. `Address` wraps raw pointers
+	///   or references, and enforces that they are not null. `BitPtr`
+	///   additionally requires that the address be well-aligned to its type;
+	///   misaligned addresses cause this to return an error.
+	/// - `bit`: The index of the selected bit within `*ptr`.
 	///
-	/// # Parameters
+	/// ## Returns
 	///
-	/// - `addr`: The memory address to use in the `BitPtr`. If this value
-	///   violates the [`Address`] rules, then its conversion error will be
-	///   returned.
-	/// - `head`: The index of the bit in `*addr` that this pointer selects. If
-	///   this value violates the [`BitIdx`] rules, then its conversion error
-	///   will be returned.
+	/// This returns an error if `ptr` is not aligned to `T`; otherwise, it
+	/// returns a new bit-pointer structure to the given element and bit.
 	///
-	/// # Returns
+	/// You should typically prefer to use constructors that take directly from
+	/// a memory reference or pointer, such as the `TryFrom<*T>`
+	/// implementations, the `From<&/mut T>` implementations, or the
+	/// [`::from_ref()`], [`::from_mut()`], [`::from_slice()`], or
+	/// [`::from_slice_mut()`] functions.
 	///
-	/// A new `BitPtr`, selecting the memory location `addr` and the bit `head`.
-	/// If either `addr` or `head` are invalid values, then this propagates
-	/// their error.
-	///
-	/// [`Address`]: crate::ptr::Address
-	/// [`BitIdx`]: crate::index::BitIdx
-	#[inline]
-	pub fn try_new<A>(addr: A, head: u8) -> Result<Self, BitPtrError<T>>
-	where
-		A: TryInto<Address<M, T>>,
-		BitPtrError<T>: From<A::Error>,
-	{
-		Ok(Self::new(addr.try_into()?, BitIdx::new(head)?))
+	/// [`::from_mut()`]: Self::from_mut
+	/// [`::from_ref()`]: Self::from_ref
+	/// [`::from_slice()`]: Self::from_slice
+	/// [`::from_slice_mut()`]: Self::from_slice_mut
+	pub fn new(
+		ptr: Address<M, T>,
+		bit: BitIdx<T::Mem>,
+	) -> Result<Self, MisalignError<T>> {
+		Ok(Self {
+			ptr: check_alignment(ptr)?,
+			bit,
+			..Self::DANGLING
+		})
 	}
 
-	/// Constructs a `BitPtr` from a memory location and a bit index.
+	/// Constructs a `BitPtr` from an address and head index, without checking
+	/// the address for validity.
 	///
-	/// Since this requires that the address and bit index are already
-	/// well-formed, it can assemble the `BitPtr` without inspecting their
-	/// values.
+	/// ## Parameters
 	///
-	/// # Parameters
+	/// - `addr`: The memory address to use in the bit-pointer. See the Safety
+	///   section.
+	/// - `head`: The index of the bit in `*addr` that this bit-pointer selects.
 	///
-	/// - `addr`: A well-formed memory address of `T`.
-	/// - `head`: A well-formed bit index within `T`.
+	/// ## Returns
 	///
-	/// # Returns
+	/// A new bit-pointer composed of the parameters. No validity checking is
+	/// performed.
 	///
-	/// A `BitPtr` selecting the `head` bit in the location `addr`.
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub fn new(addr: Address<M, T>, head: BitIdx<T::Mem>) -> Self {
-		Self {
-			addr,
-			head,
-			_ord: PhantomData,
+	/// ## Safety
+	///
+	/// The `Address` type imposes a non-null requirement. `BitPtr` additionally
+	/// requires that `addr` is well-aligned for `T`, and presumes that the
+	/// caller has ensured this with [`bv_ptr::check_alignment`][0]. If this is
+	/// not the case, then the program is incorrect, and subsequent behavior is
+	/// not specified.
+	///
+	/// [0]: crate::ptr::check_alignment.
+	pub unsafe fn new_unchecked(
+		ptr: Address<M, T>,
+		bit: BitIdx<T::Mem>,
+	) -> Self {
+		if cfg!(debug_assertions) {
+			Self::new(ptr, bit).unwrap()
+		}
+		else {
+			Self {
+				ptr,
+				bit,
+				..Self::DANGLING
+			}
 		}
 	}
 
-	/// Decomposes the pointer into its element address and bit index.
+	/// Gets the address of the base storage element.
+	pub fn address(self) -> Address<M, T> {
+		self.get_addr()
+	}
+
+	/// Gets the `BitIdx` that selects the bit within the memory element.
+	pub fn bit(self) -> BitIdx<T::Mem> {
+		self.bit
+	}
+
+	/// Decomposes a bit-pointer into its element address and bit index.
 	///
-	/// # Parameters
+	/// ## Parameters
 	///
 	/// - `self`
 	///
-	/// # Returns
+	/// ## Returns
 	///
 	/// - `.0`: The memory address in which the referent bit is located.
-	/// - `.1`: The index of the referent bit within `*.0`.
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
+	/// - `.1`: The index of the referent bit in `*.0` according to the `O` type
+	///   parameter.
 	pub fn raw_parts(self) -> (Address<M, T>, BitIdx<T::Mem>) {
-		(self.addr, self.head)
+		(self.address(), self.bit())
 	}
 
-	/// Gets just the head counter.
-	#[inline(always)]
-	#[cfg(feature = "alloc")]
-	pub(crate) fn head(self) -> BitIdx<T::Mem> {
-		self.head
-	}
-
-	/// Produces a `BitSpan`, starting at `self` and running for `bits`.
+	/// Converts a bit-pointer into a span descriptor by attaching a length
+	/// counter (in bits).
 	///
-	/// # Parameters
+	/// ## Parameters
 	///
-	/// - `self`: The base bit-address of the returned span descriptor.
-	/// - `bits`: The length in bits of the returned span descriptor.
+	/// - `self`: The base address of the produced span.
+	/// - `bits`: The length, in bits, of the span.
 	///
-	/// # Returns
+	/// ## Returns
 	///
-	/// This returns an error if the combination of `self` and `bits` violates
-	/// any of `BitSpan`’s requirements; otherwise, it encodes `self` and `bits`
-	/// into a span descriptor and returns it. Conversion into a `BitSlice`
-	/// pointer or reference is left to the caller.
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
+	/// A span descriptor beginning at `self` and ending (exclusive) at `self +
+	/// bits`. This fails if it is unable to encode the requested span into a
+	/// descriptor.
 	pub(crate) fn span(
 		self,
 		bits: usize,
-	) -> Result<BitSpan<M, O, T>, BitSpanError<T>> {
-		BitSpan::new(self.addr, self.head, bits)
+	) -> Result<BitSpan<M, T, O>, BitSpanError<T>> {
+		BitSpan::new(self.ptr, self.bit, bits)
 	}
 
-	/// Produces a `BitSpan`, starting at `self` and running for `bits`.
+	/// Converts a bit-pointer into a span descriptor, without performing
+	/// encoding validity checks.
 	///
-	/// This does not perform any validity checking; it only encodes the
-	/// arguments into a `BitSpan`.
+	/// ## Parameters
 	///
-	/// # Parameters
+	/// - `self`: The base address of the produced span.
+	/// - `bits`: The length, in bits, of the span.
 	///
-	/// - `self`: The base bit-address of the returned span descriptor.
-	/// - `bits`: The length in bits of the returned span descriptor.
+	/// ## Returns
 	///
-	/// # Returns
+	/// An encoded span descriptor of `self` and `bits`. Note that no validity
+	/// checks are performed!
 	///
-	/// `self` and `bits` encoded into a `BitSpan`. This `BitSpan` may be
-	/// semantically invalid, and it may have modulated its length.
+	/// ## Safety
 	///
-	/// # Safety
-	///
-	/// This should only be called with values that had previously been
-	/// extracted from a `BitSpan`.
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub(crate) unsafe fn span_unchecked(self, bits: usize) -> BitSpan<M, O, T> {
-		BitSpan::new_unchecked(self.addr, self.head, bits)
+	/// The caller must ensure that the rules of `BitSpan::new` are not
+	/// violated. Typically this method should only be used on parameters that
+	/// have already passed through `BitSpan::new` and are known to be good.
+	pub(crate) unsafe fn span_unchecked(self, bits: usize) -> BitSpan<M, T, O> {
+		BitSpan::new_unchecked(self.get_addr(), self.bit, bits)
 	}
 
-	/// Produces a pointer range starting at `self` and running for `count`
-	/// bits.
+	/// Produces a bit-pointer range beginning at `self` (inclusive) and ending
+	/// at `self + count` (exclusive).
 	///
-	/// This calls `self.add(count)`, then bundles the resulting pointer as the
-	/// high end of the produced range.
+	/// ## Safety
 	///
-	/// # Parameters
+	/// `self + count` must be within the same provenance region as `self`. The
+	/// first bit past the end of an allocation is included in provenance
+	/// regions, though it is not dereferenceable and will not be dereferenced.
 	///
-	/// - `self`: The starting pointer of the produced range.
-	/// - `count`: The number of bits that the produced range includes.
-	///
-	/// # Returns
-	///
-	/// A half-open range of pointers, beginning at (and including) `self`,
-	/// running for `count` bits, and ending at (and excluding)
-	/// `self.add(count)`.
-	///
-	/// # Safety
-	///
-	/// `count` cannot violate the constraints in [`add`].
-	///
-	/// [`add`]: Self::add
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub unsafe fn range(self, count: usize) -> BitPtrRange<M, O, T> {
-		BitPtrRange {
-			start: self,
-			end: self.add(count),
-		}
-	}
-
-	/// Converts a bit-pointer into a proxy bit-reference.
-	///
-	/// # Safety
-	///
-	/// The pointer must be valid to dereference.
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub unsafe fn into_bitref<'a>(self) -> BitRef<'a, M, O, T> {
-		BitRef::from_bitptr(self)
+	/// It is unsound to *even construct* a pointer that departs the provenance
+	/// region, even if that pointer is never dereferenced!
+	pub(crate) unsafe fn range(self, count: usize) -> BitPtrRange<M, T, O> {
+		(self .. self.add(count)).into()
 	}
 
 	/// Removes write permissions from a bit-pointer.
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub fn immut(self) -> BitPtr<Const, O, T> {
-		let Self { addr, head, .. } = self;
+	pub fn to_const(self) -> BitPtr<Const, T, O> {
+		let Self {
+			ptr: addr,
+			bit: head,
+			..
+		} = self;
 		BitPtr {
-			addr: addr.immut(),
-			head,
+			ptr: addr.immut(),
+			bit: head,
 			..BitPtr::DANGLING
 		}
 	}
 
 	/// Adds write permissions to a bit-pointer.
 	///
-	/// # Safety
+	/// ## Safety
 	///
 	/// This pointer must have been derived from a `*mut` pointer.
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub unsafe fn assert_mut(self) -> BitPtr<Mut, O, T> {
-		let Self { addr, head, .. } = self;
+	pub unsafe fn to_mut(self) -> BitPtr<Mut, T, O> {
+		let Self {
+			ptr: addr,
+			bit: head,
+			..
+		} = self;
 		BitPtr {
-			addr: addr.assert_mut(),
-			head,
+			ptr: addr.assert_mut(),
+			bit: head,
 			..BitPtr::DANGLING
 		}
 	}
 
-	/// Freezes the pointer, forbidding direct mutation.
+	/// Freezes a bit-pointer, forbidding direct mutation.
 	///
 	/// This is used as a necessary prerequisite to all mutation of memory.
 	/// `BitPtr` uses an implementation scoped to `Frozen<_>` to perform
 	/// alias-aware writes; see below.
-	#[inline]
-	pub(crate) fn freeze(self) -> BitPtr<Frozen<M>, O, T> {
-		let Self { addr, head, .. } = self;
+	pub(crate) fn freeze(self) -> BitPtr<Frozen<M>, T, O> {
+		let Self {
+			ptr: addr,
+			bit: head,
+			..
+		} = self;
 		BitPtr {
-			addr: addr.freeze(),
-			head,
+			ptr: addr.freeze(),
+			bit: head,
 			..BitPtr::DANGLING
 		}
 	}
+}
 
-	//  `pointer` inherent API
+impl<T, O> BitPtr<Const, T, O>
+where
+	T: BitStore,
+	O: BitOrder,
+{
+	/// Constructs a `BitPtr` to the zeroth bit in a single element.
+	pub fn from_ref(elem: &T) -> Self {
+		unsafe { Self::new_unchecked(elem.into(), BitIdx::MIN) }
+	}
 
+	/// Constructs a `BitPtr` to the zeroth bit in the zeroth element of a
+	/// slice.
+	///
+	/// This method is distinct from `Self::from_ref(&elem[0])`, because it
+	/// ensures that the returned bit-pointer has provenance over the entire
+	/// slice. Indexing within a slice narrows the provenance range, and makes
+	/// departure from the subslice, *even within the original slice*, illegal.
+	pub fn from_slice(slice: &[T]) -> Self {
+		unsafe {
+			Self::new_unchecked(slice.as_ptr().into_address(), BitIdx::MIN)
+		}
+	}
+
+	/// Gets a raw pointer to the memory element containing the selected bit.
+	#[cfg(not(tarpaulin_include))]
+	pub fn pointer(&self) -> *const T {
+		self.get_addr().to_const()
+	}
+}
+
+impl<T, O> BitPtr<Mut, T, O>
+where
+	T: BitStore,
+	O: BitOrder,
+{
+	/// Constructs a mutable `BitPtr` to the zeroth bit in a single element.
+	pub fn from_mut(elem: &mut T) -> Self {
+		unsafe { Self::new_unchecked(elem.into(), BitIdx::MIN) }
+	}
+
+	/// Constructs a `BitPtr` to the zeroth bit in the zeroth element of a
+	/// mutable slice.
+	///
+	/// This method is distinct from `Self::from_mut(&mut elem[0])`, because it
+	/// ensures that the returned bit-pointer has provenance over the entire
+	/// slice. Indexing within a slice narrows the provenance range, and makes
+	/// departure from the subslice, *even within the original slice*, illegal.
+	pub fn from_mut_slice(slice: &mut [T]) -> Self {
+		unsafe {
+			Self::new_unchecked(slice.as_mut_ptr().into_address(), BitIdx::MIN)
+		}
+	}
+
+	/// Constructs a mutable `BitPtr` to the zeroth bit in the zeroth element of
+	/// a slice.
+	///
+	/// This method is distinct from `Self::from_mut(&mut elem[0])`, because it
+	/// ensures that the returned bit-pointer has provenance over the entire
+	/// slice. Indexing within a slice narrows the provenance range, and makes
+	/// departure from the subslice, *even within the original slice*, illegal.
+	pub fn from_slice_mut(slice: &mut [T]) -> Self {
+		unsafe {
+			Self::new_unchecked(slice.as_mut_ptr().into_address(), BitIdx::MIN)
+		}
+	}
+
+	/// Gets a raw pointer to the memory location containing the selected bit.
+	#[cfg(not(tarpaulin_include))]
+	pub fn pointer(&self) -> *mut T {
+		self.get_addr().to_mut()
+	}
+}
+
+/// Port of the `*bool` inherent API.
+impl<M, T, O> BitPtr<M, T, O>
+where
+	M: Mutability,
+	T: BitStore,
+	O: BitOrder,
+{
 	/// Tests if a bit-pointer is the null value.
 	///
-	/// This is always false, as `BitPtr` is a `NonNull` internally. Use
+	/// This is always false, as a `BitPtr` is a `NonNull` internally. Use
 	/// `Option<BitPtr>` to express the potential for a null pointer.
 	///
-	/// # Original
+	/// ## Original
 	///
 	/// [`pointer::is_null`](https://doc.rust-lang.org/std/primitive.pointer.html#method.is_null)
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "`BitPtr` is never null"]
 	pub fn is_null(self) -> bool {
 		false
 	}
 
-	/// Casts to a bit-pointer of another storage type, preserving the
-	/// bit-ordering and mutability permissions.
+	/// Casts to a `BitPtr` with a different storage parameter.
 	///
-	/// # Original
+	/// This is not free! In order to maintain value integrity, it encodes a
+	/// `BitSpan` encoded descriptor with its value, casts that, then decodes
+	/// into a `BitPtr` of the target type. If `T` and `U` have different
+	/// `::Mem` associated types, then this may change the selected bit in
+	/// memory. This is an unavoidable cost of the addressing and encoding
+	/// schemes.
+	///
+	/// ## Original
 	///
 	/// [`pointer::cast`](https://doc.rust-lang.org/std/primitive.pointer.html#method.cast)
-	///
-	/// # Behavior
-	///
-	/// This is not a free typecast! It encodes the pointer as a crate-internal
-	/// span descriptor, casts the span descriptor to the `U` storage element
-	/// parameter, then decodes the result. This preserves general correctness,
-	/// but will likely change both the virtual and physical bits addressed by
-	/// this pointer.
-	#[inline]
-	pub fn cast<U>(self) -> BitPtr<M, O, U>
+	pub fn cast<U>(self) -> BitPtr<M, U, O>
 	where U: BitStore {
 		let (addr, head, _) =
 			unsafe { self.span_unchecked(1) }.cast::<U>().raw_parts();
-		BitPtr::new(addr, head)
+		unsafe { BitPtr::new_unchecked(addr, head) }
+	}
+
+	/// Decomposes a bit-pointer into its address and head-index components.
+	///
+	/// ## Original
+	///
+	/// [`pointer::to_raw_parts`](https://doc.rust-lang.org/std/primitive.pointer.html#method.to_raw_parts)
+	///
+	/// ## API Differences
+	///
+	/// The original method is unstable as of 1.54.0; however, because `BitPtr`
+	/// already has a similar API, the name is optimistically stabilized here.
+	/// Prefer [`.raw_parts()`] until the original inherent stabilizes.
+	///
+	/// [`.raw_parts()`]: Self::raw_parts
+	#[cfg(not(tarpaulin_include))]
+	pub fn to_raw_parts(self) -> (Address<M, T>, BitIdx<T::Mem>) {
+		self.raw_parts()
 	}
 
 	/// Produces a proxy reference to the referent bit.
 	///
-	/// Because `BitPtr` is a non-null, well-aligned, pointer, this never
-	/// returns `None`.
+	/// Because `BitPtr` guarantees that it is non-null and well-aligned, this
+	/// never returns `None`. However, this is still unsafe to call on any
+	/// bit-pointers created from conjured values rather than known references.
 	///
-	/// # Original
+	/// ## Original
 	///
 	/// [`pointer::as_ref`](https://doc.rust-lang.org/std/primitive.pointer.html#method.as_ref)
 	///
-	/// # API Differences
+	/// ## API Differences
 	///
 	/// This produces a proxy type rather than a true reference. The proxy
 	/// implements `Deref<Target = bool>`, and can be converted to `&bool` with
-	/// `&*`.
+	/// a reborrow `&*`.
 	///
-	/// # Safety
+	/// ## Safety
 	///
 	/// Since `BitPtr` does not permit null or misaligned pointers, this method
-	/// will always dereference the pointer, and you must ensure the following
-	/// conditions are met:
+	/// will always dereference the pointer in order to create the proxy. As
+	/// such, you must ensure the following conditions are met:
 	///
 	/// - the pointer must be dereferenceable as defined in the standard library
 	///   documentation
@@ -418,112 +464,115 @@ where
 	/// - you must ensure that no other pointer will race to modify the referent
 	///   location while this call is reading from memory to produce the proxy
 	///
-	/// # Examples
+	/// ## Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
 	/// let data = 1u8;
-	/// let ptr = BitPtr::<_, Lsb0, _>::from_ref(&data);
+	/// let ptr = BitPtr::<_, _, Lsb0>::from_ref(&data);
 	/// let val = unsafe { ptr.as_ref() }.unwrap();
 	/// assert!(*val);
 	/// ```
-	#[inline]
-	pub unsafe fn as_ref<'a>(self) -> Option<BitRef<'a, Const, O, T>> {
-		Some(BitRef::from_bitptr(self.immut()))
+	pub unsafe fn as_ref<'a>(self) -> Option<BitRef<'a, Const, T, O>> {
+		Some(BitRef::from_bitptr(self.to_const()))
 	}
 
-	/// Calculates the offset from a pointer.
+	/// Creates a new bit-pointer at a specified offset from the original.
 	///
 	/// `count` is in units of bits.
 	///
-	/// # Original
+	/// ## Original
 	///
 	/// [`pointer::offset`](https://doc.rust-lang.org/std/primitive.pointer.html#method.offset)
 	///
-	/// # Safety
+	/// ## Safety
 	///
-	/// If any of the following conditions are violated, the result is Undefined
-	/// Behavior:
+	/// `BitPtr` is implemented with Rust raw pointers internally, and is
+	/// subject to all of Rust’s rules about provenance and permission tracking.
+	/// You must abide by the safety rules established in the original method,
+	/// to which this internally delegates.
 	///
-	/// - Both the starting and resulting pointer must be either in bounds or
-	///   one byte past the end of the same allocated object. Note that in Rust,
-	///   every (stack-allocated) variable is considered a separate allocated
-	///   object.
-	/// - The computed offset, **in bytes**, cannot overflow an `isize`.
-	/// - The offset being in bounds cannot rely on “wrapping around” the
-	///   address space. That is, the infinite-precision sum, **in bytes** must
-	///   fit in a `usize`.
+	/// Additionally, `bitvec` imposes its own rules: while Rust cannot observe
+	/// provenance beyond an element or byte level, `bitvec` demands that
+	/// `&mut BitSlice` have exclusive view over all bits it observes. You must
+	/// not produce a bit-pointer that departs a `BitSlice` region and intrudes
+	/// on any `&mut BitSlice`’s handle, and you must not produce a
+	/// write-capable bit-pointer that intrudes on a `&BitSlice` handle that
+	/// expects its contents to be immutable.
 	///
-	/// These pointers are almost always derived from [`BitSlice`] regions,
-	/// which have an encoding limitation that the high three bits of the length
-	/// counter are zero, so `bitvec` pointers are even less likely than
-	/// ordinary pointers to run afoul of these limitations.
+	/// Note that it is illegal to *construct* a bit-pointer that invalidates
+	/// any of these rules. If you wish to defer safety-checking to the point of
+	/// dereferencing, and allow the temporary construction *but not*
+	/// *dereference* of illegal `BitPtr`s, use [`.wrapping_offset()`] instead.
 	///
-	/// Use [`wrapping_offset`] if you expect to risk hitting the high edge of
-	/// the address space.
-	///
-	/// # Examples
+	/// ## Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
 	/// let data = 5u8;
-	/// let ptr = BitPtr::<_, Lsb0, _>::from_ref(&data);
-	/// assert!(unsafe { ptr.read() });
-	/// assert!(!unsafe { ptr.offset(1).read() });
-	/// assert!(unsafe { ptr.offset(2).read() });
+	/// let ptr = BitPtr::<_, _, Lsb0>::from_ref(&data);
+	/// unsafe {
+	///   assert!(ptr.read());
+	///   assert!(!ptr.offset(1).read());
+	///   assert!(ptr.offset(2).read());
+	/// }
 	/// ```
 	///
-	/// [`BitSlice`]: crate::slice::BitSlice
-	/// [`wrapping_offset`]: Self::wrapping_offset
-	#[inline]
+	/// [`.wrapping_offset()`]: Self::wrapping_offset
+	#[must_use = "returns a new bit-pointer rather than modifying its argument"]
 	pub unsafe fn offset(self, count: isize) -> Self {
-		let (elts, head) = self.head.offset(count);
-		Self::new(self.addr.offset(elts), head)
+		let (elts, head) = self.bit.offset(count);
+		Self::new_unchecked(self.ptr.offset(elts), head)
 	}
 
-	/// Calculates the offset from a pointer using wrapping arithmetic.
+	/// Creates a new bit-pointer at a specified offset from the original.
 	///
 	/// `count` is in units of bits.
 	///
-	/// # Original
+	/// ## Original
 	///
-	/// [`pointer::wrapping_offset`](https://doc.rust/lang.org/std/primitive.pointer.html#method.wrapping_offset)
+	/// [`pointer::wrapping_offset`](https://doc.rust-lang.org/std/primitive.pointer.html#method.wrapping_offset)
 	///
-	/// # Safety
+	/// ## API Differences
 	///
-	/// The resulting pointer does not need to be in bounds, but it is
-	/// potentially hazardous to dereference.
+	/// `bitvec` makes it explicitly illegal to wrap a pointer around the high
+	/// end of the address space, because it is incapable of representing a null
+	/// pointer.
 	///
-	/// In particular, the resulting pointer remains attached to the same
-	/// allocated object that `self` points to. It may *not* be used to access a
-	/// different allocated object. Note that in Rust, every (stack-allocated)
-	/// variable is considered a separate allocated object.
+	/// However, `<*T>::wrapping_offset` has additional properties as a result
+	/// of its tolerance for wrapping the address space: it tolerates departing
+	/// a provenance region, and is not unsafe to use to *create* a bit-pointer
+	/// that is outside the bounds of its original provenance.
 	///
-	/// In other words, `x.wrapping_offset((y as usize).wrapping_sub(x as
-	/// usize)` is not the same as `y`, and dereferencing it is undefined
-	/// behavior unless `x` and `y` point into the same allocated object.
+	/// ## Safety
 	///
-	/// Compared to [`offset`], this method basically delays the requirement of
-	/// staying within the same allocated object: [`offset`] is immediate
-	/// Undefined Behavior when crossing object boundaries; `wrapping_offset`
-	/// produces a pointer but still leads to Undefined Behavior if that pointer
-	/// is dereferenced. [`offset`] can be optimized better and is thus
-	/// preferable in performance-sensitive code.
+	/// This function is safe to use because the bit-pointers it creates defer
+	/// their provenance checks until the point of dereference. As such, you
+	/// can safely use this to perform arbitrary pointer arithmetic that Rust
+	/// considers illegal in ordinary arithmetic, as long as you do not
+	/// dereference the bit-pointer until it has been brought in bounds of the
+	/// originating provenance region.
 	///
-	/// If you need to cross object boundaries, destructure this pointer into
-	/// its base address and bit index, cast the base address to an integer, and
-	/// do the arithmetic in the purely integer space.
+	/// This means that, to the Rust rule engine,
+	/// `let z = x.wrapping_add(y as usize).wrapping_sub(x as usize);` is not
+	/// equivalent to `y`, but `z` is safe to construct, and
+	/// `z.wrapping_add(x as usize).wrapping_sub(y as usize)` produces a
+	/// bit-pointer that *is* equivalent to `x`.
 	///
-	/// # Examples
+	/// See the documentation of the original method for more details about
+	/// provenance regions, and the distinctions that the optimizer makes about
+	/// them.
+	///
+	/// ## Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0u8;
-	/// let mut ptr = BitPtr::<_, Lsb0, _>::from_ref(&data);
-	/// let end = ptr.wrapping_offset(8);
+	/// let data = 0u32;
+	/// let mut ptr = BitPtr::<_, _, Lsb0>::from_ref(&data);
+	/// let end = ptr.wrapping_offset(32);
 	/// while ptr < end {
 	///   # #[cfg(feature = "std")] {
 	///   println!("{}", unsafe { ptr.read() });
@@ -531,766 +580,617 @@ where
 	///   ptr = ptr.wrapping_offset(3);
 	/// }
 	/// ```
-	///
-	/// [`offset`]: Self::offset
-	#[inline]
+	#[must_use = "returns a new bit-pointer rather than modifying its argument"]
 	pub fn wrapping_offset(self, count: isize) -> Self {
-		let (elts, head) = self.head.offset(count);
-		Self::new(self.addr.wrapping_offset(elts), head)
+		let (elts, head) = self.bit.offset(count);
+		unsafe { Self::new_unchecked(self.ptr.wrapping_offset(elts), head) }
 	}
 
-	/// Calculates the distance between two pointers. The returned value is in
-	/// units of bits.
+	/// Calculates the distance (in bits) between two bit-pointers.
 	///
-	/// This function is the inverse of [`offset`].
+	/// This method is the inverse of [`.offset()`].
 	///
-	/// # Original
+	/// ## Original
 	///
-	/// [`pointer::offset`](https://doc.rust-lang.org/std/primitive.pointer.html#method.offset_from)
+	/// [`pointer::offset_from`](https://doc.rust-lang.org/std/primitive.pointer.html#method.offset_from)
 	///
-	/// # Safety
+	/// ## API Differences
 	///
-	/// If any of the following conditions are violated, the result is Undefined
-	/// Behavior:
+	/// The base pointer may have a different `BitStore` type parameter, as long
+	/// as they share an underlying memory type. This is necessary in order to
+	/// accommodate aliasing markers introduced between when an origin pointer
+	/// was taken and when `self` compared against it.
 	///
-	/// - Both the starting and other pointer must be either in bounds or one
-	///   byte past the end of the same allocated object. Note that in Rust,
-	///   every (stack-allocated) variable is considered a separate allocated
-	///   object.
-	/// - Both pointers must be *derived from* a pointer to the same object.
-	/// - The distance between the pointers, **in bytes**, cannot overflow an
-	///   `isize`.
-	/// - The distance being in bounds cannot rely on “wrapping around” the
-	///   address space.
+	/// ## Safety
 	///
-	/// These pointers are almost always derived from [`BitSlice`] regions,
-	/// which have an encoding limitation that the high three bits of the length
-	/// counter are zero, so `bitvec` pointers are even less likely than
-	/// ordinary pointers to run afoul of these limitations.
+	/// Both `self` and `origin` **must** be drawn from the same provenance
+	/// region. This means that they must be created from the same Rust
+	/// allocation, whether with `let` or the allocator API, and must be in the
+	/// (inclusive) range `base ..= base + len`. The first bit past the end of
+	/// a region can be addressed, just not dereferenced.
 	///
-	/// # Examples
+	/// See the original `<*T>::offset_from` for more details on region safety.
 	///
-	/// Basic usage:
+	/// ## Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
-	/// let data = 0u16;
-	/// let base = BitPtr::<_, Lsb0, _>::from_ref(&data);
-	/// let low = unsafe { base.add(5) };
-	/// let high = unsafe { low.add(6) };
+	/// let data = 0u32;
+	/// let base = BitPtr::<_, _, Lsb0>::from_ref(&data);
+	/// let low = unsafe { base.add(10) };
+	/// let high = unsafe { low.add(15) };
 	/// unsafe {
-	///   assert_eq!(high.offset_from(low), 6);
-	///   assert_eq!(low.offset_from(high), -6);
-	///   assert_eq!(low.offset(6), high);
-	///   assert_eq!(high.offset(-6), low);
+	///   assert_eq!(high.offset_from(low), 15);
+	///   assert_eq!(low.offset_from(high), -15);
+	///   assert_eq!(low.offset(15), high);
+	///   assert_eq!(high.offset(-15), low);
 	/// }
 	/// ```
 	///
-	/// *Incorrect* usage:
+	/// While this method is safe to *construct* bit-pointers that depart a
+	/// provenance region, it remains illegal to *dereference* those pointers!
+	///
+	/// This usage is incorrect, and a program that contains it is not
+	/// well-formed.
 	///
 	/// ```rust,no_run
 	/// use bitvec::prelude::*;
 	///
 	/// let a = 0u8;
 	/// let b = !0u8;
-	/// let a_ptr = BitPtr::<_, Lsb0, _>::from_ref(&a);
-	/// let b_ptr = BitPtr::<_, Lsb0, _>::from_ref(&b);
+	///
+	/// let a_ptr = BitPtr::<_, _, Lsb0>::from_ref(&a);
+	/// let b_ptr = BitPtr::<_, _, Lsb0>::from_ref(&b);
 	/// let diff = (b_ptr.pointer() as isize)
-	///   .wrapping_sub(a_ptr.pointer() as isize)
-	///   // Remember: raw pointers are byte-addressed,
-	///   // but these are bit-addressed.
+	///   .wrapping_mul(a_ptr.pointer() as isize)
+	///   // Remember: raw pointers are byte-stepped,
+	///   // but bit-pointers are bit-stepped.
 	///   .wrapping_mul(8);
-	/// // Create a pointer to `b`, derived from `a`.
+	/// // This pointer to `b` has `a`’s provenance:
 	/// let b_ptr_2 = a_ptr.wrapping_offset(diff);
 	///
-	/// // The pointers are *arithmetically* equal now
+	/// // They are *arithmetically* equal:
 	/// assert_eq!(b_ptr, b_ptr_2);
-	/// // Undefined Behavior!
-	/// unsafe {
-	///   b_ptr_2.offset_from(b_ptr);
-	/// }
+	/// // But it is still undefined behavior to cross provenances!
+	/// assert_eq!(0, unsafe { b_ptr_2.offset_from(b_ptr) });
 	/// ```
 	///
-	/// [`BitSlice`]: crate::slice::BitSlice
-	/// [`offset`]: Self::offset
-	#[inline]
-	pub unsafe fn offset_from(self, origin: Self) -> isize {
-		/* Miri complains when performing this arithmetic on pointers. To avoid
-		both its costs, and the implicit scaling present in pointer arithmetic,
-		this uses pure numeric arithmetic on the address values.
-		*/
-		(self.addr
-			.to_const() as usize)
-			.wrapping_sub(origin.addr.to_const()as usize)
-			//  Pointers step by `T`, but **address values** step by `u8`.
-			.wrapping_mul(<u8 as IsNumber>::BITS as usize)
-			//  `self.head` moves the end farther from origin,
-			.wrapping_add(self.head.into_inner() as usize)
-			//  and `origin.head` moves the origin closer to the end.
-			.wrapping_sub(origin.head.into_inner() as usize) as isize
+	/// [`.offset()`]: Self::offset
+	pub unsafe fn offset_from<U>(self, origin: BitPtr<M, U, O>) -> isize
+	where U: BitStore<Mem = T::Mem> {
+		self.get_addr()
+			.cast::<T::Mem>()
+			.offset_from(origin.get_addr().cast::<T::Mem>())
+			.wrapping_mul(mem::bits_of::<T::Mem>() as isize)
+			.wrapping_add(self.bit.into_inner() as isize)
+			.wrapping_sub(origin.bit.into_inner() as isize)
 	}
 
-	/// Calculates the offset from a pointer (convenience for `.offset(count as
-	/// isize)`).
+	/// Adjusts a bit-pointer upwards in memory. This is equivalent to
+	/// `.offset(count as isize)`.
 	///
 	/// `count` is in units of bits.
 	///
-	/// # Original
+	/// ## Original
 	///
 	/// [`pointer::add`](https://doc.rust-lang.org/std/primitive.pointer.html#method.add)
 	///
-	/// # Safety
+	/// ## Safety
 	///
-	/// See [`offset`].
-	///
-	/// [`offset`]: Self::offset
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
+	/// See [`.offset()`](Self::offset).
+	#[must_use = "returns a new bit-pointer rather than modifying its argument"]
 	pub unsafe fn add(self, count: usize) -> Self {
 		self.offset(count as isize)
 	}
 
-	/// Calculates the offset from a pointer (convenience for `.offset((count as
-	/// isize).wrapping_neg())`).
+	/// Adjusts a bit-pointer downwards in memory. This is equivalent to
+	/// `.offset((count as isize).wrapping_neg())`.
 	///
 	/// `count` is in units of bits.
 	///
-	/// # Original
+	/// ## Original
 	///
 	/// [`pointer::sub`](https://doc.rust-lang.org/std/primitive.pointer.html#method.sub)
 	///
-	/// # Safety
+	/// ## Safety
 	///
-	/// See [`offset`].
-	///
-	/// [`offset`]: Self::offset
-	#[inline]
+	/// See [`.offset()`](Self::offset).
+	#[must_use = "returns a new bit-pointer rather than modifying its argument"]
 	pub unsafe fn sub(self, count: usize) -> Self {
 		self.offset((count as isize).wrapping_neg())
 	}
 
-	/// Calculates the offset from a pointer using wrapping arithmetic
-	/// (convenience for `.wrapping_offset(count as isize)`).
+	/// Adjusts a bit-pointer upwards in memory, using wrapping semantics. This
+	/// is equivalent to `.wrapping_offset(count as isize)`.
 	///
-	/// # Original
+	/// `count` is in units of bits.
+	///
+	/// ## Original
 	///
 	/// [`pointer::wrapping_add`](https://doc.rust-lang.org/std/primitive.pointer.html#method.wrapping_add)
 	///
-	/// # Safety
+	/// ## Safety
 	///
-	/// See [`wrapping_offset`].
-	///
-	/// [`wrapping_offset`]: Self::wrapping_offset
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
+	/// See [`.wrapping_offset()`](Self::wrapping_offset).
+	#[must_use = "returns a new bit-pointer rather than modifying its argument"]
 	pub fn wrapping_add(self, count: usize) -> Self {
 		self.wrapping_offset(count as isize)
 	}
 
-	/// Calculates the offset from a pointer using wrapping arithmetic
-	/// (convenience for `.wrapping_offset((count as isize).wrapping_neg())`).
+	/// Adjusts a bit-pointer downwards in memory, using wrapping semantics.
+	/// This is equivalent to
+	/// `.wrapping_offset((count as isize).wrapping_neg())`.
 	///
-	/// # Original
+	/// `count` is in units of bits.
 	///
-	/// [`pointer::wrapping_sub`](https://doc.rust-lang.org/std/primitive.pointer.html#method.wrapping_sub)
+	/// ## Original
 	///
-	/// # Safety
+	/// [`pointer::wrapping_add`](https://doc.rust-lang.org/std/primitive.pointer.html#method.wrapping_add)
 	///
-	/// See [`wrapping_offset`].
+	/// ## Safety
 	///
-	/// [`wrapping_offset`]: Self::wrapping_offset
-	#[inline]
-	#[cfg(not(tarpaulin_include))]
+	/// See [`.wrapping_offset()`](Self::wrapping_offset).
+	#[must_use = "returns a new bit-pointer rather than modifying its argument"]
 	pub fn wrapping_sub(self, count: usize) -> Self {
 		self.wrapping_offset((count as isize).wrapping_neg())
 	}
 
 	/// Reads the bit from `*self`.
 	///
-	/// # Original
+	/// ## Original
 	///
 	/// [`pointer::read`](https://doc.rust-lang.org/std/primitive.pointer.html#method.read)
 	///
-	/// # Safety
+	/// ## Safety
 	///
-	/// See [`ptr::read`] for safety concerns and examples.
-	///
-	/// [`ptr::read`]: crate::ptr::read
-	#[inline]
+	/// See [`ptr::read`](crate::ptr::read).
 	pub unsafe fn read(self) -> bool {
-		(&*self.addr.to_const())
-			.load_value()
-			.get_bit::<O>(self.head)
+		(&*self.ptr.to_const()).load_value().get_bit::<O>(self.bit)
 	}
 
-	/// Performs a volatile read of the bit from `self`.
+	/// Reads the bit from `*self` using a volatile load.
 	///
-	/// Volatile operations are intended to act on I/O memory, and are
-	/// guaranteed to not be elided or reördered by the compiler across other
-	/// volatile operations.
+	/// Prefer using a crate such as [`voladdress`][0] to manage volatile I/O
+	/// and use `bitvec` only on the local objects it provides. Individual I/O
+	/// operations for individual bits are likely not the behavior you want.
 	///
-	/// # Original
+	/// ## Original
 	///
 	/// [`pointer::read_volatile`](https://doc.rust-lang.org/std/primitive.pointer.html#method.read_volatile)
 	///
-	/// # Safety
+	/// ## Safety
 	///
-	/// See [`ptr::read_volatile`] for safety concerns and examples.
+	/// See [`ptr::read_volatile`](crate::ptr::read_volatile).
 	///
-	/// [`ptr::read_volatile`]: crate::ptr::read_volatile
-	#[inline]
+	/// [0]: https://docs.rs/voladdress/later/voladdress
 	pub unsafe fn read_volatile(self) -> bool {
-		self.addr.to_const().read_volatile().get_bit::<O>(self.head)
+		self.ptr.to_const().read_volatile().get_bit::<O>(self.bit)
+	}
+
+	/// Reads the bit from `*self` using an unaligned memory access.
+	///
+	/// `BitPtr` forbids unaligned addresses. If you have such an address, you
+	/// must perform your memory accesses on the raw element, and only use
+	/// `bitvec` on a well-aligned stack temporary. This method should never be
+	/// necessary.
+	///
+	/// ## Original
+	///
+	/// [`pointer::read_unaligned`](https://doc.rust-lang.org/std/primitive.pointer.html#method.read_unaligned)
+	///
+	/// ## Safety
+	///
+	/// See [`ptr::read_unaligned`](crate::ptr::read_unaligned)
+	#[deprecated = "`BitPtr` does not have unaligned addresses"]
+	pub unsafe fn read_unaligned(self) -> bool {
+		self.ptr.to_const().read_unaligned().get_bit::<O>(self.bit)
 	}
 
 	/// Copies `count` bits from `self` to `dest`. The source and destination
 	/// may overlap.
 	///
-	/// NOTE: this has the *same* argument order as [`ptr::copy`].
+	/// Note that overlap is only defined when `O` and `O2` are the same type.
+	/// If they differ, then `bitvec` does not define overlap, and assumes that
+	/// they are wholly discrete in memory.
 	///
-	/// # Original
+	/// ## Original
 	///
 	/// [`pointer::copy_to`](https://doc.rust-lang.org/std/primitive.pointer.html#method.copy_to)
 	///
-	/// # Safety
+	/// ## Safety
 	///
-	/// See [`ptr::copy`] for safety concerns and examples.
-	///
-	/// [`ptr::copy`]: crate::ptr::copy
-	#[inline]
-	pub unsafe fn copy_to<O2, T2>(self, dest: BitPtr<Mut, O2, T2>, count: usize)
+	/// See [`ptr::copy`](crate::ptr::copy).
+	#[cfg(not(tarpaulin_include))]
+	pub unsafe fn copy_to<T2, O2>(self, dest: BitPtr<Mut, T2, O2>, count: usize)
 	where
-		O2: BitOrder,
 		T2: BitStore,
+		O2: BitOrder,
 	{
-		//  If the orderings match, then overlap is permitted and defined.
-		if dvl::match_order::<O, O2>() {
-			let (addr, head) = dest.raw_parts();
-			let dst = BitPtr::<Mut, O, T2>::new(addr, head);
-			let src_pair = self.range(count);
-
-			let rev = src_pair.contains(&dst);
-			let iter = src_pair.zip(dest.range(count));
-			if rev {
-				for (from, to) in iter.rev() {
-					to.write(from.read());
-				}
-			}
-			else {
-				for (from, to) in iter {
-					to.write(from.read());
-				}
-			}
-		}
-		else {
-			//  If the orderings differ, then it is undefined behavior to
-			//  overlap in  memory.
-			self.copy_to_nonoverlapping(dest, count);
-		}
+		super::copy(self.to_const(), dest, count);
 	}
 
 	/// Copies `count` bits from `self` to `dest`. The source and destination
 	/// may *not* overlap.
 	///
-	/// NOTE: this has the *same* argument order as
-	/// [`ptr::copy_nonoverlapping`].
-	///
-	/// # Original
+	/// ## Original
 	///
 	/// [`pointer::copy_to_nonoverlapping`](https://doc.rust-lang.org/std/primitive.pointer.html#method.copy_to_nonoverlapping)
 	///
-	/// # Safety
+	/// ## Safety
 	///
-	/// See [`ptr::copy_nonoverlapping`] for safety concerns and examples.
-	///
-	/// [`ptr::copy_nonoverlapping`](crate::ptr::copy_nonoverlapping)
-	#[inline]
-	pub unsafe fn copy_to_nonoverlapping<O2, T2>(
+	/// See [`ptr::copy_nonoverlapping`](crate::ptr::copy_nonoverlapping).
+	#[cfg(not(tarpaulin_include))]
+	pub unsafe fn copy_to_nonoverlapping<T2, O2>(
 		self,
-		dest: BitPtr<Mut, O2, T2>,
+		dest: BitPtr<Mut, T2, O2>,
 		count: usize,
 	) where
-		O2: BitOrder,
 		T2: BitStore,
+		O2: BitOrder,
 	{
-		for (from, to) in self.range(count).zip(dest.range(count)) {
-			to.write(from.read());
-		}
+		super::copy_nonoverlapping(self.to_const(), dest, count);
 	}
 
-	/// Computes the offset (in bits) that needs to be applied to the pointer in
-	/// order to make it aligned to `align`.
+	/// Computes the offset (in bits) that needs to be applied to the
+	/// bit-pointer in order to make it aligned to the given *byte* alignment.
 	///
-	/// “Alignment” here means that the pointer is selecting the start bit of a
-	/// memory location whose address satisfies the requested alignment.
+	/// “Alignment” here means that the bit-pointer selects the starting bit of
+	/// a memory location whose address satisfies the requested alignment.
 	///
 	/// `align` is measured in **bytes**. If you wish to align your bit-pointer
 	/// to a specific fraction (½, ¼, or ⅛ of one byte), please file an issue
-	/// and this functionality will be added to [`BitIdx`].
+	/// and I will work on adding this functionality.
 	///
-	/// # Original
+	/// ## Original
 	///
 	/// [`pointer::align_offset`](https://doc.rust-lang.org/std/primitive.pointer.html#method.align_offset)
 	///
-	/// If the base-element address of the pointer is already aligned to
+	/// ## Notes
+	///
+	/// If the base-element address of the bit-pointer is already aligned to
 	/// `align`, then this will return the bit-offset required to select the
 	/// first bit of the successor element.
 	///
-	/// If it is not possible to align the pointer, the implementation returns
-	/// `usize::MAX`. It is permissible for the implementation to *always*
-	/// return `usize::MAX`. Only your algorithm’s performance can depend on
-	/// getting a usable offset here, not its correctness.
+	/// If it is not possible to align the bit-pointer, then the implementation
+	/// returns `usize::MAX`.
 	///
-	/// The offset is expressed in number of bits, and not `T` elements or
-	/// bytes. The value returned can be used with the [`wrapping_add`] method.
+	/// The return value is measured in bits, not `T` elements or bytes. The
+	/// only thing you can do with it is pass it into [`.add()`] or
+	/// [`.wrapping_add()`].
 	///
-	/// # Safety
+	/// Note from the standard library: It is permissible for the implementation
+	/// to *always* return `usize::MAX`. Only your algorithm’s performance can
+	/// depend on getting a usable offset here; it must be correct independently
+	/// of this function providing a useful value.
 	///
-	/// There are no guarantees whatsoëver that offsetting the pointer will not
-	/// overflow or go beyond the allocation that the pointer points into. It is
-	/// up to the caller to ensure that the returned offset is correct in all
-	/// terms other than alignment.
+	/// ## Safety
 	///
-	/// # Panics
+	/// There are no guarantees whatsoëver that offsetting the bit-pointer will
+	/// not overflow or go beyond the allocation that the bit-pointer selects.
+	/// It is up to the caller to ensure that the returned offset is correct in
+	/// all terms other than alignment.
 	///
-	/// The function panics if `align` is not a power-of-two.
+	/// ## Panics
 	///
-	/// # Examples
+	/// This method panics if `align` is not a power of two.
+	///
+	/// ## Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
 	/// let data = [0u8; 3];
-	/// let ptr = BitPtr::<_, Lsb0, _>::from_ref(&data[0]);
+	/// let ptr = BitPtr::<_, _, Lsb0>::from_slice(&data);
 	/// let ptr = unsafe { ptr.add(2) };
 	/// let count = ptr.align_offset(2);
-	/// assert!(count > 0);
+	/// assert!(count >= 6);
 	/// ```
 	///
-	/// [`BitIdx`]: crate::index::BitIdx
-	/// [`wrapping_add`]: Self::wrapping_add
-	#[inline]
+	/// [`.add()`]: Self::add
+	/// [`.wrapping_add()`]: Self::wrapping_add
 	pub fn align_offset(self, align: usize) -> usize {
-		let width = <T::Mem as IsNumber>::BITS as usize;
+		let width = mem::bits_of::<T::Mem>();
 		match (
-			self.addr.to_const().align_offset(align),
-			self.head.into_inner() as usize,
+			self.ptr.to_const().align_offset(align),
+			self.bit.into_inner() as usize,
 		) {
 			(0, 0) => 0,
-			(0, head) => align * 8 - head,
-			(usize::MAX, _) => !0,
+			(0, head) => align * mem::bits_of::<u8>() - head,
+			(usize::MAX, _) => usize::MAX,
 			(elts, head) => elts.wrapping_mul(width).wrapping_sub(head),
 		}
 	}
 }
 
-impl<O, T> BitPtr<Const, O, T>
+/// Port of the `*mut bool` inherent API.
+impl<T, O> BitPtr<Mut, T, O>
 where
-	O: BitOrder,
 	T: BitStore,
-{
-	/// Constructs a `BitPtr` from an element reference.
-	///
-	/// # Parameters
-	///
-	/// - `elem`: A borrowed memory element.
-	///
-	/// # Returns
-	///
-	/// A read-only bit-pointer to the zeroth bit in the `*elem` location.
-	#[inline]
-	pub fn from_ref(elem: &T) -> Self {
-		Self::new(elem.into(), BitIdx::ZERO)
-	}
-
-	/// Attempts to construct a `BitPtr` from an element location.
-	///
-	/// # Parameters
-	///
-	/// - `elem`: A read-only element address.
-	///
-	/// # Returns
-	///
-	/// A read-only bit-pointer to the zeroth bit in the `*elem` location, if
-	/// `elem` is well-formed.
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub fn from_ptr(elem: *const T) -> Result<Self, BitPtrError<T>> {
-		Self::try_new(elem, 0)
-	}
-
-	/// Constructs a `BitPtr` from a slice reference.
-	///
-	/// This differs from [`from_ref`] in that the returned pointer keeps its
-	/// provenance over the entire slice, whereas producing a pointer to the
-	/// base bit of a slice with `BitPtr::from_ref(&slice[0])` narrows its
-	/// provenance to only the `slice[0]` element, and calling [`add`] to leave
-	/// that element, even remaining in the slice, may cause UB.
-	///
-	/// # Parameters
-	///
-	/// - `slice`: An immutably borrowed slice of memory.
-	///
-	/// # Returns
-	///
-	/// A read-only bit-pointer to the zeroth bit in the base location of the
-	/// slice.
-	///
-	/// This pointer has provenance over the entire `slice`, and may safely use
-	/// [`add`] to traverse memory elements as long as it stays within the
-	/// slice.
-	///
-	/// [`add`]: Self::add
-	/// [`from_ref`]: Self::from_ref
-	#[inline]
-	pub fn from_slice(slice: &[T]) -> Self {
-		Self::new(unsafe { slice.as_ptr().force_wrap() }, BitIdx::ZERO)
-	}
-
-	/// Gets the pointer to the base memory location containing the referent
-	/// bit.
-	#[inline]
-	#[cfg(not(tarpaulin_include))]
-	pub fn pointer(&self) -> *const T {
-		self.get_addr().to_const()
-	}
-}
-
-impl<O, T> BitPtr<Mut, O, T>
-where
 	O: BitOrder,
-	T: BitStore,
 {
-	/// Constructs a `BitPtr` from an element reference.
+	/// Produces a proxy reference to the referent bit.
 	///
-	/// # Parameters
+	/// Because `BitPtr` guarantees that it is non-null and well-aligned, this
+	/// never returns `None`. However, this is still unsafe to call on any
+	/// bit-pointers created from conjured values rather than known references.
 	///
-	/// - `elem`: A mutably borrowed memory element.
-	///
-	/// # Returns
-	///
-	/// A write-capable bit-pointer to the zeroth bit in the `*elem` location.
-	///
-	/// Note that even if `elem` is an address within a contiguous array or
-	/// slice, the returned bit-pointer only has provenance for the `elem`
-	/// location, and no other.
-	///
-	/// # Safety
-	///
-	/// The exclusive borrow of `elem` is released after this function returns.
-	/// However, you must not use any other pointer than that returned by this
-	/// function to view or modify `*elem`, unless the `T` type supports aliased
-	/// mutation.
-	#[inline]
-	pub fn from_mut(elem: &mut T) -> Self {
-		Self::new(elem.into(), BitIdx::ZERO)
-	}
-
-	/// Attempts to construct a `BitPtr` from an element location.
-	///
-	/// # Parameters
-	///
-	/// - `elem`: A write-capable element address.
-	///
-	/// # Returns
-	///
-	/// A write-capable bit-pointer to the zeroth bit in the `*elem` location,
-	/// if `elem` is well-formed.
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub fn from_mut_ptr(elem: *mut T) -> Result<Self, BitPtrError<T>> {
-		Self::try_new(elem, 0)
-	}
-
-	/// Constructs a `BitPtr` from a slice reference.
-	///
-	/// This differs from [`from_mut`] in that the returned pointer keeps its
-	/// provenance over the entire slice, whereas producing a pointer to the
-	/// base bit of a slice with `BitPtr::from_mut(&mut slice[0])` narrows its
-	/// provenance to only the `slice[0]` element, and calling [`add`] to leave
-	/// that element, even remaining in the slice, may cause UB.
-	///
-	/// # Parameters
-	///
-	/// - `slice`: A mutably borrowed slice of memory.
-	///
-	/// # Returns
-	///
-	/// A write-capable bit-pointer to the zeroth bit in the base location of
-	/// the slice.
-	///
-	/// This pointer has provenance over the entire `slice`, and may safely use
-	/// [`add`] to traverse memory elements as long as it stays within the
-	/// slice.
-	///
-	/// [`add`]: Self::add
-	/// [`from_mut`]: Self::from_mut
-	#[inline]
-	pub fn from_mut_slice(slice: &mut [T]) -> Self {
-		Self::new(unsafe { slice.as_mut_ptr().force_wrap() }, BitIdx::ZERO)
-	}
-
-	/// Gets the pointer to the base memory location containing the referent
-	/// bit.
-	#[inline]
-	#[cfg(not(tarpaulin_include))]
-	pub fn pointer(&self) -> *mut T {
-		self.get_addr().to_mut()
-	}
-
-	//  `pointer` fundamental inherent API
-
-	/// Produces a proxy mutable reference to the referent bit.
-	///
-	/// Because `BitPtr` is a non-null, well-aligned, pointer, this never
-	/// returns `None`.
-	///
-	/// # Original
+	/// ## Original
 	///
 	/// [`pointer::as_mut`](https://doc.rust-lang.org/std/primitive.pointer.html#method.as_mut)
 	///
-	/// # API Differences
+	/// ## API Differences
 	///
 	/// This produces a proxy type rather than a true reference. The proxy
-	/// implements `DerefMut<Target = bool>`, and can be converted to `&mut
-	/// bool` with `&mut *`. Writes to the proxy are not reflected in the
-	/// proxied location until the proxy is destroyed, either through `Drop` or
-	/// with its [`set`] method.
+	/// implements `DerefMut<Target = bool>`, and can be converted to
+	/// `&mut bool` with a reborrow `&mut *`.
 	///
-	/// The proxy must be bound as `mut` in order to write through the binding.
+	/// Writes to the proxy are not reflected in the proxied location until the
+	/// proxy is destroyed, either through `Drop` or its [`.commit()`] method.
 	///
-	/// # Safety
+	/// ## Safety
 	///
 	/// Since `BitPtr` does not permit null or misaligned pointers, this method
-	/// will always dereference the pointer and you must ensure the following
-	/// conditions are met:
+	/// will always dereference the pointer in order to create the proxy. As
+	/// such, you must ensure the following conditions are met:
 	///
 	/// - the pointer must be dereferenceable as defined in the standard library
 	///   documentation
 	/// - the pointer must point to an initialized instance of `T`
 	/// - you must ensure that no other pointer will race to modify the referent
 	///   location while this call is reading from memory to produce the proxy
+	/// - you must ensure that no other `bitvec` handle targets the referent bit
 	///
-	/// # Examples
+	/// ## Examples
 	///
 	/// ```rust
 	/// use bitvec::prelude::*;
 	///
 	/// let mut data = 0u8;
-	/// let ptr = BitPtr::<_, Lsb0, _>::from_mut(&mut data);
+	/// let ptr = BitPtr::<_, _, Lsb0>::from_mut(&mut data);
 	/// let mut val = unsafe { ptr.as_mut() }.unwrap();
 	/// assert!(!*val);
 	/// *val = true;
 	/// assert!(*val);
 	/// ```
 	///
-	/// [`set`]: crate::ptr::BitRef::set
-	#[inline(always)]
-	#[cfg(not(tarpaulin_include))]
-	pub unsafe fn as_mut<'a>(self) -> Option<BitRef<'a, Mut, O, T>> {
+	/// [`.commit()`]: crate::ptr::BitRef::commit
+	pub unsafe fn as_mut<'a>(self) -> Option<BitRef<'a, Mut, T, O>> {
 		Some(BitRef::from_bitptr(self))
 	}
 
-	/// Copies `count` bits from `src` to `self`. The source and destination may
-	/// overlap.
+	/// Copies `count` bits from the region starting at `src` to the region
+	/// starting at `self`.
 	///
-	/// Note: this has the *opposite* argument order of [`ptr::copy`].
+	/// The regions are free to overlap; the implementation will detect overlap
+	/// and correctly avoid it.
 	///
-	/// # Original
+	/// Note: this has the *opposite* argument order from [`ptr::copy`]: `self`
+	/// is the destination, not the source.
+	///
+	/// ## Original
 	///
 	/// [`pointer::copy_from`](https://doc.rust-lang.org/std/primitive.pointer.html#method.copy_from)
 	///
-	/// # Safety
+	/// ## Safety
 	///
-	/// See [`ptr::copy`] for safety concerns and examples.
+	/// See [`ptr::copy`].
 	///
 	/// [`ptr::copy`]: crate::ptr::copy
-	#[inline(always)]
 	#[cfg(not(tarpaulin_include))]
-	pub unsafe fn copy_from<O2, T2>(
+	pub unsafe fn copy_from<T2, O2>(
 		self,
-		src: BitPtr<Const, O2, T2>,
+		src: BitPtr<Const, T2, O2>,
 		count: usize,
 	) where
-		O2: BitOrder,
 		T2: BitStore,
+		O2: BitOrder,
 	{
 		src.copy_to(self, count);
 	}
 
-	/// Copies `count` bits from `src` to `self`. The source and destination may
-	/// *not* overlap.
+	/// Copies `count` bits from the region starting at `src` to the region
+	/// starting at `self`.
 	///
-	/// NOTE: this has the *opposite* argument order of
-	/// [`ptr::copy_nonoverlapping`].
+	/// Unlike [`.copy_from()`], the two regions may *not* overlap; this method
+	/// does not attempt to detect overlap and thus may have a slight
+	/// performance boost over the overlap-handling `.copy_from()`.
 	///
-	/// # Original
+	/// Note: this has the *opposite* argument order from
+	/// [`ptr::copy_nonoverlapping`]: `self` is the destination, not the source.
+	///
+	/// ## Original
 	///
 	/// [`pointer::copy_from_nonoverlapping`](https://doc.rust-lang.org/std/primitive.pointer.html#method.copy_from_nonoverlapping)
 	///
-	/// # Safety
+	/// ## Safety
 	///
-	/// See [`ptr::copy_nonoverlapping`] for safety concerns and examples.
+	/// See [`ptr::copy_nonoverlapping`].
 	///
-	/// [`ptr::copy_nonoverlapping`]: crate::ptr::copy_nonoverlapping
-	#[inline(always)]
+	/// [`.copy_from()`]: Self::copy_from
 	#[cfg(not(tarpaulin_include))]
-	pub unsafe fn copy_from_nonoverlapping<O2, T2>(
+	pub unsafe fn copy_from_nonoverlapping<T2, O2>(
 		self,
-		src: BitPtr<Const, O2, T2>,
+		src: BitPtr<Const, T2, O2>,
 		count: usize,
 	) where
-		O2: BitOrder,
 		T2: BitStore,
+		O2: BitOrder,
 	{
 		src.copy_to_nonoverlapping(self, count);
 	}
 
-	/// Overwrites a memory location with the given bit.
+	/// Runs the destructor of the referent value.
 	///
-	/// See [`ptr::write`] for safety concerns and examples.
+	/// `bool` has no destructor; this function does nothing.
 	///
-	/// # Original
+	/// ## Original
+	///
+	/// [`pointer::drop_in_place`](https://doc.rust-lang.org/std/primitive.pointer.html#method.drop_in_place)
+	///
+	/// ## Safety
+	///
+	/// See [`ptr::drop_in_place`].
+	///
+	/// [`ptr::drop_in_place`]: crate::ptr::drop_in_place
+	#[deprecated = "this has no effect, and should not be called"]
+	pub fn drop_in_place(self) {}
+
+	/// Writes a new bit into the given location.
+	///
+	/// ## Original
 	///
 	/// [`pointer::write`](https://doc.rust-lang.org/std/primitive.pointer.html#method.write)
 	///
+	/// ## Safety
+	///
+	/// See [`ptr::write`].
+	///
 	/// [`ptr::write`]: crate::ptr::write
-	#[inline]
-	#[allow(clippy::clippy::missing_safety_doc)]
 	pub unsafe fn write(self, value: bool) {
 		self.replace(value);
 	}
 
-	/// Performs a volatile write of a memory location with the given bit.
+	/// Writes a new bit using volatile I/O operations.
 	///
-	/// Because processors do not have single-bit write instructions, this must
-	/// perform a volatile read of the location, perform the bit modification
-	/// within the processor register, and then perform a volatile write back to
-	/// memory. These three steps are guaranteed to be sequential, but are not
-	/// guaranteed to be atomic.
+	/// Because processors do not generally have single-bit read or write
+	/// instructions, this must perform a volatile read of the entire memory
+	/// location, perform the write locally, then perform another volatile write
+	/// to the entire location. These three steps are guaranteed to be
+	/// sequential with respect to each other, but are not guaranteed to be
+	/// atomic.
 	///
-	/// Volatile operations are intended to act on I/O memory, and are
-	/// guaranteed to not be elided or reördered by the compiler across other
-	/// volatile operations.
+	/// Volatile operations are intended to act on I/O memory, and are *only*
+	/// guaranteed not to be elided or reördered by the compiler across other
+	/// I/O operations.
 	///
-	/// # Original
+	/// You should not use `bitvec` to act on volatile memory. You should use a
+	/// crate specialized for volatile I/O work, such as [`voladdr`], and use it
+	/// to explicitly manage the I/O and ask it to perform `bitvec` work only on
+	/// the local snapshot of a volatile location.
+	///
+	/// ## Original
 	///
 	/// [`pointer::write_volatile`](https://doc.rust-lang.org/std/primitive.pointer.html#method.write_volatile)
 	///
-	/// # Safety
+	/// ## Safety
 	///
-	/// See [`ptr::write_volatile`] for safety concerns and examples.
+	/// See [`ptr::write_volatile`].
 	///
 	/// [`ptr::write_volatile`]: crate::ptr::write_volatile
-	#[inline]
-	pub unsafe fn write_volatile(self, val: bool) {
-		let select = O::select(self.head).into_inner();
-		let ptr = self.addr.cast::<T::Mem>().to_mut();
+	/// [`voladdr`]: https://docs.rs/voladdr/latest/voladdr
+	pub unsafe fn write_volatile(self, value: bool) {
+		let ptr = self.ptr.to_mut();
 		let mut tmp = ptr.read_volatile();
-		if val {
-			tmp |= &select;
-		}
-		else {
-			tmp &= &!select;
-		}
+		Self::new_unchecked((&mut tmp).into(), self.bit).write(value);
 		ptr.write_volatile(tmp);
 	}
 
-	/// Replaces the bit at `*self` with `src`, returning the old bit.
+	/// Writes a bit into memory, tolerating unaligned addresses.
 	///
-	/// # Original
+	/// `BitPtr` does not have unaligned addresses. `BitPtr` itself is capable
+	/// of operating on misaligned addresses, but elects to disallow use of them
+	/// in keeping with the rest of `bitvec`’s requirements.
+	///
+	/// ## Original
+	///
+	/// [`pointer::write_unaligned`](https://doc.rust-lang.org/std/primitive.pointer.html#method.write_unaligned)
+	///
+	/// ## Safety
+	///
+	/// See [`ptr::write_unaligned`].
+	///
+	/// [`ptr::write_unaligned`]: crate::ptr::write_unaligned
+	#[deprecated = "`BitPtr` does not have unaligned addresses"]
+	pub unsafe fn write_unaligned(self, value: bool) {
+		let ptr = self.ptr.to_mut();
+		let mut tmp = ptr.read_unaligned();
+		Self::new_unchecked((&mut tmp).into(), self.bit).write(value);
+		ptr.write_unaligned(tmp);
+	}
+
+	/// Replaces the bit at `*self` with a new value, returning the previous
+	/// value.
+	///
+	/// ## Original
 	///
 	/// [`pointer::replace`](https://doc.rust-lang.org/std/primitive.pointer.html#method.replace)
 	///
-	/// # Safety
+	/// ## Safety
 	///
-	/// See [`ptr::replace`] for safety concerns and examples.
+	/// See [`ptr::replace`].
 	///
 	/// [`ptr::replace`]: crate::ptr::replace
-	#[inline]
-	pub unsafe fn replace(self, src: bool) -> bool {
-		self.freeze().frozen_write_bit(src)
+	pub unsafe fn replace(self, value: bool) -> bool {
+		self.freeze().frozen_write_bit(value)
 	}
 
-	/// Swaps the bits at two mutable locations. They may overlap.
+	/// Swaps the bits at two mutable locations.
 	///
-	/// # Original
+	/// ## Original
 	///
 	/// [`pointer::swap`](https://doc.rust-lang.org/std/primitive.pointer.html#method.swap)
 	///
-	/// # Safety
+	/// ## Safety
 	///
-	/// See [`ptr::swap`] for safety concerns and examples.
+	/// See [`ptr::swap`].
 	///
 	/// [`ptr::swap`]: crate::ptr::swap
-	#[inline]
-	pub unsafe fn swap<O2, T2>(self, with: BitPtr<Mut, O2, T2>)
+	pub unsafe fn swap<T2, O2>(self, with: BitPtr<Mut, T2, O2>)
 	where
-		O2: BitOrder,
 		T2: BitStore,
+		O2: BitOrder,
 	{
 		self.write(with.replace(self.read()));
 	}
 }
 
-impl<M, O, T> BitPtr<Frozen<M>, O, T>
+impl<M, T, O> BitPtr<Frozen<M>, T, O>
 where
 	M: Mutability,
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	/// Writes to a bit in memory.
+	/// Writes through a bit-pointer that has had its mutability permission
+	/// removed.
 	///
-	/// # Safety
-	///
-	/// The caller is responsible for ensuring that the referent bit is safe to
-	/// modify. `bitvec` uses `&ref`/`*const` pointers for aliased write-capable
-	/// views, which the mutability tracking system currently does not support.
-	///
-	/// Once a pointer is frozen, even if it does *not* have write permissions
-	/// through either `Mut` or `Radium` in its start state, this method becomes
-	/// available. Use on incorrect pointers (f.ex. freezing an `&u8`) is
-	/// undefined.
-	#[inline]
+	/// This is used to allow `BitPtr<Const, _, AliasSafe<T>>` pointers, which
+	/// are not `Mut` but may still modify memory, to do so.
 	pub(crate) unsafe fn frozen_write_bit(self, value: bool) -> bool {
-		(&*self.addr.cast::<T::Access>().to_const())
-			.write_bit::<O>(self.head, value)
+		(&*self.ptr.cast::<T::Access>().to_const())
+			.write_bit::<O>(self.bit, value)
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<M, O, T> Clone for BitPtr<M, O, T>
+impl<M, T, O> Clone for BitPtr<M, T, O>
 where
 	M: Mutability,
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline(always)]
 	fn clone(&self) -> Self {
 		Self {
-			addr: self.get_addr(),
+			ptr: self.get_addr(),
 			..*self
 		}
 	}
 }
 
-impl<M, O, T> Eq for BitPtr<M, O, T>
+impl<M, T, O> Eq for BitPtr<M, T, O>
 where
 	M: Mutability,
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<M, O, T> Ord for BitPtr<M, O, T>
+impl<M, T, O> Ord for BitPtr<M, T, O>
 where
 	M: Mutability,
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline]
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
 		self.partial_cmp(other).expect(
 			"BitPtr has a total ordering when type parameters are identical",
@@ -1298,37 +1198,34 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<M1, M2, O, T1, T2> PartialEq<BitPtr<M2, O, T2>> for BitPtr<M1, O, T1>
+impl<M1, M2, T1, T2, O> PartialEq<BitPtr<M2, T2, O>> for BitPtr<M1, T1, O>
 where
 	M1: Mutability,
 	M2: Mutability,
-	O: BitOrder,
 	T1: BitStore,
 	T2: BitStore,
+	O: BitOrder,
 {
 	#[inline]
-	fn eq(&self, other: &BitPtr<M2, O, T2>) -> bool {
+	fn eq(&self, other: &BitPtr<M2, T2, O>) -> bool {
 		if !dvl::match_store::<T1::Mem, T2::Mem>() {
 			return false;
 		}
 		self.get_addr().to_const() as usize
 			== other.get_addr().to_const() as usize
-			&& self.head.into_inner() == other.head.into_inner()
+			&& self.bit.into_inner() == other.bit.into_inner()
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<M1, M2, O, T1, T2> PartialOrd<BitPtr<M2, O, T2>> for BitPtr<M1, O, T1>
+impl<M1, M2, T1, T2, O> PartialOrd<BitPtr<M2, T2, O>> for BitPtr<M1, T1, O>
 where
 	M1: Mutability,
 	M2: Mutability,
-	O: BitOrder,
 	T1: BitStore,
 	T2: BitStore,
+	O: BitOrder,
 {
-	#[inline]
-	fn partial_cmp(&self, other: &BitPtr<M2, O, T2>) -> Option<cmp::Ordering> {
+	fn partial_cmp(&self, other: &BitPtr<M2, T2, O>) -> Option<cmp::Ordering> {
 		if !dvl::match_store::<T1::Mem, T2::Mem>() {
 			return None;
 		}
@@ -1336,7 +1233,7 @@ where
 			.cmp(&(other.get_addr().to_const() as usize))
 		{
 			cmp::Ordering::Equal => {
-				self.head.into_inner().partial_cmp(&other.head.into_inner())
+				self.bit.into_inner().partial_cmp(&other.bit.into_inner())
 			},
 			ord => Some(ord),
 		}
@@ -1344,111 +1241,106 @@ where
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> From<&T> for BitPtr<Const, O, T>
+impl<T, O> From<&T> for BitPtr<Const, T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline]
 	fn from(elem: &T) -> Self {
-		Self::new(elem.into(), BitIdx::ZERO)
+		Self::from_ref(elem)
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> From<&mut T> for BitPtr<Mut, O, T>
+impl<T, O> From<&mut T> for BitPtr<Mut, T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline]
 	fn from(elem: &mut T) -> Self {
-		Self::new(elem.into(), BitIdx::ZERO)
+		Self::from_mut(elem)
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, T> TryFrom<*const T> for BitPtr<Const, O, T>
+impl<T, O> TryFrom<*const T> for BitPtr<Const, T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
 	type Error = BitPtrError<T>;
 
-	#[inline(always)]
 	fn try_from(elem: *const T) -> Result<Self, Self::Error> {
-		Self::try_new(elem, 0)
+		elem.try_conv::<Address<Const, T>>()?
+			.pipe(|ptr| Self::new(ptr, BitIdx::MIN))?
+			.pipe(Ok)
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, T> TryFrom<*mut T> for BitPtr<Mut, O, T>
+impl<T, O> TryFrom<*mut T> for BitPtr<Mut, T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
 	type Error = BitPtrError<T>;
 
-	#[inline(always)]
 	fn try_from(elem: *mut T) -> Result<Self, Self::Error> {
-		Self::try_new(elem, 0)
+		elem.try_conv::<Address<Mut, T>>()?
+			.pipe(|ptr| Self::new(ptr, BitIdx::MIN))?
+			.pipe(Ok)
 	}
 }
 
-impl<M, O, T> Debug for BitPtr<M, O, T>
+impl<M, T, O> Debug for BitPtr<M, T, O>
 where
 	M: Mutability,
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(
 			fmt,
 			"{} Bit<{}, {}>",
 			M::RENDER,
-			any::type_name::<O>(),
 			any::type_name::<T>(),
+			any::type_name::<O>(),
 		)?;
 		Pointer::fmt(self, fmt)
 	}
 }
 
-impl<M, O, T> Pointer for BitPtr<M, O, T>
+impl<M, T, O> Pointer for BitPtr<M, T, O>
 where
 	M: Mutability,
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_tuple("")
 			.field(&self.get_addr().fmt_pointer())
-			.field(&self.head.fmt_binary())
+			.field(&self.bit.fmt_binary())
 			.finish()
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<M, O, T> Hash for BitPtr<M, O, T>
+impl<M, T, O> Hash for BitPtr<M, T, O>
 where
 	M: Mutability,
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline]
 	fn hash<H>(&self, state: &mut H)
 	where H: Hasher {
 		self.get_addr().hash(state);
-		self.head.hash(state);
+		self.bit.hash(state);
 	}
 }
 
-impl<M, O, T> Copy for BitPtr<M, O, T>
+impl<M, T, O> Copy for BitPtr<M, T, O>
 where
 	M: Mutability,
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
 }
 
@@ -1457,51 +1349,28 @@ where
 pub enum BitPtrError<T>
 where T: BitStore
 {
-	/// The null address was provided.
+	/// Attempted to construct a bit-pointer with the null element address.
 	Null(NullPtrError),
-	/// The address was misaligned for the element type.
+	/// Attempted to construct a bit-pointer with an address not aligned for the
+	/// element type.
 	Misaligned(MisalignError<T>),
-	/// The bit index was invalid for the element type.
-	BadIndex(BitIdxError<T::Mem>),
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<T> From<NullPtrError> for BitPtrError<T>
-where T: BitStore
-{
-	#[inline(always)]
-	fn from(err: NullPtrError) -> Self {
-		Self::Null(err)
-	}
 }
 
 #[cfg(not(tarpaulin_include))]
 impl<T> From<MisalignError<T>> for BitPtrError<T>
 where T: BitStore
 {
-	#[inline(always)]
 	fn from(err: MisalignError<T>) -> Self {
 		Self::Misaligned(err)
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<T> From<BitIdxError<T::Mem>> for BitPtrError<T>
+impl<T> From<NullPtrError> for BitPtrError<T>
 where T: BitStore
 {
-	#[inline(always)]
-	fn from(err: BitIdxError<T::Mem>) -> Self {
-		Self::BadIndex(err)
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<T> From<Infallible> for BitPtrError<T>
-where T: BitStore
-{
-	#[inline(always)]
-	fn from(_: Infallible) -> Self {
-		unreachable!("Infallible errors can never be produced");
+	fn from(err: NullPtrError) -> Self {
+		Self::Null(err)
 	}
 }
 
@@ -1514,67 +1383,9 @@ where T: BitStore
 		match self {
 			Self::Null(err) => Display::fmt(err, fmt),
 			Self::Misaligned(err) => Display::fmt(err, fmt),
-			Self::BadIndex(err) => Display::fmt(err, fmt),
 		}
 	}
 }
 
 #[cfg(feature = "std")]
-impl<T> std::error::Error for BitPtrError<T> where T: BitStore
-{
-}
-
-#[cfg(test)]
-mod tests {
-	use super::*;
-	use crate::{
-		prelude::Lsb0,
-		ptr::Const,
-	};
-
-	#[test]
-	fn ctor() {
-		let data = 0u16;
-		let head = 5;
-
-		let bitptr = BitPtr::<Const, Lsb0, _>::try_new(&data, head).unwrap();
-		let (addr, indx) = bitptr.raw_parts();
-		assert_eq!(addr.to_const(), &data as *const _);
-		assert_eq!(indx.into_inner(), head);
-	}
-
-	#[test]
-	fn bitref() {
-		let data = 1u32 << 23;
-		let head = 23;
-		let bitptr = BitPtr::<Const, Lsb0, _>::try_new(&data, head).unwrap();
-		let bitref = unsafe { bitptr.as_ref() }.unwrap();
-		assert!(*bitref);
-	}
-
-	#[test]
-	fn assert_size() {
-		assert!(
-			core::mem::size_of::<BitPtr<Const, Lsb0, u8>>()
-				<= core::mem::size_of::<usize>() + core::mem::size_of::<u8>(),
-		);
-	}
-
-	#[test]
-	#[cfg(feature = "alloc")]
-	fn format() {
-		#[cfg(not(feature = "std"))]
-		use alloc::format;
-
-		use crate::order::Msb0;
-
-		let base = 0u16;
-		let bitptr = BitPtr::<_, Msb0, _>::from_ref(&base);
-		let text = format!("{:?}", unsafe { bitptr.add(3) });
-		let render = format!(
-			"*const Bit<bitvec::order::Msb0, u16>({:p}, {:04b})",
-			&base as *const u16, 3
-		);
-		assert_eq!(text, render);
-	}
-}
+impl<T> std::error::Error for BitPtrError<T> where T: BitStore {}

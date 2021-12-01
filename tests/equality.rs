@@ -9,8 +9,8 @@ use bitvec::prelude::*;
 
 #[test]
 fn slice_only() {
-	let a = bits![mut Msb0, u8; 0, 1];
-	let b = bits![mut Lsb0, u16; 0, 1];
+	let a = bits![mut u8, Msb0; 0, 1];
+	let b = bits![mut u16, Lsb0; 0, 1];
 	let c = bits![mut 1, 0];
 
 	//  BitSlice as PartialEq<BitSlice>
@@ -105,10 +105,10 @@ fn slice_only() {
 #[cfg(feature = "alloc")]
 #[allow(clippy::eq_op)] // The matrix diagonal is a deliberate style choice.
 fn with_alloc() {
-	let a = bits![Msb0, u8; 0, 1];
-	let b = bits![mut Lsb0, u16; 0, 1];
-	let c = bitbox![Lsb0, u32; 0, 1];
-	let d = bitvec![Msb0, usize; 0, 1];
+	let a = bits![u8, Msb0; 0, 1];
+	let b = bits![mut u16, Lsb0; 0, 1];
+	let c = bitbox![u32, Lsb0; 0, 1];
+	let d = bitvec![usize, Msb0; 0, 1];
 
 	assert_eq!(a, a); assert_eq!(a, b); assert_eq!(a, c); assert_eq!(a, d);
 	assert_eq!(b, a); assert_eq!(b, b); assert_eq!(b, c); assert_eq!(b, d);

@@ -1,4 +1,4 @@
-//! Port of the `Box<[T]>` operator implementations.
+//! Operator trait implementations for boxed bit-slices.
 
 use core::{
 	mem::ManuallyDrop,
@@ -25,169 +25,213 @@ use crate::{
 };
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T, Rhs> BitAnd<Rhs> for BitBox<O, T>
+impl<T, O> BitAndAssign<BitBox<T, O>> for BitSlice<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
-	BitSlice<O, T>: BitAndAssign<Rhs>,
+	O: BitOrder,
+{
+	fn bitand_assign(&mut self, rhs: BitBox<T, O>) {
+		*self &= rhs.as_bitslice()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<T, O> BitAndAssign<&BitBox<T, O>> for BitSlice<T, O>
+where
+	T: BitStore,
+	O: BitOrder,
+{
+	fn bitand_assign(&mut self, rhs: &BitBox<T, O>) {
+		*self &= rhs.as_bitslice()
+	}
+}
+
+impl<T, O, Rhs> BitAnd<Rhs> for BitBox<T, O>
+where
+	T: BitStore,
+	O: BitOrder,
+	BitSlice<T, O>: BitAndAssign<Rhs>,
 {
 	type Output = Self;
 
-	#[inline]
 	fn bitand(mut self, rhs: Rhs) -> Self::Output {
 		self &= rhs;
 		self
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, T, Rhs> BitAndAssign<Rhs> for BitBox<O, T>
+impl<T, O, Rhs> BitAndAssign<Rhs> for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
-	BitSlice<O, T>: BitAndAssign<Rhs>,
+	O: BitOrder,
+	BitSlice<T, O>: BitAndAssign<Rhs>,
 {
-	#[inline]
 	fn bitand_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() &= rhs;
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T, Rhs> BitOr<Rhs> for BitBox<O, T>
+impl<T, O> BitOrAssign<BitBox<T, O>> for BitSlice<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
-	BitSlice<O, T>: BitOrAssign<Rhs>,
+	O: BitOrder,
+{
+	fn bitor_assign(&mut self, rhs: BitBox<T, O>) {
+		*self |= rhs.as_bitslice()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<T, O> BitOrAssign<&BitBox<T, O>> for BitSlice<T, O>
+where
+	T: BitStore,
+	O: BitOrder,
+{
+	fn bitor_assign(&mut self, rhs: &BitBox<T, O>) {
+		*self |= rhs.as_bitslice()
+	}
+}
+
+impl<T, O, Rhs> BitOr<Rhs> for BitBox<T, O>
+where
+	T: BitStore,
+	O: BitOrder,
+	BitSlice<T, O>: BitOrAssign<Rhs>,
 {
 	type Output = Self;
 
-	#[inline]
 	fn bitor(mut self, rhs: Rhs) -> Self::Output {
 		self |= rhs;
 		self
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, T, Rhs> BitOrAssign<Rhs> for BitBox<O, T>
+impl<T, O, Rhs> BitOrAssign<Rhs> for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
-	BitSlice<O, T>: BitOrAssign<Rhs>,
+	O: BitOrder,
+	BitSlice<T, O>: BitOrAssign<Rhs>,
 {
-	#[inline]
 	fn bitor_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() |= rhs;
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T, Rhs> BitXor<Rhs> for BitBox<O, T>
+impl<T, O> BitXorAssign<BitBox<T, O>> for BitSlice<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
-	BitSlice<O, T>: BitXorAssign<Rhs>,
+	O: BitOrder,
+{
+	fn bitxor_assign(&mut self, rhs: BitBox<T, O>) {
+		*self ^= rhs.as_bitslice()
+	}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<T, O> BitXorAssign<&BitBox<T, O>> for BitSlice<T, O>
+where
+	T: BitStore,
+	O: BitOrder,
+{
+	fn bitxor_assign(&mut self, rhs: &BitBox<T, O>) {
+		*self ^= rhs.as_bitslice()
+	}
+}
+
+impl<T, O, Rhs> BitXor<Rhs> for BitBox<T, O>
+where
+	T: BitStore,
+	O: BitOrder,
+	BitSlice<T, O>: BitXorAssign<Rhs>,
 {
 	type Output = Self;
 
-	#[inline]
 	fn bitxor(mut self, rhs: Rhs) -> Self::Output {
 		self ^= rhs;
 		self
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, T, Rhs> BitXorAssign<Rhs> for BitBox<O, T>
+impl<T, O, Rhs> BitXorAssign<Rhs> for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
-	BitSlice<O, T>: BitXorAssign<Rhs>,
+	O: BitOrder,
+	BitSlice<T, O>: BitXorAssign<Rhs>,
 {
-	#[inline]
 	fn bitxor_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() ^= rhs;
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, T> Deref for BitBox<O, T>
+impl<T, O> Deref for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	type Target = BitSlice<O, T>;
+	type Target = BitSlice<T, O>;
 
-	#[inline(always)]
 	fn deref(&self) -> &Self::Target {
 		self.as_bitslice()
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, T> DerefMut for BitBox<O, T>
+impl<T, O> DerefMut for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline(always)]
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		self.as_mut_bitslice()
 	}
 }
 
-impl<O, T> Drop for BitBox<O, T>
+impl<T, O> Drop for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline]
 	fn drop(&mut self) {
-		//  Run the `Box` destructor to deällocate the buffer.
-		self.with_box(|slot| unsafe { ManuallyDrop::drop(slot) });
+		self.with_box(|b| unsafe { ManuallyDrop::drop(b) })
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T, Idx> Index<Idx> for BitBox<O, T>
+impl<T, O, Idx> Index<Idx> for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
-	BitSlice<O, T>: Index<Idx>,
+	O: BitOrder,
+	BitSlice<T, O>: Index<Idx>,
 {
-	type Output = <BitSlice<O, T> as Index<Idx>>::Output;
+	type Output = <BitSlice<T, O> as Index<Idx>>::Output;
 
-	#[inline]
 	fn index(&self, index: Idx) -> &Self::Output {
-		self.as_bitslice().index(index)
+		&self.as_bitslice()[index]
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T, Idx> IndexMut<Idx> for BitBox<O, T>
+impl<T, O, Idx> IndexMut<Idx> for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
-	BitSlice<O, T>: IndexMut<Idx>,
+	O: BitOrder,
+	BitSlice<T, O>: IndexMut<Idx>,
 {
-	#[inline]
 	fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
-		self.as_mut_bitslice().index_mut(index)
+		&mut self.as_mut_bitslice()[index]
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, T> Not for BitBox<O, T>
+impl<T, O> Not for BitBox<T, O>
 where
-	O: BitOrder,
 	T: BitStore,
+	O: BitOrder,
 {
 	type Output = Self;
 
-	#[inline]
 	fn not(mut self) -> Self::Output {
-		for elem in self.as_mut_slice().iter_mut() {
+		for elem in self.as_raw_mut_slice().iter_mut() {
 			elem.store_value(!elem.load_value());
 		}
 		self

@@ -12,6 +12,7 @@ fn iter_mut(b: &mut Bencher) {
 }
 
 #[bench]
+#[allow(deprecated)]
 fn native_for_each(b: &mut Bencher) {
 	let mut bits = bitarr![0; 500];
 	b.iter(|| bits.for_each(|_, b| !b));

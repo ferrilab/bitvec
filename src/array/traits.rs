@@ -1,4 +1,4 @@
-//! Non-operator trait implementations.
+//! Additional trait implementations on bit-arrays.
 
 use core::{
 	borrow::{
@@ -9,28 +9,23 @@ use core::{
 	convert::TryFrom,
 	fmt::{
 		self,
-		Binary,
 		Debug,
 		Display,
 		Formatter,
-		LowerHex,
-		Octal,
-		UpperHex,
 	},
 	hash::{
 		Hash,
 		Hasher,
 	},
+	marker::Unpin,
 };
 
-use funty::IsNumber;
+use tap::TryConv;
 
-use super::{
-	BitArray,
-	IntoIter,
-};
+use super::BitArray;
 use crate::{
 	index::BitIdx,
+	mem,
 	order::BitOrder,
 	slice::BitSlice,
 	store::BitStore,
@@ -38,39 +33,36 @@ use crate::{
 };
 
 #[cfg(not(tarpaulin_include))]
-impl<O, V> Borrow<BitSlice<O, V::Store>> for BitArray<O, V>
+impl<A, O> Borrow<BitSlice<A::Store, O>> for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
-	#[inline(always)]
-	fn borrow(&self) -> &BitSlice<O, V::Store> {
+	fn borrow(&self) -> &BitSlice<A::Store, O> {
 		self.as_bitslice()
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, V> BorrowMut<BitSlice<O, V::Store>> for BitArray<O, V>
+impl<A, O> BorrowMut<BitSlice<A::Store, O>> for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
-	#[inline(always)]
-	fn borrow_mut(&mut self) -> &mut BitSlice<O, V::Store> {
+	fn borrow_mut(&mut self) -> &mut BitSlice<A::Store, O> {
 		self.as_mut_bitslice()
 	}
 }
 
-impl<O, V> Clone for BitArray<O, V>
+impl<A, O> Clone for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
-	#[inline]
 	fn clone(&self) -> Self {
 		let mut out = Self::ZERO;
 		for (dst, src) in
-			out.as_mut_raw_slice().iter_mut().zip(self.as_raw_slice())
+			out.as_raw_mut_slice().iter_mut().zip(self.as_raw_slice())
 		{
 			dst.store_value(src.load_value());
 		}
@@ -78,262 +70,171 @@ where
 	}
 }
 
-impl<O, V> Eq for BitArray<O, V>
+impl<A, O> Eq for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
 }
 
-impl<O, V> Ord for BitArray<O, V>
+#[cfg(not(tarpaulin_include))]
+impl<A, O> Ord for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
-	#[inline]
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
 		self.as_bitslice().cmp(other.as_bitslice())
 	}
 }
 
-impl<O1, O2, V, T> PartialEq<BitArray<O2, V>> for BitSlice<O1, T>
+#[cfg(not(tarpaulin_include))]
+impl<O1, A, O2, T> PartialEq<BitArray<A, O2>> for BitSlice<T, O1>
 where
 	O1: BitOrder,
 	O2: BitOrder,
-	V: BitViewSized,
+	A: BitViewSized,
 	T: BitStore,
 {
-	#[inline]
-	fn eq(&self, other: &BitArray<O2, V>) -> bool {
+	fn eq(&self, other: &BitArray<A, O2>) -> bool {
 		self == other.as_bitslice()
 	}
 }
 
-impl<O, V, Rhs> PartialEq<Rhs> for BitArray<O, V>
+#[cfg(not(tarpaulin_include))]
+impl<A, O, Rhs> PartialEq<Rhs> for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 	Rhs: ?Sized,
-	BitSlice<O, V::Store>: PartialEq<Rhs>,
+	BitSlice<A::Store, O>: PartialEq<Rhs>,
 {
-	#[inline]
 	fn eq(&self, other: &Rhs) -> bool {
 		self.as_bitslice() == other
 	}
 }
 
-impl<O, V, T> PartialOrd<BitArray<O, V>> for BitSlice<O, T>
+#[cfg(not(tarpaulin_include))]
+impl<A, T, O> PartialOrd<BitArray<A, O>> for BitSlice<T, O>
 where
-	O: BitOrder,
-	V: BitViewSized,
+	A: BitViewSized,
 	T: BitStore,
+	O: BitOrder,
 {
-	#[inline]
-	fn partial_cmp(&self, other: &BitArray<O, V>) -> Option<cmp::Ordering> {
+	fn partial_cmp(&self, other: &BitArray<A, O>) -> Option<cmp::Ordering> {
 		self.partial_cmp(other.as_bitslice())
 	}
 }
 
-impl<O, V, Rhs> PartialOrd<Rhs> for BitArray<O, V>
+#[cfg(not(tarpaulin_include))]
+impl<A, O, Rhs> PartialOrd<Rhs> for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 	Rhs: ?Sized,
-	BitSlice<O, V::Store>: PartialOrd<Rhs>,
+	BitSlice<A::Store, O>: PartialOrd<Rhs>,
 {
-	#[inline]
 	fn partial_cmp(&self, other: &Rhs) -> Option<cmp::Ordering> {
 		self.as_bitslice().partial_cmp(other)
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, V> AsRef<BitSlice<O, V::Store>> for BitArray<O, V>
+impl<A, O> AsRef<BitSlice<A::Store, O>> for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
-	#[inline(always)]
-	fn as_ref(&self) -> &BitSlice<O, V::Store> {
+	fn as_ref(&self) -> &BitSlice<A::Store, O> {
 		self.as_bitslice()
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, V> AsMut<BitSlice<O, V::Store>> for BitArray<O, V>
+impl<A, O> AsMut<BitSlice<A::Store, O>> for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
-	#[inline(always)]
-	fn as_mut(&mut self) -> &mut BitSlice<O, V::Store> {
+	fn as_mut(&mut self) -> &mut BitSlice<A::Store, O> {
 		self.as_mut_bitslice()
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, V> From<V> for BitArray<O, V>
+impl<A, O> From<A> for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
-	#[inline(always)]
-	fn from(data: V) -> Self {
+	fn from(data: A) -> Self {
 		Self::new(data)
 	}
 }
 
-impl<'a, O, T> TryFrom<&'a BitSlice<O, T>> for BitArray<O, T>
+impl<A, O> TryFrom<&BitSlice<A::Store, O>> for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	T: BitStore,
 {
-	type Error = TryFromBitSliceError<'a, O, T>;
+	type Error = TryFromBitSliceError;
 
-	#[inline]
-	fn try_from(src: &'a BitSlice<O, T>) -> Result<Self, Self::Error> {
-		if src.len() != <T::Mem as IsNumber>::BITS as usize {
-			return Self::Error::err(src);
-		}
-		let mut out = Self::ZERO;
-		out.copy_from_bitslice(src);
-		Ok(out)
+	fn try_from(src: &BitSlice<A::Store, O>) -> Result<Self, Self::Error> {
+		src.try_conv::<&Self>().map(|this| this.clone())
 	}
 }
 
-impl<'a, O, T, const N: usize> TryFrom<&'a BitSlice<O, T>>
-	for BitArray<O, [T; N]>
+impl<A, O> TryFrom<&BitSlice<A::Store, O>> for &BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	T: BitStore,
 {
-	type Error = TryFromBitSliceError<'a, O, T>;
+	type Error = TryFromBitSliceError;
 
-	#[inline]
-	fn try_from(src: &'a BitSlice<O, T>) -> Result<Self, Self::Error> {
-		if src.len() != <T::Mem as IsNumber>::BITS as usize * N {
-			return Self::Error::err(src);
-		}
-		let mut out = Self::ZERO;
-		out.copy_from_bitslice(src);
-		Ok(out)
-	}
-}
-
-impl<'a, O, T> TryFrom<&'a BitSlice<O, T>> for &'a BitArray<O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	type Error = TryFromBitSliceError<'a, O, T>;
-
-	#[inline]
-	fn try_from(src: &'a BitSlice<O, T>) -> Result<Self, Self::Error> {
-		let bitspan = src.as_bitspan();
-		//  This pointer cast can only happen if the slice is exactly as long as
-		//  the array, and is aligned to the front of the element.
-		if src.len() != <T::Mem as IsNumber>::BITS as usize
-			|| bitspan.head() != BitIdx::ZERO
-		{
-			return Self::Error::err(src);
-		}
-		Ok(unsafe { &*(bitspan.address().to_const() as *const BitArray<O, T>) })
-	}
-}
-
-impl<'a, O, T, const N: usize> TryFrom<&'a BitSlice<O, T>>
-	for &'a BitArray<O, [T; N]>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	type Error = TryFromBitSliceError<'a, O, T>;
-
-	#[inline]
-	fn try_from(src: &'a BitSlice<O, T>) -> Result<Self, Self::Error> {
-		let bitspan = src.as_bitspan();
-		if src.len() != <T::Mem as IsNumber>::BITS as usize * N
-			|| bitspan.head() != BitIdx::ZERO
-		{
-			return Self::Error::err(src);
-		}
-		Ok(unsafe {
-			&*(bitspan.address().to_const() as *const BitArray<O, [T; N]>)
+	fn try_from(src: &BitSlice<A::Store, O>) -> Result<Self, Self::Error> {
+		TryFromBitSliceError::new::<A, O>(src).map(|()| unsafe {
+			&*src
+				.as_bitspan()
+				.address()
+				.to_const()
+				.cast::<BitArray<A, O>>()
 		})
 	}
 }
 
-impl<'a, O, T> TryFrom<&'a mut BitSlice<O, T>> for &'a mut BitArray<O, T>
+impl<A, O> TryFrom<&mut BitSlice<A::Store, O>> for &mut BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	T: BitStore,
 {
-	type Error = TryFromBitSliceError<'a, O, T>;
+	type Error = TryFromBitSliceError;
 
-	#[inline]
-	fn try_from(src: &'a mut BitSlice<O, T>) -> Result<Self, Self::Error> {
-		let bitspan = src.as_mut_bitspan();
-		if src.len() != <T::Mem as IsNumber>::BITS as usize
-			|| bitspan.head() != BitIdx::ZERO
-		{
-			return Self::Error::err(&*src);
-		}
-		Ok(unsafe { &mut *(bitspan.address().to_mut() as *mut BitArray<O, T>) })
-	}
-}
-
-impl<'a, O, T, const N: usize> TryFrom<&'a mut BitSlice<O, T>>
-	for &'a mut BitArray<O, [T; N]>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	type Error = TryFromBitSliceError<'a, O, T>;
-
-	#[inline]
-	fn try_from(src: &'a mut BitSlice<O, T>) -> Result<Self, Self::Error> {
-		let bitspan = src.as_mut_bitspan();
-		if src.len() != <T::Mem as IsNumber>::BITS as usize * N
-			|| bitspan.head() != BitIdx::ZERO
-		{
-			return Self::Error::err(&*src);
-		}
-		Ok(unsafe {
-			&mut *(bitspan.address().to_mut() as *mut BitArray<O, [T; N]>)
+	fn try_from(src: &mut BitSlice<A::Store, O>) -> Result<Self, Self::Error> {
+		TryFromBitSliceError::new::<A, O>(src).map(|()| unsafe {
+			&mut *src
+				.as_mut_bitspan()
+				.address()
+				.to_mut()
+				.cast::<BitArray<A, O>>()
 		})
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, V> Default for BitArray<O, V>
+impl<A, O> Default for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
-	#[inline(always)]
 	fn default() -> Self {
 		Self::ZERO
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, V> Binary for BitArray<O, V>
+impl<A, O> Debug for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
-	#[inline]
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		Binary::fmt(self.as_bitslice(), fmt)
-	}
-}
-
-impl<O, V> Debug for BitArray<O, V>
-where
-	O: BitOrder,
-	V: BitViewSized,
-{
-	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		self.as_bitspan().render(fmt, "Array", None)?;
 		fmt.write_str(" ")?;
@@ -341,187 +242,120 @@ where
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, V> Display for BitArray<O, V>
-where
-	O: BitOrder,
-	V: BitViewSized,
-{
-	#[inline]
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		Display::fmt(self.as_bitslice(), fmt)
-	}
+easy_fmt! {
+	impl Binary
+	impl Display
+	impl LowerHex
+	impl Octal
+	impl UpperHex
+	for BitArray
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, V> LowerHex for BitArray<O, V>
+impl<A, O> Hash for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
-	#[inline]
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		LowerHex::fmt(self.as_bitslice(), fmt)
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<O, V> Octal for BitArray<O, V>
-where
-	O: BitOrder,
-	V: BitViewSized,
-{
-	#[inline]
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		Octal::fmt(self.as_bitslice(), fmt)
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<O, V> UpperHex for BitArray<O, V>
-where
-	O: BitOrder,
-	V: BitViewSized,
-{
-	#[inline]
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		UpperHex::fmt(self.as_bitslice(), fmt)
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<O, V> Hash for BitArray<O, V>
-where
-	O: BitOrder,
-	V: BitViewSized,
-{
-	#[inline]
 	fn hash<H>(&self, hasher: &mut H)
 	where H: Hasher {
-		self.as_bitslice().hash(hasher)
+		self.as_bitslice().hash(hasher);
 	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<O, V> IntoIterator for BitArray<O, V>
+impl<A, O> Copy for BitArray<A, O>
 where
 	O: BitOrder,
-	V: BitViewSized,
-{
-	type IntoIter = IntoIter<O, V>;
-	type Item = bool;
-
-	#[inline(always)]
-	fn into_iter(self) -> Self::IntoIter {
-		IntoIter::new(self)
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<'a, O, V> IntoIterator for &'a BitArray<O, V>
-where
-	O: BitOrder,
-	V: BitViewSized,
-{
-	type IntoIter = <&'a BitSlice<O, V::Store> as IntoIterator>::IntoIter;
-	type Item = <&'a BitSlice<O, V::Store> as IntoIterator>::Item;
-
-	#[inline]
-	fn into_iter(self) -> Self::IntoIter {
-		self.as_bitslice().into_iter()
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<'a, O, V> IntoIterator for &'a mut BitArray<O, V>
-where
-	O: BitOrder,
-	V: BitViewSized,
-{
-	type IntoIter = <&'a mut BitSlice<O, V::Store> as IntoIterator>::IntoIter;
-	type Item = <&'a mut BitSlice<O, V::Store> as IntoIterator>::Item;
-
-	#[inline]
-	fn into_iter(self) -> Self::IntoIter {
-		self.as_mut_bitslice().into_iter()
-	}
-}
-
-impl<O, V> Copy for BitArray<O, V>
-where
-	O: BitOrder,
-	V: BitViewSized + Copy,
+	A: BitViewSized + Copy,
 {
 }
 
-impl<O, V> Unpin for BitArray<O, V>
+impl<A, O> Unpin for BitArray<A, O>
 where
+	A: BitViewSized,
 	O: BitOrder,
-	V: BitViewSized,
 {
 }
 
-/** The error type returned when a conversion from a [`BitSlice`] to a
-[`BitArray`] fails.
-
-[`BitArray`]: crate::array::BitArray
-[`BitSlice`]: crate::slice::BitSlice
-**/
 #[repr(transparent)]
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
-pub struct TryFromBitSliceError<'a, O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	inner: &'a BitSlice<O, T>,
+#[doc = include_str!("../../doc/array/TryFromBitSliceError.md")]
+pub struct TryFromBitSliceError(InnerError);
+
+impl TryFromBitSliceError {
+	/// Checks whether a bit-slice can be viewed as a bit-array.
+	fn new<A, O>(bits: &BitSlice<A::Store, O>) -> Result<(), Self>
+	where
+		O: BitOrder,
+		A: BitViewSized,
+	{
+		InnerError::new::<A, O>(bits).map_err(Self)
+	}
 }
 
-#[cfg(not(tarpaulin_include))]
-impl<'a, O, T> TryFromBitSliceError<'a, O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	#[inline(always)]
-	fn err<A>(inner: &'a BitSlice<O, T>) -> Result<A, Self> {
-		Err(Self { inner })
+impl Debug for TryFromBitSliceError {
+	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+		fmt.write_str("TryFromBitSliceError::")?;
+		match self.0 {
+			InnerError::UnequalLen { actual, expected } => {
+				write!(fmt, "UnequalLen({} != {})", actual, expected)
+			},
+			InnerError::Misaligned => fmt.write_str("Misaligned"),
+		}
 	}
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<O, T> Debug for TryFromBitSliceError<'_, O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	#[inline]
+impl Display for TryFromBitSliceError {
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		fmt.debug_struct("TryFromBitSliceError")
-			.field("inner", &self.inner)
-			.finish()
-	}
-}
-
-#[cfg(not(tarpaulin_include))]
-impl<O, T> Display for TryFromBitSliceError<'_, O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
-	#[inline]
-	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		fmt.write_fmt(format_args!(
-			"could not convert bit-slice to bit-array: {:?}",
-			self.inner,
-		))
+		match self.0 {
+			InnerError::UnequalLen { actual, expected } => write!(
+				fmt,
+				"bit-slice with length {} cannot be viewed as bit-array with \
+				 length {}",
+				actual, expected,
+			),
+			InnerError::Misaligned => fmt.write_str(
+				"a bit-slice must begin at the front edge of a storage element \
+				 in order to be viewed as a bit-array",
+			),
+		}
 	}
 }
 
 #[cfg(feature = "std")]
-impl<'a, O, T> std::error::Error for TryFromBitSliceError<'a, O, T>
-where
-	O: BitOrder,
-	T: BitStore,
-{
+impl std::error::Error for TryFromBitSliceError {}
+
+/// Opaque error type for bit-slice to bit-array view conversions.
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+enum InnerError {
+	/// A bit-slice did not match the length of the destination bit-array.
+	UnequalLen {
+		/// The length of the bit-slice that produced this error.
+		actual:   usize,
+		/// The length of the destination bit-array type.
+		expected: usize,
+	},
+	/// A bit-slice did not begin at `BitIdx::MIN`.
+	Misaligned,
+}
+
+impl InnerError {
+	/// Checks whether a bit-slice is suitable to view as a bit-array.
+	fn new<A, O>(bits: &BitSlice<A::Store, O>) -> Result<(), Self>
+	where
+		O: BitOrder,
+		A: BitViewSized,
+	{
+		let bitspan = bits.as_bitspan();
+		let actual = bitspan.len();
+		let expected = mem::bits_of::<A>();
+		if actual != expected {
+			return Err(Self::UnequalLen { actual, expected });
+		}
+		if bitspan.head() != BitIdx::<<A::Store as BitStore>::Mem>::MIN {
+			return Err(Self::Misaligned);
+		}
+		Ok(())
+	}
 }

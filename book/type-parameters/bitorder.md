@@ -3,7 +3,7 @@
 1. [Provided Orderings](#provided-orderings)
    1. [`Lsb0`](#lsb0)
    1. [`Msb0`](#msb0)
-   1. [`LocalBits`](#local)
+   1. [`LocalBits`](#localbits)
    1. [Default Ordering Parameter](#default-ordering-parameter)
 1. [Implementing `BitOrder`](#implementing-bitorder)
    1. [Support Types](#support-types)

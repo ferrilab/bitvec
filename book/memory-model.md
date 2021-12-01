@@ -164,11 +164,11 @@ memory type parameters are tainted with the `::Alias` marker. It has the
 following type signature:
 
 ```rust
-impl<O, T> BitSlice<O, T>
+impl<T, O> BitSlice<T, O>
 where O: BitOrder, T: BitStore {
   pub fn split_at_unchecked_mut(&mut self, at: usize) -> (
-    &mut BitSlice<O, T::Alias>,
-    &mut BitSlice<O, T::Alias>,
+    &mut BitSlice<T::Alias, O>,
+    &mut BitSlice<T::Alias, O>,
   );
 }
 ```
@@ -272,22 +272,23 @@ the starting bit index, and the bit count.
 
 This is expressed in the `domain` module’s four enums.
 
-### `BitDomain` and `BitDomainMut`
+### `BitDomain`
 
 These enums split any `BitSlice` region into its subcomponents, immutably or
 mutably, respectively. They have the definition
 
 ```rust
-pub enum BitDomain /* Mut */ <'a, O, T>
+pub enum BitDomain<'a, M, T, O>
 where
+  M: Mutability,
   O: BitOrder,
   T: BitStore
 {
-  Enclave { body: &'a /* mut */ BitSlice<O, T> },
+  Enclave { body: &'a /* mut */ BitSlice<T, O> },
   Region {
-    head: &'a /* mut */ BitSlice<O, T>,
-    body: &'a /* mut */ BitSlice<O, T::Mem>,
-    tail: &'a /* mut */ BitSlice<O, T>,
+    head: &'a /* mut */ BitSlice<T, O>,
+    body: &'a /* mut */ BitSlice<T::Mem, O>,
+    tail: &'a /* mut */ BitSlice<T, O>,
   },
 }
 ```
@@ -301,7 +302,7 @@ then the only way to get a partial edge slice is to either forget about some
 bits from the main slice, which is *not* an alias event, or to split the slice,
 which *is*, and splitting already marks the alias.
 
-### `Domain` and `DomainMut`
+### `Domain`
 
 The bit domains are still bit slices, and do not offer a way to access the
 backing memory. For operations where raw memory access is required, these enums
@@ -311,8 +312,11 @@ their bits.
 They have the definition
 
 ```rust
-pub enum Domain /* Mut */ <'a, T>
-where T: BitStore {
+pub enum Domain<'a, M, T>
+where
+  M: Mutability,
+  T: BitStore,
+{
   Enclave {
     head: BitIdx<T::Mem>,
     elem: &'a T /* ::Access */,
@@ -336,7 +340,7 @@ is to memory that is fully known to be unaliased.
 > This deäliasing behavior is why `BitSlice`s are impossible to construct over
 > memory that permits external aliases outside of `bitvec`’s control.
 
-The `DomainMut` structure will produce bare [atomic] or [`Cell`] types in the
+The `Domain` structure will produce bare [atomic] or [`Cell`] types in the
 alias condition. This is necessary in order to avoid production of `&mut`
 references which alias (as this is undefined in the Rust abstract machine,
 regardless of behavior), and safe because any other references to the same
@@ -393,7 +397,7 @@ has a more robust arbitrary-bit-tracking capability, but similarly limits its
 interface to external code.
 
 Barring any errors in the `bitvec` implementation, the `bitvec` memory model is
-fully sound in its behavior with regard to single-observer race freedom.
+fully sound in its behavior with regard to single-observer unsynchrony.
 Synchronization is only added in order to correctly interface with `rustc` and
 LLVM without causing either of them to introduce undefined behavior due to a
 lack of information.
@@ -430,8 +434,8 @@ simultaneous production of `::Mem` and `::Alias` aliasing references.
       much luck producing a benchmark that firmly demonstrates that unneeded
       atomic access is a strict performance cost.
 
-[^5]: In multi-threaded environments. Disabling atomics also disables `bitvec`’s
-      support for multi-threaded, so the penalty for aliasing is reduced to an
+[^5]: In multithreading environments. Disabling atomics also disables `bitvec`’s
+      support for multithreading, so the penalty for aliasing is reduced to an
       inability to remove redundant reads.
 
 [bv_ord]: https://github.com/myrrlyn/bitvec/blob/HEAD/src/order.rs

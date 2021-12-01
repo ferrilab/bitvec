@@ -1,48 +1,51 @@
-/*! This example shows off de/serializing a bit sequence using serde.
+#![cfg(all(feature = "alloc", feature = "serde"))]
 
-The example uses JSON for simplicity of demonstration; it should work with all
-serde-compatible de/ser protocols.
-!*/
-
-#[cfg(all(feature = "alloc", feature = "serde"))]
 use bitvec::prelude::*;
 
 #[test]
-#[cfg(all(feature = "alloc", feature = "serde"))]
+fn serdes_slice() {
+	let bits = bits![u8, Msb0; 1, 0, 1, 1, 0, 0, 1, 0, 1];
+	let json = serde_json::to_string(bits).unwrap();
+	assert_eq!(
+		json.trim(),
+		r#"{"order":"bitvec::order::Msb0","head":{"width":8,"index":0},"bits":9,"data":[178,128]}"#,
+	);
+}
+
+#[test]
 fn serdes_array() {
-	let ba = bitarr![Msb0, u8; 1, 0, 1, 1, 0, 0, 1, 0];
-	let json = serde_json::to_string(&ba).expect("cannot fail to serialize");
-	assert_eq!(json.trim(), r#"[178]"#);
-
-	let ba: BitArray<Msb0, [u8; 1]> =
-		serde_json::from_str(&json).expect("cannot fail to deserialize");
-	assert!(ba[0]);
-	assert_eq!(ba.as_raw_slice()[0], 178);
-
-	//  Note: Scalar arrays do not (yet) serialize as a sequence of one element.
-	let ba_bare: BitArray<Msb0, u8> =
-		serde_json::from_str(&"178").expect("cannot fail to deserialize");
-	assert_eq!(ba.as_bitslice(), ba_bare.as_bitslice());
+	let bits = [0x07u8, 0x15].into_bitarray::<Lsb0>();
+	let json = serde_json::to_string(&bits).unwrap();
+	assert_eq!(
+		json.trim(),
+		r#"{"order":"bitvec::order::Lsb0","head":{"width":8,"index":0},"bits":16,"data":[7,21]}"#,
+	);
+	let deser: BitArr![for 16, in u8, Lsb0] =
+		serde_json::from_str(&json).unwrap();
+	assert_eq!(bits, deser);
 }
 
 #[test]
-#[cfg(all(feature = "alloc", feature = "serde"))]
-fn serdes_vector() {
-	let bv = bitvec![Msb0, u8; 1, 0, 1, 1, 0, 0, 1, 0];
-	let json = serde_json::to_string(&bv).expect("cannot fail to serialize");
-	assert_eq!(json.trim(), r#"{"head":0,"bits":8,"data":[178]}"#);
-
-	let bb: BitBox<Msb0, u8> =
-		serde_json::from_str(&json).expect("cannot fail to deserialize");
-
-	assert!(bb[0]);
-	assert_eq!(bb.as_slice()[0], 178);
+fn serdes_box() {
+	let bits = bitbox![u32, Lsb0; 0, 1, 0, 0, 1];
+	let json = serde_json::to_string(&bits).unwrap();
+	assert_eq!(
+		json.trim(),
+		r#"{"order":"bitvec::order::Lsb0","head":{"width":32,"index":0},"bits":5,"data":[18]}"#,
+	);
+	let deser: BitBox<u32, Lsb0> = serde_json::from_str(&json).unwrap();
+	assert_eq!(bits, deser);
 }
 
 #[test]
-#[cfg(all(feature = "alloc", feature = "serde"))]
-fn serdes_escaped() {
-	let json = r#"{ "he\u0061d": 1, "\u0062its": 6, "d\u0061ta": [105] }"#;
-
-	let _: BitVec<Msb0, u8> = serde_json::from_str(&json).unwrap();
+#[cfg(target_endian = "little")]
+fn serdes_vec() {
+	let bits = bitvec![u16, LocalBits; 1, 0, 1, 1, 0];
+	let json = serde_json::to_string(&bits).unwrap();
+	assert_eq!(
+		json.trim(),
+		r#"{"order":"bitvec::order::Lsb0","head":{"width":16,"index":0},"bits":5,"data":[13]}"#,
+	);
+	let deser: BitVec<u16, Lsb0> = serde_json::from_str(&json).unwrap();
+	assert_eq!(bits, deser);
 }

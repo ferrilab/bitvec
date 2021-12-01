@@ -28,16 +28,30 @@ square 25x25.
 //
 //  Heisenbugs are weird.
 
-#[cfg(feature = "std")]
 use std::{
 	cmp,
 	env,
+	process,
 };
 
-#[cfg(feature = "std")]
 use bitvec::prelude::*;
 
-#[cfg(feature = "std")]
+macro_rules! qprintln {
+	($($t:tt)*) => {
+		if !cfg!(feature = "testing") {
+			println!($($t)*);
+		}
+	};
+}
+
+macro_rules! qprint {
+	($($t:tt)*) => {
+		if !cfg!(feature = "testing") {
+			print!($($t)*);
+		}
+	};
+}
+
 fn main() {
 	//  Capture the arguments iterator exactly once.
 	let mut args = env::args();
@@ -51,10 +65,10 @@ fn main() {
 	let vec_bool_capa = vec![false; max].capacity();
 
 	//  Prepare a vector for the search space.
-	let mut primes = BitVec::<LocalBits, usize>::repeat(true, max);
+	let mut primes: BitVec = BitVec::repeat(true, max);
 	let len = primes.len();
 
-	println!(
+	qprintln!(
 		"BitVec   [{}]: {} bytes of heap\nVec<bool>[{}]: {} bytes of heap",
 		len,
 		//  `.capacity()` always returns bits, and we want bytes
@@ -63,21 +77,21 @@ fn main() {
 		vec_bool_capa,
 	);
 
-	//  0 and 1 are not primes
+	//  0 and 1 are not primes.
 	primes.set(0, false);
 	primes.set(1, false);
 
-	println!("Calculating 1…");
+	qprintln!("Calculating 1…");
 	for num in 2 ..= ((len as f64).sqrt() as usize) {
 		//  Adjust the frequency of log statements logarithmically.
 		let log = (num as f64).log10();
 		if log - log.floor() == 0.0 {
-			println!("Calculating {}…", num);
+			qprintln!("Calculating {}…", num);
 		}
-		//  If num is prime, mark all multiples as non-prime
+		//  If num is prime, mark all multiples as non-prime.
 		if primes[num] {
 			//  Start at num * num, because num * (num - 1) was handled in the
-			//  previous iteration: (num - 1) * (num - 1 + 1)
+			//  previous iteration: (num - 1) * (num - 1 + 1).
 			'mul: for factor in num .. {
 				let product = num * factor;
 				if product >= len {
@@ -87,21 +101,23 @@ fn main() {
 			}
 		}
 	}
-	println!("Calculation complete!");
-	//  Freeze the vector by permanently borrowing it as an immutable slice.
+	qprintln!("Calculation complete!");
+	//  Freeze the vector by permanently borrowing it as an immutable bit-slice.
 	let primes = primes.as_bitslice();
 
 	let prime_ct = primes.count_ones();
 	let prime_ratio = 100.0 * prime_ct as f64 / len as f64;
 
 	if primes.not_any() {
-		println!("There are no primes smaller than {}", len);
-		std::process::exit(0);
+		qprintln!("There are no primes smaller than {}", len);
+		process::exit(0);
 	}
 	else {
-		println!(
+		qprintln!(
 			"There are {} primes less than {} ({}%)",
-			prime_ct, len, prime_ratio
+			prime_ct,
+			len,
+			prime_ratio
 		);
 	}
 
@@ -109,45 +125,51 @@ fn main() {
 
 	let limit = cmp::min(dim * dim, len);
 	let displayed_primes = &primes[.. limit];
-	//  Find the widest number that will be printed, and get its width.
+	/* Find the widest number that will be printed, and get its width. To do
+	 * this, we:
+	 *
+	 * - iterate over the bits
+	 * - by value
+	 * - from the back
+	 * - counting up from the end
+	 * - seeking the first marked prime
+	 * - using `ceil(log10(num))` to find its printed length
+	 */
 	let cell_width = displayed_primes
 		.iter()
-		.by_val()
-		//  search from the back
+		.by_vals()
 		.rev()
 		.enumerate()
-		//  stop at the first prime
 		.find(|(_, bit)| *bit)
-		//  ceil(log10) is the number of digits to print
 		.map(|(idx, _)| ((limit - 1 - idx) as f64).log10().ceil() as usize)
 		.expect("Failed to find a prime.");
 
 	let prime_ct = displayed_primes.count_ones();
 	let prime_ratio = 100.0 * prime_ct as f64 / limit as f64;
-	println!(
+	qprintln!(
 		"There are {} primes less than {} ({}%) and they are:",
-		prime_ct, limit, prime_ratio
+		prime_ct,
+		limit,
+		prime_ratio
 	);
 	'rows: for (row, bits) in displayed_primes.chunks(dim).take(dim).enumerate()
 	{
-		for (col, bit) in bits.iter().by_val().enumerate() {
+		for (col, bit) in bits.iter().by_vals().enumerate() {
 			let idx = row * dim + col;
 			if idx >= limit {
-				println!();
+				qprintln!();
 				break 'rows;
 			}
 			if bit {
-				print!("{:>1$} ", idx, cell_width);
+				qprint!("{:>1$} ", idx, cell_width);
 			}
 			else {
-				print!("{:^1$} ", "-", cell_width);
+				qprint!("{:^1$} ", "-", cell_width);
 			}
 		}
-		println!();
+		qprintln!();
 	}
 }
 
 #[cfg(not(feature = "std"))]
-fn main() {
-	//  This example requires the standard library.
-}
+compile_error!("This example requires the standard library");

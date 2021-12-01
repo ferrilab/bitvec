@@ -12,8 +12,8 @@ fn bitwise_eq(bench: &mut Bencher) {
 
 	bench.iter(|| {
 		a.iter()
-			.by_val()
-			.zip(b.iter().by_val())
+			.by_vals()
+			.zip(b.iter().by_vals())
 			.all(|(a, b)| a == b)
 	});
 }
@@ -28,8 +28,8 @@ fn lsb0_accel_eq(bench: &mut Bencher) {
 
 #[bench]
 fn msb0_accel_eq(bench: &mut Bencher) {
-	let a = bitarr![Msb0, usize; 0; 500];
-	let b = bitarr![Msb0, usize; 0; 500];
+	let a = bitarr![usize, Msb0; 0; 500];
+	let b = bitarr![usize, Msb0; 0; 500];
 
 	bench.iter(|| a == b);
 }

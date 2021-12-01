@@ -6,32 +6,27 @@ a sample of the various operations that can be applied to it.
 This example prints **a lot** of text to the console.
 !*/
 
-#[cfg(feature = "std")]
-use std::iter::repeat;
-
-#[cfg(feature = "std")]
 use bitvec::prelude::{
-	//  `bits!` macro
 	bits,
-	//  element-traversal trait (you shouldn’t explicitly need this)
 	BitOrder,
-	//  slice type, analogous to `[u1]`
 	BitSlice,
-	//  trait unifying the primitives (you shouldn’t explicitly need this)
 	BitStore,
-	//  vector type, analogous to `Vec<u1>`
 	BitVec,
-	//  directionality type markers
 	Lsb0,
 	Msb0,
 };
-#[cfg(feature = "std")]
-use funty::IsNumber;
 
-#[cfg(feature = "std")]
+macro_rules! qprintln {
+	($($t:tt)*) => {
+		if !cfg!(feature = "testing") {
+			println!($($t)*);
+		}
+	};
+}
+
 fn main() {
 	//  Default types are `order::Lsb0` and `usize`
-	let bits = bits![Msb0, u8;
+	let bits = bits![u8, Msb0;
 		0, 0, 0, 0, 0, 0, 0, 1,
 		0, 0, 0, 0, 0, 0, 1, 0,
 		0, 0, 0, 0, 0, 1, 0, 0,
@@ -50,35 +45,35 @@ fn main() {
 		0, 0, 0, 0, 0, 0, 0, 1,
 		1, 0, 1, 0,
 	];
-	println!(
+	qprintln!(
 		"A Msb0 BitSlice has the same left-to-right order in memory as it does \
 		 semantically"
 	);
-	render(&bits);
+	render(bits);
 
 	//  BitVec can turn into iterators, and be built from iterators.
-	let bv: BitVec<Lsb0, u8> = bits.iter().collect();
-	println!(
+	let bv: BitVec<u8, Lsb0> = bits.iter().collect();
+	qprintln!(
 		"An Lsb0 BitVec has the opposite layout in memory as it does \
 		 semantically"
 	);
 	render(&bv);
 
-	let bv: BitVec<Msb0, u16> = bv.into_iter().collect();
-	println!("A BitVec can use storage other than u8");
+	let bv: BitVec<u16, Msb0> = bv.into_iter().collect();
+	qprintln!("A BitVec can use storage other than u8");
 	render(&bv);
 
-	println!("BitVec can participate in Boolean arithmetic");
-	let full = bv.clone() | repeat(true);
+	qprintln!("BitVec can participate in Boolean arithmetic");
+	let full = bv.clone() | bits![1; 132];
 	render(&full);
-	let empty = full & repeat(false);
+	let empty = full & bits![0; 132];
 	render(&empty);
-	let flip = bv ^ repeat(true);
+	let flip = bv ^ bits![1; 132];
 	render(&flip);
 	let bv = !flip;
 	render(&bv);
 
-	println!(
+	qprintln!(
 		"\
 Bit slice operations will never affect or observe memory outside the domain of
 the slice descriptor. This can result in slow behavior when operations must work
@@ -99,31 +94,29 @@ are dominant."
 	}
 	render(&bv);
 
-	println!("End example");
+	qprintln!("End example");
 
-	fn render<O, T>(bs: &BitSlice<O, T>)
+	fn render<T, O>(bs: &BitSlice<T, O>)
 	where
 		O: BitOrder,
 		T: BitStore,
 	{
-		println!(
+		qprintln!(
 			"Memory information: {} elements, {} bits",
-			bs.as_raw_slice().len(),
+			bs.domain().len(),
 			bs.len(),
 		);
-		println!("Print out the semantic contents");
-		println!("{:#?}", bs);
-		println!("Print out the memory contents");
-		println!("{:?}", bs.domain());
-		println!("Show the bits in memory");
+		qprintln!("Print out the semantic contents");
+		qprintln!("{:#?}", bs);
+		qprintln!("Print out the memory contents");
+		qprintln!("{:?}", bs.domain());
+		qprintln!("Show the bits in memory");
 		for elt in bs.domain() {
-			println!("{:0w$b} ", elt, w = T::Mem::BITS as usize);
+			qprintln!("{:0w$b} ", elt, w = bitvec::mem::bits_of::<T::Mem>());
 		}
-		println!();
+		qprintln!();
 	}
 }
 
 #[cfg(not(feature = "std"))]
-fn main() {
-	//  This example requires the standard library.
-}
+compile_error!("This example requires the standard library.");

@@ -2,7 +2,7 @@
 #                          Book Configuration                          #
 #                                                                      #
 # This file configures the `mdbook` executable used to compile `book/` #
-# into a project manual.                                               #
+# into a project guide.                                                #
 ########################################################################
 
 [book]
@@ -10,7 +10,7 @@ title = "A User’s Guide to the `bitvec` Project"
 authors = [
 	"myrrlyn <self@myrrlyn.dev>",
 ]
-description = "A more thorough manual of the `bitvec` project"
+description = "A more thorough exploration of the `bitvec` project"
 src = "book"
 
 [build]

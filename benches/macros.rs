@@ -23,7 +23,7 @@ use test::Bencher;
 #[bench]
 fn bits_seq_u8(b: &mut Bencher) {
 	b.iter(|| {
-		bitarr![LocalBits, u8;
+		bitarr![u8, LocalBits;
 			0, 1, 0, 1, 0, 0, 1, 1,
 			0, 1, 1, 0, 0, 0, 0, 1,
 			0, 1, 1, 0, 1, 1, 0, 0,
@@ -46,7 +46,7 @@ fn bits_seq_u8(b: &mut Bencher) {
 #[bench]
 fn bits_seq_u16(b: &mut Bencher) {
 	b.iter(|| {
-		bitarr![LocalBits, u16;
+		bitarr![u16, LocalBits;
 			0, 1, 0, 1, 0, 0, 1, 1,
 			0, 1, 1, 0, 0, 0, 0, 1,
 			0, 1, 1, 0, 1, 1, 0, 0,
@@ -69,7 +69,7 @@ fn bits_seq_u16(b: &mut Bencher) {
 #[bench]
 fn bits_seq_u32(b: &mut Bencher) {
 	b.iter(|| {
-		bitarr![LocalBits, u32;
+		bitarr![u32, LocalBits;
 			0, 1, 0, 1, 0, 0, 1, 1,
 			0, 1, 1, 0, 0, 0, 0, 1,
 			0, 1, 1, 0, 1, 1, 0, 0,
@@ -93,7 +93,7 @@ fn bits_seq_u32(b: &mut Bencher) {
 #[cfg(target_pointer_width = "64")]
 fn bits_seq_u64(b: &mut Bencher) {
 	b.iter(|| {
-		bitarr![LocalBits, u64;
+		bitarr![u64, LocalBits;
 			0, 1, 0, 1, 0, 0, 1, 1,
 			0, 1, 1, 0, 0, 0, 0, 1,
 			0, 1, 1, 0, 1, 1, 0, 0,
@@ -117,27 +117,27 @@ fn bits_seq_u64(b: &mut Bencher) {
 
 #[bench]
 fn bits_rep_u8(b: &mut Bencher) {
-	b.iter(|| bitarr![LocalBits, u8; 0; 120]);
-	b.iter(|| bitarr![LocalBits, u8; 1; 120]);
+	b.iter(|| bitarr![u8, LocalBits; 0; 120]);
+	b.iter(|| bitarr![u8, LocalBits; 1; 120]);
 }
 
 #[bench]
 fn bits_rep_u16(b: &mut Bencher) {
-	b.iter(|| bitarr![LocalBits, u16; 0; 120]);
-	b.iter(|| bitarr![LocalBits, u16; 1; 120]);
+	b.iter(|| bitarr![u16, LocalBits; 0; 120]);
+	b.iter(|| bitarr![u16, LocalBits; 1; 120]);
 }
 
 #[bench]
 fn bits_rep_u32(b: &mut Bencher) {
-	b.iter(|| bitarr![LocalBits, u32; 0; 120]);
-	b.iter(|| bitarr![LocalBits, u32; 1; 120]);
+	b.iter(|| bitarr![u32, LocalBits; 0; 120]);
+	b.iter(|| bitarr![u32, LocalBits; 1; 120]);
 }
 
 #[bench]
 #[cfg(target_pointer_width = "64")]
 fn bits_rep_u64(b: &mut Bencher) {
-	b.iter(|| bitarr![LocalBits, u64; 0; 120]);
-	b.iter(|| bitarr![LocalBits, u64; 1; 120]);
+	b.iter(|| bitarr![u64, LocalBits; 0; 120]);
+	b.iter(|| bitarr![u64, LocalBits; 1; 120]);
 }
 
 #[bench]
