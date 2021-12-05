@@ -35,7 +35,7 @@ only be modified in a major release (`0.X.n` to `0.Y.0` or `X.m.n` to `Y.0.0`).
 #![cfg(feature = "serde")]
 
 #[cfg(feature = "alloc")]
-use alloc::borrow::Cow;
+use alloc::{borrow::Cow, vec::Vec};
 use core::{
 	cmp,
 	fmt::{
