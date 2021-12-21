@@ -33,9 +33,9 @@ crate-internal space optimizations.
 
 - `M`: Marks whether the pointer has mutability permissions to the referent
   memory. Only `Mut` pointers can be used to create `&mut` references.
-- `O`: The ordering of bits within a memory element.
 - `T`: A memory type used to select both the register width and the bus behavior
   when performing memory accesses.
+- `O`: The ordering of bits within a memory element.
 
 ## Usage
 
@@ -45,3 +45,17 @@ directly dereferenced, as it is not a pointer; it can only be transformed back
 into higher referential types, or used in functions that accept it.
 
 These pointers can never be null or misaligned.
+
+## Safety
+
+Rust and LLVM **do not** have a concept of bit-level initialization yet.
+Furthermore, the underlying foundational code that this type uses to manipulate
+individual bits in memory relies on construction of **shared references** to
+memory, which means that unlike standard pointers, the `T` element to which
+`BitPtr` values point must always be **already initialized** in your program
+context.
+
+`bitvec` is not able to detect or enforce this requirement, and is currently not
+able to avoid it. See [`BitAccess`] for more information.
+
+[`BitAccess`]: crate::access::BitAccess

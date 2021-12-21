@@ -146,11 +146,29 @@ useful for client crates to propagate. `<usize, Lsb0>` is fastest; `<u8, Msb0>`
 matches what most debugger views of memory will print, and the rest are
 documented in the guide.
 
+## Safety
+
+Unlike the other data structures in this crate, `BitVec` is uniquely able to
+hold uninitialized memory and produce pointers into it. As described in the
+[`BitAccess`] documentation, this crate is categorically unable to operate on
+uninitialized memory in any way. In particular, you may not allocate a buffer
+using [`with_capacity()`], then use [`.as_mut_bitptr()`] to create a pointer
+used to write into the uninitialized buffer.
+
+You must always initialize the buffer contents of a `BitVec` before attempting
+to view its contents. You can accomplish this through safe APIs such as
+`.push()`, `.extend()`, or `.reserve()`. These are all guaranteed to safely
+initialize the memory elements underlying the `BitVec` buffer without incurring
+undefined behavior in their operation.
+
 [book]: https://bitvecto-rs.github.io/bitvec/type-parameters.html
+[`BitAccess`]: crate::access::BitAccess
 [`BitArray`]: crate::array::BitArray
 [`BitField`]: crate::field::BitField
 [`BitSlice`]: crate::slice::BitSlice
 [`bitvec!`]: macro@crate::bitvec
 [`std::vector<bool>`]: https://en.cppreference.com/w/cpp/container/vector_bool
+[`.as_mut_bitptr()`]: crate::slice::BitSlice::as_mut_bitptr
 [`.get_mut()`]: crate::slice::BitSlice::get_mut
 [`.set()`]: crate::slice::BitSlice::set
+[`::with_capacity()`]: Self::with_capacity

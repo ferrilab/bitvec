@@ -327,6 +327,36 @@ where
 		unsafe { slice::from_raw_parts_mut(data, len) }
 	}
 
+	/// Creates an unsafe shared bit-pointer to the start of the buffer.
+	///
+	/// ## Original
+	///
+	/// [`Vec::as_ptr`](alloc::vec::Vec::as_ptr)
+	///
+	/// ## Safety
+	///
+	/// You must initialize the contents of the underlying buffer before
+	/// accessing memory through this pointer. See the `BitPtr` documentation
+	/// for more details.
+	pub fn as_bitptr(&self) -> BitPtr<Const, T, O> {
+		self.bitspan.to_bitptr().to_const()
+	}
+
+	/// Creates an unsafe writable bit-pointer to the start of the buffer.
+	///
+	/// ## Original
+	///
+	/// [`Vec::as_mut_ptr`](alloc::vec::Vec::as_mut_ptr)
+	///
+	/// ## Safety
+	///
+	/// You must initialize the contents of the underlying buffer before
+	/// accessing memory through this pointer. See the `BitPtr` documentation
+	/// for more details.
+	pub fn as_mut_bitptr(&mut self) -> BitPtr<Mut, T, O> {
+		self.bitspan.to_bitptr()
+	}
+
 	/// Converts a bit-vector into a boxed bit-slice.
 	///
 	/// This may cause a reällocation to drop any excess capacity.
