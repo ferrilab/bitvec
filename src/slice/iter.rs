@@ -7,10 +7,7 @@ use core::{
 		Debug,
 		Formatter,
 	},
-	iter::{
-		FusedIterator,
-		Map,
-	},
+	iter::FusedIterator,
 	marker::PhantomData,
 	mem,
 };
@@ -31,19 +28,11 @@ use crate::{
 		Msb0,
 	},
 	ptr::{
-		BitPtr,
 		BitPtrRange,
 		BitRef,
 	},
 	store::BitStore,
 };
-
-/// An iterator over `BitSlice` that yields `&bool` references.
-pub type ByRefs<'a, T, O> = Map<ByVal<T, O>, fn(bool) -> &'a bool>;
-
-/// An iterator over `BitSlice` that yields `bool` values.
-pub type ByVal<T, O> =
-	Map<BitPtrRange<Const, T, O>, fn(BitPtr<Const, T, O>) -> bool>;
 
 /// [Original](https://doc.rust-lang.org/core/iter/trait.IntoIterator.html#impl-IntoIterator-1)
 #[cfg(not(tarpaulin_include))]
@@ -160,7 +149,13 @@ where
 	/// ```
 	///
 	/// [0]: crate::ptr::BitRef
-	pub fn by_refs(self) -> ByRefs<'a, T, O> {
+	pub fn by_refs(
+		self,
+	) -> impl 'a
+	+ Iterator<Item = &'a bool>
+	+ DoubleEndedIterator
+	+ ExactSizeIterator
+	+ FusedIterator {
 		self.by_vals().map(|bit| match bit {
 			true => &true,
 			false => &false,
@@ -200,7 +195,13 @@ where
 	/// ```
 	///
 	/// [0]: crate::ptr::BitRef
-	pub fn by_vals(self) -> ByVal<T, O> {
+	pub fn by_vals(
+		self,
+	) -> impl 'a
+	+ Iterator<Item = bool>
+	+ DoubleEndedIterator
+	+ ExactSizeIterator
+	+ FusedIterator {
 		self.range.map(|bp| unsafe { bp.read() })
 	}
 
@@ -219,7 +220,13 @@ where
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "`Iterator::copied` does not exist on this type. Use \
 	                `.by_vals()` instead"]
-	pub fn copied(self) -> ByVal<T, O> {
+	pub fn copied(
+		self,
+	) -> impl 'a
+	+ Iterator<Item = bool>
+	+ DoubleEndedIterator
+	+ ExactSizeIterator
+	+ FusedIterator {
 		self.by_vals()
 	}
 }

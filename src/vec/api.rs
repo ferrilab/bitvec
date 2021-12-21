@@ -971,8 +971,11 @@ where
 	///
 	/// let mut bv = bitvec![0, 1, 1];
 	/// //                   a  b  c
-	/// let mut yank = bv.splice(.. 2, bits![1, 1, 0].iter().by_vals());
-	/// //                                   d  e  f
+	/// let mut yank = bv.splice(
+	///   .. 2,
+	///   bits![static 1, 1, 0].iter().by_vals(),
+	/// //             d  e  f
+	/// );
 	///
 	/// assert!(!yank.next().unwrap()); // a
 	/// assert!(yank.next().unwrap()); // b

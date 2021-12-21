@@ -940,14 +940,13 @@ where
 		let source_len = source.len();
 		let rev = source.contains(&dest);
 		let dest = dest .. dest + source_len;
-		for (bit, to) in self
+		for (from, to) in self
 			.get_unchecked(source)
-			.iter()
-			.by_vals()
+			.as_bitptr_range()
 			.zip(self.get_unchecked_mut(dest).as_mut_bitptr_range())
 			.bidi(rev)
 		{
-			to.write(bit);
+			to.write(from.read());
 		}
 	}
 
