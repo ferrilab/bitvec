@@ -103,3 +103,9 @@ where
 {
 	TypeId::of::<T>() == TypeId::of::<U>()
 }
+
+/// Converts `addr` to a pointer using the provenance of `prov`.
+pub fn int_to_ptr_with_provenance<T>(addr: usize, prov: *const T) -> *const T {
+	let ptr = prov.cast::<u8>();
+	ptr.wrapping_add(addr.wrapping_sub(ptr as usize)).cast()
+}

@@ -39,6 +39,7 @@ use super::{
 	MisalignError,
 };
 use crate::{
+	devel::int_to_ptr_with_provenance,
 	index::{
 		BitEnd,
 		BitIdx,
@@ -205,12 +206,16 @@ where
 		let head = head.into_inner() as usize;
 		let ptr_data = addr.to_const() as usize & Self::PTR_ADDR_MASK;
 		let ptr_head = head >> Self::LEN_HEAD_BITS;
+		// We need to preserve pointer provenance for miri, see miri issue 1866
+		// <https://github.com/rust-lang/miri/issues/1866#issuecomment-985770125>
+		let ptr =
+			int_to_ptr_with_provenance(ptr_data | ptr_head, addr.to_const());
 
 		let len_head = head & Self::LEN_HEAD_MASK;
 		let len_bits = bits << Self::LEN_HEAD_BITS;
 
 		Self {
-			ptr: NonNull::new_unchecked((ptr_data | ptr_head) as *mut ()),
+			ptr: NonNull::new_unchecked(ptr as *mut ()),
 			len: len_bits | len_head,
 			..Self::EMPTY
 		}
