@@ -202,15 +202,28 @@ where
 		head: BitIdx<T::Mem>,
 		bits: usize,
 	) -> Self {
+		let addr = addr.to_const().cast::<u8>();
+
 		let head = head.into_inner() as usize;
-		let ptr_data = addr.to_const() as usize & Self::PTR_ADDR_MASK;
+		let ptr_data = addr as usize & Self::PTR_ADDR_MASK;
 		let ptr_head = head >> Self::LEN_HEAD_BITS;
 
 		let len_head = head & Self::LEN_HEAD_MASK;
 		let len_bits = bits << Self::LEN_HEAD_BITS;
 
+		/* See <https://github.com/bitvecto-rs/bitvec/issues/135#issuecomment-986357842>.
+		 * This attempts to retain inbound provenance information and may help
+		 * Miri better understand pointer operations this module performs.
+		 *
+		 * This performs `a + (p - a)` in `addr`’s provenance zone, which is
+		 * numerically equivalent to `p` but does not require conjuring a new,
+		 * uninformed, pointer value.
+		 */
+		let ptr_raw = ptr_data | ptr_head;
+		let ptr = addr.wrapping_add(ptr_raw.wrapping_sub(addr as usize));
+
 		Self {
-			ptr: NonNull::new_unchecked((ptr_data | ptr_head) as *mut ()),
+			ptr: NonNull::new_unchecked(ptr.cast::<()>() as *mut ()),
 			len: len_bits | len_head,
 			..Self::EMPTY
 		}
