@@ -12,16 +12,15 @@ able to find error sources from a small sample and a description of intent and
 the failure.
 
 I will work with you on all correctness errors to find the fault and write a fix
-in as rapid a timeframe as I am able. Once you have verified that I have
+in as rapid a time-frame as I am able. Once you have verified that I have
 resolved the fault, I will publish the fix as a new patch version on *at least*
 the minor series that observed the fault, and any others that I deem worthwhile.
 
 Depending on the severity of the fault, I *may* yank affected versions from the
-Rust registry <https://crates.io>. As of this writing, `bitvec 0.17.4` is the
-oldest unyanked version available, due to an incorrect usage of the allocator in
-the `0.11` through `0.17` series. I will always offer backports of a patch and
-support migrating to a newer series whenever a fault requires the removal of
-affected versions.
+Rust registry <https://crates.io>. As of this writing, the `0.x.y` versions are
+all unsupported, but will remain published unless serious vulnerabilities are
+discovered. I do not plan to provide security updates to the version-0 series
+anymore.
 
 `bitvec` is a pointer-encoding library. It is at risk for vulnerabilities in its
 encoding and decoding of memory addresses, and its use of the memory allocator.
