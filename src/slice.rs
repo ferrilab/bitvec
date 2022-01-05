@@ -857,12 +857,6 @@ where
 		let right = left.add(mid);
 		let left = left.span_unchecked(mid);
 		let right = right.span_unchecked(len - mid);
-		/* This is load-bearing. If it is removed, Miri crashes tests as UAF.
-		 * It must also be `.wrapping_sub()`, not `.sub()`, or Miri crashes as
-		 * OOB. The reasons why are not clear, since it is exactly inverting
-		 * the `left.add(mid)` done above.
-		 */
-		debug_assert_eq!(right.to_bitptr().wrapping_sub(mid), left.to_bitptr());
 		let left = left.into_bitslice_ref();
 		let right = right.into_bitslice_ref();
 		(left, right)
