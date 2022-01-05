@@ -152,7 +152,7 @@ Unlike the other data structures in this crate, `BitVec` is uniquely able to
 hold uninitialized memory and produce pointers into it. As described in the
 [`BitAccess`] documentation, this crate is categorically unable to operate on
 uninitialized memory in any way. In particular, you may not allocate a buffer
-using [`with_capacity()`], then use [`.as_mut_bitptr()`] to create a pointer
+using [`::with_capacity()`], then use [`.as_mut_bitptr()`] to create a pointer
 used to write into the uninitialized buffer.
 
 You must always initialize the buffer contents of a `BitVec` before attempting

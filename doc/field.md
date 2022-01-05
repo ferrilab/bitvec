@@ -17,21 +17,21 @@ it also implements it in a way that takes advantage of the contiguity properties
 of the `Lsb0` and `Msb0` orderings in order to maximize how many bits are
 transferred in each cycle of the overall operation.
 
-This is most efficient when using `BitSlice<O, usize>` as the storage bit-slice,
+This is most efficient when using `BitSlice<usize, O>` as the storage bit-slice,
 or using `.load::<usize>()` or `.store::<usize>()` as the transfer type.
 
 ## Bit-Slice Storage and Integer Value Relationships
 
 `BitField` permits any type of integer, *including signed integers*, to be
-stored into or loaded out of a `BitSlice<_, T>` with any storage type `T`. While
+stored into or loaded out of a `BitSlice<T, _>` with any storage type `T`. While
 the examples in this module will largely use `u8`, just to keep the text
 concise, `BitField` is tested, and will work correctly, for any combination of
 types.
 
-`Bitfield` implementations use the processor’s own concept of integer registers
+`BitField` implementations use the processor’s own concept of integer registers
 to operate. As such, the byte-wise memory access patters for types wider than
 `u8` depends on your processor’s byte endianness, as well as which `BitField`
-method, and which `BitOrder` type parameter, you are using.
+method, and which [`BitOrder`] type parameter, you are using.
 
 `BitField` only operates within processor registers; traffic of `T` elements
 between the memory bank and the processor register is controlled entirely by the
@@ -57,12 +57,13 @@ bit-slice of length `12` means that the stored value has type `i12`.
 
 When calling `.load::<i16>()` on a 12-bit slice, the load will detect the sign
 bit of the `i12` value and sign-extend it to `i16`. This means that storing
-`4096i16` into a 12-bit slice and then loading it back out into an `i16` will
-produce `-4096i16`, not `+4096i16`, because `1 << 12` is the sign bit.
+`2048i16` into a 12-bit slice and then loading it back out into an `i16` will
+produce `-2048i16` (negative), not `2048i16` (positive), because `1 << 11` is
+the sign bit.
 
 `BitField` **does not** record the true sign bit of an integer being stored, and
 will not attempt to set the sign bit of the narrowed value in storage. Storing
-`-127i8` into a 7-bit slice will load `1i8`.
+`-127i8` (`0b1000_0001`) into a 7-bit slice will load `1i8`.
 
 ## Register Bit Order Preservation
 
@@ -127,5 +128,6 @@ This documentation is likely collapsed by default when viewing the trait docs;
 be sure to use the `[+]` button to expand it!
 
 [`BitField`]: self::BitField
+[`BitOrder`]: crate::order::BitOrder
 [`BitSlice`]: crate::slice::BitSlice
 [`Domain::Region`]: crate::domain::Domain::Region
