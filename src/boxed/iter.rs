@@ -210,7 +210,7 @@ where
 }
 
 /// [Original](https://doc.rust-lang.org/alloc/vec/struct.IntoIter.html#impl-Send)
-#[allow(clippy::non_send_fields_in_send_ty)]
+// #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl<T, O> Send for IntoIter<T, O>
 where
 	T: BitStore + Sync,

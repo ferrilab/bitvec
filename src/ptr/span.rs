@@ -269,7 +269,7 @@ where
 	/// None. The invariants of [`::new`] must be checked at the caller.
 	///
 	/// [`::new`]: Self::new
-	#[cfg(any(feature = "alloc", test))]
+	#[cfg(feature = "alloc")]
 	pub(crate) unsafe fn set_address(&mut self, addr: Address<M, T>) {
 		let mut addr_value = addr.to_const() as usize;
 		addr_value &= Self::PTR_ADDR_MASK;
@@ -308,7 +308,7 @@ where
 	///
 	/// `head` is written into the `.head` logical field, without affecting
 	/// `.addr` or `.bits`.
-	#[cfg(any(feature = "alloc", test))]
+	#[cfg(feature = "alloc")]
 	pub(crate) unsafe fn set_head(&mut self, head: BitIdx<T::Mem>) {
 		let head = head.into_inner() as usize;
 		let mut ptr = self.ptr.as_ptr() as usize;

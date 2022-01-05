@@ -138,6 +138,7 @@ fn compile_bitarr() {
 }
 
 #[test]
+#[allow(clippy::many_single_char_names)]
 fn compile_bits() {
 	let a: &mut BitSlice<Cell<u8>, Lsb0> = bits![mut Cell<u8>, Lsb0; 1, 0, 1];
 	let b: &mut BitSlice<u8, Lsb0> = bits![mut u8, Lsb0; 1, 0, 1];

@@ -376,7 +376,7 @@ where
 	}
 }
 
-#[allow(clippy::non_send_fields_in_send_ty)] // I know what I’m doing
+// #[allow(clippy::non_send_fields_in_send_ty)] // I know what I’m doing
 unsafe impl<M, T, O> Send for BitRef<'_, M, T, O>
 where
 	M: Mutability,

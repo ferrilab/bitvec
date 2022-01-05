@@ -466,7 +466,7 @@ macro_rules! iter {
 
 		/// [Original](https://doc.rust-lang.org/core/slice/struct.Iter.html#impl-Send) and
 		/// [Original](https://doc.rust-lang.org/core/slice/struct.IterMut.html#impl-Send)
-		#[allow(clippy::non_send_fields_in_send_ty)]
+		// #[allow(clippy::non_send_fields_in_send_ty)]
 		unsafe impl<'a, T, O> Send for $iter<'a, T, O>
 		where
 			T: BitStore,

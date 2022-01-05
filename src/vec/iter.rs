@@ -470,7 +470,7 @@ where
 }
 
 /// [Original](https://doc.rust-lang.org/alloc/vec/struct.Drain.html#impl-Send)
-#[allow(clippy::non_send_fields_in_send_ty)]
+// #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl<T, O> Send for Drain<'_, T, O>
 where
 	T: BitStore,
