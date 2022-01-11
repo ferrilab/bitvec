@@ -29,12 +29,12 @@ Which is why the definition of `BitSlice` is
 #[repr(transparent)]
 pub struct BitSlice<T, O>
 where
-  O: BitOrder,
   T: BitStore,
+  O: BitOrder,
 {
   _mem: [()],
-  _ord: PhantomData<O>,
   _typ: PhantomData<T>,
+  _ord: PhantomData<O>,
 }
 ```
 
@@ -91,11 +91,15 @@ In Rust, the structure is declared as
 //  src/pointer.rs
 
 #[repr(C)]
-pub struct BitSpan<T>
-where T: BitStore {
+pub struct BitSpan<T, O>
+where
+  T: BitStore,
+  O: BitOrder,
+{
   ptr: NonNull<u8>,
   len: usize,
   _ty: PhantomData<T>,
+  _or: PhantomData<O>,
 }
 ```
 

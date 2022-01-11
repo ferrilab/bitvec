@@ -8,9 +8,9 @@ artifact to the best solution for all parties, with as few compromises as
 possible. Unfortunately, this has the side effect of increasing the complexity
 of the codebase, both for maintainers and for readers.
 
-This document explains the abstract concepts of the `bitvec` memory model and
-the means by which it is encoded in the Rust language without running afoul of
-Rust or LLVM rules that threaten undefined behavior.
+This chapter explains the abstract concepts of the `bitvec` memory model and the
+means by which it is encoded in the Rust language without running afoul of Rust
+or LLVM rules that threaten undefined behavior.
 
 The `bitvec` memory model is typed entirely within the `store` module’s
 `BitStore` trait definition and implementations. It utilizes the `access`
@@ -19,7 +19,7 @@ are known to be correct in the Rust and LLVM models, so that at any point in
 program execution, memory access will be consistent and sound.
 
 In addition, the `domain` module’s types provide views which manipulate the
-`store` model to maximize performance. This document will discuss primarily
+`store` model to maximize performance. This chapter will discuss primarily
 `store`, and use `domain` only to provide examples of how `store` is used in
 practice to accomplish the library’s implementation.
 
@@ -42,8 +42,7 @@ concept of subdivision from `T` into the bits that compose it, `bitvec` views
 each individual bit as a standalone, independent, atom of memory. It excludes
 the creation of two `&mut BitSlice` reference handles that are capable of
 viewing the same *bit*, but will happily produce two `&mut BitSlice` handles
-which are mutually-exclusive in bits, but reference the same register location
-in memory.
+which are mutually-exclusive in bits, but reference the same location in memory.
 
 Here we come to the first problem with the conflicting memory models: `bitvec`
 cannot ever create an `&mut T` through which it may write to memory, because it
@@ -74,7 +73,7 @@ to ensure consistent behavior.
 This is, of course, not *quite* true in LLVM’s memory model, but we are not
 there yet.
 
-Since an `&mut BitSlice<_, T>` handle cannot produce an `&mut T` reference to
+Since an `&mut BitSlice<T, _>` handle cannot produce an `&mut T` reference to
 perform writes to memory, it must instead either use a `*mut T` bare pointer,
 which has absolutely no checks or optimizations whatsoëver, or use an
 `&UnsafeCell<T>` shared reference, which has all the usual guarantees present on
@@ -90,7 +89,7 @@ Rust provides an additional type called [`Cell`]. This is a wrapper over
 `UnsafeCell`[^2] that defines a more useful API, including the only safe and
 guaranteed way to write into memory through a shared reference: [`Cell::set`].
 
-And *voilà*: `&mut BitSlice<_, T>` simply constructs `&Cell<T>` when writing,
+And *voilà*: `&mut BitSlice<T, _>` simply constructs `&Cell<T>` when writing,
 the Rust compiler does not see a violation of the `&mut` exclusion principle,
 and we are done.
 
@@ -107,7 +106,7 @@ everyone who wants performance: concurrency.
 Just as it is undefined behavior in Rust to manifest two `&mut` references that
 can view the same location, it is equally undefined behavior in LLVM to manifest
 two pointers into memory that ever, at all, no matter **what**, perform any
-memory access to the same location, at the same time, on multiple processors.
+memory access to the same location, at the same time, on multiple executors.
 
 As with above:
 
@@ -158,7 +157,7 @@ level, and that `bitvec` now does at the element level:
 `BitSlice` handles can only be constructed from ordinary Rust references to
 memory, which Rust guarantees start out unaliased. The potential for aliasing
 only occurs when a `&mut BitSlice` is split into multiple subslices using any
-of the functions that eventually call `.split_at_unchecked_mut`. Since that is
+of the functions that eventually call `.split_at_unchecked_mut()`. Since that is
 the root function that introduces alias conditions, it returns subslices whose
 memory type parameters are tainted with the `::Alias` marker. It has the
 following type signature:
@@ -189,7 +188,7 @@ following:
 use bitvec::prelude::*;
 
 let mut data = [0u8; 2];
-let bits = data.view_bits_mut::<Local>();
+let bits = data.view_bits_mut::<Lsb0>();
 let (one, two) = data.split_at_mut(8);
 ```
 
@@ -270,30 +269,30 @@ single-threaded `Cell` or concurrency-safe atomics. These domain components can
 be calculated from the three components of a slice pointer: the base address,
 the starting bit index, and the bit count.
 
-This is expressed in the `domain` module’s four enums.
+This is expressed in the `domain` module’s twt enums.
 
 ### `BitDomain`
 
-These enums split any `BitSlice` region into its subcomponents, immutably or
-mutably, respectively. They have the definition
+This enum splits any `BitSlice` region into its subcomponents, immutably or
+mutably, respectively. It has the (rough) definition
 
 ```rust
 pub enum BitDomain<'a, M, T, O>
 where
   M: Mutability,
+  T: BitStore,
   O: BitOrder,
-  T: BitStore
 {
-  Enclave { body: &'a /* mut */ BitSlice<T, O> },
+  Enclave(&'a /* mut */ BitSlice<T, O>),
   Region {
     head: &'a /* mut */ BitSlice<T, O>,
-    body: &'a /* mut */ BitSlice<T::Mem, O>,
+    body: &'a /* mut */ BitSlice<T::Unalias, O>,
     tail: &'a /* mut */ BitSlice<T, O>,
   },
 }
 ```
 
-and, rather than granting direct memory access, merely remove any aliasing
+and, rather than granting direct memory access, merely removes any aliasing
 markers from as much memory as possible. The subslices that partially fill their
 base element do not need to add an additional aliasing marker, as the marker is
 only required when writes to the element may collide. If the slice is immutable,
@@ -305,11 +304,11 @@ which *is*, and splitting already marks the alias.
 ### `Domain`
 
 The bit domains are still bit slices, and do not offer a way to access the
-backing memory. For operations where raw memory access is required, these enums
-produce the same domain definitions, but typed for the bare elements rather than
-their bits.
+backing memory. For operations where raw memory access is required, this enum
+produces the same domain definitions, but typed for the bare elements rather
+than their bits.
 
-They have the definition
+It has the (rough) definition
 
 ```rust
 pub enum Domain<'a, M, T>
@@ -317,18 +316,17 @@ where
   M: Mutability,
   T: BitStore,
 {
-  Enclave {
-    head: BitIdx<T::Mem>,
-    elem: &'a T /* ::Access */,
-    tail: BitEnd<T::Mem>,
-  },
+  Enclave(PartialElement<&'a T>),
   Region {
-    head: Option<(BitIdx<T::Mem>, &'a T /* ::Access */)>,
-    body: &'a /* mut */ [T::Mem],
-    tail: Option<(&'a T /* ::Access */, BitIdx<T::Mem>)>,
+    head: Option<PartialElement<&'a T>>,
+    body: &'a /* mut */ [T::Unalias],
+    tail: Option<PartialElement<&'a T>>,
   },
 }
 ```
+
+(The `PartialElement` type prevents accessing bits that do not belong to the
+originating `BitSlice`.)
 
 As with the bit domains, these domains will inherit any aliasing markers from
 their source bitslice. The `::Alias` associated type enables the mutable domain
@@ -336,9 +334,6 @@ to produce references that allow mutation without adding an unnecessary
 aliasing marker. Rust strongly forbids the production of `&mut` references to
 aliased memory elements, which is why the only `&mut` reference in these views
 is to memory that is fully known to be unaliased.
-
-> This deäliasing behavior is why `BitSlice`s are impossible to construct over
-> memory that permits external aliases outside of `bitvec`’s control.
 
 The `Domain` structure will produce bare [atomic] or [`Cell`] types in the
 alias condition. This is necessary in order to avoid production of `&mut`
@@ -402,13 +397,6 @@ Synchronization is only added in order to correctly interface with `rustc` and
 LLVM without causing either of them to introduce undefined behavior due to a
 lack of information.
 
-At time of writing, `bitvec` is experimenting with an API for a shared reference
-of `&BitSlice<_, T::Alias>` to issue an appropriately synchronized mutation.
-This is a soundness hole in the type system, as a sibling `T::Mem` view to
-memory affected by the mutation is freely permitted to exist. This API will not
-be published as part of the crate until the library is enabled to prevent the
-simultaneous production of `::Mem` and `::Alias` aliasing references.
-
 ## Footnotes
 
 [^1]: all references to `T` where `T` is either `!Sized`, or
@@ -438,6 +426,7 @@ simultaneous production of `::Mem` and `::Alias` aliasing references.
       support for multithreading, so the penalty for aliasing is reduced to an
       inability to remove redundant reads.
 
+[atomic]: https://doc.rust-lang.org/stable/core/sync/atomic
 [bv_ord]: https://github.com/myrrlyn/bitvec/blob/HEAD/src/order.rs
 [immortal words]: https://doc.rust-lang.org/stable/nomicon/transmutes.html
 [llvm_atomic]: https://releases.llvm.org/10.0.0/docs/Atomics.html#libcalls-atomic

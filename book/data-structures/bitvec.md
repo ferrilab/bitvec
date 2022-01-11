@@ -7,18 +7,18 @@
 vector, incapable of changing its length, equivalent to the Rust type
 `Box<[bool]>` or the C++ type `std::unique_ptr<std::bitset<N>>`.
 
-Since `BitBox` is a vector that cannot `.push` or `.pop`, I will not discuss it
-in detail here. It is a heap-allocated `BitSlice`, and is otherwise
+Since `BitBox` is a vector that cannot `.push()` or `.pop()`, I will not discuss
+it in detail here. It is a heap-allocated `BitSlice`, and is otherwise
 uninteresting.
 
 ## Getting a `BitVec`
 
-`BitVec` implements the constructors shown in the standard library: `::new`
-creates a handle without any allocation, `BitSlice` implements the `.to_bitvec`
-method, and the `Clone` and `ToOwned` traits, to copy a slice into a new vector,
-and the `bitvec!` macro takes all the `bits!` arguments and produces a vector
-instead of a `static` buffer. You can also construct a `BitVec` by `.collect`ing
-any iterator of `bool`s.
+`BitVec` implements the constructors shown in the standard library: `::new()`
+creates a handle without any allocation, `BitSlice` implements the
+`.to_bitvec()` method, and and `ToOwned` trait, to copy a bit-slice into a new
+bit-vector. Additionally, the `bitvec!` macro takes all the `bits!` arguments
+and produces an owned allocation instead of a stack temporary. You can also
+construct a `BitVec` by `.collect`ing any iterator of `bool`s.
 
 ```rust
 use bitvec::prelude::*;
@@ -57,7 +57,7 @@ memory span.
 Vectors, like slices, do not need to begin at the zeroth index of the base
 element. They can begin, and end, at any bit in any element. This will only
 happen when copying a vector from a source slice that was misaligned. The
-`.force_align` method moves the vector’s live slice down to start at the zero
+`.force_align()` method moves the vector’s live slice down to start at the zero
 index. Once done, extending the live slice to reach the last index of an element
 ensures that viewing the buffer as raw memory will have no uninitialized bits.
 

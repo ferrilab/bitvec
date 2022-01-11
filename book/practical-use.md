@@ -35,8 +35,8 @@ let bits_v = bitvec![u32, LocalBits; 0; 32];
 ```
 
 Once memory is bound, it can be borrowed as a `BitSlice` by using the `BitView`
-trait (imported in the `bitvec::prelude`), or by using the fact that all
-`bitvec` containers borrow themselves as `BitSlices` just like standard-library
+trait (imported in the prelude), or by using the fact that all `bitvec`
+containers borrow themselves as `BitSlices` just like standard-library
 containers borrow themselves as slices:
 
 ```rust

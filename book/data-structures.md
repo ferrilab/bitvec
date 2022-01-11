@@ -15,8 +15,8 @@ types in your project codebase ought to be enough to make your project Just
 Work™️.
 
 It is the fact that `BitSlice` acts exactly like `[bool]`, and can only be used
-through `&BitSlice` and `&mut BitSlice` references, that makes `bitvec` work. No
-other Rust library has this capability.
+through `&BitSlice` and `&mut BitSlice` references, that makes `bitvec` unique.
+No other Rust library has this capability.
 
 Before we explore the data structures in more detail, there are three caveats I
 must provide:
@@ -31,7 +31,7 @@ must provide:
    internal to the crate, and will not be present outside it. `bitvec` pointers
    are perfectly safe to use, as long as you treat them as completely opaque and
    use *only* the interfaces provided.
-1. These structures all have two type parameters, `<O: BitOrder, T: BitStore>`.
+1. These structures all have two type parameters, `<T: BitStore, O: BitOrder>`.
    These parameters are described in the next chapter. They govern the in-memory
    representation of data storage, but are not relevant to the general use of the
    handle types.
@@ -39,7 +39,7 @@ must provide:
    instruction size and speed efficiency. The compiler *may* optimize some of
    the costs away, but `bitvec` structures are not free to use. The “zero-cost”
    of the `bitvec` abstraction is that you cannot write a better bitset, and
-   *not* that it is equal to an ordinary `bool` sequence.
+   *not* that it is equal in runtime performance to an ordinary `bool` sequence.
 
 Now that the disclaimers are over, we can talk about how the types actually
 work.

@@ -30,7 +30,8 @@ from the length counter of a slice pointer, which means that `BitSlice` is able
 to address only ⅛<sup>th</sup> of the indices that `[bool]` can.
 
 > This is 64 [Mebibytes] on a 32-bit system, and 256 [Pebibytes] on a 64-bit
-> system. You’ll be fine.
+> system. If you can even allocate that much real memory in one handle, then you
+> have very different operating conditions than I can help you with.
 
 ## Getting a `BitSlice`
 
@@ -38,9 +39,10 @@ to address only ⅛<sup>th</sup> of the indices that `[bool]` can.
 destroyed; rather, views to it are acquired from a memory buffer that some other
 binding owns.
 
-The [`BitStore` chapter] covers this in more detail, but only sequences of the
+The [`BitStore` chapter] covers this in more detail, but only slices of the
 unsigned integers `u8`, `u16`, `u32`, `usize`, and (on 64-bit targets) `u64` can
-be used as the source memory for a `BitSlice`.
+be used as the source memory for a `BitSlice`. (You can also use their `Cell<>`
+wrappers or atomic variants; this will be discussed later).
 
 ### Borrowing Constructors
 
@@ -52,7 +54,7 @@ on the supported unsigned integers, all arrays of them, and their slices.
 use bitvec::prelude::*;
 
 let byte = 0u8;
-let bits = byte.view_bits::<Local>();
+let bits = byte.view_bits::<LocalBits>();
 
 let array = [0u16; 2];
 let bits = array.view_bits::<Lsb0>();
@@ -62,26 +64,34 @@ let slice = &mut array[..];
 let bits = slice.view_bits_mut::<Msb0>();
 ```
 
-The `.view_bits` and `.view_bits_mut` methods take the other type parameter
-`bitvec` requires. This is the [`BitOrder` chapter]. Use `LocalBits` until you have
-a specific need for a more precise parameter.
+The `.view_bits()` and `.view_bits_mut()` methods take the other type parameter
+`bitvec` requires. This is described in the [`BitOrder` chapter]. Use `Lsb0`
+until you have a specific need for a more precise parameter.
 
-In addition, `BitSlice` offers constructor functions `::from_element`,
-`::from_slice`, and their `_mut` variants, which borrow elements and slices,
+In addition, `BitSlice` offers constructor functions `::from_element()`,
+`::from_slice()`, and their `_mut` variants, which borrow elements and slices,
 respectively, and construct `&/mut BitSlice` references from them. The trait
 methods are generally easier, and certainly shorter to write, but they all do
 the same work.
 
-Lastly, empty slices can be produced with the `::empty` or `::empty_mut`
+Lastly, empty slices can be produced with the `::empty()` or `::empty_mut()`
 functions, since there is no `&[]` or `&mut []` literal available.
 
 ### Macro Constructor
 
 In addition to these method constructors, you may also use the [`bits!`]
-constructor macro. This macro runs at compile-time to produce a `static` buffer
+constructor macro. This macro runs at compile-time to produce a buffer
 containing the correct data values, then borrows it as a `BitSlice` reference.
 It is a `macro_rules!` macro, not a procedural macro, and should not have a
 significant impact on your compilation times.
+
+By default, the produced buffer is a temporary that the compiler will then
+extend to have the minimum lifetime of the produced reference handle. However,
+you can use the `static` keyword to cause the macro to produce a hidden and
+unnameable `static BitArray` backing buffer, which then provides the
+`&'static BitSlice` lifetime. Since this `static` buffer cannot be named, it is
+safe to use even when `mut`able, as the provided reference is the only handle to
+it.
 
 The macro syntax extends that of `vec!`. The simplest invocations are sequences
 or repetitions of expressions, which can optionally be made `mut`able:
@@ -92,8 +102,8 @@ use bitvec::prelude::*;
 let r = bits![0, 1, 0, 1];
 let w = bits![mut 0, 1, 0, 1];
 
-let r2 = bits![1; 4];
-let w2 = bits![mut 1; 4];
+let r2 = bits![static 1; 4];
+let w2 = bits![static mut 1; 4];
 ```
 
 > You are not required to use the literals `0` or `1`; you can use any
@@ -104,8 +114,8 @@ let w2 = bits![mut 1; 4];
 
 In addition, you can specify the bit-ordering parameter and the integer storage
 parameter, for even more precise control over the memory layout. If you do not
-specify them, the macro uses the default parameters of `LocalBits` ordering and
-`usize` storage.
+specify them, the macro uses the default parameters of `usize` storage and
+`Lsb0` ordering.
 
 ```rust
 use bitvec::prelude::*;
@@ -114,10 +124,6 @@ let in_bytes = bits![u8, LocalBits; 0, 1, 0, 1];
 let in_shorts = bits![u16, Lsb0; 0, 1, 0, 1];
 let in_ints = bits![mut u32, Msb0; 0; 4];
 ```
-
-You can specify the bit-order without the storage, but you cannot specify the
-storage without the bit-order. This is a limitation of the macro matching
-implementation.
 
 To summarize the macro rules:
 
@@ -135,24 +141,17 @@ To summarize the macro rules:
     semicolon and a repetition counter. The resulting `BitSlice` will be
     `counter` bits long, all set to `expression`.
 
-The `&mut BitSlice` reference produced by each `bits![mut, …]` is safe to use
-because, despite borrowing a `static mut` binding, the produced symbol is not
-accessible anywhere in the program *except* through the sole reference emitted
-by the macro.
-
-> I have not actually tested what happens when you compile a `bits!` macro call
-> on a little-endian host for a big-endian target, and then deploy the artifact
-> to the target machine to run it. I hope the compiler inserts the
-> endian-flipping methods in its process of assigning to `static`s, because
-> `bitvec` does not.
->
-> If this is a problem that affects you, please file an issue!
+> Emulation tests indicate that `bitvec` correctly instructs the compiler to
+> produce suitable buffers even when compiling for a target with a different
+> byte-endianness than the host. However, I have not actually performed such
+> cross-compilation and testing with real hardware. It should be correct; please
+> file an issue if it is not.
 
 ## What `BitSlice` Can Do
 
 Now that you have acquired a `BitSlice` reference, either by borrowing memory
-from elsewhere in your program or by creating a secret `static`, it is time to
-do some actual work with it.
+from elsewhere in your program or by creating a temporary, it is time to do some
+actual work with it.
 
 ### … That `[bool]` Can
 
@@ -179,16 +178,23 @@ the names, these methods have the following truth table:
 `any` is the Boolean OR operator; `all` is the Boolean AND operator, and `some`
 is the Boolean XOR operator.
 
-In addition, `.count_ones` and `.count_zeros` count how many bits of the slice
-are set to one or zero, rather than merely indicating whether any exist. These
-methods are slower than the Boolean queries, which are capable of
-short-circuiting once satisfied.
+In addition, `.count_ones()` and `.count_zeros()` count how many bits of the
+slice are set to one or zero, rather than merely indicating whether any exist.
+These methods are slower than the Boolean queries, which are capable of
+short-circuiting once satisfied. You can also use `.iter_{ones,zeros}()` to walk
+each *index* of bits with the specified value. These are equivalent to running
+`.filter()` and `.enumerate()` calls on iterators of `bool`, but are specialized
+to use dedicated bit-counting instructions where processors provide them.
 
 ### Boolean Arithmetic
 
-`BitSlice` implements the three Boolean operators `|=`, `&=`, and `^=` against
-any iterator that produces `bool`s, allowing you to write set-arithmetic
-expressions.
+`bitvec` data structures all implement the Boolean operators (`&`, `|`, `^`, and
+`!`) against each other.
+
+> In version 0, they allowed any `impl Iterator<Item = bool>`. This has been
+> changed for performance reasons, since people never used the arbitrary
+> iterator support but did require improved behavior when operating on two
+> bit-slices.
 
 ```rust
 use bitvec::prelude::*;
@@ -204,14 +210,18 @@ assert_eq!(and, bits![    0, 0, 0, 1]);
 let mut xor  =  bits![mut 0, 0, 1, 1];
         xor ^=  bits![    0, 1, 0, 1];
 assert_eq!(xor, bits![    0, 1, 1, 0]);
+
+let mut not = bits![mut 0, 1];
+        not = !not;
+assert_eq!(not, bits![  1, 0]);
 ```
 
 ### Writing To Memory
 
-You can set all bits in a region to a new value by using the `.set_all` method,
+You can set all bits in a region to a new value by using the `.fill()` method,
 or you can set one bit in a region to a new value by using either the `.set` or
-`.get_mut` methods. `.get_mut` produces a proxy type which acts like a `bool`
-slot.
+`.get_mut` methods. `.get_mut` produces a proxy type which acts roughly like an
+`&mut bool` reference slot.
 
 ```rust
 use bitvec::prelude::*;
@@ -228,111 +238,49 @@ assert!(bits[1]);
 *bits.get_mut(2).unwrap() = true;
 assert!(bits[2]);
 
-let bit = bits.get_mut(3).unwrap();
+let mut bit = bits.get_mut(3).unwrap();
 assert!(!bit);
-bit.set(true);
+*bit = true;
 assert!(bits[3]);
 
 assert!(bits.all());
 ```
 
-The proxy type produced by `.get_mut` implements `DerefMut<Target = bool>`, so
+The proxy type produced by `.get_mut()` implements `DerefMut<Target = bool>`, so
 you can assign into it and read out of it. However, it does not commit the value
 assigned into it back to its source `BitSlice` until it `Drop`s.
 
-You can force the destruction of a named proxy reference by using *its* `.set`
-method, which takes `self` by value, destroying it and releasing the borrow.
-
-In addition to direct writes, the `.for_each` method yields each successive
-index and value pair to a function `(usize, bool) -> bool`, then writes the
-value this function returns back into the slice. This can be used to rapidly
-rewrite a slice with the contents of a new generator function.
+You can force the destruction of a named proxy reference by using its
+`.commit()` method, which takes `self` by value, destroying it and releasing the
+borrow.
 
 ### Viewing the Underlying Memory
 
-The slice of memory that any given `BitSlice` region occupies can be resurfaced
-without releasing the `BitSlice` borrow. This action is subject to some
-restrictions: while `BitSlice` can start or end anywhere in an element, ordinary
-slice references cannot.
+The memory underlying any bit-slice region is subject to some restrictions about
+aliasing that are documented more thoroughly in the [`domain`] module and the
+[*Memory Model* chapter]. In short, borrowed `BitSlice` regions cannot view
+their underlying memory directly without violating aliasing rules established by
+either the Rust language or by `bitvec` itself. Instead, the `.domain()` and
+`.domain_mut()` methods provide views that correctly handle aliasing and edge
+conditions, and mediate access to the underlying memory.
 
-As such, `.as_mut_slice` and `.as_raw_slice` will exclude the edge elements of a
-`BitSlice` if the bit-slice only partially uses them, while `.as_slice` will
-always include them. The `.as_slice` method does not create an `&mut` exclusion
-to memory, and permits other handles to reference the memory that it does. It is
-correctly marked as aliased when other handles are capable of writing to the
-edge elements.
-
-```rust
-use bitvec::prelude::*;
-use std::sync::atomic::{AtomicU8, Ordering};
-
-//  Without aliasing
-let mut data = [0u8; 3];
-let fewer_bits = &mut data.view_bits_mut::<Local>()[2 .. 22];
-
-{
-  let a: &mut [u8] = fewer_bits.as_mut_slice();
-  assert_eq!(a.len(), 1);
-  *a[0] = !0;
-}
-
-{
-  let b: &[u8] = fewer_bits.as_raw_slice();
-  assert_eq!(a.len(), 1);
-  assert_eq!(b[0], !0);
-}
-
-{
-  let c: &[u8] = fewer_bits.as_slice();
-  assert_eq!(c.len(), 3);
-  assert_eq!(c, &[0, !0, 0]);
-}
-
-//  With aliasing
-let mut data = [0u8; 3];
-let (some, rest) = data.view_bits_mut::<Local>().split_at_mut(2);
-
-{
-  let some_bytes: &mut [u8] = some.as_mut_slice();
-  assert!(some.is_empty());
-
-  let rest_bytes: &[u8] = rest.as_raw_slice();
-  assert_eq!(rest.len(), 2);
-}
-
-{
-  let d: &[AtomicU8] = some.as_slice();
-  let e: &[AtomicU8] = rest.as_slice();
-
-  assert_eq!(d.len(), 1);
-  assert_eq!(e.len(), 3);
-
-  assert!(!rest[0]);
-  d[0].store(!0, Ordering::SeqCst);
-  assert_eq!(e[0].load(Ordering::SeqCst), !0);
-  assert!(rest[0]);
-}
-```
-
-When a `BitSlice` is split into mutable slices that overlap in memory elements,
-they switch to using atomics (or `Cell`s, when atomics are unavailable) for
-memory access, as demonstrated above. `.as_slice` yields slices of atomics,
-which can correctly cope with mutation of the referent memory outside of their
-control, and `.as_mut_slice` and `.as_raw_slice` exclude the aliased memory
-elements from their slices.
-
-The [*Memory Model* chapter] discusses the type system used to handle aliasing.
+The owning handles (`BitArray`, `BitVec`, and `BitBox`) do not have this
+limitation, as they can guarantee unique access to a memory location without any
+possibility of aliasing. As such, *these* types all have `.as_raw_slice()` and
+`.as_raw_mut_slice()` methods that provide ordinary slice views to their storage
+region.
 
 ## Footnotes
 
 [^1]: Except write-assignment through indexing. I am not going to keep
       mentioning this exception.
 
-[`BitOrder` chapter]: ../type-parameters/bitorder.html "BitOrder type parameter"
-[`BitStore` chapter]: ../type-parameters/bitstore.html "BitStore type parameter"
+[`BitOrder` chapter]: ../type-parameters/bitorder.html
+[`BitStore` chapter]: ../type-parameters/bitstore.html
 [`BitView`]: https://docs.rs/bitvec/latest/bitvec/view/trait.BitView.html
 [`bits!`]: https://docs.rs/bitvec/latest/bitvec/macro.bits.html
-[Mebibytes]: https://en.wikipedia.org/wiki/Mebibyte "Wikipedia: Mebibyte"
-[Pebibytes]: https://en.wikipedia.org/wiki/Pebibyte "Wikipedia: Pebibyte"
+[`domain`]: https://docs.rs/bitvec/latest/bitvec/domain
+[Mebibytes]: https://en.wikipedia.org/wiki/Mebibyte
+[Pebibytes]: https://en.wikipedia.org/wiki/Pebibyte
 [prelude]: https://docs.rs/bitvec/latest/bitvec/prelude
-[*Memory Model* chapter]: ../memory-model.html "bitvec memory model"
+[*Memory Model* chapter]: ../memory-model.html

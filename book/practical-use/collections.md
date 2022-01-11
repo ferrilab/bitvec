@@ -7,9 +7,9 @@ Once you have created some memory that you can view as individual bits, it is
 time to actually use it. Here is the one-sentence summary of what `bitvec` can
 do:
 
-> Every API present in the standard library is replicated in `bitvec`, except
-> for `BitSlice<T, O> as IndexMut<usize>`, because `bitvec` cannot produce `&mut
-> bool`.
+> Every stable API present in the standard library is replicated in `bitvec`,
+> except for `BitSlice<T, O> as IndexMut<usize>`, because `bitvec` cannot
+> produce `&mut bool`.
 
 If you were using ordinary collections to manage sequences of `bool`s, then
 every part of your code will continue to work on `bitvec` types except for the

@@ -8,13 +8,14 @@ library is built.
 ## Integer Refinement
 
 `bitvec` offloads abstraction over the fundamental integers to the `funty`
-crate. It provides traits such as `IsUnsigned` that generalize over any unsigned
+crate. It provides traits such as `Unsigned` that generalize over any unsigned
 integer and allow them to be used in generic code.
 
 `funty` only unifies the standard-library APIs of the integers into trait-based
-code; `bitvec` further extends this with useful constants in the `BitMemory`
-trait. This trait adds constants needed for `bitvec`’s work: bit width of the
-type, index counters, and `0`/`!0` bit patterns.
+code; `bitvec` further extends this with useful constants in the `BitRegister`
+trait. This trait delimits the integers that correspond to machine registers
+actually available for use as storage, and provides minor conveniences for
+working with them.
 
 ## Specialization Hacks
 
@@ -28,11 +29,14 @@ unpleasant performance losses that would not occur in a hand-written equivalent.
 Some operations, like copying between, or comparing, slices, can be accelerated
 with partial-element access, but require knowledge of the `O` ordering type to
 provide a semantic interpretation of register contents. Language-level
-specialization would allow writing override `impl` blocks, like this:
+specialization could allow writing override `impl` blocks, like this:
 
 ```rust
 impl<T, O> BitSlice<T, O>
-where O: BitOrder, T: BitStore {
+where
+  T: BitStore,
+  O: BitOrder,
+{
   fn eq(&self, other: &Self) -> bool {
     todo!("baseline")
   }
@@ -61,24 +65,31 @@ and specialize accordingly. The above block can be replaced with:
 
 ```rust
 impl<T, O> BitSlice<T, O>
-where O: BitOrder, T: BitStore {
+where
+  T: BitStore,
+  O: BitOrder,
+{
   fn eq(&self, other: &Self) -> bool {
-    if TypeId::of::<O>() == TypeId::of::<Lsb0>() {
+    if let (Some(this), Some(that)) = (
+      self.coerce::<T, Lsb0>(),
+      other.coerce::<T, Lsb0>(),
+    ) {
       todo!("lsb0-accelerated version")
     }
-    else if TypeId::of::<O>() == TypeId::of::<Msb0>() {
+    else if let (Some(this), Some(that)) = (
+      self.coerce::<T, Msb0>(),
+      other.coerce::<T, Msb0>(),
+    ) {
       todo!("msb0-accelerated version")
     }
     else {
-      todo!("baseline)
+      todo!("baseline")
     }
   }
 }
 ```
 
 and, during monomorphization, only one branch of the `if` stack will be
-preserved. Inside a branch, it is correct to convert the generic
-`&BitSlice<T, O>` references to partially monomorphized `&BitSlice<T, Lsb0>` or
-`&BitSlice<T, Msb0>` references (as the branch will only enter in the
-appropriate monomorphization) in order to explicitly encode and use the branch’s
-knowledge of the ordering type argument.
+preserved. The `.coerce()` method is defined in `slice::specialization` and
+provides easy access to a fully-typed value only within the monomorphization
+that matches it.

@@ -8,6 +8,21 @@ well-formed references to well-typed memory.
 This is useful for the de/construction of packed memory buffers, such as
 transporting data through I/O protocols.
 
+> **AUTHOR’S NOTE**: If you are using `bitvec` to do **anything** related to the
+> underlying memory representation of a bit-buffer, you **must** read this
+> chapter, and **all** of the API docs of [`bitvec::field`] and its contents,
+> **in their entirety**.
+>
+> I have written extensively, and yet still insufficiently, about the
+> intricacies involved in operating the `BitField` trait correctly. If you skim
+> this documentation, you *will* have unexpected behavior, you *will* get
+> frustrated with me for writing a bad library, you *will* file an issue about
+> it, and I will *probably* tell you that the behavior is correct and that I
+> already addressed it in the documentation.
+>
+> It took me a long time to think about and a long time to write. It should take
+> you *also* a long time to read and a long time to think about.
+
 All of this behavior is contained in the `BitField` trait. Let’s explore that:
 
 ```rust,no_run
@@ -19,13 +34,13 @@ pub trait BitField {
 }
 
 impl<T> BitField for BitSlice<T, Lsb0> {
-  fn load<M>(&self) -> M { /**/ }
-  fn store<M>(&mut self, value: M) { /**/ }
+  fn load<M>(&self) -> M { /* snip */ }
+  fn store<M>(&mut self, value: M) { /* snip */ }
 }
 
 impl<T> BitField for BitSlice<T, Msb0> {
-  fn load<M>(&self) -> M { /**/ }
-  fn store<M>(&mut self, value: M) { /**/ }
+  fn load<M>(&self) -> M { /* snip */ }
+  fn store<M>(&mut self, value: M) { /* snip */ }
 }
 ```
 
@@ -45,12 +60,11 @@ forbid implementation of a `bitvec` trait, on a `bitvec` type, parameterized
 with a local, but non-`bitvec`, ordering type. On the off chance that you find
 yourself writing a new `BitOrder` implementor, file an issue.
 
-The `M` type parameter on the load and store methods is bounded by `BitMemory`,
-which essentially means “is an unsigned integer”, with some extra bookkeeping
-information used by `bitvec` internals. This parameterization allows you to
-combine any integer type for transfer with any integer type for storage, rather
-than being restricted to only transferring, `T` data into and out of a
-`BitSlice<_, T>`.
+The `M` type parameter on the load and store methods is bounded by funty’s
+`Integral`, trait. It can store any unsigned *or signed* integer at any partial
+width. This parameterization allows you to combine any integer type for transfer
+with any integer type for storage, rather than being restricted to only
+transferring `T` data into and out of a `BitSlice<T, _>`.
 
 Unfortunately, adding a second integer type parameter is not the only
 complication to the `BitStore` memory model. There is also a second dimension of
@@ -63,21 +77,25 @@ in memory.
 
 ## Segment Orderings
 
+> Author’s Note: **READ THIS**. I have received *several* issues about this
+> exact concept. *It is not obvious*.
+
 There are two segment orderings: little-endian and big-endian. You may select
 the segment endianness you prefer by using the `_le` or `_be` suffix,
-respectively, on the `.load` and `.store` methods. The unsuffixed method is an
-alias for the endianness of your processor: `_be` on big-endian targets, and
-`_le` on little-endian.
+respectively, on the `.load()` and `.store()` methods. The unsuffixed method is
+an alias for the endianness of your processor: `_be` on big-endian targets, and
+`_le` on little-endian. This is a **convenience only**. If you are writing I/O
+buffers, you should really use the explicitly-named methods.
 
 Let us imagine a `BitSlice<u8, Lsb0>` used to store a `u16` that is misaligned,
-and thus stored in two successive bytes. This algorithm is true for all
+and thus stored in three successive bytes. This algorithm is true for all
 circumstances where the stored region occupies more than one register of the
 backing slice, but smaller examples are simpler to draw.
 
 This diagram uses `0` to refer to the least significant bit, and `7` to refer to
 the most significant bit. The first row shows bytes of memory, the second row
-shows the bit indices in memory used by `.store_le`, and the third row shows the
-bit indices in memory used by `.store_be`.
+shows the bit indices in memory used by `.store_le()`, and the third row shows
+the bit indices in memory used by `.store_be()`.
 
 ```text
 [ 7 6 5 4 3 2 1 0 ] [ 7 6 5 4 3 2 1 0 ] [ 7 6 5 4 3 2 1 0 ]
@@ -85,13 +103,13 @@ bit indices in memory used by `.store_be`.
   f e d c             b a 9 8 7 6 5 4             3 2 1 0
 ```
 
-`.store_le` places the least significant segment in the low address, while
-`.store_be` places the most significant segment in the low address. The ordering
-of bits within a segment is *always* preserved, no matter which ordering
-parameter is used by the `BitSlice`.
+`.store_le()` places the least significant segment in the low address, while
+`.store_be()` places the most significant segment in the low address. The
+ordering of bits within a segment is *always* preserved, no matter which
+ordering parameter is used by the `BitSlice`.
 
 Here is the same example, but using the `Msb0` bit ordering instead. Again, the
-second row uses `.store_le`, and the third row uses `.store_be`.
+second row uses `.store_le()`, and the third row uses `.store_be()`.
 
 ```text
 [ 7 6 5 4 3 2 1 0 ] [ 7 6 5 4 3 2 1 0 ] [ 7 6 5 4 3 2 1 0 ]
@@ -122,9 +140,9 @@ let bits = data.view_bits_mut::<Msb0>();
 
 Then, narrow the `BitSlice` to be the region you want to access as storage. It
 must be no wider than the integer type you are transferring: `BitSlice`s outside
-the domain `1 ..= M::BITS` will panic during `.load` or `.store`. The easiest
-way to narrow a `BitSlice` (or buffer type that dereferences to it) is by using
-range indexing, `[start .. end]`.
+the domain `1 ..= M::BITS` will panic during `.load()` or `.store()`. The
+easiest way to narrow a `BitSlice` (or buffer type that dereferences to it) is
+by using range indexing, `[start .. end]`.
 
 ```rust
 # use bitvec::prelude::*;
@@ -136,14 +154,12 @@ bits[10 .. 23].store_le::<u16>(0x432);
 assert_eq!(bits[10 .. 23].load_le::<u16>(), 0x432);
 ```
 
-That’s the entire API. `.store` truncates the stored value to the width of the
-receiving `BitSlice`, and `.load` zero-extends the loaded value to the width of
-the destination register type.
-
-> If you want the ability to transfer signed integers, including signed
-> truncation during `.store` and sign-extension during `.load`, please file an
-> issue.
+That’s the entire API. `.store()` truncates the stored value to the width of the
+receiving `BitSlice`, and `.load()` zero-extends the loaded value to the width
+of the destination register type.
 
 You can see an example that uses the `BitField` trait to implement an I/O
 protocol in the `examples/ipv4.rs` program in the repository. Use
 `cargo run --example ipv4` to see it in action.
+
+[`bitvec::field`]: https://docs.rs/bitvec/latest/bitvec/field

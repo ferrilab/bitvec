@@ -27,8 +27,8 @@ away from their index logic.
 
 ## Provided Orderings
 
-`bitvec` provides two orderings: `Lsb0` and `Msb0`. These each refer to which
-numeric bit in a register element is considered to be the zero-index.
+`bitvec` provides two orderings: [`Lsb0`] and [`Msb0`]. These each refer to
+which numeric bit in a register element is considered to be the zero-index.
 
 You can think of these as corresponding to the little-endian and big-endian
 processor byte orderings if you like, as long as you remember that your choice
@@ -70,7 +70,7 @@ processor architecture.
 selection masks using the starting value `1`, which encodes to smaller
 instructions than the `Msb0` starting value.
 
-On AMD64, the pairs `<Lsb0, u64>` and `<Msb0, u64>` produce the following object
+On AMD64, the pairs `<u64, Lsb0>` and `<u64, Msb0>` produce the following object
 code and disassembly:
 
 ```text
@@ -98,26 +98,26 @@ trait describes the register types (unsigned integers) that can be used by
 `bitvec`. It provides some useful associated constants, and is otherwise
 uninteresting.
 
-- [`at`] receives the semantic index of a bit within a register type, and must
-  produce the concrete position corresponding to the semantic index. The input
-  and output are both integers in the domain `[0, W)` where `W` is the bit-width
-  of the register type being indexed.
+- [`::at()`] receives the semantic index of a bit within a register type, and
+  must produce the concrete position corresponding to the semantic index. The
+  input and output are both integers in the domain `[0, W)` where `W` is the
+  bit-width of the register type being indexed.
 
   `at` **must** implement an exactly one-to-one mapping from all inputs to all
   outputs in the `[0, W)` domain. This mapping must never observably change.
   These are strict requirements of the library, and failing to uphold either
   **will** break your program.
 
-- [`select`] receives the semantic index of a bit within a register type, and
-  must produce a value of that register type with exactly one bit set. The
+- [`::select()`] receives the semantic index of a bit within a register type,
+  and must produce a value of that register type with exactly one bit set. The
   produced value is a mask that selects only the bit specified by the provided
   index, and will be used in Boolean arithmetic to manipulate memory.
 
   The default implementation is `1 << at(index)`. You are required to maintain
   this behavior in your override.
 
-- `mask` receives an inclusive start index and an exclusive end index, and must
-  produce a register value that selects every bit in the indexed range.
+- [`::mask()`] receives an inclusive start index and an exclusive end index, and
+  must produce a register value that selects every bit in the indexed range.
 
   The default implementation is `(start .. end).map(select).sum()`. You are
   required to maintain this behavior in your override.
@@ -161,12 +161,14 @@ functions to print diagnostics to `stdout` during evaluation.
 If the verification functions panic, your implementation is incorrect, and
 cannot be safely used in `bitvec`.
 
-[`BitIdx<M>`]: https://docs.rs/bitvec/latest/bitvec/index/struct.BitIdx.html "BitIdx API documentation"
-[`BitMask<M>`]: https://docs.rs/bitvec/latest/bitvec/index/struct.BitMask.html "BitMask API documentation"
-[`BitPos<M>`]: https://docs.rs/bitvec/latest/bitvec/index/struct.BitPos.html "BitPos API documentation"
-[`BitSel<M>`]: https://docs.rs/bitvec/latest/bitvec/index/struct.BitSel.html "BitSel API documentation"
-[`BitEnd<M>`]: https://docs.rs/bitvec/latest/bitvec/index/struct.BitEnd.html "BitEnd API documentation"
-[`at`]: https://docs.rs/bitvec/latest/bitvec/order/trait.BitOrder.html#tymethod.at "BitOrder::at API documentation"
-[`index`]: https://docs.rs/bitvec/latest/bitvec/index/index.html "index module documentation"
-[`mask`]: https://docs.rs/bitvec/latest/bitvec/order/trait.BitOrder.html#method.mask "BitOrder::mask API documentation"
-[`select`]: https://docs.rs/bitvec/latest/bitvec/order/trait.BitOrder.html#method.select "BitOrder::select API documentation"
+[`BitIdx<M>`]: https://docs.rs/bitvec/latest/bitvec/index/struct.BitIdx.html
+[`BitMask<M>`]: https://docs.rs/bitvec/latest/bitvec/index/struct.BitMask.html
+[`BitPos<M>`]: https://docs.rs/bitvec/latest/bitvec/index/struct.BitPos.html
+[`BitSel<M>`]: https://docs.rs/bitvec/latest/bitvec/index/struct.BitSel.html
+[`BitEnd<M>`]: https://docs.rs/bitvec/latest/bitvec/index/struct.BitEnd.html
+[`Lsb0`]: https://docs.rs/bitvec/latest/bitvec/order/struct.Lsb0.html
+[`Msb0`]: https://docs.rs/bitvec/latest/bitvec/order/struct.Msb0.html
+[`index`]: https://docs.rs/bitvec/latest/bitvec/index/index.html
+[`::at()`]: https://docs.rs/bitvec/latest/bitvec/order/trait.BitOrder.html#tymethod.at
+[`::mask()`]: https://docs.rs/bitvec/latest/bitvec/order/trait.BitOrder.html#method.mask
+[`::select()`]: https://docs.rs/bitvec/latest/bitvec/order/trait.BitOrder.html#method.select

@@ -12,11 +12,11 @@ declaration is
 ```rust,ignore
 # use bitvec::prelude::*;
 pub struct BitArray<
+  A: BitViewSized,
   O: BitOrder,
-  V: BitViewSized,
 > {
   _ord: PhantomData<O>,
-  data: V,
+  data: A,
 }
 ```
 
@@ -26,7 +26,7 @@ limited to arrays up to and including 32 elements long; as Rust type-level
 integers mature, this will grow to include all arrays.
 
 > Once type-level computation stabilizes, `BitArray` will change to have the
-> type parameters `<O: BitOrder, T: BitStore, const N: usize>`, matching the
+> type parameters `<T: BitStore, O: BitOrder, const N: usize>`, matching the
 > `std::bitset<N>` length parameter.
 
 This array dereferences to a `BitSlice` region over its entire length. It does
@@ -35,24 +35,23 @@ behavior you want, please file an issue.
 
 ## Using a `BitArray`
 
-The `::zeroed` function constructs a new `BitArray` with its memory completely
-zeroed. The `::new` function wraps an existing element or array into a
-`BitArray`. In addition, the macro constructor `bitarr!` takes the exact same
-arguments as the `bits!` constructor, except that it returns an array directly
-rather than a reference to a `static` buffer.
+The `::ZERO` constant is a blank `BitArray` with its memory completely zeroed.
+The `::new()` function wraps an existing element or array into a `BitArray`. In
+addition, the macro constructor `bitarr!` takes the exact same arguments as the
+`bits!` constructor, except that it returns an array directly rather than a
+reference to a buffer.
 
-In addition, `BitArray` structures and references can be constructed from
+Furthermore, `BitArray` structures and references can be constructed from
 `&BitSlice` references using the `TryFrom` trait, just as arrays can be
 constructed in the standard library.
 
-Once constructed, `BitArray` offers the `.as_bitslice` and `.as_mut_bitslice`
-explicit methods, as well as all the standard traits, to borrow its data as a
-`BitSlice`. The array has no functionality of its own, and serves only to own a
-region used as a`BitSlice`.
+Once constructed, `BitArray` offers the `.as_bitslice()` and
+`.as_mut_bitslice()` explicit methods, as well as all the standard traits, to
+borrow its data as a `BitSlice`. The array has almost no functionality of its
+own, and serves only to own a region used as a `BitSlice`.
 
 Once you are done using `BitSlice` to manipulate the array, you can remove the
-array with `.unwrap` and regain the `V` memory within. This name is subject to
-change if users are sufficiently unhappy with it.
+array with `.into_inner()` and regain the `A` memory within.
 
 That’s everything that the array does! Like regular arrays, it is useful
 primarily for its ability to move memory through a program, and has essentially

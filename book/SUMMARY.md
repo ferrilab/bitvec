@@ -13,6 +13,10 @@
 1. [Practical Use](practical-use.md)
    1. [`bool` Collections](practical-use/collections.md)
    1. [C-Style Bitfields](practical-use/bitfields.md)
-1. [Bit Ordering](bit-ordering.md)
+1. [Performance](performance.md)
+1. [Memory Representation](memory-representation.md)
 1. [Memory Model](memory-model.md)
 1. [Pointer Encoding](pointer-encoding.md)
+1. [Other Features](miscellaneous.md)
+
+[Afterword](afterword.md)

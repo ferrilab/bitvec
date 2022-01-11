@@ -3,7 +3,7 @@
 Programmers have sought to model memory as a one-dimensional stream of bits for
 as long as hardware manufacturers have sought to chunk it into wider and wider
 words. `bitvec` is far from the first library to provide this model, and it will
-likely not be the last. It is, however, the best (at least in my opinion).
+likely not be the last. It is, however, among the best (at least in my opinion).
 
 `bitvec` was built out of my experience and frustration with performing I/O
 buffer manipulation using C, C++, and Ruby. My work required programs capable of

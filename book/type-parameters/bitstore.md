@@ -1,6 +1,6 @@
 # BitStore
 
-The `BitStore` trait governs the processor behaviors used to interact with the
+The [`BitStore`] trait governs the processor behaviors used to interact with the
 memory of a `BitSlice` buffer. These include both the width of the processor
 register used to contain a memory element, and the load/store instructions the
 processor uses to move data across the memory bus.
@@ -47,11 +47,12 @@ route through this association and trait.
 
 Lastly, the `Alias` associated type enables `bitvec` to gracefully and correctly
 handle events that cause multiple handles to alias the same memory address. This
-association is used in `.split_at_mut` to select the alias-aware type used for
+association is used in `.split_at_mut()` to select the alias-aware type used for
 all subsequent accesses.
 
 The `Mem` and `Alias` types are exposed in public APIs according to local alias
 information. The `Access` type is never publicly exposed, and only used for code
 generation.
 
+[`BitStore`]: https://docs.rs/bitvec/latest/bitvec/store/trait.BitStore.html
 [`radium`]: https://github.com/mystor/radium/
