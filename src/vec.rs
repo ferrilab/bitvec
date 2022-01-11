@@ -85,8 +85,7 @@ where
 	/// let ones = BitVec::<u16, Lsb0>::repeat(true, 50);
 	/// ```
 	pub fn repeat(bit: bool, len: usize) -> Self {
-		let mut out = Self::new();
-		out.reserve(len);
+		let mut out = Self::with_capacity(len);
 		unsafe {
 			out.set_len(len);
 			out.as_raw_mut_slice().fill_with(|| {
