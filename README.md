@@ -411,7 +411,7 @@ does, how it works, and how it can be useful to you.
 [`field`]: https://docs.rs/bitvec/latest/bitvec/field/index.html
 [`order`]: https://docs.rs/bitvec/latest/bitvec/order/index.html
 [`store`]: https://docs.rs/bitvec/latest/bitvec/store/index.html
-[layout]: https://bitvecto-rs.github.io/bitvec/bit-ordering
+[layout]: https://bitvecto-rs.github.io/bitvec/memory-representation
 [prelude]: https://docs.rs/bitvec/latest/bitvec/prelude
 
 <!-- External References -->
