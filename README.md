@@ -1,4 +1,4 @@
-<div class="title-block" style="text-align: center;" align="center">
+<div style="text-align: center;" align="center">
 
 # `bitvec`
 
@@ -424,9 +424,3 @@ does, how it works, and how it can be useful to you.
 [`radium`]: https://crates.io/crates/radium
 [`std::bitset<N>`]: https://en.cppreference.com/w/cpp/utility/bitset
 [`std::vector<bool>`]: https://en.cppreference.com/w/cpp/container/vector_bool
-
-<style type="text/css">
-.title-block {
-  text-align: center;
-}
-</style>
