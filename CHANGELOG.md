@@ -108,14 +108,15 @@ utility libraries have been updated:
 ## Version 0 (Prototyping)
 
 `bitvec`’s first three and a half years of development used the zero-dot series
-as it explored its behavior. These versions are now deprecated and yanked, and
-listed only in summary.
+as it explored its behavior. These versions are now deprecated and will not
+receive further support. They are listed only in summary, and may be removed
+from crates.io in the future.
 
 ### 0.22
 
 - Raised MSRV to `1.51` for const generics.
 - Named the iterators produced by `Iter::by_{ref,val}`.
-- Fixed [Issue #114], reported by GitHub user [@VilleHallivuari].
+- Fixed [Issue #114], reported by GitHub user [@VilleHallivuori].
 - Extracted pointer mutability tracking to `wyz 0.4`.
 
 ### 0.21
