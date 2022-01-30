@@ -340,6 +340,9 @@ macro_rules! bitvec {
 	($store:ty, $order:ty; $val:expr; $len:expr) => {
 		$crate::vec::BitVec::<$store, $order>::repeat($val != 0, $len)
 	};
+	($val:expr; $len:expr) => {
+		$crate::bitvec!(usize, $crate::order::Lsb0; $val; $len)
+	};
 
 	//  Delegate all others to the `bits!` macro.
 	($($arg:tt)*) => {
