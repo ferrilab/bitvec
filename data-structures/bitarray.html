@@ -4,37 +4,30 @@
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
         <title>BitArray - A User’s Guide to the &#x60;bitvec&#x60; Project</title>
-                
-
         <!-- Custom HTML head -->
-        
-
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
-        <meta name="description" content="A more thorough manual of the &#x60;bitvec&#x60; project">
+        <meta name="description" content="A more thorough exploration of the &#x60;bitvec&#x60; project">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff" />
 
-                <link rel="icon" href="../favicon.svg">
-                        <link rel="shortcut icon" href="../favicon.png">
-                <link rel="stylesheet" href="../css/variables.css">
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
         <link rel="stylesheet" href="../css/general.css">
         <link rel="stylesheet" href="../css/chrome.css">
-                <link rel="stylesheet" href="../css/print.css" media="print">
-        
+        <link rel="stylesheet" href="../css/print.css" media="print">
         <!-- Fonts -->
         <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
-                <link rel="stylesheet" href="../fonts/fonts.css">
-        
+        <link rel="stylesheet" href="../fonts/fonts.css">
         <!-- Highlight.js Stylesheets -->
         <link rel="stylesheet" href="../highlight.css">
         <link rel="stylesheet" href="../tomorrow-night.css">
         <link rel="stylesheet" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        
-                <!-- MathJax -->
+        <!-- MathJax -->
         <script async type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-            </head>
+    </head>
     <body>
         <!-- Provide site root to javascript -->
         <script type="text/javascript">
@@ -84,14 +77,14 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../dedication.html">Dedication</a></li><li class="chapter-item expanded "><a href="../introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../data-structures.html"><strong aria-hidden="true">2.</strong> Data Structures</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../data-structures/bitslice.html"><strong aria-hidden="true">2.1.</strong> BitSlice</a></li><li class="chapter-item expanded "><a href="../data-structures/bitarray.html" class="active"><strong aria-hidden="true">2.2.</strong> BitArray</a></li><li class="chapter-item expanded "><a href="../data-structures/bitvec.html"><strong aria-hidden="true">2.3.</strong> BitVec and BitBox</a></li></ol></li><li class="chapter-item expanded "><a href="../type-parameters.html"><strong aria-hidden="true">3.</strong> Type Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../type-parameters/bitorder.html"><strong aria-hidden="true">3.1.</strong> BitOrder</a></li><li class="chapter-item expanded "><a href="../type-parameters/bitstore.html"><strong aria-hidden="true">3.2.</strong> BitStore</a></li></ol></li><li class="chapter-item expanded "><a href="../practical-use.html"><strong aria-hidden="true">4.</strong> Practical Use</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../practical-use/collections.html"><strong aria-hidden="true">4.1.</strong> bool Collections</a></li><li class="chapter-item expanded "><a href="../practical-use/bitfields.html"><strong aria-hidden="true">4.2.</strong> C-Style Bitfields</a></li></ol></li><li class="chapter-item expanded "><a href="../memory-model.html"><strong aria-hidden="true">5.</strong> Memory Model</a></li><li class="chapter-item expanded "><a href="../pointer-encoding.html"><strong aria-hidden="true">6.</strong> Pointer Encoding</a></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../dedication.html">Dedication</a></li><li class="chapter-item expanded "><a href="../introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../data-structures.html"><strong aria-hidden="true">2.</strong> Data Structures</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../data-structures/bitslice.html"><strong aria-hidden="true">2.1.</strong> BitSlice</a></li><li class="chapter-item expanded "><a href="../data-structures/bitarray.html" class="active"><strong aria-hidden="true">2.2.</strong> BitArray</a></li><li class="chapter-item expanded "><a href="../data-structures/bitvec.html"><strong aria-hidden="true">2.3.</strong> BitVec and BitBox</a></li></ol></li><li class="chapter-item expanded "><a href="../type-parameters.html"><strong aria-hidden="true">3.</strong> Type Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../type-parameters/bitorder.html"><strong aria-hidden="true">3.1.</strong> BitOrder</a></li><li class="chapter-item expanded "><a href="../type-parameters/bitstore.html"><strong aria-hidden="true">3.2.</strong> BitStore</a></li></ol></li><li class="chapter-item expanded "><a href="../practical-use.html"><strong aria-hidden="true">4.</strong> Practical Use</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../practical-use/collections.html"><strong aria-hidden="true">4.1.</strong> bool Collections</a></li><li class="chapter-item expanded "><a href="../practical-use/bitfields.html"><strong aria-hidden="true">4.2.</strong> C-Style Bitfields</a></li></ol></li><li class="chapter-item expanded "><a href="../performance.html"><strong aria-hidden="true">5.</strong> Performance</a></li><li class="chapter-item expanded "><a href="../memory-representation.html"><strong aria-hidden="true">6.</strong> Memory Representation</a></li><li class="chapter-item expanded "><a href="../memory-model.html"><strong aria-hidden="true">7.</strong> Memory Model</a></li><li class="chapter-item expanded "><a href="../pointer-encoding.html"><strong aria-hidden="true">8.</strong> Pointer Encoding</a></li><li class="chapter-item expanded "><a href="../miscellaneous.html"><strong aria-hidden="true">9.</strong> Other Features</a></li><li class="chapter-item expanded affix "><a href="../afterword.html">Afterword</a></li></ol>
+            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                
                 <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky bordered">
                     <div class="left-buttons">
@@ -108,22 +101,21 @@
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                                                <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
-                                            </div>
+                    </div>
 
                     <h1 class="menu-title">A User’s Guide to the &#x60;bitvec&#x60; Project</h1>
 
                     <div class="right-buttons">
-                                                <a href="../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
-                                                                        
                     </div>
                 </div>
 
-                                <div id="search-wrapper" class="hidden">
+                <div id="search-wrapper" class="hidden">
                     <form id="searchbar-outer" class="searchbar-outer">
                         <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
                     </form>
@@ -133,7 +125,6 @@
                         </ul>
                     </div>
                 </div>
-                
                 <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
                 <script type="text/javascript">
                     document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
@@ -155,11 +146,11 @@ must take the entire region it contains as a type parameter. The full type
 declaration is</p>
 <pre><code class="language-rust ignore"><span class="boring">use bitvec::prelude::*;
 </span>pub struct BitArray&lt;
+  A: BitViewSized,
   O: BitOrder,
-  V: BitViewSized,
 &gt; {
   _ord: PhantomData&lt;O&gt;,
-  data: V,
+  data: A,
 }
 </code></pre>
 <p>As described in the <a href="./bitslice.html" title="BitSlice region">previous chapter</a>, the <code>BitView</code> trait is implemented on
@@ -168,28 +159,27 @@ limited to arrays up to and including 32 elements long; as Rust type-level
 integers mature, this will grow to include all arrays.</p>
 <blockquote>
 <p>Once type-level computation stabilizes, <code>BitArray</code> will change to have the
-type parameters <code>&lt;O: BitOrder, T: BitStore, const N: usize&gt;</code>, matching the
+type parameters <code>&lt;T: BitStore, O: BitOrder, const N: usize&gt;</code>, matching the
 <code>std::bitset&lt;N&gt;</code> length parameter.</p>
 </blockquote>
 <p>This array dereferences to a <code>BitSlice</code> region over its entire length. It does
 not currently permit shortening its <code>BitSlice</code> from either end. If this is a
 behavior you want, please file an issue.</p>
 <h2 id="using-a-bitarray"><a class="header" href="#using-a-bitarray">Using a <code>BitArray</code></a></h2>
-<p>The <code>::zeroed</code> function constructs a new <code>BitArray</code> with its memory completely
-zeroed. The <code>::new</code> function wraps an existing element or array into a
-<code>BitArray</code>. In addition, the macro constructor <code>bitarr!</code> takes the exact same
-arguments as the <code>bits!</code> constructor, except that it returns an array directly
-rather than a reference to a <code>static</code> buffer.</p>
-<p>In addition, <code>BitArray</code> structures and references can be constructed from
+<p>The <code>::ZERO</code> constant is a blank <code>BitArray</code> with its memory completely zeroed.
+The <code>::new()</code> function wraps an existing element or array into a <code>BitArray</code>. In
+addition, the macro constructor <code>bitarr!</code> takes the exact same arguments as the
+<code>bits!</code> constructor, except that it returns an array directly rather than a
+reference to a buffer.</p>
+<p>Furthermore, <code>BitArray</code> structures and references can be constructed from
 <code>&amp;BitSlice</code> references using the <code>TryFrom</code> trait, just as arrays can be
 constructed in the standard library.</p>
-<p>Once constructed, <code>BitArray</code> offers the <code>.as_bitslice</code> and <code>.as_mut_bitslice</code>
-explicit methods, as well as all the standard traits, to borrow its data as a
-<code>BitSlice</code>. The array has no functionality of its own, and serves only to own a
-region used as a<code>BitSlice</code>.</p>
+<p>Once constructed, <code>BitArray</code> offers the <code>.as_bitslice()</code> and
+<code>.as_mut_bitslice()</code> explicit methods, as well as all the standard traits, to
+borrow its data as a <code>BitSlice</code>. The array has almost no functionality of its
+own, and serves only to own a region used as a <code>BitSlice</code>.</p>
 <p>Once you are done using <code>BitSlice</code> to manipulate the array, you can remove the
-array with <code>.unwrap</code> and regain the <code>V</code> memory within. This name is subject to
-change if users are sufficiently unhappy with it.</p>
+array with <code>.into_inner()</code> and regain the <code>A</code> memory within.</p>
 <p>That’s everything that the array does! Like regular arrays, it is useful
 primarily for its ability to move memory through a program, and has essentially
 no behavior in its own right. It is useful for programs that do not have access
@@ -201,49 +191,38 @@ instead.</p>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                                                    <a rel="prev" href="../data-structures/bitslice.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../data-structures/bitslice.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
-                        
-                                                    <a rel="next" href="../data-structures/bitvec.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="../data-structures/bitvec.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
-                        
                         <div style="clear: both"></div>
                     </nav>
                 </div>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                                    <a rel="prev" href="../data-structures/bitslice.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../data-structures/bitslice.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
-                
-                                    <a rel="next" href="../data-structures/bitvec.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="../data-structures/bitvec.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
-                            </nav>
+            </nav>
 
         </div>
 
-        
-        
-        
-                <script type="text/javascript">
+        <script type="text/javascript">
             window.playground_copyable = true;
         </script>
-        
-        
-                <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
-        
         <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
         <script src="../book.js" type="text/javascript" charset="utf-8"></script>
 
         <!-- Custom JS scripts -->
-        
-        
     </body>
 </html>

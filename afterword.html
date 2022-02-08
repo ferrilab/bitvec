@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Practical Use - A User’s Guide to the &#x60;bitvec&#x60; Project</title>
+        <title>Afterword - A User’s Guide to the &#x60;bitvec&#x60; Project</title>
         <!-- Custom HTML head -->
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="A more thorough exploration of the &#x60;bitvec&#x60; project">
@@ -77,7 +77,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="dedication.html">Dedication</a></li><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="data-structures.html"><strong aria-hidden="true">2.</strong> Data Structures</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="data-structures/bitslice.html"><strong aria-hidden="true">2.1.</strong> BitSlice</a></li><li class="chapter-item expanded "><a href="data-structures/bitarray.html"><strong aria-hidden="true">2.2.</strong> BitArray</a></li><li class="chapter-item expanded "><a href="data-structures/bitvec.html"><strong aria-hidden="true">2.3.</strong> BitVec and BitBox</a></li></ol></li><li class="chapter-item expanded "><a href="type-parameters.html"><strong aria-hidden="true">3.</strong> Type Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="type-parameters/bitorder.html"><strong aria-hidden="true">3.1.</strong> BitOrder</a></li><li class="chapter-item expanded "><a href="type-parameters/bitstore.html"><strong aria-hidden="true">3.2.</strong> BitStore</a></li></ol></li><li class="chapter-item expanded "><a href="practical-use.html" class="active"><strong aria-hidden="true">4.</strong> Practical Use</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="practical-use/collections.html"><strong aria-hidden="true">4.1.</strong> bool Collections</a></li><li class="chapter-item expanded "><a href="practical-use/bitfields.html"><strong aria-hidden="true">4.2.</strong> C-Style Bitfields</a></li></ol></li><li class="chapter-item expanded "><a href="performance.html"><strong aria-hidden="true">5.</strong> Performance</a></li><li class="chapter-item expanded "><a href="memory-representation.html"><strong aria-hidden="true">6.</strong> Memory Representation</a></li><li class="chapter-item expanded "><a href="memory-model.html"><strong aria-hidden="true">7.</strong> Memory Model</a></li><li class="chapter-item expanded "><a href="pointer-encoding.html"><strong aria-hidden="true">8.</strong> Pointer Encoding</a></li><li class="chapter-item expanded "><a href="miscellaneous.html"><strong aria-hidden="true">9.</strong> Other Features</a></li><li class="chapter-item expanded affix "><a href="afterword.html">Afterword</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="dedication.html">Dedication</a></li><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="data-structures.html"><strong aria-hidden="true">2.</strong> Data Structures</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="data-structures/bitslice.html"><strong aria-hidden="true">2.1.</strong> BitSlice</a></li><li class="chapter-item expanded "><a href="data-structures/bitarray.html"><strong aria-hidden="true">2.2.</strong> BitArray</a></li><li class="chapter-item expanded "><a href="data-structures/bitvec.html"><strong aria-hidden="true">2.3.</strong> BitVec and BitBox</a></li></ol></li><li class="chapter-item expanded "><a href="type-parameters.html"><strong aria-hidden="true">3.</strong> Type Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="type-parameters/bitorder.html"><strong aria-hidden="true">3.1.</strong> BitOrder</a></li><li class="chapter-item expanded "><a href="type-parameters/bitstore.html"><strong aria-hidden="true">3.2.</strong> BitStore</a></li></ol></li><li class="chapter-item expanded "><a href="practical-use.html"><strong aria-hidden="true">4.</strong> Practical Use</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="practical-use/collections.html"><strong aria-hidden="true">4.1.</strong> bool Collections</a></li><li class="chapter-item expanded "><a href="practical-use/bitfields.html"><strong aria-hidden="true">4.2.</strong> C-Style Bitfields</a></li></ol></li><li class="chapter-item expanded "><a href="performance.html"><strong aria-hidden="true">5.</strong> Performance</a></li><li class="chapter-item expanded "><a href="memory-representation.html"><strong aria-hidden="true">6.</strong> Memory Representation</a></li><li class="chapter-item expanded "><a href="memory-model.html"><strong aria-hidden="true">7.</strong> Memory Model</a></li><li class="chapter-item expanded "><a href="pointer-encoding.html"><strong aria-hidden="true">8.</strong> Pointer Encoding</a></li><li class="chapter-item expanded "><a href="miscellaneous.html"><strong aria-hidden="true">9.</strong> Other Features</a></li><li class="chapter-item expanded affix "><a href="afterword.html" class="active">Afterword</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -136,94 +136,25 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="practical-use"><a class="header" href="#practical-use">Practical Use</a></h1>
-<p>That’s enough theory; let’s talk about how to use the crate. This chapter is
-divided into two subsections, one for use cases that want an ordinary <code>bool</code>
-collection library with transparent memory compaction, and one for use cases
-that want a convenient way to precisely sculpt memory. Before getting in to
-either, let’s quickly recap how the <code>bitvec</code> types interact with memory
-ownership.</p>
-<h2 id="rustic-memory-management"><a class="header" href="#rustic-memory-management">Rustic Memory Management</a></h2>
-<p>The first and most important thing to remember is that, despite the extra
-complexity just discussed about memory parameters and aliasing behavior,
-<code>bitvec</code> is <em>just Rust</em>. It obeys all of the rules and patterns that the rest of
-Rust does.</p>
-<p><code>BitSlice</code>s, like regular slices, are exclusively borrowed from owned memory
-higher up the stack. Their references can be passed down the stack, and are
-subject to the same lifetime and mutation-exclusivity rules.</p>
-<p>The owned memory that creates a <code>BitSlice</code> view can be an array, boxed slice, or
-vector of either ordinary integers, or their wrapper equivalents provided by
-<code>bitvec</code>:</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use bitvec::prelude::*;
-
-let array = [0u8; 8];
-let boxed: Box&lt;[u16]&gt; = Box::new([0u16; 4]);
-let vec = vec![0u32; 2];
-
-let bits_a = bitarr![u8, Msb0; 0; 64];
-let bits_b = bitbox![u16, Lsb0; 0; 64];
-let bits_v = bitvec![u32, LocalBits; 0; 32];
-<span class="boring">}
-</span></code></pre></pre>
-<p>Once memory is bound, it can be borrowed as a <code>BitSlice</code> by using the <code>BitView</code>
-trait (imported in the prelude), or by using the fact that all <code>bitvec</code>
-containers borrow themselves as <code>BitSlices</code> just like standard-library
-containers borrow themselves as slices:</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span><span class="boring">use bitvec::prelude::*;
-</span><span class="boring">let array = [0u8; 8];
-</span><span class="boring">let boxed: Box&lt;[u16]&gt; = Box::new([0u16; 4]);
-</span><span class="boring">let vec = vec![0u32; 2];
-</span><span class="boring">let bits_a = bitarr![u8, Msb0; 0; 64];
-</span><span class="boring">let bits_b = bitbox![u16, Lsb0; 0; 64];
-</span><span class="boring">let bits_v = bitvec![u32, LocalBits; 0; 32];
-</span>let array_bits = array.view_bits::&lt;Msb0&gt;();
-let boxed_bits = boxed.view_bits::&lt;Lsb0&gt;();
-let vec_bits = vec.view_bits::&lt;LocalBits&gt;();
-
-let bits_a_ref: &amp;BitSlice&lt;_, _&gt; = &amp;bits_a;
-let bits_b_ref: &amp;BitSlice&lt;_, _&gt; = &amp;bits_b;
-let bits_c_ref: &amp;BitSlice&lt;_, _&gt; = &amp;bits_c;
-<span class="boring">}
-</span></code></pre></pre>
-<blockquote>
-<p>And, of course, mutability applies:</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let mut arr = bitarr![0; 10];
-let arr_ref: &amp;mut BitSlice = &amp;mut arr;
-arr_ref.set(1, true);
-assert!(arr_ref[1]);
-<span class="boring">}
-</span></code></pre></pre>
-</blockquote>
-<p>Just as with ordinary Rust code, <code>BitSlice</code> is the type you want to use when
-working with memory that you are not responsible for moving around or
-destroying. However, when you do need to move memory around, you need to switch
-to either a <code>static</code> binding or a container: <code>BitArray</code> is always available, and
-<code>BitBox</code> and <code>BitVec</code> require an allocator.</p>
-<p>I am spending this much time discussing the Rust memory management system
-because this is a <em>very</em> common question I receive. No other bit-stream crate
-has reference types, and therefore users coming from, e.g., <code>bit-vec</code> see the
-same <code>BitSlice</code> name and attempt to use their habits from that crate.</p>
-<p><code>bitvec</code> is not like any other bitstream library, in Rust, C++, or another
-language. <code>bitvec</code> is like ordinary Rust. I promise.</p>
+                        <h1 id="afterword"><a class="header" href="#afterword">Afterword</a></h1>
+<p>Thanks for reading! I hope this book was useful to you.</p>
+<p><strong>Please</strong> feel both welcomed and encouraged to ask me any clarifying questions,
+or to <a href="https://github.com/bitvecto-rs/bitvec/issues/new">file an issue</a> if any of it is confusing or even send a PR if you have
+improvements!</p>
+<p>This has been a work of intensely deep focus and research for three and a half
+years. It is a complex and difficult topic, and I am absolutely certain that I
+have information and context that I haven’t sufficiently serialized for everyone
+else to see.</p>
+<p>Thank you for using <code>bitvec</code>. I am delighted that other people have found my
+work both interesting and useful, and I’m glad that I’ve been able to help
+people like you write better programs.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="type-parameters/bitstore.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="miscellaneous.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
-                            </a>
-                            <a rel="next" href="practical-use/collections.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <i class="fa fa-angle-right"></i>
                             </a>
                         <div style="clear: both"></div>
                     </nav>
@@ -231,11 +162,8 @@ language. <code>bitvec</code> is like ordinary Rust. I promise.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="type-parameters/bitstore.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="miscellaneous.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
-                    </a>
-                    <a rel="next" href="practical-use/collections.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
 
