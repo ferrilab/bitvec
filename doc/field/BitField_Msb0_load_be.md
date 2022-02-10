@@ -22,19 +22,19 @@ left edge:
 ```rust
 use bitvec::prelude::*;
 
-let data = 0b00_10110_0u8;
+let raw = 0b00_10110_0u8;
 //           01 23456 7
 //              ^ sign bit
 assert_eq!(
-  data.view_bits::<Msb0>()
-      [2 .. 7]
-      .load_be::<u8>(),
+  raw.view_bits::<Msb0>()
+     [2 .. 7]
+     .load_be::<u8>(),
   0b000_10110,
 );
 assert_eq!(
-  data.view_bits::<Msb0>()
-      [2 .. 7]
-      .load_be::<i8>(),
+  raw.view_bits::<Msb0>()
+     [2 .. 7]
+     .load_be::<i8>(),
   0b111_10110u8 as i8,
 );
 ```
@@ -45,7 +45,7 @@ that the slice index increases with numerical significance:
 ```rust
 use bitvec::prelude::*;
 
-let data = [
+let raw = [
   0b1111_0010u8,
 //       ^ sign bit
 //  0       7
@@ -55,9 +55,9 @@ let data = [
 // 16 23
 ];
 assert_eq!(
-  data.view_bits::<Msb0>()
-      [4 .. 20]
-      .load_be::<u16>(),
+  raw.view_bits::<Msb0>()
+     [4 .. 20]
+     .load_be::<u16>(),
   0x2018u16,
 );
 ```

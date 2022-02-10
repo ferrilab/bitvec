@@ -22,16 +22,16 @@ from a 4-bit slice, become the value `2i8`.
 ```rust
 use bitvec::prelude::*;
 
-let mut data = 0u8;
-data.view_bits_mut::<Msb0>()
-    [2 .. 7]
-    .store_le(22u8);
-assert_eq!(data, 0b00_10110_0);
+let mut raw = 0u8;
+raw.view_bits_mut::<Msb0>()
+   [2 .. 7]
+   .store_le(22u8);
+assert_eq!(raw, 0b00_10110_0);
 //                 01 23456 7
-data.view_bits_mut::<Msb0>()
-    [2 .. 7]
-    .store_le(-10i8);
-assert_eq!(data, 0b00_10110_0);
+raw.view_bits_mut::<Msb0>()
+   [2 .. 7]
+   .store_le(-10i8);
+assert_eq!(raw, 0b00_10110_0);
 ```
 
 In bit-slices that span multiple elements, the little-endian element ordering
@@ -40,11 +40,11 @@ means that the slice index increases with numerical significance:
 ```rust
 use bitvec::prelude::*;
 
-let mut data = [!0u8; 3];
-data.view_bits_mut::<Msb0>()
-    [4 .. 20]
-    .store_le(0x2018u16);
-assert_eq!(data, [
+let mut raw = [!0u8; 3];
+raw.view_bits_mut::<Msb0>()
+   [4 .. 20]
+   .store_le(0x2018u16);
+assert_eq!(raw, [
   0xF_8,
 //  0 7
   0x0_1,

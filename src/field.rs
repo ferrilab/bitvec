@@ -1,7 +1,6 @@
 #![doc = include_str!("../doc/field.md")]
 
 use core::{
-	cmp,
 	mem,
 	ptr,
 };
@@ -227,6 +226,7 @@ where T: BitStore
 	}
 }
 
+#[doc = include_str!("../doc/field/BitField_Msb0.md")]
 impl<T> BitField for BitSlice<T, Msb0>
 where T: BitStore
 {
@@ -586,7 +586,7 @@ unsafe fn resize_inner<T, U>(
 	ptr::copy_nonoverlapping(
 		src as *const T as *const u8,
 		dst as *mut U as *mut u8,
-		cmp::min(size_t, size_u),
+		size_t.min(size_u),
 	);
 }
 

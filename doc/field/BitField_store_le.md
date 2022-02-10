@@ -36,7 +36,7 @@ This panics if `self.len()` is 0, or greater than `I::BITS`.
 
 ## Examples
 
-Let us consider an `i32` value stored in 24 bits of a `BitSlice<Msb0, u8>`:
+Let us consider an `i32` value stored in 24 bits of a `BitSlice<u8, Msb0>`:
 
 ```rust
 use bitvec::prelude::*;
@@ -89,7 +89,7 @@ placement of bit indices within memory:
 ```rust
 use bitvec::prelude::*;
 
-let data = [
+let raw = [
 // Bit index   14 ←
 //     Lsb0:  ─┤
             0b0100_0000_0000_0011u16,
@@ -104,15 +104,15 @@ let data = [
 ];
 
 assert_eq!(
-  data.view_bits::<Lsb0>()
-      [14 .. 20]
-      .load_le::<u8>(),
+  raw.view_bits::<Lsb0>()
+     [14 .. 20]
+     .load_le::<u8>(),
   0b00_1110_01,
 );
 assert_eq!(
-  data.view_bits::<Msb0>()
-      [14 .. 20]
-      .load_le::<u8>(),
+  raw.view_bits::<Msb0>()
+     [14 .. 20]
+     .load_le::<u8>(),
   0b00_0001_11,
 );
 ```

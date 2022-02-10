@@ -4,7 +4,7 @@ This implementation prints the contents of a `&BitSlice` in one of binary,
 octal, or hexadecimal. It is important to note that this does *not* render the
 raw underlying memory! They render the semantically-ordered contents of the
 bit-slice as numerals. This distinction matters if you use type parameters that
-differ from those presumed by your debugger (which is usually `<Msb0, u8>`).
+differ from those presumed by your debugger (which is usually `<u8, Msb0>`).
 
 The output separates the `T` elements as individual list items, and renders each
 element as a base- 2, 8, or 16 numeric string. When walking an element, the bits

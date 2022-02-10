@@ -89,7 +89,7 @@ placement of bit indices within memory:
 ```rust
 use bitvec::prelude::*;
 
-let data = [
+let raw = [
 // Bit index   14 ←
 //     Lsb0:  ─┤
             0b0100_0000_0000_0011u16,
@@ -104,15 +104,15 @@ let data = [
 ];
 
 assert_eq!(
-  data.view_bits::<Lsb0>()
-      [14 .. 20]
-      .load_be::<u8>(),
+  raw.view_bits::<Lsb0>()
+     [14 .. 20]
+     .load_be::<u8>(),
   0b00_01_1110,
 );
 assert_eq!(
-  data.view_bits::<Msb0>()
-      [14 .. 20]
-      .load_be::<u8>(),
+  raw.view_bits::<Msb0>()
+     [14 .. 20]
+     .load_be::<u8>(),
   0b00_11_0001,
 );
 ```

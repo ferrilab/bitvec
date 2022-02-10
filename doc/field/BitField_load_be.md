@@ -106,11 +106,15 @@ let raw = [
 ];
 
 assert_eq!(
-  raw.view_bits::<Lsb0>()[14 .. 20].load_be::<u8>(),
+  raw.view_bits::<Lsb0>()
+     [14 .. 20]
+     .load_be::<u8>(),
   0b00_01_1110,
 );
 assert_eq!(
-  raw.view_bits::<Msb0>()[14 .. 20].load_be::<u8>(),
+  raw.view_bits::<Msb0>()
+     [14 .. 20]
+     .load_be::<u8>(),
   0b00_11_0001,
 );
 ```
