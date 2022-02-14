@@ -52,10 +52,11 @@ pub trait BitField {
 			self.load_be::<I>()
 		}
 		else {
-			unreachable!(concat!(
-				"This architecture is not supported! Please file an issue at ",
-				env!("CARGO_PKG_REPOSITORY")
-			));
+			unreachable!("This architecture is not supported!{}",
+				option_env!("CARGO_PKG_REPOSITORY")
+					.map(|s| format!(" File an issue at {}", s))
+					.unwrap_or_else(String::new)
+			);
 		}
 	}
 
@@ -70,10 +71,11 @@ pub trait BitField {
 			self.store_be::<I>(value);
 		}
 		else {
-			unreachable!(concat!(
-				"This architecture is not supported! File an issue at ",
-				env!("CARGO_PKG_REPOSITORY")
-			));
+			unreachable!("This architecture is not supported!{}",
+				option_env!("CARGO_PKG_REPOSITORY")
+					.map(|s| format!(" File an issue at {}", s))
+					.unwrap_or_else(String::new)
+			);
 		}
 	}
 
