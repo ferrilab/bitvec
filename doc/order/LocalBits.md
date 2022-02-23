@@ -20,4 +20,4 @@ match GCC’s `std::bitset<N>`. It makes no guarantee about what C compilers for
 your target actually do, and you will need to do your own investigation if you
 are exchanging a single buffer across FFI in this manner.
 
-[0]: https://bitvecto-rs.github.io/bitvec/bit-ordering
+[0]: https://bitvecto-rs.github.io/bitvec/memory-representation

@@ -10,4 +10,4 @@ This type likely matches the ordering of bits you would expect to see in a
 debugger, but has worse codegen than `Lsb0`, and is not encouraged if you are
 not doing direct memory inspection.
 
-[0]: https://bitvecto-rs.github.io/bitvec/bit-ordering
+[0]: https://bitvecto-rs.github.io/bitvec/memory-representation
