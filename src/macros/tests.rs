@@ -67,15 +67,17 @@ fn constexpr_macros() {
 	assert_eq!(d[.. 5], bits![1, 0, 1, 1, 0]);
 
 	let _: &'static mut BitSlice<Cell<u16>, Msb0> =
-		bits!(static mut Cell<u16>, Msb0; 1; 20);
-	let _: &'static mut BitSlice<u32, Lsb0> = bits!(static mut u32, Lsb0; 1; 20);
-	let _: &'static mut BitSlice = bits!(static mut 1; 20);
+		unsafe { bits!(static mut Cell<u16>, Msb0; 1; 20) };
+	let _: &'static mut BitSlice<u32, Lsb0> =
+		unsafe { bits!(static mut u32, Lsb0; 1; 20) };
+	let _: &'static mut BitSlice =
+		unsafe { bits!(static mut 1; 20) };
 
 	let _: &'static mut BitSlice<Cell<u16>, Msb0> =
-		bits!(static mut Cell<u16>, Msb0; 1, 0, 1, 1, 0);
+		unsafe { bits!(static mut Cell<u16>, Msb0; 1, 0, 1, 1, 0) };
 	let _: &'static mut BitSlice<Cell<u32>, Msb0> =
-		bits!(static mut Cell<u32>, Msb0; 1, 0, 1, 1, 0);
-	let _: &'static mut BitSlice = bits!(static mut 1, 0, 1, 1, 0);
+		unsafe { bits!(static mut Cell<u32>, Msb0; 1, 0, 1, 1, 0) };
+	let _: &'static mut BitSlice = unsafe { bits!(static mut 1, 0, 1, 1, 0) };
 
 	let _: &'static BitSlice<Cell<u16>, Msb0> =
 		bits!(static Cell<u16>, Msb0; 1; 20);

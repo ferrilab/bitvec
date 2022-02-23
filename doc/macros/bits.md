@@ -51,6 +51,35 @@ together.
 > Previous versions of `bitvec` supported $order`-only arguments. This has been
 > removed for clarity of use and ease of implementation.
 
+## Safety
+
+Rust considers all `static mut` bindings to be `unsafe` to use. While `bits!`
+can prevent *some* of this unsafety by preventing direct access to the created
+`static mut` buffer, there are still ways to create multiple names referring to
+the same underlying buffer.
+
+```rust
+use bitvec::prelude::*;
+
+fn unsound() -> &'static mut BitSlice<usize, Lsb0> {
+  unsafe { bits![static mut 0; 64] }
+}
+
+let a = unsound();
+let b = unsound();
+```
+
+The two names `a` and `b` can be used to produce aliasing `&mut [usize]`
+references.
+
+**You must not invoke `bits![static mut …]` in a context where it can be used**
+**to create multiple escaping names**. This, and only this, argument combination
+of the macro produces a value that requires a call-site `unsafe` block to use.
+
+If you do not use this behavior to create multiple names over the same
+underlying buffer, then the macro’s expansion is safe to use, as `bitvec`’s
+existing alias-protection behavior suffices.
+
 ## Examples
 
 ```rust
@@ -65,7 +94,7 @@ assert_eq!(b.len(), 5);
 
 let c = bits![u16, Lsb0; 0, 1, 0, 0, 1];
 let d = bits![static Cell<u16>, Msb0; 1; 10];
-let e = bits![static mut u32, LocalBits; 0; 15];
+let e = unsafe { bits![static mut u32, LocalBits; 0; 15] };
 let f = bits![RadiumU32, Msb0; 1; 20];
 ```
 

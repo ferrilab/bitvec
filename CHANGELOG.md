@@ -36,7 +36,17 @@ This document is written according to the [Keep a Changelog][kac] style.
 will continue to receive maintenance, but its API is now stable and **will not**
 change until const-generics allow `BitArray` to be rewritten.
 
-### 1.0
+### 1.0.1
+
+The `bits![static mut …]` invocation has been made `unsafe` at the invocation
+site, in response to [Issue #156] filed by GitHub user [@SimonSapin].
+
+This is technically an API break (formerly safe code now requires an `unsafe`
+block) but as no run-time behavior or compile-time types have changed except for
+this, and Rust considers breaking incorrect code to be acceptable within SemVer
+patches, I am publishing it as a patch.
+
+### 1.0.0
 
 🚨 **THIS IS A BREAKING CHANGE RELEASE!** 🚨
 
@@ -310,6 +320,7 @@ from crates.io in the future.
 [@GeorgeGkas]: https://github.com/GeorgeGkas
 [@HamishWMC]: https://github.com/HamishWMC
 [@ImmemorConsultrixContrarie]: https://github.com/ImmemorConsultrixContrarie
+[@SimonSapin]: https://github.com/SimonSapin
 [@VilleHallivuori]: https://github.com/VilleHallivuori
 [@YoshikiTakashima]: https://github.com/YoshikiTakashima
 [@arucil]: https://github.com/arucil
@@ -359,6 +370,7 @@ from crates.io in the future.
 [Issue #103]: https://github.com/bitvecto-rs/bitvec/issues/103
 [Issue #114]: https://github.com/bitvecto-rs/bitvec/issues/114
 [Issue #136]: https://github.com/bitvecto-rs/bitvec/issues/136
+[Issue #156]: https://github.com/bitvecto-rs/bitvec/issues/156
 
 <!-- Pull Requests -->
 
