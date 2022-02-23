@@ -15,10 +15,12 @@ else
   CARGO_TARGET="--target ${TARGET}"
 fi
 
+echo ${TARGET}
+
 if [ ! -z $CI ]; then
   $CARGO clean
 fi
-$CARGO build $CARGO_TARGET --all-features
+$CARGO check $CARGO_TARGET $@
 if [ -z $DISABLE_TESTS ]; then
-  $CARGO test $CARGO_TARGET --all-features
+  $CARGO test $CARGO_TARGET $@
 fi

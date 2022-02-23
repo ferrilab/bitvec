@@ -46,33 +46,32 @@ cover *ARGS: test
 #
 # This is suitable for a development machine **only**, and should not run in CI.
 # The `.travis.yml` file controls CI usage.
+cross: rustup_targets
+	@# xargs -n1 -I'{}' env ENABLE_CROSS=1 TARGET='{}' ci/script.sh        --all-features                         < ci/target_test_all.txt
+	xargs -n1 -I'{}' env ENABLE_CROSS=1 TARGET='{}' ci/script.sh --no-default-features --features atomic,std   < ci/target_test_no_serde.txt
+
+	xargs -n1 -I'{}' env DISABLE_TESTS=1 TARGET='{}' ci/script.sh        --all-features                         < ci/target_check_all.txt
+	xargs -n1 -I'{}' env DISABLE_TESTS=1 TARGET='{}' ci/script.sh --no-default-features --features atomic,std   < ci/target_check_no_serde.txt
+	xargs -n1 -I'{}' env DISABLE_TESTS=1 TARGET='{}' ci/script.sh --no-default-features --features atomic,alloc < ci/target_check_no_std.txt
+
+# Runs the cross-compile battery in some parallelism.
 #
-# It requires <https://crates.io/crates/parallel> and
-# <https://github.com/rust-embedded/cross>.
-cross:
+# This is only useful if don’t expect the tests to fail, because
+cross_par: rustup_targets
 	@# You will need to run this the first time you start cross-compiling
 	@# on a given machine.
 	@# TRAVIS_OS_NAME=linux ci/install_rust.sh
 
-	@# Run on a Linux host, and execute the test suite.
-	parallel -v 'env ENABLE_CROSS=1 TARGET={} ci/script.sh' :::: ci/target_test.txt
+	xargs -n1 -P4 -I'{}' env ENABLE_CROSS=1 TARGET='{}' ci/script.sh        --all-features                         < ci/target_test_all.txt
+	xargs -n1 -P4 -I'{}' env ENABLE_CROSS=1 TARGET='{}' ci/script.sh --no-default-features --features atomic,std   < ci/target_test_no_serde.txt
 
-	@# Run on a Linux host, but do not execute the test suite.
-	parallel -v 'env ENABLE_CROSS=1 TARGET={} DISABLE_TESTS=1 ci/script.sh' :::: ci/target_notest.txt
-
-	@# Cross-compile only, without attempting to emulate.
-	@# You will need to install rustup targets in order to check for them:
-	@# parallel -v 'rustup target add {}' :::: ci/target_local.txt
-	parallel -v 'cargo check --no-default-features --target {}' :::: ci/target_local.txt
-
-cross_seq:
-	xargs -n1 -I'{}' env ENABLE_CROSS=1 TARGET='{}' ci/script.sh < ci/target_test.txt
-	xargs -n1 -I'{}' env ENABLE_CROSS=1 TARGET='{}' DISABLE_TESTS=1 ci/script.sh < ci/target_notest.txt
-	xargs -n1 -I'{}' cargo check --no-default-features --target '{}' < ci/target_local.txt
+	xargs -n1 -P4 -I'{}' env DISABLE_TESTS=1 TARGET='{}' ci/script.sh        --all-features                         < ci/target_check_all.txt
+	xargs -n1 -P4 -I'{}' env DISABLE_TESTS=1 TARGET='{}' ci/script.sh --no-default-features --features atomic,std   < ci/target_check_no_serde.txt
+	xargs -n1 -P4 -I'{}' env DISABLE_TESTS=1 TARGET='{}' ci/script.sh --no-default-features --features atomic,alloc < ci/target_check_no_std.txt
 
 # Runs the development routines.
 dev: check doc test
-	parallel ::: "just miri" "just cover"
+	echo miri cover | xargs -n1 -P2 just
 	@echo "Complete at $(date)"
 
 # Builds the crate documentation and user guide.
@@ -89,8 +88,13 @@ loop +ACTIONS:
 	watchexec -i target -- "just {{ACTIONS}}"
 
 # Looks for undefined behavior in the (non-doc) test suite.
-miri *ARGS:
+miri *ARGS: miri_install
 	cargo +nightly miri test --features atomic,serde,std -q --lib --tests {{ARGS}}
+
+# Installs Miri and ensures that it is able to run uninteractively.
+miri_install:
+	rustup toolchain add nightly --component miri
+	cargo +nightly miri setup
 
 # Packages the crate in preparation for publishing on crates.io
 package: build
@@ -99,6 +103,10 @@ package: build
 # Publishes the crate to crates.io
 publish: checkout
 	cargo publish
+
+# Installs *every* target.
+rustup_targets:
+	xargs -P1 rustup target add < ci/targets.txt 2>&1 | grep -v "up to date" || true
 
 # Spawns an HTTP file server to easily view compiled artifacts.
 #

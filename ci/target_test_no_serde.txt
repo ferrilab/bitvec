@@ -1,0 +1,12 @@
+arm-linux-androideabi
+armv5te-unknown-linux-gnueabi
+armv5te-unknown-linux-musleabi
+armv7-linux-androideabi
+i586-unknown-linux-gnu
+i586-unknown-linux-musl
+mips-unknown-linux-gnu
+mips-unknown-linux-musl
+mipsel-unknown-linux-gnu
+mipsel-unknown-linux-musl
+powerpc-unknown-linux-gnu
+s390x-unknown-linux-gnu

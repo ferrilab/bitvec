@@ -7,9 +7,24 @@
 
 [toolchain]
 channel = "1.56.0"
-# channel = "nightly"
 profile = "default"
 components = [
 	"clippy",
 	"rustfmt",
+	"rust-src",
 ]
+# channel = "nightly"
+# components = [
+# 	"miri",
+# ]
+
+# Additional tools available through Cargo:
+#
+# - `mdbook --vers 0.4.15`
+# - `cargo-tarpaulin --vers 0.19.1`
+# - `tokei --vers 12.1.2`
+# - `cross --vers 0.2.1`
+
+# Additional system tools:
+#
+# - Docker
