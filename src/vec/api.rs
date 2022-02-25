@@ -292,7 +292,7 @@ where
 	///
 	/// ## Original
 	///
-	/// [`Vec::reserve_exact`](alloc::vec::Vec::reserve_exact)
+	/// [`Vec::shrink_to_fit`](alloc::vec::Vec::shrink_to_fit)
 	///
 	/// ## Examples
 	///
@@ -872,7 +872,7 @@ where
 	///
 	/// ## Original
 	///
-	/// [`Vec::len`](alloc::vec::Vec::len)
+	/// [`Vec::leak`](alloc::vec::Vec::leak)
 	///
 	/// ## Examples
 	///

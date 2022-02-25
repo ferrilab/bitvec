@@ -2522,7 +2522,7 @@ where
 	///
 	/// ## Original
 	///
-	/// [`SliceIndex::index`](core::slice::SliceIndex::index)
+	/// [`SliceIndex::index_mut`](core::slice::SliceIndex::index_mut)
 	///
 	/// ## Panics
 	///
