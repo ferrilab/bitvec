@@ -317,10 +317,15 @@ where
 					Default::default,
 					PartialElement::into_bitslice,
 				),
-				body: body
-					.try_into()
-					.map_err(drop)
-					.expect("this conversion will never fail"),
+				body: body.try_into().unwrap_or_else(|_| {
+					unreachable!(
+						"Construction of a slice with length {} should not be \
+						 possible. If this assumption is outdated, please file \
+						 an issue at {}",
+						isize::MIN as usize >> 3,
+						env!("CARGO_PKG_REPOSITORY"),
+					)
+				}),
 				tail: tail.map_or_else(
 					Default::default,
 					PartialElement::into_bitslice,

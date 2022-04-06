@@ -663,7 +663,7 @@ where
 	/// let a_ptr = BitPtr::<_, _, Lsb0>::from_ref(&a);
 	/// let b_ptr = BitPtr::<_, _, Lsb0>::from_ref(&b);
 	/// let diff = (b_ptr.pointer() as isize)
-	///   .wrapping_mul(a_ptr.pointer() as isize)
+	///   .wrapping_sub(a_ptr.pointer() as isize)
 	///   // Remember: raw pointers are byte-stepped,
 	///   // but bit-pointers are bit-stepped.
 	///   .wrapping_mul(8);
