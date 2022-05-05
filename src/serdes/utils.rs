@@ -246,8 +246,8 @@ where R: BitRegister
 		let mut width = None;
 		let mut index = None;
 
-		while let Some(key) = map.next_key::<&'de str>()? {
-			match key {
+		while let Some(key) = map.next_key::<StringTarget<'de>>()? {
+			match &*key {
 				"width" => {
 					if width.replace(map.next_value::<u8>()?).is_some() {
 						return Err(<V::Error>::duplicate_field("width"));
@@ -271,6 +271,18 @@ where R: BitRegister
 		self.assemble(width, index)
 	}
 }
+
+/// This is a target used to deserialize strings into.
+/// With the alloc feature enabled, we will deserialize into owned strings,
+/// granting a little more deserialization flexibility.
+#[cfg(feature = "alloc")]
+pub type StringTarget<'de> = String;
+
+/// This is a target used to deserialize strings into.
+/// Without the alloc feature enabled, we will deserialize into borrowed strings,
+/// which makes deserializing from some targets (like JSON) impossible.
+#[cfg(not(feature = "alloc"))]
+pub type StringTarget<'de> = &'de str;
 
 #[cfg(test)]
 mod tests {

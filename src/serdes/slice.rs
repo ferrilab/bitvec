@@ -18,7 +18,6 @@ use serde::{
 		Error,
 		MapAccess,
 		SeqAccess,
-		Unexpected,
 		Visitor,
 	},
 	ser::{
@@ -30,6 +29,7 @@ use serde::{
 use wyz::comu::Const;
 
 use super::FIELDS;
+use super::utils::StringTarget;
 #[cfg(feature = "alloc")]
 use crate::{
 	boxed::BitBox,
@@ -167,7 +167,7 @@ where
 	/// As well as a final output value.
 	out:   PhantomData<Result<Out, BitSpanError<T>>>,
 	/// The deserialized bit-ordering string.
-	order: Option<&'de str>,
+	order: Option<StringTarget<'de>>,
 	/// The deserialized head-bit index.
 	head:  Option<BitIdx<T::Mem>>,
 	/// The deserialized bit-count.
@@ -208,8 +208,9 @@ where
 		let bits = self.bits.take().ok_or_else(|| E::missing_field("bits"))?;
 		let data = self.data.take().ok_or_else(|| E::missing_field("data"))?;
 
-		if order != any::type_name::<O>() {
-			return Err(E::invalid_type(Unexpected::Str(order), &self));
+		let expected_order = any::type_name::<O>();
+		if order != expected_order {
+			return Err(E::custom(format!("Wrong order; expecting {} but got {}", order, expected_order)));
 		}
 		(self.func)(data, head, bits as usize).map_err(|_| todo!())
 	}
@@ -258,8 +259,8 @@ where
 
 	fn visit_map<V>(mut self, mut map: V) -> Result<Self::Value, V::Error>
 	where V: MapAccess<'de> {
-		while let Some(key) = map.next_key::<&'de str>()? {
-			match key {
+		while let Some(key) = map.next_key::<StringTarget<'de>>()? {
+			match &*key {
 				"order" => {
 					if self.order.replace(map.next_value()?).is_some() {
 						return Err(<V::Error>::duplicate_field("order"));
@@ -312,6 +313,16 @@ mod tests {
 		let bits = bits![u8, Msb0; 1, 0, 1, 1, 0];
 		let encoded = bincode::serialize(&bits)?;
 		let bits2 = bincode::deserialize::<&BitSlice<u8, Msb0>>(&encoded)?;
+		assert_eq!(bits, bits2);
+		Ok(())
+	}
+
+	#[test]
+	#[cfg(feature = "alloc")]
+	fn roundtrip_json() -> Result<(), alloc::boxed::Box<serde_json::Error>> {
+		let bits = bitvec![u8, Msb0; 1, 0, 1, 1, 0];
+		let encoded = serde_json::to_value(&bits)?;
+		let bits2 = serde_json::from_value::<BitVec<u8, Msb0>>(encoded)?;
 		assert_eq!(bits, bits2);
 		Ok(())
 	}
