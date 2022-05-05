@@ -40,6 +40,9 @@ rust-version = "1.56"
 
 [features]
 alloc = [
+	# If the serde feature is also enabled, enable alloc for it
+	# so that we can deserialize Strings.
+	"serde?/alloc"
 ]
 atomic = [
 ]

@@ -18,6 +18,7 @@ use serde::{
 		Error,
 		MapAccess,
 		SeqAccess,
+		Unexpected,
 		Visitor,
 	},
 	ser::{
@@ -210,7 +211,7 @@ where
 
 		let expected_order = any::type_name::<O>();
 		if order != expected_order {
-			return Err(E::custom(format!("Wrong order; expecting {} but got {}", order, expected_order)));
+			return Err(E::invalid_type(Unexpected::Str(&*order), &self));
 		}
 		(self.func)(data, head, bits as usize).map_err(|_| todo!())
 	}
