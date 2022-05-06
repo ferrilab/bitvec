@@ -1466,7 +1466,7 @@ where
 		let len = self.len();
 		assert!(
 			by < len,
-			"cannot shift a bit-slice by more than its length: {} > {}",
+			"shift must be less than the length of the bit-slice: {} >= {}",
 			by,
 			len,
 		);
@@ -1508,7 +1508,7 @@ where
 		let len = self.len();
 		assert!(
 			by < len,
-			"cannot shift a bit-slice by more than its length: {} > {}",
+			"shift must be less than the length of the bit-slice: {} >= {}",
 			by,
 			len,
 		);
