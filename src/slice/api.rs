@@ -48,7 +48,11 @@ use super::{
 use crate::vec::BitVec;
 use crate::{
 	array::BitArray,
-	mem,
+	domain::Domain,
+	mem::{
+		self,
+		BitRegister,
+	},
 	order::BitOrder,
 	ptr::{
 		BitPtr,
@@ -2123,10 +2127,22 @@ where
 	/// ```
 	#[inline]
 	pub fn fill(&mut self, value: bool) {
-		for ptr in self.as_mut_bitptr_range() {
-			unsafe {
-				ptr.write(value);
-			}
+		let fill = if value { T::Mem::ALL } else { T::Mem::ZERO };
+		match self.domain_mut() {
+			Domain::Enclave(mut elem) => {
+				elem.store_value(fill);
+			},
+			Domain::Region { head, body, tail } => {
+				if let Some(mut elem) = head {
+					elem.store_value(fill);
+				}
+				for elem in body {
+					elem.store_value(fill);
+				}
+				if let Some(mut elem) = tail {
+					elem.store_value(fill);
+				}
+			},
 		}
 	}
 
