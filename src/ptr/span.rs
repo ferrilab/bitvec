@@ -477,7 +477,7 @@ where
 		rem -= step;
 
 		let mid_base =
-			this.add(step).address().cast::<U>().pipe(|addr| unsafe {
+			this.add(step).address().cast::<U>().pipe(|addr| {
 				BitPtr::<M, U, O>::new_unchecked(addr, BitIdx::MIN)
 			});
 		let mid_elts = rem >> <U::Mem as BitRegister>::INDX;
@@ -486,13 +486,9 @@ where
 		let mid = mid_base.span_unchecked(step);
 
 		let right_base =
-			mid_base
-				.address()
-				.add(mid_elts)
-				.cast::<T>()
-				.pipe(|addr| unsafe {
-					BitPtr::<M, T, O>::new_unchecked(addr, BitIdx::MIN)
-				});
+			mid_base.address().add(mid_elts).cast::<T>().pipe(|addr| {
+				BitPtr::<M, T, O>::new_unchecked(addr, BitIdx::MIN)
+			});
 		let right = right_base.span_unchecked(excess);
 
 		(left, mid, right)
