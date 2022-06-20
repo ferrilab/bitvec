@@ -2369,7 +2369,7 @@ where
 	O: BitOrder,
 	T: 'a + BitStore,
 {
-	data.span(len).map(|bp| unsafe { bp.into_bitslice_ref() })
+	data.span(len).map(|bp| bp.into_bitslice_ref())
 }
 
 #[doc = include_str!("../../doc/slice/from_raw_parts_mut.md")]
@@ -2381,7 +2381,7 @@ where
 	O: BitOrder,
 	T: 'a + BitStore,
 {
-	data.span(len).map(|bp| unsafe { bp.into_bitslice_mut() })
+	data.span(len).map(|bp| bp.into_bitslice_mut())
 }
 
 #[doc = include_str!("../../doc/slice/BitSliceIndex.md")]
