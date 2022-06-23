@@ -43,14 +43,14 @@ where T: BitStore
 	) {
 		let (mut this, mut that) = (self, rhs);
 		while this.len() >= WORD_BITS && that.len() >= WORD_BITS {
-			unsafe {
-				let (l, left) = this.split_at_unchecked_mut_noalias(WORD_BITS);
-				let (r, right) = that.split_at_unchecked(WORD_BITS);
+			
+				let (l, left) = unsafe { this.split_at_unchecked_mut_noalias(WORD_BITS) };
+				let (r, right) = unsafe { that.split_at_unchecked(WORD_BITS) };
 				this = left;
 				that = right;
 				let (a, b) = (l.load_be::<usize>(), r.load_be::<usize>());
 				l.store_be(word_op(a, b));
-			}
+			
 		}
 		for (l, r) in this
 			.as_mut_bitptr_range()
