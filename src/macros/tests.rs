@@ -70,8 +70,7 @@ fn constexpr_macros() {
 		unsafe { bits!(static mut Cell<u16>, Msb0; 1; 20) };
 	let _: &'static mut BitSlice<u32, Lsb0> =
 		unsafe { bits!(static mut u32, Lsb0; 1; 20) };
-	let _: &'static mut BitSlice =
-		unsafe { bits!(static mut 1; 20) };
+	let _: &'static mut BitSlice = unsafe { bits!(static mut 1; 20) };
 
 	let _: &'static mut BitSlice<Cell<u16>, Msb0> =
 		unsafe { bits!(static mut Cell<u16>, Msb0; 1, 0, 1, 1, 0) };

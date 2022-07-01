@@ -221,10 +221,7 @@ pub use self::Lsb0 as LocalBits;
 pub use self::Msb0 as LocalBits;
 
 #[cfg(not(any(target_endian = "big", target_endian = "little")))]
-compile_fail!(concat!(
-	"This architecture is currently not supported. File an issue at ",
-	env!(CARGO_PKG_REPOSITORY)
-));
+compile_fail!("This architecture is not supported! Please consider filing an issue");
 
 #[inline]
 #[cfg(not(tarpaulin_include))]

@@ -51,10 +51,10 @@ pub trait BitField {
 			self.load_be::<I>()
 		}
 		else {
-			unreachable!(concat!(
-				"This architecture is not supported! Please file an issue at ",
-				env!("CARGO_PKG_REPOSITORY")
-			));
+			match option_env!("CARGO_PKG_REPOSITORY") {
+				Some(env) => unreachable!("This architecture is not supported! Please consider filing an issue at {}", env),
+				None => unreachable!("This architecture is not supported! Please consider filing an issue"),
+			}
 		}
 	}
 
@@ -69,10 +69,10 @@ pub trait BitField {
 			self.store_be::<I>(value);
 		}
 		else {
-			unreachable!(concat!(
-				"This architecture is not supported! File an issue at ",
-				env!("CARGO_PKG_REPOSITORY")
-			));
+			match option_env!("CARGO_PKG_REPOSITORY") {
+				Some(env) => unreachable!("This architecture is not supported! Please consider filing an issue at {}", env),
+				None => unreachable!("This architecture is not supported! Please consider filing an issue"),
+			}
 		}
 	}
 
@@ -612,9 +612,3 @@ unsafe fn resize_inner<T, U>(
 		ptr::copy_nonoverlapping(src, dst.add(size_u - size_t), size_t);
 	}
 }
-
-#[cfg(not(any(target_endian = "big", target_endian = "little")))]
-compile_fail!(concat!(
-	"This architecture is not supported! File an issue at ",
-	env!("CARGO_PKG_REPOSITORY")
-));
