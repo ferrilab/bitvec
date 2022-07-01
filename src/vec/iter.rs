@@ -306,11 +306,13 @@ where
 	/// ## Original
 	///
 	/// [`Drain::as_slice`](alloc::vec::Drain::as_slice)
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &'a BitSlice<T, O> {
 		unsafe { self.drain.clone().into_bitspan().into_bitslice_ref() }
 	}
 
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "use `.as_bitslice()` instead"]
 	#[allow(missing_docs, clippy::missing_docs_in_private_items)]

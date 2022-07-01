@@ -73,11 +73,13 @@ where
 	};
 
 	/// Explicitly converts a `Range<BitPtr>` into a `BitPtrRange`.
+	#[inline]
 	pub fn from_range(Range { start, end }: Range<BitPtr<M, T, O>>) -> Self {
 		Self { start, end }
 	}
 
 	/// Explicitly converts a `BitPtrRange` into a `Range<BitPtr>`.
+	#[inline]
 	pub fn into_range(self) -> Range<BitPtr<M, T, O>> {
 		let Self { start, end } = self;
 		start .. end
@@ -107,6 +109,7 @@ where
 	/// assert!(range.is_empty());
 	/// assert_eq!(range.start, range.end);
 	/// ```
+	#[inline]
 	pub fn is_empty(&self) -> bool {
 		self.start == self.end
 	}
@@ -149,6 +152,7 @@ where
 	/// Casting to a different `BitStore` type whose `Mem` parameter differs
 	/// from the range always results in a `false` response, even if the pointer
 	/// being tested is numerically within the range.
+	#[inline]
 	pub fn contains<M2, T2>(&self, pointer: &BitPtr<M2, T2, O>) -> bool
 	where
 		M2: Mutability,

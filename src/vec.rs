@@ -84,6 +84,7 @@ where
 	/// let zeros = BitVec::<u8, Msb0>::repeat(false, 50);
 	/// let ones = BitVec::<u16, Lsb0>::repeat(true, 50);
 	/// ```
+	#[inline]
 	pub fn repeat(bit: bool, len: usize) -> Self {
 		let mut out = Self::with_capacity(len);
 		unsafe {
@@ -116,6 +117,7 @@ where
 	/// ```
 	///
 	/// [`.force_align()`]: Self::force_align
+	#[inline]
 	pub fn from_bitslice(slice: &BitSlice<T, O>) -> Self {
 		let bitspan = slice.as_bitspan();
 
@@ -149,6 +151,7 @@ where
 	/// let bv = BitVec::<_, Msb0>::from_element(1u8);
 	/// assert!(bv[7]);
 	/// ```
+	#[inline]
 	pub fn from_element(elem: T) -> Self {
 		Self::from_vec(vec![elem])
 	}
@@ -171,6 +174,7 @@ where
 	/// let bv = BitVec::<_, Lsb0>::from_slice(slice);
 	/// assert_eq!(bv.len(), 32);
 	/// ```
+	#[inline]
 	pub fn from_slice(slice: &[T]) -> Self {
 		Self::try_from_slice(slice).unwrap()
 	}
@@ -190,6 +194,7 @@ where
 	/// let bv = BitVec::<_, Lsb0>::try_from_slice(slice).unwrap();
 	/// assert_eq!(bv.len(), 32);
 	/// ```
+	#[inline]
 	pub fn try_from_slice(slice: &[T]) -> Result<Self, BitSpanError<T>> {
 		BitSlice::<T, O>::try_from_slice(slice).map(Self::from_bitslice)
 	}
@@ -212,6 +217,7 @@ where
 	/// let bv = BitVec::<_, Msb0>::from_vec(v);
 	/// assert_eq!(bv.len(), 32);
 	/// ```
+	#[inline]
 	pub fn from_vec(vec: Vec<T>) -> Self {
 		Self::try_from_vec(vec)
 			.expect("vector was too long to be converted into a `BitVec`")
@@ -233,6 +239,7 @@ where
 	/// ```
 	///
 	/// It is not practical to allocate a vector that will fail this conversion.
+	#[inline]
 	pub fn try_from_vec(vec: Vec<T>) -> Result<Self, Vec<T>> {
 		let mut vec = ManuallyDrop::new(vec);
 		let capacity = vec.capacity();
@@ -271,6 +278,7 @@ where
 	/// ```
 	///
 	/// [`.extend()`]: https://docs.rs/bitvec/latest/bitvec/vec/struct.Vec.html#impl-Extend
+	#[inline]
 	pub fn extend_from_bitslice<T2, O2>(&mut self, other: &BitSlice<T2, O2>)
 	where
 		T2: BitStore,
@@ -290,6 +298,7 @@ where
 	/// ## Original
 	///
 	/// [`Vec::extend_from_slice`](alloc::vec::Vec::extend_from_slice)
+	#[inline]
 	pub fn extend_from_raw_slice(&mut self, slice: &[T]) {
 		self.extend_from_bitslice(slice.view_bits::<O>());
 	}
@@ -302,16 +311,19 @@ where
 	O: BitOrder,
 {
 	/// Explicitly views the bit-vector as a bit-slice.
+	#[inline]
 	pub fn as_bitslice(&self) -> &BitSlice<T, O> {
 		unsafe { self.bitspan.into_bitslice_ref() }
 	}
 
 	/// Explicitly views the bit-vector as a mutable bit-slice.
+	#[inline]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<T, O> {
 		unsafe { self.bitspan.into_bitslice_mut() }
 	}
 
 	/// Views the bit-vector as a slice of its underlying memory elements.
+	#[inline]
 	pub fn as_raw_slice(&self) -> &[T] {
 		let (data, len) =
 			(self.bitspan.address().to_const(), self.bitspan.elements());
@@ -320,6 +332,7 @@ where
 
 	/// Views the bit-vector as a mutable slice of its underlying memory
 	/// elements.
+	#[inline]
 	pub fn as_raw_mut_slice(&mut self) -> &mut [T] {
 		let (data, len) =
 			(self.bitspan.address().to_mut(), self.bitspan.elements());
@@ -337,6 +350,7 @@ where
 	/// You must initialize the contents of the underlying buffer before
 	/// accessing memory through this pointer. See the `BitPtr` documentation
 	/// for more details.
+	#[inline]
 	pub fn as_bitptr(&self) -> BitPtr<Const, T, O> {
 		self.bitspan.to_bitptr().to_const()
 	}
@@ -352,6 +366,7 @@ where
 	/// You must initialize the contents of the underlying buffer before
 	/// accessing memory through this pointer. See the `BitPtr` documentation
 	/// for more details.
+	#[inline]
 	pub fn as_mut_bitptr(&mut self) -> BitPtr<Mut, T, O> {
 		self.bitspan.to_bitptr()
 	}
@@ -372,6 +387,7 @@ where
 	/// let bv = bitvec![0, 1, 0, 0, 1];
 	/// let bb = bv.into_boxed_bitslice();
 	/// ```
+	#[inline]
 	pub fn into_boxed_bitslice(self) -> BitBox<T, O> {
 		let mut bitspan = self.bitspan;
 		let mut boxed =
@@ -402,6 +418,7 @@ where
 	/// ```
 	///
 	/// [`.set_uninitialized()`]: Self::set_uninitialized
+	#[inline]
 	pub fn into_vec(self) -> Vec<T> {
 		let (bitspan, capacity) = (self.bitspan, self.capacity);
 		mem::forget(self);
@@ -453,6 +470,7 @@ where
 	/// [`.as_bitslice()`]: Self::as_bitslice
 	/// [`.as_raw_mut_slice()`]: Self::as_raw_mut_slice
 	/// [`.as_raw_slice()`]: Self::as_raw_slice
+	#[inline]
 	pub fn set_elements(&mut self, element: T::Mem) {
 		self.as_raw_mut_slice()
 			.iter_mut()
@@ -490,6 +508,7 @@ where
 	///
 	/// [`.as_bitslice()`]: Self::as_bitslice
 	/// [`.as_raw_slice()`]: Self::as_raw_slice
+	#[inline]
 	pub fn set_uninitialized(&mut self, value: bool) {
 		let head = self.bitspan.head().into_inner() as usize;
 		let last = head + self.len();
@@ -526,6 +545,7 @@ where
 	/// // BitVec does not specify the value of dead bits in its buffer.
 	/// assert_eq!(bv.as_raw_slice()[0] & 0xF0, 0xF0);
 	/// ```
+	#[inline]
 	pub fn force_align(&mut self) {
 		let mut bitspan = self.bitspan;
 		let len = bitspan.len();

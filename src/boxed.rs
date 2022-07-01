@@ -84,6 +84,7 @@ where
 	///
 	/// [`.fill_uninitialized()`]: Self::fill_uninitialized
 	/// [`.force_align()`]: Self::force_align
+	#[inline]
 	pub fn from_bitslice(slice: &BitSlice<T, O>) -> Self {
 		BitVec::from_bitslice(slice).into_boxed_bitslice()
 	}
@@ -109,6 +110,7 @@ where
 	/// assert_eq!(bb, bits![0; 320]);
 	/// assert_eq!(addr, bb.as_raw_slice().as_ptr());
 	/// ```
+	#[inline]
 	pub fn from_boxed_slice(boxed: Box<[T]>) -> Self {
 		Self::try_from_boxed_slice(boxed)
 			.expect("slice was too long to be converted into a `BitBox`")
@@ -138,6 +140,7 @@ where
 	///
 	/// [`MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
 	/// [`MAX_ELTS`]: crate::slice::BitSlice::MAX_ELTS
+	#[inline]
 	pub fn try_from_boxed_slice(boxed: Box<[T]>) -> Result<Self, Box<[T]>> {
 		let mut boxed = ManuallyDrop::new(boxed);
 
@@ -163,6 +166,7 @@ where
 	/// assert_eq!(boxed[..], [0][..]);
 	/// assert_eq!(addr, boxed.as_ptr());
 	/// ```
+	#[inline]
 	pub fn into_boxed_slice(self) -> Box<[T]> {
 		self.pipe(ManuallyDrop::new)
 			.as_raw_mut_slice()
@@ -200,6 +204,7 @@ where
 	/// ```
 	///
 	/// [0]: crate::vec::BitVec::into_boxed_bitslice
+	#[inline]
 	pub fn into_bitvec(self) -> BitVec<T, O> {
 		let bitspan = self.bitspan;
 		/* This pipeline converts the underlying `Box<[T]>` into a `Vec<T>`,
@@ -221,11 +226,13 @@ where
 	}
 
 	/// Explicitly views the bit-box as a bit-slice.
+	#[inline]
 	pub fn as_bitslice(&self) -> &BitSlice<T, O> {
 		unsafe { self.bitspan.into_bitslice_ref() }
 	}
 
 	/// Explicitly views the bit-box as a mutable bit-slice.
+	#[inline]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<T, O> {
 		unsafe { self.bitspan.into_bitslice_mut() }
 	}
@@ -234,6 +241,7 @@ where
 	///
 	/// Because bit-boxes uniquely own their buffer, they can safely view the
 	/// underlying buffer without dealing with contending neighbors.
+	#[inline]
 	pub fn as_raw_slice(&self) -> &[T] {
 		let (data, len) =
 			(self.bitspan.address().to_const(), self.bitspan.elements());
@@ -244,6 +252,7 @@ where
 	///
 	/// Because bit-boxes uniquely own their buffer, they can safely view the
 	/// underlying buffer without dealing with contending neighbors.
+	#[inline]
 	pub fn as_raw_mut_slice(&mut self) -> &mut [T] {
 		let (data, len) =
 			(self.bitspan.address().to_mut(), self.bitspan.elements());
@@ -281,6 +290,7 @@ where
 	/// bb.fill_uninitialized(true);
 	/// assert_eq!(bb.as_raw_slice(), &[0b11_1101_11u8]);
 	/// ```
+	#[inline]
 	pub fn fill_uninitialized(&mut self, value: bool) {
 		let (_, head, bits) = self.bitspan.raw_parts();
 		let head = head.into_inner() as usize;
@@ -324,6 +334,7 @@ where
 	///
 	/// [`::from_bitslice()`]: Self::from_bitslice
 	/// [`.fill_uninitialized()`]: Self::fill_uninitialized
+	#[inline]
 	pub fn force_align(&mut self) {
 		let head = self.bitspan.head();
 		if head == BitIdx::MIN {

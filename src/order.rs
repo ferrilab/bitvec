@@ -226,6 +226,7 @@ compile_fail!(concat!(
 	env!(CARGO_PKG_REPOSITORY)
 ));
 
+#[inline]
 #[cfg(not(tarpaulin_include))]
 #[doc = include_str!("../doc/order/verify.md")]
 pub fn verify<O>(verbose: bool)

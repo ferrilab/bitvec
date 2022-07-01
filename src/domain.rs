@@ -123,6 +123,7 @@ where
 	/// just a shorthand for explicit destructuring.
 	///
 	/// [`Enclave`]: Self::Enclave
+	#[inline]
 	pub fn enclave(self) -> Option<Reference<'a, M, BitSlice<T, O>>> {
 		match self {
 			Self::Enclave(bits) => Some(bits),
@@ -134,6 +135,7 @@ where
 	/// a shorthand for explicit destructuring.
 	///
 	/// [`Region`]: Self::Region
+	#[inline]
 	pub fn region(
 		self,
 	) -> Option<(
@@ -269,6 +271,7 @@ where
 	/// just a shorthand for explicit destructuring.
 	///
 	/// [`Enclave`]: Self::Enclave
+	#[inline]
 	pub fn enclave(self) -> Option<PartialElement<'a, M, T, O>> {
 		match self {
 			Self::Enclave(elem) => Some(elem),
@@ -280,6 +283,7 @@ where
 	/// a shorthand for explicit destructuring.
 	///
 	/// [`Region`]: Self::Region
+	#[inline]
 	pub fn region(
 		self,
 	) -> Option<(
@@ -297,6 +301,7 @@ where
 	///
 	/// This transform replaces each memory reference with an equivalent
 	/// `BitSlice` reference.
+	#[inline]
 	pub fn into_bit_domain(self) -> BitDomain<'a, M, T, O>
 	where
 		Address<M, BitSlice<T, O>>: Referential<'a>,
@@ -717,6 +722,7 @@ where
 	///
 	/// A bit-map containing any bits set to `1` in the governed bits. All other
 	/// bits are cleared to `0`.
+	#[inline]
 	pub fn load_value(&self) -> T::Mem {
 		self.elem
 			.pipe(|addr| unsafe { &*addr.to_const() })
@@ -725,12 +731,14 @@ where
 	}
 
 	/// Gets the starting index of the live bits in the element.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn head(&self) -> BitIdx<T::Mem> {
 		self.head
 	}
 
 	/// Gets the ending index of the live bits in the element.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn tail(&self) -> BitEnd<T::Mem> {
 		self.tail
@@ -738,18 +746,21 @@ where
 
 	/// Gets the semantic head and tail indices that constrain which bits of the
 	/// referent element may be accessed.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn bounds(&self) -> (BitIdx<T::Mem>, BitEnd<T::Mem>) {
 		(self.head, self.tail)
 	}
 
 	/// Gets the bit-mask over all accessible bits.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn mask(&self) -> BitMask<T::Mem> {
 		self.mask
 	}
 
 	/// Converts the partial element into a bit-slice over its governed bits.
+	#[inline]
 	pub fn into_bitslice(self) -> Reference<'a, M, BitSlice<T, O>>
 	where Address<M, BitSlice<T, O>>: Referential<'a> {
 		unsafe {
@@ -782,6 +793,7 @@ where
 	/// ## Returns
 	///
 	/// The previous value of the governed bits.
+	#[inline]
 	pub fn store_value(&mut self, value: T::Mem) -> T::Mem {
 		let this = self.access();
 		let prev = this.clear_bits(self.mask);
@@ -794,6 +806,7 @@ where
 	/// ## Returns
 	///
 	/// The previous value of the governed bits.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn invert(&mut self) -> T::Mem {
 		self.access().invert_bits(self.mask) & self.mask.into_inner()
@@ -804,6 +817,7 @@ where
 	/// ## Returns
 	///
 	/// The previous value of the governed bits.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn clear(&mut self) -> T::Mem {
 		self.access().clear_bits(self.mask) & self.mask.into_inner()
@@ -814,6 +828,7 @@ where
 	/// ## Returns
 	///
 	/// The previous value of the governed bits.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn set(&mut self) -> T::Mem {
 		self.access().set_bits(self.mask) & self.mask.into_inner()
@@ -834,6 +849,7 @@ where
 {
 	/// Performs a store operation on a partial-element whose bits might be
 	/// observed by another handle.
+	#[inline]
 	pub fn store_value_aliased(&self, value: T::Mem) -> T::Mem {
 		let this = unsafe { &*self.elem.to_const().cast::<T::Access>() };
 		let prev = this.clear_bits(self.mask);

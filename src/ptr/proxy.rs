@@ -80,6 +80,7 @@ where
 	/// This is equivalent to (and is!) dereferencing a raw pointer. The pointer
 	/// must be well-constructed, refer to a live memory location in the program
 	/// context, and not be aliased beyond its typing indicators.
+	#[inline]
 	pub unsafe fn from_bitptr(bitptr: BitPtr<M, T, O>) -> Self {
 		let data = bitptr.read();
 		Self {
@@ -94,6 +95,7 @@ where
 	/// ## Original
 	///
 	/// The syntax `&val as *T`.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn into_bitptr(self) -> BitPtr<M, T, O> {
 		self.bitptr
@@ -125,6 +127,7 @@ where
 	/// ## Original
 	///
 	/// [`mem::replace`](core::mem::replace)
+	#[inline]
 	pub fn replace(&mut self, src: bool) -> bool {
 		mem::replace(&mut self.data, src)
 	}
@@ -134,6 +137,7 @@ where
 	/// ## Original
 	///
 	/// [`mem::swap`](core::mem::swap)
+	#[inline]
 	pub fn swap<T2, O2>(&mut self, other: &mut BitRef<Mut, T2, O2>)
 	where
 		T2: BitStore,
@@ -147,6 +151,7 @@ where
 	/// This function writes `value` directly into the proxied location,
 	/// bypassing the cache and destroying the proxy. This eliminates the second
 	/// write done in the destructor, and allows code to be slightly faster.
+	#[inline]
 	pub fn commit(self, value: bool) {
 		unsafe {
 			self.bitptr.write(value);
@@ -158,6 +163,7 @@ where
 	///
 	/// This does not write into the proxied location; that is deferred until
 	/// the proxy destructor runs.
+	#[inline]
 	pub fn set(&mut self, value: bool) {
 		self.data = value;
 	}

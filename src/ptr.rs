@@ -45,6 +45,7 @@ pub use self::{
 	span::BitSpanError,
 };
 
+#[inline]
 #[doc = include_str!("../doc/ptr/copy.md")]
 pub unsafe fn copy<T1, T2, O1, O2>(
 	src: BitPtr<Const, T1, O1>,
@@ -72,6 +73,7 @@ pub unsafe fn copy<T1, T2, O1, O2>(
 	}
 }
 
+#[inline]
 #[doc = include_str!("../doc/ptr/copy_nonoverlapping.md")]
 pub unsafe fn copy_nonoverlapping<T1, T2, O1, O2>(
 	src: BitPtr<Const, T1, O1>,
@@ -88,6 +90,7 @@ pub unsafe fn copy_nonoverlapping<T1, T2, O1, O2>(
 	}
 }
 
+#[inline]
 #[doc = include_str!("../doc/ptr/drop_in_place.md")]
 #[deprecated = "this has no effect, and should not be called"]
 pub unsafe fn drop_in_place<T, O>(_: BitPtr<Mut, T, O>)
@@ -98,6 +101,7 @@ where
 }
 
 #[doc = include_str!("../doc/ptr/eq.md")]
+#[inline]
 pub fn eq<T1, T2, O>(
 	this: BitPtr<Const, T1, O>,
 	that: BitPtr<Const, T2, O>,
@@ -110,6 +114,7 @@ where
 	this == that
 }
 
+#[inline]
 #[cfg(not(tarpaulin_include))]
 #[doc = include_str!("../doc/ptr/hash.md")]
 pub fn hash<T, O, S>(ptr: BitPtr<Const, T, O>, into: &mut S)
@@ -121,6 +126,7 @@ where
 	ptr.hash(into);
 }
 
+#[inline]
 #[cfg(not(tarpaulin_include))]
 #[doc = include_str!("../doc/ptr/null.md")]
 pub fn null<T, O>() -> BitPtr<Const, T, O>
@@ -131,6 +137,7 @@ where
 	BitPtr::DANGLING
 }
 
+#[inline]
 #[cfg(not(tarpaulin_include))]
 #[doc = include_str!("../doc/ptr/null_mut.md")]
 pub fn null_mut<T, O>() -> BitPtr<Mut, T, O>
@@ -141,6 +148,7 @@ where
 	BitPtr::DANGLING
 }
 
+#[inline]
 #[cfg(not(tarpaulin_include))]
 #[doc = include_str!("../doc/ptr/read.md")]
 pub unsafe fn read<T, O>(src: BitPtr<Const, T, O>) -> bool
@@ -151,6 +159,7 @@ where
 	src.read()
 }
 
+#[inline]
 #[allow(deprecated)]
 #[cfg(not(tarpaulin_include))]
 #[doc = include_str!("../doc/ptr/read_unaligned.md")]
@@ -163,6 +172,7 @@ where
 	src.read_unaligned()
 }
 
+#[inline]
 #[cfg(not(tarpaulin_include))]
 #[doc = include_str!("../doc/ptr/read_volatile.md")]
 pub unsafe fn read_volatile<T, O>(src: BitPtr<Const, T, O>) -> bool
@@ -173,6 +183,7 @@ where
 	src.read_volatile()
 }
 
+#[inline]
 #[cfg(not(tarpaulin_include))]
 #[doc = include_str!("../doc/ptr/replace.md")]
 pub unsafe fn replace<T, O>(dst: BitPtr<Mut, T, O>, src: bool) -> bool
@@ -183,6 +194,7 @@ where
 	dst.replace(src)
 }
 
+#[inline]
 #[cfg(not(tarpaulin_include))]
 #[doc = include_str!("../doc/ptr/slice_from_raw_parts.md")]
 pub fn slice_from_raw_parts<T, O>(
@@ -196,6 +208,7 @@ where
 	bitslice_from_raw_parts(ptr, len)
 }
 
+#[inline]
 #[cfg(not(tarpaulin_include))]
 #[doc = include_str!("../doc/ptr/slice_from_raw_parts_mut.md")]
 pub fn slice_from_raw_parts_mut<T, O>(
@@ -209,6 +222,7 @@ where
 	bitslice_from_raw_parts_mut(ptr, len)
 }
 
+#[inline]
 #[doc = include_str!("../doc/ptr/swap.md")]
 pub unsafe fn swap<T1, T2, O1, O2>(
 	one: BitPtr<Mut, T1, O1>,
@@ -222,6 +236,7 @@ pub unsafe fn swap<T1, T2, O1, O2>(
 	one.write(two.replace(one.read()));
 }
 
+#[inline]
 #[doc = include_str!("../doc/ptr/swap_nonoverlapping.md")]
 pub unsafe fn swap_nonoverlapping<T1, T2, O1, O2>(
 	mut one: BitPtr<Mut, T1, O1>,
@@ -241,6 +256,7 @@ pub unsafe fn swap_nonoverlapping<T1, T2, O1, O2>(
 	}
 }
 
+#[inline]
 #[cfg(not(tarpaulin_include))]
 #[doc = include_str!("../doc/ptr/write.md")]
 pub unsafe fn write<T, O>(dst: BitPtr<Mut, T, O>, value: bool)
@@ -251,6 +267,7 @@ where
 	dst.write(value);
 }
 
+#[inline]
 #[cfg(not(tarpaulin_include))]
 #[deprecated = "use `write_bits()` instead"]
 #[doc = include_str!("../doc/ptr/write_bytes.md")]
@@ -265,6 +282,7 @@ pub unsafe fn write_bytes<T, O>(
 	write_bits(dst, value, count)
 }
 
+#[inline]
 #[allow(deprecated)]
 #[cfg(not(tarpaulin_include))]
 #[doc = include_str!("../doc/ptr/write_unaligned.md")]
@@ -277,6 +295,7 @@ where
 	dst.write_unaligned(value);
 }
 
+#[inline]
 #[cfg(not(tarpaulin_include))]
 #[doc = include_str!("../doc/ptr/write_volatile.md")]
 pub unsafe fn write_volatile<T, O>(dst: BitPtr<Mut, T, O>, value: bool)
@@ -289,6 +308,7 @@ where
 
 //  Renamed variants.
 
+#[inline]
 #[cfg(not(tarpaulin_include))]
 #[doc = include_str!("../doc/ptr/bitslice_from_raw_parts.md")]
 pub fn bitslice_from_raw_parts<T, O>(
@@ -302,6 +322,7 @@ where
 	ptr.span(len).unwrap().into_bitslice_ptr()
 }
 
+#[inline]
 #[cfg(not(tarpaulin_include))]
 #[doc = include_str!("../doc/ptr/bitslice_from_raw_parts_mut.md")]
 pub fn bitslice_from_raw_parts_mut<T, O>(
@@ -315,6 +336,7 @@ where
 	ptr.span(len).unwrap().into_bitslice_ptr_mut()
 }
 
+#[inline]
 #[doc = include_str!("../doc/ptr/write_bits.md")]
 pub unsafe fn write_bits<T, O>(dst: BitPtr<Mut, T, O>, value: bool, count: usize)
 where

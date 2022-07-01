@@ -56,6 +56,7 @@ where
 	///
 	/// [`::into_raw()`]: Self::into_raw
 	/// [`::leak()`]: Self::leak
+	#[inline]
 	pub unsafe fn from_raw(raw: *mut BitSlice<T, O>) -> Self {
 		Self {
 			bitspan: BitSpan::from_bitslice_ptr_mut(raw),
@@ -88,6 +89,7 @@ where
 	/// any other means.
 	///
 	/// [`::from_raw()`]: Self::from_raw
+	#[inline]
 	pub fn into_raw(this: Self) -> *mut BitSlice<T, O> {
 		Self::leak(this)
 	}
@@ -121,11 +123,13 @@ where
 	///
 	/// [`::from_raw()`]: Self::from_raw
 	/// [`::into_raw()`]: Self::into_raw
+	#[inline]
 	pub fn leak<'a>(this: Self) -> &'a mut BitSlice<T, O>
 	where T: 'a {
 		unsafe { this.bitspan.into_bitslice_mut() }.tap(|_| mem::forget(this))
 	}
 
+	#[inline]
 	#[doc(hidden)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "use `.into_bitvec()` instead"]

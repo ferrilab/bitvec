@@ -66,6 +66,7 @@ where R: BitRegister
 	///
 	/// This returns `idx`, either marked as a valid `BitIdx` or an invalid
 	/// `BitIdxError` by whether it is within the valid range `0 .. R::BITS`.
+	#[inline]
 	pub fn new(idx: u8) -> Result<Self, BitIdxError<R>> {
 		if idx >= bits_of::<R>() as u8 {
 			return Err(BitIdxError::new(idx));
@@ -89,6 +90,7 @@ where R: BitRegister
 	/// If the `idx` value is outside the valid range, then the program is
 	/// incorrect. Debug builds will panic; release builds do not inspect the
 	/// value or specify a behavior.
+	#[inline]
 	pub unsafe fn new_unchecked(idx: u8) -> Self {
 		debug_assert!(
 			idx < bits_of::<R>() as u8,
@@ -103,6 +105,7 @@ where R: BitRegister
 	}
 
 	/// Removes the index wrapper, leaving the internal counter.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn into_inner(self) -> u8 {
 		self.idx
@@ -118,6 +121,7 @@ where R: BitRegister
 	///
 	/// - `.0`: The next index after `self`.
 	/// - `.1`: Indicates whether the new index is in the next memory address.
+	#[inline]
 	pub fn next(self) -> (Self, bool) {
 		let next = self.idx + 1;
 		(
@@ -137,6 +141,7 @@ where R: BitRegister
 	/// - `.0`: The previous index before `self`.
 	/// - `.1`: Indicates whether the new index is in the previous memory
 	///   address.
+	#[inline]
 	pub fn prev(self) -> (Self, bool) {
 		let prev = self.idx.wrapping_sub(1);
 		(
@@ -151,6 +156,7 @@ where R: BitRegister
 	/// constructor for a position counter.
 	///
 	/// [`O::at::<R>`]: crate::order::BitOrder::at
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn position<O>(self) -> BitPos<R>
 	where O: BitOrder {
@@ -163,6 +169,7 @@ where R: BitRegister
 	/// constructor for a bit selector.
 	///
 	/// [`O::select::<R>`]: crate::order::BitOrder::select
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn select<O>(self) -> BitSel<R>
 	where O: BitOrder {
@@ -174,6 +181,7 @@ where R: BitRegister
 	/// This is a type-cast over [`Self::select`].
 	///
 	/// [`Self::select`]: Self::select
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn mask<O>(self) -> BitMask<R>
 	where O: BitOrder {
@@ -205,6 +213,7 @@ where R: BitRegister
 	///
 	/// [`RangeBounds`]: core::ops::RangeBounds
 	/// [`Range<BitIdx<R>>`]: core::ops::Range
+	#[inline]
 	pub fn range(
 		self,
 		upto: BitEnd<R>,
@@ -218,6 +227,7 @@ where R: BitRegister
 	}
 
 	/// Iterates over all possible index values.
+	#[inline]
 	pub fn range_all() -> impl Iterator<Item = Self>
 	+ DoubleEndedIterator
 	+ ExactSizeIterator
@@ -356,6 +366,7 @@ where R: BitRegister
 	}
 
 	/// Removes the error wrapper, leaving the internal counter.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn into_inner(self) -> u8 {
 		self.err
@@ -426,6 +437,7 @@ where R: BitRegister
 	///
 	/// This returns `Some(end)` when it is in the valid range `0 ..= R::BITS`,
 	/// and `None` when it is not.
+	#[inline]
 	pub fn new(end: u8) -> Option<Self> {
 		if end > bits_of::<R>() as u8 {
 			return None;
@@ -463,6 +475,7 @@ where R: BitRegister
 	}
 
 	/// Removes the tail wrapper, leaving the internal counter.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn into_inner(self) -> u8 {
 		self.end
@@ -487,6 +500,7 @@ where R: BitRegister
 	///
 	/// [`RangeBounds`]: core::ops::RangeBounds
 	/// [`Range<BitEnd<R>>`]: core::ops::Range
+	#[inline]
 	pub fn range_from(
 		from: BitIdx<R>,
 	) -> impl Iterator<Item = Self>
@@ -610,6 +624,7 @@ where R: BitRegister
 	///
 	/// This returns `Some(pos)` when it is in the valid range `0 .. R::BITS`,
 	/// and `None` when it is not.
+	#[inline]
 	pub fn new(pos: u8) -> Option<Self> {
 		if pos >= bits_of::<R>() as u8 {
 			return None;
@@ -634,6 +649,7 @@ where R: BitRegister
 	/// If the `pos` value is outside the valid range, then the program is
 	/// incorrect. Debug builds will panic; release builds do not inspect the
 	/// value or specify a behavior.
+	#[inline]
 	pub unsafe fn new_unchecked(pos: u8) -> Self {
 		debug_assert!(
 			pos < bits_of::<R>() as u8,
@@ -648,6 +664,7 @@ where R: BitRegister
 	}
 
 	/// Removes the position wrapper, leaving the internal counter.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn into_inner(self) -> u8 {
 		self.pos
@@ -656,6 +673,7 @@ where R: BitRegister
 	/// Computes the bit selector corresponding to `self`.
 	///
 	/// This is always `1 << self.pos`.
+	#[inline]
 	pub fn select(self) -> BitSel<R> {
 		unsafe { BitSel::new_unchecked(R::ONE << self.pos) }
 	}
@@ -665,6 +683,7 @@ where R: BitRegister
 	/// This is a type-cast over [`Self::select`].
 	///
 	/// [`Self::select`]: Self::select
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn mask(self) -> BitMask<R> {
 		self.select().mask()
@@ -728,6 +747,7 @@ where R: BitRegister
 	///
 	/// This returns `Some(sel)` when it is a power of two (exactly one bit set
 	/// and all others cleared), and `None` when it is not.
+	#[inline]
 	pub fn new(sel: R) -> Option<Self> {
 		if sel.count_ones() != 1 {
 			return None;
@@ -750,6 +770,7 @@ where R: BitRegister
 	/// If the `sel` value has zero or multiple bits set, then it is invalid to
 	/// be used as a `BitSel` and the program is incorrect. Debug builds will
 	/// panic; release builds do not inspect the value or specify a behavior.
+	#[inline]
 	pub unsafe fn new_unchecked(sel: R) -> Self {
 		debug_assert!(
 			sel.count_ones() == 1,
@@ -761,18 +782,21 @@ where R: BitRegister
 	}
 
 	/// Removes the one-hot selection wrapper, leaving the internal mask.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn into_inner(self) -> R {
 		self.sel
 	}
 
 	/// Computes a bit-mask for `self`. This is a type-cast.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn mask(self) -> BitMask<R> {
 		BitMask::new(self.sel)
 	}
 
 	/// Iterates over all possible selector values.
+	#[inline]
 	pub fn range_all() -> impl Iterator<Item = Self>
 	+ DoubleEndedIterator
 	+ ExactSizeIterator
@@ -846,11 +870,13 @@ where R: BitRegister
 	/// the caller’s context.
 	///
 	/// [`BitSel`]: crate::index::BitSel
+	#[inline]
 	pub fn new(mask: R) -> Self {
 		Self { mask }
 	}
 
 	/// Removes the mask wrapper, leaving the internal value.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn into_inner(self) -> R {
 		self.mask
@@ -866,6 +892,7 @@ where R: BitRegister
 	/// ## Returns
 	///
 	/// Whether `self` has set the bit that `sel` indicates.
+	#[inline]
 	pub fn test(&self, sel: BitSel<R>) -> bool {
 		self.mask & sel.sel != R::ZERO
 	}
@@ -880,6 +907,7 @@ where R: BitRegister
 	/// ## Effects
 	///
 	/// The `sel` bit is set in the mask.
+	#[inline]
 	pub fn insert(&mut self, sel: BitSel<R>) {
 		self.mask |= sel.sel;
 	}
@@ -894,6 +922,7 @@ where R: BitRegister
 	/// ## Returns
 	///
 	/// A new bit-mask with `sel` activated.
+	#[inline]
 	pub fn combine(self, sel: BitSel<R>) -> Self {
 		Self {
 			mask: self.mask | sel.sel,

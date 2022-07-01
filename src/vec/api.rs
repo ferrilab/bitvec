@@ -60,6 +60,7 @@ where
 	///
 	/// [`.push()`]: Self::push
 	/// [`.reserve()`]: Self::reserve
+	#[inline]
 	pub fn new() -> Self {
 		Self::EMPTY
 	}
@@ -98,6 +99,7 @@ where
 	/// ```
 	///
 	/// [`BitSlice::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
+	#[inline]
 	pub fn with_capacity(capacity: usize) -> Self {
 		Self::assert_len_encodable(capacity);
 		let mut vec = capacity
@@ -140,6 +142,7 @@ where
 	/// ```
 	///
 	/// [`.into_raw_parts()`]: Self::into_raw_parts
+	#[inline]
 	pub unsafe fn from_raw_parts(
 		bitptr: BitPtr<Mut, T, O>,
 		length: usize,
@@ -170,6 +173,7 @@ where
 	/// stabilize as-is.
 	///
 	/// [`::from_raw_parts()`]: Self::from_raw_parts
+	#[inline]
 	pub fn into_raw_parts(self) -> (BitPtr<Mut, T, O>, usize, usize) {
 		let this = ManuallyDrop::new(self);
 		(
@@ -200,6 +204,7 @@ where
 	/// ```
 	///
 	/// [`.force_align()`]: Self::force_align
+	#[inline]
 	pub fn capacity(&self) -> usize {
 		self.capacity
 			.checked_mul(mem::bits_of::<T>())
@@ -237,6 +242,7 @@ where
 	/// bv.reserve(800);
 	/// assert!(bv.capacity() >= 800);
 	/// ```
+	#[inline]
 	pub fn reserve(&mut self, additional: usize) {
 		Self::assert_len_encodable(self.len() + additional);
 		self.do_reservation(additional, Vec::<T>::reserve);
@@ -274,6 +280,7 @@ where
 	/// ```
 	///
 	/// [`.reserve()`]: Self::reserve
+	#[inline]
 	pub fn reserve_exact(&mut self, additional: usize) {
 		self.do_reservation(additional, Vec::<T>::reserve_exact);
 	}
@@ -298,10 +305,12 @@ where
 	/// ```
 	///
 	/// [`.reserve_exact()`]: Self::reserve_exact
+	#[inline]
 	pub fn shrink_to_fit(&mut self) {
 		self.with_vec(|vec| vec.shrink_to_fit());
 	}
 
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "prefer `.into_boxed_bitslice() instead"]
 	#[allow(missing_docs, clippy::missing_docs_in_private_items)]
@@ -346,6 +355,7 @@ where
 	///
 	/// [`.as_bitslice()`]: Self::as_bitslice
 	/// [`.drain()`]: Self::drain
+	#[inline]
 	pub fn truncate(&mut self, new_len: usize) {
 		if new_len < self.len() {
 			unsafe {
@@ -354,6 +364,7 @@ where
 		}
 	}
 
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "use `.as_bitslice()` instead"]
 	#[allow(missing_docs, clippy::missing_docs_in_private_items)]
@@ -361,6 +372,7 @@ where
 		self.as_bitslice()
 	}
 
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "use `.as_mut_bitslice()` instead"]
 	#[allow(missing_docs, clippy::missing_docs_in_private_items)]
@@ -368,6 +380,7 @@ where
 		self.as_mut_bitslice()
 	}
 
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "use `.as_bitptr()` instead"]
 	#[allow(missing_docs, clippy::missing_docs_in_private_items)]
@@ -375,6 +388,7 @@ where
 		self.as_bitptr()
 	}
 
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "use `.as_mut_bitptr()` instead"]
 	#[allow(missing_docs, clippy::missing_docs_in_private_items)]
@@ -427,6 +441,7 @@ where
 	///
 	/// [`.push()`]: Self::push
 	/// [`.capacity()`]: Self::capacity
+	#[inline]
 	pub unsafe fn set_len(&mut self, new_len: usize) {
 		let capa = self.capacity();
 		assert!(
@@ -460,6 +475,7 @@ where
 	/// assert!(!bv.swap_remove(2));
 	/// assert_eq!(bv, bits![0, 1, 1, 0]);
 	/// ```
+	#[inline]
 	pub fn swap_remove(&mut self, index: usize) -> bool {
 		self.assert_in_bounds(index, 0 .. self.len());
 		let last = self.len() - 1;
@@ -483,6 +499,7 @@ where
 	/// ## Panics
 	///
 	/// This panics if `index` is out of bounds (including `self.len()`).
+	#[inline]
 	pub fn insert(&mut self, index: usize, value: bool) {
 		self.assert_in_bounds(index, 0 ..= self.len());
 		self.push(value);
@@ -501,6 +518,7 @@ where
 	/// ## Panics
 	///
 	/// This panics if `index` is out of bounds (excluding `self.len()`).
+	#[inline]
 	pub fn remove(&mut self, index: usize) -> bool {
 		self.assert_in_bounds(index, 0 .. self.len());
 		let last = self.len() - 1;
@@ -536,6 +554,7 @@ where
 	/// bv.retain(|idx, _| idx % 2 == 0);
 	/// assert_eq!(bv, bits![0,    0,    1]);
 	/// ```
+	#[inline]
 	pub fn retain<F>(&mut self, mut func: F)
 	where F: FnMut(usize, &bool) -> bool {
 		let mut len = self.len();
@@ -594,6 +613,7 @@ where
 	/// bv.push(true);
 	/// assert_eq!(bv.as_bitslice(), bits![0, 0, 1]);
 	/// ```
+	#[inline]
 	pub fn push(&mut self, value: bool) {
 		let len = self.len();
 		let new_len = len + 1;
@@ -627,6 +647,7 @@ where
 	/// assert!(!bv.pop().unwrap());
 	/// assert!(bv.pop().is_none());
 	/// ```
+	#[inline]
 	pub fn pop(&mut self) -> Option<bool> {
 		match self.len() {
 			0 => None,
@@ -671,6 +692,7 @@ where
 	/// assert_eq!(bv1.count_zeros(), 10);
 	/// assert!(bv2.is_empty());
 	/// ```
+	#[inline]
 	pub fn append<T2, O2>(&mut self, other: &mut BitVec<T2, O2>)
 	where
 		T2: BitStore,
@@ -733,6 +755,7 @@ where
 	/// bv.clear();
 	/// assert!(bv.is_empty());
 	/// ```
+	#[inline]
 	pub fn clear(&mut self) {
 		self.truncate(0);
 	}
@@ -746,6 +769,7 @@ where
 	/// ## Original
 	///
 	/// [`Vec::len`](alloc::vec::Vec::len)
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn len(&self) -> usize {
 		self.bitspan.len()
@@ -760,6 +784,7 @@ where
 	/// ## Original
 	///
 	/// [`Vec::is_empty`](alloc::vec::Vec::is_empty)
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn is_empty(&self) -> bool {
 		self.bitspan.len() == 0
@@ -781,6 +806,7 @@ where
 	/// let bv2 = bv.split_off(2);
 	/// assert_eq!((&*bv, &*bv2), (bits![0, 1], bits![0, 0, 1]));
 	/// ```
+	#[inline]
 	pub fn split_off(&mut self, at: usize) -> Self {
 		let len = self.len();
 		self.assert_in_bounds(at, 0 ..= len);
@@ -817,6 +843,7 @@ where
 	/// bv.resize_with(5, |idx| idx % 2 == 1);
 	/// assert_eq!(bv, bits![1, 1, 0, 1, 0]);
 	/// ```
+	#[inline]
 	pub fn resize_with<F>(&mut self, new_len: usize, mut func: F)
 	where F: FnMut(usize) -> bool {
 		let old_len = self.len();
@@ -863,6 +890,7 @@ where
 	/// ```
 	///
 	/// [`BitBox::leak`]: crate::boxed::BitBox::leak
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn leak<'a>(self) -> &'a mut BitSlice<T, O> {
 		self.into_boxed_bitslice().pipe(BitBox::leak)
@@ -884,6 +912,7 @@ where
 	/// bv.resize(5, true);
 	/// assert_eq!(bv, bits![0, 0, 1, 1, 1]);
 	/// ```
+	#[inline]
 	pub fn resize(&mut self, new_len: usize, value: bool) {
 		let len = self.len();
 		if new_len > len {
@@ -898,6 +927,7 @@ where
 		}
 	}
 
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[allow(missing_docs, clippy::missing_docs_in_private_items)]
 	#[deprecated = "use `.extend_from_bitslice()` or `.extend_from_raw_slice()` \
@@ -930,6 +960,7 @@ where
 	/// bv.extend_from_within(1 .. 4);
 	/// assert_eq!(bv, bits![0, 1, 0, 0, 1, 1, 0, 0]);
 	/// ```
+	#[inline]
 	pub fn extend_from_within<R>(&mut self, src: R)
 	where R: RangeExt<usize> {
 		let old_len = self.len();
@@ -985,6 +1016,7 @@ where
 	/// ```
 	///
 	/// [`self.drain()`]: Self::drain
+	#[inline]
 	pub fn splice<R, I>(
 		&mut self,
 		range: R,

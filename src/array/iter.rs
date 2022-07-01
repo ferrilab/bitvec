@@ -96,6 +96,7 @@ where
 	/// ## Original
 	///
 	/// [`IntoIter::new`](core::array::IntoIter::new)s
+	#[inline]
 	pub fn new(array: BitArray<A, O>) -> Self {
 		Self {
 			array,
@@ -108,10 +109,12 @@ where
 	/// ## Original
 	///
 	/// [`IntoIter::as_slice`](core::array::IntoIter::as_slice)
+	#[inline]
 	pub fn as_bitslice(&self) -> &BitSlice<A::Store, O> {
 		unsafe { self.array.as_bitslice().get_unchecked(self.alive.clone()) }
 	}
 
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "use `.as_bitslice()` instead"]
 	#[allow(missing_docs, clippy::missing_docs_in_private_items)]
@@ -124,6 +127,7 @@ where
 	/// ## Original
 	///
 	/// [`IntoIter::as_mut_slice`](core::array::IntoIter::as_mut_slice)
+	#[inline]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<A::Store, O> {
 		unsafe {
 			self.array
@@ -132,6 +136,7 @@ where
 		}
 	}
 
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "use `.as_bitslice_mut()` instead"]
 	#[allow(missing_docs, clippy::missing_docs_in_private_items)]

@@ -68,6 +68,7 @@ where
 	/// ## Original
 	///
 	/// [`IntoIter::as_slice`](alloc::vec::IntoIter::as_slice)
+	#[inline]
 	pub fn as_bitslice(&self) -> &BitSlice<T, O> {
 		//  While the memory is never actually deïnitialized, this is still a
 		//  good habit to do.
@@ -80,6 +81,7 @@ where
 		}
 	}
 
+	#[inline]
 	#[doc(hidden)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "use `.as_bitslice()` instead"]
@@ -93,6 +95,7 @@ where
 	/// ## Original
 	///
 	/// [`IntoIter::as_mut_slice`](alloc::vec::IntoIter::as_mut_slice)
+	#[inline]
 	pub fn as_mut_bitslice(&mut self) -> &mut BitSlice<T, O> {
 		unsafe {
 			self._buf
@@ -103,6 +106,7 @@ where
 		}
 	}
 
+	#[inline]
 	#[doc(hidden)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "use `.as_mut_bitslice()` instead"]

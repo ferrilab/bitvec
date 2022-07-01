@@ -116,11 +116,13 @@ where
 	/// assert!(!*iter.nth(1).unwrap());
 	/// assert_eq!(iter.as_bitslice(), bits![1, 1]);
 	/// ```
+	#[inline]
 	#[allow(missing_docs, clippy::missing_docs_in_private_items)]
 	pub fn as_bitslice(&self) -> &'a BitSlice<T, O> {
 		unsafe { self.range.clone().into_bitspan().into_bitslice_ref() }
 	}
 
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "use `.as_bitslice()` instead"]
 	#[allow(missing_docs, clippy::missing_docs_in_private_items)]
@@ -149,6 +151,7 @@ where
 	/// ```
 	///
 	/// [0]: crate::ptr::BitRef
+	#[inline]
 	pub fn by_refs(
 		self,
 	) -> impl 'a
@@ -195,6 +198,7 @@ where
 	/// ```
 	///
 	/// [0]: crate::ptr::BitRef
+	#[inline]
 	pub fn by_vals(
 		self,
 	) -> impl 'a
@@ -217,6 +221,7 @@ where
 	/// [`Iterator::copied`]: core::iter::Iterator::copied
 	/// [`.by_vals()`]: Self::by_vals
 	/// [0]: crate::ptr::BitRef
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "`Iterator::copied` does not exist on this type. Use \
 	                `.by_vals()` instead"]
@@ -323,11 +328,13 @@ where
 	/// assert_eq!(iter.into_bitslice(), bits![0, 1, 1]);
 	/// assert!(bits[0]);
 	/// ```
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn into_bitslice(self) -> &'a mut BitSlice<T::Alias, O> {
 		unsafe { self.range.into_bitspan().into_bitslice_mut() }
 	}
 
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "use `.into_bitslice()` instead"]
 	#[allow(missing_docs, clippy::missing_docs_in_private_items)]
@@ -361,11 +368,13 @@ where
 	///
 	/// assert_eq!(bits, bits![1, 1, 0, 0]);
 	/// ```
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn as_bitslice(&self) -> &BitSlice<T::Alias, O> {
 		unsafe { self.range.clone().into_bitspan().into_bitslice_ref() }
 	}
 
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "use `.as_bitslice()` instead"]
 	#[allow(missing_docs, clippy::missing_docs_in_private_items)]
@@ -829,6 +838,7 @@ where
 	/// ## Original
 	///
 	/// [`ChunksExact::remainder`](core::slice::ChunksExact::remainder)
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn remainder(&self) -> &'a BitSlice<T, O> {
 		self.extra
@@ -933,6 +943,7 @@ where
 	/// [`ChunksExactMut::into_remainder`][0]
 	///
 	/// [0]: core::slice::ChunksExactMut::into_remainder
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn into_remainder(self) -> &'a mut BitSlice<T::Alias, O> {
 		self.extra
@@ -954,6 +965,7 @@ where
 	/// assert_eq!(chunks.take_remainder(), bits![0; 2]);
 	/// assert!(chunks.take_remainder().is_empty());
 	/// ```
+	#[inline]
 	pub fn take_remainder(&mut self) -> &'a mut BitSlice<T::Alias, O> {
 		mem::take(&mut self.extra)
 	}
@@ -1237,6 +1249,7 @@ where
 	/// ## Original
 	///
 	/// [`RChunksExact::remainder`](core::slice::RChunksExact::remainder)
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn remainder(&self) -> &'a BitSlice<T, O> {
 		self.extra
@@ -1341,6 +1354,7 @@ where
 	/// [`RChunksExactMut::into_remainder`][0]
 	///
 	/// [0]: core::slice::RChunksExactMut::into_remainder
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn into_remainder(self) -> &'a mut BitSlice<T::Alias, O> {
 		self.extra
@@ -1362,6 +1376,7 @@ where
 	/// assert_eq!(chunks.take_remainder(), bits![0; 2]);
 	/// assert!(chunks.take_remainder().is_empty());
 	/// ```
+	#[inline]
 	pub fn take_remainder(&mut self) -> &'a mut BitSlice<T::Alias, O> {
 		mem::take(&mut self.extra)
 	}
@@ -2350,6 +2365,7 @@ macro_rules! noalias {
 			///
 			/// [`T::Alias`]: crate::store::BitStore::Alias
 			/// [`T::Mem`]: crate::store::BitStore::Mem
+			#[inline]
 			#[must_use = "You must consume this object, preferably immediately \
 			              upon creation"]
 			pub unsafe fn remove_alias(self) -> $to<'a, T, O$(, $p)?> {
@@ -2475,6 +2491,7 @@ where
 	/// See [`ChunksExactMut::into_remainder()`][0].
 	///
 	/// [0]: crate::slice::ChunksExactMut::into_remainder
+	#[inline]
 	pub fn into_remainder(self) -> &'a mut BitSlice<T, O> {
 		unsafe { BitSlice::unalias_mut(self.inner.into_remainder()) }
 	}
@@ -2482,6 +2499,7 @@ where
 	/// See [`ChunksExactMut::take_remainder()`][0]
 	///
 	/// [0]: crate::slice::ChunksExactMut::take_remainder
+	#[inline]
 	pub fn take_remainder(&mut self) -> &'a mut BitSlice<T, O> {
 		unsafe { BitSlice::unalias_mut(self.inner.take_remainder()) }
 	}
@@ -2495,6 +2513,7 @@ where
 	/// See [`RChunksExactMut::into_remainder()`][0]
 	///
 	/// [0]: crate::slice::RChunksExactMut::into_remainder
+	#[inline]
 	pub fn into_remainder(self) -> &'a mut BitSlice<T, O> {
 		unsafe { BitSlice::unalias_mut(self.inner.into_remainder()) }
 	}
@@ -2502,6 +2521,7 @@ where
 	/// See [`RChunksExactMut::take_remainder()`][0]
 	///
 	/// [0]:  crate::slice::RChunksExactMut::take_remainder
+	#[inline]
 	pub fn take_remainder(&mut self) -> &'a mut BitSlice<T, O> {
 		unsafe { BitSlice::unalias_mut(self.inner.take_remainder()) }
 	}

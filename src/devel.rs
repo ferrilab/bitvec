@@ -54,6 +54,7 @@ macro_rules! easy_iter {
 }
 
 /// Tests if two `BitOrder` implementors are the same.
+#[inline]
 pub fn match_order<O, P>() -> bool
 where
 	O: BitOrder,
@@ -63,6 +64,7 @@ where
 }
 
 /// Tests if two `BitStore` implementors are the same.
+#[inline]
 pub fn match_store<T, U>() -> bool
 where
 	T: BitStore,
@@ -72,6 +74,7 @@ where
 }
 
 /// Tests if two `BitSlice` type parameter pairs match each other.
+#[inline]
 pub fn match_types<T1, O1, T2, O2>() -> bool
 where
 	O1: BitOrder,
@@ -85,6 +88,7 @@ where
 /// Tests if a type is known to be an unsigned integer.
 ///
 /// Returns `true` for `u{8,16,32,64,128,size}` and `false` for all others.
+#[inline]
 pub fn is_unsigned<T>() -> bool
 where T: 'static {
 	eq_types::<T, u8>()

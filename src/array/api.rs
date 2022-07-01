@@ -25,6 +25,7 @@ where
 	///
 	/// [`.as_bitslice()`]: Self::as_bitslice
 	/// [`.as_raw_slice()`]: Self::as_raw_slice
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "use `.as_bitslice()` or `.as_raw_slice()` instead"]
 	pub fn as_slice(&self) -> &BitSlice<A::Store, O> {
@@ -45,6 +46,7 @@ where
 	///
 	/// [`.as_mut_bitslice()`]: Self::as_mut_bitslice
 	/// [`.as_raw_mut_slice()`]: Self::as_raw_mut_slice
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "use `.as_mut_bitslice()` or `.as_raw_mut_slice()` instead"]
 	pub fn as_mut_slice(&mut self) -> &mut BitSlice<A::Store, O> {

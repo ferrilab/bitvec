@@ -105,6 +105,7 @@ where
 	/// assert!(BitSlice::<u16, LocalBits>::empty().is_empty());
 	/// assert_eq!(bits![], BitSlice::<u8, Msb0>::empty());
 	/// ```
+	#[inline]
 	pub fn empty<'a>() -> &'a Self {
 		unsafe { BitSpan::<Const, T, O>::EMPTY.into_bitslice_ref() }
 	}
@@ -123,6 +124,7 @@ where
 	/// assert!(BitSlice::<u16, LocalBits>::empty_mut().is_empty());
 	/// assert_eq!(bits![mut], BitSlice::<u8, Msb0>::empty_mut());
 	/// ```
+	#[inline]
 	pub fn empty_mut<'a>() -> &'a mut Self {
 		unsafe { BitSpan::<Mut, T, O>::EMPTY.into_bitslice_mut() }
 	}
@@ -156,6 +158,7 @@ where
 	/// [`BitStore`]: crate::store::BitStore
 	/// [`BitView`]: crate::view::BitView
 	/// [`.view_bits::<O>()`]: crate::view::BitView::view_bits
+	#[inline]
 	pub fn from_element(elem: &T) -> &Self {
 		unsafe {
 			BitPtr::from_ref(elem)
@@ -198,6 +201,7 @@ where
 	/// [`BitStore`]: crate::store::BitStore
 	/// [`BitView`]: crate::view::BitView
 	/// [`.view_bits_mut::<O>()`]: crate::view::BitView::view_bits_mut
+	#[inline]
 	pub fn from_element_mut(elem: &mut T) -> &mut Self {
 		unsafe {
 			BitPtr::from_mut(elem)
@@ -238,6 +242,7 @@ where
 	///
 	/// [`BitView`]: crate::view::BitView
 	/// [`.view_bits::<O>()`]: crate::view::BitView::view_bits
+	#[inline]
 	pub fn from_slice(slice: &[T]) -> &Self {
 		Self::try_from_slice(slice).unwrap()
 	}
@@ -277,6 +282,7 @@ where
 	/// [`BitView`]: crate::view::BitView
 	/// [`MAX_ELTS`]: Self::MAX_ELTS
 	/// [`.try_view_bits::<O>()`]: crate::view::BitView::try_view_bits
+	#[inline]
 	pub fn try_from_slice(slice: &[T]) -> Result<&Self, BitSpanError<T>> {
 		let elts = slice.len();
 		if elts >= Self::MAX_ELTS {
@@ -324,6 +330,7 @@ where
 	///
 	/// [`BitView`]: crate::view::BitView
 	/// [`.view_bits_mut::<O>()`]: crate::view::BitView::view_bits_mut
+	#[inline]
 	pub fn from_slice_mut(slice: &mut [T]) -> &mut Self {
 		Self::try_from_slice_mut(slice).unwrap()
 	}
@@ -362,6 +369,7 @@ where
 	/// [`BitView`]: crate::view::BitView
 	/// [`MAX_ELTS`]: Self::MAX_ELTS
 	/// [`.try_view_bits_mut::<O>()`]: crate::view::BitView::try_view_bits_mut
+	#[inline]
 	pub fn try_from_slice_mut(
 		slice: &mut [T],
 	) -> Result<&mut Self, BitSpanError<T>> {
@@ -390,6 +398,7 @@ where
 	/// undefined behavior. You may not assume anything about its implementation
 	/// or behavior, and must conservatively assume that over-long slices cause
 	/// compiler UB.
+	#[inline]
 	pub unsafe fn from_slice_unchecked(slice: &[T]) -> &Self {
 		let bits = slice.len().wrapping_mul(mem::bits_of::<T::Mem>());
 		BitPtr::from_slice(slice)
@@ -411,6 +420,7 @@ where
 	/// undefined behavior. You may not assume anything about its implementation
 	/// or behavior, and must conservatively assume that over-long slices cause
 	/// compiler UB.
+	#[inline]
 	pub unsafe fn from_slice_unchecked_mut(slice: &mut [T]) -> &mut Self {
 		let bits = slice.len().wrapping_mul(mem::bits_of::<T::Mem>());
 		BitPtr::from_slice_mut(slice)
@@ -435,6 +445,7 @@ where
 	///
 	/// This is renamed in order to indicate that it is returning a `bitvec`
 	/// structure, not a raw pointer.
+	#[inline]
 	pub fn as_bitptr(&self) -> BitPtr<Const, T, O> {
 		self.as_bitspan().to_bitptr()
 	}
@@ -449,6 +460,7 @@ where
 	///
 	/// This is renamed in order to indicate that it is returning a `bitvec`
 	/// structure, not a raw pointer.
+	#[inline]
 	pub fn as_mut_bitptr(&mut self) -> BitPtr<Mut, T, O> {
 		self.as_mut_bitspan().to_bitptr()
 	}
@@ -472,6 +484,7 @@ where
 	/// `Range<*const T>` and `Range<BitPtr>` do not.
 	///
 	/// [`.as_ptr_range()`]: Self::as_ptr_range
+	#[inline]
 	pub fn as_bitptr_range(&self) -> BitPtrRange<Const, T, O> {
 		self.as_bitspan().to_bitptr_range()
 	}
@@ -493,6 +506,7 @@ where
 	/// `BitSlice` does define a [`.as_mut_ptr_range()`], which returns a
 	/// `Range<BitPtr>`. `BitPtrRange` has additional capabilities that
 	/// `Range<*mut T>` and `Range<BitPtr>` do not.
+	#[inline]
 	pub fn as_mut_bitptr_range(&mut self) -> BitPtrRange<Mut, T, O> {
 		self.as_mut_bitspan().to_bitptr_range()
 	}
@@ -534,6 +548,7 @@ where
 	/// ```
 	///
 	/// [`.copy_from_bitslice()`]: Self::copy_from_bitslice
+	#[inline]
 	pub fn clone_from_bitslice<T2, O2>(&mut self, src: &BitSlice<T2, O2>)
 	where
 		T2: BitStore,
@@ -578,6 +593,7 @@ where
 	/// ```rust
 	/// use bitvec::prelude::*;
 	/// ```
+	#[inline]
 	pub fn copy_from_bitslice(&mut self, src: &Self) {
 		assert_eq!(
 			self.len(),
@@ -671,6 +687,7 @@ where
 	/// assert_eq!(two, 0x96A5);
 	/// # }
 	/// ```
+	#[inline]
 	pub fn swap_with_bitslice<T2, O2>(&mut self, other: &mut BitSlice<T2, O2>)
 	where
 		T2: BitStore,
@@ -732,6 +749,7 @@ where
 	///
 	/// assert_eq!(bits, bits![1, 0]);
 	/// ```
+	#[inline]
 	pub fn set(&mut self, index: usize, value: bool) {
 		self.replace(index, value);
 	}
@@ -765,6 +783,7 @@ where
 	/// }
 	/// assert_eq!(data, 8);
 	/// ```
+	#[inline]
 	pub unsafe fn set_unchecked(&mut self, index: usize, value: bool) {
 		self.replace_unchecked(index, value);
 	}
@@ -784,6 +803,7 @@ where
 	/// assert!(!bits.replace(0, true));
 	/// assert!(bits[0]);
 	/// ```
+	#[inline]
 	pub fn replace(&mut self, index: usize, value: bool) -> bool {
 		self.assert_in_bounds(index, 0 .. self.len());
 		unsafe { self.replace_unchecked(index, value) }
@@ -809,6 +829,7 @@ where
 	/// assert!(!old);
 	/// assert!(bits[1]);
 	/// ```
+	#[inline]
 	pub unsafe fn replace_unchecked(
 		&mut self,
 		index: usize,
@@ -831,6 +852,7 @@ where
 	/// out-of-bounds access and will trigger memory unsafety.
 	///
 	/// [`.swap()`]: Self::swap
+	#[inline]
 	pub unsafe fn swap_unchecked(&mut self, a: usize, b: usize) {
 		let a = self.as_mut_bitptr().add(a);
 		let b = self.as_mut_bitptr().add(b);
@@ -851,6 +873,7 @@ where
 	/// compiler-level UB.
 	///
 	/// [`.split_at()`]: Self::split_at
+	#[inline]
 	pub unsafe fn split_at_unchecked(&self, mid: usize) -> (&Self, &Self) {
 		let len = self.len();
 		let left = self.as_bitptr();
@@ -876,6 +899,7 @@ where
 	/// compiler-level UB.
 	///
 	/// [`.split_at_mut()`]: Self::split_at_mut
+	#[inline]
 	pub unsafe fn split_at_unchecked_mut(
 		&mut self,
 		mid: usize,
@@ -922,6 +946,7 @@ where
 	/// }
 	/// assert_eq!(data, 0b1010_1100);
 	/// ```
+	#[inline]
 	pub unsafe fn copy_within_unchecked<R>(&mut self, src: R, dest: usize)
 	where R: RangeExt<usize> {
 		if let Some(this) = self.coerce_mut::<T, Lsb0>() {
@@ -947,6 +972,7 @@ where
 	#[doc(hidden)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "use `.iter_mut().enumerate()`"]
+	#[inline]
 	pub fn for_each(&mut self, mut func: impl FnMut(usize, bool) -> bool) {
 		for (idx, ptr) in self.as_mut_bitptr_range().enumerate() {
 			unsafe {
@@ -968,6 +994,7 @@ where
 	/// short, this produces a `&BitSlice` that is as large as possible without
 	/// requiring alias protection, as well as any bits that were not able to be
 	/// included in the unaliased bit-slice.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn bit_domain(&self) -> BitDomain<Const, T, O> {
 		self.domain().into_bit_domain()
@@ -980,6 +1007,7 @@ where
 	/// short, this produces a `&mut BitSlice` that is as large as possible
 	/// without requiring alias protection, as well as any bits that were not
 	/// able to be included in the unaliased bit-slice.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn bit_domain_mut(&mut self) -> BitDomain<Mut, T, O> {
 		self.domain_mut().into_bit_domain()
@@ -992,6 +1020,7 @@ where
 	/// this produces a `&[T]` slice with alias protections removed, covering
 	/// all elements that `self` completely fills. Partially-used elements on
 	/// either the front or back edge of the slice are returned separately.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn domain(&self) -> Domain<Const, T, O> {
 		Domain::new(self)
@@ -1004,6 +1033,7 @@ where
 	/// this produces a `&mut [T]` slice with alias protections removed,
 	/// covering all elements that `self` completely fills. Partially-used
 	/// elements on the front or back edge of the slice are returned separately.
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	pub fn domain_mut(&mut self) -> Domain<Mut, T, O> {
 		Domain::new(self)
@@ -1028,6 +1058,7 @@ where
 	/// assert_eq!(bits[2 ..].count_ones(), 0);
 	/// assert_eq!(bits![].count_ones(), 0);
 	/// ```
+	#[inline]
 	pub fn count_ones(&self) -> usize {
 		match self.domain() {
 			Domain::Enclave(elem) => elem.load_value().count_ones() as usize,
@@ -1055,6 +1086,7 @@ where
 	/// assert_eq!(bits[2 ..].count_zeros(), 2);
 	/// assert_eq!(bits![].count_zeros(), 0);
 	/// ```
+	#[inline]
 	pub fn count_zeros(&self) -> usize {
 		match self.domain() {
 			Domain::Enclave(elem) => (elem.load_value()
@@ -1110,6 +1142,7 @@ where
 	///   assert_eq!(known, filtered);
 	/// }
 	/// ```
+	#[inline]
 	pub fn iter_ones(&self) -> IterOnes<T, O> {
 		IterOnes::new(self)
 	}
@@ -1148,6 +1181,7 @@ where
 	///   assert_eq!(known, filtered);
 	/// }
 	/// ```
+	#[inline]
 	pub fn iter_zeros(&self) -> IterZeros<T, O> {
 		IterZeros::new(self)
 	}
@@ -1165,6 +1199,7 @@ where
 	/// assert!(bits![0].first_one().is_none());
 	/// assert_eq!(bits![0, 1].first_one(), Some(1));
 	/// ```
+	#[inline]
 	pub fn first_one(&self) -> Option<usize> {
 		self.iter_ones().next()
 	}
@@ -1182,6 +1217,7 @@ where
 	/// assert!(bits![1].first_zero().is_none());
 	/// assert_eq!(bits![1, 0].first_zero(), Some(1));
 	/// ```
+	#[inline]
 	pub fn first_zero(&self) -> Option<usize> {
 		self.iter_zeros().next()
 	}
@@ -1199,6 +1235,7 @@ where
 	/// assert!(bits![0].last_one().is_none());
 	/// assert_eq!(bits![1, 0].last_one(), Some(0));
 	/// ```
+	#[inline]
 	pub fn last_one(&self) -> Option<usize> {
 		self.iter_ones().next_back()
 	}
@@ -1216,6 +1253,7 @@ where
 	/// assert!(bits![1].last_zero().is_none());
 	/// assert_eq!(bits![0, 1].last_zero(), Some(0));
 	/// ```
+	#[inline]
 	pub fn last_zero(&self) -> Option<usize> {
 		self.iter_zeros().next_back()
 	}
@@ -1234,6 +1272,7 @@ where
 	/// assert_eq!(bits![0].leading_ones(), 0);
 	/// assert_eq!(bits![1, 0].leading_ones(), 1);
 	/// ```
+	#[inline]
 	pub fn leading_ones(&self) -> usize {
 		self.first_zero().unwrap_or_else(|| self.len())
 	}
@@ -1252,6 +1291,7 @@ where
 	/// assert_eq!(bits![1].leading_zeros(), 0);
 	/// assert_eq!(bits![0, 1].leading_zeros(), 1);
 	/// ```
+	#[inline]
 	pub fn leading_zeros(&self) -> usize {
 		self.first_one().unwrap_or_else(|| self.len())
 	}
@@ -1270,6 +1310,7 @@ where
 	/// assert_eq!(bits![0].trailing_ones(), 0);
 	/// assert_eq!(bits![0, 1].trailing_ones(), 1);
 	/// ```
+	#[inline]
 	pub fn trailing_ones(&self) -> usize {
 		let len = self.len();
 		self.last_zero().map(|idx| len - 1 - idx).unwrap_or(len)
@@ -1289,6 +1330,7 @@ where
 	/// assert_eq!(bits![1].trailing_zeros(), 0);
 	/// assert_eq!(bits![1, 0].trailing_zeros(), 1);
 	/// ```
+	#[inline]
 	pub fn trailing_zeros(&self) -> usize {
 		let len = self.len();
 		self.last_one().map(|idx| len - 1 - idx).unwrap_or(len)
@@ -1307,6 +1349,7 @@ where
 	/// assert!(!bits![0].any());
 	/// assert!(bits![0, 1].any());
 	/// ```
+	#[inline]
 	pub fn any(&self) -> bool {
 		self.count_ones() > 0
 	}
@@ -1324,6 +1367,7 @@ where
 	/// assert!(!bits![0].all());
 	/// assert!( bits![1].all());
 	/// ```
+	#[inline]
 	pub fn all(&self) -> bool {
 		self.count_zeros() == 0
 	}
@@ -1341,6 +1385,7 @@ where
 	/// assert!(!bits![1].not_any());
 	/// assert!( bits![0].not_any());
 	/// ```
+	#[inline]
 	pub fn not_any(&self) -> bool {
 		self.count_ones() == 0
 	}
@@ -1358,6 +1403,7 @@ where
 	/// assert!(!bits![1].not_all());
 	/// assert!( bits![0].not_all());
 	/// ```
+	#[inline]
 	pub fn not_all(&self) -> bool {
 		self.count_zeros() > 0
 	}
@@ -1377,6 +1423,7 @@ where
 	/// assert!(!bits![1].some());
 	/// assert!( bits![0, 1].some());
 	/// ```
+	#[inline]
 	pub fn some(&self) -> bool {
 		self.any() && self.not_all()
 	}
@@ -1410,6 +1457,7 @@ where
 	/// bits.shift_left(2);
 	/// assert_eq!(bits, bits![1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0]);
 	/// ```
+	#[inline]
 	pub fn shift_left(&mut self, by: usize) {
 		if by == 0 {
 			return;
@@ -1451,6 +1499,7 @@ where
 	/// bits.shift_right(2);
 	/// assert_eq!(bits, bits![0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1]);
 	/// ```
+	#[inline]
 	pub fn shift_right(&mut self, by: usize) {
 		if by == 0 {
 			return;
@@ -1589,6 +1638,7 @@ where
 	/// ```
 	///
 	/// [`.set()`]: Self::set
+	#[inline]
 	pub fn set_aliased(&self, index: usize, value: bool) {
 		self.assert_in_bounds(index, 0 .. self.len());
 		unsafe {
@@ -1629,6 +1679,7 @@ where
 	/// ```
 	///
 	/// [`.set_unchecked()`]: Self::set_unchecked
+	#[inline]
 	pub unsafe fn set_aliased_unchecked(&self, index: usize, value: bool) {
 		self.as_bitptr().add(index).freeze().frozen_write_bit(value);
 	}
@@ -1696,6 +1747,7 @@ where
 	/// let bv = bits.to_bitvec();
 	/// assert_eq!(bits, bv);
 	/// ```
+	#[inline]
 	pub fn to_bitvec(&self) -> BitVec<T::Unalias, O> {
 		self.domain()
 			.map(<T::Unalias as BitStore>::new)
@@ -1708,6 +1760,7 @@ where
 	}
 }
 
+#[inline]
 #[doc = include_str!("../doc/slice/from_raw_parts_unchecked.md")]
 pub unsafe fn from_raw_parts_unchecked<'a, T, O>(
 	ptr: BitPtr<Const, T, O>,
@@ -1720,6 +1773,7 @@ where
 	ptr.span_unchecked(len).into_bitslice_ref()
 }
 
+#[inline]
 #[doc = include_str!("../doc/slice/from_raw_parts_unchecked_mut.md")]
 pub unsafe fn from_raw_parts_unchecked_mut<'a, T, O>(
 	ptr: BitPtr<Mut, T, O>,
