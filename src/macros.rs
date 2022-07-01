@@ -340,6 +340,11 @@ macro_rules! bitvec {
 	($store:ty, $order:ty; $val:expr; $len:expr) => {
 		$crate::vec::BitVec::<$store, $order>::repeat($val != 0, $len)
 	};
+	// Capture `Cell<T>` patterns and prevent them from being parsed as
+	// comparisons. Guess we didn't escape Most Vexing Parse after all.
+	(Cell<$store:ident>, $order:ident $($rest:tt)*) => {
+		$crate::vec::BitVec::from_bitslice($crate::bits!(Cell<$store>, $order $($rest)*))
+	};
 	($val:expr; $len:expr) => {
 		$crate::bitvec!(usize, $crate::order::Lsb0; $val; $len)
 	};
