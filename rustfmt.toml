@@ -6,7 +6,7 @@
 # only usable by the nightly release of Rust at least as of the date   #
 # this file was last touched.                                          #
 #                                                                      #
-# See <https://rust-lang.github.io/rustfmt/?version=v1.4.38>           #
+# See <https://rust-lang.github.io/rustfmt/?version=v1.5.1>           #
 ########################################################################
 
 # Stable as of current nightly
@@ -62,7 +62,6 @@ imports_granularity = "Crate"
 imports_layout = "Vertical"
 indent_style = "Block"
 inline_attribute_width = 0
-license_template_path = ""
 match_arm_blocks = true
 match_block_trailing_comma = true
 # merge_imports = true # Deprecated
@@ -70,9 +69,7 @@ normalize_comments = false
 normalize_doc_attributes = false
 overflow_delimited_expr = true
 reorder_impl_items = true
-report_fixme = "Never"
-report_todo = "Never"
-required_version = "1.4.38"
+required_version = "1.5.1"
 skip_children = false
 space_after_colon = true
 space_before_colon = false
