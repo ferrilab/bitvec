@@ -13,7 +13,7 @@ from a matching data buffer.
 
 Serde only provides implementations for `[T; 0 ..= 32]`, because it must support
 much older Rust versions (at time of writing, 1.15+) that do not have
-const-generics. As `bitvec` has an MSRV of 1.56; it *does* have const-generics.
+const-generics. As `bitvec` has an MSRV of 1.60; it *does* have const-generics.
 This type reïmplements Serde’s array behavior for all arrays, so that `bitvec`
 can transport any `BitArray` rather than only small bit-arrays.
 

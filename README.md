@@ -87,7 +87,7 @@ However, it does also have some small costs associated with its capabilities:
 
 ## Usage
 
-**Minimum Supported Rust Version**: 1.56.0
+**Minimum Supported Rust Version**: 1.60.0
 
 `bitvec` strives to follow the sequence APIs in the standard library. However,
 as most of its functionality is a reïmplementation that does not require the

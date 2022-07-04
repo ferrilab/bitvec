@@ -6,7 +6,7 @@
 ########################################################################
 
 [toolchain]
-channel = "1.56.0"
+channel = "1.60.0"
 profile = "default"
 components = [
 	"clippy",

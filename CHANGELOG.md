@@ -5,7 +5,9 @@ All notable changes will be documented in this file.
 This document is written according to the [Keep a Changelog][kac] style.
 
 1. [Version 1](#version-1)
-   1. [1.0](#10)
+   1. [1.1.0](#110)
+   1. [1.0.1](#101)
+   1. [1.0](#100)
 1. [Version 0 (Prototyping)](#version-0-prototyping)
    1. [0.22](#022)
    1. [0.21](#021)
@@ -35,6 +37,15 @@ This document is written according to the [Keep a Changelog][kac] style.
 `bitvec`’s initial development is now complete, and uses the one-dot series. It
 will continue to receive maintenance, but its API is now stable and **will not**
 change until const-generics allow `BitArray` to be rewritten.
+
+### 1.1.0
+
+Deserialize into owned strings if the `alloc` and `serde` features are enabled,
+to support deserializing via libraries like `serde_json` which expect owned 
+strings. See [Pull Request #175] for more detail.
+
+This requires bumping the MSRV to `1.60`, which is the version that optional 
+dependencies were added in.
 
 ### 1.0.1
 
