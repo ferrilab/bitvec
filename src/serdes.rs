@@ -5,14 +5,103 @@ mod array;
 mod slice;
 mod utils;
 
-/// A list of fields in the `BitSeq` and `BitArr` transport format.
-static FIELDS: &[&str] = &["order", "head", "bits", "data"];
+use core::{
+	any,
+	fmt::{
+		self,
+		Formatter,
+	},
+	marker::PhantomData,
+};
+
+use serde::de::{
+	Deserialize,
+	Deserializer,
+	Unexpected,
+	Visitor,
+};
 
 /// A result of serialization.
 type Result<S> = core::result::Result<
 	<S as serde::Serializer>::Ok,
 	<S as serde::Serializer>::Error,
 >;
+
+/// A list of fields in the `BitSeq` and `BitArr` transport format.
+static FIELDS: &[&str] = &["order", "head", "bits", "data"];
+
+enum Field {
+	Order,
+	Head,
+	Bits,
+	Data,
+}
+
+struct FieldVisitor;
+
+impl<'de> Deserialize<'de> for Field {
+	fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
+	where D: Deserializer<'de> {
+		deserializer.deserialize_identifier(FieldVisitor)
+	}
+}
+
+impl<'de> Visitor<'de> for FieldVisitor {
+	type Value = Field;
+
+	fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
+		fmt.write_str("field_identifier")
+	}
+
+	fn visit_str<E>(self, value: &str) -> core::result::Result<Self::Value, E>
+	where E: serde::de::Error {
+		match value {
+			"order" => Ok(Field::Order),
+			"head" => Ok(Field::Head),
+			"bits" => Ok(Field::Bits),
+			"data" => Ok(Field::Data),
+			_ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+		}
+	}
+}
+
+/// A zero-sized type that deserializes from any string as long as it is equal
+/// to `any::type_name::<O>()`.
+struct TypeName<O>(PhantomData<O>);
+
+impl<O> TypeName<O> {
+	fn new() -> Self {
+		TypeName(PhantomData)
+	}
+}
+
+impl<'de, O> Deserialize<'de> for TypeName<O> {
+	fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
+	where D: Deserializer<'de> {
+		deserializer.deserialize_str(Self::new())
+	}
+}
+
+impl<'de, O> Visitor<'de> for TypeName<O> {
+	type Value = Self;
+
+	fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
+		write!(fmt, "the string {:?}", any::type_name::<O>())
+	}
+
+	fn visit_str<E>(self, value: &str) -> core::result::Result<Self::Value, E>
+	where E: serde::de::Error {
+		if value == any::type_name::<O>() {
+			Ok(self)
+		}
+		else {
+			Err(serde::de::Error::invalid_value(
+				Unexpected::Str(value),
+				&self,
+			))
+		}
+	}
+}
 
 #[cfg(test)]
 mod tests {
