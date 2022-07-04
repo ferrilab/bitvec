@@ -1435,14 +1435,21 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
-	/// Shifts the contents of a bit-slice down (towards the zero-index),
-	/// clearing the top bits to `0`.
+	/// Shifts the contents of a bit-slice “left” (towards the zero-index),
+	/// clearing the “right” bits to `0`.
 	///
-	/// This is a more-expensive version of taking `&bits[by ..]`; unless you
-	/// want to directly affect the memory representation, you should use that
-	/// instead.
+	/// This is a strictly-worse analogue to taking `bits = &bits[by ..]`: it
+	/// has to modify the entire memory region that `bits` governs, and destroys
+	/// contained information. Unless the actual memory layout and contents of
+	/// your bit-slice matters to your program, you should *probably* prefer to
+	/// munch your way forward through a bit-slice handle.
 	///
-	/// Has no effect when `by` is `0`.
+	/// Note also that the “left” here is semantic only, and **does not**
+	/// necessarily correspond to a left-shift instruction applied to the
+	/// underlying integer storage.
+	///
+	/// This has no effect when `by` is `0`. When `by` is `self.len()`, the
+	/// bit-slice is entirely cleared to `0`.
 	///
 	/// ## Panics
 	///
@@ -1454,8 +1461,14 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let bits = bits![mut 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1];
+	/// // these bits are retained ^--------------------------^
 	/// bits.shift_left(2);
 	/// assert_eq!(bits, bits![1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0]);
+	/// // and move here       ^--------------------------^
+	///
+	/// let bits = bits![mut 1; 2];
+	/// bits.shift_left(2);
+	/// assert_eq!(bits, bits![0; 2]);
 	/// ```
 	#[inline]
 	pub fn shift_left(&mut self, by: usize) {
@@ -1464,6 +1477,9 @@ where
 		}
 
 		let len = self.len();
+		if by == len {
+			return self.fill(false);
+		}
 		assert!(
 			by < len,
 			"shift must be less than the length of the bit-slice: {} >= {}",
@@ -1477,14 +1493,21 @@ where
 		}
 	}
 
-	/// Shifts the contents of a bit-slice up (away from the zero-index),
-	/// clearing the bottom bits to `0`.
+	/// Shifts the contents of a bit-slice “right” (away from the zero-index),
+	/// clearing the “left” bits to `0`.
 	///
-	/// This is a more-expensive version of taking `&bits[.. bits.len() - by]`;
-	/// unless you want to directly affect the memory representation, you should
-	/// just use that instead.
+	/// This is a strictly-worse analogue to taking `bits = &bits[.. bits.len()
+	/// - by]`: it must modify the entire memory region that `bits` governs, and
+	/// destroys contained information. Unless the actual memory layout and
+	/// contents of your bit-slice matters to your program, you should
+	/// *probably* prefer to munch your way backward through a bit-slice handle.
 	///
-	/// Has no effect when `by` is `0`.
+	/// Note also that the “right” here is semantic only, and **does not**
+	/// necessarily correspond to a right-shift instruction applied to the
+	/// underlying integer storage.
+	///
+	/// This has no effect when `by` is `0`. When `by` is `self.len()`, the
+	/// bit-slice is entirely cleared to `0`.
 	///
 	/// ## Panics
 	///
@@ -1496,8 +1519,14 @@ where
 	/// use bitvec::prelude::*;
 	///
 	/// let bits = bits![mut 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1];
+	/// // these bits stay   ^--------------------------^
 	/// bits.shift_right(2);
 	/// assert_eq!(bits, bits![0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1]);
+	/// // and move here             ^--------------------------^
+	///
+	/// let bits = bits![mut 1; 2];
+	/// bits.shift_right(2);
+	/// assert_eq!(bits, bits![0; 2]);
 	/// ```
 	#[inline]
 	pub fn shift_right(&mut self, by: usize) {
@@ -1506,6 +1535,9 @@ where
 		}
 
 		let len = self.len();
+		if by == len {
+			return self.fill(false);
+		}
 		assert!(
 			by < len,
 			"shift must be less than the length of the bit-slice: {} >= {}",
