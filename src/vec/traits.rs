@@ -43,6 +43,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn borrow(&self) -> &BitSlice<T, O> {
 		self.as_bitslice()
 	}
@@ -54,6 +55,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn borrow_mut(&mut self) -> &mut BitSlice<T, O> {
 		self.as_mut_bitslice()
 	}
@@ -65,6 +67,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn clone(&self) -> Self {
 		Self::from_bitslice(self.as_bitslice())
 	}
@@ -83,6 +86,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
 		self.as_bitslice().cmp(other.as_bitslice())
 	}
@@ -96,6 +100,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn eq(&self, other: &BitVec<T2, O2>) -> bool {
 		self == other.as_bitslice()
 	}
@@ -109,6 +114,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn eq(&self, other: &BitVec<T2, O2>) -> bool {
 		*self == other.as_bitslice()
 	}
@@ -122,6 +128,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn eq(&self, other: &BitVec<T2, O2>) -> bool {
 		**self == other.as_bitslice()
 	}
@@ -134,6 +141,7 @@ where
 	O: BitOrder,
 	Rhs: ?Sized + PartialEq<BitSlice<T, O>>,
 {
+	#[inline]
 	fn eq(&self, other: &Rhs) -> bool {
 		other == self.as_bitslice()
 	}
@@ -147,6 +155,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn partial_cmp(&self, other: &BitVec<T2, O2>) -> Option<cmp::Ordering> {
 		self.partial_cmp(other.as_bitslice())
 	}
@@ -160,6 +169,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn partial_cmp(&self, other: &BitVec<T2, O2>) -> Option<cmp::Ordering> {
 		self.partial_cmp(other.as_bitslice())
 	}
@@ -173,6 +183,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn partial_cmp(&self, other: &BitVec<T2, O2>) -> Option<cmp::Ordering> {
 		self.partial_cmp(other.as_bitslice())
 	}
@@ -185,6 +196,7 @@ where
 	O: BitOrder,
 	Rhs: ?Sized + PartialOrd<BitSlice<T, O>>,
 {
+	#[inline]
 	fn partial_cmp(&self, other: &Rhs) -> Option<cmp::Ordering> {
 		other.partial_cmp(self.as_bitslice())
 	}
@@ -196,6 +208,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn as_ref(&self) -> &BitSlice<T, O> {
 		self.as_bitslice()
 	}
@@ -207,6 +220,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn as_mut(&mut self) -> &mut BitSlice<T, O> {
 		self.as_mut_bitslice()
 	}
@@ -218,6 +232,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn as_ref(&self) -> &Self {
 		self
 	}
@@ -229,6 +244,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn as_mut(&mut self) -> &mut Self {
 		self
 	}
@@ -240,6 +256,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn from(slice: &BitSlice<T, O>) -> Self {
 		Self::from_bitslice(slice)
 	}
@@ -251,6 +268,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn from(slice: &mut BitSlice<T, O>) -> Self {
 		Self::from_bitslice(slice)
 	}
@@ -262,6 +280,7 @@ where
 	O: BitOrder,
 	A: BitViewSized,
 {
+	#[inline]
 	fn from(array: BitArray<A, O>) -> Self {
 		array.as_bitslice().to_owned()
 	}
@@ -273,6 +292,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn from(boxed: BitBox<T, O>) -> Self {
 		boxed.into_bitvec()
 	}
@@ -284,6 +304,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn from(bv: BitVec<T, O>) -> Self {
 		bv.into_vec()
 	}
@@ -295,6 +316,7 @@ where
 	O: BitOrder,
 	T: 'a + BitStore,
 {
+	#[inline]
 	fn from(cow: Cow<'a, BitSlice<T, O>>) -> Self {
 		cow.into_owned()
 	}
@@ -308,6 +330,7 @@ where
 {
 	type Error = Vec<T>;
 
+	#[inline]
 	fn try_from(vec: Vec<T>) -> Result<Self, Self::Error> {
 		Self::try_from_vec(vec)
 	}
@@ -319,6 +342,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn default() -> Self {
 		Self::new()
 	}
@@ -329,6 +353,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		self.as_bitspan().render(fmt, "Vec", &[(
 			"capacity",
@@ -355,6 +380,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn hash<H>(&self, state: &mut H)
 	where H: Hasher {
 		self.as_bitslice().hash(state)

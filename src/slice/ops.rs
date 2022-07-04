@@ -39,6 +39,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	#[doc = include_str!("../../doc/slice/bitop_assign.md")]
 	fn bitand_assign(&mut self, rhs: &BitSlice<T2, O2>) {
 		if let (Some(this), Some(that)) =
@@ -70,6 +71,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	#[doc = include_str!("../../doc/slice/bitop_assign.md")]
 	fn bitor_assign(&mut self, rhs: &BitSlice<T2, O2>) {
 		if let (Some(this), Some(that)) =
@@ -98,6 +100,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	#[doc = include_str!("../../doc/slice/bitop_assign.md")]
 	fn bitxor_assign(&mut self, rhs: &BitSlice<T2, O2>) {
 		if let (Some(this), Some(that)) =
@@ -151,6 +154,7 @@ where
 	/// let bits = bits![0,  ];
 	/// bits[1]; // --------^
 	/// ```
+	#[inline]
 	fn index(&self, index: usize) -> &Self::Output {
 		match *index.index(self) {
 			true => &true,
@@ -169,6 +173,7 @@ macro_rules! index {
 		{
 			type Output = Self;
 
+			#[inline]
 			#[track_caller]
 			fn index(&self, index: $t) -> &Self::Output {
 				index.index(self)
@@ -180,6 +185,7 @@ macro_rules! index {
 			O: BitOrder,
 			T: BitStore,
 		{
+			#[inline]
 			#[track_caller]
 			fn index_mut(&mut self, index: $t) -> &mut Self::Output {
 				index.index_mut(self)
@@ -210,6 +216,7 @@ where
 {
 	type Output = Self;
 
+	#[inline]
 	fn not(self) -> Self::Output {
 		match self.domain_mut() {
 			Domain::Enclave(mut elem) => {

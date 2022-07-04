@@ -33,6 +33,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn bitand_assign(&mut self, rhs: BitVec<T, O>) {
 		*self &= rhs.as_bitslice()
 	}
@@ -44,6 +45,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn bitand_assign(&mut self, rhs: &BitVec<T, O>) {
 		*self &= rhs.as_bitslice()
 	}
@@ -58,6 +60,7 @@ where
 {
 	type Output = Self;
 
+	#[inline]
 	fn bitand(mut self, rhs: Rhs) -> Self::Output {
 		self &= rhs;
 		self
@@ -71,6 +74,7 @@ where
 	O: BitOrder,
 	BitSlice<T, O>: BitAndAssign<Rhs>,
 {
+	#[inline]
 	fn bitand_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() &= rhs;
 	}
@@ -82,6 +86,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn bitor_assign(&mut self, rhs: BitVec<T, O>) {
 		*self |= rhs.as_bitslice()
 	}
@@ -93,6 +98,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn bitor_assign(&mut self, rhs: &BitVec<T, O>) {
 		*self |= rhs.as_bitslice()
 	}
@@ -107,6 +113,7 @@ where
 {
 	type Output = Self;
 
+	#[inline]
 	fn bitor(mut self, rhs: Rhs) -> Self::Output {
 		self |= rhs;
 		self
@@ -120,6 +127,7 @@ where
 	O: BitOrder,
 	BitSlice<T, O>: BitOrAssign<Rhs>,
 {
+	#[inline]
 	fn bitor_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() |= rhs;
 	}
@@ -131,6 +139,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn bitxor_assign(&mut self, rhs: BitVec<T, O>) {
 		*self ^= rhs.as_bitslice()
 	}
@@ -142,6 +151,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn bitxor_assign(&mut self, rhs: &BitVec<T, O>) {
 		*self ^= rhs.as_bitslice()
 	}
@@ -156,6 +166,7 @@ where
 {
 	type Output = Self;
 
+	#[inline]
 	fn bitxor(mut self, rhs: Rhs) -> Self::Output {
 		self ^= rhs;
 		self
@@ -169,6 +180,7 @@ where
 	O: BitOrder,
 	BitSlice<T, O>: BitXorAssign<Rhs>,
 {
+	#[inline]
 	fn bitxor_assign(&mut self, rhs: Rhs) {
 		*self.as_mut_bitslice() ^= rhs;
 	}
@@ -181,6 +193,7 @@ where
 {
 	type Target = BitSlice<T, O>;
 
+	#[inline]
 	fn deref(&self) -> &Self::Target {
 		self.as_bitslice()
 	}
@@ -191,6 +204,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		self.as_mut_bitslice()
 	}
@@ -201,6 +215,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn drop(&mut self) {
 		if self.bitspan != BitSpan::<Mut, T, O>::EMPTY {
 			self.with_vec(|slot| unsafe { ManuallyDrop::drop(slot) });
@@ -217,6 +232,7 @@ where
 {
 	type Output = <BitSlice<T, O> as Index<Idx>>::Output;
 
+	#[inline]
 	fn index(&self, index: Idx) -> &Self::Output {
 		&self.as_bitslice()[index]
 	}
@@ -229,6 +245,7 @@ where
 	O: BitOrder,
 	BitSlice<T, O>: IndexMut<Idx>,
 {
+	#[inline]
 	fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
 		&mut self.as_mut_bitslice()[index]
 	}
@@ -245,6 +262,7 @@ where
 {
 	type Output = Self;
 
+	#[inline]
 	fn not(mut self) -> Self::Output {
 		for elem in self.as_raw_mut_slice() {
 			elem.store_value(!elem.load_value());

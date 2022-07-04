@@ -94,6 +94,7 @@ where
 	///
 	/// This is the only safe way to access `(&self).ptr`. Do not perform field
 	/// access on `.ptr` through a reference except through this method.
+	#[inline]
 	fn get_addr(&self) -> Address<M, T> {
 		unsafe { ptr::addr_of!(self.ptr).read_unaligned() }
 	}
@@ -1209,6 +1210,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn clone(&self) -> Self {
 		Self {
 			ptr: self.get_addr(),
@@ -1231,6 +1233,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
 		self.partial_cmp(other).expect(
 			"BitPtr has a total ordering when type parameters are identical",
@@ -1265,6 +1268,7 @@ where
 	T2: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn partial_cmp(&self, other: &BitPtr<M2, T2, O>) -> Option<cmp::Ordering> {
 		if !dvl::match_store::<T1::Mem, T2::Mem>() {
 			return None;
@@ -1286,6 +1290,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn from(elem: &T) -> Self {
 		Self::from_ref(elem)
 	}
@@ -1297,6 +1302,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn from(elem: &mut T) -> Self {
 		Self::from_mut(elem)
 	}
@@ -1309,6 +1315,7 @@ where
 {
 	type Error = BitPtrError<T>;
 
+	#[inline]
 	fn try_from(elem: *const T) -> Result<Self, Self::Error> {
 		elem.try_conv::<Address<Const, T>>()?
 			.pipe(|ptr| Self::new(ptr, BitIdx::MIN))?
@@ -1323,6 +1330,7 @@ where
 {
 	type Error = BitPtrError<T>;
 
+	#[inline]
 	fn try_from(elem: *mut T) -> Result<Self, Self::Error> {
 		elem.try_conv::<Address<Mut, T>>()?
 			.pipe(|ptr| Self::new(ptr, BitIdx::MIN))?
@@ -1336,6 +1344,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(
 			fmt,
@@ -1354,6 +1363,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_tuple("")
 			.field(&self.get_addr().fmt_pointer())
@@ -1369,6 +1379,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn hash<H>(&self, state: &mut H)
 	where H: Hasher {
 		self.get_addr().hash(state);
@@ -1400,6 +1411,7 @@ where T: BitStore
 impl<T> From<MisalignError<T>> for BitPtrError<T>
 where T: BitStore
 {
+	#[inline]
 	fn from(err: MisalignError<T>) -> Self {
 		Self::Misaligned(err)
 	}
@@ -1409,6 +1421,7 @@ where T: BitStore
 impl<T> From<NullPtrError> for BitPtrError<T>
 where T: BitStore
 {
+	#[inline]
 	fn from(err: NullPtrError) -> Self {
 		Self::Null(err)
 	}

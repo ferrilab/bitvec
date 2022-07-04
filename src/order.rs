@@ -67,6 +67,7 @@ pub unsafe trait BitOrder: 'static {
 	/// exactly identical to, `BitOrder::at(index).select()`. If your ordering
 	/// has a faster implementation, you may provide it, but it must be exactly
 	/// numerically equivalent.
+	#[inline]
 	fn select<R>(index: BitIdx<R>) -> BitSel<R>
 	where R: BitRegister {
 		Self::at::<R>(index).select()
@@ -94,6 +95,7 @@ pub unsafe trait BitOrder: 'static {
 	///
 	/// [`BitEnd::MAX`]: crate::index::BitEnd::MAX
 	/// [`BitIdx::MIN`]: crate::index::BitIdx::MIN
+	#[inline]
 	fn mask<R>(
 		from: impl Into<Option<BitIdx<R>>>,
 		upto: impl Into<Option<BitEnd<R>>>,
@@ -120,16 +122,19 @@ pub struct Lsb0;
 pub struct Msb0;
 
 unsafe impl BitOrder for Lsb0 {
+	#[inline]
 	fn at<R>(index: BitIdx<R>) -> BitPos<R>
 	where R: BitRegister {
 		unsafe { BitPos::new_unchecked(index.into_inner()) }
 	}
 
+	#[inline]
 	fn select<R>(index: BitIdx<R>) -> BitSel<R>
 	where R: BitRegister {
 		unsafe { BitSel::new_unchecked(R::ONE << index.into_inner()) }
 	}
 
+	#[inline]
 	fn mask<R>(
 		from: impl Into<Option<BitIdx<R>>>,
 		upto: impl Into<Option<BitEnd<R>>>,
@@ -164,11 +169,13 @@ unsafe impl BitOrder for Lsb0 {
 }
 
 unsafe impl BitOrder for Msb0 {
+	#[inline]
 	fn at<R>(index: BitIdx<R>) -> BitPos<R>
 	where R: BitRegister {
 		unsafe { BitPos::new_unchecked(R::MASK - index.into_inner()) }
 	}
 
+	#[inline]
 	fn select<R>(index: BitIdx<R>) -> BitSel<R>
 	where R: BitRegister {
 		/* Shift the MSbit down by the index count. This is not equivalent to
@@ -180,6 +187,7 @@ unsafe impl BitOrder for Msb0 {
 		unsafe { BitSel::new_unchecked(msbit >> index.into_inner()) }
 	}
 
+	#[inline]
 	fn mask<R>(
 		from: impl Into<Option<BitIdx<R>>>,
 		upto: impl Into<Option<BitEnd<R>>>,

@@ -43,6 +43,7 @@ where <Self as Radium>::Item: BitRegister
 	/// a selection type, not a bitwise-operation argument.
 	///
 	/// [`BitMask`]: crate::index::BitMask
+	#[inline]
 	fn clear_bits(&self, mask: BitMask<Self::Item>) -> Self::Item {
 		self.fetch_and(!mask.into_inner(), Ordering::Relaxed)
 	}
@@ -67,6 +68,7 @@ where <Self as Radium>::Item: BitRegister
 	///
 	/// All bits in `*self` corresponding to `1` bits in the `mask` are set to
 	/// `1`; all others retain their original value.
+	#[inline]
 	fn set_bits(&self, mask: BitMask<Self::Item>) -> Self::Item {
 		self.fetch_or(mask.into_inner(), Ordering::Relaxed)
 	}
@@ -91,6 +93,7 @@ where <Self as Radium>::Item: BitRegister
 	///
 	/// All bits in `*self` corresponding to `1` bits in the `mask` are
 	/// inverted; all others retain their original value.
+	#[inline]
 	fn invert_bits(&self, mask: BitMask<Self::Item>) -> Self::Item {
 		self.fetch_xor(mask.into_inner(), Ordering::Relaxed)
 	}
@@ -119,6 +122,7 @@ where <Self as Radium>::Item: BitRegister
 	///
 	/// `*self` is updated with the bit at `index` set to `value`; all other
 	/// bits remain unchanged.
+	#[inline]
 	fn write_bit<O>(&self, index: BitIdx<Self::Item>, value: bool) -> bool
 	where O: BitOrder {
 		let select = index.select::<O>().into_inner();
@@ -148,6 +152,7 @@ where <Self as Radium>::Item: BitRegister
 	///
 	/// [`clear_bits`]: Self::clear_bits
 	/// [`set_bits`]: Self::set_bits
+	#[inline]
 	fn get_writers(
 		value: bool,
 	) -> for<'a> fn(&'a Self, BitMask<Self::Item>) -> Self::Item {
@@ -222,6 +227,7 @@ macro_rules! safe {
 
 			const ZERO: Self = Self::new(0);
 
+			#[inline]
 			fn load(&self) -> Self::Mem {
 				self.inner.load(Ordering::Relaxed)
 			}

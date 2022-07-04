@@ -38,6 +38,7 @@ where
 	A: BitViewSized,
 	O: BitOrder,
 {
+	#[inline]
 	fn borrow(&self) -> &BitSlice<A::Store, O> {
 		self.as_bitslice()
 	}
@@ -49,6 +50,7 @@ where
 	A: BitViewSized,
 	O: BitOrder,
 {
+	#[inline]
 	fn borrow_mut(&mut self) -> &mut BitSlice<A::Store, O> {
 		self.as_mut_bitslice()
 	}
@@ -59,6 +61,7 @@ where
 	A: BitViewSized,
 	O: BitOrder,
 {
+	#[inline]
 	fn clone(&self) -> Self {
 		let mut out = Self::ZERO;
 		for (dst, src) in
@@ -83,6 +86,7 @@ where
 	A: BitViewSized,
 	O: BitOrder,
 {
+	#[inline]
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
 		self.as_bitslice().cmp(other.as_bitslice())
 	}
@@ -96,6 +100,7 @@ where
 	A: BitViewSized,
 	T: BitStore,
 {
+	#[inline]
 	fn eq(&self, other: &BitArray<A, O2>) -> bool {
 		self == other.as_bitslice()
 	}
@@ -109,6 +114,7 @@ where
 	Rhs: ?Sized,
 	BitSlice<A::Store, O>: PartialEq<Rhs>,
 {
+	#[inline]
 	fn eq(&self, other: &Rhs) -> bool {
 		self.as_bitslice() == other
 	}
@@ -121,6 +127,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn partial_cmp(&self, other: &BitArray<A, O>) -> Option<cmp::Ordering> {
 		self.partial_cmp(other.as_bitslice())
 	}
@@ -134,6 +141,7 @@ where
 	Rhs: ?Sized,
 	BitSlice<A::Store, O>: PartialOrd<Rhs>,
 {
+	#[inline]
 	fn partial_cmp(&self, other: &Rhs) -> Option<cmp::Ordering> {
 		self.as_bitslice().partial_cmp(other)
 	}
@@ -145,6 +153,7 @@ where
 	A: BitViewSized,
 	O: BitOrder,
 {
+	#[inline]
 	fn as_ref(&self) -> &BitSlice<A::Store, O> {
 		self.as_bitslice()
 	}
@@ -156,6 +165,7 @@ where
 	A: BitViewSized,
 	O: BitOrder,
 {
+	#[inline]
 	fn as_mut(&mut self) -> &mut BitSlice<A::Store, O> {
 		self.as_mut_bitslice()
 	}
@@ -167,6 +177,7 @@ where
 	A: BitViewSized,
 	O: BitOrder,
 {
+	#[inline]
 	fn from(data: A) -> Self {
 		Self::new(data)
 	}
@@ -179,6 +190,7 @@ where
 {
 	type Error = TryFromBitSliceError;
 
+	#[inline]
 	fn try_from(src: &BitSlice<A::Store, O>) -> Result<Self, Self::Error> {
 		src.try_conv::<&Self>().map(|this| this.clone())
 	}
@@ -191,6 +203,7 @@ where
 {
 	type Error = TryFromBitSliceError;
 
+	#[inline]
 	fn try_from(src: &BitSlice<A::Store, O>) -> Result<Self, Self::Error> {
 		TryFromBitSliceError::new::<A, O>(src).map(|()| unsafe {
 			&*src
@@ -209,6 +222,7 @@ where
 {
 	type Error = TryFromBitSliceError;
 
+	#[inline]
 	fn try_from(src: &mut BitSlice<A::Store, O>) -> Result<Self, Self::Error> {
 		TryFromBitSliceError::new::<A, O>(src).map(|()| unsafe {
 			&mut *src
@@ -225,6 +239,7 @@ where
 	A: BitViewSized,
 	O: BitOrder,
 {
+	#[inline]
 	fn default() -> Self {
 		Self::ZERO
 	}
@@ -235,6 +250,7 @@ where
 	A: BitViewSized,
 	O: BitOrder,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		self.as_bitspan().render(fmt, "Array", None)?;
 		fmt.write_str(" ")?;
@@ -257,6 +273,7 @@ where
 	A: BitViewSized,
 	O: BitOrder,
 {
+	#[inline]
 	fn hash<H>(&self, hasher: &mut H)
 	where H: Hasher {
 		self.as_bitslice().hash(hasher);
@@ -284,6 +301,7 @@ pub struct TryFromBitSliceError(InnerError);
 
 impl TryFromBitSliceError {
 	/// Checks whether a bit-slice can be viewed as a bit-array.
+	#[inline]
 	fn new<A, O>(bits: &BitSlice<A::Store, O>) -> Result<(), Self>
 	where
 		O: BitOrder,
@@ -294,6 +312,7 @@ impl TryFromBitSliceError {
 }
 
 impl Debug for TryFromBitSliceError {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.write_str("TryFromBitSliceError::")?;
 		match self.0 {
@@ -307,6 +326,7 @@ impl Debug for TryFromBitSliceError {
 
 #[cfg(not(tarpaulin_include))]
 impl Display for TryFromBitSliceError {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		match self.0 {
 			InnerError::UnequalLen { actual, expected } => write!(
@@ -342,6 +362,7 @@ enum InnerError {
 
 impl InnerError {
 	/// Checks whether a bit-slice is suitable to view as a bit-array.
+	#[inline]
 	fn new<A, O>(bits: &BitSlice<A::Store, O>) -> Result<(), Self>
 	where
 		O: BitOrder,

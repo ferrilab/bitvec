@@ -300,6 +300,7 @@ where R: BitRegister
 impl<R> Binary for BitIdx<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "{:0>1$b}", self.idx, R::INDX as usize)
 	}
@@ -308,6 +309,7 @@ where R: BitRegister
 impl<R> Debug for BitIdx<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitIdx<{}>({})", any::type_name::<R>(), self)
 	}
@@ -316,6 +318,7 @@ where R: BitRegister
 impl<R> Display for BitIdx<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(self, fmt)
 	}
@@ -376,6 +379,7 @@ where R: BitRegister
 impl<R> Debug for BitIdxError<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitIdxError<{}>({})", any::type_name::<R>(), self.err)
 	}
@@ -385,6 +389,7 @@ where R: BitRegister
 impl<R> Display for BitIdxError<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(
 			fmt,
@@ -564,6 +569,7 @@ where R: BitRegister
 impl<R> Binary for BitEnd<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "{:0>1$b}", self.end, R::INDX as usize + 1)
 	}
@@ -572,6 +578,7 @@ where R: BitRegister
 impl<R> Debug for BitEnd<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitEnd<{}>({})", any::type_name::<R>(), self)
 	}
@@ -580,6 +587,7 @@ where R: BitRegister
 impl<R> Display for BitEnd<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(self, fmt)
 	}
@@ -702,6 +710,7 @@ where R: BitRegister
 impl<R> Binary for BitPos<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "{:0>1$b}", self.pos, R::INDX as usize)
 	}
@@ -710,6 +719,7 @@ where R: BitRegister
 impl<R> Debug for BitPos<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitPos<{}>({})", any::type_name::<R>(), self)
 	}
@@ -718,6 +728,7 @@ where R: BitRegister
 impl<R> Display for BitPos<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(self, fmt)
 	}
@@ -808,6 +819,7 @@ where R: BitRegister
 impl<R> Binary for BitSel<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "{:0>1$b}", self.sel, bits_of::<R>() as usize)
 	}
@@ -816,6 +828,7 @@ where R: BitRegister
 impl<R> Debug for BitSel<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitSel<{}>({})", any::type_name::<R>(), self)
 	}
@@ -824,6 +837,7 @@ where R: BitRegister
 impl<R> Display for BitSel<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(self, fmt)
 	}
@@ -933,6 +947,7 @@ where R: BitRegister
 impl<R> Binary for BitMask<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "{:0>1$b}", self.mask, bits_of::<R>() as usize)
 	}
@@ -941,6 +956,7 @@ where R: BitRegister
 impl<R> Debug for BitMask<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitMask<{}>({})", any::type_name::<R>(), self)
 	}
@@ -949,6 +965,7 @@ where R: BitRegister
 impl<R> Display for BitMask<R>
 where R: BitRegister
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(self, fmt)
 	}
@@ -957,6 +974,7 @@ where R: BitRegister
 impl<R> Sum<BitSel<R>> for BitMask<R>
 where R: BitRegister
 {
+	#[inline]
 	fn sum<I>(iter: I) -> Self
 	where I: Iterator<Item = BitSel<R>> {
 		iter.fold(Self::ZERO, Self::combine)
@@ -968,6 +986,7 @@ where R: BitRegister
 {
 	type Output = Self;
 
+	#[inline]
 	fn bitand(self, rhs: R) -> Self::Output {
 		Self {
 			mask: self.mask & rhs,
@@ -980,6 +999,7 @@ where R: BitRegister
 {
 	type Output = Self;
 
+	#[inline]
 	fn bitor(self, rhs: R) -> Self::Output {
 		Self {
 			mask: self.mask | rhs,
@@ -992,6 +1012,7 @@ where R: BitRegister
 {
 	type Output = Self;
 
+	#[inline]
 	fn not(self) -> Self::Output {
 		Self { mask: !self.mask }
 	}

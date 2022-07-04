@@ -160,6 +160,7 @@ where
 	Reference<'a, M, BitSlice<T, O>>: Default,
 	Reference<'a, M, BitSlice<T::Unalias, O>>: Default,
 {
+	#[inline]
 	fn default() -> Self {
 		Self::Region {
 			head: Default::default(),
@@ -179,6 +180,7 @@ where
 	Reference<'a, M, BitSlice<T, O>>: Debug,
 	Reference<'a, M, BitSlice<T::Unalias, O>>: Debug,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(
 			fmt,
@@ -207,6 +209,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn clone(&self) -> Self {
 		*self
 	}
@@ -382,6 +385,7 @@ where
 	}
 
 	/// Produces the canonical empty `Domain`.
+	#[inline]
 	fn empty(
 		_: Address<M, T>,
 		_: usize,
@@ -393,6 +397,7 @@ where
 
 	/// Produces a `Domain::Region` that contains both `head` and `tail` partial
 	/// elements as well as a `body` slice (which may be empty).
+	#[inline]
 	fn major(
 		addr: Address<M, T>,
 		elts: usize,
@@ -415,6 +420,7 @@ where
 	}
 
 	/// Produces a `Domain::Enclave`.
+	#[inline]
 	fn minor(
 		addr: Address<M, T>,
 		_: usize,
@@ -427,6 +433,7 @@ where
 
 	/// Produces a `Domain::Region` with a partial `head` and a `body`, but no
 	/// `tail`.
+	#[inline]
 	fn partial_head(
 		addr: Address<M, T>,
 		elts: usize,
@@ -449,6 +456,7 @@ where
 
 	/// Produces a `Domain::Region` with a partial `tail` and a `body`, but no
 	/// `head`.
+	#[inline]
 	fn partial_tail(
 		addr: Address<M, T>,
 		elts: usize,
@@ -471,6 +479,7 @@ where
 
 	/// Produces a `Domain::Region` with neither `head` nor `tail`, but only a
 	/// `body`.
+	#[inline]
 	fn spanning(
 		addr: Address<M, T>,
 		elts: usize,
@@ -499,6 +508,7 @@ where
 	Address<M, [T::Unalias]>: SliceReferential<'a>,
 	Reference<'a, M, [T::Unalias]>: Default,
 {
+	#[inline]
 	fn default() -> Self {
 		Self::Region {
 			head: None,
@@ -517,6 +527,7 @@ where
 	Address<M, [T::Unalias]>: SliceReferential<'a>,
 	Reference<'a, M, [T::Unalias]>: Debug,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(
 			fmt,
@@ -545,6 +556,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn clone(&self) -> Self {
 		*self
 	}
@@ -557,6 +569,7 @@ where
 {
 	type Item = T::Mem;
 
+	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
 		match self {
 			Self::Enclave(elem) => {
@@ -584,6 +597,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		match self {
 			Self::Enclave(elem) => {
@@ -611,6 +625,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn len(&self) -> usize {
 		match self {
 			Self::Enclave(_) => 1,
@@ -643,6 +658,7 @@ macro_rules! fmt {
 			O: BitOrder,
 			T: BitStore,
 		{
+			#[inline]
 			fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 				fmt.debug_list()
 					.entries(self.into_iter().map(FmtForward::$fwd))
@@ -702,6 +718,7 @@ where
 	/// - `elem`: the element to which this partially points.
 	/// - `head`: the index at which the partial region begins.
 	/// - `tail`: the index at which the partial region ends.
+	#[inline]
 	fn new(
 		elem: Address<M, T>,
 		head: impl Into<Option<BitIdx<T::Mem>>>,
@@ -841,6 +858,7 @@ where
 
 	/// Produces a reference capable of tolerating other handles viewing the
 	/// same *memory element*.
+	#[inline]
 	fn access(&self) -> &T::Access {
 		unsafe { &*self.elem.to_const().cast::<T::Access>() }
 	}
@@ -870,6 +888,7 @@ where
 	O: BitOrder,
 	Address<Const, T>: Referential<'a>,
 {
+	#[inline]
 	fn clone(&self) -> Self {
 		*self
 	}
@@ -881,6 +900,7 @@ where
 	T: 'a + BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(
 			fmt,
@@ -905,6 +925,7 @@ where
 	T: 'a + BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn hash<H>(&self, hasher: &mut H)
 	where H: Hasher {
 		self.load_value().hash(hasher);

@@ -24,6 +24,7 @@ where
 	O: BitOrder,
 	BitSlice<T, O>: BitField,
 {
+	#[inline]
 	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
 		let mut count = 0;
 		self.chunks_exact(bits_of::<u8>())
@@ -44,6 +45,7 @@ where
 	O: BitOrder,
 	BitSlice<T, O>: BitField,
 {
+	#[inline]
 	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
 		let mut count = 0;
 		unsafe { self.chunks_exact_mut(bits_of::<u8>()).remove_alias() }
@@ -58,6 +60,7 @@ where
 		Ok(count)
 	}
 
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	fn flush(&mut self) -> io::Result<()> {
 		Ok(())
@@ -71,6 +74,7 @@ where
 	O: BitOrder,
 	BitSlice<T, O>: BitField,
 {
+	#[inline]
 	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
 		let bytes_read = self.as_bitslice().read(buf)?;
 		let bits = bytes_read * bits_of::<u8>();
@@ -87,12 +91,14 @@ where
 	T: BitStore,
 	BitSlice<T, O>: BitField,
 {
+	#[inline]
 	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
 		let len = self.len();
 		self.resize(len + buf.len() * bits_of::<u8>(), false);
 		unsafe { self.get_unchecked_mut(len ..) }.write(buf)
 	}
 
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	fn flush(&mut self) -> io::Result<()> {
 		Ok(())

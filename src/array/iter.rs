@@ -31,6 +31,7 @@ where
 	type IntoIter = IntoIter<A, O>;
 	type Item = <IntoIter<A, O> as Iterator>::Item;
 
+	#[inline]
 	fn into_iter(self) -> Self::IntoIter {
 		IntoIter::new(self)
 	}
@@ -46,6 +47,7 @@ where
 	type IntoIter = <&'a BitSlice<A::Store, O> as IntoIterator>::IntoIter;
 	type Item = <&'a BitSlice<A::Store, O> as IntoIterator>::Item;
 
+	#[inline]
 	fn into_iter(self) -> Self::IntoIter {
 		self.as_bitslice().into_iter()
 	}
@@ -61,6 +63,7 @@ where
 	type IntoIter = <&'a mut BitSlice<A::Store, O> as IntoIterator>::IntoIter;
 	type Item = <&'a mut BitSlice<A::Store, O> as IntoIterator>::Item;
 
+	#[inline]
 	fn into_iter(self) -> Self::IntoIter {
 		self.as_mut_bitslice().into_iter()
 	}
@@ -145,6 +148,7 @@ where
 	}
 
 	/// Gets a bit from the bit-array.
+	#[inline]
 	fn get(&self, index: usize) -> bool {
 		unsafe {
 			self.array
@@ -162,6 +166,7 @@ where
 	A: BitViewSized,
 	O: BitOrder,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_tuple("IntoIter")
 			.field(&self.as_bitslice())
@@ -178,10 +183,12 @@ where
 
 	easy_iter!();
 
+	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
 		self.alive.next().map(|idx| self.get(idx))
 	}
 
+	#[inline]
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
 		self.alive.nth(n).map(|idx| self.get(idx))
 	}
@@ -192,10 +199,12 @@ where
 	A: BitViewSized,
 	O: BitOrder,
 {
+	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.alive.next_back().map(|idx| self.get(idx))
 	}
 
+	#[inline]
 	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
 		self.alive.nth_back(n).map(|idx| self.get(idx))
 	}
@@ -206,6 +215,7 @@ where
 	A: BitViewSized,
 	O: BitOrder,
 {
+	#[inline]
 	fn len(&self) -> usize {
 		self.alive.len()
 	}

@@ -48,6 +48,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn extend<I>(&mut self, iter: I)
 	where I: IntoIterator<Item = bool> {
 		let mut iter = iter.into_iter();
@@ -83,6 +84,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn extend<I>(&mut self, iter: I)
 	where I: IntoIterator<Item = &'a bool> {
 		self.extend(iter.into_iter().copied());
@@ -99,6 +101,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn extend<I>(&mut self, iter: I)
 	where I: IntoIterator<Item = BitRef<'a, M, T2, O2>> {
 		self.extend(iter.into_iter().map(|bit| *bit));
@@ -110,6 +113,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn extend<I>(&mut self, iter: I)
 	where I: IntoIterator<Item = T> {
 		let iter = iter.into_iter();
@@ -127,6 +131,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn extend<I>(&mut self, iter: I)
 	where I: IntoIterator<Item = &'a T> {
 		self.extend(
@@ -144,6 +149,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn from_iter<I>(iter: I) -> Self
 	where I: IntoIterator<Item = bool> {
 		Self::new().tap_mut(|bv| bv.extend(iter))
@@ -156,6 +162,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn from_iter<I>(iter: I) -> Self
 	where I: IntoIterator<Item = &'a bool> {
 		iter.into_iter().copied().collect::<Self>()
@@ -173,6 +180,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn from_iter<I>(iter: I) -> Self
 	where I: IntoIterator<Item = BitRef<'a, M, T2, O2>> {
 		iter.into_iter().map(|br| *br).pipe(Self::from_iter)
@@ -185,6 +193,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn from_iter<I>(iter: I) -> Self
 	where I: IntoIterator<Item = T> {
 		iter.into_iter().collect::<Vec<T>>().pipe(Self::from_vec)
@@ -197,6 +206,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn from_iter<I>(iter: I) -> Self
 	where I: IntoIterator<Item = &'a T> {
 		iter.into_iter()
@@ -215,6 +225,7 @@ where
 	type IntoIter = <BitBox<T, O> as IntoIterator>::IntoIter;
 	type Item = <BitBox<T, O> as IntoIterator>::Item;
 
+	#[inline]
 	fn into_iter(self) -> Self::IntoIter {
 		self.into_boxed_bitslice().into_iter()
 	}
@@ -230,6 +241,7 @@ where
 	type IntoIter = <&'a BitSlice<T, O> as IntoIterator>::IntoIter;
 	type Item = <&'a BitSlice<T, O> as IntoIterator>::Item;
 
+	#[inline]
 	fn into_iter(self) -> Self::IntoIter {
 		self.as_bitslice().iter()
 	}
@@ -245,6 +257,7 @@ where
 	type IntoIter = <&'a mut BitSlice<T, O> as IntoIterator>::IntoIter;
 	type Item = <&'a mut BitSlice<T, O> as IntoIterator>::Item;
 
+	#[inline]
 	fn into_iter(self) -> Self::IntoIter {
 		self.as_mut_bitslice().iter_mut()
 	}
@@ -331,6 +344,7 @@ where
 	/// This is only used by [`Splice`].
 	///
 	/// [`Splice`]: crate::vec::Splice
+	#[inline]
 	fn fill(&mut self, iter: &mut impl Iterator<Item = bool>) -> FillStatus {
 		let bv = &mut *self.source;
 		let mut len = bv.len();
@@ -399,6 +413,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn as_ref(&self) -> &BitSlice<T, O> {
 		self.as_bitslice()
 	}
@@ -410,6 +425,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_tuple("Drain").field(&self.as_bitslice()).finish()
 	}
@@ -426,10 +442,12 @@ where
 
 	easy_iter!();
 
+	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
 		self.drain.next().map(|bp| unsafe { bp.read() })
 	}
 
+	#[inline]
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
 		self.drain.nth(n).map(|bp| unsafe { bp.read() })
 	}
@@ -442,10 +460,12 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.drain.next_back().map(|bp| unsafe { bp.read() })
 	}
 
+	#[inline]
 	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
 		self.drain.nth_back(n).map(|bp| unsafe { bp.read() })
 	}
@@ -458,6 +478,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn len(&self) -> usize {
 		self.drain.len()
 	}
@@ -496,6 +517,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn drop(&mut self) {
 		let tail = mem::take(&mut self.tail);
 		let tail_len = tail.len();
@@ -563,6 +585,7 @@ where
 
 	easy_iter!();
 
+	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
 		self.drain.next().tap_some(|_| unsafe {
 			if let Some(bit) = self.splice.next() {
@@ -582,10 +605,12 @@ where
 	O: BitOrder,
 	I: Iterator<Item = bool>,
 {
+	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		self.drain.next_back()
 	}
 
+	#[inline]
 	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
 		self.drain.nth_back(n)
 	}
@@ -598,6 +623,7 @@ where
 	O: BitOrder,
 	I: Iterator<Item = bool>,
 {
+	#[inline]
 	fn len(&self) -> usize {
 		self.drain.len()
 	}
@@ -618,6 +644,7 @@ where
 	O: BitOrder,
 	I: Iterator<Item = bool>,
 {
+	#[inline]
 	fn drop(&mut self) {
 		let tail = self.drain.tail.clone();
 		let tail_len = tail.len();

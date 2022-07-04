@@ -685,6 +685,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn clone(&self) -> Self {
 		*self
 	}
@@ -698,6 +699,7 @@ where
 	T1: BitStore,
 	T2: BitStore,
 {
+	#[inline]
 	fn eq(&self, other: &BitSpan<M2, T2, O>) -> bool {
 		let (addr_a, head_a, bits_a) = self.raw_parts();
 		let (addr_b, head_b, bits_b) = other.raw_parts();
@@ -713,6 +715,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn from(bits: &BitSlice<T, O>) -> Self {
 		Self::from_bitslice_ptr(bits)
 	}
@@ -723,6 +726,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn from(bits: &mut BitSlice<T, O>) -> Self {
 		Self::from_bitslice_ptr_mut(bits)
 	}
@@ -735,6 +739,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn default() -> Self {
 		Self::EMPTY
 	}
@@ -746,6 +751,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		self.render(fmt, "Span", None)
 	}
@@ -757,6 +763,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Pointer::fmt(&self.address(), fmt)?;
 		fmt.write_str("(")?;
@@ -794,6 +801,7 @@ where T: BitStore
 impl<T> From<BitPtrError<T>> for BitSpanError<T>
 where T: BitStore
 {
+	#[inline]
 	fn from(err: BitPtrError<T>) -> Self {
 		match err {
 			BitPtrError::Null(err) => Self::Null(err),
@@ -806,6 +814,7 @@ where T: BitStore
 impl<T> From<MisalignError<T>> for BitSpanError<T>
 where T: BitStore
 {
+	#[inline]
 	fn from(err: MisalignError<T>) -> Self {
 		Self::Misaligned(err)
 	}
@@ -815,6 +824,7 @@ where T: BitStore
 impl<T> Debug for BitSpanError<T>
 where T: BitStore
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "BitSpanError<{}>::", any::type_name::<T::Mem>())?;
 		match self {
@@ -834,6 +844,7 @@ where T: BitStore
 impl<T> Display for BitSpanError<T>
 where T: BitStore
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		match self {
 			Self::Null(err) => Display::fmt(err, fmt),

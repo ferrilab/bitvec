@@ -46,6 +46,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn as_ref(&self) -> &Self {
 		self
 	}
@@ -57,6 +58,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn as_mut(&mut self) -> &mut Self {
 		self
 	}
@@ -76,6 +78,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn cmp(&self, rhs: &Self) -> cmp::Ordering {
 		self.partial_cmp(rhs)
 			.expect("BitSlice has a total ordering")
@@ -98,6 +101,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn eq(&self, rhs: &BitSlice<T2, O2>) -> bool {
 		if let (Some(this), Some(that)) =
 			(self.coerce::<T1, Lsb0>(), rhs.coerce::<T1, Lsb0>())
@@ -129,6 +133,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn eq(&self, rhs: &BitSlice<T2, O2>) -> bool {
 		**self == rhs
 	}
@@ -141,6 +146,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn eq(&self, rhs: &BitSlice<T2, O2>) -> bool {
 		**self == rhs
 	}
@@ -155,6 +161,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn eq(&self, rhs: &&BitSlice<T2, O2>) -> bool {
 		*self == **rhs
 	}
@@ -167,6 +174,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn eq(&self, rhs: &&mut BitSlice<T2, O2>) -> bool {
 		*self == **rhs
 	}
@@ -188,6 +196,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn partial_cmp(&self, rhs: &BitSlice<T2, O2>) -> Option<cmp::Ordering> {
 		for (l, r) in self.iter().by_vals().zip(rhs.iter().by_vals()) {
 			match (l, r) {
@@ -209,6 +218,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn partial_cmp(&self, rhs: &BitSlice<T2, O2>) -> Option<cmp::Ordering> {
 		(*self).partial_cmp(rhs)
 	}
@@ -221,6 +231,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn partial_cmp(&self, rhs: &BitSlice<T2, O2>) -> Option<cmp::Ordering> {
 		(**self).partial_cmp(rhs)
 	}
@@ -235,6 +246,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn partial_cmp(&self, rhs: &&BitSlice<T2, O2>) -> Option<cmp::Ordering> {
 		(*self).partial_cmp(&**rhs)
 	}
@@ -247,6 +259,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn partial_cmp(&self, rhs: &&mut BitSlice<T2, O2>) -> Option<cmp::Ordering> {
 		(*self).partial_cmp(&**rhs)
 	}
@@ -261,6 +274,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn partial_cmp(&self, rhs: &&mut BitSlice<T2, O2>) -> Option<cmp::Ordering> {
 		(**self).partial_cmp(&**rhs)
 	}
@@ -273,6 +287,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn partial_cmp(&self, rhs: &&BitSlice<T2, O2>) -> Option<cmp::Ordering> {
 		(**self).partial_cmp(&**rhs)
 	}
@@ -292,6 +307,7 @@ where
 {
 	type Error = &'a [T];
 
+	#[inline]
 	fn try_from(slice: &'a [T]) -> Result<Self, Self::Error> {
 		BitSlice::try_from_slice(slice).map_err(|_| slice)
 	}
@@ -311,6 +327,7 @@ where
 {
 	type Error = &'a mut [T];
 
+	#[inline]
 	fn try_from(slice: &'a mut [T]) -> Result<Self, Self::Error> {
 		let slice_ptr = slice as *mut [T];
 		BitSlice::try_from_slice_mut(slice)
@@ -324,6 +341,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn default() -> Self {
 		BitSlice::empty()
 	}
@@ -335,6 +353,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn default() -> Self {
 		BitSlice::empty_mut()
 	}
@@ -346,6 +365,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		self.as_bitspan().render(fmt, "Slice", None)?;
 		fmt.write_str(" ")?;
@@ -358,6 +378,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_list()
 			.entries(self.iter().by_vals().map(|b| if b { 1 } else { 0 }))
@@ -370,6 +391,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Pointer::fmt(&self.as_bitspan(), fmt)
 	}
@@ -440,6 +462,7 @@ macro_rules! fmt {
 			T: BitStore,
 			O: BitOrder,
 		{
+			#[inline]
 			#[allow(clippy::modulo_one)] // I know what I’m doing.
 			//  TODO(myrrlyn): See if Binary codegen ditches the loops.
 			fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
@@ -511,6 +534,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn hash<H>(&self, hasher: &mut H)
 	where H: Hasher {
 		self.iter().by_vals().for_each(|bit| bit.hash(hasher));
@@ -551,6 +575,7 @@ where
 {
 	type Owned = BitVec<T, O>;
 
+	#[inline]
 	fn to_owned(&self) -> Self::Owned {
 		BitVec::from_bitslice(self)
 	}

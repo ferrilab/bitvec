@@ -175,6 +175,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn clone(&self) -> Self {
 		Self { ..*self }
 	}
@@ -195,6 +196,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
 		self.data.cmp(&other.data)
 	}
@@ -237,6 +239,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn eq(&self, other: &BitRef<'_, M, T, O>) -> bool {
 		other == self
 	}
@@ -262,6 +265,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn eq(&self, other: &BitRef<'_, M, T, O>) -> bool {
 		other == *self
 	}
@@ -278,6 +282,7 @@ where
 	O1: BitOrder,
 	O2: BitOrder,
 {
+	#[inline]
 	fn partial_cmp(
 		&self,
 		other: &BitRef<'_, M2, T2, O2>,
@@ -293,6 +298,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn partial_cmp(&self, other: &bool) -> Option<cmp::Ordering> {
 		self.data.partial_cmp(other)
 	}
@@ -305,6 +311,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn partial_cmp(&self, other: &&bool) -> Option<cmp::Ordering> {
 		self.data.partial_cmp(*other)
 	}
@@ -317,6 +324,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn as_ref(&self) -> &bool {
 		&self.data
 	}
@@ -328,6 +336,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn as_mut(&mut self) -> &mut bool {
 		&mut self.data
 	}
@@ -339,6 +348,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		unsafe { self.bitptr.span_unchecked(1) }
 			.render(fmt, "Ref", &[("bit", &self.data as &dyn Debug)])
@@ -352,6 +362,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Display::fmt(&self.data, fmt)
 	}
@@ -364,6 +375,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Pointer::fmt(&self.bitptr, fmt)
 	}
@@ -376,6 +388,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn hash<H>(&self, state: &mut H)
 	where H: Hasher {
 		self.bitptr.hash(state);
@@ -412,6 +425,7 @@ where
 {
 	type Target = bool;
 
+	#[inline]
 	fn deref(&self) -> &Self::Target {
 		&self.data
 	}
@@ -422,6 +436,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		&mut self.data
 	}
@@ -433,6 +448,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn drop(&mut self) {
 		//  `Drop` cannot specialize on type parameters, but only mutable
 		//  proxies can commit to memory.
@@ -452,6 +468,7 @@ where
 {
 	type Output = bool;
 
+	#[inline]
 	fn not(self) -> Self::Output {
 		!self.data
 	}

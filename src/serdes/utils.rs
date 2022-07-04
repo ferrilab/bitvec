@@ -48,6 +48,7 @@ static FIELDS: &[&str] = &["width", "index"];
 impl<R> Serialize for BitIdx<R>
 where R: BitRegister
 {
+	#[inline]
 	fn serialize<S>(&self, serializer: S) -> super::Result<S>
 	where S: Serializer {
 		let mut state = serializer.serialize_struct("BitIdx", FIELDS.len())?;
@@ -64,6 +65,7 @@ where R: BitRegister
 impl<'de, R> Deserialize<'de> for BitIdx<R>
 where R: BitRegister
 {
+	#[inline]
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		deserializer.deserialize_struct(
@@ -80,6 +82,7 @@ where
 	O: BitOrder,
 	T::Mem: Serialize,
 {
+	#[inline]
 	fn serialize<S>(&self, serializer: S) -> super::Result<S>
 	where S: Serializer {
 		//  Domain<T> is functionally equivalent to `[T::Mem]`.
@@ -122,6 +125,7 @@ where
 	T: BitStore,
 	T::Mem: Serialize,
 {
+	#[inline]
 	fn serialize<S>(&self, serializer: S) -> super::Result<S>
 	where S: Serializer {
 		//  `serde` serializes arrays as a tuple, so that transport formats can
@@ -139,6 +143,7 @@ where
 	T: BitStore,
 	T::Mem: Deserialize<'de>,
 {
+	#[inline]
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		deserializer.deserialize_tuple(N, ArrayVisitor::<T, N>::THIS)
@@ -167,10 +172,12 @@ where
 {
 	type Value = Array<T, N>;
 
+	#[inline]
 	fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "a [{}; {}]", any::type_name::<T>(), N)
 	}
 
+	#[inline]
 	fn visit_seq<V>(self, mut seq: V) -> Result<Self::Value, V::Error>
 	where V: SeqAccess<'de> {
 		let mut uninit = [MaybeUninit::<T::Mem>::uninit(); N];
@@ -203,6 +210,7 @@ where R: BitRegister
 	const THIS: Self = Self { inner: PhantomData };
 
 	/// Attempts to assemble deserialized components into an output value.
+	#[inline]
 	fn assemble<E>(self, width: u8, index: u8) -> Result<BitIdx<R>, E>
 	where E: Error {
 		//  Fail if the transported type width does not match the destination.
@@ -225,10 +233,12 @@ where R: BitRegister
 {
 	type Value = BitIdx<R>;
 
+	#[inline]
 	fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(fmt, "a valid `BitIdx<u{}>`", bits_of::<R>())
 	}
 
+	#[inline]
 	fn visit_seq<V>(self, mut seq: V) -> Result<Self::Value, V::Error>
 	where V: SeqAccess<'de> {
 		let width = seq
@@ -241,6 +251,7 @@ where R: BitRegister
 		self.assemble(width, index)
 	}
 
+	#[inline]
 	fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
 	where V: MapAccess<'de> {
 		let mut width = None;

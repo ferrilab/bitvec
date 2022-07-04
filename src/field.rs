@@ -40,6 +40,7 @@ mod tests;
 
 #[doc = include_str!("../doc/field/BitField.md")]
 pub trait BitField {
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[doc = include_str!("../doc/field/BitField_load.md")]
 	fn load<I>(&self) -> I
@@ -58,6 +59,7 @@ pub trait BitField {
 		}
 	}
 
+	#[inline]
 	#[cfg(not(tarpaulin_include))]
 	#[doc = include_str!("../doc/field/BitField_store.md")]
 	fn store<I>(&mut self, value: I)
@@ -97,6 +99,7 @@ pub trait BitField {
 impl<T> BitField for BitSlice<T, Lsb0>
 where T: BitStore
 {
+	#[inline]
 	#[doc = include_str!("../doc/field/BitField_Lsb0_load_le.md")]
 	fn load_le<I>(&self) -> I
 	where I: Integral {
@@ -133,6 +136,7 @@ where T: BitStore
 		.pipe(|elem| sign(elem, len))
 	}
 
+	#[inline]
 	#[doc = include_str!("../doc/field/BitField_Lsb0_load_be.md")]
 	fn load_be<I>(&self) -> I
 	where I: Integral {
@@ -165,6 +169,7 @@ where T: BitStore
 		.pipe(|elem| sign(elem, len))
 	}
 
+	#[inline]
 	#[doc = include_str!("../doc/field/BitField_Lsb0_store_le.md")]
 	fn store_le<I>(&mut self, mut value: I)
 	where I: Integral {
@@ -195,6 +200,7 @@ where T: BitStore
 		}
 	}
 
+	#[inline]
 	#[doc = include_str!("../doc/field/BitField_Lsb0_store_be.md")]
 	fn store_be<I>(&mut self, mut value: I)
 	where I: Integral {
@@ -230,6 +236,7 @@ where T: BitStore
 impl<T> BitField for BitSlice<T, Msb0>
 where T: BitStore
 {
+	#[inline]
 	#[doc = include_str!("../doc/field/BitField_Msb0_load_le.md")]
 	fn load_le<I>(&self) -> I
 	where I: Integral {
@@ -267,6 +274,7 @@ where T: BitStore
 		.pipe(|elem| sign(elem, len))
 	}
 
+	#[inline]
 	#[doc = include_str!("../doc/field/BitField_Msb0_load_be.md")]
 	fn load_be<I>(&self) -> I
 	where I: Integral {
@@ -302,6 +310,7 @@ where T: BitStore
 		.pipe(|elem| sign(elem, len))
 	}
 
+	#[inline]
 	#[doc = include_str!("../doc/field/BitField_Msb0_store_le.md")]
 	fn store_le<I>(&mut self, mut value: I)
 	where I: Integral {
@@ -333,6 +342,7 @@ where T: BitStore
 		}
 	}
 
+	#[inline]
 	#[doc = include_str!("../doc/field/BitField_Msb0_store_be.md")]
 	fn store_be<I>(&mut self, mut value: I)
 	where I: Integral {

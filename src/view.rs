@@ -76,21 +76,25 @@ where T: BitStore
 {
 	type Store = T;
 
+	#[inline]
 	fn view_bits<O>(&self) -> &BitSlice<T, O>
 	where O: BitOrder {
 		BitSlice::from_slice(self)
 	}
 
+	#[inline]
 	fn try_view_bits<O>(&self) -> Result<&BitSlice<T, O>, BitSpanError<T>>
 	where O: BitOrder {
 		BitSlice::try_from_slice(self)
 	}
 
+	#[inline]
 	fn view_bits_mut<O>(&mut self) -> &mut BitSlice<T, O>
 	where O: BitOrder {
 		BitSlice::from_slice_mut(self)
 	}
 
+	#[inline]
 	fn try_view_bits_mut<O>(
 		&mut self,
 	) -> Result<&mut BitSlice<T, O>, BitSpanError<T>>
@@ -106,21 +110,25 @@ where T: BitStore
 {
 	type Store = T;
 
+	#[inline]
 	fn view_bits<O>(&self) -> &BitSlice<T, O>
 	where O: BitOrder {
 		BitSlice::from_slice(self)
 	}
 
+	#[inline]
 	fn try_view_bits<O>(&self) -> Result<&BitSlice<T, O>, BitSpanError<T>>
 	where O: BitOrder {
 		BitSlice::try_from_slice(self)
 	}
 
+	#[inline]
 	fn view_bits_mut<O>(&mut self) -> &mut BitSlice<T, O>
 	where O: BitOrder {
 		BitSlice::from_slice_mut(self)
 	}
 
+	#[inline]
 	fn try_view_bits_mut<O>(
 		&mut self,
 	) -> Result<&mut BitSlice<T, O>, BitSpanError<T>>
@@ -135,6 +143,7 @@ pub trait BitViewSized: BitView + Sized {
 	const ZERO: Self;
 
 	/// Wraps `self` in a `BitArray`.
+	#[inline]
 	fn into_bitarray<O>(self) -> BitArray<Self, O>
 	where O: BitOrder {
 		BitArray::new(self)
@@ -152,10 +161,12 @@ where T: BitStore
 {
 	const ZERO: Self = <T as BitStore>::ZERO;
 
+	#[inline]
 	fn as_raw_slice(&self) -> &[Self::Store] {
 		slice::from_ref(self)
 	}
 
+	#[inline]
 	fn as_raw_mut_slice(&mut self) -> &mut [Self::Store] {
 		slice::from_mut(self)
 	}
@@ -166,10 +177,12 @@ where T: BitStore
 {
 	const ZERO: Self = [T::ZERO; N];
 
+	#[inline]
 	fn as_raw_slice(&self) -> &[Self::Store] {
 		&self[..]
 	}
 
+	#[inline]
 	fn as_raw_mut_slice(&mut self) -> &mut [Self::Store] {
 		&mut self[..]
 	}
@@ -215,11 +228,13 @@ where
 	A: AsRef<[T]>,
 	T: BitStore,
 {
+	#[inline]
 	fn as_bits<O>(&self) -> &BitSlice<T, O>
 	where O: BitOrder {
 		self.as_ref().view_bits::<O>()
 	}
 
+	#[inline]
 	fn try_as_bits<O>(&self) -> Result<&BitSlice<T, O>, BitSpanError<T>>
 	where O: BitOrder {
 		self.as_ref().try_view_bits::<O>()
@@ -232,11 +247,13 @@ where
 	A: AsMut<[T]>,
 	T: BitStore,
 {
+	#[inline]
 	fn as_mut_bits<O>(&mut self) -> &mut BitSlice<T, O>
 	where O: BitOrder {
 		self.as_mut().view_bits_mut::<O>()
 	}
 
+	#[inline]
 	fn try_as_mut_bits<O>(
 		&mut self,
 	) -> Result<&mut BitSlice<T, O>, BitSpanError<T>>

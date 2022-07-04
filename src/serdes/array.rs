@@ -44,6 +44,7 @@ where
 	O: BitOrder,
 	T::Mem: Serialize,
 {
+	#[inline]
 	fn serialize<S>(&self, serializer: S) -> super::Result<S>
 	where S: Serializer {
 		let mut state = serializer.serialize_struct("BitArr", FIELDS.len())?;
@@ -66,6 +67,7 @@ where
 	O: BitOrder,
 	T::Mem: Serialize,
 {
+	#[inline]
 	fn serialize<S>(&self, serializer: S) -> super::Result<S>
 	where S: Serializer {
 		let mut state = serializer.serialize_struct("BitArr", FIELDS.len())?;
@@ -85,6 +87,7 @@ where
 	O: BitOrder,
 	T::Mem: Deserialize<'de>,
 {
+	#[inline]
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		deserializer
@@ -103,6 +106,7 @@ where
 	O: BitOrder,
 	T::Mem: Deserialize<'de>,
 {
+	#[inline]
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		deserializer.deserialize_struct(
@@ -149,6 +153,7 @@ where
 	};
 
 	/// Attempts to assemble deserialized components into an output value.
+	#[inline]
 	fn assemble<E>(mut self) -> Result<BitArray<[T; N], O>, E>
 	where E: Error {
 		let order =
@@ -183,6 +188,7 @@ where
 {
 	type Value = BitArray<[T; N], O>;
 
+	#[inline]
 	fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(
 			fmt,
@@ -193,6 +199,7 @@ where
 		)
 	}
 
+	#[inline]
 	fn visit_seq<V>(mut self, mut seq: V) -> Result<Self::Value, V::Error>
 	where V: SeqAccess<'de> {
 		self.order = Some(
@@ -215,6 +222,7 @@ where
 		self.assemble()
 	}
 
+	#[inline]
 	fn visit_map<V>(mut self, mut map: V) -> Result<Self::Value, V::Error>
 	where V: MapAccess<'de> {
 		while let Some(key) = map.next_key::<&'de str>()? {

@@ -15,6 +15,7 @@ macro_rules! easy_fmt {
 			O: $crate::order::BitOrder,
 			A: $crate::view::BitViewSized,
 		{
+			#[inline]
 			#[cfg(not(tarpaulin_include))]
 			fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
 				core::fmt::$fmt::fmt(self.as_bitslice(), fmt)
@@ -27,6 +28,7 @@ macro_rules! easy_fmt {
 			O: $crate::order::BitOrder,
 			T: $crate::store::BitStore,
 		{
+			#[inline]
 			#[cfg(not(tarpaulin_include))]
 			fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
 				core::fmt::$fmt::fmt(self.as_bitslice(), fmt)
@@ -38,15 +40,18 @@ macro_rules! easy_fmt {
 /// Implements some `Iterator` functions that have boilerplate behavior.
 macro_rules! easy_iter {
 	() => {
+		#[inline]
 		fn size_hint(&self) -> (usize, Option<usize>) {
 			let len = self.len();
 			(len, Some(len))
 		}
 
+		#[inline]
 		fn count(self) -> usize {
 			self.len()
 		}
 
+		#[inline]
 		fn last(mut self) -> Option<Self::Item> {
 			self.next_back()
 		}
@@ -100,6 +105,7 @@ where T: 'static {
 }
 
 /// Tests if two types are identical, even through different names.
+#[inline]
 fn eq_types<T, U>() -> bool
 where
 	T: 'static,

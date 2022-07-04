@@ -54,6 +54,7 @@ where
 	O: BitOrder,
 	T::Mem: Serialize,
 {
+	#[inline]
 	fn serialize<S>(&self, serializer: S) -> super::Result<S>
 	where S: Serializer {
 		let head = self.as_bitspan().head();
@@ -75,6 +76,7 @@ where
 	O: BitOrder,
 	BitSlice<T, O>: Serialize,
 {
+	#[inline]
 	fn serialize<S>(&self, serializer: S) -> super::Result<S>
 	where S: Serializer {
 		self.as_bitslice().serialize(serializer)
@@ -88,6 +90,7 @@ where
 	O: BitOrder,
 	BitSlice<T, O>: Serialize,
 {
+	#[inline]
 	fn serialize<S>(&self, serializer: S) -> super::Result<S>
 	where S: Serializer {
 		self.as_bitslice().serialize(serializer)
@@ -97,6 +100,7 @@ where
 impl<'de, O> Deserialize<'de> for &'de BitSlice<u8, O>
 where O: BitOrder
 {
+	#[inline]
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		deserializer.deserialize_struct(
@@ -119,6 +123,7 @@ where
 	O: BitOrder,
 	Vec<T>: Deserialize<'de>,
 {
+	#[inline]
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		<BitVec<T, O> as Deserialize<'de>>::deserialize(deserializer)
@@ -133,6 +138,7 @@ where
 	O: BitOrder,
 	Vec<T>: Deserialize<'de>,
 {
+	#[inline]
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		deserializer.deserialize_struct(
@@ -187,6 +193,7 @@ where
 	Func: FnOnce(In, BitIdx<T::Mem>, usize) -> Result<Out, BitSpanError<T>>,
 {
 	/// Creates a new visitor with a given transform functor.
+	#[inline]
 	fn new(func: Func) -> Self {
 		Self {
 			typ: PhantomData,
@@ -200,6 +207,7 @@ where
 	}
 
 	/// Attempts to assemble deserialized components into an output value.
+	#[inline]
 	fn assemble<E>(mut self) -> Result<Out, E>
 	where E: Error {
 		let order =
@@ -225,6 +233,7 @@ where
 {
 	type Value = Out;
 
+	#[inline]
 	fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
 		write!(
 			fmt,
@@ -234,6 +243,7 @@ where
 		)
 	}
 
+	#[inline]
 	fn visit_seq<V>(mut self, mut seq: V) -> Result<Self::Value, V::Error>
 	where V: SeqAccess<'de> {
 		self.order = Some(
@@ -256,6 +266,7 @@ where
 		self.assemble()
 	}
 
+	#[inline]
 	fn visit_map<V>(mut self, mut map: V) -> Result<Self::Value, V::Error>
 	where V: MapAccess<'de> {
 		while let Some(key) = map.next_key::<&'de str>()? {

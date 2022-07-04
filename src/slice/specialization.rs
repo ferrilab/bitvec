@@ -38,6 +38,7 @@ where
 	/// Functions must use this when working with maybe-overlapping regions
 	/// within a single bit-slice, as the accessor is always tolerant of
 	/// aliasing.
+	#[inline]
 	fn as_accessor(&mut self) -> &BitSlice<T::Access, O> {
 		unsafe { &*(self as *const Self as *const BitSlice<T::Access, O>) }
 	}

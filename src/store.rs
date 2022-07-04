@@ -71,6 +71,7 @@ pub trait BitStore: 'static + Debug {
 	/// The value of the bit in `*self` at `BitOrder::at(index)`.
 	///
 	/// [`BitAccess`]: crate::access::BitAccess
+	#[inline]
 	fn get_bit<O>(&self, index: BitIdx<Self::Mem>) -> bool
 	where O: BitOrder {
 		self.load_value() & index.select::<O>().into_inner()
@@ -108,12 +109,15 @@ macro_rules! store {
 
 			const ZERO: Self = 0;
 
+			#[inline]
 			fn new(value: Self::Mem) -> Self { value }
 
+			#[inline]
 			fn load_value(&self) -> Self::Mem {
 				*self
 			}
 
+			#[inline]
 			fn store_value(&mut self, value: Self::Mem) {
 				*self = value;
 			}
@@ -133,12 +137,15 @@ macro_rules! store {
 
 			const ZERO: Self = <Self as BitSafe>::ZERO;
 
+			#[inline]
 			fn new(value: Self::Mem) -> Self { <Self>::new(value) }
 
+			#[inline]
 			fn load_value(&self) -> Self::Mem {
 				self.load()
 			}
 
+			#[inline]
 			fn store_value(&mut self, value: Self::Mem) {
 				*self = Self::new(value);
 			}
@@ -157,12 +164,15 @@ macro_rules! store {
 
 			const ZERO: Self = Self::new(0);
 
+			#[inline]
 			fn new(value: Self::Mem) -> Self { <Self>::new(value) }
 
+			#[inline]
 			fn load_value(&self) -> Self::Mem {
 				self.get()
 			}
 
+			#[inline]
 			fn store_value(&mut self, value: Self::Mem) {
 				*self = Self::new(value);
 			}
@@ -200,12 +210,15 @@ macro_rules! atomic {
 
 				const ZERO: Self = <Self>::new(0);
 
+				#[inline]
 				fn new(value: Self::Mem) -> Self { <Self>::new(value) }
 
+				#[inline]
 				fn load_value(&self) -> Self::Mem {
 					self.load(core::sync::atomic::Ordering::Relaxed)
 				}
 
+				#[inline]
 				fn store_value(&mut self, value: Self::Mem) {
 					*self = Self::new(value);
 				}

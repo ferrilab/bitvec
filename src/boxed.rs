@@ -354,6 +354,7 @@ where
 	/// This produces a temporary `Box` view of the bit-box’s buffer and allows
 	/// a function to have mutable access to it. After the callback returns, the
 	/// `Box` is written back into `self` and forgotten.
+	#[inline]
 	fn with_box<F, R>(&mut self, func: F) -> R
 	where F: FnOnce(&mut ManuallyDrop<Box<[T]>>) -> R {
 		self.as_raw_mut_slice()

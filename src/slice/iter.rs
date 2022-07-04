@@ -44,6 +44,7 @@ where
 	type IntoIter = Iter<'a, T, O>;
 	type Item = <Self::IntoIter as Iterator>::Item;
 
+	#[inline]
 	fn into_iter(self) -> Self::IntoIter {
 		Iter::new(self)
 	}
@@ -59,6 +60,7 @@ where
 	type IntoIter = IterMut<'a, T, O>;
 	type Item = <Self::IntoIter as Iterator>::Item;
 
+	#[inline]
 	fn into_iter(self) -> Self::IntoIter {
 		IterMut::new(self)
 	}
@@ -243,6 +245,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn clone(&self) -> Self {
 		Self {
 			range: self.range.clone(),
@@ -258,6 +261,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn as_ref(&self) -> &BitSlice<T, O> {
 		self.as_bitslice()
 	}
@@ -270,6 +274,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_tuple("Iter").field(&self.as_bitslice()).finish()
 	}
@@ -390,6 +395,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn as_ref(&self) -> &BitSlice<T::Alias, O> {
 		self.as_bitslice()
 	}
@@ -402,6 +408,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_tuple("IterMut")
 			.field(&self.as_bitslice())
@@ -421,10 +428,12 @@ macro_rules! iter {
 		{
 			type Item = $item;
 
+			#[inline]
 			fn next(&mut self) -> Option<Self::Item> {
 				self.range.next().map(|bp| unsafe { BitRef::from_bitptr(bp) })
 			}
 
+			#[inline]
 			fn nth(&mut self, n: usize) -> Option<Self::Item> {
 				self.range.nth(n).map(|bp| unsafe { BitRef::from_bitptr(bp) })
 			}
@@ -439,12 +448,14 @@ macro_rules! iter {
 			T: 'a + BitStore,
 			O: BitOrder,
 		{
+			#[inline]
 			fn next_back(&mut self) -> Option<Self::Item> {
 				self.range
 					.next_back()
 					.map(|bp| unsafe { BitRef::from_bitptr(bp) })
 			}
 
+			#[inline]
 			fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
 				self.range
 					.nth_back(n)
@@ -459,6 +470,7 @@ macro_rules! iter {
 			T: BitStore,
 			O: BitOrder,
 		{
+			#[inline]
 			fn len(&self) -> usize {
 				self.range.len()
 			}
@@ -519,8 +531,10 @@ macro_rules! group {
 		{
 			type Item = $item;
 
+			#[inline]
 			$next
 
+			#[inline]
 			$nth
 
 			easy_iter!();
@@ -531,8 +545,10 @@ macro_rules! group {
 			T: BitStore,
 			O: BitOrder,
 		{
+			#[inline]
 			$next_back
 
+			#[inline]
 			$nth_back
 		}
 
@@ -541,6 +557,7 @@ macro_rules! group {
 			T: BitStore,
 			O: BitOrder,
 		{
+			#[inline]
 			$len
 		}
 
@@ -1451,6 +1468,7 @@ macro_rules! new_group {
 			T: 'a + BitStore,
 			O: BitOrder,
 		{
+			#[inline]
 			#[allow(missing_docs, clippy::missing_docs_in_private_items)]
 			pub(super) fn new(
 				slice: &'a $($m)? BitSlice<T, O>,
@@ -1500,6 +1518,7 @@ macro_rules! split {
 			O: BitOrder,
 			P: FnMut(usize, &bool) -> bool,
 		{
+			#[inline]
 			fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 				fmt.debug_struct(stringify!($iter))
 					.field("slice", &self.slice)
@@ -1516,8 +1535,10 @@ macro_rules! split {
 		{
 			type Item = $item;
 
+			#[inline]
 			$next
 
+			#[inline]
 			fn size_hint(&self) -> (usize, Option<usize>) {
 				if self.done {
 					(0, Some(0))
@@ -1534,6 +1555,7 @@ macro_rules! split {
 			O: BitOrder,
 			P: FnMut(usize, &bool) -> bool,
 		{
+			#[inline]
 			$next_back
 		}
 
@@ -1551,6 +1573,7 @@ macro_rules! split {
 			O: BitOrder,
 			P: FnMut(usize, &bool) -> bool,
 		{
+			#[inline]
 			fn finish(&mut self) -> Option<Self::Item> {
 				if self.done {
 					None
@@ -1976,6 +1999,7 @@ macro_rules! split_n {
 			O: BitOrder,
 			P: FnMut(usize, &bool) -> bool,
 		{
+			#[inline]
 			#[allow(missing_docs, clippy::missing_docs_in_private_items)]
 			pub(super) fn new(
 				slice: $item,
@@ -2013,6 +2037,7 @@ macro_rules! split_n {
 		{
 			type Item = <$inner <'a, T, O, P> as Iterator>::Item;
 
+			#[inline]
 			fn next(&mut self) -> Option<Self::Item> {
 				match self.count {
 					0 => None,
@@ -2027,6 +2052,7 @@ macro_rules! split_n {
 				}
 			}
 
+			#[inline]
 			fn size_hint(&self) -> (usize, Option<usize>) {
 				let (low, hi) = self.inner.size_hint();
 				(low, hi.map(|h| cmp::min(h, self.count)).or(Some(self.count)))
@@ -2070,6 +2096,7 @@ where
 	T: 'a + BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	#[allow(missing_docs, clippy::missing_docs_in_private_items)]
 	pub(super) fn new(slice: &'a BitSlice<T, O>) -> Self {
 		Self {
@@ -2084,6 +2111,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn default() -> Self {
 		Self {
 			inner: Default::default(),
@@ -2101,6 +2129,7 @@ where
 
 	easy_iter!();
 
+	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
 		let pos = if let Some(bits) = self.inner.coerce::<T, Lsb0>() {
 			bits.sp_first_one()
@@ -2136,6 +2165,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		let pos = if let Some(bits) = self.inner.coerce::<T, Lsb0>() {
 			bits.sp_last_one()
@@ -2166,6 +2196,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn len(&self) -> usize {
 		self.inner.count_ones()
 	}
@@ -2211,6 +2242,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn default() -> Self {
 		Self {
 			inner: Default::default(),
@@ -2228,6 +2260,7 @@ where
 
 	easy_iter!();
 
+	#[inline]
 	fn next(&mut self) -> Option<Self::Item> {
 		let pos = if let Some(bits) = self.inner.coerce::<T, Lsb0>() {
 			bits.sp_first_zero()
@@ -2260,6 +2293,7 @@ where
 	T: BitStore,
 	O: BitOrder,
 {
+	#[inline]
 	fn next_back(&mut self) -> Option<Self::Item> {
 		let pos = if let Some(bits) = self.inner.coerce::<T, Lsb0>() {
 			bits.sp_last_zero()
@@ -2381,22 +2415,27 @@ macro_rules! noalias {
 		{
 			type Item = $item;
 
+			#[inline]
 			fn next(&mut self) -> Option<Self::Item> {
 				self.inner.next().map(|item| unsafe { $map(item) })
 			}
 
+			#[inline]
 			fn nth(&mut self, n: usize) -> Option<Self::Item> {
 				self.inner.nth(n).map(|item| unsafe { $map(item) })
 			}
 
+			#[inline]
 			fn size_hint(&self) -> (usize, Option<usize>) {
 				self.inner.size_hint()
 			}
 
+			#[inline]
 			fn count(self) -> usize {
 				self.inner.count()
 			}
 
+			#[inline]
 			fn last(self) -> Option<Self::Item> {
 				self.inner.last().map(|item| unsafe { $map(item) })
 			}
@@ -2409,10 +2448,12 @@ macro_rules! noalias {
 			$($p: FnMut(usize, &bool) -> bool,)?
 			$from<'a, T, O$(, $p)?>: DoubleEndedIterator<Item = $alias>,
 		{
+			#[inline]
 			fn next_back(&mut self) -> Option<Self::Item> {
 				self.inner.next_back().map(|item| unsafe { $map(item) })
 			}
 
+			#[inline]
 			fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
 				self.inner.nth_back(n).map(|item| unsafe { $map(item) })
 			}
@@ -2425,6 +2466,7 @@ macro_rules! noalias {
 			$($p: FnMut(usize, &bool) -> bool,)?
 			$from<'a, T, O$(, $p)?>: ExactSizeIterator,
 		{
+			#[inline]
 			fn len(&self) -> usize {
 				self.inner.len()
 			}

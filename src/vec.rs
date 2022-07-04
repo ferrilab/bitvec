@@ -591,6 +591,7 @@ where
 	/// ## Panics
 	///
 	/// This panics if `len` is too large to encode into a `BitSpan`.
+	#[inline]
 	fn assert_len_encodable(len: usize) {
 		assert!(
 			BitSpan::<Const, T, O>::len_encodable(len),
@@ -616,6 +617,7 @@ where
 	/// least `additional` more bits. After it returns, the underlying vector is
 	/// extended with zero-initialized elements until `self.len() + additional`
 	/// bits have been given initialized memory.
+	#[inline]
 	fn do_reservation(
 		&mut self,
 		additional: usize,
@@ -647,6 +649,7 @@ where
 	///
 	/// After `func` runs, `self` is updated with the temporary `Vec`’s address
 	/// and capacity.
+	#[inline]
 	fn with_vec<F, R>(&mut self, func: F) -> R
 	where F: FnOnce(&mut ManuallyDrop<Vec<T>>) -> R {
 		let mut vec = unsafe { ptr::read(self) }
