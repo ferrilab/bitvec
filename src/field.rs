@@ -53,8 +53,15 @@ pub trait BitField {
 		}
 		else {
 			match option_env!("CARGO_PKG_REPOSITORY") {
-				Some(env) => unreachable!("This architecture is not supported! Please consider filing an issue at {}", env),
-				None => unreachable!("This architecture is not supported! Please consider filing an issue"),
+				Some(env) => unreachable!(
+					"This architecture is not supported! Please consider \
+					 filing an issue at {}",
+					env
+				),
+				None => unreachable!(
+					"This architecture is not supported! Please consider \
+					 filing an issue"
+				),
 			}
 		}
 	}
@@ -72,8 +79,15 @@ pub trait BitField {
 		}
 		else {
 			match option_env!("CARGO_PKG_REPOSITORY") {
-				Some(env) => unreachable!("This architecture is not supported! Please consider filing an issue at {}", env),
-				None => unreachable!("This architecture is not supported! Please consider filing an issue"),
+				Some(env) => unreachable!(
+					"This architecture is not supported! Please consider \
+					 filing an issue at {}",
+					env
+				),
+				None => unreachable!(
+					"This architecture is not supported! Please consider \
+					 filing an issue"
+				),
 			}
 		}
 	}
