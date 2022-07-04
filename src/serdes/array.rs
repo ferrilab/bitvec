@@ -6,7 +6,6 @@ use core::{
 		self,
 		Formatter,
 	},
-	marker::PhantomData,
 };
 
 use serde::{
@@ -28,6 +27,8 @@ use serde::{
 
 use super::{
 	utils::Array,
+	Field,
+	TypeName,
 	FIELDS,
 };
 use crate::{
@@ -91,11 +92,7 @@ where
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		deserializer
-			.deserialize_struct(
-				"BitArr",
-				FIELDS,
-				BitArrVisitor::<'de, T, O, 1>::THIS,
-			)
+			.deserialize_struct("BitArr", FIELDS, BitArrVisitor::<T, O, 1>::THIS)
 			.map(|BitArray { data: [elem], .. }| BitArray::new(elem))
 	}
 }
@@ -112,22 +109,19 @@ where
 		deserializer.deserialize_struct(
 			"BitArr",
 			FIELDS,
-			BitArrVisitor::<'de, T, O, N>::THIS,
+			BitArrVisitor::<T, O, N>::THIS,
 		)
 	}
 }
 
 /// Assists in deserialization of a static `BitArr`.
-struct BitArrVisitor<'de, T, O, const N: usize>
+struct BitArrVisitor<T, O, const N: usize>
 where
 	T: BitStore,
 	O: BitOrder,
-	Array<T, N>: Deserialize<'de>,
 {
-	/// This produces a bit-array value during its work.
-	typ:   PhantomData<BitArray<T, O>>,
 	/// The deserialized bit-ordering string.
-	order: Option<&'de str>,
+	order: Option<TypeName<O>>,
 	/// The deserialized head-bit index. This must be zero; it is used for
 	/// consistency with `BitSeq` and to carry `T::Mem` information.
 	head:  Option<BitIdx<T::Mem>>,
@@ -137,7 +131,7 @@ where
 	data:  Option<Array<T, N>>,
 }
 
-impl<'de, T, O, const N: usize> BitArrVisitor<'de, T, O, N>
+impl<'de, T, O, const N: usize> BitArrVisitor<T, O, N>
 where
 	T: BitStore,
 	O: BitOrder,
@@ -145,7 +139,6 @@ where
 {
 	/// A new visitor in its ready condition.
 	const THIS: Self = Self {
-		typ:   PhantomData,
 		order: None,
 		head:  None,
 		bits:  None,
@@ -156,15 +149,11 @@ where
 	#[inline]
 	fn assemble<E>(mut self) -> Result<BitArray<[T; N], O>, E>
 	where E: Error {
-		let order =
-			self.order.take().ok_or_else(|| E::missing_field("order"))?;
+		self.order.take().ok_or_else(|| E::missing_field("order"))?;
 		let head = self.head.take().ok_or_else(|| E::missing_field("head"))?;
 		let bits = self.bits.take().ok_or_else(|| E::missing_field("bits"))?;
 		let data = self.data.take().ok_or_else(|| E::missing_field("data"))?;
 
-		if order != any::type_name::<O>() {
-			return Err(E::invalid_type(Unexpected::Str(order), &self));
-		}
 		if head != BitIdx::MIN {
 			return Err(E::invalid_value(
 				Unexpected::Unsigned(head.into_inner() as u64),
@@ -180,7 +169,7 @@ where
 	}
 }
 
-impl<'de, T, O, const N: usize> Visitor<'de> for BitArrVisitor<'de, T, O, N>
+impl<'de, T, O, const N: usize> Visitor<'de> for BitArrVisitor<T, O, N>
 where
 	T: BitStore,
 	O: BitOrder,
@@ -225,31 +214,27 @@ where
 	#[inline]
 	fn visit_map<V>(mut self, mut map: V) -> Result<Self::Value, V::Error>
 	where V: MapAccess<'de> {
-		while let Some(key) = map.next_key::<&'de str>()? {
+		while let Some(key) = map.next_key()? {
 			match key {
-				"order" => {
+				Field::Order => {
 					if self.order.replace(map.next_value()?).is_some() {
 						return Err(<V::Error>::duplicate_field("order"));
 					}
 				},
-				"head" => {
+				Field::Head => {
 					if self.head.replace(map.next_value()?).is_some() {
 						return Err(<V::Error>::duplicate_field("head"));
 					}
 				},
-				"bits" => {
+				Field::Bits => {
 					if self.bits.replace(map.next_value()?).is_some() {
 						return Err(<V::Error>::duplicate_field("bits"));
 					}
 				},
-				"data" => {
+				Field::Data => {
 					if self.data.replace(map.next_value()?).is_some() {
 						return Err(<V::Error>::duplicate_field("data"));
 					}
-				},
-				f => {
-					let _ = map.next_value::<()>();
-					return Err(<V::Error>::unknown_field(f, FIELDS));
 				},
 			}
 		}
@@ -287,6 +272,10 @@ mod tests {
 		let array3 = serde_json::from_str::<BA>(&json)?;
 		assert_eq!(array, array3);
 
+		let json_value = serde_json::to_value(&array)?;
+		let array4 = serde_json::from_value::<BA>(json_value)?;
+		assert_eq!(array, array4);
+
 		type BA2 = BitArray<u16, Msb0>;
 		let array = BA2::new(44203);
 
@@ -297,6 +286,10 @@ mod tests {
 		let json = serde_json::to_string(&array)?;
 		let array3 = serde_json::from_str::<BA2>(&json)?;
 		assert_eq!(array, array3);
+
+		let json_value = serde_json::to_value(&array)?;
+		let array4 = serde_json::from_value::<BA2>(json_value)?;
+		assert_eq!(array, array4);
 
 		Ok(())
 	}
@@ -349,9 +342,21 @@ mod tests {
 	#[cfg(feature = "alloc")]
 	fn errors() {
 		type BA = BitArr!(for 8, in u8, Msb0);
-		let tokens = &mut [
+		let mut tokens = vec![
 			Token::Seq { len: Some(4) },
 			Token::BorrowedStr(any::type_name::<Msb0>()),
+		];
+
+		assert_de_tokens_error::<BitArr!(for 8, in u8, Lsb0)>(
+			&tokens,
+			&format!(
+				"invalid value: string \"{}\", expected the string \"{}\"",
+				any::type_name::<Msb0>(),
+				any::type_name::<Lsb0>(),
+			),
+		);
+
+		tokens.extend([
 			Token::Seq { len: Some(2) },
 			Token::U8(8),
 			Token::U8(0),
@@ -361,24 +366,18 @@ mod tests {
 			Token::U8(0),
 			Token::TupleEnd,
 			Token::SeqEnd,
-		];
-
-		assert_de_tokens_error::<BitArr!(for 8, in u8, Lsb0)>(
-			tokens,
-			"invalid type: string \"bitvec::order::Msb0\", expected a \
-			 `BitArray<[u8; 1], bitvec::order::Lsb0>`",
-		);
+		]);
 
 		tokens[6] = Token::U64(7);
 		assert_de_tokens_error::<BA>(
-			tokens,
+			&tokens,
 			"invalid length 7, expected a `BitArray<[u8; 1], \
 			 bitvec::order::Msb0>`",
 		);
 
 		tokens[4] = Token::U8(1);
 		assert_de_tokens_error::<BA>(
-			tokens,
+			&tokens,
 			"invalid value: integer `1`, expected `BitArray` must have a \
 			 head-bit of `0`",
 		);
@@ -390,8 +389,6 @@ mod tests {
 					len:  2,
 				},
 				Token::BorrowedStr("placeholder"),
-				Token::Unit,
-				Token::StructEnd,
 			],
 			&format!(
 				"unknown field `placeholder`, expected one of `{}`",

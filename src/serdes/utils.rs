@@ -45,6 +45,37 @@ use crate::{
 /// Fields used in the `BitIdx` transport format.
 static FIELDS: &[&str] = &["width", "index"];
 
+enum Field {
+	Width,
+	Index,
+}
+
+struct FieldVisitor;
+
+impl<'de> Deserialize<'de> for Field {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where D: Deserializer<'de> {
+		deserializer.deserialize_identifier(FieldVisitor)
+	}
+}
+
+impl<'de> Visitor<'de> for FieldVisitor {
+	type Value = Field;
+
+	fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
+		fmt.write_str("field identifier")
+	}
+
+	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+	where E: serde::de::Error {
+		match value {
+			"width" => Ok(Field::Width),
+			"index" => Ok(Field::Index),
+			_ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+		}
+	}
+}
+
 impl<R> Serialize for BitIdx<R>
 where R: BitRegister
 {
@@ -257,21 +288,17 @@ where R: BitRegister
 		let mut width = None;
 		let mut index = None;
 
-		while let Some(key) = map.next_key::<&'de str>()? {
+		while let Some(key) = map.next_key()? {
 			match key {
-				"width" => {
+				Field::Width => {
 					if width.replace(map.next_value::<u8>()?).is_some() {
 						return Err(<V::Error>::duplicate_field("width"));
 					}
 				},
-				"index" => {
+				Field::Index => {
 					if index.replace(map.next_value::<u8>()?).is_some() {
 						return Err(<V::Error>::duplicate_field("index"));
 					}
-				},
-				f => {
-					let _ = map.next_value::<()>();
-					return Err(<V::Error>::unknown_field(f, FIELDS));
 				},
 			}
 		}
@@ -373,8 +400,6 @@ mod tests {
 					len:  1,
 				},
 				Token::BorrowedStr("unknown"),
-				Token::BorrowedStr("field"),
-				Token::StructEnd,
 			],
 			"unknown field `unknown`, expected `width` or `index`",
 		);

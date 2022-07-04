@@ -18,7 +18,6 @@ use serde::{
 		Error,
 		MapAccess,
 		SeqAccess,
-		Unexpected,
 		Visitor,
 	},
 	ser::{
@@ -29,7 +28,11 @@ use serde::{
 };
 use wyz::comu::Const;
 
-use super::FIELDS;
+use super::{
+	Field,
+	TypeName,
+	FIELDS,
+};
 #[cfg(feature = "alloc")]
 use crate::{
 	boxed::BitBox,
@@ -106,7 +109,7 @@ where O: BitOrder
 		deserializer.deserialize_struct(
 			"BitSeq",
 			FIELDS,
-			BitSeqVisitor::<'de, u8, O, &'de [u8], Self, _>::new(
+			BitSeqVisitor::<u8, O, &'de [u8], Self, _>::new(
 				|data, head, bits| unsafe {
 					BitSpan::new(data.as_ptr().into_address(), head, bits)
 						.map(|span| BitSpan::into_bitslice_ref(span))
@@ -144,7 +147,7 @@ where
 		deserializer.deserialize_struct(
 			"BitSeq",
 			FIELDS,
-			BitSeqVisitor::<'de, T, O, Vec<T>, Self, _>::new(
+			BitSeqVisitor::<T, O, Vec<T>, Self, _>::new(
 				|vec, head, bits| unsafe {
 					let addr = vec.as_ptr().into_address();
 					let mut bv = BitVec::try_from_vec(vec).map_err(|_| {
@@ -161,19 +164,16 @@ where
 }
 
 /// Assists in deserialization of a dynamic `BitSeq`.
-struct BitSeqVisitor<'de, T, O, In, Out, Func>
+struct BitSeqVisitor<T, O, In, Out, Func>
 where
-	T: 'de + BitStore,
+	T: BitStore,
 	O: BitOrder,
-	In: Deserialize<'de>,
 	Func: FnOnce(In, BitIdx<T::Mem>, usize) -> Result<Out, BitSpanError<T>>,
 {
-	/// This produces a bit-slice reference during its work,
-	typ:   PhantomData<&'de BitSlice<T, O>>,
 	/// As well as a final output value.
 	out:   PhantomData<Result<Out, BitSpanError<T>>>,
 	/// The deserialized bit-ordering string.
-	order: Option<&'de str>,
+	order: Option<TypeName<O>>,
 	/// The deserialized head-bit index.
 	head:  Option<BitIdx<T::Mem>>,
 	/// The deserialized bit-count.
@@ -185,7 +185,7 @@ where
 	func:  Func,
 }
 
-impl<'de, T, O, In, Out, Func> BitSeqVisitor<'de, T, O, In, Out, Func>
+impl<'de, T, O, In, Out, Func> BitSeqVisitor<T, O, In, Out, Func>
 where
 	T: 'de + BitStore,
 	O: BitOrder,
@@ -196,7 +196,6 @@ where
 	#[inline]
 	fn new(func: Func) -> Self {
 		Self {
-			typ: PhantomData,
 			out: PhantomData,
 			order: None,
 			head: None,
@@ -210,21 +209,17 @@ where
 	#[inline]
 	fn assemble<E>(mut self) -> Result<Out, E>
 	where E: Error {
-		let order =
-			self.order.take().ok_or_else(|| E::missing_field("order"))?;
+		self.order.take().ok_or_else(|| E::missing_field("order"))?;
 		let head = self.head.take().ok_or_else(|| E::missing_field("head"))?;
 		let bits = self.bits.take().ok_or_else(|| E::missing_field("bits"))?;
 		let data = self.data.take().ok_or_else(|| E::missing_field("data"))?;
 
-		if order != any::type_name::<O>() {
-			return Err(E::invalid_type(Unexpected::Str(order), &self));
-		}
 		(self.func)(data, head, bits as usize).map_err(|_| todo!())
 	}
 }
 
 impl<'de, T, O, In, Out, Func> Visitor<'de>
-	for BitSeqVisitor<'de, T, O, In, Out, Func>
+	for BitSeqVisitor<T, O, In, Out, Func>
 where
 	T: 'de + BitStore,
 	O: BitOrder,
@@ -269,31 +264,27 @@ where
 	#[inline]
 	fn visit_map<V>(mut self, mut map: V) -> Result<Self::Value, V::Error>
 	where V: MapAccess<'de> {
-		while let Some(key) = map.next_key::<&'de str>()? {
+		while let Some(key) = map.next_key()? {
 			match key {
-				"order" => {
+				Field::Order => {
 					if self.order.replace(map.next_value()?).is_some() {
 						return Err(<V::Error>::duplicate_field("order"));
 					}
 				},
-				"head" => {
+				Field::Head => {
 					if self.head.replace(map.next_value()?).is_some() {
 						return Err(<V::Error>::duplicate_field("head"));
 					}
 				},
-				"bits" => {
+				Field::Bits => {
 					if self.bits.replace(map.next_value()?).is_some() {
 						return Err(<V::Error>::duplicate_field("bits"));
 					}
 				},
-				"data" => {
+				Field::Data => {
 					if self.data.replace(map.next_value()?).is_some() {
 						return Err(<V::Error>::duplicate_field("data"));
 					}
-				},
-				f => {
-					let _ = map.next_value::<()>();
-					return Err(<V::Error>::unknown_field(f, FIELDS));
 				},
 			}
 		}
@@ -381,16 +372,9 @@ mod tests {
 			&[
 				Token::Seq { len: Some(4) },
 				Token::BorrowedStr(any::type_name::<Lsb0>()),
-				Token::Seq { len: Some(2) },
-				Token::U8(8),
-				Token::U8(1),
-				Token::SeqEnd,
-				Token::U64(9),
-				Token::BorrowedBytes(&[0x3C, 0xA5]),
-				Token::SeqEnd,
 			],
 			&format!(
-				"invalid type: string \"{}\", expected a `BitSlice<u8, {}>`",
+				"invalid value: string \"{}\", expected the string \"{}\"",
 				any::type_name::<Lsb0>(),
 				any::type_name::<Msb0>(),
 			),
@@ -403,8 +387,6 @@ mod tests {
 					len:  1,
 				},
 				Token::BorrowedStr("unknown"),
-				Token::BorrowedStr("field"),
-				Token::StructEnd,
 			],
 			&format!(
 				"unknown field `unknown`, expected one of `{}`",
