@@ -7,7 +7,10 @@ use core::{
 		Debug,
 		Formatter,
 	},
-	iter::FusedIterator,
+	iter::{
+		FusedIterator,
+		Map,
+	},
 	marker::PhantomData,
 	mem,
 };
@@ -154,13 +157,7 @@ where
 	///
 	/// [0]: crate::ptr::BitRef
 	#[inline]
-	pub fn by_refs(
-		self,
-	) -> impl 'a
-	+ Iterator<Item = &'a bool>
-	+ DoubleEndedIterator
-	+ ExactSizeIterator
-	+ FusedIterator {
+	pub fn by_refs(self) -> BitRefIter<'a, T, O> {
 		self.by_vals().map(|bit| match bit {
 			true => &true,
 			false => &false,
@@ -201,14 +198,11 @@ where
 	///
 	/// [0]: crate::ptr::BitRef
 	#[inline]
-	pub fn by_vals(
-		self,
-	) -> impl 'a
-	+ Iterator<Item = bool>
-	+ DoubleEndedIterator
-	+ ExactSizeIterator
-	+ FusedIterator {
-		self.range.map(|bp| unsafe { bp.read() })
+	pub fn by_vals(self) -> BitValIter<'a, T, O> {
+		BitValIter {
+			range: self.range,
+			_life: PhantomData,
+		}
 	}
 
 	/// Yields `bool` values directly, rather than [proxy references][0].
@@ -227,13 +221,7 @@ where
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "`Iterator::copied` does not exist on this type. Use \
 	                `.by_vals()` instead"]
-	pub fn copied(
-		self,
-	) -> impl 'a
-	+ Iterator<Item = bool>
-	+ DoubleEndedIterator
-	+ ExactSizeIterator
-	+ FusedIterator {
+	pub fn copied(self) -> BitValIter<'a, T, O> {
 		self.by_vals()
 	}
 }
@@ -569,6 +557,43 @@ macro_rules! group {
 		}
 	};
 }
+
+/// An iterator over `BitSlice` that yields `&bool` directly.
+pub type BitRefIter<'a, T, O> = Map<BitValIter<'a, T, O>, fn(bool) -> &'a bool>;
+
+/// An iterator over `BitSlice` that yields `bool` directly.
+pub struct BitValIter<'a, T, O>
+where
+	T: 'a + BitStore,
+	O: BitOrder,
+{
+	/// The start and end bit-pointers in the iteration region.
+	range: BitPtrRange<Const, T, O>,
+	/// Hold the lifetime of the source region, so that this does not cause UAF.
+	_life: PhantomData<&'a BitSlice<T, O>>,
+}
+
+group!(BitValIter => bool {
+	fn next(&mut self) -> Option<Self::Item> {
+		self.range.next().map(|bp| unsafe { bp.read() })
+	}
+
+	fn nth(&mut self, n: usize) -> Option<Self::Item> {
+		self.range.nth(n).map(|bp| unsafe { bp.read() })
+	}
+
+	fn next_back(&mut self) -> Option<Self::Item> {
+		self.range.next_back().map(|bp| unsafe { bp.read() })
+	}
+
+	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+		self.range.nth_back(n).map(|bp| unsafe { bp.read() })
+	}
+
+	fn len(&self) -> usize {
+		self.range.len()
+	}
+});
 
 #[derive(Clone, Debug)]
 #[doc = include_str!("../../doc/slice/iter/Windows.md")]
