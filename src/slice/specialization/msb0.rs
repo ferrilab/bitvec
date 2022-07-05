@@ -98,8 +98,8 @@ where T: BitStore
 				as *mut BitSlice<T::Access, Msb0>
 		});
 		for (from, to) in from.zip(to).bidi(rev) {
-			let value = (&*from).load_be::<usize>();
-			(&mut *to).store_be::<usize>(value);
+			let value = (*from).load_be::<usize>();
+			(*to).store_be::<usize>(value);
 		}
 	}
 

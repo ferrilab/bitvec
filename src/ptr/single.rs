@@ -773,7 +773,7 @@ where
 	/// See [`ptr::read`](crate::ptr::read).
 	#[inline]
 	pub unsafe fn read(self) -> bool {
-		(&*self.ptr.to_const()).load_value().get_bit::<O>(self.bit)
+		(*self.ptr.to_const()).load_value().get_bit::<O>(self.bit)
 	}
 
 	/// Reads the bit from `*self` using a volatile load.
@@ -1117,6 +1117,7 @@ where
 	/// [`ptr::write_volatile`]: crate::ptr::write_volatile
 	/// [`voladdr`]: https://docs.rs/voladdr/latest/voladdr
 	#[inline]
+	#[allow(clippy::needless_borrow)] // Clippy is wrong.
 	pub unsafe fn write_volatile(self, value: bool) {
 		let ptr = self.ptr.to_mut();
 		let mut tmp = ptr.read_volatile();
@@ -1140,6 +1141,7 @@ where
 	///
 	/// [`ptr::write_unaligned`]: crate::ptr::write_unaligned
 	#[inline]
+	#[allow(clippy::needless_borrow)] // Clippy is wrong.
 	#[deprecated = "`BitPtr` does not have unaligned addresses"]
 	pub unsafe fn write_unaligned(self, value: bool) {
 		let ptr = self.ptr.to_mut();
@@ -1198,7 +1200,7 @@ where
 	/// This is used to allow `BitPtr<Const, _, AliasSafe<T>>` pointers, which
 	/// are not `Mut` but may still modify memory, to do so.
 	pub(crate) unsafe fn frozen_write_bit(self, value: bool) -> bool {
-		(&*self.ptr.cast::<T::Access>().to_const())
+		(*self.ptr.cast::<T::Access>().to_const())
 			.write_bit::<O>(self.bit, value)
 	}
 }

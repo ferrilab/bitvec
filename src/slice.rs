@@ -1481,7 +1481,7 @@ where
 			return self.fill(false);
 		}
 		assert!(
-			by < len,
+			by <= len,
 			"shift must be less than the length of the bit-slice: {} >= {}",
 			by,
 			len,
@@ -1539,7 +1539,7 @@ where
 			return self.fill(false);
 		}
 		assert!(
-			by < len,
+			by <= len,
 			"shift must be less than the length of the bit-slice: {} >= {}",
 			by,
 			len,

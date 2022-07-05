@@ -6,6 +6,6 @@
 # attributes set directly in the source code.                          #
 ########################################################################
 
-msrv = "1.54.0"
+msrv = "1.56.0"
 single-char-binding-names-threshold = 8
 too-many-arguments-threshold = 8
