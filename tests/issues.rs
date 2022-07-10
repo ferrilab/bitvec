@@ -361,3 +361,16 @@ fn issue_142() {
 		bits![0, 1, 1, 1, 0, 1]
 	);
 }
+
+#[test]
+#[cfg(feature = "std")]
+fn issue_170() {
+	use std::io::Read;
+
+	let mut data: Vec<u8> = vec![0; 1];
+	let bytes = bits![0; 8]
+		.to_bitvec()
+		.read(&mut data)
+		.expect("read should not fail");
+	assert_eq!(bytes, 1, "should read exactly 1 byte");
+}

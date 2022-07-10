@@ -91,8 +91,8 @@ fn ops() {
 	let mut f = !e;
 	assert_eq!(f[.. 4], bitarr![1, 0, 0, 1][.. 4]);
 
-	let _: &BitSlice = &*a;
-	let _: &mut BitSlice = &mut *f;
+	let _: &BitSlice = &a;
+	let _: &mut BitSlice = &mut f;
 }
 
 #[test]

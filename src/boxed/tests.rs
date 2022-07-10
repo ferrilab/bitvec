@@ -167,8 +167,8 @@ fn ops() {
 	let mut f = !e;
 	assert_eq!(f, bitbox![1, 0, 0, 1]);
 
-	let _: &BitSlice = &*a;
-	let _: &mut BitSlice = &mut *f;
+	let _: &BitSlice = &a;
+	let _: &mut BitSlice = &mut f;
 }
 
 #[test]
