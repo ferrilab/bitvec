@@ -30,13 +30,19 @@ type Result<S> = core::result::Result<
 /// A list of fields in the `BitSeq` and `BitArr` transport format.
 static FIELDS: &[&str] = &["order", "head", "bits", "data"];
 
+/// The components of a bit-slice in wire format.
 enum Field {
+	/// Denotes the `<O: BitOrder>` type parameter.
 	Order,
+	/// Denotes the head-bit index in the first `Data` element.
 	Head,
+	/// Denotes the count of all live bits in the `Data` sequence.
 	Bits,
+	/// Denotes the raw storage sequence.
 	Data,
 }
 
+/// Visits field tokens without attempting to deserialize into real data.
 struct FieldVisitor;
 
 impl<'de> Deserialize<'de> for Field {
@@ -66,32 +72,33 @@ impl<'de> Visitor<'de> for FieldVisitor {
 }
 
 /// A zero-sized type that deserializes from any string as long as it is equal
-/// to `any::type_name::<O>()`.
-struct TypeName<O>(PhantomData<O>);
+/// to `any::type_name::<T>()`.
+struct TypeName<T>(PhantomData<T>);
 
-impl<O> TypeName<O> {
+impl<T> TypeName<T> {
+	/// Creates a type-name ghost for any type.
 	fn new() -> Self {
 		TypeName(PhantomData)
 	}
 }
 
-impl<'de, O> Deserialize<'de> for TypeName<O> {
+impl<'de, T> Deserialize<'de> for TypeName<T> {
 	fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
 	where D: Deserializer<'de> {
 		deserializer.deserialize_str(Self::new())
 	}
 }
 
-impl<'de, O> Visitor<'de> for TypeName<O> {
+impl<'de, T> Visitor<'de> for TypeName<T> {
 	type Value = Self;
 
 	fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
-		write!(fmt, "the string {:?}", any::type_name::<O>())
+		write!(fmt, "the string {:?}", any::type_name::<T>())
 	}
 
 	fn visit_str<E>(self, value: &str) -> core::result::Result<Self::Value, E>
 	where E: serde::de::Error {
-		if value == any::type_name::<O>() {
+		if value == any::type_name::<T>() {
 			Ok(self)
 		}
 		else {
