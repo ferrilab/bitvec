@@ -29,8 +29,8 @@ use serde::{
 use wyz::comu::Const;
 
 use super::{
+	utils::TypeName,
 	Field,
-	TypeName,
 	FIELDS,
 };
 #[cfg(feature = "alloc")]

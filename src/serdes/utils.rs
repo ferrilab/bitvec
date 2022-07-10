@@ -42,14 +42,57 @@ use crate::{
 	view::BitViewSized,
 };
 
+/// A zero-sized type that deserializes from any string as long as it is equal
+/// to `any::type_name::<T>()`.
+pub(super) struct TypeName<T>(PhantomData<T>);
+
+impl<T> TypeName<T> {
+	/// Creates a type-name ghost for any type.
+	fn new() -> Self {
+		TypeName(PhantomData)
+	}
+}
+
+impl<'de, T> Deserialize<'de> for TypeName<T> {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where D: Deserializer<'de> {
+		deserializer.deserialize_str(Self::new())
+	}
+}
+
+impl<'de, T> Visitor<'de> for TypeName<T> {
+	type Value = Self;
+
+	fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
+		write!(fmt, "the string {:?}", any::type_name::<T>())
+	}
+
+	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+	where E: serde::de::Error {
+		if value == any::type_name::<T>() {
+			Ok(self)
+		}
+		else {
+			Err(serde::de::Error::invalid_value(
+				Unexpected::Str(value),
+				&self,
+			))
+		}
+	}
+}
+
 /// Fields used in the `BitIdx` transport format.
 static FIELDS: &[&str] = &["width", "index"];
 
+/// The components of a bit-idx in wire format.
 enum Field {
+	/// Denotes the maximum allowable value of the bit-idx.
 	Width,
+	/// Denotes the value of the bit-idx.
 	Index,
 }
 
+/// Visits field tokens of a bit-idx wire format.
 struct FieldVisitor;
 
 impl<'de> Deserialize<'de> for Field {

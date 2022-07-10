@@ -26,9 +26,11 @@ use serde::{
 };
 
 use super::{
-	utils::Array,
+	utils::{
+		Array,
+		TypeName,
+	},
 	Field,
-	TypeName,
 	FIELDS,
 };
 use crate::{

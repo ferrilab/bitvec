@@ -5,19 +5,14 @@ mod array;
 mod slice;
 mod utils;
 
-use core::{
-	any,
-	fmt::{
-		self,
-		Formatter,
-	},
-	marker::PhantomData,
+use core::fmt::{
+	self,
+	Formatter,
 };
 
 use serde::de::{
 	Deserialize,
 	Deserializer,
-	Unexpected,
 	Visitor,
 };
 
@@ -67,45 +62,6 @@ impl<'de> Visitor<'de> for FieldVisitor {
 			"bits" => Ok(Field::Bits),
 			"data" => Ok(Field::Data),
 			_ => Err(serde::de::Error::unknown_field(value, FIELDS)),
-		}
-	}
-}
-
-/// A zero-sized type that deserializes from any string as long as it is equal
-/// to `any::type_name::<T>()`.
-struct TypeName<T>(PhantomData<T>);
-
-impl<T> TypeName<T> {
-	/// Creates a type-name ghost for any type.
-	fn new() -> Self {
-		TypeName(PhantomData)
-	}
-}
-
-impl<'de, T> Deserialize<'de> for TypeName<T> {
-	fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
-	where D: Deserializer<'de> {
-		deserializer.deserialize_str(Self::new())
-	}
-}
-
-impl<'de, T> Visitor<'de> for TypeName<T> {
-	type Value = Self;
-
-	fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
-		write!(fmt, "the string {:?}", any::type_name::<T>())
-	}
-
-	fn visit_str<E>(self, value: &str) -> core::result::Result<Self::Value, E>
-	where E: serde::de::Error {
-		if value == any::type_name::<T>() {
-			Ok(self)
-		}
-		else {
-			Err(serde::de::Error::invalid_value(
-				Unexpected::Str(value),
-				&self,
-			))
 		}
 	}
 }
