@@ -5,7 +5,8 @@ All notable changes will be documented in this file.
 This document is written according to the [Keep a Changelog][kac] style.
 
 1. [Version 1](#version-1)
-   1. [1.0](#10)
+   1. [1.0.1](#101)
+   1. [1.0.0](#100)
 1. [Version 0 (Prototyping)](#version-0-prototyping)
    1. [0.22](#022)
    1. [0.21](#021)
@@ -38,13 +39,41 @@ change until const-generics allow `BitArray` to be rewritten.
 
 ### 1.0.1
 
-The `bits![static mut …]` invocation has been made `unsafe` at the invocation
-site, in response to [Issue #156] filed by GitHub user [@SimonSapin].
+#### Notes
 
-This is technically an API break (formerly safe code now requires an `unsafe`
-block) but as no run-time behavior or compile-time types have changed except for
-this, and Rust considers breaking incorrect code to be acceptable within SemVer
-patches, I am publishing it as a patch.
+Performance regressions have been reported between the development series `0.20`
+onwards and `1.0`. It appears at least some of these regressions are due to the
+removal of the `#[inline]` attribute on `bitvec` public functions.
+
+This attribute has been applied to *all* `bitvec` functions. You may see
+regressions in size of your final artifact, but you should also see improvements
+in your runtime speed. This is being tracked in [`sharksforarms/deku#246`].
+
+#### Changes
+
+- The `bits![static mut …]` invocation has been made `unsafe` at the invocation
+  site, in response to [Issue #156] filed by GitHub user [@SimonSapin].
+
+  This is technically an API break (formerly safe code now requires an `unsafe`
+  block) but as no run-time behavior or compile-time types have changed except
+  for this, and Rust considers breaking incorrect code to be acceptable within
+  SemVer patches, I am publishing it as a patch.
+
+- GitHub user [@dtolnay] fixed incorrect `serde` behaviors in
+  [Pull Request #185]. This behavior was first reported in [Issue #167] by
+  GitHub user [@Nelarius].
+
+- Compilation no longer depends on environment variables set by Cargo, as
+  requested in [Pull Request #162] by GitHub user [@rocallahan].
+
+- The `bitvec![val; len]` macro can again take `len` as a runtime value as well
+  as a compile-time constant. [Pull Request #160] was provided by GitHub user
+  [@coolreader18].
+
+- The return types of `slice::Iter::by_{refs,vals}` are restored to named types,
+  rather than `impl Iterator...` opaque types. This allows them to be used
+  directly in other sites. This defect was reported in [Issue #169] by GitHub
+  user [@dignifiedquire].
 
 ### 1.0.0
 
@@ -320,13 +349,17 @@ from crates.io in the future.
 [@GeorgeGkas]: https://github.com/GeorgeGkas
 [@HamishWMC]: https://github.com/HamishWMC
 [@ImmemorConsultrixContrarie]: https://github.com/ImmemorConsultrixContrarie
+[@Nelarius]: https://github.com/Nelarius
 [@SimonSapin]: https://github.com/SimonSapin
 [@VilleHallivuori]: https://github.com/VilleHallivuori
 [@YoshikiTakashima]: https://github.com/YoshikiTakashima
 [@arucil]: https://github.com/arucil
 [@caelunshun]: https://github.com/caelunshun
 [@changhe3]: https://github.com/changhe3
+[@coolreader18]: https://github.com/coolreader18
+[@dignifiedquire]: https://github.com/dignifiedquire
 [@diondokter]: https://github.com/diondokter
+[@dtolnay]: https://github.com/dtolnay
 [@geq1t]: https://github.com/geq1t
 [@jonas-schievink]: https://github.com/jonas-schievink
 [@koushiro]: https://github.com/koushiro
@@ -338,6 +371,7 @@ from crates.io in the future.
 [@ordian]: https://github.com/ordian
 [@overminder]: https://github.com/overminder
 [@ratorx]: https://github.com/ratorx
+[@rocallahan]: https://github.com/rocallahan
 [@rphmeier]: https://github.com/rphmeier
 [@schomatis]: https://github.com/schomatis
 [@seanyoung]: https://github.com/seanyoung
@@ -371,6 +405,8 @@ from crates.io in the future.
 [Issue #114]: https://github.com/bitvecto-rs/bitvec/issues/114
 [Issue #136]: https://github.com/bitvecto-rs/bitvec/issues/136
 [Issue #156]: https://github.com/bitvecto-rs/bitvec/issues/156
+[Issue #167]: https://github.com/bitvecto-rs/bitvec/issues/167
+[Issue #169]: https://github.com/bitvecto-rs/bitvec/issues/169
 
 <!-- Pull Requests -->
 
@@ -379,9 +415,13 @@ from crates.io in the future.
 [Pull Request #41]: https://github.com/bitvecto-rs/bitvec/pull/41
 [Pull Request #68]: https://github.com/bitvecto-rs/bitvec/pull/68
 [Pull Request #104]: https://github.com/bitvecto-rs/bitvec/pull/104
+[Pull Request #160]: https://github.com/bitvecto-rs/bitvec/pull/160
+[Pull Request #162]: https://github.com/bitvecto-rs/bitvec/pull/162
+[Pull Request #185]: https://github.com/bitvecto-rs/bitvec/pull/185
 
 <!-- Other -->
 
 [`bit-set`]: https://crates.io/crates/bit-set
+[`sharksforarms/deku#246`]: https://github.com/sharksforarms/deku/pull/246
 [kac]: https://keepachangelog.com/en/1.0.0/
 [user guide]: https://bitvecto-rs.github.io/bitvec/
