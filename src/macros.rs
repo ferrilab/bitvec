@@ -177,7 +177,7 @@ macro_rules! bits {
 	(static mut $store:ident, $order:ident; $val:expr; $len:expr) => {{
 		static mut DATA: $crate::BitArr!(for $len, in $store, $order) =
 			$crate::bitarr!(const $store, $order; $val; $len);
-		 DATA.get_unchecked_mut(.. $len)
+		DATA.get_unchecked_mut(.. $len)
 	}};
 
 	(static mut Cell<$store:ident>, $order:ident; $($val:expr),* $(,)?) => {{
@@ -197,13 +197,13 @@ macro_rules! bits {
 		const BITS: usize = $crate::__count!($($val),*);
 		static mut DATA: $crate::BitArr!(for BITS, in $store, $order) =
 			$crate::bitarr!(const $store, $order; $($val),*);
-		 DATA.get_unchecked_mut(.. BITS)
+		DATA.get_unchecked_mut(.. BITS)
 	}};
 
 	(static mut $val:expr; $len:expr) => {{
 		static mut DATA: $crate::BitArr!(for $len) =
 			$crate::bitarr!(const usize, $crate::order::Lsb0; $val; $len);
-		 DATA.get_unchecked_mut(.. $len)
+		DATA.get_unchecked_mut(.. $len)
 	}};
 	(static mut $($val:expr),* $(,)?) => {{
 		$crate::bits!(static mut usize, Lsb0; $($val),*)
@@ -227,11 +227,11 @@ macro_rules! bits {
 		type Celled = core::cell::Cell<$store>;
 		const BITS: usize = $crate::__count!($($val),*);
 
-		static mut DATA: $crate::BitArr!(for BITS, in $store, $order) =
+		static DATA: $crate::BitArr!(for BITS, in $store, $order) =
 			$crate::bitarr!(const $store, $order; $($val),*);
 		unsafe {
 			&*(
-				DATA.get_unchecked_mut(.. BITS)
+				DATA.get_unchecked(.. BITS)
 					as *const $crate::slice::BitSlice<$store, $order>
 					as *const $crate::slice::BitSlice<Celled, $order>
 			)

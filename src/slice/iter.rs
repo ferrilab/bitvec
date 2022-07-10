@@ -1860,7 +1860,7 @@ split!(SplitInclusiveMut => &'a mut BitSlice<T::Alias, O> {
 			mem::take(&mut self.slice)
 				.split_at_unchecked_mut_noalias(idx)
 		};
-		self.slice =  rest;
+		self.slice = rest;
 		Some(out)
 	}
 });

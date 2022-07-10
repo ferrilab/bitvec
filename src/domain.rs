@@ -321,13 +321,21 @@ where
 					PartialElement::into_bitslice,
 				),
 				body: body.try_into().unwrap_or_else(|_| {
-					unreachable!(
-						"Construction of a slice with length {} should not be \
-						 possible. If this assumption is outdated, please file \
-						 an issue at {}",
-						isize::MIN as usize >> 3,
-						env!("CARGO_PKG_REPOSITORY"),
-					)
+					match option_env!("CARGO_PKG_REPOSITORY") {
+						Some(env) => unreachable!(
+							"Construction of a slice with length {} should not \
+							 be possible. If this assumption is outdated, \
+							 please file an issue at {}",
+							(isize::MIN as usize) >> 3,
+							env,
+						),
+						None => unreachable!(
+							"Construction of a slice with length {} should not \
+							 be possible. If this assumption is outdated, \
+							 please consider filing an issue",
+							(isize::MIN as usize) >> 3
+						),
+					}
 				}),
 				tail: tail.map_or_else(
 					Default::default,

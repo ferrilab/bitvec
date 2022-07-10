@@ -23,7 +23,7 @@ The modifier prefixes are separated from the remaining arguments by clearspace.
   analysis, and you should typically not try to move them up the call stack.
 - `mut`: If the first argument is the keyword `mut`, then this produces a `&mut`
   writable `BitSlice`.
-- `static mut`: These can be combinde to create a `&'static mut BitSlice`. It is
+- `static mut`: These can be combined to create a `&'static mut BitSlice`. It is
   always safe to use this reference, because the `static mut BitArray` it
   creates is concealed and unreachable by any other codepath, and so the
   produced reference is always the sole handle that can reach it.
@@ -58,7 +58,7 @@ can prevent *some* of this unsafety by preventing direct access to the created
 `static mut` buffer, there are still ways to create multiple names referring to
 the same underlying buffer.
 
-```rust
+```rust,ignore
 use bitvec::prelude::*;
 
 fn unsound() -> &'static mut BitSlice<usize, Lsb0> {

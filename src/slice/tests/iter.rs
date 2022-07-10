@@ -676,3 +676,28 @@ fn iter_zeros() {
 	assert_eq!(zeros.next(), Some(4));
 	assert!(zeros.next().is_none());
 }
+
+#[test]
+fn trait_impls() {
+	use core::iter::FusedIterator;
+
+	use static_assertions::*;
+
+	use crate::slice::iter::{
+		BitRefIter,
+		BitValIter,
+	};
+
+	assert_impl_all!(
+		BitRefIter<'static, usize, Lsb0>: Iterator,
+		DoubleEndedIterator,
+		ExactSizeIterator,
+		FusedIterator
+	);
+	assert_impl_all!(
+		BitValIter<'static, usize, Lsb0>: Iterator,
+		DoubleEndedIterator,
+		ExactSizeIterator,
+		FusedIterator
+	);
+}

@@ -969,10 +969,10 @@ where
 		}
 	}
 
+	#[inline]
 	#[doc(hidden)]
 	#[cfg(not(tarpaulin_include))]
 	#[deprecated = "use `.iter_mut().enumerate()`"]
-	#[inline]
 	pub fn for_each(&mut self, mut func: impl FnMut(usize, bool) -> bool) {
 		for (idx, ptr) in self.as_mut_bitptr_range().enumerate() {
 			unsafe {
