@@ -24,7 +24,7 @@ It accepts zero, one, or three prefix arguments:
   encoding must take place at runtime. The name or path chosen must be in scope
   at the macro invocation site.
 
-  When not provided, this defaults to `Lbs0`.
+  When not provided, this defaults to `Lsb0`.
 - `$store ;`: This must be one of `uTYPE`, `Cell<uTYPE>`, `AtomicUTYPE`, or
   `RadiumUTYPE` where `TYPE` is one of `8`, `16`, `32`, `64`, or `size`. The
   macro recognizes this token textually, and does not have access to the type
