@@ -249,11 +249,13 @@ where
 	/// is weakly typed so that it can be cast by call sites to the most useful
 	/// access type.
 	pub(crate) fn address(&self) -> Address<M, T> {
-		Address::new(unsafe {
-			NonNull::new_unchecked(
-				(self.ptr.as_ptr() as usize & Self::PTR_ADDR_MASK) as *mut T,
-			)
-		})
+		let ptr = self.ptr.as_ptr().cast::<u8>();
+		let addr = ptr as usize;
+		let ptr = ptr
+			.wrapping_add(addr & Self::PTR_ADDR_MASK)
+			.wrapping_sub(addr)
+			.cast::<T>();
+		Address::new(unsafe { NonNull::new_unchecked(ptr) })
 	}
 
 	/// Overwrites the data pointer with a new address. This method does not
