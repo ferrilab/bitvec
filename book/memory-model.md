@@ -75,7 +75,7 @@ there yet.
 
 Since an `&mut BitSlice<T, _>` handle cannot produce an `&mut T` reference to
 perform writes to memory, it must instead either use a `*mut T` bare pointer,
-which has absolutely no checks or optimizations whatsoëver, or use an
+which has absolutely no checks or optimizations whatsoever, or use an
 `&UnsafeCell<T>` shared reference, which has all the usual guarantees present on
 all[^1] reference types.
 
@@ -180,7 +180,7 @@ of thread-safety. For builds that do permit atomics, the marker enforces that
 all reads and writes use atomic instructions.
 
 The `::Alias` marker is applied, at compile time, by operations that split
-`&mut BitSlice` references into multiple coëxisting subslices. This is a good
+`&mut BitSlice` references into multiple coexisting subslices. This is a good
 first step to reducing unnecessary synchrony, but not good enough. Consider the
 following:
 

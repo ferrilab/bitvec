@@ -118,7 +118,7 @@ where
 
 	/// Attempts to convert an ordinary boxed slice into a boxed bit-slice.
 	///
-	/// This does not perform a copy or reällocation; it only attempts to
+	/// This does not perform a copy or reallocation; it only attempts to
 	/// transform the handle. Because `Box<[T]>` can be longer than `BitBox`es,
 	/// it may fail, and will return the original handle if it does.
 	///
@@ -176,7 +176,7 @@ where
 	/// Converts the bit-box into a bit-vector.
 	///
 	/// This uses the Rust allocator API, and does not guarantee whether or not
-	/// a reällocation occurs internally.
+	/// a reallocation occurs internally.
 	///
 	/// The resulting bit-vector can be converted back into a bit-box via
 	/// [`BitBox::into_boxed_bitslice`][0].

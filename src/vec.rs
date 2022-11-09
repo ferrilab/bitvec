@@ -202,7 +202,7 @@ where
 	/// Converts a regular vector in-place into a bit-vector.
 	///
 	/// The produced bit-vector spans every bit in the original vector. No
-	/// reällocation occurs; this is purely a transform of the handle.
+	/// reallocation occurs; this is purely a transform of the handle.
 	///
 	/// ## Panics
 	///
@@ -227,7 +227,7 @@ where
 	///
 	/// This fails if the source vector is too long to view as a bit-slice. On
 	/// success, the produced bit-vector spans every bit in the original vector.
-	/// No reällocation occurs; this is purely a transform of the handle.
+	/// No reallocation occurs; this is purely a transform of the handle.
 	///
 	/// ## Examples
 	///
@@ -373,7 +373,7 @@ where
 
 	/// Converts a bit-vector into a boxed bit-slice.
 	///
-	/// This may cause a reällocation to drop any excess capacity.
+	/// This may cause a reallocation to drop any excess capacity.
 	///
 	/// ## Original
 	///

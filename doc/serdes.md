@@ -20,7 +20,7 @@ changes its behavior, but as it is run while compiling `bitvec` itself, clients
 that rename `bitvec` when bringing it into their namespace should not be
 affected.
 
-Note that because `LocalBits` is a reëxport rather than a type in its own right,
+Note that because `LocalBits` is a reexport rather than a type in its own right,
 it always serializes as the real type to which it forwards. This prevents
 accidental mismatch when transporting between machines with different
 destinations for this alias.

@@ -56,13 +56,13 @@ fn issue_10() {
 /** Test case for [Issue #33], opened by [@jonas-schievink].
 
 This report discovered an error in the implementation of `BitVec::reserve`,
-which caused it to fail to reällocate in certain conditions.
+which caused it to fail to reallocate in certain conditions.
 
 The error was that the `reserve` method was testing the reservation amount
 passed in to `Vec::reserve` against the currently-allocated *capacity*, not the
 currently-occupied *element length*. `Vec::reserve` expects the difference to be
 against the element length, so `BitVec::reserve` was estimating too few elements
-and `Vec::reserve` did not see the request amount as requiring a reällocation.
+and `Vec::reserve` did not see the request amount as requiring a reallocation.
 
 `BitVec::reserve` now tests the reservation amount against the current element
 length, which produces the correct reservation request for `Vec::reserve`,
@@ -213,7 +213,7 @@ fn issue_65() {
 
 /** Test case for [Issue #69], opened by [@YoshikiTakashima].
 
-This report shows a dereference after deällocation. This is not *strictly* true:
+This report shows a dereference after deallocation. This is not *strictly* true:
 the destructor only used the value of the pointer, and did not issue a load or
 store instruction through it, but even that use was sufficient to trip Miri’s
 alarms.

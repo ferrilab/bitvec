@@ -186,7 +186,7 @@ where
 	/// Gets the allocation capacity, measured in bits.
 	///
 	/// This counts how many total bits the bit-vector can store before it must
-	/// perform a reällocation to acquire more memory.
+	/// perform a reallocation to acquire more memory.
 	///
 	/// If the capacity is not a multiple of 8, you should call
 	/// [`.force_align()`].

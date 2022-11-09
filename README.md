@@ -122,7 +122,7 @@ Once Cargo knows about it, bring its prelude into scope:
 use bitvec::prelude::*;
 ```
 
-You can read the [prelude reëxports][prelude] to see exactly which symbols are
+You can read the [prelude reexports][prelude] to see exactly which symbols are
 being imported. The prelude brings in many symbols, and while name collisions
 are not likely, you may wish to instead import the prelude *module* rather than
 its contents:

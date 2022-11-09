@@ -77,7 +77,7 @@ right of observation for all bits in its region, the unsigned integers alias to
 a crate-internal wrapper over the alias-capable standard-library types. This
 wrapper forbids mutation through shared references, so two [`BitSlice`]
 references that alias a memory location, but do not overlap in bits, may not be
-coërced to interfere with each other.
+coerced to interfere with each other.
 
 [atomic]: core::sync::atomic
 [unsigned integers]: core::primitive

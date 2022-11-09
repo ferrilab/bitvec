@@ -12,7 +12,7 @@ prior call to [`.split_at_mut()`] for as much of the bit-slice as possible.
 ## Why Not `Option`?
 
 The `Enclave` variant always contains as its single field the exact bit-slice
-that created the `Enclave`. As such, this type is easily replaceäble with an
+that created the `Enclave`. As such, this type is easily replaceable with an
 `Option` of the `Region` variant, which when `None` is understood to be the
 original.
 

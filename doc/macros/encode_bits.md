@@ -21,7 +21,7 @@ to the 32-bit or 64-bit encoding, depending on the target.
 ## Zero Extension
 
 The next two arms handle extending the list of bit-expressions with 64 `0,`s.
-The first arm captures initial reëntry and appends the zero-comma tokens, then
+The first arm captures initial reentry and appends the zero-comma tokens, then
 recurses to enter the chunking group. The second arm traps when recursion has
 chunked all user-provided tokens, and only the literal `0,` tokens appended by
 the first arm remain.

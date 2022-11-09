@@ -445,7 +445,7 @@ where
 		}
 	}
 
-	/// Reäligns a bit-span to a different base memory type.
+	/// Realigns a bit-span to a different base memory type.
 	///
 	/// ## Original
 	///

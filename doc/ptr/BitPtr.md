@@ -4,7 +4,7 @@ This structure defines a pointer to exactly one bit in a memory element. It is a
 structure, rather than an encoding of a `*Bit` raw pointer, because it contains
 more information than can be packed into such a pointer. Furthermore, it can
 uphold the same requirements and guarantees that the rest of the crate demands,
-whereäs a raw pointer cannot.
+whereas a raw pointer cannot.
 
 ## Original
 
