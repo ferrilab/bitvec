@@ -5,6 +5,7 @@ All notable changes will be documented in this file.
 This document is written according to the [Keep a Changelog][kac] style.
 
 1. [Version 1](#version-1)
+   1. [1.1.0](#110)
    1. [1.0.1](#101)
    1. [1.0.0](#100)
 1. [Version 0 (Prototyping)](#version-0-prototyping)
@@ -36,6 +37,13 @@ This document is written according to the [Keep a Changelog][kac] style.
 `bitvec`’s initial development is now complete, and uses the one-dot series. It
 will continue to receive maintenance, but its API is now stable and **will not**
 change until const-generics allow `BitArray` to be rewritten.
+
+### 1.1.0
+
+The `BitSlice::shift_{left,right}` functions have been renamed to
+`BitSlice::shift_{start,end}` to try to better reflect their behavior. These
+functions move data relative to the index as defined by the `O: BitOrder` type
+parameter, *not* according to the processor `lsl` and `lsr` instructions.
 
 ### 1.0.1
 
@@ -345,59 +353,30 @@ from crates.io in the future.
 
 [@AlexHuszagh]: https://github.com/AlexHuszagh
 [@FedericoPonzi]: https://github.com/FedericoPonzi
-[@Fotosmile]: https://github.com/Fotosmile
-[@GeorgeGkas]: https://github.com/GeorgeGkas
 [@HamishWMC]: https://github.com/HamishWMC
-[@ImmemorConsultrixContrarie]: https://github.com/ImmemorConsultrixContrarie
 [@Nelarius]: https://github.com/Nelarius
 [@SimonSapin]: https://github.com/SimonSapin
 [@VilleHallivuori]: https://github.com/VilleHallivuori
 [@YoshikiTakashima]: https://github.com/YoshikiTakashima
 [@arucil]: https://github.com/arucil
-[@caelunshun]: https://github.com/caelunshun
 [@changhe3]: https://github.com/changhe3
 [@coolreader18]: https://github.com/coolreader18
 [@dignifiedquire]: https://github.com/dignifiedquire
 [@diondokter]: https://github.com/diondokter
 [@dtolnay]: https://github.com/dtolnay
-[@geq1t]: https://github.com/geq1t
-[@jonas-schievink]: https://github.com/jonas-schievink
-[@koushiro]: https://github.com/koushiro
-[@kulp]: https://github.com/kulp
 [@luojia65]: https://github.com/luojia65
-[@lynaghk]: https://github.com/lynaghk
 [@mystor]: https://github.com/mystor
-[@obeah]: https://github.com/obeah
 [@ordian]: https://github.com/ordian
-[@overminder]: https://github.com/overminder
-[@ratorx]: https://github.com/ratorx
 [@rocallahan]: https://github.com/rocallahan
-[@rphmeier]: https://github.com/rphmeier
-[@schomatis]: https://github.com/schomatis
 [@seanyoung]: https://github.com/seanyoung
 [@sharksforarms]: https://github.com/sharksforarms
-[@torce]: https://github.com/torce
 
 <!-- Issues -->
 
 [Issue #6]: https://github.com/bitvecto-rs/bitvec/issues/6
-[Issue #7]: https://github.com/bitvecto-rs/bitvec/issues/7
-[Issue #8]: https://github.com/bitvecto-rs/bitvec/issues/8
-[Issue #9]: https://github.com/bitvecto-rs/bitvec/issues/9
-[Issue #10]: https://github.com/bitvecto-rs/bitvec/issues/10
-[Issue #12]: https://github.com/bitvecto-rs/bitvec/issues/12
-[Issue #15]: https://github.com/bitvecto-rs/bitvec/issues/15
-[Issue #16]: https://github.com/bitvecto-rs/bitvec/issues/16
 [Issue #17]: https://github.com/bitvecto-rs/bitvec/issues/17
-[Issue #28]: https://github.com/bitvecto-rs/bitvec/issues/28
 [Issue #32]: https://github.com/bitvecto-rs/bitvec/issues/32
-[Issue #33]: https://github.com/bitvecto-rs/bitvec/issues/33
-[Issue #35]: https://github.com/bitvecto-rs/bitvec/issues/35
-[Issue #36]: https://github.com/bitvecto-rs/bitvec/issues/36
-[Issue #40]: https://github.com/bitvecto-rs/bitvec/issues/40
-[Issue #43]: https://github.com/bitvecto-rs/bitvec/issues/43
 [Issue #50]: https://github.com/bitvecto-rs/bitvec/issues/50
-[Issue #55]: https://github.com/bitvecto-rs/bitvec/issues/55
 [Issue #69]: https://github.com/bitvecto-rs/bitvec/issues/69
 [Issue #75]: https://github.com/bitvecto-rs/bitvec/issues/75
 [Issue #83]: https://github.com/bitvecto-rs/bitvec/issues/83
@@ -410,9 +389,7 @@ from crates.io in the future.
 
 <!-- Pull Requests -->
 
-[Pull Request #3]: https://github.com/bitvecto-rs/bitvec/pull/3
 [Pull Request #34]: https://github.com/bitvecto-rs/bitvec/pull/34
-[Pull Request #41]: https://github.com/bitvecto-rs/bitvec/pull/41
 [Pull Request #68]: https://github.com/bitvecto-rs/bitvec/pull/68
 [Pull Request #104]: https://github.com/bitvecto-rs/bitvec/pull/104
 [Pull Request #160]: https://github.com/bitvecto-rs/bitvec/pull/160
