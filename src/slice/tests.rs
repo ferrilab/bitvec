@@ -216,14 +216,14 @@ fn bit_counting() {
 #[test]
 fn shunting() {
 	let bits = bits![mut 0, 1, 0, 0, 1];
-	bits.shift_left(0);
-	bits.shift_right(0);
+	bits.shift_start(0);
+	bits.shift_end(0);
 	assert_eq!(bits, bits![0, 1, 0, 0, 1]);
 
 	let bits = bits![mut 1;5];
-	bits.shift_left(1);
-	bits.shift_right(2);
-	bits.shift_left(1);
+	bits.shift_start(1);
+	bits.shift_end(2);
+	bits.shift_start(1);
 	assert_eq!(bits, bits![0, 1, 1, 1, 0]);
 }
 

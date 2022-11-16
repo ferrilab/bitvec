@@ -201,24 +201,24 @@ memory through them do not conflict with each other.
 ### Bit Slice Domains
 
 The in-memory domain of any bit slice can be generalized to one of two formats:
-either the slice touches zero element edges, or it touches at least one edge
-element. Consider three bytes of memory (any element will do, but the extra
-width on this page is unnecessary), with some bitslice regions drawn within
-them:
+either the slice touches zero edge-bits (`0` or `T::BITS - 1`), or it touches at
+edge-bit in at least one element. Consider three bytes of memory (any element
+will do, but the extra width on this page is unnecessary), with some bitslice
+regions drawn within them:
 
 ```text
-|00000000│11111111│22222222|
-|76543210│76543210│76543210│
+|00000000│11111111│22222222| Element
+|76543210│76543210│76543210│ Bit
 ├────────┼────────┼────────┤
-│        │        │        │ 1
-│        ╞════╡   │        │ 2
-│        │ ╞════╡ │        │ 3
-│        │   ╞════╡        │ 4
-│    ╞═══╪════╡   │        │ 5
-│    ╞═══╪════════╡        │ 6
-│        ╞════════╪═══╡    │ 7
-│    ╞═══╪════════╪═══╡    │ 8
-╞════════╪════════╪════════╡ 9
+┆        ┆        ┆        ┆ 1
+┆        ╞═════╡  ┆        ┆ 2
+┆        ┆ ╞════╡ ┆        ┆ 3
+┆        ┆  ╞═════╡        ┆ 4
+┆   ╞═════════╡   ┆        ┆ 5
+┆    ╞════════════╡        ┆ 6
+┆        ╞═════════════╡   ┆ 7
+┆     ╞═════════════════╡  ┆ 8
+╞══════════════════════════╡ 9
 ```
 
 There are nine example slices here, but they can be reduced into six specific

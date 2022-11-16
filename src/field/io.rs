@@ -78,7 +78,7 @@ where
 	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
 		let bytes_read = self.as_bitslice().read(buf)?;
 		let bits = bytes_read * bits_of::<u8>();
-		self.shift_left(bits);
+		self.shift_start(bits);
 		self.truncate(self.len() - bits);
 		Ok(bytes_read)
 	}

@@ -165,7 +165,7 @@ where T: BitStore
 				let dead_bits =
 					bits_of::<T::Mem>() - elem.tail().into_inner() as usize;
 				if has_one(val, elem.mask().into_inner()) {
-					out -= val.trailing_zeros() as usize - dead_bits as usize;
+					out -= val.trailing_zeros() as usize - dead_bits;
 					return Some(out);
 				}
 				None

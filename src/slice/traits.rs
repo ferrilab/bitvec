@@ -381,7 +381,7 @@ where
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		fmt.debug_list()
-			.entries(self.iter().by_vals().map(|b| if b { 1 } else { 0 }))
+			.entries(self.iter().by_vals().map(|b| b as u8))
 			.finish()
 	}
 }

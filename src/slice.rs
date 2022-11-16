@@ -1471,7 +1471,7 @@ where
 	/// assert_eq!(bits, bits![0; 2]);
 	/// ```
 	#[inline]
-	pub fn shift_left(&mut self, by: usize) {
+	pub fn shift_start(&mut self, by: usize) {
 		if by == 0 {
 			return;
 		}
@@ -1491,6 +1491,14 @@ where
 			self.copy_within_unchecked(by .., 0);
 			self.get_unchecked_mut(len - by ..).fill(false);
 		}
+	}
+
+	#[inline]
+	#[doc(hidden)]
+	#[allow(deprecated)]
+	#[deprecated(note = "Use `.shift_start()` instead", since = "1.1.0")]
+	pub fn shift_left(&mut self, by: usize) {
+		self.shift_start(by);
 	}
 
 	/// Shifts the contents of a bit-slice “right” (away from the zero-index),
@@ -1529,7 +1537,7 @@ where
 	/// assert_eq!(bits, bits![0; 2]);
 	/// ```
 	#[inline]
-	pub fn shift_right(&mut self, by: usize) {
+	pub fn shift_end(&mut self, by: usize) {
 		if by == 0 {
 			return;
 		}
@@ -1549,6 +1557,14 @@ where
 			self.copy_within_unchecked(.. len - by, by);
 			self.get_unchecked_mut(.. by).fill(false);
 		}
+	}
+
+	#[inline]
+	#[doc(hidden)]
+	#[allow(deprecated)]
+	#[deprecated(note = "Use `.shift_end() instead", since = "1.1.0")]
+	pub fn shift_right(&mut self, by: usize) {
+		self.shift_end(by);
 	}
 }
 

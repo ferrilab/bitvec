@@ -4,12 +4,12 @@
 
 ## A Magnifying Glass for Memory <!-- omit in toc -->
 
-[![Crate][crate_img]][crate]
-[![Documentation][docs_img]][docs]
+[![Crate][crate_img]][crate_link]
+[![MSRV][msrv_img]][crate_link]
 [![License][license_img]][license_file]
 
-[![Crate Downloads][downloads_img]][crate]
-[![Project Size][loc_img]][loc]
+[![Documentation][docs_img]][docs_link]
+[![Crate Downloads][downloads_img]][crate_link]
 
 </div>
 
@@ -36,7 +36,7 @@ Additionally, it allows a memory region to be divided into arbitrary regions of
 integer storage, like [binaries][erl_bit] in Erlang.
 
 If you need to view memory as bit-addressed instead of byte-addressed, then
-`bitvec` is the fastest, most complete, and Rust-idiomatic crate for you.
+`bitvec` is the most capable, complete, and Rust-idiomatic crate for you.
 
 ## Introduction
 
@@ -86,8 +86,6 @@ However, it does also have some small costs associated with its capabilities:
   work.
 
 ## Usage
-
-**Minimum Supported Rust Version**: 1.56.0
 
 `bitvec` strives to follow the sequence APIs in the standard library. However,
 as most of its functionality is a reïmplementation that does not require the
@@ -392,15 +390,14 @@ these resources contain all of the information needed to understand what it
 does, how it works, and how it can be useful to you.
 
 <!-- Badges -->
-[crate]: https://crates.io/crates/bitvec "Crate listing"
-[crate_img]: https://img.shields.io/crates/v/bitvec.svg?logo=rust&style=for-the-badge "Crate badge"
-[docs]: https://docs.rs/bitvec/latest/bitvec "Crate documentation"
+[crate_link]: https://crates.io/crates/bitvec "Crate listing"
+[crate_img]: https://img.shields.io/crates/v/bitvec.svg?style=for-the-badge&color=f46623 "Crate badge"
+[docs_link]: https://docs.rs/bitvec/latest/bitvec "Crate documentation"
 [docs_img]: https://img.shields.io/docsrs/bitvec/latest.svg?style=for-the-badge "Documentation badge"
-[downloads_img]: https://img.shields.io/crates/dv/bitvec.svg?logo=rust&style=for-the-badge "Crate downloads"
+[downloads_img]: https://img.shields.io/crates/dv/bitvec.svg?style=for-the-badge "Crate downloads"
 [license_file]: https://github.com/bitvecto-rs/bitvec/blob/main/LICENSE.txt "Project license"
 [license_img]: https://img.shields.io/crates/l/bitvec.svg?style=for-the-badge "License badge"
-[loc]: https://github.com/bitvecto-rs/bitvec "Project repository"
-[loc_img]: https://img.shields.io/tokei/lines/github/bitvecto-rs/bitvec?category=code&style=for-the-badge "Project size"
+[msrv_img]: https://img.shields.io/badge/MSRV-1.56-f46623?style=for-the-badge&logo=rust "Minimum Supported Rust Version: 1.56"
 
 <!-- Documentation -->
 [`BitArray`]: https://docs.rs/bitvec/latest/bitvec/array/struct.BitArray.html
@@ -411,7 +408,6 @@ does, how it works, and how it can be useful to you.
 [`field`]: https://docs.rs/bitvec/latest/bitvec/field/index.html
 [`order`]: https://docs.rs/bitvec/latest/bitvec/order/index.html
 [`store`]: https://docs.rs/bitvec/latest/bitvec/store/index.html
-[layout]: https://bitvecto-rs.github.io/bitvec/memory-representation
 [prelude]: https://docs.rs/bitvec/latest/bitvec/prelude
 
 <!-- External References -->

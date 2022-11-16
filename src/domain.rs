@@ -352,6 +352,7 @@ Only `Domain<Const>` and `Domain<Mut>` are ever constructed, and they of course
 are only constructed from `&BitSlice` and `&mut BitSlice`, respectively.
 
 However, the Rust trait system does not have a way to express a closed set, so
+this has to be spelled out explicitly in the trait bounds.
 **/
 impl<'a, M, T, O> Domain<'a, M, T, O>
 where

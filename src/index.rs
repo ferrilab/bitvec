@@ -612,7 +612,7 @@ where R: BitRegister
 {
 	/// The position value of the most significant bit in an `R` element.
 	pub const MAX: Self = Self {
-		pos: R::MASK as u8,
+		pos: R::MASK,
 		_ty: PhantomData,
 	};
 	/// The position value of the least significant bit in an `R` element.
@@ -787,7 +787,7 @@ where R: BitRegister
 			sel.count_ones() == 1,
 			"Selections are required to have exactly one bit set: {:0>1$b}",
 			sel,
-			bits_of::<R>() as usize,
+			bits_of::<R>(),
 		);
 		Self { sel }
 	}
@@ -821,7 +821,7 @@ where R: BitRegister
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		write!(fmt, "{:0>1$b}", self.sel, bits_of::<R>() as usize)
+		write!(fmt, "{:0>1$b}", self.sel, bits_of::<R>())
 	}
 }
 
@@ -949,7 +949,7 @@ where R: BitRegister
 {
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-		write!(fmt, "{:0>1$b}", self.mask, bits_of::<R>() as usize)
+		write!(fmt, "{:0>1$b}", self.mask, bits_of::<R>())
 	}
 }
 
