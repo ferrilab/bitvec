@@ -208,6 +208,7 @@ where
 	type Output = <BitSlice<A::Store, O> as Index<Idx>>::Output;
 
 	#[inline]
+	#[track_caller]
 	fn index(&self, index: Idx) -> &Self::Output {
 		&self.as_bitslice()[index]
 	}
@@ -220,6 +221,7 @@ where
 	BitSlice<A::Store, O>: IndexMut<Idx>,
 {
 	#[inline]
+	#[track_caller]
 	fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
 		&mut self.as_mut_bitslice()[index]
 	}
