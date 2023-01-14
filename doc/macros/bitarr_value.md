@@ -54,6 +54,7 @@ assert_eq!(b.len(), mem::size_of::<usize>() * 8);
 let c = bitarr![u16, Lsb0; 0, 1, 0, 0, 1];
 let d = bitarr![Cell<u16>, Msb0; 1; 10];
 const E: BitArray<[u32; 1], LocalBits> = bitarr![u32, LocalBits; 1; 15];
+const T: BitArray<[usize; 1], LocalBits> = bitarr![const 0,0,1,0,1,0];
 let f = bitarr![RadiumU32, Msb0; 1; 20];
 ```
 
