@@ -1,7 +1,7 @@
 # Unified Element Constructor
 
 This type is a hack around the fact that `Cell` and `AtomicUN` all have
-`const fn new(val: Inner) -> Self;` constructors, but the numberic fundamentals
+`const fn new(val: Inner) -> Self;` constructors, but the numeric fundamentals
 do not. As such, the standard library does not provide a unified construction
 syntax to turn an integer fundamental into the final type.
 

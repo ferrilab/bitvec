@@ -3,7 +3,7 @@
 `bitvec` structures are able to de/serialize their contents using `serde`.
 Because `bitvec` is itself designed to be a transport buffer and have
 memory-efficient storage properties, the implementations are somewhat strange
-and not necessarily suitable for transport across heterogenous hosts.
+and not necessarily suitable for transport across heterogeneous hosts.
 
 `bitvec` always serializes its underlying memory storage as a sequence of raw
 memory. It also includes the necessary metadata to prevent deserialization into
@@ -62,7 +62,7 @@ the word width into the serialization stream. This will prevent roundtripping a
 the types in the source code line up.
 
 This behavior was not present in version 0, and users were able to write
-programs that incorrectly handled de/serialization when used on heterogenous
+programs that incorrectly handled de/serialization when used on heterogeneous
 systems.
 
 In addition, remember that `bitvec` serializes its data buffer *directly* as

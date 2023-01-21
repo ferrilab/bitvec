@@ -14,7 +14,7 @@ request. As this macro is only usable in type position, it is named with
 
 You must provide a bit-count; you may optionally provide a storage type, or a
 bit-ordering *and* a storage type, as subsequent arguments. When elided, the
-type parameters are set to the crate defaut type parameters of `Lsb0` and
+type parameters are set to the crate default type parameters of `Lsb0` and
 `usize`.
 
 ```rust
