@@ -395,7 +395,7 @@ does, how it works, and how it can be useful to you.
 [docs_link]: https://docs.rs/bitvec/latest/bitvec "Crate documentation"
 [docs_img]: https://img.shields.io/docsrs/bitvec/latest.svg?style=for-the-badge "Documentation badge"
 [downloads_img]: https://img.shields.io/crates/dv/bitvec.svg?style=for-the-badge "Crate downloads"
-[license_file]: https://github.com/bitvecto-rs/bitvec/blob/main/LICENSE.txt "Project license"
+[license_file]: https://github.com/ferrilab/bitvec/blob/main/LICENSE.txt "Project license"
 [license_img]: https://img.shields.io/crates/l/bitvec.svg?style=for-the-badge "License badge"
 [msrv_img]: https://img.shields.io/badge/MSRV-1.56-f46623?style=for-the-badge&logo=rust "Minimum Supported Rust Version: 1.56"
 
@@ -414,8 +414,8 @@ does, how it works, and how it can be useful to you.
 [`deku`]: https://crates.io/crates/deku
 [docsrs]: https://docs.rs/bitvec/latest/bitvec
 [erl_bit]: https://www.erlang.org/doc/programming_examples/bit_syntax.html
-[guide]: https://bitvecto-rs.github.io/bitvec/
-[issue]: https://github.com/bitvecto-rs/bitvec/issues/new
+[guide]: https://ferrilab.github.io/bitvec/
+[issue]: https://github.com/ferrilab/bitvec/issues/new
 [moz]: https://hacks.mozilla.org/2021/04/eliminating-data-races-in-firefox-a-technical-report/ "Mozilla Hacks article describing various concurrency bugs in FireFox"
 [`radium`]: https://crates.io/crates/radium
 [`std::bitset<N>`]: https://en.cppreference.com/w/cpp/utility/bitset

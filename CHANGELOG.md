@@ -373,32 +373,32 @@ from crates.io in the future.
 
 <!-- Issues -->
 
-[Issue #6]: https://github.com/bitvecto-rs/bitvec/issues/6
-[Issue #17]: https://github.com/bitvecto-rs/bitvec/issues/17
-[Issue #32]: https://github.com/bitvecto-rs/bitvec/issues/32
-[Issue #50]: https://github.com/bitvecto-rs/bitvec/issues/50
-[Issue #69]: https://github.com/bitvecto-rs/bitvec/issues/69
-[Issue #75]: https://github.com/bitvecto-rs/bitvec/issues/75
-[Issue #83]: https://github.com/bitvecto-rs/bitvec/issues/83
-[Issue #103]: https://github.com/bitvecto-rs/bitvec/issues/103
-[Issue #114]: https://github.com/bitvecto-rs/bitvec/issues/114
-[Issue #136]: https://github.com/bitvecto-rs/bitvec/issues/136
-[Issue #156]: https://github.com/bitvecto-rs/bitvec/issues/156
-[Issue #167]: https://github.com/bitvecto-rs/bitvec/issues/167
-[Issue #169]: https://github.com/bitvecto-rs/bitvec/issues/169
+[Issue #6]: https://github.com/ferrilab/bitvec/issues/6
+[Issue #17]: https://github.com/ferrilab/bitvec/issues/17
+[Issue #32]: https://github.com/ferrilab/bitvec/issues/32
+[Issue #50]: https://github.com/ferrilab/bitvec/issues/50
+[Issue #69]: https://github.com/ferrilab/bitvec/issues/69
+[Issue #75]: https://github.com/ferrilab/bitvec/issues/75
+[Issue #83]: https://github.com/ferrilab/bitvec/issues/83
+[Issue #103]: https://github.com/ferrilab/bitvec/issues/103
+[Issue #114]: https://github.com/ferrilab/bitvec/issues/114
+[Issue #136]: https://github.com/ferrilab/bitvec/issues/136
+[Issue #156]: https://github.com/ferrilab/bitvec/issues/156
+[Issue #167]: https://github.com/ferrilab/bitvec/issues/167
+[Issue #169]: https://github.com/ferrilab/bitvec/issues/169
 
 <!-- Pull Requests -->
 
-[Pull Request #34]: https://github.com/bitvecto-rs/bitvec/pull/34
-[Pull Request #68]: https://github.com/bitvecto-rs/bitvec/pull/68
-[Pull Request #104]: https://github.com/bitvecto-rs/bitvec/pull/104
-[Pull Request #160]: https://github.com/bitvecto-rs/bitvec/pull/160
-[Pull Request #162]: https://github.com/bitvecto-rs/bitvec/pull/162
-[Pull Request #185]: https://github.com/bitvecto-rs/bitvec/pull/185
+[Pull Request #34]: https://github.com/ferrilab/bitvec/pull/34
+[Pull Request #68]: https://github.com/ferrilab/bitvec/pull/68
+[Pull Request #104]: https://github.com/ferrilab/bitvec/pull/104
+[Pull Request #160]: https://github.com/ferrilab/bitvec/pull/160
+[Pull Request #162]: https://github.com/ferrilab/bitvec/pull/162
+[Pull Request #185]: https://github.com/ferrilab/bitvec/pull/185
 
 <!-- Other -->
 
 [`bit-set`]: https://crates.io/crates/bit-set
 [`sharksforarms/deku#246`]: https://github.com/sharksforarms/deku/pull/246
 [kac]: https://keepachangelog.com/en/1.0.0/
-[user guide]: https://bitvecto-rs.github.io/bitvec/
+[user guide]: https://ferrilab.github.io/bitvec/

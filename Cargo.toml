@@ -17,7 +17,7 @@ categories = [
 ]
 description = "Addresses memory by bits, for packed collections and bitfields"
 documentation = "https://docs.rs/bitvec/latest/bitvec"
-homepage = "https://bitvecto-rs.github.io/bitvec"
+homepage = "https://ferrilab.github.io/bitvec"
 include = [
 	"Cargo.toml",
 	"LICENSE.txt",
@@ -35,7 +35,7 @@ keywords = [
 ]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/bitvecto-rs/bitvec"
+repository = "https://github.com/ferrilab/bitvec"
 rust-version = "1.56"
 
 [features]
@@ -95,15 +95,15 @@ features = [
 ]
 
 [badges.codecov]
-repository = "bitvecto-rs/bitvec"
+repository = "ferrilab/bitvec"
 branch = "main"
 service = "github"
 
 [badges.is-it-maintained-issue-resolution]
-repository = "bitvecto-rs/bitvec"
+repository = "ferrilab/bitvec"
 
 [badges.is-it-maintained-open-issues]
-repository = "bitvecto-rs/bitvec"
+repository = "ferrilab/bitvec"
 
 [badges.maintenance]
 status = "passively-maintained"

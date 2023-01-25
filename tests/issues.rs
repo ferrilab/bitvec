@@ -20,7 +20,7 @@ In the future, it may be possible to revert to the original
 `<[T] as ToOwned>::to_owned` implementation, if `BitVec` becomes capable of
 partial heads without loss of pointer information.
 
-[Issue #10]: https://github.com/bitvecto-rs/bitvec/issues/10
+[Issue #10]: https://github.com/ferrilab/bitvec/issues/10
 [@overminder]: https://github.com/overminder
 **/
 #[test]
@@ -68,7 +68,7 @@ and `Vec::reserve` did not see the request amount as requiring a reällocation.
 length, which produces the correct reservation request for `Vec::reserve`,
 fixing the error.
 
-[Issue #33]: https://github.com/bitvecto-rs/bitvec/issues/33
+[Issue #33]: https://github.com/ferrilab/bitvec/issues/33
 [@jonas-schievink]: https://github.com/jonas-schievink
 **/
 #[test]
@@ -104,7 +104,7 @@ class in `bitvec`. This is the same bug class that occurred in #65, and has the
 same solution: uninitialized memory in the `BitVec` buffer is not required to be
 zeroed.
 
-[Issue #62]: https://github.com/bitvecto-rs/bitvec/issues/62
+[Issue #62]: https://github.com/ferrilab/bitvec/issues/62
 [@sharksforarms]: https://github.com/sharksforarms
 **/
 #[test]
@@ -200,7 +200,7 @@ fn issue_62() {
 This issue found the use of uninitialized memory in
 `BitVec::extend_from_bitslice` causing non-deterministic behavior.
 
-[Issue #65]: https://github.com/bitvecto-rs/bitvec/issues/65
+[Issue #65]: https://github.com/ferrilab/bitvec/issues/65
 [@inikulin]: https://github.com/inikulin
 **/
 #[test]
@@ -221,7 +221,7 @@ alarms.
 This test is only useful when run under `cargo +nightly miri test`. It asserts
 that the allocation pointer is correctly managed during drop.
 
-[Issue #10]: https://github.com/bitvecto-rs/bitvec/issues/69
+[Issue #10]: https://github.com/ferrilab/bitvec/issues/69
 [@YoshikiTakashima]: https://github.com/YoshikiTakashima
 **/
 #[test]
@@ -247,7 +247,7 @@ The overly-large scaling in computation of `.len()` caused `Rev<>`, which relies
 on a correct implementation of `.len()`, to attempt to access memory out of
 bounds inside `Iter::nth`.
 
-[Issue #77]: https://github.com/bitvecto-rs/bitvec/issues/77
+[Issue #77]: https://github.com/ferrilab/bitvec/issues/77
 [@Cryptjar]: https://github.com/Cryptjar
 **/
 #[test]
@@ -295,7 +295,7 @@ the galloping searches, but for now, this is an improvement over the existing
 behavior, so I am going to call it sufficient for the bug as reported, publish
 patches, and await further reports.
 
-[Issue #114]: https://github.com/bitvecto-rs/bitvec/issues/114
+[Issue #114]: https://github.com/ferrilab/bitvec/issues/114
 [@VilleHallivuori]: https://github.com/VilleHallivuori
 **/
 #[test]
@@ -325,7 +325,7 @@ The logic for `{leading, trailing}_{zeros, ones}` works by finding the index
 of the opposite bit. If the opposite bit does not exist, the correct behavior
 is to return the whole length of the slice, rather than 0.
 
-[Issue #120]: https://github.com/bitvecto-rs/bitvec/issues/120
+[Issue #120]: https://github.com/ferrilab/bitvec/issues/120
 [@hzuo]: https://github.com/hzuo
 **/
 #[test]
@@ -346,7 +346,7 @@ I incorrectly implemented parts of `ChunksExact`, subtracting more than was
 correct. I have repaired this by directly transcribing from the standard library
 implementation.
 
-[Issue #142]: https://github.com/bitvecto-rs/bitvec/issues/142
+[Issue #142]: https://github.com/ferrilab/bitvec/issues/142
 [@jmmaloney4]: https://github.com/jmmaloney4
 **/
 #[test]

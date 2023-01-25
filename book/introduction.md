@@ -38,5 +38,5 @@ document, and throughout the book I will periodically remind you that if a
 section is unclear, it is an error on my part, and I would appreciate an issue
 or other contact so that I can improve it.
 
-[CONTRIBUTING]: https://github.com/myrrlyn/bitvec/blob/HEAD/CONTRIBUTING.md "project contribution guide"
+[CONTRIBUTING]: https://github.com/ferrilab/bitvec/blob/HEAD/CONTRIBUTING.md "project contribution guide"
 [docs.rs]: https://docs.rs/bitvec "bitvec API documentation"

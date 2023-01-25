@@ -74,4 +74,4 @@ for each combination of `<T: BitStore, O: BitOrder>`, and may be of additional
 use when choosing a combination of type parameters and load functions.
 
 [orig]: crate::field::BitField::load_le
-[user guide]: https://bitvecto-rs.github.io/bitvec/memory-layout
+[user guide]: https://ferrilab.github.io/bitvec/memory-layout

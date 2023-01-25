@@ -2289,7 +2289,7 @@ where
 	/// assert!(sfx.len() <= 8);
 	/// ```
 	///
-	/// [layout]: https://bitvecto-rs.github.io/bitvec/memory-layout.html
+	/// [layout]: https://ferrilab.github.io/bitvec/memory-layout.html
 	#[inline]
 	pub unsafe fn align_to<U>(&self) -> (&Self, &BitSlice<U, O>, &Self)
 	where U: BitStore {
@@ -2341,7 +2341,7 @@ where
 	/// assert!(sfx.len() <= 8);
 	/// ```
 	///
-	/// [layout]: https://bitvecto-rs.github.io/bitvec/memory-layout.html
+	/// [layout]: https://ferrilab.github.io/bitvec/memory-layout.html
 	#[inline]
 	pub unsafe fn align_to_mut<U>(
 		&mut self,

@@ -10,7 +10,7 @@ compare the macros against `vec!`. While `vec!` will always be faster, because
 Original performance was 10,000x slower. Performance after the fix for #28 was
 within 20ns.
 
-[issue #28]: https://github.com/myrrlyn/bitvec/issues/28
+[issue #28]: https://github.com/ferrilab/bitvec/issues/28
 !*/
 
 #![feature(test)]

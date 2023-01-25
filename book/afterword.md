@@ -15,4 +15,4 @@ Thank you for using `bitvec`. I am delighted that other people have found my
 work both interesting and useful, and I’m glad that I’ve been able to help
 people like you write better programs.
 
-[0]: https://github.com/bitvecto-rs/bitvec/issues/new
+[0]: https://github.com/ferrilab/bitvec/issues/new

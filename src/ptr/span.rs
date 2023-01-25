@@ -211,7 +211,7 @@ where
 		let len_head = head & Self::LEN_HEAD_MASK;
 		let len_bits = bits << Self::LEN_HEAD_BITS;
 
-		/* See <https://github.com/bitvecto-rs/bitvec/issues/135#issuecomment-986357842>.
+		/* See <https://github.com/ferrilab/bitvec/issues/135#issuecomment-986357842>.
 		 * This attempts to retain inbound provenance information and may help
 		 * Miri better understand pointer operations this module performs.
 		 *
