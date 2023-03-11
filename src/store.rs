@@ -199,49 +199,49 @@ store!(usize => BitSafeUsize);
 /// Generates `BitStore` implementations for atomic types.
 macro_rules! atomic {
 	($($size:tt, $base:ty => $atom:ident);+ $(;)?) => { $(
-		radium::if_atomic!(if atomic($size) {
-			use core::sync::atomic::$atom;
+		#[cfg(target_has_atomic = $size)]
+		use core::sync::atomic::$atom;
 
-			impl BitStore for $atom {
-				type Mem = $base;
-				type Access = Self;
-				type Alias = Self;
-				type Unalias = Self;
+		#[cfg(target_has_atomic = $size)]
+		impl BitStore for $atom {
+			type Mem = $base;
+			type Access = Self;
+			type Alias = Self;
+			type Unalias = Self;
 
-				const ZERO: Self = <Self>::new(0);
+			const ZERO: Self = <Self>::new(0);
 
-				#[inline]
-				fn new(value: Self::Mem) -> Self { <Self>::new(value) }
+			#[inline]
+			fn new(value: Self::Mem) -> Self { <Self>::new(value) }
 
-				#[inline]
-				fn load_value(&self) -> Self::Mem {
-					self.load(core::sync::atomic::Ordering::Relaxed)
-				}
-
-				#[inline]
-				fn store_value(&mut self, value: Self::Mem) {
-					*self = Self::new(value);
-				}
-
-				const ALIGNED_TO_SIZE: [(); 1]
-					= [(); mem::aligned_to_size::<Self>() as usize];
-
-				const ALIAS_WIDTH: [(); 1] = [()];
+			#[inline]
+			fn load_value(&self) -> Self::Mem {
+				self.load(core::sync::atomic::Ordering::Relaxed)
 			}
-		});
+
+			#[inline]
+			fn store_value(&mut self, value: Self::Mem) {
+				*self = Self::new(value);
+			}
+
+			const ALIGNED_TO_SIZE: [(); 1]
+				= [(); mem::aligned_to_size::<Self>() as usize];
+
+			const ALIAS_WIDTH: [(); 1] = [()];
+		}
 	)+ };
 }
 
 atomic! {
-	8, u8 => AtomicU8;
-	16, u16 => AtomicU16;
-	32, u32 => AtomicU32;
+	"8", u8 => AtomicU8;
+	"16", u16 => AtomicU16;
+	"32", u32 => AtomicU32;
 }
 
 #[cfg(target_pointer_width = "64")]
-atomic!(64, u64 => AtomicU64);
+atomic!("64", u64 => AtomicU64);
 
-atomic!(size, usize => AtomicUsize);
+atomic!("ptr", usize => AtomicUsize);
 
 #[cfg(test)]
 mod tests {
@@ -265,11 +265,12 @@ mod tests {
 		cell.store_value(39);
 		assert_eq!(cell.load_value(), 39);
 
-		radium::if_atomic!(if atomic(size) {
+		#[cfg(target_has_atomic = "ptr")]
+		{
 			let mut atom = AtomicUsize::new(0);
 			atom.store_value(57);
 			assert_eq!(atom.load_value(), 57);
-		});
+		}
 	}
 
 	/// Unaliased `BitSlice`s are universally threadsafe, because they satisfy

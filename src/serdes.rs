@@ -112,36 +112,39 @@ mod tests {
 			Msb0 @ RadiumU8, RadiumU16, RadiumU32, RadiumUsize;
 			LocalBits @ RadiumU8, RadiumU16, RadiumU32, RadiumUsize;
 		}
-		radium::if_atomic! {
-			if atomic(8) {
-				check_impl! {
-					Lsb0 @ AtomicU8;
-					Msb0 @ AtomicU8;
-					LocalBits @ AtomicU8;
-				}
-			}
-			if atomic(16) {
-				check_impl! {
-					Lsb0 @ AtomicU16;
-					Msb0 @ AtomicU16;
-					LocalBits @ AtomicU16;
-				}
-			}
-			if atomic(32) {
-				check_impl! {
-					Lsb0 @ AtomicU32;
-					Msb0 @ AtomicU32;
-					LocalBits @ AtomicU32;
-				}
-			}
-			if atomic(ptr) {
-				check_impl! {
-					Lsb0 @ AtomicUsize;
-					Msb0 @ AtomicUsize;
-					LocalBits @ AtomicUsize;
-				}
+		#[cfg(target_has_atomic = "8")]
+		{
+			check_impl! {
+				Lsb0 @ AtomicU8;
+				Msb0 @ AtomicU8;
+				LocalBits @ AtomicU8;
 			}
 		}
+		#[cfg(target_has_atomic = "16")]
+		{
+			check_impl! {
+				Lsb0 @ AtomicU16;
+				Msb0 @ AtomicU16;
+				LocalBits @ AtomicU16;
+			}
+		}
+		#[cfg(target_has_atomic = "32")]
+		{
+			check_impl! {
+				Lsb0 @ AtomicU32;
+				Msb0 @ AtomicU32;
+				LocalBits @ AtomicU32;
+			}
+		}
+		#[cfg(target_has_atomic = "ptr")]
+		{
+			check_impl! {
+				Lsb0 @ AtomicUsize;
+				Msb0 @ AtomicUsize;
+				LocalBits @ AtomicUsize;
+			}
+		}
+
 		#[cfg(target_pointer_width = "64")]
 		check_impl! {
 			Lsb0 @ u64, RadiumU64;
@@ -149,12 +152,13 @@ mod tests {
 			LocalBits @ u64, RadiumU64;
 		}
 		#[cfg(target_pointer_width = "64")]
-		radium::if_atomic!(if atomic(64) {
+		#[cfg(target_has_atomic = "64")]
+		{
 			check_impl! {
 				Lsb0 @ AtomicU64;
 				Msb0 @ AtomicU64;
 				LocalBits @ AtomicU64;
 			}
-		});
+		}
 	}
 }
