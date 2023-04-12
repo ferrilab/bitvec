@@ -225,10 +225,13 @@ There are nine example slices here, but they can be reduced into six specific
 categories, and two general ones:
 
 1. empty: row 1
+1. partially-spanning tail, no body: row 2
 1. minor (interior of an element, no edge indices): row 3
-1. partially-spanning head, fully-spanning body: rows 3 and 6
-1. partially-spanning tail, fully-spanning body: rows 2 and 7
-1. major (partial head, partial tail, full body): rows 5 and 8
+1. partially-spanning head, no body: rows 4
+1. major (partial head, partial tail, no body): row 5
+1. partially-spanning head, fully-spanning body: row 6
+1. partially-spanning tail, fully-spanning body: row 7
+1. major (partial head, partial tail, full body): row 8
 1. spanning: row 9
 
 The minor slice (row 3) is irreducible; the rest can all be divided into three
