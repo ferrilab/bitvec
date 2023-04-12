@@ -21,7 +21,7 @@ same storage type.
 
 In the `0.` development series, Boolean arithmetic was implemented against all
 `I: Iterator<Item = bool>`. This allowed code such as `bits |= [false, true];`,
-but forbad acceleration in the most common use case (combining two bit-slices)
+but forbade acceleration in the most common use case (combining two bit-slices)
 because `BitSlice` is not such an iterator.
 
 Usage surveys indicate that it is better for the arithmetic operators to operate

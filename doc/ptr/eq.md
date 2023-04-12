@@ -15,7 +15,7 @@ defines pointer equality only between pointers with the same underlying
 integer types *will not* compare equal, though this function will compile and
 accept them.
 
-This cannot compare encoded span poiters. `*const BitSlice` can be used in the
+This cannot compare encoded span pointers. `*const BitSlice` can be used in the
 standard-library `ptr::eq`, and does not need an override.
 
 ## Examples
