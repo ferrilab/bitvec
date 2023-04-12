@@ -4,8 +4,10 @@
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
         <title>Memory Model - A User’s Guide to the &#x60;bitvec&#x60; Project</title>
+
+
         <!-- Custom HTML head -->
-        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        
         <meta name="description" content="A more thorough exploration of the &#x60;bitvec&#x60; project">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff" />
@@ -16,27 +18,31 @@
         <link rel="stylesheet" href="css/general.css">
         <link rel="stylesheet" href="css/chrome.css">
         <link rel="stylesheet" href="css/print.css" media="print">
+
         <!-- Fonts -->
         <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
         <link rel="stylesheet" href="fonts/fonts.css">
+
         <!-- Highlight.js Stylesheets -->
         <link rel="stylesheet" href="highlight.css">
         <link rel="stylesheet" href="tomorrow-night.css">
         <link rel="stylesheet" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
+
         <!-- MathJax -->
-        <script async type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     </head>
     <body>
+    <div id="body-container">
         <!-- Provide site root to javascript -->
-        <script type="text/javascript">
+        <script>
             var path_to_root = "";
             var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
         </script>
 
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
-        <script type="text/javascript">
+        <script>
             try {
                 var theme = localStorage.getItem('mdbook-theme');
                 var sidebar = localStorage.getItem('mdbook-sidebar');
@@ -52,7 +58,7 @@
         </script>
 
         <!-- Set the theme before any content is loaded, prevents flash -->
-        <script type="text/javascript">
+        <script>
             var theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
@@ -64,12 +70,14 @@
         </script>
 
         <!-- Hide / unhide sidebar before it is displayed -->
-        <script type="text/javascript">
+        <script>
             var html = document.querySelector('html');
-            var sidebar = 'hidden';
+            var sidebar = null;
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
             }
             html.classList.remove('sidebar-visible');
             html.classList.add("sidebar-" + sidebar);
@@ -85,7 +93,7 @@
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                <div id="menu-bar-hover-placeholder"></div>
+                                <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky bordered">
                     <div class="left-buttons">
                         <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
@@ -95,7 +103,7 @@
                             <i class="fa fa-paint-brush"></i>
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
@@ -112,6 +120,7 @@
                         <a href="print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
+
                     </div>
                 </div>
 
@@ -125,8 +134,9 @@
                         </ul>
                     </div>
                 </div>
+
                 <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
-                <script type="text/javascript">
+                <script>
                     document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
                     document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
                     Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
@@ -272,8 +282,7 @@ of the functions that eventually call <code>.split_at_unchecked_mut()</code>. Si
 the root function that introduces alias conditions, it returns subslices whose
 memory type parameters are tainted with the <code>::Alias</code> marker. It has the
 following type signature:</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>impl&lt;T, O&gt; BitSlice&lt;T, O&gt;
 where O: BitOrder, T: BitStore {
@@ -282,8 +291,7 @@ where O: BitOrder, T: BitStore {
     &amp;mut BitSlice&lt;T::Alias, O&gt;,
   );
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>The <code>BitStore</code> trait defines an <code>::Alias</code> associated type, which ensures that
 all memory accesses through it have appropriate aliasing guards. For builds
 which do not use the <code>atomic</code> feature (or where the target does not have an
@@ -294,16 +302,14 @@ all reads and writes use atomic instructions.</p>
 <code>&amp;mut BitSlice</code> references into multiple coëxisting subslices. This is a good
 first step to reducing unnecessary synchrony, but not good enough. Consider the
 following:</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use bitvec::prelude::*;
 
 let mut data = [0u8; 2];
 let bits = data.view_bits_mut::&lt;Lsb0&gt;();
 let (one, two) = data.split_at_mut(8);
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>It so happens that this is equivalent to splitting <code>data</code> first, then viewing
 each subslice as bits, but this transformation can only be done if the partition
 point is known at compile-time to fall on an element boundary. There is no need
@@ -311,22 +317,22 @@ for the subslices <code>one</code> and <code>two</code> to use alias-safe operat
 memory through them do not conflict with each other.</p>
 <h3 id="bit-slice-domains"><a class="header" href="#bit-slice-domains">Bit Slice Domains</a></h3>
 <p>The in-memory domain of any bit slice can be generalized to one of two formats:
-either the slice touches zero element edges, or it touches at least one edge
-element. Consider three bytes of memory (any element will do, but the extra
-width on this page is unnecessary), with some bitslice regions drawn within
-them:</p>
-<pre><code class="language-text">|00000000│11111111│22222222|
-|76543210│76543210│76543210│
+either the slice touches zero edge-bits (<code>0</code> or <code>T::BITS - 1</code>), or it touches at
+edge-bit in at least one element. Consider three bytes of memory (any element
+will do, but the extra width on this page is unnecessary), with some bitslice
+regions drawn within them:</p>
+<pre><code class="language-text">|00000000│11111111│22222222| Element
+|76543210│76543210│76543210│ Bit
 ├────────┼────────┼────────┤
-│        │        │        │ 1
-│        ╞════╡   │        │ 2
-│        │ ╞════╡ │        │ 3
-│        │   ╞════╡        │ 4
-│    ╞═══╪════╡   │        │ 5
-│    ╞═══╪════════╡        │ 6
-│        ╞════════╪═══╡    │ 7
-│    ╞═══╪════════╪═══╡    │ 8
-╞════════╪════════╪════════╡ 9
+┆        ┆        ┆        ┆ 1
+┆        ╞═════╡  ┆        ┆ 2
+┆        ┆ ╞════╡ ┆        ┆ 3
+┆        ┆  ╞═════╡        ┆ 4
+┆   ╞═════════╡   ┆        ┆ 5
+┆    ╞════════════╡        ┆ 6
+┆        ╞═════════════╡   ┆ 7
+┆     ╞═════════════════╡  ┆ 8
+╞══════════════════════════╡ 9
 </code></pre>
 <p>There are nine example slices here, but they can be reduced into six specific
 categories, and two general ones:</p>
@@ -349,7 +355,7 @@ indices in each</li>
 index in it but not the last</li>
 </ul>
 <p>We can break each row down into these components:</p>
-<table><thead><tr><th style="text-align: center">Row</th><th style="text-align: center">Head</th><th style="text-align: center">Body</th><th style="text-align: center">Tail</th></tr></thead><tbody>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: center">Row</th><th style="text-align: center">Head</th><th style="text-align: center">Body</th><th style="text-align: center">Tail</th></tr></thead><tbody>
 <tr><td style="text-align: center">1</td><td style="text-align: center">None</td><td style="text-align: center">0</td><td style="text-align: center">None</td></tr>
 <tr><td style="text-align: center">2</td><td style="text-align: center">None</td><td style="text-align: center">0</td><td style="text-align: center">Some</td></tr>
 <tr><td style="text-align: center">4</td><td style="text-align: center">Some</td><td style="text-align: center">0</td><td style="text-align: center">None</td></tr>
@@ -359,6 +365,7 @@ index in it but not the last</li>
 <tr><td style="text-align: center">8</td><td style="text-align: center">Some</td><td style="text-align: center">1</td><td style="text-align: center">Some</td></tr>
 <tr><td style="text-align: center">9</td><td style="text-align: center">None</td><td style="text-align: center">3</td><td style="text-align: center">None</td></tr>
 </tbody></table>
+</div>
 <p>We can observe that where a slice fully-spans some elements, those elements
 cannot be mutated by any other reference. In the <code>&amp;BitSlice</code> case, all <code>&amp;mut</code>s
 are forbidden by the compiler’s ordinary rules; in the <code>&amp;mut BitSlice</code> case,
@@ -376,8 +383,7 @@ the starting bit index, and the bit count.</p>
 <h3 id="bitdomain"><a class="header" href="#bitdomain"><code>BitDomain</code></a></h3>
 <p>This enum splits any <code>BitSlice</code> region into its subcomponents, immutably or
 mutably, respectively. It has the (rough) definition</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub enum BitDomain&lt;'a, M, T, O&gt;
 where
@@ -392,8 +398,7 @@ where
     tail: &amp;'a /* mut */ BitSlice&lt;T, O&gt;,
   },
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>and, rather than granting direct memory access, merely removes any aliasing
 markers from as much memory as possible. The subslices that partially fill their
 base element do not need to add an additional aliasing marker, as the marker is
@@ -408,8 +413,7 @@ backing memory. For operations where raw memory access is required, this enum
 produces the same domain definitions, but typed for the bare elements rather
 than their bits.</p>
 <p>It has the (rough) definition</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub enum Domain&lt;'a, M, T&gt;
 where
@@ -423,8 +427,7 @@ where
     tail: Option&lt;PartialElement&lt;&amp;'a T&gt;&gt;,
   },
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>(The <code>PartialElement</code> type prevents accessing bits that do not belong to the
 originating <code>BitSlice</code>.)</p>
 <p>As with the bit domains, these domains will inherit any aliasing markers from
@@ -528,9 +531,11 @@ inability to remove redundant reads.</p>
                             <a rel="prev" href="memory-representation.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
+
                             <a rel="next" href="pointer-encoding.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
+
                         <div style="clear: both"></div>
                     </nav>
                 </div>
@@ -540,6 +545,7 @@ inability to remove redundant reads.</p>
                     <a rel="prev" href="memory-representation.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
+
                     <a rel="next" href="pointer-encoding.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
@@ -547,16 +553,25 @@ inability to remove redundant reads.</p>
 
         </div>
 
-        <script type="text/javascript">
+
+
+
+        <script>
             window.playground_copyable = true;
         </script>
-        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
-        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
-        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
 
         <!-- Custom JS scripts -->
+
+
+    </div>
     </body>
 </html>

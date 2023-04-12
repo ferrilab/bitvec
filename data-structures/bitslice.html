@@ -4,8 +4,10 @@
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
         <title>BitSlice - A User’s Guide to the &#x60;bitvec&#x60; Project</title>
+
+
         <!-- Custom HTML head -->
-        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        
         <meta name="description" content="A more thorough exploration of the &#x60;bitvec&#x60; project">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff" />
@@ -16,27 +18,31 @@
         <link rel="stylesheet" href="../css/general.css">
         <link rel="stylesheet" href="../css/chrome.css">
         <link rel="stylesheet" href="../css/print.css" media="print">
+
         <!-- Fonts -->
         <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
         <link rel="stylesheet" href="../fonts/fonts.css">
+
         <!-- Highlight.js Stylesheets -->
         <link rel="stylesheet" href="../highlight.css">
         <link rel="stylesheet" href="../tomorrow-night.css">
         <link rel="stylesheet" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
+
         <!-- MathJax -->
-        <script async type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     </head>
     <body>
+    <div id="body-container">
         <!-- Provide site root to javascript -->
-        <script type="text/javascript">
+        <script>
             var path_to_root = "../";
             var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
         </script>
 
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
-        <script type="text/javascript">
+        <script>
             try {
                 var theme = localStorage.getItem('mdbook-theme');
                 var sidebar = localStorage.getItem('mdbook-sidebar');
@@ -52,7 +58,7 @@
         </script>
 
         <!-- Set the theme before any content is loaded, prevents flash -->
-        <script type="text/javascript">
+        <script>
             var theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
@@ -64,12 +70,14 @@
         </script>
 
         <!-- Hide / unhide sidebar before it is displayed -->
-        <script type="text/javascript">
+        <script>
             var html = document.querySelector('html');
-            var sidebar = 'hidden';
+            var sidebar = null;
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
             }
             html.classList.remove('sidebar-visible');
             html.classList.add("sidebar-" + sidebar);
@@ -85,7 +93,7 @@
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                <div id="menu-bar-hover-placeholder"></div>
+                                <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky bordered">
                     <div class="left-buttons">
                         <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
@@ -95,7 +103,7 @@
                             <i class="fa fa-paint-brush"></i>
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
@@ -112,6 +120,7 @@
                         <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
+
                     </div>
                 </div>
 
@@ -125,8 +134,9 @@
                         </ul>
                     </div>
                 </div>
+
                 <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
-                <script type="text/javascript">
+                <script>
                     document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
                     document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
                     Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
@@ -187,8 +197,7 @@ wrappers or atomic variants; this will be discussed later).</p>
 <p>The simplest way to create a <code>BitSlice</code> reference is to borrow it from ordinary
 Rust data. The <a href="https://docs.rs/bitvec/latest/bitvec/view/trait.BitView.html"><code>BitView</code></a> trait, available in the <a href="https://docs.rs/bitvec/latest/bitvec/prelude">prelude</a>, implements methods
 on the supported unsigned integers, all arrays of them, and their slices.</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use bitvec::prelude::*;
 
@@ -201,8 +210,7 @@ let bits = array.view_bits::&lt;Lsb0&gt;();
 let mut array = [0u32; 3];
 let slice = &amp;mut array[..];
 let bits = slice.view_bits_mut::&lt;Msb0&gt;();
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>The <code>.view_bits()</code> and <code>.view_bits_mut()</code> methods take the other type parameter
 <code>bitvec</code> requires. This is described in the <a href="../type-parameters/bitorder.html"><code>BitOrder</code> chapter</a>. Use <code>Lsb0</code>
 until you have a specific need for a more precise parameter.</p>
@@ -228,8 +236,7 @@ safe to use even when <code>mut</code>able, as the provided reference is the onl
 it.</p>
 <p>The macro syntax extends that of <code>vec!</code>. The simplest invocations are sequences
 or repetitions of expressions, which can optionally be made <code>mut</code>able:</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use bitvec::prelude::*;
 
@@ -238,8 +245,7 @@ let w = bits![mut 0, 1, 0, 1];
 
 let r2 = bits![static 1; 4];
 let w2 = bits![static mut 1; 4];
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <blockquote>
 <p>You are not required to use the literals <code>0</code> or <code>1</code>; you can use any
 expression  that is <code>const</code>-evaluable and can be placed into the expression
@@ -251,16 +257,14 @@ probably do not want to do this, but you <em>can</em>.</p>
 parameter, for even more precise control over the memory layout. If you do not
 specify them, the macro uses the default parameters of <code>usize</code> storage and
 <code>Lsb0</code> ordering.</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use bitvec::prelude::*;
 
 let in_bytes = bits![u8, LocalBits; 0, 1, 0, 1];
 let in_shorts = bits![u16, Lsb0; 0, 1, 0, 1];
 let in_ints = bits![mut u32, Msb0; 0; 4];
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>To summarize the macro rules:</p>
 <ul>
 <li>If the first macro argument is <code>mut</code>, then the macro produces <code>&amp;mut BitSlice</code>,
@@ -304,11 +308,12 @@ inherent methods tailored to its specialization.</p>
 <p>The five query methods <code>.any()</code>, <code>.all()</code>, <code>.not_any()</code>, <code>.not_all()</code>, and
 <code>.some()</code> test how many bits in a region are set to <code>1</code>. As you can guess from
 the names, these methods have the following truth table:</p>
-<table><thead><tr><th style="text-align: center">Slice</th><th style="text-align: center"><code>any</code></th><th style="text-align: center"><code>all</code></th><th style="text-align: center"><code>not_any</code></th><th style="text-align: center"><code>not_all</code></th><th style="text-align: center"><code>some</code></th></tr></thead><tbody>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: center">Slice</th><th style="text-align: center"><code>any</code></th><th style="text-align: center"><code>all</code></th><th style="text-align: center"><code>not_any</code></th><th style="text-align: center"><code>not_all</code></th><th style="text-align: center"><code>some</code></th></tr></thead><tbody>
 <tr><td style="text-align: center"><code>00</code></td><td style="text-align: center"><code>false</code></td><td style="text-align: center"><code>false</code></td><td style="text-align: center"><code>true</code></td><td style="text-align: center"><code>true</code></td><td style="text-align: center"><code>false</code></td></tr>
 <tr><td style="text-align: center"><code>01</code></td><td style="text-align: center"><code>true</code></td><td style="text-align: center"><code>false</code></td><td style="text-align: center"><code>false</code></td><td style="text-align: center"><code>true</code></td><td style="text-align: center"><code>true</code></td></tr>
 <tr><td style="text-align: center"><code>11</code></td><td style="text-align: center"><code>true</code></td><td style="text-align: center"><code>true</code></td><td style="text-align: center"><code>false</code></td><td style="text-align: center"><code>false</code></td><td style="text-align: center"><code>false</code></td></tr>
 </tbody></table>
+</div>
 <p><code>any</code> is the Boolean OR operator; <code>all</code> is the Boolean AND operator, and <code>some</code>
 is the Boolean XOR operator.</p>
 <p>In addition, <code>.count_ones()</code> and <code>.count_zeros()</code> count how many bits of the
@@ -327,8 +332,7 @@ changed for performance reasons, since people never used the arbitrary
 iterator support but did require improved behavior when operating on two
 bit-slices.</p>
 </blockquote>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use bitvec::prelude::*;
 
@@ -347,15 +351,13 @@ assert_eq!(xor, bits![    0, 1, 1, 0]);
 let mut not = bits![mut 0, 1];
         not = !not;
 assert_eq!(not, bits![  1, 0]);
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <h3 id="writing-to-memory"><a class="header" href="#writing-to-memory">Writing To Memory</a></h3>
 <p>You can set all bits in a region to a new value by using the <code>.fill()</code> method,
 or you can set one bit in a region to a new value by using either the <code>.set</code> or
 <code>.get_mut</code> methods. <code>.get_mut</code> produces a proxy type which acts roughly like an
 <code>&amp;mut bool</code> reference slot.</p>
-<pre><pre class="playground"><code class="language-rust">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use bitvec::prelude::*;
 
@@ -377,8 +379,7 @@ assert!(!bit);
 assert!(bits[3]);
 
 assert!(bits.all());
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>The proxy type produced by <code>.get_mut()</code> implements <code>DerefMut&lt;Target = bool&gt;</code>, so
 you can assign into it and read out of it. However, it does not commit the value
 assigned into it back to its source <code>BitSlice</code> until it <code>Drop</code>s.</p>
@@ -411,9 +412,11 @@ mentioning this exception.</p>
                             <a rel="prev" href="../data-structures.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
+
                             <a rel="next" href="../data-structures/bitarray.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
+
                         <div style="clear: both"></div>
                     </nav>
                 </div>
@@ -423,6 +426,7 @@ mentioning this exception.</p>
                     <a rel="prev" href="../data-structures.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
+
                     <a rel="next" href="../data-structures/bitarray.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
@@ -430,16 +434,25 @@ mentioning this exception.</p>
 
         </div>
 
-        <script type="text/javascript">
+
+
+
+        <script>
             window.playground_copyable = true;
         </script>
-        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
 
         <!-- Custom JS scripts -->
+
+
+    </div>
     </body>
 </html>
