@@ -2589,17 +2589,22 @@ where
 	}
 
 	#[inline]
+	#[track_caller]
 	fn index(self, bits: &'a BitSlice<T, O>) -> Self::Immut {
-		self.get(bits).unwrap_or_else(|| {
-			panic!("index {} out of bounds: {}", self, bits.len())
-		})
+		match self.get(bits) {
+			Some(b) => b,
+			None => panic!("index {} out of bounds: {}", self, bits.len())
+		}
 	}
 
 	#[inline]
+	#[track_caller]
 	fn index_mut(self, bits: &'a mut BitSlice<T, O>) -> Self::Mut {
 		let len = bits.len();
-		self.get_mut(bits)
-			.unwrap_or_else(|| panic!("index {} out of bounds: {}", self, len))
+		match self.get_mut(bits) {
+			Some(b) => b,
+			None => panic!("index {} out of bounds: {}", self, len),
+		}
 	}
 }
 
@@ -2660,9 +2665,10 @@ macro_rules! range_impl {
 			fn index(self, bits: Self::Immut) -> Self::Immut {
 				let r = self.clone();
 				let l = bits.len();
-				self.get(bits).unwrap_or_else(|| {
-					panic!("range {:?} out of bounds: {}", r, l)
-				})
+				match self.get(bits) {
+					Some(b) => b,
+					None => panic!("range {:?} out of bounds: {}", r, l),
+				}
 			}
 
 			#[inline]
@@ -2670,9 +2676,10 @@ macro_rules! range_impl {
 			fn index_mut(self, bits: Self::Mut) -> Self::Mut {
 				let r = self.clone();
 				let l = bits.len();
-				self.get_mut(bits).unwrap_or_else(|| {
-					panic!("range {:?} out of bounds: {}", r, l)
-				})
+				match self.get_mut(bits) {
+					Some(b) => b,
+					None => panic!("range {:?} out of bounds: {}", r, l),
+				}
 			}
 		}
 	};

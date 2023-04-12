@@ -155,6 +155,7 @@ where
 	/// bits[1]; // --------^
 	/// ```
 	#[inline]
+	#[track_caller]
 	fn index(&self, index: usize) -> &Self::Output {
 		match *index.index(self) {
 			true => &true,
