@@ -338,10 +338,13 @@ regions drawn within them:</p>
 categories, and two general ones:</p>
 <ol>
 <li>empty: row 1</li>
+<li>partially-spanning tail, no body: row 2</li>
 <li>minor (interior of an element, no edge indices): row 3</li>
-<li>partially-spanning head, fully-spanning body: rows 3 and 6</li>
-<li>partially-spanning tail, fully-spanning body: rows 2 and 7</li>
-<li>major (partial head, partial tail, full body): rows 5 and 8</li>
+<li>partially-spanning head, no body: rows 4</li>
+<li>major (partial head, partial tail, no body): row 5</li>
+<li>partially-spanning head, fully-spanning body: row 6</li>
+<li>partially-spanning tail, fully-spanning body: row 7</li>
+<li>major (partial head, partial tail, full body): row 8</li>
 <li>spanning: row 9</li>
 </ol>
 <p>The minor slice (row 3) is irreducible; the rest can all be divided into three
