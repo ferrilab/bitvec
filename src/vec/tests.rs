@@ -79,3 +79,19 @@ fn misc() {
 
 	assert_eq!(!bitvec![0, 1], bits![1, 0]);
 }
+
+#[test]
+fn bitvec_order() {
+	let k = bitvec![0, 1, 0, 1];
+	let r = bitvec![1, 0, 0, 0];
+	let k_slice = &k[..];
+	let r_slice = &r[..];
+	assert!(r > k);
+	assert!(k < r);
+	assert!(r_slice > k_slice);
+	assert!(k_slice < r_slice);
+	assert!(r_slice > k);
+	assert!(k < r_slice);
+	assert!(k_slice < r);
+	assert!(r > k_slice);
+}
