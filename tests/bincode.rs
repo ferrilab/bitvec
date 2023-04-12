@@ -15,7 +15,7 @@ format, but only if its data buffer can be reconstituted from the slice model.
 
 `bitvec` does not guarantee cross-version serialization format compatibility.
 
-[Issue #96]: https://github.com/bitvecto-rs/bitvec/issues/96
+[Issue #96]: https://github.com/ferrilab/bitvec/issues/96
 !*/
 
 #![cfg(feature = "serde")]

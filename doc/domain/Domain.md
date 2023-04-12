@@ -58,6 +58,6 @@ stored value (with all ungoverned bits cleared to 0), and a `.store_value()`
 that writes into its governed bits. If present, the fully-occupied slice can be
 used as normal.
 
-[0]: https://github.com/bitvecto-rs/bitvec/issues/new
+[0]: https://github.com/ferrilab/bitvec/issues/new
 [`PartialElement`]: crate::domain::PartialElement
 [`PartialElement::load_value`]: crate::domain::PartialElement::load_value

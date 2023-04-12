@@ -161,7 +161,7 @@ to view its contents. You can accomplish this through safe APIs such as
 initialize the memory elements underlying the `BitVec` buffer without incurring
 undefined behavior in their operation.
 
-[book]: https://bitvecto-rs.github.io/bitvec/type-parameters.html
+[book]: https://ferrilab.github.io/bitvec/type-parameters.html
 [`BitAccess`]: crate::access::BitAccess
 [`BitArray`]: crate::array::BitArray
 [`BitField`]: crate::field::BitField

@@ -10,4 +10,4 @@ This is the default type parameter used throughout the crate. If you do not have
 a desired memory representation, you should continue to use it, as it provides
 the best codegen for bit manipulation.
 
-[0]: https://bitvecto-rs.github.io/bitvec/memory-representation
+[0]: https://ferrilab.github.io/bitvec/memory-representation
