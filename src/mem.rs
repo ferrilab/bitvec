@@ -101,30 +101,30 @@ macro_rules! element {
 			}
 		}
 
-		radium::if_atomic!( if atomic($size) {
-			use core::sync::atomic::$atom;
-			impl BitElement<$atom> {
-				/// Creates a new element wrapper from a raw integer.
-				pub const fn new(elem: $bare) -> Self {
-					Self {
-						elem: <$atom>::new(elem),
-					}
+		#[cfg(target_has_atomic = $size)]
+		use core::sync::atomic::$atom;
+		#[cfg(target_has_atomic = $size)]
+		impl BitElement<$atom> {
+			/// Creates a new element wrapper from a raw integer.
+			pub const fn new(elem: $bare) -> Self {
+				Self {
+					elem: <$atom>::new(elem),
 				}
 			}
-		});
+		}
 	)+ };
 }
 
 element! {
-	8, u8 => AtomicU8;
-	16, u16 => AtomicU16;
-	32, u32 => AtomicU32;
+	"8", u8 => AtomicU8;
+	"16", u16 => AtomicU16;
+	"32", u32 => AtomicU32;
 }
 
 #[cfg(target_pointer_width = "64")]
-element!(64, u64 => AtomicU64);
+element!("64", u64 => AtomicU64);
 
-element!(size, usize => AtomicUsize);
+element!("ptr", usize => AtomicUsize);
 
 #[cfg(test)]
 mod tests {
