@@ -614,11 +614,11 @@ group!(Windows => &'a BitSlice<T, O> {
 			self.slice = Default::default();
 			return None;
 		}
-		unsafe {
-			let out = self.slice.get_unchecked(.. self.width);
-			self.slice = self.slice.get_unchecked(1 ..);
+		
+			let out = unsafe { self.slice.get_unchecked(.. self.width) };
+			self.slice = unsafe { self.slice.get_unchecked(1 ..) };
 			Some(out)
-		}
+		
 	}
 
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
@@ -627,11 +627,11 @@ group!(Windows => &'a BitSlice<T, O> {
 			self.slice = Default::default();
 			return None;
 		}
-		unsafe {
-			let out = self.slice.get_unchecked(n .. end);
-			self.slice = self.slice.get_unchecked(n + 1 ..);
+		
+			let out = unsafe { self.slice.get_unchecked(n .. end) };
+			self.slice = unsafe { self.slice.get_unchecked(n + 1 ..) };
 			Some(out)
-		}
+		
 	}
 
 	fn next_back(&mut self) -> Option<Self::Item> {
@@ -640,11 +640,11 @@ group!(Windows => &'a BitSlice<T, O> {
 			self.slice = Default::default();
 			return None;
 		}
-		unsafe {
-			let out = self.slice.get_unchecked(len - self.width ..);
-			self.slice = self.slice.get_unchecked(.. len - 1);
+		
+			let out = unsafe { self.slice.get_unchecked(len - self.width ..) };
+			self.slice = unsafe { self.slice.get_unchecked(.. len - 1) };
 			Some(out)
-		}
+		
 	}
 
 	fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
@@ -653,11 +653,11 @@ group!(Windows => &'a BitSlice<T, O> {
 			self.slice = Default::default();
 			return None;
 		}
-		unsafe {
-			let out = self.slice.get_unchecked(end - self.width .. end);
-			self.slice = self.slice.get_unchecked(.. end - 1);
+		
+			let out = unsafe { self.slice.get_unchecked(end - self.width .. end) };
+			self.slice = unsafe { self.slice.get_unchecked(.. end - 1) };
 			Some(out)
-		}
+		
 	}
 
 	fn len(&self) -> usize {
@@ -706,11 +706,11 @@ group!(Chunks => &'a BitSlice<T, O> {
 		let split = start.checked_add(self.width)
 			.map(|mid| cmp::min(mid, len))
 			.unwrap_or(len);
-		unsafe {
-			let (head, rest) = self.slice.split_at_unchecked(split);
+		
+			let (head, rest) = unsafe { self.slice.split_at_unchecked(split) };
 			self.slice = rest;
-			Some(head.get_unchecked(start ..))
-		}
+			Some(unsafe { head.get_unchecked(start ..) })
+		
 	}
 
 	fn next_back(&mut self) -> Option<Self::Item> {
@@ -1642,9 +1642,9 @@ split!(Split => &'a BitSlice<T, O> {
 			.position(|(idx, bit)| (self.pred)(idx, bit))
 		{
 			None => self.finish(),
-			Some(idx) => unsafe {
-				let out = self.slice.get_unchecked(.. idx);
-				self.slice = self.slice.get_unchecked(idx + 1 ..);
+			Some(idx) => {
+				let out = unsafe { self.slice.get_unchecked(.. idx) };
+				self.slice = unsafe { self.slice.get_unchecked(idx + 1 ..) };
 				Some(out)
 			},
 		}
@@ -1661,9 +1661,9 @@ split!(Split => &'a BitSlice<T, O> {
 			.rposition(|(idx, bit)| (self.pred)(idx, bit))
 		{
 			None => self.finish(),
-			Some(idx) => unsafe {
-				let out = self.slice.get_unchecked(idx + 1 ..);
-				self.slice = self.slice.get_unchecked(.. idx);
+			Some(idx) => {
+				let out = unsafe { self.slice.get_unchecked(idx + 1 ..) };
+				self.slice = unsafe { self.slice.get_unchecked(.. idx) };
 				Some(out)
 			},
 		}
@@ -1701,10 +1701,10 @@ split!(SplitMut => &'a mut BitSlice<T::Alias, O> {
 		match idx_opt
 		{
 			None => self.finish(),
-			Some(idx) => unsafe {
+			Some(idx) => {
 				let slice = mem::take(&mut self.slice);
-				let (out, rest) = slice.split_at_unchecked_mut_noalias(idx);
-				self.slice = rest.get_unchecked_mut(1 ..);
+				let (out, rest) = unsafe { slice.split_at_unchecked_mut_noalias(idx) };
+				self.slice = unsafe { rest.get_unchecked_mut(1 ..) };
 				Some(out)
 			},
 		}
@@ -1725,11 +1725,11 @@ split!(SplitMut => &'a mut BitSlice<T::Alias, O> {
 		match idx_opt
 		{
 			None => self.finish(),
-			Some(idx) => unsafe {
+			Some(idx) => {
 				let slice = mem::take(&mut self.slice);
-				let (rest, out) = slice.split_at_unchecked_mut_noalias(idx);
+				let (rest, out) = unsafe { slice.split_at_unchecked_mut_noalias(idx) };
 				self.slice = rest;
-				Some(out.get_unchecked_mut(1 ..))
+				Some(unsafe { out.get_unchecked_mut(1 ..) })
 			},
 		}
 	}
