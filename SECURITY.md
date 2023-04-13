@@ -30,7 +30,7 @@ It *should* be unaffected by other classes of vulnerability.
 
 Any incorrect behavior found when operating on a `bitvec` data structure that
 has not been modified or tampered with by the user is a fault in `bitvec`, and
-should be reported. However, `bitvec` does not, and cannot, proäctively defend
+should be reported. However, `bitvec` does not, and cannot, proactively defend
 against adversarial modification of the objects it gives to users. Incorrect
 modification of objects later passed in to `bitvec` *will* crash your system,
 and this is *not* a bug in `bitvec`.

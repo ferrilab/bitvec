@@ -129,7 +129,7 @@ To summarize the macro rules:
 
 - If the first macro argument is `mut`, then the macro produces `&mut BitSlice`,
   otherwise it produces `&BitSlice`. You do not need to bind the name as `mut`
-  unless you want to reässign it to a different slice.
+  unless you want to reassign it to a different slice.
 - You may then optionally provide the storage and ordering type parameters,
   followed by a semicolon. If you choose to add type parameters:
   - You *must* provide the bit-ordering parameter.

@@ -6,6 +6,6 @@ In the standard library, this iterator is defined under `alloc::vec`, not
 to its boxed value.
 
 It is moved here for simplicity: both `BitBox` and `BitVec` iterate over a
-dynamic bit-slice by value, and must deällocate the region when dropped. As
+dynamic bit-slice by value, and must deallocate the region when dropped. As
 `BitBox` has a smaller value than `BitVec`, it is used as the owning handle for
 the bit-slice being iterated.

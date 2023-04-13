@@ -2270,7 +2270,7 @@ where
 	/// You may not use this to cast away alias protections. Rust does not have
 	/// support for higher-kinded types, so this cannot express the relation
 	/// `Outer<T> -> Outer<U> where Outer: BitStoreContainer`, but memory safety
-	/// does require that you respect this rule. Reälign integers to integers,
+	/// does require that you respect this rule. Realign integers to integers,
 	/// `Cell`s to `Cell`s, and atomics to atomics, but do not cross these
 	/// boundaries.
 	///
@@ -2322,7 +2322,7 @@ where
 	/// You may not use this to cast away alias protections. Rust does not have
 	/// support for higher-kinded types, so this cannot express the relation
 	/// `Outer<T> -> Outer<U> where Outer: BitStoreContainer`, but memory safety
-	/// does require that you respect this rule. Reälign integers to integers,
+	/// does require that you respect this rule. Realign integers to integers,
 	/// `Cell`s to `Cell`s, and atomics to atomics, but do not cross these
 	/// boundaries.
 	///

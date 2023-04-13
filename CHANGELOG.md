@@ -211,7 +211,7 @@ from crates.io in the future.
 - Fixed an incomplete change of default type parameters from `LocalBits` to
   `Lsb0`.
 - Introduced the `BitStore::Alias` system for coöperative mutation.
-- Reärranged the view conversion traits, creating `BitView` alongside `AsBits`
+- Rearranged the view conversion traits, creating `BitView` alongside `AsBits`
   and `AsBitsMut`.
 - Greatly improved cross-compile testing with a CI suite by [@AlexHuszagh].
 - Removed numeric arithmetic, per [Issue #17] (by me) and [Issue #50] by GitHub
@@ -237,7 +237,7 @@ from crates.io in the future.
 - Fixed [Issue #40] with [Pull Request #41], both provided by GitHub user
   [@ImmemorConsultrixContrarie].
 - Fixed [Issue #43], reported by GitHub users [@AlexHuszagh] and [@obeah].
-- Fixed an improper deällocation, per [Issue #55] reported by GitHub user
+- Fixed an improper deallocation, per [Issue #55] reported by GitHub user
   [@kulp].
 
 ### 0.16
@@ -249,14 +249,14 @@ from crates.io in the future.
 - Changed default type parameters to `<Local, Word>`.
 - Created the `index` module, reducing runtime assertions.
 - Fixed [Issue #33], reported by GitHub sure [@jonas-schievink], which addressed
-  incorrect reällocation in `BitVec::reserve`.
+  incorrect reallocation in `BitVec::reserve`.
 - Updated `radium` dependency to `0.3`, fixing [Issue #36] reported by GitHub
   user [@lynaghk].
 
 ### 0.15
 
 - Raised MSRV to `1.36`.
-- Reärranged the feature set to use the now-available `extern crate alloc;`.
+- Rearranged the feature set to use the now-available `extern crate alloc;`.
 - Conditionally remove `Send` from `BitSlice`.
 - Improve the `bitvec!` repetition constructor, as reported in [Issue #28] by
   GitHub user [@caelunshun].

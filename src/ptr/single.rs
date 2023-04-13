@@ -897,7 +897,7 @@ where
 	///
 	/// ## Safety
 	///
-	/// There are no guarantees whatsoëver that offsetting the bit-pointer will
+	/// There are no guarantees whatsoever that offsetting the bit-pointer will
 	/// not overflow or go beyond the allocation that the bit-pointer selects.
 	/// It is up to the caller to ensure that the returned offset is correct in
 	/// all terms other than alignment.

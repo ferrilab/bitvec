@@ -66,7 +66,7 @@ where
 	/// Consumes the bit-box, returning a raw bit-slice pointer.
 	///
 	/// Bit-slice pointers are always correctly encoded and non-null. The
-	/// referent region is dereferenceäble *as a `BitSlice` for the remainder of
+	/// referent region is dereferenceable *as a `BitSlice` for the remainder of
 	/// the program, or until it is first passed to [`::from_raw()`], whichever
 	/// comes first. Once the pointer is first passed to `::from_raw()`, all
 	/// copies of that pointer become invalid to dereference.
@@ -85,7 +85,7 @@ where
 	/// let bb = unsafe { BitBox::from_raw(ptr) };
 	/// ```
 	///
-	/// You **may not** deällocate pointers produced by this function through
+	/// You **may not** deallocate pointers produced by this function through
 	/// any other means.
 	///
 	/// [`::from_raw()`]: Self::from_raw

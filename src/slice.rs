@@ -73,7 +73,7 @@ where
 	/// slice type here (such as `[u8]` or `[T]`) would require that `&/mut
 	/// BitSlice` handles have values that correctly describe the region, and
 	/// the encoding *does not* do this. As such, reference handles to
-	/// `BitSlice` must not be even implicitly dereferenceäble to real memory,
+	/// `BitSlice` must not be even implicitly dereferenceable to real memory,
 	/// and the slice must be a ZST.
 	///
 	/// References to a ZST have no restrictions about what the values can be,
