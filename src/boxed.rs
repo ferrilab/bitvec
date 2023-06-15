@@ -111,6 +111,7 @@ where
 	/// assert_eq!(addr, bb.as_raw_slice().as_ptr());
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn from_boxed_slice(boxed: Box<[T]>) -> Self {
 		Self::try_from_boxed_slice(boxed)
 			.expect("slice was too long to be converted into a `BitBox`")

@@ -175,6 +175,7 @@ where
 	/// assert_eq!(bv.len(), 32);
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn from_slice(slice: &[T]) -> Self {
 		Self::try_from_slice(slice).unwrap()
 	}
@@ -218,6 +219,7 @@ where
 	/// assert_eq!(bv.len(), 32);
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn from_vec(vec: Vec<T>) -> Self {
 		Self::try_from_vec(vec)
 			.expect("vector was too long to be converted into a `BitVec`")
@@ -592,6 +594,7 @@ where
 	///
 	/// This panics if `len` is too large to encode into a `BitSpan`.
 	#[inline]
+	#[track_caller]
 	fn assert_len_encodable(len: usize) {
 		assert!(
 			BitSpan::<Const, T, O>::len_encodable(len),
@@ -618,6 +621,7 @@ where
 	/// extended with zero-initialized elements until `self.len() + additional`
 	/// bits have been given initialized memory.
 	#[inline]
+	#[track_caller]
 	fn do_reservation(
 		&mut self,
 		additional: usize,

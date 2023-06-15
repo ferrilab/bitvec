@@ -921,6 +921,7 @@ where
 	/// [`.add()`]: Self::add
 	/// [`.wrapping_add()`]: Self::wrapping_add
 	#[inline]
+	#[track_caller]
 	pub fn align_offset(self, align: usize) -> usize {
 		let width = mem::bits_of::<T::Mem>();
 		match (
