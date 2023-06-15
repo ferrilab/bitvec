@@ -76,6 +76,10 @@ where
 
 	/// Creates a new bit-vector by repeating a bit for the desired length.
 	///
+	/// ## Panics
+	///
+	/// This method panics if `len` exceeds the `BitVec` capacity.
+	///
 	/// ## Examples
 	///
 	/// ```rust
@@ -85,6 +89,7 @@ where
 	/// let ones = BitVec::<u16, Lsb0>::repeat(true, 50);
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn repeat(bit: bool, len: usize) -> Self {
 		let mut out = Self::with_capacity(len);
 		unsafe {
