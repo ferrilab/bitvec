@@ -521,6 +521,7 @@ where
 
 This panics if `len` is not in `1 ..= U::BITS`.
 **/
+#[track_caller]
 fn check<I>(action: &'static str, len: usize)
 where I: Integral {
 	assert!(

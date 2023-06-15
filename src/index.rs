@@ -355,6 +355,7 @@ where R: BitRegister
 	/// ## Panics
 	///
 	/// Debug builds panic when `err` is a valid index for `R`.
+	#[track_caller]
 	pub(crate) fn new(err: u8) -> Self {
 		debug_assert!(
 			err >= bits_of::<R>() as u8,

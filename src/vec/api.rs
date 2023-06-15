@@ -100,6 +100,7 @@ where
 	///
 	/// [`BitSlice::MAX_BITS`]: crate::slice::BitSlice::MAX_BITS
 	#[inline]
+	#[track_caller]
 	pub fn with_capacity(capacity: usize) -> Self {
 		Self::assert_len_encodable(capacity);
 		let mut vec = capacity
@@ -243,6 +244,7 @@ where
 	/// assert!(bv.capacity() >= 800);
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn reserve(&mut self, additional: usize) {
 		Self::assert_len_encodable(self.len() + additional);
 		self.do_reservation(additional, Vec::<T>::reserve);
@@ -281,6 +283,7 @@ where
 	///
 	/// [`.reserve()`]: Self::reserve
 	#[inline]
+	#[track_caller]
 	pub fn reserve_exact(&mut self, additional: usize) {
 		self.do_reservation(additional, Vec::<T>::reserve_exact);
 	}
@@ -442,6 +445,7 @@ where
 	/// [`.push()`]: Self::push
 	/// [`.capacity()`]: Self::capacity
 	#[inline]
+	#[track_caller]
 	pub unsafe fn set_len(&mut self, new_len: usize) {
 		let capa = self.capacity();
 		assert!(
@@ -476,6 +480,7 @@ where
 	/// assert_eq!(bv, bits![0, 1, 1, 0]);
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn swap_remove(&mut self, index: usize) -> bool {
 		self.assert_in_bounds(index, 0 .. self.len());
 		let last = self.len() - 1;
@@ -500,6 +505,7 @@ where
 	///
 	/// This panics if `index` is out of bounds (including `self.len()`).
 	#[inline]
+	#[track_caller]
 	pub fn insert(&mut self, index: usize, value: bool) {
 		self.assert_in_bounds(index, 0 ..= self.len());
 		self.push(value);
@@ -519,6 +525,7 @@ where
 	///
 	/// This panics if `index` is out of bounds (excluding `self.len()`).
 	#[inline]
+	#[track_caller]
 	pub fn remove(&mut self, index: usize) -> bool {
 		self.assert_in_bounds(index, 0 .. self.len());
 		let last = self.len() - 1;
@@ -614,6 +621,7 @@ where
 	/// assert_eq!(bv.as_bitslice(), bits![0, 0, 1]);
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn push(&mut self, value: bool) {
 		let len = self.len();
 		let new_len = len + 1;
@@ -693,6 +701,7 @@ where
 	/// assert!(bv2.is_empty());
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn append<T2, O2>(&mut self, other: &mut BitVec<T2, O2>)
 	where
 		T2: BitStore,
@@ -733,6 +742,7 @@ where
 	/// assert!(bv.is_empty());
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn drain<R>(&mut self, range: R) -> Drain<T, O>
 	where R: RangeBounds<usize> {
 		Drain::new(self, range)
@@ -961,6 +971,7 @@ where
 	/// assert_eq!(bv, bits![0, 1, 0, 0, 1, 1, 0, 0]);
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn extend_from_within<R>(&mut self, src: R)
 	where R: RangeExt<usize> {
 		let old_len = self.len();
@@ -1017,6 +1028,7 @@ where
 	///
 	/// [`self.drain()`]: Self::drain
 	#[inline]
+	#[track_caller]
 	pub fn splice<R, I>(
 		&mut self,
 		range: R,

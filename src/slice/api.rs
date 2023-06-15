@@ -596,6 +596,7 @@ where
 	/// assert_eq!(bits, bits![1, 0]);
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn swap(&mut self, a: usize, b: usize) {
 		let bounds = 0 .. self.len();
 		self.assert_in_bounds(a, bounds.clone());
@@ -735,6 +736,7 @@ where
 	/// assert!(iter.next().is_none());
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn windows(&self, size: usize) -> Windows<T, O> {
 		Windows::new(self, size)
 	}
@@ -780,6 +782,7 @@ where
 	/// [`.chunks_mut()`]: Self::chunks_mut
 	/// [`.rchunks()`]: Self::rchunks
 	#[inline]
+	#[track_caller]
 	pub fn chunks(&self, chunk_size: usize) -> Chunks<T, O> {
 		Chunks::new(self, chunk_size)
 	}
@@ -831,6 +834,7 @@ where
 	/// [`.rchunks_mut()`]: Self::rchunks_mut
 	/// [`.remove_alias()`]: crate::slice::ChunksMut::remove_alias
 	#[inline]
+	#[track_caller]
 	pub fn chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<T, O> {
 		ChunksMut::new(self, chunk_size)
 	}
@@ -877,6 +881,7 @@ where
 	/// [`.rchunks_exact()`]: Self::rchunks_exact
 	/// [`.remainder()`]: crate::slice::ChunksExact::remainder
 	#[inline]
+	#[track_caller]
 	pub fn chunks_exact(&self, chunk_size: usize) -> ChunksExact<T, O> {
 		ChunksExact::new(self, chunk_size)
 	}
@@ -935,6 +940,7 @@ where
 	/// [`.rchunks_exact_mut()`]: Self::rchunks_exact_mut
 	/// [`.remove_alias()`]: crate::slice::ChunksExactMut::remove_alias
 	#[inline]
+	#[track_caller]
 	pub fn chunks_exact_mut(
 		&mut self,
 		chunk_size: usize,
@@ -984,6 +990,7 @@ where
 	/// [`.rchunks_exact()`]: Self::rchunks_exact
 	/// [`.rchunks_mut()`]: Self::rchunks_mut
 	#[inline]
+	#[track_caller]
 	pub fn rchunks(&self, chunk_size: usize) -> RChunks<T, O> {
 		RChunks::new(self, chunk_size)
 	}
@@ -1082,6 +1089,7 @@ where
 	/// [`.rchunks_exact_mut()`]: Self::rchunks_exact_mut
 	/// [`.remainder()`]: crate::slice::RChunksExact::remainder
 	#[inline]
+	#[track_caller]
 	pub fn rchunks_exact(&self, chunk_size: usize) -> RChunksExact<T, O> {
 		RChunksExact::new(self, chunk_size)
 	}
@@ -1137,6 +1145,7 @@ where
 	/// [`.rchunks_mut()`]: Self::rchunks_mut
 	/// [`.remove_alias()`]: crate::slice::RChunksExactMut::remove_alias
 	#[inline]
+	#[track_caller]
 	pub fn rchunks_exact_mut(
 		&mut self,
 		chunk_size: usize,
@@ -1185,6 +1194,7 @@ where
 	/// assert_eq!(b, bits![1; 3]);
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn split_at(&self, mid: usize) -> (&Self, &Self) {
 		self.assert_in_bounds(mid, 0 ..= self.len());
 		unsafe { self.split_at_unchecked(mid) }
@@ -1241,6 +1251,7 @@ where
 	/// assert_eq!(bits, bits![0, 1, 1, 1, 0, 1]);
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn split_at_mut(
 		&mut self,
 		mid: usize,
@@ -2225,6 +2236,7 @@ where
 	/// //                                             ^  ^  ^  ^
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn copy_within<R>(&mut self, src: R, dest: usize)
 	where R: RangeExt<usize> {
 		let len = self.len();
@@ -2395,6 +2407,7 @@ where
 	/// bits![0, 1].repeat(BitSlice::<usize, Lsb0>::MAX_BITS);
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn repeat(&self, n: usize) -> BitVec<T::Unalias, O> {
 		let len = self.len();
 		let total = len.checked_mul(n).expect("capacity overflow");

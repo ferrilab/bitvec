@@ -243,6 +243,7 @@ where
 	/// [`BitView`]: crate::view::BitView
 	/// [`.view_bits::<O>()`]: crate::view::BitView::view_bits
 	#[inline]
+	#[track_caller]
 	pub fn from_slice(slice: &[T]) -> &Self {
 		Self::try_from_slice(slice).unwrap()
 	}
@@ -331,6 +332,7 @@ where
 	/// [`BitView`]: crate::view::BitView
 	/// [`.view_bits_mut::<O>()`]: crate::view::BitView::view_bits_mut
 	#[inline]
+	#[track_caller]
 	pub fn from_slice_mut(slice: &mut [T]) -> &mut Self {
 		Self::try_from_slice_mut(slice).unwrap()
 	}
@@ -549,6 +551,7 @@ where
 	///
 	/// [`.copy_from_bitslice()`]: Self::copy_from_bitslice
 	#[inline]
+	#[track_caller]
 	pub fn clone_from_bitslice<T2, O2>(&mut self, src: &BitSlice<T2, O2>)
 	where
 		T2: BitStore,
@@ -594,6 +597,7 @@ where
 	/// use bitvec::prelude::*;
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn copy_from_bitslice(&mut self, src: &Self) {
 		assert_eq!(
 			self.len(),
@@ -688,6 +692,7 @@ where
 	/// # }
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn swap_with_bitslice<T2, O2>(&mut self, other: &mut BitSlice<T2, O2>)
 	where
 		T2: BitStore,
@@ -750,6 +755,7 @@ where
 	/// assert_eq!(bits, bits![1, 0]);
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn set(&mut self, index: usize, value: bool) {
 		self.replace(index, value);
 	}
@@ -804,6 +810,7 @@ where
 	/// assert!(bits[0]);
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn replace(&mut self, index: usize, value: bool) -> bool {
 		self.assert_in_bounds(index, 0 .. self.len());
 		unsafe { self.replace_unchecked(index, value) }
@@ -1471,6 +1478,7 @@ where
 	/// assert_eq!(bits, bits![0; 2]);
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn shift_start(&mut self, by: usize) {
 		if by == 0 {
 			return;
@@ -1537,6 +1545,7 @@ where
 	/// assert_eq!(bits, bits![0; 2]);
 	/// ```
 	#[inline]
+	#[track_caller]
 	pub fn shift_end(&mut self, by: usize) {
 		if by == 0 {
 			return;
@@ -1595,6 +1604,7 @@ where
 	/// ## Panics
 	///
 	/// This panics if `bounds` is outside `index`.
+	#[track_caller]
 	pub(crate) fn assert_in_bounds<R>(&self, index: usize, bounds: R)
 	where R: RangeExt<usize> {
 		let bounds = bounds.normalize(0, self.len());
@@ -1687,6 +1697,7 @@ where
 	///
 	/// [`.set()`]: Self::set
 	#[inline]
+	#[track_caller]
 	pub fn set_aliased(&self, index: usize, value: bool) {
 		self.assert_in_bounds(index, 0 .. self.len());
 		unsafe {
