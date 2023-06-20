@@ -271,3 +271,19 @@ fn cooking() {
 		);
 	}
 }
+
+#[test]
+fn chunks_iters_nth() {
+	// 2^6 + 2^7 = 192
+	// [0, 0, 0, 0, 0, 0, 1, 1]
+	let mut data = [192u8; 1];
+	let data = data.view_bits_mut::<Lsb0>();
+
+	let chunk_size = 2usize;
+	let expected = bits![1, 1];
+
+	assert_eq!(data.chunks(chunk_size).nth(3).unwrap(), expected);
+	assert_eq!(data.chunks_exact(chunk_size).nth(3).unwrap(), expected);
+	assert_eq!(data.chunks_mut(chunk_size).nth(3).unwrap(), expected);
+	assert_eq!(data.chunks_exact_mut(chunk_size).nth(3).unwrap(), expected);
+}
