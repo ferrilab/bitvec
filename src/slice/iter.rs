@@ -1028,7 +1028,7 @@ group!(ChunksExactMut => &'a mut BitSlice<T::Alias, O> {
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
 		let slice = mem::take(&mut self.slice);
 		let (start, ovf) = n.overflowing_mul(self.width);
-		if start + self.width >= slice.len() || ovf {
+		if start >= slice.len() || ovf {
 			return None;
 		}
 		let (out, rest) = unsafe {

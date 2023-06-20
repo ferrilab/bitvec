@@ -271,3 +271,24 @@ fn cooking() {
 		);
 	}
 }
+
+#[test]
+fn chunks_iters_nth() {
+	let mut data = [192u8; 1];
+	let data = data.view_bits_mut::<Lsb0>();
+
+	let chunk_size = 2usize;
+	let expected = bits![1, 1];
+
+	let mut chunks_iter = data.chunks(chunk_size);
+	assert_eq!(chunks_iter.nth(3).unwrap(), expected);
+
+	let mut chunks_exact_iter = data.chunks_exact(chunk_size);
+	assert_eq!(chunks_exact_iter.nth(3).unwrap(), expected);
+
+	let mut chunks_mut_iter = data.chunks_mut(chunk_size);
+	assert_eq!(chunks_mut_iter.nth(3).unwrap(), expected);
+
+	let mut chunks_exact_mut_iter = data.chunks_exact_mut(chunk_size);
+	assert_eq!(chunks_exact_mut_iter.nth(3).unwrap(), expected);
+}
