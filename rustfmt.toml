@@ -14,7 +14,7 @@
 # attr_fn_like_width = 70            # Leave implicit
 # chain_width = 60                   # Leave implicit
 edition = "2018"
-fn_args_layout = "Tall"
+fn_params_layout = "Tall"
 # fn_call_width = 60                 # Leave implicit
 force_explicit_abi = true
 hard_tabs = true
@@ -69,7 +69,7 @@ normalize_comments = false
 normalize_doc_attributes = false
 overflow_delimited_expr = true
 reorder_impl_items = true
-required_version = "1.5.1"
+required_version = "1.6.0"
 skip_children = false
 space_after_colon = true
 space_before_colon = false

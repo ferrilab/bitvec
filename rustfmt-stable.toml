@@ -13,7 +13,7 @@
 # attr_fn_like_width = 70            # Leave implicit
 # chain_width = 60                   # Leave implicit
 edition = "2018"
-fn_args_layout = "Tall"
+fn_params_layout = "Tall"
 # fn_call_width = 60                 # Leave implicit
 force_explicit_abi = true
 hard_tabs = true
