@@ -2123,10 +2123,10 @@ where
 {
 	#[inline]
 	#[allow(missing_docs, clippy::missing_docs_in_private_items)]
-	pub(super) fn new(slice: &'a BitSlice<T, O>) -> Self {
+	pub(crate) fn new(slice: &'a BitSlice<T, O>, offset: usize) -> Self {
 		Self {
 			inner: slice,
-			front: 0,
+			front: offset,
 		}
 	}
 }
@@ -2254,10 +2254,10 @@ where
 	O: BitOrder,
 {
 	#[allow(missing_docs, clippy::missing_docs_in_private_items)]
-	pub(super) fn new(slice: &'a BitSlice<T, O>) -> Self {
+	pub(crate) fn new(slice: &'a BitSlice<T, O>, offset: usize) -> Self {
 		Self {
 			inner: slice,
-			front: 0,
+			front: offset,
 		}
 	}
 }

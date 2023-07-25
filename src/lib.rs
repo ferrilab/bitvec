@@ -34,6 +34,7 @@ pub mod mem;
 pub mod order;
 pub mod ptr;
 mod serdes;
+pub mod set;
 pub mod slice;
 pub mod store;
 pub mod vec;
