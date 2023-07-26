@@ -1144,7 +1144,7 @@ where
 	/// ```
 	#[inline]
 	pub fn iter_ones(&self) -> IterOnes<T, O> {
-		IterOnes::new(self)
+		IterOnes::new(self, 0)
 	}
 
 	/// Enumerates the index of each bit in a bit-slice cleared to `0`.
@@ -1183,7 +1183,7 @@ where
 	/// ```
 	#[inline]
 	pub fn iter_zeros(&self) -> IterZeros<T, O> {
-		IterZeros::new(self)
+		IterZeros::new(self, 0)
 	}
 
 	/// Finds the index of the first bit in the bit-slice set to `1`.

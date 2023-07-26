@@ -2593,7 +2593,7 @@ where
 	fn index(self, bits: &'a BitSlice<T, O>) -> Self::Immut {
 		match self.get(bits) {
 			Some(b) => b,
-			None => panic!("index {} out of bounds: {}", self, bits.len())
+			None => panic!("index {} out of bounds: {}", self, bits.len()),
 		}
 	}
 
