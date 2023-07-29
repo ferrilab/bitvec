@@ -2229,6 +2229,12 @@ where
 	where R: RangeExt<usize> {
 		let len = self.len();
 		let src = src.normalize(0, len);
+		// prevent the asserts below from failing for empty ranges
+		if src.start == src.end {
+			assert!(src.start <= len, "range start index {} is out of bounds for bit-slice of length {}", src.start, len);
+			assert!(dest <= len, "index {} is out of bounds for bit-slice of length {}", dest, len);
+			return;
+		}
 		self.assert_in_bounds(src.start, 0 .. len);
 		self.assert_in_bounds(src.end, 0 ..= len);
 		self.assert_in_bounds(dest, 0 .. len);

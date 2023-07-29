@@ -75,6 +75,31 @@ fn copying() {
 	}
 }
 
+// regression tests for #236
+#[test]
+fn copy_within_supports_empty_ranges() {
+	let empty = bits![mut u8, Lsb0; 0; 0];
+	empty.copy_within(0..0, 0);
+	assert_eq!(empty, bits![]);
+
+	let non_empty = bits![mut u8, Lsb0; 0; 3];
+	non_empty.copy_within(2..2, 0);
+	assert_eq!(non_empty, bits![0, 0, 0]);
+}
+#[test]
+#[should_panic]
+fn copy_within_panics_if_empty_range_exceeds_bounds() {
+	let empty_slice = bits![mut u8, Lsb0; 0; 0];
+	empty_slice.copy_within(2..2, 0);
+}
+#[test]
+#[should_panic]
+fn copy_within_panics_if_dest_for_empty_range_exceeds_bounds() {
+	let empty_slice = bits![mut u8, Lsb0; 0; 0];
+	empty_slice.copy_within(0..0, 1);
+}
+
+
 #[test]
 fn writing() {
 	let bits = bits![mut 0; 2];
