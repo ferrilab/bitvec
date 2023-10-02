@@ -71,6 +71,15 @@ where
 	fn clone(&self) -> Self {
 		Self::from_bitslice(self.as_bitslice())
 	}
+
+	#[inline]
+	fn clone_from(&mut self, other: &Self) {
+		if self.len() == other.len() {
+			self.copy_from_bitslice(other.as_bitslice());
+		} else {
+			*self = other.clone();
+		}
+	}
 }
 
 impl<T, O> Eq for BitVec<T, O>
