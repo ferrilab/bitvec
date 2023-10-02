@@ -67,4 +67,12 @@ fn misc() {
 	let mut bv = bitvec![0, 0, 1, 1, 0, 0];
 	bv.extend_from_within(2 .. 4);
 	assert_eq!(bv, bits![0, 0, 1, 1, 0, 0, 1, 1]);
+
+	let mut bv = bitvec![0, 0, 1, 1];
+	let bv2 = bitvec![1, 1, 0, 0];
+	bv.clone_from(&bv2);
+	assert_eq!(bv, bv2);
+	let bv3 = bitvec![1, 0];
+	bv.clone_from(&bv3);
+	assert_eq!(bv, bv3);
 }
