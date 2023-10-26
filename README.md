@@ -364,7 +364,7 @@ restore the ones you need.
   atomic capability, and targets that do not possess atomic instructions can
   still function with this feature *enabled*. Its only effect is that targets
   which do have atomic instructions may choose to disable it and enforce
-  single-threaded behavior that never incurs atomic synchronization.
+  single-threaded behavior that never incurs the cost of atomic synchronization.
 
 - `serde`: This enables the de/serialization of `bitvec` buffers through the
   `serde` system. This can be useful if you need to transmit `usize => bool`
