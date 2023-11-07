@@ -965,7 +965,7 @@ where
 	where R: RangeExt<usize> {
 		let old_len = self.len();
 		let src = src.normalize(0, old_len);
-		self.assert_in_bounds(src.end, 0 .. old_len);
+		self.assert_in_bounds(src.end, 0 ..=old_len);
 		self.resize(old_len + src.len(), false);
 		unsafe {
 			self.copy_within_unchecked(src, old_len);
