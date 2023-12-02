@@ -106,7 +106,6 @@ where R: BitRegister
 
 	/// Removes the index wrapper, leaving the internal counter.
 	#[inline]
-	#[cfg(not(tarpaulin_include))]
 	pub fn into_inner(self) -> u8 {
 		self.idx
 	}
@@ -590,6 +589,14 @@ where R: BitRegister
 	#[inline]
 	fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
 		Binary::fmt(self, fmt)
+	}
+}
+
+impl<R: BitRegister> From<BitIdx<R>> for BitEnd<R> {
+	fn from(idx: BitIdx<R>) -> Self {
+		// SAFETY: Maximum allowed value of BitIdx<R> is always smaller
+		// than maximum allowed value of BitEnd<R>.
+		unsafe { Self::new_unchecked(idx.into_inner()) }
 	}
 }
 
@@ -1083,6 +1090,12 @@ mod tests {
 			assert!(BitEnd::<usize>::new(n).is_some());
 		}
 		assert!(BitEnd::<usize>::new(bits_of::<usize>() as u8 + 1).is_none());
+
+		for n in 0 .. bits_of::<usize>() as u8 {
+			let idx = BitIdx::<usize>::new(n).unwrap();
+			let end = BitEnd::<usize>::new(n).unwrap();
+			assert_eq!(end, BitEnd::from(idx));
+		}
 	}
 
 	#[test]
