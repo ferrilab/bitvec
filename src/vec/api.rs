@@ -321,8 +321,8 @@ where
 	/// Shortens the bit-vector, keeping the first `new_len` bits and discarding
 	/// the rest.
 	///
-	/// If `len` is greater than the bit-vector’s current length, this has no
-	/// effect.
+	/// If `new_len` is greater than the bit-vector’s current length, this
+	/// has no effect.
 	///
 	/// The [`.drain()`] method can emulate `.truncate()`, except that it yields
 	/// the excess bits rather than discarding them.
