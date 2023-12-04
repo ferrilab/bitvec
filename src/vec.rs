@@ -120,13 +120,8 @@ where
 	#[inline]
 	pub fn from_bitslice(slice: &BitSlice<T, O>) -> Self {
 		let bitspan = slice.as_bitspan();
-
-		let mut vec = bitspan
-			.elements()
-			.pipe(Vec::with_capacity)
-			.pipe(ManuallyDrop::new);
-		vec.extend(slice.domain());
-
+		let vec = slice.domain().into_iter().collect::<Vec<_>>();
+		let mut vec = ManuallyDrop::new(vec);
 		let bitspan = unsafe {
 			BitSpan::new_unchecked(
 				vec.as_mut_ptr().cast::<T>().into_address(),
@@ -241,11 +236,108 @@ where
 	/// It is not practical to allocate a vector that will fail this conversion.
 	#[inline]
 	pub fn try_from_vec(vec: Vec<T>) -> Result<Self, Vec<T>> {
-		let mut vec = ManuallyDrop::new(vec);
-		let capacity = vec.capacity();
+		Self::try_from_partial_vec(vec, BitIdx::MIN, None)
+	}
 
-		BitPtr::from_mut_slice(vec.as_mut_slice())
-			.span(vec.len() * bits_of::<T::Mem>())
+	/// Converts a regular vector in-place into a bit-vector covering parts
+	/// of the elements.
+	///
+	/// The produced bit-vector spans `length` bits of the original vector
+	/// starting at `head` bit of the first element.  If `length` is `None`,
+	/// spans bits starting at `head` bit of the first element until the end
+	/// of the original vector.
+	///
+	/// ## Panics
+	///
+	/// This panics if the source vector is too long to view as a bit-slice,
+	/// or if specified total length of the vector goes beyond provided
+	/// bytes.
+	///
+	/// ## Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	/// use bitvec::index::BitIdx;
+	///
+	/// let bv = BitVec::<_, Msb0>::from_partial_vec(
+	///     vec![0u8, 1, 0x80],
+	///     BitIdx::new(4).unwrap(),
+	///     Some(18),
+	/// );
+	/// assert_eq!(bits![0, 0, 0, 0,
+	///                  0, 0, 0, 0, 0, 0, 0, 1,
+	///                  1, 0, 0, 0, 0, 0], bv);
+	/// ```
+	#[inline]
+	pub fn from_partial_vec(
+		vec: Vec<T>,
+		head: crate::index::BitIdx<T::Mem>,
+		length: Option<usize>,
+	) -> Self {
+		Self::try_from_partial_vec(vec, head, length)
+			.expect("vector was too long to be converted into a `BitVec`")
+	}
+
+	/// Attempts to converts a regular vector in-place into a bit-vector
+	/// covering parts of the elements.
+	///
+	/// This fairs if the source vector is too long to view as a bit-slice,
+	/// or if specified total length of the vector goes beyond provided
+	/// bytes.
+	///
+	/// On success, the produced bit-vector spans `length` bits of the
+	/// original vector starting at `head` bit of the first element.  If
+	/// `length` is `None`, spans bits starting at `head` bit of the first
+	/// element until the end of the original vector.
+	///
+	/// ## Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	/// use bitvec::index::BitIdx;
+	///
+	/// let bv = BitVec::<_, Msb0>::try_from_partial_vec(
+	///     vec![0u8, 1, 0x80],
+	///     BitIdx::new(4).unwrap(),
+	///     Some(18),
+	/// ).unwrap();
+	/// assert_eq!(bits![0, 0, 0, 0,
+	///                  0, 0, 0, 0, 0, 0, 0, 1,
+	///                  1, 0, 0, 0, 0, 0], bv);
+	///
+	/// let bv = BitVec::<_, Msb0>::try_from_partial_vec(
+	///     vec![0u8, 1, 0x80],
+	///     BitIdx::new(4).unwrap(),
+	///     Some(24),
+	/// );
+	/// assert_eq!(None, bv.ok());
+	/// ```
+	#[inline]
+	pub fn try_from_partial_vec(
+		vec: Vec<T>,
+		head: crate::index::BitIdx<T::Mem>,
+		length: Option<usize>,
+	) -> Result<Self, Vec<T>> {
+		let start = usize::from(head.into_inner());
+		let length = if let Some(len) = length {
+			len.checked_add(start)
+				.map(crate::mem::elts::<T>)
+				.filter(|elts| *elts <= vec.len())
+				.map(|_| len)
+		} else {
+			vec.len()
+				.checked_mul(bits_of::<T::Mem>())
+				.and_then(|len| len.checked_sub(start))
+		};
+		let length = match length {
+			None => return Err(vec),
+			Some(length) => length,
+		};
+
+		let capacity = vec.capacity();
+		let mut vec = ManuallyDrop::new(vec);
+		BitPtr::from_slice_with_index_mut(vec.as_mut_slice(), head)
+			.span(length)
 			.map(|bitspan| Self { bitspan, capacity })
 			.map_err(|_| ManuallyDrop::into_inner(vec))
 	}

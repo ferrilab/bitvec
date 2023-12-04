@@ -367,9 +367,7 @@ where
 	/// departure from the subslice, *even within the original slice*, illegal.
 	#[inline]
 	pub fn from_mut_slice(slice: &mut [T]) -> Self {
-		unsafe {
-			Self::new_unchecked(slice.as_mut_ptr().into_address(), BitIdx::MIN)
-		}
+		Self::from_slice_with_index_mut(slice, BitIdx::MIN)
 	}
 
 	/// Constructs a mutable `BitPtr` to the zeroth bit in the zeroth element of
@@ -381,8 +379,12 @@ where
 	/// departure from the subslice, *even within the original slice*, illegal.
 	#[inline]
 	pub fn from_slice_mut(slice: &mut [T]) -> Self {
+		Self::from_slice_with_index_mut(slice, BitIdx::MIN)
+	}
+
+	pub(crate) fn from_slice_with_index_mut(slice: &mut [T], bit: BitIdx<T::Mem>) -> Self {
 		unsafe {
-			Self::new_unchecked(slice.as_mut_ptr().into_address(), BitIdx::MIN)
+			Self::new_unchecked(slice.as_mut_ptr().into_address(), bit)
 		}
 	}
 
