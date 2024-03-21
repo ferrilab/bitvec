@@ -1504,8 +1504,9 @@ where
 	/// Shifts the contents of a bit-slice “right” (away from the zero-index),
 	/// clearing the “left” bits to `0`.
 	///
-	/// This is a strictly-worse analogue to taking `bits = &bits[.. bits.len()
-	/// - by]`: it must modify the entire memory region that `bits` governs, and
+	/// This is a strictly-worse analogue to taking 
+	/// `bits = &bits[.. bits.len() - by]`:
+	/// it must modify the entire memory region that `bits` governs, and
 	/// destroys contained information. Unless the actual memory layout and
 	/// contents of your bit-slice matters to your program, you should
 	/// *probably* prefer to munch your way backward through a bit-slice handle.
