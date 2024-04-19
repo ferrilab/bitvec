@@ -2198,7 +2198,7 @@ where
 
 	/// Copies a span of bits to another location in the bit-slice.
 	///
-	/// `src` is the range of bit-indices in the bit-slice to copy, and `dest is
+	/// `src` is the range of bit-indices in the bit-slice to copy, and `dest` is
 	/// the starting index of the destination range. `src` and `dest .. dest +
 	/// src.len()` are permitted to overlap; the copy will automatically detect
 	/// and manage this. However, both `src` and `dest .. dest + src.len()`
