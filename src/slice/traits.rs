@@ -20,6 +20,7 @@ use core::{
 		Hash,
 		Hasher,
 	},
+	panic::RefUnwindSafe,
 	str,
 };
 
@@ -539,6 +540,13 @@ where
 	where H: Hasher {
 		self.iter().by_vals().for_each(|bit| bit.hash(hasher));
 	}
+}
+
+impl<T, O> RefUnwindSafe for BitSlice<T, O>
+where
+	T: BitStore + RefUnwindSafe,
+	O: BitOrder,
+{
 }
 
 #[doc = include_str!("../../doc/slice/threadsafe.md")]

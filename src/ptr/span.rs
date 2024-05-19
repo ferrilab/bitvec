@@ -273,10 +273,17 @@ where
 	/// [`::new`]: Self::new
 	#[cfg(feature = "alloc")]
 	pub(crate) unsafe fn set_address(&mut self, addr: Address<M, T>) {
-		let mut addr_value = addr.to_const() as usize;
-		addr_value &= Self::PTR_ADDR_MASK;
-		addr_value |= self.ptr.as_ptr() as usize & Self::PTR_HEAD_MASK;
-		self.ptr = NonNull::new_unchecked(addr_value as *mut ())
+		let map = |mut addr_value| {
+			addr_value &= Self::PTR_ADDR_MASK;
+			addr_value |= self.ptr.as_ptr() as usize & Self::PTR_HEAD_MASK;
+			addr_value
+		};
+
+		#[cfg(miri)]
+		let new_addr = addr.to_const().map_addr(map).cast::<()>().cast_mut();
+		#[cfg(not(miri))]
+		let new_addr = map(addr.to_const() as usize) as *mut ();
+		self.ptr = NonNull::new_unchecked(new_addr);
 	}
 
 	/// Gets the starting bit index of the referent region.
@@ -313,11 +320,19 @@ where
 	#[cfg(feature = "alloc")]
 	pub(crate) unsafe fn set_head(&mut self, head: BitIdx<T::Mem>) {
 		let head = head.into_inner() as usize;
-		let mut ptr = self.ptr.as_ptr() as usize;
+		let map = |mut ptr_value| {
+			ptr_value &= Self::PTR_ADDR_MASK;
+			ptr_value |= head >> Self::LEN_HEAD_BITS;
+			ptr_value
+		};
 
-		ptr &= Self::PTR_ADDR_MASK;
-		ptr |= head >> Self::LEN_HEAD_BITS;
-		self.ptr = NonNull::new_unchecked(ptr as *mut ());
+		let ptr = self.ptr.as_ptr();
+
+		#[cfg(miri)]
+		let new_ptr = ptr.map_addr(map);
+		#[cfg(not(miri))]
+		let new_ptr = map(ptr as usize) as *mut ();
+		self.ptr = NonNull::new_unchecked(new_ptr);
 
 		self.len &= !Self::LEN_HEAD_MASK;
 		self.len |= head & Self::LEN_HEAD_MASK;

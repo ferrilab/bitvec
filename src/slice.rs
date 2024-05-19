@@ -3,6 +3,7 @@
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 use core::{
+	cell::UnsafeCell,
 	marker::PhantomData,
 	ops::RangeBounds,
 };
@@ -82,7 +83,7 @@ where
 	///
 	/// See `ptr::span` for more information on the encoding scheme used in
 	/// references to `BitSlice`.
-	_mem: [()],
+	_mem: [UnsafeCell<()>],
 }
 
 /// Constructors.

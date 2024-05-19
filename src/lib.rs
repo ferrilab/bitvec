@@ -8,6 +8,7 @@
 	not(debug_assertions),
 	deny(missing_docs, clippy::missing_docs_in_private_items)
 )]
+#![cfg_attr(miri, feature(strict_provenance))]
 #![deny(unconditional_recursion)]
 #![allow(
 	clippy::declare_interior_mutable_const,
