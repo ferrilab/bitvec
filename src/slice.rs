@@ -1656,6 +1656,7 @@ where
 	O: BitOrder,
 {
 	/// Writes a new value into a single bit, using alias-safe operations.
+	/// Returns the previous value of the bit.
 	///
 	/// This is equivalent to [`.set()`], except that it does not require an
 	/// `&mut` reference, and allows bit-slices with alias-safe storage to share
@@ -1687,15 +1688,15 @@ where
 	///
 	/// [`.set()`]: Self::set
 	#[inline]
-	pub fn set_aliased(&self, index: usize, value: bool) {
+	pub fn set_aliased(&self, index: usize, value: bool) -> bool {
 		self.assert_in_bounds(index, 0 .. self.len());
 		unsafe {
-			self.set_aliased_unchecked(index, value);
+			self.set_aliased_unchecked(index, value)
 		}
 	}
 
 	/// Writes a new value into a single bit, using alias-safe operations and
-	/// without bounds checking.
+	/// without bounds checking. Returns the previous value of the bit.
 	///
 	/// This is equivalent to [`.set_unchecked()`], except that it does not
 	/// require an `&mut` reference, and allows bit-slices with alias-safe
@@ -1728,8 +1729,8 @@ where
 	///
 	/// [`.set_unchecked()`]: Self::set_unchecked
 	#[inline]
-	pub unsafe fn set_aliased_unchecked(&self, index: usize, value: bool) {
-		self.as_bitptr().add(index).freeze().frozen_write_bit(value);
+	pub unsafe fn set_aliased_unchecked(&self, index: usize, value: bool) -> bool {
+		self.as_bitptr().add(index).freeze().frozen_write_bit(value)
 	}
 }
 
