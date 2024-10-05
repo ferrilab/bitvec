@@ -36,7 +36,7 @@ keywords = [
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/ferrilab/bitvec"
-rust-version = "1.56"
+rust-version = "1.81"
 
 [features]
 alloc = [

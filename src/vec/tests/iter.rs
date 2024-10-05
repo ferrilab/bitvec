@@ -38,4 +38,13 @@ fn splice() {
 	let mut bv = bitvec![0, 1, 0, 0, 1];
 	drop(bv.splice(2 .. 2, Some(true)));
 	assert_eq!(bv, bits![0, 1, 1, 0, 0, 1]);
+
+	let mut bv = bitvec![0, 1, 0, 0, 1];
+	drop(bv.splice(
+		2 .. 2,
+		(0usize .. 2).flat_map(|index| {
+			let array = BitArray::<_, Lsb0>::from(index);
+			array.into_iter().take(2)
+		}),
+	));
 }
