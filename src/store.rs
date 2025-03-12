@@ -199,36 +199,34 @@ store!(usize => BitSafeUsize);
 /// Generates `BitStore` implementations for atomic types.
 macro_rules! atomic {
 	($($size:tt, $base:ty => $atom:ident);+ $(;)?) => { $(
-		radium::if_atomic!(if atomic($size) {
-			use core::sync::atomic::$atom;
+		use core::sync::atomic::$atom;
 
-			impl BitStore for $atom {
-				type Mem = $base;
-				type Access = Self;
-				type Alias = Self;
-				type Unalias = Self;
+		impl BitStore for $atom where $base: radium::marker::Atomic {
+			type Mem = $base;
+			type Access = Self;
+			type Alias = Self;
+			type Unalias = Self;
 
-				const ZERO: Self = <Self>::new(0);
+			const ZERO: Self = <Self>::new(0);
 
-				#[inline]
-				fn new(value: Self::Mem) -> Self { <Self>::new(value) }
+			#[inline]
+			fn new(value: Self::Mem) -> Self { <Self>::new(value) }
 
-				#[inline]
-				fn load_value(&self) -> Self::Mem {
-					self.load(core::sync::atomic::Ordering::Relaxed)
-				}
-
-				#[inline]
-				fn store_value(&mut self, value: Self::Mem) {
-					*self = Self::new(value);
-				}
-
-				const ALIGNED_TO_SIZE: [(); 1]
-					= [(); mem::aligned_to_size::<Self>() as usize];
-
-				const ALIAS_WIDTH: [(); 1] = [()];
+			#[inline]
+			fn load_value(&self) -> Self::Mem {
+				self.load(core::sync::atomic::Ordering::Relaxed)
 			}
-		});
+
+			#[inline]
+			fn store_value(&mut self, value: Self::Mem) {
+				*self = Self::new(value);
+			}
+
+			const ALIGNED_TO_SIZE: [(); 1]
+				= [(); mem::aligned_to_size::<Self>() as usize];
+
+			const ALIAS_WIDTH: [(); 1] = [()];
+		}
 	)+ };
 }
 

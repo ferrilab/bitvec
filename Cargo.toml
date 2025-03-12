@@ -57,7 +57,7 @@ testing = [
 ]
 
 [dependencies]
-radium = "0.7"
+radium = "1.1.0"
 tap = "1"
 
 [dependencies.funty]

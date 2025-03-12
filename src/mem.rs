@@ -101,17 +101,15 @@ macro_rules! element {
 			}
 		}
 
-		radium::if_atomic!( if atomic($size) {
-			use core::sync::atomic::$atom;
-			impl BitElement<$atom> {
-				/// Creates a new element wrapper from a raw integer.
-				pub const fn new(elem: $bare) -> Self {
-					Self {
-						elem: <$atom>::new(elem),
-					}
+		use core::sync::atomic::$atom;
+		impl BitElement<$atom> where $bare: radium::marker::Atomic {
+			/// Creates a new element wrapper from a raw integer.
+			pub const fn new(elem: $bare) -> Self {
+				Self {
+					elem: <$atom>::new(elem),
 				}
 			}
-		});
+		}
 	)+ };
 }
 
