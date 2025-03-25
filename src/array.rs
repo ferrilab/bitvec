@@ -4,10 +4,7 @@ use core::marker::PhantomData;
 
 use crate::{
 	mem,
-	order::{
-		BitOrder,
-		Lsb0,
-	},
+	order::{BitOrder, Lsb0},
 	slice::BitSlice,
 	view::BitViewSized,
 };
@@ -104,7 +101,7 @@ where
 	///
 	/// This method is a compile-time constant.
 	#[inline]
-	pub fn len(&self) -> usize {
+	pub const fn len(&self) -> usize {
 		mem::bits_of::<A>()
 	}
 
@@ -112,7 +109,7 @@ where
 	///
 	/// This method is a compile-time constant.
 	#[inline]
-	pub fn is_empty(&self) -> bool {
+	pub const fn is_empty(&self) -> bool {
 		mem::bits_of::<A>() == 0
 	}
 }
