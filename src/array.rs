@@ -56,7 +56,7 @@ where
 	/// assert_eq!(bits.len(), 64);
 	/// ```
 	#[inline]
-	pub fn new(data: A) -> Self {
+	pub const fn new(data: A) -> Self {
 		Self { data, ..Self::ZERO }
 	}
 
@@ -104,7 +104,7 @@ where
 	///
 	/// This method is a compile-time constant.
 	#[inline]
-	pub fn len(&self) -> usize {
+	pub const fn len(&self) -> usize {
 		mem::bits_of::<A>()
 	}
 
@@ -112,7 +112,7 @@ where
 	///
 	/// This method is a compile-time constant.
 	#[inline]
-	pub fn is_empty(&self) -> bool {
+	pub const fn is_empty(&self) -> bool {
 		mem::bits_of::<A>() == 0
 	}
 }
