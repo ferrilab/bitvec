@@ -58,7 +58,7 @@ testing = [
 
 [dependencies]
 radium = "0.7"
-tap = "1"
+tap = "1.0.1"
 
 [dependencies.funty]
 version = "^2.0"
