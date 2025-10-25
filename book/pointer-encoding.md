@@ -153,5 +153,5 @@ provided compiler API in `core`.
       to their own extra rules
 
 [MMU translation pages]: https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details
-[constructing values]: https://github.com/rust-lang/rust/blob/8558ccd/src/libcore/slice/mod.rs#L5642-L5739
-[in-memory layout]: https://github.com/rust-lang/rust/blob/8558ccd/src/libcore/ptr/mod.rs#L220-L231
+[constructing values]: https://github.com/rust-lang/rust/blob/8558ccd5c4d3d7ca78aaff4a81c48f7a04b0f1f2/src/libcore/slice/mod.rs#L5642-L5739
+[in-memory layout]: https://github.com/rust-lang/rust/blob/8558ccd5c4d3d7ca78aaff4a81c48f7a04b0f1f2/src/libcore/ptr/mod.rs#L220-L231
