@@ -58,9 +58,10 @@ ordering of bits within a single `A::Store` element.
 
 Exact bit lengths cannot be encoded into the `BitArray` type until the
 const-generics system in the compiler can allow type-level computation on type
-integers. When this stabilizes, `bitvec` will issue a major upgrade that
-replaces the `BitArray<A, O>` definition with `BitArray<T, O, const N: usize>`
-and match the C++ `std::bitset<N>` definition.
+integers. [The feature is currently highly unstable.][1] When this stabilizes,
+`bitvec` will issue a major upgrade that replaces the `BitArray<A, O>`
+definition with `BitArray<T, O, const N: usize>` and match the C++
+`std::bitset<N>` definition.
 
 ## Large Bit-Arrays
 
@@ -100,6 +101,7 @@ impl HasBitfields {
 ```
 
 [0]: https://doc.rust-lang.org/std/primitive.array.html
+[1]: https://github.com/rust-lang/rust/issues/76560
 [`BitArr!`]: macro@crate::BitArr
 [`BitBox`]: crate::boxed::BitBox
 [`BitSlice`]: crate::slice::BitSlice
