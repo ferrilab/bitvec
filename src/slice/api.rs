@@ -446,6 +446,8 @@ where
 	///
 	/// This has the same arguments and behavior as [`.get()`], except that it
 	/// does not check that `index` is in bounds.
+	/// 
+	/// For a safe alternative and additional documentation, see [`.get()`].
 	///
 	/// ## Original
 	///
@@ -488,6 +490,8 @@ where
 	/// This has the same arguments and behavior as [`.get_mut()`], except that
 	/// it does not check that `index` is in bounds.
 	///
+	/// For a safe alternative and additional documentation, see [`.get_mut()`].
+	/// 
 	/// ## Original
 	///
 	/// [`slice::get_unchecked_mut`](https://doc.rust-lang.org/std/primitive.slice.html#method.get_unchecked_mut)

@@ -236,6 +236,12 @@ fn aliasing() {
 	assert!(bits[0]);
 	b.set_aliased(0, false);
 	assert!(!bits[0]);
+
+	let (a, b) = (bits, bits);
+	assert!(!a.replace_aliased(0, true));
+	assert!(bits[0]);
+	assert!(b.replace_aliased(0, false));
+	assert!(!bits[0]);
 }
 
 #[test]
