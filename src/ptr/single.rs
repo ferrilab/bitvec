@@ -138,6 +138,8 @@ where
 
 	/// Constructs a `BitPtr` from an address and head index, without checking
 	/// the address for validity.
+	/// 
+	/// For a safe alternative and additional documentation, see [`Self::new()`].
 	///
 	/// ## Parameters
 	///

@@ -389,6 +389,8 @@ where
 	///
 	/// If `slice` is too long to encode into a `&BitSlice`, then the produced
 	/// bit-slice’s length is unspecified.
+	/// 
+	/// For a safe alternative and additional documentation, see [`Self::from_slice()`].
 	///
 	/// ## Safety
 	///
@@ -412,6 +414,8 @@ where
 	/// If `slice` is too long to encode into a `&mut BitSlice`, then the
 	/// produced bit-slice’s length is unspecified.
 	///
+	/// For a safe alternative and additional documentation, see [`Self::from_slice_mut()`].
+	/// 
 	/// ## Safety
 	///
 	/// You must ensure that `slice.len() < BitSlice::MAX_ELTS`.
@@ -756,6 +760,8 @@ where
 
 	/// Writes a new value into a single bit, without bounds checking.
 	///
+	/// For a safe alternative and additional documentation, see [`.set()`].
+	/// 
 	/// ## Parameters
 	///
 	/// - `&mut self`
@@ -811,6 +817,8 @@ where
 
 	/// Writes a new value into a bit, returning the previous value, without
 	/// bounds checking.
+	/// 
+	/// For a safe alternative and additional documentation, see [`.replace()`].
 	///
 	/// ## Safety
 	///
@@ -840,7 +848,7 @@ where
 
 	/// Swaps two bits in a bit-slice, without bounds checking.
 	///
-	/// See [`.swap()`] for documentation.
+	/// For a safe alternative and additional documentation, see [`.swap()`].
 	///
 	/// ## Safety
 	///
@@ -861,8 +869,8 @@ where
 
 	/// Splits a bit-slice at an index, without bounds checking.
 	///
-	/// See [`.split_at()`] for documentation.
-	///
+	/// For a safe alternative and additional documentation, see [`.split_at()`].
+	/// 
 	/// ## Safety
 	///
 	/// You must ensure that `mid` is in the range `0 ..= self.len()`.
@@ -887,7 +895,7 @@ where
 
 	/// Splits a mutable bit-slice at an index, without bounds checking.
 	///
-	/// See [`.split_at_mut()`] for documentation.
+	/// For a safe alternative and additional documentation, see [`.split_at()`].
 	///
 	/// ## Safety
 	///
@@ -917,6 +925,8 @@ where
 	/// itself, without doing bounds checks.
 	///
 	/// The regions are allowed to overlap.
+	/// 
+	/// For a safe alternative and additional documentation, see [`.copy_within()`].
 	///
 	/// ## Parameters
 	///
@@ -1701,6 +1711,8 @@ where
 	/// require an `&mut` reference, and allows bit-slices with alias-safe
 	/// storage to share write permissions.
 	///
+	/// For a safe alternative and additional documentation, see [`.set_aliased()`].
+	/// 
 	/// ## Parameters
 	///
 	/// - `&self`: This method only exists on bit-slices with alias-safe
@@ -1777,6 +1789,8 @@ where
 	/// require an `&mut` reference, and allows bit-slices with alias-safe
 	/// storage to share write permissions.
 	///
+	/// For a safe alternative and additional documentation, see [`.replace_aliased()`].
+	/// 
 	/// ## Parameters
 	///
 	/// - `&self`: This method only exists on bit-slices with alias-safe

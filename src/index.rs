@@ -75,6 +75,8 @@ where R: BitRegister
 	}
 
 	/// Wraps a counter value as an assumed-good index into an `R` register.
+	/// 
+	/// For a safe alternative and additional documentation, see [`Self::new()`].
 	///
 	/// ## Parameters
 	///
@@ -643,6 +645,8 @@ where R: BitRegister
 	/// Wraps a counter value as an assumed-good position within an `R`
 	/// register.
 	///
+	/// For a safe alternative and additional documentation, see [`Self::new()`].
+	/// 
 	/// ## Parameters
 	///
 	/// - `value`: The counter value to mark as a position. This must be in the
@@ -768,6 +772,8 @@ where R: BitRegister
 
 	/// Wraps a selector value as an assumed-good selection in an `R` register.
 	///
+	/// For a safe alternative and additional documentation, see [`Self::new()`].
+	/// 
 	/// ## Parameters
 	///
 	/// - `sel`: A one-hot selection mask of a bit in an `R` register.
