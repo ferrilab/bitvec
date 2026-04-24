@@ -241,6 +241,7 @@ assert_eq!(immut, mutable);
 You may borrow existing elements or slices with the following functions:
 
 - [`from_element`] and [`from_element_mut`],
+- [`from_bit`] and [`from_bit_mut`],
 - [`from_slice`] and [`from_slice_mut`],
 - [`try_from_slice`] and [`try_from_slice_mut`]
 

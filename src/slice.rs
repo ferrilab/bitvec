@@ -210,6 +210,84 @@ where
 		}
 	}
 
+	/// Constructs a shared `&BitSlice` reference over a single bit a shared
+	/// element.
+	///
+	/// ## Parameters
+	///
+	/// - `elem`: A shared reference to a memory element.
+	/// - `index`: the index of the bit.
+	///
+	/// ## Returns
+	///
+	/// A shared `&BitSlice` over a single bit of the `elem` at given
+	/// `index`.
+	///
+	/// ## Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let elem = 0b000_10000_u8;
+	/// let slice = BitSlice::<_, Msb0>::from_bit(
+	///     &elem,
+	///     bitvec::index::BitIdx::new(3).unwrap(),
+	/// );
+	/// assert_eq!(bits![1], slice);
+	/// ```
+	#[inline]
+	pub fn from_bit(
+		elem: &T,
+		index: crate::index::BitIdx<T::Mem>,
+	) -> &Self {
+		unsafe {
+			BitPtr::new_unchecked(elem.into(), index)
+				.span_unchecked(1)
+				.into_bitslice_ref()
+		}
+	}
+
+	/// Constructs an exclusive `&mut BitSlice` reference over a single bit
+	/// of an element.
+	///
+	/// ## Parameters
+	///
+	/// - `elem`: An exclusive reference to a memory element.
+	/// - `index`: the index of the bit.
+	///
+	/// ## Returns
+	///
+	/// An exclusive `&mut BitSlice` over a single bit of the `elem` at given
+	/// `index`.
+	///
+	/// ## Examples
+	///
+	/// ```rust
+	/// use bitvec::prelude::*;
+	///
+	/// let mut elem = 0b000_10000_u8;
+	/// {
+	///     let slice = BitSlice::<_, Msb0>::from_bit_mut(
+	///         &mut elem,
+	///         bitvec::index::BitIdx::new(3).unwrap(),
+	///     );
+	///     assert_eq!(bits![1], slice);
+	///     slice.set(0, false);
+	/// }
+	/// assert_eq!(0, elem);
+	/// ```
+	#[inline]
+	pub fn from_bit_mut(
+		elem: &mut T,
+		index: crate::index::BitIdx<T::Mem>,
+	) -> &mut Self {
+		unsafe {
+			BitPtr::new_unchecked(elem.into(), index)
+				.span_unchecked(1)
+				.into_bitslice_mut()
+		}
+	}
+
 	/// Constructs a shared `&BitSlice` reference over a slice of elements.
 	///
 	/// The [`BitView`] trait, implemented on all `[T]` slices, provides a
