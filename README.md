@@ -397,7 +397,7 @@ does, how it works, and how it can be useful to you.
 [downloads_img]: https://img.shields.io/crates/dv/bitvec.svg?style=for-the-badge "Crate downloads"
 [license_file]: https://github.com/ferrilab/bitvec/blob/main/LICENSE.txt "Project license"
 [license_img]: https://img.shields.io/crates/l/bitvec.svg?style=for-the-badge "License badge"
-[msrv_img]: https://img.shields.io/badge/MSRV-1.56-f46623?style=for-the-badge&logo=rust "Minimum Supported Rust Version: 1.56"
+[msrv_img]: https://img.shields.io/badge/MSRV-1.71-f46623?style=for-the-badge&logo=rust "Minimum Supported Rust Version: 1.71"
 
 <!-- Documentation -->
 [`BitArray`]: https://docs.rs/bitvec/latest/bitvec/array/struct.BitArray.html
