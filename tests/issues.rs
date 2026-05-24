@@ -374,3 +374,22 @@ fn issue_170() {
 		.expect("read should not fail");
 	assert_eq!(bytes, 1, "should read exactly 1 byte");
 }
+
+/** Test case for [Issue #166], opened by [@Dr-Emann].
+
+`last_one` on an all-zero `Msb0` bit-slice subtracted from the output index
+before checking whether the tail element held a `1`, underflowing `usize` and
+panicking. `Lsb0` was unaffected. The subtraction must be guarded by the
+`has_one` check, matching the `head`-element path.
+
+[Issue #166]: https://github.com/ferrilab/bitvec/issues/166
+[@Dr-Emann]: https://github.com/Dr-Emann
+**/
+#[test]
+fn issue_166() {
+	assert_eq!(bits![usize, Msb0; 0].last_one(), None);
+	assert_eq!(bits![usize, Msb0; 0, 0, 0].last_one(), None);
+
+	assert_eq!(bits![usize, Msb0; 0, 1, 0].last_one(), Some(1));
+	assert_eq!(bits![usize, Msb0; 1].last_one(), Some(0));
+}

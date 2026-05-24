@@ -173,10 +173,10 @@ where T: BitStore
 			Domain::Region { head, body, tail } => {
 				if let Some(elem) = tail {
 					let val = elem.load_value();
-					let dead_bits =
-						bits_of::<T::Mem>() - elem.tail().into_inner() as usize;
-					out -= val.trailing_zeros() as usize - dead_bits;
 					if has_one(val, elem.mask().into_inner()) {
+						let dead_bits = bits_of::<T::Mem>()
+							- elem.tail().into_inner() as usize;
+						out -= val.trailing_zeros() as usize - dead_bits;
 						return Some(out);
 					}
 				}
