@@ -154,6 +154,9 @@ where
 						BitSpan::<Const, T, O>::new(addr, head, bits)
 							.unwrap_err()
 					})?;
+                    if bits > bv.capacity() {
+                        return Err(BitSpanError::TooLong(bits));
+                    }
 					bv.set_head(head);
 					bv.set_len(bits);
 					Ok(bv)
@@ -214,7 +217,8 @@ where
 		let bits = self.bits.take().ok_or_else(|| E::missing_field("bits"))?;
 		let data = self.data.take().ok_or_else(|| E::missing_field("data"))?;
 
-		(self.func)(data, head, bits as usize).map_err(|_| todo!())
+        (self.func)(data, head, bits as usize)
+            .map_err(|e| <E as serde::de::Error>::custom(format_args!("invalid BitSeq: {e:?}")))
 	}
 }
 
