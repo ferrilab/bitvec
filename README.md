@@ -1,5 +1,7 @@
 <div style="text-align: center;" align="center">
 
+# This is a fork of [`ferrilab/bitvec`](https://github.com/ferrilab/bitvec/)
+
 # `bitvec`
 
 ## A Magnifying Glass for Memory <!-- omit in toc -->
