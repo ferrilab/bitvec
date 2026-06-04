@@ -8,10 +8,10 @@
 //! Acceptance invariant: a buffer is valid iff `head + bits <= data.len() *
 //! bits_of::<T>()`.
 //!
-//! The `head + bits` overflow cases abort the process (`set_len` assertion
-//! followed by a `Vec::from_raw_parts` UB precondition violation in `Drop`,
-//! exit 134). They are marked `#[ignore]` until the deserializer validates
-//! `head + bits` against the buffer length.
+//! The `head + bits` overflow cases previously aborted the process (`set_len`
+//! assertion followed by a `Vec::from_raw_parts` UB precondition violation in
+//! `Drop`); the deserializer now validates `head + bits` against the buffer
+//! length and returns `Err`.
 
 #![cfg(all(feature = "std", feature = "serde"))]
 
@@ -62,20 +62,17 @@ fn head_plus_bits_within_capacity_roundtrips() {
 }
 
 #[test]
-#[ignore = "KNOWN BUG: aborts on head + bits overflow; fix pending"]
 fn head_plus_bits_past_capacity_is_rejected() {
 	// head=32, bits=64 => needs 96 bits, only 64 available.
 	assert!(deser(&tampered(1, 32, BITS_PER_ELEM)).is_err());
 }
 
 #[test]
-#[ignore = "KNOWN BUG: aborts on head + bits overflow; fix pending"]
 fn head_plus_bits_one_past_capacity_is_rejected() {
 	assert!(deser(&tampered(2, 32, 2 * BITS_PER_ELEM - 31)).is_err());
 }
 
 #[test]
-#[ignore = "KNOWN BUG: aborts on nonzero head past buffer; fix pending"]
 fn empty_data_nonzero_head_is_rejected() {
 	// Zero-length output, empty buffer, but head != 0 => head + bits > 0.
 	assert!(deser(&tampered(0, 1, 0)).is_err());
@@ -87,7 +84,6 @@ proptest! {
 	/// Deserialization never panics, and accepts a buffer iff `head + bits`
 	/// fits the data capacity.
 	#[test]
-	#[ignore = "KNOWN BUG: aborts on head + bits overflow; fix pending"]
 	fn deserialize_matches_capacity_invariant(
 		data_len in 0usize ..= 4,
 		head in 0u8 ..= 63,
