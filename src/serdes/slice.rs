@@ -26,8 +26,6 @@ use serde::{
 		Serializer,
 	},
 };
-use wyz::comu::Const;
-
 use super::{
 	utils::TypeName,
 	Field,
@@ -149,14 +147,15 @@ where
 			FIELDS,
 			BitSeqVisitor::<T, O, Vec<T>, Self, _>::new(
 				|vec, head, bits| unsafe {
-					let addr = vec.as_ptr().into_address();
-					let mut bv = BitVec::try_from_vec(vec).map_err(|_| {
-						BitSpan::<Const, T, O>::new(addr, head, bits)
-							.unwrap_err()
-					})?;
-                    if bits > bv.capacity() {
-                        return Err(BitSpanError::TooLong(bits));
-                    }
+					let live = vec.len().saturating_mul(bits_of::<T>());
+					let mut bv = BitVec::try_from_vec(vec)
+						.map_err(|_| BitSpanError::TooLong(live))?;
+					let fits = (head.into_inner() as usize)
+						.checked_add(bits)
+						.map_or(false, |need| need <= live);
+					if !fits {
+						return Err(BitSpanError::TooLong(bits));
+					}
 					bv.set_head(head);
 					bv.set_len(bits);
 					Ok(bv)
