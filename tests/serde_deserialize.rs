@@ -92,4 +92,29 @@ proptest! {
 		let fits = head as u64 + bits <= data_len as u64 * BITS_PER_ELEM;
 		prop_assert_eq!(deser(&tampered(data_len, head, bits)).is_ok(), fits);
 	}
+
+	/// A valid buffer with arbitrary bytes overwritten must never panic on
+	/// deserialization; any result is acceptable.
+	#[test]
+	fn fuzz_mutated_valid_buffer(
+		len in 0usize ..= 300,
+		muts in prop::collection::vec((any::<usize>(), any::<u8>()), 0 ..= 16),
+	) {
+		let original: BitVec<usize, Lsb0> = BitVec::repeat(false, len);
+		let mut bytes = bincode::serialize(&original).unwrap();
+		for (idx, val) in muts {
+			if !bytes.is_empty() {
+				let i = idx % bytes.len();
+				bytes[i] = val;
+			}
+		}
+		let _ = deser(&bytes);
+	}
+
+	/// Arbitrary input must never panic on deserialization; any result is
+	/// acceptable.
+	#[test]
+	fn fuzz_arbitrary_bytes(bytes in prop::collection::vec(any::<u8>(), 0 ..= 512)) {
+		let _ = deser(&bytes);
+	}
 }
