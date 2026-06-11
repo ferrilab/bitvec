@@ -26,8 +26,6 @@ use serde::{
 		Serializer,
 	},
 };
-use wyz::comu::Const;
-
 use super::{
 	utils::TypeName,
 	Field,
@@ -149,11 +147,15 @@ where
 			FIELDS,
 			BitSeqVisitor::<T, O, Vec<T>, Self, _>::new(
 				|vec, head, bits| unsafe {
-					let addr = vec.as_ptr().into_address();
-					let mut bv = BitVec::try_from_vec(vec).map_err(|_| {
-						BitSpan::<Const, T, O>::new(addr, head, bits)
-							.unwrap_err()
-					})?;
+					let live = vec.len().saturating_mul(bits_of::<T>());
+					let mut bv = BitVec::try_from_vec(vec)
+						.map_err(|_| BitSpanError::TooLong(live))?;
+					let fits = (head.into_inner() as usize)
+						.checked_add(bits)
+						.map_or(false, |need| need <= live);
+					if !fits {
+						return Err(BitSpanError::TooLong(bits));
+					}
 					bv.set_head(head);
 					bv.set_len(bits);
 					Ok(bv)
@@ -214,7 +216,8 @@ where
 		let bits = self.bits.take().ok_or_else(|| E::missing_field("bits"))?;
 		let data = self.data.take().ok_or_else(|| E::missing_field("data"))?;
 
-		(self.func)(data, head, bits as usize).map_err(|_| todo!())
+        (self.func)(data, head, bits as usize)
+            .map_err(|e| <E as serde::de::Error>::custom(format_args!("invalid BitSeq: {e:?}")))
 	}
 }
 
