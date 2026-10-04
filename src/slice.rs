@@ -635,6 +635,7 @@ where
 					 will always have equal domains"
 				),
 			}
+			return;
 		}
 		if let (Some(this), Some(that)) =
 			(self.coerce_mut::<T, Lsb0>(), src.coerce::<T, Lsb0>())
